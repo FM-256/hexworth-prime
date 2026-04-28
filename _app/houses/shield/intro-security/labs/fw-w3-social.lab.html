@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Triage | First Watch</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171; --accent: #f97316; --bg: #0a0a12;
+            --card: rgba(15,15,25,0.85); --text: #e8e8f0; --muted: #888;
+            --border: rgba(248,113,113,0.2); --glow: rgba(248,113,113,0.35);
+            --ok: #10b981; --err: #ef4444;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+        .header { padding: 14px 24px; background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge { font-size: 0.75rem; padding: 4px 14px; background: rgba(248,113,113,0.12); border: 1px solid var(--border); border-radius: 20px; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+        .container { max-width: 960px; margin: 0 auto; padding: 30px 20px 60px; }
+        .lab-title { text-align: center; margin-bottom: 28px; padding: 28px; background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06)); border-radius: 14px; border: 1px solid var(--border); }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+        .instructions { background: rgba(249,115,22,0.08); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 24px; font-size: 0.92rem; line-height: 1.6; color: #ccc; }
+        .email-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 18px; overflow: hidden; transition: border-color 0.3s; }
+        .email-card.correct { border-color: var(--ok); }
+        .email-card.incorrect { border-color: var(--err); }
+        .email-top { background: rgba(255,255,255,0.03); padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .email-meta { font-size: 0.82rem; color: var(--muted); line-height: 1.7; }
+        .email-meta strong { color: var(--text); }
+        .email-body { padding: 18px; font-size: 0.92rem; color: #ccc; line-height: 1.7; }
+        .email-body a { color: var(--accent); }
+        .email-controls { padding: 14px 18px; background: rgba(0,0,0,0.2); display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+        .verdict-btns { display: flex; gap: 8px; }
+        .verdict-btn { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text); font-size: 0.85rem; cursor: pointer; transition: all 0.2s; font-weight: 600; }
+        .verdict-btn:hover { background: rgba(248,113,113,0.1); }
+        .verdict-btn.selected { background: var(--primary); color: #000; border-color: var(--primary); }
+        .verdict-btn.selected.legit { background: var(--ok); border-color: var(--ok); }
+        .flags-section { margin-top: 10px; padding: 10px 18px; display: none; }
+        .flags-section.show { display: block; }
+        .flags-section label { font-size: 0.84rem; color: #bbb; display: flex; align-items: center; gap: 8px; margin: 4px 0; cursor: pointer; }
+        .flags-section input[type="checkbox"] { accent-color: var(--primary); }
+        .feedback { font-size: 0.84rem; padding: 10px 18px; display: none; }
+        .feedback.show { display: block; }
+        .feedback.right { color: var(--ok); }
+        .feedback.wrong { color: var(--err); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #000; border: none; padding: 11px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+        .results { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; text-align: center; }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; }
+        .results .sub { color: var(--muted); font-size: 0.9rem; margin: 4px 0; }
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Phishing Triage Lab</h1>
+
+<header class="header">
+    <a href="../index.html">&larr; Back to First Watch</a>
+    <span class="badge">Shield House -- First Watch</span>
+</header>
+
+<div class="container">
+    <div class="lab-title">
+        <h1>Phishing Triage</h1>
+        <p>Examine 8 email mockups. For each, decide if it is legitimate or phishing.<br>For phishing emails, identify the red flags.</p>
+    </div>
+
+    <div class="instructions">
+        <strong>Dual scoring:</strong> You earn 1 point for the correct verdict (legit vs. phishing) and up to 1 bonus point for correctly identifying red flags on phishing emails.<br>
+        Look at the sender address, URLs, urgency cues, grammar, and requests for sensitive information.
+    </div>
+
+    <div id="emails"></div>
+
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="grade()">Submit Triage</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <div class="results" id="results"></div>
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','fw-w3-social-lab',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+</div>
+
+<script>
+var EMAILS = [
+    { id:1, from:'security@mircosoft-account.com', subject:'Urgent: Your account will be locked', body:'Dear User,<br><br>We detected unusual sign-in activity on your Microsoft account. You must verify your identity within 24 hours or your account will be permanently locked.<br><br><a href="#">Click here to verify: http://mircosoft-account.com/verify</a><br><br>Microsoft Security Team', phishing:true, flags:['Misspelled domain (mircosoft)','Urgency/threat (24 hours or locked)','Generic greeting (Dear User)','Suspicious URL (not microsoft.com)'] },
+    { id:2, from:'noreply@github.com', subject:'[GitHub] Please verify your email address', body:'Hey student42,<br><br>You recently registered a new email address for your GitHub account. Please click the link below to verify:<br><br><a href="#">https://github.com/users/student42/emails/confirm</a><br><br>If you did not make this change, please contact support.', phishing:false, flags:[] },
+    { id:3, from:'payroll@company-hr.net', subject:'ACTION REQUIRED: Update direct deposit', body:'Hi Team,<br><br>Due to our payroll system migration, all employees must re-enter their bank account and routing numbers by Friday. Failure to update will delay your paycheck.<br><br><a href="#">Update Banking Info</a><br><br>Thanks,<br>HR Department', phishing:true, flags:['Request for banking details via email','Urgency/deadline pressure','Generic sender domain (company-hr.net)','No specific employee name'] },
+    { id:4, from:'shipping@amazon.com', subject:'Your Amazon order #114-3948271-9182736 has shipped', body:'Hello Jane,<br><br>Your order has shipped and is on its way. Track your package:<br><br>Order #114-3948271-9182736<br>Delivery estimate: Thursday, April 30<br><br><a href="#">Track Package on Amazon.com</a><br><br>Thank you for shopping with us.', phishing:false, flags:[] },
+    { id:5, from:'ceo@hexworth-corp.com', subject:'Wire transfer needed ASAP', body:'Hey,<br><br>I need you to process a wire transfer of $28,500 to a new vendor. I am in a meeting and cannot talk. Please handle this immediately and I will send the details. Do not discuss with anyone until it is finalized.<br><br>Sent from my iPhone', phishing:true, flags:['CEO fraud / business email compromise','Urgency (ASAP, immediately)','Request to bypass normal procedures','Secrecy request (do not discuss)'] },
+    { id:6, from:'no-reply@zoom.us', subject:'Cloud recording available', body:'Hi Professor Mora,<br><br>Your cloud recording for "CTS1120C - Week 3 Lecture" is now available. This recording will be available for 30 days.<br><br><a href="#">View Recording</a><br><br>Best regards,<br>The Zoom Team', phishing:false, flags:[] },
+    { id:7, from:'support@app1e-id.com', subject:'Your Apple ID has been compromised', body:'Dear Customer,<br><br>Your Apple ID was used to sign in on a new device in Russia. If this was not you, your account has been compromised. Secure your account now:<br><br><a href="#">http://app1e-id.com/secure</a><br><br>Apple Support', phishing:true, flags:['Lookalike domain (app1e with number 1)','Fear tactic (compromised, Russia)','Generic greeting (Dear Customer)','Suspicious URL (not apple.com)'] },
+    { id:8, from:'billing@netflix.com', subject:'Your Netflix membership payment was declined', body:'We were unable to process your payment for the next billing cycle. Your current payment method ending in 4821 has been declined by your bank.<br><br>To keep enjoying Netflix, please update your payment details in your account settings at <a href="#">netflix.com/account</a>.<br><br>The Netflix Team', phishing:false, flags:[] }
+];
+
+var verdicts = {};
+var flagSelections = {};
+
+function render() {
+    var el = document.getElementById('emails');
+    el.innerHTML = '';
+    verdicts = {};
+    flagSelections = {};
+    EMAILS.forEach(function(e) {
+        var div = document.createElement('div');
+        div.className = 'email-card';
+        div.id = 'card-' + e.id;
+
+        var flagsHtml = '';
+        if (e.phishing) {
+            flagsHtml = '<div class="flags-section" id="flags-' + e.id + '">';
+            flagsHtml += '<div style="font-size:0.82rem;color:var(--accent);margin-bottom:6px;font-weight:600;">Identify the red flags:</div>';
+            e.flags.forEach(function(f, i) {
+                flagsHtml += '<label><input type="checkbox" data-email="' + e.id + '" data-flag="' + i + '"> ' + f + '</label>';
+            });
+            /* Decoy flags for phishing emails */
+            var decoys = ['Sent during business hours','Email is too short','Uses HTML formatting'];
+            decoys.forEach(function(d, i) {
+                flagsHtml += '<label><input type="checkbox" data-email="' + e.id + '" data-flag="d' + i + '"> ' + d + '</label>';
+            });
+            flagsHtml += '</div>';
+        }
+
+        div.innerHTML =
+            '<div class="email-top"><div class="email-meta">' +
+                '<strong>From:</strong> ' + e.from + '<br>' +
+                '<strong>Subject:</strong> ' + e.subject +
+            '</div></div>' +
+            '<div class="email-body">' + e.body + '</div>' +
+            '<div class="email-controls">' +
+                '<span style="font-size:0.85rem;color:var(--muted);margin-right:8px;">Verdict:</span>' +
+                '<div class="verdict-btns">' +
+                    '<button class="verdict-btn" data-email="' + e.id + '" data-verdict="phishing" onclick="setVerdict(' + e.id + ',\'phishing\',this)">Phishing</button>' +
+                    '<button class="verdict-btn" data-email="' + e.id + '" data-verdict="legit" onclick="setVerdict(' + e.id + ',\'legit\',this)">Legitimate</button>' +
+                '</div>' +
+            '</div>' +
+            flagsHtml +
+            '<div class="feedback" id="fb-' + e.id + '"></div>';
+        el.appendChild(div);
+    });
+}
+
+function setVerdict(id, verdict, btn) {
+    verdicts[id] = verdict;
+    var btns = btn.parentElement.querySelectorAll('.verdict-btn');
+    btns.forEach(function(b) { b.classList.remove('selected', 'legit'); });
+    btn.classList.add('selected');
+    if (verdict === 'legit') btn.classList.add('legit');
+
+    var flagsEl = document.getElementById('flags-' + id);
+    if (flagsEl) {
+        flagsEl.classList.toggle('show', verdict === 'phishing');
+    }
+}
+
+function grade() {
+    var verdictScore = 0;
+    var flagScore = 0;
+    var maxFlags = 0;
+
+    EMAILS.forEach(function(e) {
+        var fb = document.getElementById('fb-' + e.id);
+        var card = document.getElementById('card-' + e.id);
+        var userVerdict = verdicts[e.id] || '';
+        var correctVerdict = e.phishing ? 'phishing' : 'legit';
+        var verdictCorrect = userVerdict === correctVerdict;
+
+        if (verdictCorrect) {
+            verdictScore++;
+            card.classList.add('correct');
+        } else {
+            card.classList.add('incorrect');
+        }
+
+        var msg = verdictCorrect ? 'Verdict correct.' : 'Verdict wrong -- this email is ' + (e.phishing ? 'PHISHING' : 'LEGITIMATE') + '.';
+
+        if (e.phishing) {
+            maxFlags += e.flags.length;
+            var realFlags = 0;
+            var falsePositives = 0;
+            var checkboxes = document.querySelectorAll('[data-email="' + e.id + '"]');
+            checkboxes.forEach(function(cb) {
+                if (cb.checked) {
+                    var flagIdx = cb.getAttribute('data-flag');
+                    if (flagIdx.charAt(0) === 'd') {
+                        falsePositives++;
+                    } else {
+                        realFlags++;
+                    }
+                }
+            });
+            flagScore += Math.max(0, realFlags - falsePositives);
+            msg += ' Flags: ' + realFlags + '/' + e.flags.length + ' correct' + (falsePositives > 0 ? ', ' + falsePositives + ' false positive(s)' : '') + '.';
+        }
+
+        fb.className = 'feedback show ' + (verdictCorrect ? 'right' : 'wrong');
+        fb.textContent = msg;
+    });
+
+    var res = document.getElementById('results');
+    res.innerHTML = '<h2>Triage Results</h2>' +
+        '<div class="sub">Verdict Score: ' + verdictScore + ' / 8</div>' +
+        '<div class="sub">Flag Score: ' + flagScore + ' / ' + maxFlags + '</div>' +
+        '<div style="margin-top:12px;font-size:1.1rem;font-weight:700;color:var(--primary);">Total: ' + (verdictScore + flagScore) + ' / ' + (8 + maxFlags) + '</div>';
+    res.classList.add('show');
+    document.getElementById('submitBtn').disabled = true;
+    if (verdictScore >= 6) document.getElementById('completeSection').classList.add('show');
+}
+
+function resetLab() {
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('submitBtn').disabled = false;
+    render();
+}
+
+render();
+</script>
+</body>
+</html>

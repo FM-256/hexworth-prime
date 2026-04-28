@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Control Configurator | First Watch</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171; --accent: #f97316; --bg: #0a0a12;
+            --card: rgba(15,15,25,0.85); --text: #e8e8f0; --muted: #888;
+            --border: rgba(248,113,113,0.2); --glow: rgba(248,113,113,0.35);
+            --ok: #10b981; --err: #ef4444;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+        .header { padding: 14px 24px; background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge { font-size: 0.75rem; padding: 4px 14px; background: rgba(248,113,113,0.12); border: 1px solid var(--border); border-radius: 20px; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+        .container { max-width: 960px; margin: 0 auto; padding: 30px 20px 60px; }
+        .lab-title { text-align: center; margin-bottom: 28px; padding: 28px; background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06)); border-radius: 14px; border: 1px solid var(--border); }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+        .score-bar { display: flex; align-items: center; gap: 12px; justify-content: center; margin: 18px 0; }
+        .score-bar .score { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .instructions { background: rgba(249,115,22,0.08); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 24px; font-size: 0.92rem; line-height: 1.6; color: #ccc; }
+        .scenario-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; transition: border-color 0.3s; }
+        .scenario-card.answered { border-color: rgba(136,136,136,0.3); }
+        .scenario-card.correct { border-color: var(--ok); }
+        .scenario-card.incorrect { border-color: var(--err); }
+        .scenario-num { display: inline-block; background: var(--primary); color: #000; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: 700; font-size: 0.85rem; margin-right: 10px; }
+        .scenario-text { font-size: 0.92rem; color: #ccc; line-height: 1.6; margin: 10px 0 14px; }
+        .select-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .select-row label { font-size: 0.85rem; color: var(--muted); }
+        .select-row select { background: rgba(10,10,18,0.9); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 0.88rem; cursor: pointer; }
+        .select-row select:focus { outline: none; border-color: var(--primary); }
+        .feedback { font-size: 0.85rem; margin-top: 8px; display: none; }
+        .feedback.show { display: block; }
+        .feedback.right { color: var(--ok); }
+        .feedback.wrong { color: var(--err); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #000; border: none; padding: 11px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+        .results { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; text-align: center; }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 12px; }
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Access Control Configurator Lab</h1>
+
+<header class="header">
+    <a href="../index.html">&larr; Back to First Watch</a>
+    <span class="badge">Shield House -- First Watch</span>
+</header>
+
+<div class="container">
+    <div class="lab-title">
+        <h1>Access Control Configurator</h1>
+        <p>For each user/resource scenario, select the correct access control model and permission level.</p>
+    </div>
+
+    <div class="instructions">
+        <strong>Models:</strong> DAC (Discretionary -- owner decides), MAC (Mandatory -- labels/clearances),
+        RBAC (Role-Based -- job title determines access).<br>
+        <strong>Permissions:</strong> Read Only, Read/Write, Full Control, No Access.
+    </div>
+
+    <div id="scenarios"></div>
+
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="gradeAll()">Check Answers</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <div class="results" id="results"></div>
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','fw-w1-logical-lab',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+</div>
+
+<script>
+var SCENARIOS = [
+    { id:1, text:'A military intelligence analyst needs access to TOP SECRET satellite imagery. Access is determined by the analyst\'s clearance level and the document\'s classification label.', model:'MAC', perm:'Read Only', explain:'MAC -- access is based on clearance vs. classification labels. Analysts read but do not modify raw imagery.' },
+    { id:2, text:'A project manager shares a team folder on a shared drive and decides which team members can edit vs. view the files.', model:'DAC', perm:'Read/Write', explain:'DAC -- the owner (PM) decides who gets what access at their discretion.' },
+    { id:3, text:'All nurses at a hospital can view patient charts, but only attending physicians can modify treatment plans. Access is granted by job title.', model:'RBAC', perm:'Read Only', explain:'RBAC -- access is tied to the role (nurse vs. physician), not individual identity.' },
+    { id:4, text:'A file server administrator creates user groups: HR gets full access to personnel files, finance gets read-only, and engineering gets no access.', model:'RBAC', perm:'Full Control', explain:'RBAC -- groups based on department role. HR gets Full Control over their own domain.' },
+    { id:5, text:'A government contractor handles CUI (Controlled Unclassified Information). The system enforces that only users with the CUI marking can open these documents.', model:'MAC', perm:'Read Only', explain:'MAC -- system-enforced labels (CUI marking) control access regardless of user preference.' },
+    { id:6, text:'An employee shares their personal cloud drive folder with a colleague by entering their email and granting edit access.', model:'DAC', perm:'Read/Write', explain:'DAC -- the file owner voluntarily shares access at their discretion.' },
+    { id:7, text:'The IT helpdesk team can reset passwords and unlock accounts, but cannot access user files or change security policies.', model:'RBAC', perm:'Read/Write', explain:'RBAC -- the helpdesk role grants specific administrative permissions but not full control.' },
+    { id:8, text:'A classified research lab where documents carry sensitivity labels (CONFIDENTIAL, SECRET). Users cannot share or downgrade labels.', model:'MAC', perm:'No Access', explain:'MAC -- labels are system-enforced. Users without proper clearance get no access. No discretionary sharing.' },
+    { id:9, text:'A small business owner sets file permissions on their NAS, granting their accountant read/write to financial folders and read-only to everyone else.', model:'DAC', perm:'Read/Write', explain:'DAC -- the owner manually configures who can do what. Accountant gets Read/Write for their work.' },
+    { id:10, text:'A university\'s LMS grants "Instructor" users the ability to create and grade assignments, while "Student" users can only submit and view.', model:'RBAC', perm:'Full Control', explain:'RBAC -- access is assigned by role (Instructor vs. Student). Instructors get full control over course content.' }
+];
+
+function renderScenarios() {
+    var el = document.getElementById('scenarios');
+    el.innerHTML = '';
+    SCENARIOS.forEach(function(s) {
+        var div = document.createElement('div');
+        div.className = 'scenario-card';
+        div.id = 'card-' + s.id;
+        div.innerHTML =
+            '<div><span class="scenario-num">' + s.id + '</span><strong style="color:var(--accent);font-size:0.95rem;">Scenario ' + s.id + '</strong></div>' +
+            '<div class="scenario-text">' + s.text + '</div>' +
+            '<div class="select-row">' +
+                '<label>Model:</label>' +
+                '<select id="model-' + s.id + '">' +
+                    '<option value="">-- Select --</option><option value="DAC">DAC</option><option value="MAC">MAC</option><option value="RBAC">RBAC</option>' +
+                '</select>' +
+                '<label>Permission:</label>' +
+                '<select id="perm-' + s.id + '">' +
+                    '<option value="">-- Select --</option><option value="Read Only">Read Only</option><option value="Read/Write">Read/Write</option><option value="Full Control">Full Control</option><option value="No Access">No Access</option>' +
+                '</select>' +
+            '</div>' +
+            '<div class="feedback" id="fb-' + s.id + '"></div>';
+        el.appendChild(div);
+    });
+}
+
+function gradeAll() {
+    var correct = 0;
+    SCENARIOS.forEach(function(s) {
+        var mVal = document.getElementById('model-' + s.id).value;
+        var pVal = document.getElementById('perm-' + s.id).value;
+        var fb = document.getElementById('fb-' + s.id);
+        var card = document.getElementById('card-' + s.id);
+        var modelOk = mVal === s.model;
+        var permOk = pVal === s.perm;
+        if (modelOk && permOk) {
+            correct++;
+            fb.className = 'feedback show right';
+            fb.textContent = 'Correct. ' + s.explain;
+            card.className = 'scenario-card correct';
+        } else {
+            var msg = 'Incorrect. ';
+            if (!modelOk) msg += 'Model should be ' + s.model + '. ';
+            if (!permOk) msg += 'Permission should be ' + s.perm + '. ';
+            msg += s.explain;
+            fb.className = 'feedback show wrong';
+            fb.textContent = msg;
+            card.className = 'scenario-card incorrect';
+        }
+    });
+
+    var res = document.getElementById('results');
+    res.innerHTML = '<h2>Score: ' + correct + ' / 10</h2><p style="color:var(--muted);">' +
+        (correct >= 8 ? 'Excellent work -- you understand access control models well.' :
+         correct >= 5 ? 'Good effort. Review the scenarios you missed.' :
+         'Keep studying. Review DAC, MAC, and RBAC differences.') + '</p>';
+    res.classList.add('show');
+    document.getElementById('submitBtn').disabled = true;
+    if (correct >= 7) document.getElementById('completeSection').classList.add('show');
+}
+
+function resetLab() {
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('submitBtn').disabled = false;
+    renderScenarios();
+}
+
+renderScenarios();
+</script>
+</body>
+</html>

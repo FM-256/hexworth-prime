@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Destruction Selector | First Watch</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171; --accent: #f97316; --bg: #0a0a12;
+            --card: rgba(15,15,25,0.85); --text: #e8e8f0; --muted: #888;
+            --border: rgba(248,113,113,0.2); --glow: rgba(248,113,113,0.35);
+            --ok: #10b981; --err: #ef4444;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+        .header { padding: 14px 24px; background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge { font-size: 0.75rem; padding: 4px 14px; background: rgba(248,113,113,0.12); border: 1px solid var(--border); border-radius: 20px; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+        .container { max-width: 960px; margin: 0 auto; padding: 30px 20px 60px; }
+        .lab-title { text-align: center; margin-bottom: 28px; padding: 28px; background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06)); border-radius: 14px; border: 1px solid var(--border); }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+        .instructions { background: rgba(249,115,22,0.08); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 20px; font-size: 0.92rem; line-height: 1.6; color: #ccc; }
+        .ref-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 0.85rem; }
+        .ref-table th, .ref-table td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; }
+        .ref-table th { background: rgba(248,113,113,0.1); color: var(--primary); font-weight: 600; }
+        .ref-table tr:nth-child(even) { background: rgba(255,255,255,0.015); }
+        .scenario-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; transition: border-color 0.3s; }
+        .scenario-card.correct { border-color: var(--ok); }
+        .scenario-card.incorrect { border-color: var(--err); }
+        .sc-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .sc-num { background: var(--primary); color: #000; min-width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+        .sc-type { font-size: 0.78rem; padding: 3px 10px; border-radius: 6px; background: rgba(249,115,22,0.12); color: var(--accent); font-weight: 600; }
+        .sc-text { font-size: 0.92rem; color: #ccc; line-height: 1.6; margin-bottom: 12px; }
+        .sc-select select { background: rgba(10,10,18,0.9); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.88rem; cursor: pointer; min-width: 160px; }
+        .sc-select select:focus { outline: none; border-color: var(--primary); }
+        .feedback { font-size: 0.84rem; margin-top: 8px; display: none; }
+        .feedback.show { display: block; }
+        .feedback.right { color: var(--ok); }
+        .feedback.wrong { color: var(--err); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #000; border: none; padding: 11px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+        .results { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; text-align: center; }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; }
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Data Destruction Selector Lab</h1>
+
+<header class="header">
+    <a href="../index.html">&larr; Back to First Watch</a>
+    <span class="badge">Shield House -- First Watch</span>
+</header>
+
+<div class="container">
+    <div class="lab-title">
+        <h1>Data Destruction Selector</h1>
+        <p>Apply NIST 800-88 sanitization methods to real-world data disposal scenarios.</p>
+    </div>
+
+    <div class="instructions">
+        <strong>NIST SP 800-88 Rev. 1</strong> defines three levels of media sanitization.
+        For each scenario, select the <em>minimum appropriate</em> method based on data sensitivity, media type, and reuse intent.
+    </div>
+
+    <table class="ref-table">
+        <tr><th>Method</th><th>Description</th><th>Example Techniques</th><th>When to Use</th></tr>
+        <tr><td style="color:var(--ok);font-weight:600;">Clear</td><td>Overwrite with non-sensitive data. Media is reusable. Data not recoverable via standard tools.</td><td>Single-pass overwrite, factory reset, ATA Secure Erase</td><td>Low-sensitivity data; media will be reused internally</td></tr>
+        <tr><td style="color:var(--accent);font-weight:600;">Purge</td><td>Advanced techniques that resist lab-grade recovery. Media may be reusable.</td><td>Cryptographic erase, block erase (SSD), degaussing (HDD)</td><td>Moderate/high-sensitivity data; media leaving the org</td></tr>
+        <tr><td style="color:var(--err);font-weight:600;">Destroy</td><td>Physical destruction. Media is not reusable. Data is irrecoverable.</td><td>Shredding, incineration, disintegration, melting</td><td>Classified/regulated data; media cannot leave secure custody intact</td></tr>
+    </table>
+
+    <div id="scenarios"></div>
+
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="grade()">Submit Selections</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <div class="results" id="results"></div>
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','fw-w4-data-lab',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+</div>
+
+<script>
+var SCENARIOS = [
+    { id:1, type:'SSD', text:'A company laptop SSD containing PII (social security numbers, employee records). The laptop is being reassigned to a new employee within the same department.', answer:'Clear', explain:'Internal reuse with moderate data -- Clear (ATA Secure Erase) is sufficient since the media stays within the organization.' },
+    { id:2, type:'HDD', text:'A server HDD from the finance department containing 5 years of tax records and banking data. The drive is being donated to a local charity.', answer:'Purge', explain:'Sensitive financial data on a drive leaving the org -- Purge (degaussing or cryptographic erase) is required before donation.' },
+    { id:3, type:'SSD', text:'A solid-state drive from a defense contractor that stored classified SECRET documents. The contract is complete and media must be disposed of per DoD requirements.', answer:'Destroy', explain:'Classified data requires physical Destruction. SSDs cannot be reliably degaussed, so shredding/disintegration is mandatory.' },
+    { id:4, type:'Phone', text:'A company-issued smartphone used by a sales rep. Contains contacts, emails, and CRM data. The phone will be factory-reset and given to a new hire.', answer:'Clear', explain:'Factory reset = Clear. Data is low-moderate sensitivity and the device stays internal. Clear is the minimum appropriate method.' },
+    { id:5, type:'HDD', text:'An old NAS drive array from a hospital containing patient MRI images and diagnostic reports (ePHI). The drives are end-of-life and will not be reused.', answer:'Destroy', explain:'ePHI on end-of-life media -- HIPAA requires Destruction to prevent any possibility of recovery. Physical shredding recommended.' },
+    { id:6, type:'Cloud VM', text:'A cloud-hosted virtual machine that processed customer payment data (PCI scope). The VM instance is being terminated and the cloud provider manages the underlying storage.', answer:'Purge', explain:'Cryptographic erase (Purge) is the standard for cloud VMs -- you cannot physically destroy shared cloud hardware. Ensure the provider certifies sanitization.' },
+    { id:7, type:'USB', text:'A USB flash drive used to transfer non-sensitive training materials between classrooms. Being reassigned to a different instructor.', answer:'Clear', explain:'Non-sensitive data, internal reuse -- a simple overwrite (Clear) is sufficient. No need for advanced sanitization.' },
+    { id:8, type:'HDD', text:'A hard drive from the CEO laptop containing M&A (merger and acquisition) documents, board communications, and legal strategy. The drive failed and is being sent to a third-party data recovery service.', answer:'Purge', explain:'Highly sensitive data going to a third party -- Purge before sending. However, if recovery is the goal, discuss risk with legal. Minimum: Purge after recovery.' },
+    { id:9, type:'Tape', text:'Backup tapes from a government agency containing CUI (Controlled Unclassified Information). The tapes are expired and the agency does not plan to reuse them.', answer:'Destroy', explain:'CUI on end-of-life tapes -- Destruction (incineration or shredding) is the safest method. Government disposition standards require it for expired media.' },
+    { id:10, type:'SSD', text:'A laptop SSD containing only the operating system and standard office applications -- no user data was ever stored on it. Being recycled through e-waste.', answer:'Clear', explain:'No sensitive data present. Clear (overwrite) is sufficient before recycling. Even for e-waste, sanitization is a best practice.' }
+];
+
+var OPTIONS = ['Clear','Purge','Destroy'];
+
+function render() {
+    var el = document.getElementById('scenarios');
+    el.innerHTML = '';
+    SCENARIOS.forEach(function(s) {
+        var opts = '<option value="">-- Select Method --</option>';
+        OPTIONS.forEach(function(o) { opts += '<option value="' + o + '">' + o + '</option>'; });
+        var div = document.createElement('div');
+        div.className = 'scenario-card';
+        div.id = 'card-' + s.id;
+        div.innerHTML =
+            '<div class="sc-header"><div class="sc-num">' + s.id + '</div><span class="sc-type">' + s.type + '</span></div>' +
+            '<div class="sc-text">' + s.text + '</div>' +
+            '<div class="sc-select"><select id="sel-' + s.id + '">' + opts + '</select></div>' +
+            '<div class="feedback" id="fb-' + s.id + '"></div>';
+        el.appendChild(div);
+    });
+}
+
+function grade() {
+    var correct = 0;
+    SCENARIOS.forEach(function(s) {
+        var val = document.getElementById('sel-' + s.id).value;
+        var fb = document.getElementById('fb-' + s.id);
+        var card = document.getElementById('card-' + s.id);
+        if (val === s.answer) {
+            correct++;
+            fb.className = 'feedback show right';
+            fb.textContent = 'Correct. ' + s.explain;
+            card.classList.add('correct');
+        } else {
+            fb.className = 'feedback show wrong';
+            fb.textContent = 'Incorrect -- answer: ' + s.answer + '. ' + s.explain;
+            card.classList.add('incorrect');
+        }
+    });
+    var res = document.getElementById('results');
+    res.innerHTML = '<h2>Score: ' + correct + ' / 10</h2><p style="color:var(--muted);">' +
+        (correct >= 8 ? 'Solid understanding of NIST 800-88 sanitization levels.' :
+         correct >= 5 ? 'Decent effort. Review the relationship between data sensitivity, media type, and disposal method.' :
+         'More study needed. Focus on when to Clear vs. Purge vs. Destroy.') + '</p>';
+    res.classList.add('show');
+    document.getElementById('submitBtn').disabled = true;
+    if (correct >= 7) document.getElementById('completeSection').classList.add('show');
+}
+
+function resetLab() {
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('submitBtn').disabled = false;
+    render();
+}
+
+render();
+</script>
+</body>
+</html>

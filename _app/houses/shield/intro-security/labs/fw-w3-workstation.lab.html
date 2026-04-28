@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardening Priority Ranker | First Watch</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171; --accent: #f97316; --bg: #0a0a12;
+            --card: rgba(15,15,25,0.85); --text: #e8e8f0; --muted: #888;
+            --border: rgba(248,113,113,0.2); --glow: rgba(248,113,113,0.35);
+            --ok: #10b981; --err: #ef4444;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+        .header { padding: 14px 24px; background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge { font-size: 0.75rem; padding: 4px 14px; background: rgba(248,113,113,0.12); border: 1px solid var(--border); border-radius: 20px; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+        .container { max-width: 960px; margin: 0 auto; padding: 30px 20px 60px; }
+        .lab-title { text-align: center; margin-bottom: 28px; padding: 28px; background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06)); border-radius: 14px; border: 1px solid var(--border); }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+        .instructions { background: rgba(249,115,22,0.08); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 24px; font-size: 0.92rem; line-height: 1.6; color: #ccc; }
+        .rank-list { list-style: none; margin: 0; counter-reset: rank; }
+        .rank-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; cursor: grab; transition: all 0.2s; user-select: none; }
+        .rank-item:active { cursor: grabbing; }
+        .rank-item.dragging { opacity: 0.5; border-color: var(--primary); }
+        .rank-item.drag-over { border-color: var(--accent); border-style: dashed; background: rgba(249,115,22,0.06); }
+        .rank-num { background: var(--primary); color: #000; min-width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+        .rank-text { font-size: 0.92rem; color: #ccc; line-height: 1.5; flex: 1; }
+        .rank-text strong { color: var(--text); }
+        .rank-arrows { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+        .rank-arrows button { background: transparent; border: 1px solid var(--border); color: var(--muted); width: 28px; height: 22px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .rank-arrows button:hover { border-color: var(--primary); color: var(--primary); background: rgba(248,113,113,0.1); }
+        .score-legend { display: flex; gap: 16px; justify-content: center; margin: 16px 0; font-size: 0.85rem; color: var(--muted); flex-wrap: wrap; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #000; border: none; padding: 11px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+        .results { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; text-align: center; }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; }
+        .results .detail { text-align: left; font-size: 0.88rem; line-height: 1.8; color: #ccc; margin: 14px 0; }
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Hardening Priority Ranker Lab</h1>
+
+<header class="header">
+    <a href="../index.html">&larr; Back to First Watch</a>
+    <span class="badge">Shield House -- First Watch</span>
+</header>
+
+<div class="container">
+    <div class="lab-title">
+        <h1>Hardening Priority Ranker</h1>
+        <p>Rank 12 workstation hardening steps from highest to lowest priority.<br>Use the arrows or drag and drop to reorder.</p>
+    </div>
+
+    <div class="instructions">
+        <strong>Scenario:</strong> A company just deployed 200 new Windows workstations. You are the security lead.
+        Budget and time are limited -- you can only implement these steps in sequence.
+        Rank them so the most critical protections come first.<br>
+        <strong>Scoring:</strong> Each item earns points based on how close it is to the optimal position (0 = exact, penalty for distance).
+    </div>
+
+    <div class="score-legend">
+        <span>Exact position = 2 pts</span>
+        <span>Off by 1 = 1 pt</span>
+        <span>Off by 2+ = 0 pts</span>
+        <span>Max: 24 pts</span>
+    </div>
+
+    <ul class="rank-list" id="rankList"></ul>
+
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="grade()">Submit Ranking</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Shuffle &amp; Reset</button>
+    </div>
+
+    <div class="results" id="results"></div>
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','fw-w3-workstation-lab',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+</div>
+
+<script>
+/* Optimal order (index 0 = highest priority) */
+var OPTIMAL = [
+    { id:'a', text:'<strong>Install all OS security patches</strong> -- Apply latest Windows updates to close known vulnerabilities.' },
+    { id:'b', text:'<strong>Enable host firewall</strong> -- Turn on Windows Firewall on all profiles (Domain, Private, Public).' },
+    { id:'c', text:'<strong>Enable endpoint protection</strong> -- Activate Windows Defender with real-time scanning and cloud protection.' },
+    { id:'d', text:'<strong>Enforce strong passwords</strong> -- Set minimum 12 characters with complexity requirements via Group Policy.' },
+    { id:'e', text:'<strong>Enable BitLocker encryption</strong> -- Encrypt all drives to protect data at rest from physical theft.' },
+    { id:'f', text:'<strong>Remove local admin rights</strong> -- Standard users should not have admin privileges for daily work.' },
+    { id:'g', text:'<strong>Configure auto-lock (15 min)</strong> -- Screen locks automatically after inactivity to prevent unauthorized access.' },
+    { id:'h', text:'<strong>Disable SMBv1</strong> -- Remove the legacy protocol to prevent EternalBlue-class exploits.' },
+    { id:'i', text:'<strong>Enable audit logging</strong> -- Log successful/failed logons, privilege escalation, and policy changes.' },
+    { id:'j', text:'<strong>Restrict USB/removable media</strong> -- Block unauthorized USB devices to prevent data exfiltration and malware delivery.' },
+    { id:'k', text:'<strong>Configure application whitelisting</strong> -- Use AppLocker or WDAC to only allow approved executables to run.' },
+    { id:'l', text:'<strong>Deploy network segmentation VLAN</strong> -- Place workstations on a separate VLAN from servers and IoT devices.' }
+];
+
+var currentOrder = [];
+var dragIdx = null;
+
+function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+}
+
+function render() {
+    var list = document.getElementById('rankList');
+    list.innerHTML = '';
+    currentOrder.forEach(function(item, idx) {
+        var li = document.createElement('li');
+        li.className = 'rank-item';
+        li.setAttribute('draggable', 'true');
+        li.setAttribute('data-idx', idx);
+        li.innerHTML =
+            '<div class="rank-num">' + (idx + 1) + '</div>' +
+            '<div class="rank-text">' + item.text + '</div>' +
+            '<div class="rank-arrows">' +
+                '<button onclick="moveItem(' + idx + ',-1)" title="Move up">&uarr;</button>' +
+                '<button onclick="moveItem(' + idx + ',1)" title="Move down">&darr;</button>' +
+            '</div>';
+
+        li.addEventListener('dragstart', function(e) {
+            dragIdx = idx;
+            li.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        li.addEventListener('dragend', function() {
+            li.classList.remove('dragging');
+            document.querySelectorAll('.rank-item').forEach(function(el) { el.classList.remove('drag-over'); });
+            dragIdx = null;
+        });
+        li.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            li.classList.add('drag-over');
+        });
+        li.addEventListener('dragleave', function() { li.classList.remove('drag-over'); });
+        li.addEventListener('drop', function(e) {
+            e.preventDefault();
+            li.classList.remove('drag-over');
+            if (dragIdx !== null && dragIdx !== idx) {
+                var moved = currentOrder.splice(dragIdx, 1)[0];
+                currentOrder.splice(idx, 0, moved);
+                render();
+            }
+        });
+
+        list.appendChild(li);
+    });
+}
+
+function moveItem(idx, dir) {
+    var newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= currentOrder.length) return;
+    var tmp = currentOrder[idx];
+    currentOrder[idx] = currentOrder[newIdx];
+    currentOrder[newIdx] = tmp;
+    render();
+}
+
+function grade() {
+    var totalScore = 0;
+    var detailHtml = '<div class="detail">';
+    currentOrder.forEach(function(item, userIdx) {
+        var optIdx = OPTIMAL.findIndex(function(o) { return o.id === item.id; });
+        var diff = Math.abs(userIdx - optIdx);
+        var pts = diff === 0 ? 2 : diff === 1 ? 1 : 0;
+        totalScore += pts;
+        var color = pts === 2 ? 'var(--ok)' : pts === 1 ? 'var(--accent)' : 'var(--err)';
+        detailHtml += '<div style="color:' + color + ';">#' + (userIdx + 1) + ' -- ' +
+            item.id.toUpperCase() + ': ' + (diff === 0 ? 'Exact' : 'Off by ' + diff) +
+            ' (' + pts + ' pts)' + (diff > 0 ? ' -- optimal position: #' + (optIdx + 1) : '') + '</div>';
+    });
+    detailHtml += '</div>';
+
+    var res = document.getElementById('results');
+    res.innerHTML = '<h2>Score: ' + totalScore + ' / 24</h2>' + detailHtml +
+        '<p style="color:var(--muted);margin-top:12px;">' +
+        (totalScore >= 20 ? 'Outstanding -- you prioritize like a seasoned security engineer.' :
+         totalScore >= 14 ? 'Good instincts. Review the optimal ordering to refine your prioritization.' :
+         'Keep studying. Think about which controls stop the most common attacks first.') + '</p>';
+    res.classList.add('show');
+    document.getElementById('submitBtn').disabled = true;
+    if (totalScore >= 14) document.getElementById('completeSection').classList.add('show');
+}
+
+function resetLab() {
+    currentOrder = shuffle(OPTIMAL);
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('submitBtn').disabled = false;
+    render();
+}
+
+resetLab();
+</script>
+</body>
+</html>

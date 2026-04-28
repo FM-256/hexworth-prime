@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physical Security Audit | First Watch</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171; --accent: #f97316; --bg: #0a0a12;
+            --card: rgba(15,15,25,0.85); --text: #e8e8f0; --muted: #888;
+            --border: rgba(248,113,113,0.2); --glow: rgba(248,113,113,0.35);
+            --ok: #10b981; --err: #ef4444;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+        .header { padding: 14px 24px; background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge { font-size: 0.75rem; padding: 4px 14px; background: rgba(248,113,113,0.12); border: 1px solid var(--border); border-radius: 20px; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+        .container { max-width: 960px; margin: 0 auto; padding: 30px 20px 60px; }
+        .lab-title { text-align: center; margin-bottom: 28px; padding: 28px; background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06)); border-radius: 14px; border: 1px solid var(--border); }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+        .score-bar { display: flex; align-items: center; gap: 12px; justify-content: center; margin: 18px 0; }
+        .score-bar .score { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .instructions { background: rgba(249,115,22,0.08); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 24px; font-size: 0.92rem; line-height: 1.6; color: #ccc; }
+        .floor-plan { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 24px; }
+        .floor-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .zone { position: relative; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 16px 14px; min-height: 100px; cursor: pointer; transition: all 0.25s; }
+        .zone:hover { border-color: var(--accent); background: rgba(249,115,22,0.06); }
+        .zone.flagged { border-color: var(--err); background: rgba(239,68,68,0.08); }
+        .zone.flagged.correct { border-color: var(--ok); background: rgba(16,185,129,0.08); }
+        .zone .label { font-size: 0.82rem; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+        .zone .desc { font-size: 0.85rem; color: #bbb; line-height: 1.5; }
+        .zone .flag-icon { position: absolute; top: 8px; right: 10px; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
+        .zone.flagged .flag-icon { background: rgba(239,68,68,0.2); color: var(--err); }
+        .zone.flagged.correct .flag-icon { background: rgba(16,185,129,0.2); color: var(--ok); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #000; border: none; padding: 11px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s, box-shadow 0.2s; }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .btn-secondary:hover { background: rgba(248,113,113,0.1); }
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 20px 0; flex-wrap: wrap; }
+        .results { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; text-align: center; }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; }
+        .results .detail { text-align: left; margin: 14px 0; font-size: 0.9rem; line-height: 1.8; color: #ccc; }
+        .results .detail .hit { color: var(--ok); }
+        .results .detail .miss { color: var(--err); }
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Physical Security Audit Lab</h1>
+
+<header class="header">
+    <a href="../index.html">&larr; Back to First Watch</a>
+    <span class="badge">Shield House -- First Watch</span>
+</header>
+
+<div class="container">
+    <div class="lab-title">
+        <h1>Physical Security Audit</h1>
+        <p>Inspect the server room floor plan. Click each zone to flag security violations.<br>Find all 8 issues hiding in plain sight.</p>
+    </div>
+
+    <div class="score-bar">
+        <span style="color:var(--muted);font-size:0.9rem;">Violations Found:</span>
+        <span class="score" id="scoreDisplay">0 / 8</span>
+    </div>
+
+    <div class="instructions">
+        <strong>Scenario:</strong> You are conducting a physical security audit of Nexus Corp's primary server room.
+        Walk through each zone of the facility. Click a zone to flag it if you spot a security violation.
+        Click again to un-flag. When ready, submit your audit to see how you did.
+    </div>
+
+    <div class="floor-plan">
+        <div class="floor-grid" id="floorGrid"></div>
+    </div>
+
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="submitAudit()">Submit Audit</button>
+        <button class="btn btn-secondary" onclick="resetAudit()">Reset</button>
+    </div>
+
+    <div class="results" id="results"></div>
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','fw-w1-physical-lab',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+</div>
+
+<script>
+var ZONES = [
+    { id:'z1', label:'Main Entrance', desc:'Glass door with electronic lock. Badge reader installed. Visitor log on clipboard beside reception desk.', violation:false },
+    { id:'z2', label:'Server Rack A', desc:'Primary database servers. Rack door propped open with a wooden wedge for "ventilation."', violation:true, reason:'Rack door propped open -- physical access to servers is unrestricted.' },
+    { id:'z3', label:'Cooling System', desc:'HVAC unit operating at 68F. Temperature sensor mounted on wall. Maintenance log posted and current.', violation:false },
+    { id:'z4', label:'Cable Closet', desc:'Network patch panels and switches. Door has no lock -- just a regular interior knob. Multiple unmarked cables.', violation:true, reason:'Cable closet has no lock -- unauthorized physical access to network infrastructure.' },
+    { id:'z5', label:'Emergency Exit', desc:'Rear fire exit with push bar. No alarm sensor on door. Leads directly to public parking lot.', violation:true, reason:'Emergency exit has no alarm sensor -- could be used for unauthorized entry/exit undetected.' },
+    { id:'z6', label:'Camera Corner NW', desc:'Security camera covering northwest corner. Lens partially obscured by dust. Last cleaned date: unknown.', violation:true, reason:'Camera lens obscured by dust -- surveillance coverage is degraded.' },
+    { id:'z7', label:'UPS / Power', desc:'Uninterruptible power supply rack. Battery status green. Surge protectors on all circuits. Access panel locked.', violation:false },
+    { id:'z8', label:'Visitor Station', desc:'Guest workstation for vendor technicians. No badge reader on this interior door. Ethernet port active on wall.', violation:true, reason:'No badge reader on visitor area door -- vendors can roam freely without access control.' },
+    { id:'z9', label:'Storage Room', desc:'Old hard drives and decommissioned laptops stacked on open shelving. Door is unlocked. No inventory log.', violation:true, reason:'Decommissioned media stored unsecured with no inventory -- data theft or leakage risk.' },
+    { id:'z10', label:'Server Rack B', desc:'Secondary application servers. Rack locked. Access log taped to side shows last entry was 14 months ago.', violation:false },
+    { id:'z11', label:'Fire Suppression', desc:'FM-200 clean agent system installed. Inspection tag shows last test was 3 years ago -- well past the annual requirement.', violation:true, reason:'Fire suppression system overdue for inspection -- 3 years since last test (annual required).' },
+    { id:'z12', label:'Admin Console', desc:'KVM switch and monitor for server management. Default password "admin" written on a sticky note on the monitor bezel.', violation:true, reason:'Default credentials on sticky note -- password exposed in plain sight.' }
+];
+
+var flagged = {};
+
+function renderGrid() {
+    var grid = document.getElementById('floorGrid');
+    grid.innerHTML = '';
+    ZONES.forEach(function(z) {
+        var div = document.createElement('div');
+        div.className = 'zone' + (flagged[z.id] ? ' flagged' : '');
+        div.setAttribute('data-id', z.id);
+        div.innerHTML = '<div class="label">' + z.label + '</div><div class="desc">' + z.desc + '</div>' +
+            (flagged[z.id] ? '<span class="flag-icon">FLAGGED</span>' : '');
+        div.addEventListener('click', function() { toggleFlag(z.id); });
+        grid.appendChild(div);
+    });
+    updateScore();
+}
+
+function toggleFlag(id) {
+    flagged[id] = !flagged[id];
+    if (!flagged[id]) delete flagged[id];
+    renderGrid();
+}
+
+function updateScore() {
+    var count = Object.keys(flagged).length;
+    document.getElementById('scoreDisplay').textContent = count + ' / 8';
+}
+
+function submitAudit() {
+    var correct = 0;
+    var html = '<h2>Audit Results</h2><div class="detail">';
+    ZONES.forEach(function(z) {
+        if (z.violation) {
+            if (flagged[z.id]) {
+                html += '<div class="hit">+ ' + z.label + ': Correctly flagged. ' + z.reason + '</div>';
+                correct++;
+            } else {
+                html += '<div class="miss">- ' + z.label + ': MISSED. ' + z.reason + '</div>';
+            }
+        } else if (flagged[z.id]) {
+            html += '<div class="miss">- ' + z.label + ': False positive -- this zone had no violation.</div>';
+        }
+    });
+    html += '</div><div style="margin-top:16px;font-size:1.2rem;font-weight:700;color:var(--primary);">Score: ' + correct + ' / 8</div>';
+    var el = document.getElementById('results');
+    el.innerHTML = html;
+    el.classList.add('show');
+    document.getElementById('submitBtn').disabled = true;
+
+    // Mark zones correct/incorrect visually
+    document.querySelectorAll('.zone.flagged').forEach(function(node) {
+        var id = node.getAttribute('data-id');
+        var zone = ZONES.find(function(z) { return z.id === id; });
+        if (zone && zone.violation) node.classList.add('correct');
+    });
+
+    if (correct >= 6) {
+        document.getElementById('completeSection').classList.add('show');
+    }
+}
+
+function resetAudit() {
+    flagged = {};
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('results').innerHTML = '';
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('completeSection').classList.remove('show');
+    renderGrid();
+}
+
+renderGrid();
+</script>
+</body>
+</html>

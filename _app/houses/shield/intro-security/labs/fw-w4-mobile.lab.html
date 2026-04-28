@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BYOD Policy Builder | First Watch</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171; --accent: #f97316; --bg: #0a0a12;
+            --card: rgba(15,15,25,0.85); --text: #e8e8f0; --muted: #888;
+            --border: rgba(248,113,113,0.2); --glow: rgba(248,113,113,0.35);
+            --ok: #10b981; --err: #ef4444;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+        .header { padding: 14px 24px; background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge { font-size: 0.75rem; padding: 4px 14px; background: rgba(248,113,113,0.12); border: 1px solid var(--border); border-radius: 20px; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 30px 20px 60px; }
+        .lab-title { text-align: center; margin-bottom: 28px; padding: 28px; background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06)); border-radius: 14px; border: 1px solid var(--border); }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+        .instructions { background: rgba(249,115,22,0.08); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 24px; font-size: 0.92rem; line-height: 1.6; color: #ccc; }
+        .budget-bar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+        .budget-meter { flex: 1; min-width: 200px; }
+        .budget-track { background: rgba(255,255,255,0.08); height: 14px; border-radius: 8px; overflow: hidden; }
+        .budget-fill { height: 100%; background: linear-gradient(90deg, var(--ok), var(--accent)); border-radius: 8px; transition: width 0.4s, background 0.4s; }
+        .budget-fill.over { background: linear-gradient(90deg, var(--err), #b91c1c); }
+        .budget-label { font-size: 0.9rem; color: var(--text); margin-bottom: 6px; }
+        .budget-nums { font-size: 1.1rem; font-weight: 700; }
+        .budget-nums .spent { color: var(--accent); }
+        .budget-nums .total { color: var(--muted); }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 24px; }
+        .dash-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+        .dash-item .area { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+        .dash-item .status { font-size: 0.95rem; font-weight: 700; }
+        .dash-item .status.covered { color: var(--ok); }
+        .dash-item .status.exposed { color: var(--err); }
+        .policy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .policy-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.25s; }
+        .policy-card:hover { border-color: rgba(248,113,113,0.4); }
+        .policy-card.selected { border-color: var(--primary); background: rgba(248,113,113,0.06); }
+        .policy-card.selected .cost-tag { background: var(--primary); color: #000; }
+        .policy-name { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+        .policy-desc { font-size: 0.84rem; color: #aaa; line-height: 1.5; margin-bottom: 10px; }
+        .policy-meta { display: flex; justify-content: space-between; align-items: center; }
+        .cost-tag { font-size: 0.8rem; padding: 3px 10px; border-radius: 6px; background: rgba(255,255,255,0.08); color: var(--accent); font-weight: 600; }
+        .area-tag { font-size: 0.75rem; color: var(--muted); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #000; border: none; padding: 11px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+        .results { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; text-align: center; }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; }
+        .results .detail { text-align: left; font-size: 0.88rem; line-height: 1.8; color: #ccc; margin: 14px 0; }
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">BYOD Policy Builder Lab</h1>
+
+<header class="header">
+    <a href="../index.html">&larr; Back to First Watch</a>
+    <span class="badge">Shield House -- First Watch</span>
+</header>
+
+<div class="container">
+    <div class="lab-title">
+        <h1>BYOD Policy Builder</h1>
+        <p>Select mobile security policies to implement within budget.<br>Cover as many security areas as possible.</p>
+    </div>
+
+    <div class="instructions">
+        <strong>Scenario:</strong> MedFirst Healthcare (150 employees) is allowing personal devices for work email and patient scheduling.
+        You have a <strong>$50,000 budget</strong> to implement mobile security policies.
+        Select 8 of the 12 available policies. Each has a cost and covers specific security areas.
+        Your goal: maximize coverage across all 6 security areas while staying within budget.
+    </div>
+
+    <div class="budget-bar">
+        <div class="budget-meter">
+            <div class="budget-label">Budget Used</div>
+            <div class="budget-track"><div class="budget-fill" id="budgetFill" style="width:0%"></div></div>
+        </div>
+        <div class="budget-nums">
+            <span class="spent" id="spentDisplay">$0</span>
+            <span class="total"> / $50,000</span>
+        </div>
+        <div style="font-size:0.85rem;color:var(--muted);">Selected: <strong id="countDisplay">0</strong> / 8</div>
+    </div>
+
+    <div class="dashboard" id="dashboard"></div>
+    <div class="policy-grid" id="policyGrid"></div>
+
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="grade()">Deploy Policy</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <div class="results" id="results"></div>
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','fw-w4-mobile-lab',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+</div>
+
+<script>
+var BUDGET = 50000;
+var AREAS = ['Device Control','Data Protection','Authentication','Network Security','Compliance','Incident Response'];
+
+var POLICIES = [
+    { id:1, name:'MDM Enrollment', desc:'Require all BYOD devices to enroll in Mobile Device Management. Enables remote lock, wipe, and policy enforcement.', cost:12000, areas:['Device Control','Incident Response'], essential:true },
+    { id:2, name:'Remote Wipe Capability', desc:'Enable IT to remotely erase corporate data (or full device) if lost or stolen.', cost:3000, areas:['Incident Response','Data Protection'], essential:true },
+    { id:3, name:'App Whitelisting', desc:'Only approved apps can access corporate resources. Block sideloaded and untrusted applications.', cost:5000, areas:['Device Control'], essential:true },
+    { id:4, name:'MFA for Corporate Apps', desc:'Require multi-factor authentication for email, VPN, and patient scheduling systems.', cost:8000, areas:['Authentication'], essential:true },
+    { id:5, name:'VPN for All Traffic', desc:'Route all corporate traffic through an encrypted VPN tunnel when on external networks.', cost:7000, areas:['Network Security'], essential:true },
+    { id:6, name:'Data Encryption at Rest', desc:'Require device-level encryption. Block access from unencrypted devices.', cost:4000, areas:['Data Protection'], essential:true },
+    { id:7, name:'HIPAA Awareness Training', desc:'Mandatory annual training on HIPAA rules for mobile device handling and PHI protection.', cost:3000, areas:['Compliance'], essential:true },
+    { id:8, name:'Containerization', desc:'Separate corporate data into an encrypted container. Personal data stays untouched. Enables selective wipe.', cost:9000, areas:['Data Protection','Device Control'], essential:true },
+    { id:9, name:'Biometric Enforcement', desc:'Require fingerprint or face ID unlock. Disable pattern/swipe-only unlock methods.', cost:2000, areas:['Authentication'], essential:false },
+    { id:10, name:'Network Access Control', desc:'Only compliant devices (patched, encrypted, enrolled) can connect to the corporate Wi-Fi.', cost:10000, areas:['Network Security','Compliance'], essential:false },
+    { id:11, name:'GPS Tracking', desc:'Track device location for asset management and theft recovery. Requires employee consent.', cost:4000, areas:['Device Control'], essential:false },
+    { id:12, name:'Automated Compliance Auditing', desc:'Continuous monitoring of device compliance status with automated alerts for policy violations.', cost:6000, areas:['Compliance','Incident Response'], essential:false }
+];
+
+var selected = {};
+
+function updateUI() {
+    var spent = 0;
+    var count = 0;
+    var coveredAreas = {};
+    AREAS.forEach(function(a) { coveredAreas[a] = false; });
+
+    Object.keys(selected).forEach(function(id) {
+        if (selected[id]) {
+            var p = POLICIES.find(function(pol) { return pol.id === parseInt(id); });
+            spent += p.cost;
+            count++;
+            p.areas.forEach(function(a) { coveredAreas[a] = true; });
+        }
+    });
+
+    document.getElementById('spentDisplay').textContent = '$' + spent.toLocaleString();
+    document.getElementById('countDisplay').textContent = count;
+    var pct = Math.min(100, (spent / BUDGET) * 100);
+    var fill = document.getElementById('budgetFill');
+    fill.style.width = pct + '%';
+    fill.classList.toggle('over', spent > BUDGET);
+
+    /* Dashboard */
+    var dash = document.getElementById('dashboard');
+    dash.innerHTML = '';
+    AREAS.forEach(function(a) {
+        var div = document.createElement('div');
+        div.className = 'dash-item';
+        div.innerHTML = '<div class="area">' + a + '</div><div class="status ' + (coveredAreas[a] ? 'covered' : 'exposed') + '">' + (coveredAreas[a] ? 'COVERED' : 'EXPOSED') + '</div>';
+        dash.appendChild(div);
+    });
+
+    /* Highlight cards */
+    document.querySelectorAll('.policy-card').forEach(function(card) {
+        var id = card.getAttribute('data-id');
+        card.classList.toggle('selected', !!selected[id]);
+    });
+}
+
+function togglePolicy(id) {
+    selected[id] = !selected[id];
+    if (!selected[id]) delete selected[id];
+    updateUI();
+}
+
+function render() {
+    var grid = document.getElementById('policyGrid');
+    grid.innerHTML = '';
+    POLICIES.forEach(function(p) {
+        var div = document.createElement('div');
+        div.className = 'policy-card' + (selected[p.id] ? ' selected' : '');
+        div.setAttribute('data-id', p.id);
+        div.innerHTML =
+            '<div class="policy-name">' + p.name + '</div>' +
+            '<div class="policy-desc">' + p.desc + '</div>' +
+            '<div class="policy-meta">' +
+                '<span class="cost-tag">$' + p.cost.toLocaleString() + '</span>' +
+                '<span class="area-tag">' + p.areas.join(', ') + '</span>' +
+            '</div>';
+        div.addEventListener('click', function() { togglePolicy(p.id); });
+        grid.appendChild(div);
+    });
+    updateUI();
+}
+
+function grade() {
+    var spent = 0;
+    var count = 0;
+    var coveredAreas = {};
+    var essentialHits = 0;
+    var essentialTotal = POLICIES.filter(function(p) { return p.essential; }).length;
+
+    AREAS.forEach(function(a) { coveredAreas[a] = false; });
+    Object.keys(selected).forEach(function(id) {
+        if (selected[id]) {
+            var p = POLICIES.find(function(pol) { return pol.id === parseInt(id); });
+            spent += p.cost;
+            count++;
+            p.areas.forEach(function(a) { coveredAreas[a] = true; });
+            if (p.essential) essentialHits++;
+        }
+    });
+
+    var areasCovered = AREAS.filter(function(a) { return coveredAreas[a]; }).length;
+    var underBudget = spent <= BUDGET;
+    var correctCount = count === 8;
+
+    var html = '<h2>Policy Deployment Report</h2><div class="detail">';
+    html += '<div style="color:' + (underBudget ? 'var(--ok)' : 'var(--err)') + ';">Budget: $' + spent.toLocaleString() + ' / $50,000 -- ' + (underBudget ? 'WITHIN BUDGET' : 'OVER BUDGET') + '</div>';
+    html += '<div style="color:' + (correctCount ? 'var(--ok)' : 'var(--err)') + ';">Policies selected: ' + count + ' / 8 required</div>';
+    html += '<div style="color:' + (areasCovered === 6 ? 'var(--ok)' : 'var(--accent)') + ';">Coverage: ' + areasCovered + ' / 6 areas</div>';
+    html += '<div style="color:var(--muted);">Essential policies included: ' + essentialHits + ' / ' + essentialTotal + '</div>';
+    html += '</div>';
+
+    var score = areasCovered;
+    if (underBudget && correctCount) score += 2;
+
+    html += '<p style="color:var(--muted);margin-top:12px;">' +
+        (areasCovered === 6 && underBudget ? 'Full coverage within budget -- excellent policy design.' :
+         areasCovered >= 4 ? 'Good coverage but some areas are still exposed. Review your selections.' :
+         'Too many gaps in coverage. Prioritize breadth across all 6 security areas.') + '</p>';
+
+    var res = document.getElementById('results');
+    res.innerHTML = html;
+    res.classList.add('show');
+    document.getElementById('submitBtn').disabled = true;
+    if (areasCovered >= 5 && underBudget && correctCount) document.getElementById('completeSection').classList.add('show');
+}
+
+function resetLab() {
+    selected = {};
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('submitBtn').disabled = false;
+    render();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireless Protocol Matcher | First Watch</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171; --accent: #f97316; --bg: #0a0a12;
+            --card: rgba(15,15,25,0.85); --text: #e8e8f0; --muted: #888;
+            --border: rgba(248,113,113,0.2); --glow: rgba(248,113,113,0.35);
+            --ok: #10b981; --err: #ef4444;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+        .header { padding: 14px 24px; background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge { font-size: 0.75rem; padding: 4px 14px; background: rgba(248,113,113,0.12); border: 1px solid var(--border); border-radius: 20px; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+        .container { max-width: 960px; margin: 0 auto; padding: 30px 20px 60px; }
+        .lab-title { text-align: center; margin-bottom: 28px; padding: 28px; background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06)); border-radius: 14px; border: 1px solid var(--border); }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+        .instructions { background: rgba(249,115,22,0.08); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 24px; font-size: 0.92rem; line-height: 1.6; color: #ccc; }
+        .match-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; display: flex; gap: 16px; align-items: flex-start; transition: border-color 0.3s; }
+        .match-card.correct { border-color: var(--ok); }
+        .match-card.incorrect { border-color: var(--err); }
+        .match-num { background: var(--primary); color: #000; min-width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+        .match-body { flex: 1; }
+        .match-desc { font-size: 0.92rem; color: #ccc; line-height: 1.6; margin-bottom: 10px; }
+        .match-select select { background: rgba(10,10,18,0.9); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.88rem; cursor: pointer; min-width: 200px; }
+        .match-select select:focus { outline: none; border-color: var(--primary); }
+        .feedback { font-size: 0.84rem; margin-top: 6px; display: none; }
+        .feedback.show { display: block; }
+        .feedback.right { color: var(--ok); }
+        .feedback.wrong { color: var(--err); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #000; border: none; padding: 11px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+        .results { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; text-align: center; }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; }
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Wireless Protocol Matcher Lab</h1>
+
+<header class="header">
+    <a href="../index.html">&larr; Back to First Watch</a>
+    <span class="badge">Shield House -- First Watch</span>
+</header>
+
+<div class="container">
+    <div class="lab-title">
+        <h1>Wireless Protocol Matcher</h1>
+        <p>Match each wireless security description to its correct protocol.</p>
+    </div>
+
+    <div class="instructions">
+        <strong>Protocols:</strong> WEP, WPA, WPA2-PSK, WPA2-Enterprise, WPA3.<br>
+        Read each description carefully -- focus on the encryption method, authentication mechanism, and known vulnerabilities mentioned.
+    </div>
+
+    <div id="cards"></div>
+
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="grade()">Check Answers</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <div class="results" id="results"></div>
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','fw-w2-wireless-lab',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+</div>
+
+<script>
+var ITEMS = [
+    { id:1, desc:'Uses RC4 stream cipher with a 24-bit initialization vector (IV). Notoriously weak -- can be cracked in minutes with tools like aircrack-ng due to IV reuse and key scheduling flaws.', answer:'WEP', explain:'WEP uses RC4 with a tiny 24-bit IV, making it trivially crackable.' },
+    { id:2, desc:'Introduced TKIP (Temporal Key Integrity Protocol) as a stopgap improvement. Still uses RC4 underneath but adds per-packet key mixing and a message integrity check.', answer:'WPA', explain:'WPA was a bridge fix using TKIP over RC4 -- better than WEP but still limited.' },
+    { id:3, desc:'Uses AES-CCMP encryption with a pre-shared passphrase. Both the access point and client derive keys from the same password. Vulnerable to offline dictionary attacks if the passphrase is weak.', answer:'WPA2-PSK', explain:'WPA2-PSK uses AES-CCMP with a shared passphrase. Strong encryption but PSK can be brute-forced.' },
+    { id:4, desc:'Uses AES-CCMP but authenticates each user individually via a RADIUS server and 802.1X. No shared password -- each user has unique credentials.', answer:'WPA2-Enterprise', explain:'WPA2-Enterprise adds 802.1X/RADIUS for per-user authentication on top of AES-CCMP.' },
+    { id:5, desc:'Introduces Simultaneous Authentication of Equals (SAE) to replace the 4-way handshake. Resistant to offline dictionary attacks even with weak passwords. Forward secrecy built in.', answer:'WPA3', explain:'WPA3 uses SAE (Dragonfly handshake) for forward secrecy and offline attack resistance.' },
+    { id:6, desc:'A small coffee shop uses a single password printed on a receipt for all customers. Traffic is encrypted with AES but any customer who knows the password could capture another\'s handshake.', answer:'WPA2-PSK', explain:'Shared password for all users = PSK mode. AES encryption points to WPA2 (not WPA/TKIP).' },
+    { id:7, desc:'A corporation deploys wireless where employees log in with their Active Directory credentials. Each session gets a unique encryption key derived from the authentication exchange.', answer:'WPA2-Enterprise', explain:'AD credentials via RADIUS = Enterprise mode. Unique per-session keys are the hallmark.' },
+    { id:8, desc:'An old warehouse still runs this protocol from 1999. The IT team found that an attacker only needs to capture about 40,000 packets to recover the key.', answer:'WEP', explain:'WEP (1999) is crackable with enough captured IVs -- 40,000 packets is a known threshold.' },
+    { id:9, desc:'A home router offers "Personal" mode with a password and "Enterprise" mode requiring a RADIUS server. The user picks Personal with AES encryption.', answer:'WPA2-PSK', explain:'Personal mode with AES = WPA2-PSK (WPA2-Personal is another name for WPA2-PSK).' },
+    { id:10, desc:'The latest standard mandates Protected Management Frames (PMF) and 192-bit security mode for enterprise deployments. Eliminates legacy protocol negotiation.', answer:'WPA3', explain:'WPA3 mandates PMF and offers 192-bit enterprise security. No legacy fallback.' },
+    { id:11, desc:'This transitional protocol was designed to run on existing WEP hardware via firmware updates. It improved security but was quickly superseded by a stronger standard using AES.', answer:'WPA', explain:'WPA was designed to work on WEP hardware via firmware. TKIP was the bridge until AES/WPA2.' },
+    { id:12, desc:'Open network at an airport with no password. An attacker uses Opportunistic Wireless Encryption (OWE) to encrypt traffic even without authentication, preventing passive eavesdropping.', answer:'WPA3', explain:'OWE is a WPA3 feature that encrypts open networks without requiring a password.' }
+];
+
+var OPTIONS = ['WEP','WPA','WPA2-PSK','WPA2-Enterprise','WPA3'];
+
+function render() {
+    var el = document.getElementById('cards');
+    el.innerHTML = '';
+    ITEMS.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'match-card';
+        div.id = 'card-' + item.id;
+        var opts = '<option value="">-- Select Protocol --</option>';
+        OPTIONS.forEach(function(o) { opts += '<option value="' + o + '">' + o + '</option>'; });
+        div.innerHTML =
+            '<div class="match-num">' + item.id + '</div>' +
+            '<div class="match-body">' +
+                '<div class="match-desc">' + item.desc + '</div>' +
+                '<div class="match-select"><select id="sel-' + item.id + '">' + opts + '</select></div>' +
+                '<div class="feedback" id="fb-' + item.id + '"></div>' +
+            '</div>';
+        el.appendChild(div);
+    });
+}
+
+function grade() {
+    var correct = 0;
+    ITEMS.forEach(function(item) {
+        var val = document.getElementById('sel-' + item.id).value;
+        var fb = document.getElementById('fb-' + item.id);
+        var card = document.getElementById('card-' + item.id);
+        if (val === item.answer) {
+            correct++;
+            fb.className = 'feedback show right';
+            fb.textContent = 'Correct. ' + item.explain;
+            card.classList.add('correct');
+        } else {
+            fb.className = 'feedback show wrong';
+            fb.textContent = 'Incorrect -- answer is ' + item.answer + '. ' + item.explain;
+            card.classList.add('incorrect');
+        }
+    });
+    var res = document.getElementById('results');
+    res.innerHTML = '<h2>Score: ' + correct + ' / 12</h2><p style="color:var(--muted);">' +
+        (correct >= 10 ? 'Outstanding -- you know your wireless protocols.' :
+         correct >= 7 ? 'Solid effort. Review the ones you missed.' :
+         'Keep studying. Focus on the differences between WPA generations.') + '</p>';
+    res.classList.add('show');
+    document.getElementById('submitBtn').disabled = true;
+    if (correct >= 9) document.getElementById('completeSection').classList.add('show');
+}
+
+function resetLab() {
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('submitBtn').disabled = false;
+    render();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Router Hardening Simulator | First Watch</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171; --accent: #f97316; --bg: #0a0a12;
+            --card: rgba(15,15,25,0.85); --text: #e8e8f0; --muted: #888;
+            --border: rgba(248,113,113,0.2); --glow: rgba(248,113,113,0.35);
+            --ok: #10b981; --err: #ef4444;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+        .header { padding: 14px 24px; background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge { font-size: 0.75rem; padding: 4px 14px; background: rgba(248,113,113,0.12); border: 1px solid var(--border); border-radius: 20px; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+        .container { max-width: 960px; margin: 0 auto; padding: 30px 20px 60px; }
+        .lab-title { text-align: center; margin-bottom: 28px; padding: 28px; background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06)); border-radius: 14px; border: 1px solid var(--border); }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+        .instructions { background: rgba(249,115,22,0.08); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 24px; font-size: 0.92rem; line-height: 1.6; color: #ccc; }
+        .router-panel { background: var(--card); border: 2px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
+        .router-header { background: linear-gradient(135deg, rgba(248,113,113,0.12), rgba(249,115,22,0.08)); padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .router-model { font-size: 1rem; font-weight: 600; color: var(--text); }
+        .router-ip { font-family: monospace; font-size: 0.85rem; color: var(--accent); }
+        .config-section { padding: 20px 22px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .config-section:last-child { border-bottom: none; }
+        .config-label { font-size: 0.9rem; font-weight: 600; color: var(--primary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .config-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); flex-wrap: wrap; gap: 8px; }
+        .config-row:last-child { border-bottom: none; }
+        .config-name { font-size: 0.9rem; color: #ccc; flex: 1; min-width: 200px; }
+        .config-name .current { font-family: monospace; font-size: 0.82rem; color: var(--accent); margin-left: 8px; }
+        .config-control { display: flex; align-items: center; gap: 10px; }
+        .toggle { position: relative; width: 48px; height: 26px; cursor: pointer; }
+        .toggle input { display: none; }
+        .toggle .slider { position: absolute; inset: 0; background: rgba(255,255,255,0.12); border-radius: 13px; transition: background 0.3s; }
+        .toggle .slider::before { content: ''; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.3s; }
+        .toggle input:checked + .slider { background: var(--primary); }
+        .toggle input:checked + .slider::before { transform: translateX(22px); }
+        .config-select { background: rgba(10,10,18,0.9); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; cursor: pointer; }
+        .config-select:focus { outline: none; border-color: var(--primary); }
+        .config-input { background: rgba(10,10,18,0.9); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; width: 180px; }
+        .config-input:focus { outline: none; border-color: var(--primary); }
+        .status-indicator { font-size: 0.8rem; padding: 3px 10px; border-radius: 6px; font-weight: 600; }
+        .status-bad { background: rgba(239,68,68,0.15); color: var(--err); }
+        .status-good { background: rgba(16,185,129,0.15); color: var(--ok); }
+        .score-bar { display: flex; align-items: center; gap: 12px; justify-content: center; margin: 18px 0; }
+        .score-bar .score { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #000; border: none; padding: 11px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+        .results { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; text-align: center; }
+        .results .detail { font-size: 0.88rem; line-height: 1.8; color: #ccc; margin: 14px 0; }
+        .results .detail .hit { color: var(--ok); }
+        .results .detail .miss { color: var(--err); }
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Router Hardening Simulator Lab</h1>
+
+<header class="header">
+    <a href="../index.html">&larr; Back to First Watch</a>
+    <span class="badge">Shield House -- First Watch</span>
+</header>
+
+<div class="container">
+    <div class="lab-title">
+        <h1>Router Hardening Simulator</h1>
+        <p>Review the SOHO router configuration and fix the 8 security issues.</p>
+    </div>
+
+    <div class="instructions">
+        <strong>Scenario:</strong> A small law firm just set up a new office. The router was installed with factory defaults.
+        You have been asked to harden it. Review each setting, identify what is insecure, and change it.
+        Toggle switches, change dropdowns, or enter new values to fix each issue.
+    </div>
+
+    <div class="router-panel">
+        <div class="router-header">
+            <div>
+                <div class="router-model">NexusLink RT-AC68U</div>
+                <div style="font-size:0.82rem;color:var(--muted);">Firmware: v3.0.0.4.386 (2024-01-15)</div>
+            </div>
+            <div class="router-ip">192.168.1.1</div>
+        </div>
+
+        <!-- Admin Settings -->
+        <div class="config-section">
+            <div class="config-label">Administration</div>
+            <div class="config-row">
+                <div class="config-name">Admin Password <span class="current">Current: admin</span></div>
+                <div class="config-control">
+                    <input type="text" class="config-input" id="adminPass" placeholder="Enter new password" value="">
+                </div>
+            </div>
+            <div class="config-row">
+                <div class="config-name">Remote Management (WAN access to admin panel)</div>
+                <div class="config-control">
+                    <label class="toggle"><input type="checkbox" id="remoteMgmt" checked><span class="slider"></span></label>
+                    <span class="status-indicator status-bad" id="remoteMgmtStatus">ON</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wireless Settings -->
+        <div class="config-section">
+            <div class="config-label">Wireless</div>
+            <div class="config-row">
+                <div class="config-name">SSID <span class="current">Current: NexusLink_Default</span></div>
+                <div class="config-control">
+                    <input type="text" class="config-input" id="ssid" value="NexusLink_Default">
+                </div>
+            </div>
+            <div class="config-row">
+                <div class="config-name">Security Protocol</div>
+                <div class="config-control">
+                    <select class="config-select" id="wifiSecurity">
+                        <option value="WEP" selected>WEP</option>
+                        <option value="WPA">WPA-TKIP</option>
+                        <option value="WPA2">WPA2-AES</option>
+                        <option value="WPA3">WPA3-SAE</option>
+                    </select>
+                </div>
+            </div>
+            <div class="config-row">
+                <div class="config-name">WPS (Wi-Fi Protected Setup)</div>
+                <div class="config-control">
+                    <label class="toggle"><input type="checkbox" id="wps" checked><span class="slider"></span></label>
+                    <span class="status-indicator status-bad" id="wpsStatus">ON</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Services -->
+        <div class="config-section">
+            <div class="config-label">Network Services</div>
+            <div class="config-row">
+                <div class="config-name">UPnP (Universal Plug and Play)</div>
+                <div class="config-control">
+                    <label class="toggle"><input type="checkbox" id="upnp" checked><span class="slider"></span></label>
+                    <span class="status-indicator status-bad" id="upnpStatus">ON</span>
+                </div>
+            </div>
+            <div class="config-row">
+                <div class="config-name">SPI Firewall</div>
+                <div class="config-control">
+                    <label class="toggle"><input type="checkbox" id="firewall"><span class="slider"></span></label>
+                    <span class="status-indicator status-bad" id="firewallStatus">OFF</span>
+                </div>
+            </div>
+            <div class="config-row">
+                <div class="config-name">DNS Setting</div>
+                <div class="config-control">
+                    <select class="config-select" id="dns">
+                        <option value="isp" selected>ISP Default</option>
+                        <option value="secure">Cloudflare (1.1.1.1)</option>
+                        <option value="google">Google (8.8.8.8)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Firmware -->
+        <div class="config-section">
+            <div class="config-label">Firmware</div>
+            <div class="config-row">
+                <div class="config-name">Current Version: v3.0.0.4.386 <span class="current">(Released: Jan 2024 -- 15 months old)</span></div>
+                <div class="config-control">
+                    <button class="btn" style="padding:6px 14px;font-size:0.82rem;" id="fwBtn" onclick="updateFirmware()">Check for Updates</button>
+                    <span class="status-indicator status-bad" id="fwStatus">OUTDATED</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="grade()">Apply &amp; Grade</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset to Defaults</button>
+    </div>
+
+    <div class="results" id="results"></div>
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','fw-w4-soho-lab',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+</div>
+
+<script>
+var firmwareUpdated = false;
+
+function updateFirmware() {
+    firmwareUpdated = true;
+    document.getElementById('fwStatus').textContent = 'UPDATED';
+    document.getElementById('fwStatus').className = 'status-indicator status-good';
+    document.getElementById('fwBtn').textContent = 'Up to date';
+    document.getElementById('fwBtn').disabled = true;
+}
+
+/* Live status indicators for toggles */
+['remoteMgmt','wps','upnp','firewall'].forEach(function(id) {
+    var cb = document.getElementById(id);
+    cb.addEventListener('change', function() {
+        var statusEl = document.getElementById(id + 'Status');
+        var isOn = cb.checked;
+        statusEl.textContent = isOn ? 'ON' : 'OFF';
+        if (id === 'firewall') {
+            statusEl.className = 'status-indicator ' + (isOn ? 'status-good' : 'status-bad');
+        } else {
+            statusEl.className = 'status-indicator ' + (isOn ? 'status-bad' : 'status-good');
+        }
+    });
+});
+
+function grade() {
+    var score = 0;
+    var html = '<h2>Hardening Report</h2><div class="detail">';
+
+    /* 1. Admin password changed from default */
+    var pass = document.getElementById('adminPass').value.trim();
+    if (pass.length >= 8 && pass.toLowerCase() !== 'admin' && pass.toLowerCase() !== 'password') {
+        score++;
+        html += '<div class="hit">+ Admin password changed to a strong value.</div>';
+    } else {
+        html += '<div class="miss">- Admin password still default or too weak (need 8+ chars, not "admin" or "password").</div>';
+    }
+
+    /* 2. Remote management OFF */
+    if (!document.getElementById('remoteMgmt').checked) {
+        score++;
+        html += '<div class="hit">+ Remote management disabled -- admin panel only accessible from LAN.</div>';
+    } else {
+        html += '<div class="miss">- Remote management still ON -- exposes admin panel to the internet.</div>';
+    }
+
+    /* 3. Wi-Fi security upgraded from WEP */
+    var wifiSec = document.getElementById('wifiSecurity').value;
+    if (wifiSec === 'WPA2' || wifiSec === 'WPA3') {
+        score++;
+        html += '<div class="hit">+ Wi-Fi security upgraded to ' + wifiSec + '.</div>';
+    } else {
+        html += '<div class="miss">- Wi-Fi security is still ' + wifiSec + '. Minimum WPA2-AES required.</div>';
+    }
+
+    /* 4. WPS disabled */
+    if (!document.getElementById('wps').checked) {
+        score++;
+        html += '<div class="hit">+ WPS disabled -- prevents PIN brute-force attacks.</div>';
+    } else {
+        html += '<div class="miss">- WPS still enabled -- vulnerable to PIN brute-force (Reaver).</div>';
+    }
+
+    /* 5. UPnP disabled */
+    if (!document.getElementById('upnp').checked) {
+        score++;
+        html += '<div class="hit">+ UPnP disabled -- prevents automatic port forwarding by malware.</div>';
+    } else {
+        html += '<div class="miss">- UPnP still enabled -- allows any device to open firewall ports automatically.</div>';
+    }
+
+    /* 6. SPI Firewall enabled */
+    if (document.getElementById('firewall').checked) {
+        score++;
+        html += '<div class="hit">+ SPI Firewall enabled -- stateful packet inspection active.</div>';
+    } else {
+        html += '<div class="miss">- SPI Firewall still OFF -- no inbound traffic filtering.</div>';
+    }
+
+    /* 7. DNS changed from ISP default */
+    var dns = document.getElementById('dns').value;
+    if (dns !== 'isp') {
+        score++;
+        html += '<div class="hit">+ DNS changed to a secure resolver.</div>';
+    } else {
+        html += '<div class="miss">- DNS still using ISP default -- no protection against DNS hijacking or logging.</div>';
+    }
+
+    /* 8. Firmware updated */
+    if (firmwareUpdated) {
+        score++;
+        html += '<div class="hit">+ Firmware updated to latest version -- known vulnerabilities patched.</div>';
+    } else {
+        html += '<div class="miss">- Firmware still outdated (15 months) -- known CVEs unpatched.</div>';
+    }
+
+    html += '</div><div style="text-align:center;margin-top:16px;font-size:1.2rem;font-weight:700;color:var(--primary);">Score: ' + score + ' / 8</div>';
+    html += '<p style="text-align:center;color:var(--muted);margin-top:8px;">' +
+        (score >= 7 ? 'Excellent hardening -- this router is production-ready.' :
+         score >= 5 ? 'Good progress, but some attack vectors remain open.' :
+         'This router is still vulnerable. Review each setting carefully.') + '</p>';
+
+    var res = document.getElementById('results');
+    res.innerHTML = html;
+    res.classList.add('show');
+    document.getElementById('submitBtn').disabled = true;
+    if (score >= 6) document.getElementById('completeSection').classList.add('show');
+}
+
+function resetLab() {
+    firmwareUpdated = false;
+    document.getElementById('adminPass').value = '';
+    document.getElementById('remoteMgmt').checked = true;
+    document.getElementById('ssid').value = 'NexusLink_Default';
+    document.getElementById('wifiSecurity').value = 'WEP';
+    document.getElementById('wps').checked = true;
+    document.getElementById('upnp').checked = true;
+    document.getElementById('firewall').checked = false;
+    document.getElementById('dns').value = 'isp';
+    document.getElementById('fwBtn').textContent = 'Check for Updates';
+    document.getElementById('fwBtn').disabled = false;
+    document.getElementById('fwStatus').textContent = 'OUTDATED';
+    document.getElementById('fwStatus').className = 'status-indicator status-bad';
+
+    ['remoteMgmt','wps','upnp'].forEach(function(id) {
+        document.getElementById(id + 'Status').textContent = 'ON';
+        document.getElementById(id + 'Status').className = 'status-indicator status-bad';
+    });
+    document.getElementById('firewallStatus').textContent = 'OFF';
+    document.getElementById('firewallStatus').className = 'status-indicator status-bad';
+
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('submitBtn').disabled = false;
+}
+</script>
+</body>
+</html>
