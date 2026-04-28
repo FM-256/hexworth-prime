@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Layer &amp; Ethernet | Cable Run CTS1305C</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+
+        #progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: #3b82f6; transition: width 0.4s ease; z-index: 200; }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95); border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 22px; border-radius: 6px;
+            font-size: 0.88rem; cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700;
+            cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #60a5fa; }
+        .slide-title .cyan   { color: #06b6d4; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #60a5fa; }
+        .title-hero .big-title .cyan   { color: #06b6d4; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #93c5fd; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card { background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #3b82f6; }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-blue   { border-left-color: #60a5fa; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #fbbf24; }
+        .card.c-purple { border-left-color: #a78bfa; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .col-card { background: rgba(255, 255, 255, 0.03); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+        .col-card.col-a { border: 1px solid rgba(59, 130, 246, 0.3); }
+        .col-card.col-b { border: 1px solid rgba(6, 182, 212, 0.3); }
+        .col-card-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; }
+        .col-a .col-card-label { color: #60a5fa; }
+        .col-b .col-card-label { color: #06b6d4; }
+        .col-card-note { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+
+        .rt-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .rt-table th { text-align: left; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .rt-table td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #cbd5e1; }
+        .rt-table tr:hover td { background: rgba(59,130,246,0.04); }
+        .rt-net { font-family: 'Courier New', monospace; font-weight: 700; color: #60a5fa; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #60a5fa; background: rgba(59,130,246,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } .box { padding: 9px 12px; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .two-col { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Network Layer &amp; Ethernet &mdash; Cable Run CTS1305C</h1>
+
+<div id="progress-bar" style="width:7%"></div>
+
+<!-- ===== SLIDE 1 — TITLE ===== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 13 &nbsp;|&nbsp; CTS1305C &nbsp;|&nbsp; Week 2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="accent">Network Layer</span><br>
+                &amp; <span class="cyan">Ethernet</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                IP routing, packet structure, ARP, ICMP, and how data crosses network boundaries.
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A user on the 10.0.1.0/24 network cannot reach a server on 172.16.0.0/16. Ping fails. The switch shows the user's MAC. The problem is not at Layer 2 &mdash; it is a Layer 3 routing issue. This presentation teaches you how packets find their way.
+        </div>
+        <div class="title-meta-row">
+            <span>13 Slides</span>
+            <span>Week 2</span>
+            <span>Layer 3 Deep Dive</span>
+            <span>Routing + Protocols</span>
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 2 — IP ROUTING CONCEPTS ===== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 13</div>
+        <div class="slide-title">IP <span class="accent">Routing</span> Concepts</div>
+        <div class="slide-subtitle">How routers make forwarding decisions for every packet.</div>
+
+        <svg viewBox="0 0 700 130" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="20" y="30" width="110" height="70" rx="8" fill="rgba(59,130,246,0.08)" stroke="#60a5fa" stroke-width="1.5"/>
+            <text x="75" y="55" fill="#60a5fa" font-size="9" font-weight="700" text-anchor="middle" font-family="Segoe UI">Network A</text>
+            <text x="75" y="70" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Courier New">10.0.1.0/24</text>
+            <text x="75" y="88" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">PC: 10.0.1.5</text>
+            <rect x="220" y="20" width="110" height="90" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="275" y="42" fill="#a78bfa" font-size="9" font-weight="700" text-anchor="middle" font-family="Segoe UI">Router R1</text>
+            <text x="275" y="58" fill="#64748b" font-size="7" text-anchor="middle" font-family="Courier New">e0: 10.0.1.1</text>
+            <text x="275" y="70" fill="#64748b" font-size="7" text-anchor="middle" font-family="Courier New">e1: 192.168.0.1</text>
+            <text x="275" y="98" fill="#475569" font-size="7" text-anchor="middle" font-family="Segoe UI">Looks up routing table</text>
+            <rect x="420" y="20" width="110" height="90" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="475" y="42" fill="#a78bfa" font-size="9" font-weight="700" text-anchor="middle" font-family="Segoe UI">Router R2</text>
+            <text x="475" y="58" fill="#64748b" font-size="7" text-anchor="middle" font-family="Courier New">e0: 192.168.0.2</text>
+            <text x="475" y="70" fill="#64748b" font-size="7" text-anchor="middle" font-family="Courier New">e1: 172.16.0.1</text>
+            <rect x="620" y="30" width="110" height="70" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="675" y="55" fill="#06b6d4" font-size="9" font-weight="700" text-anchor="middle" font-family="Segoe UI">Network B</text>
+            <text x="675" y="70" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Courier New">172.16.0.0/16</text>
+            <text x="675" y="88" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Server: 172.16.0.10</text>
+            <line x1="135" y1="65" x2="215" y2="65" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5,3"/>
+            <polygon points="212,61 222,65 212,69" fill="#a78bfa"/>
+            <line x1="335" y1="65" x2="415" y2="65" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5,3"/>
+            <polygon points="412,61 422,65 412,69" fill="#a78bfa"/>
+            <line x1="535" y1="65" x2="615" y2="65" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5,3"/>
+            <polygon points="612,61 622,65 612,69" fill="#06b6d4"/>
+        </svg>
+
+        <div class="box box-blue">
+            <div class="box-label">Routing Process</div>
+            When a router receives a packet, it reads the <strong>destination IP</strong>, checks its <strong>routing table</strong> for the best matching route, decrements the <strong>TTL</strong>, recalculates the L2 header (new source/destination MAC), and forwards the packet out the appropriate interface.
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 3 — ROUTING TABLE ===== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 13</div>
+        <div class="slide-title">The <span class="accent">Routing Table</span></div>
+        <div class="slide-subtitle">Every router maintains a table that maps networks to next-hop addresses.</div>
+
+        <table class="rt-table">
+            <thead>
+                <tr><th>Destination Network</th><th>Subnet Mask</th><th>Next Hop</th><th>Interface</th><th>Metric</th><th>Source</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><span class="rt-net">10.0.1.0</span></td><td>255.255.255.0</td><td>Directly connected</td><td>Eth0</td><td>0</td><td>Connected</td></tr>
+                <tr><td><span class="rt-net">192.168.0.0</span></td><td>255.255.255.0</td><td>Directly connected</td><td>Eth1</td><td>0</td><td>Connected</td></tr>
+                <tr><td><span class="rt-net">172.16.0.0</span></td><td>255.255.0.0</td><td>192.168.0.2</td><td>Eth1</td><td>1</td><td>Static</td></tr>
+                <tr><td><span class="rt-net">0.0.0.0</span></td><td>0.0.0.0</td><td>192.168.0.254</td><td>Eth1</td><td>1</td><td>Default</td></tr>
+            </tbody>
+        </table>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Longest Prefix Match</div>
+                <div class="card-desc">When multiple routes match, the router selects the one with the longest (most specific) subnet mask. A /24 route wins over a /16 for the same destination.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Default Route (0.0.0.0/0)</div>
+                <div class="card-desc">The "gateway of last resort." If no other route matches, the packet is sent to the default gateway. Every host and router should have one.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 4 — DEFAULT GATEWAY ===== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 13</div>
+        <div class="slide-title">The <span class="accent">Default Gateway</span></div>
+        <div class="slide-subtitle">A host's exit point to reach any network beyond its own subnet.</div>
+
+        <svg viewBox="0 0 700 130" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="30" y="25" width="140" height="80" rx="8" fill="rgba(59,130,246,0.08)" stroke="#60a5fa" stroke-width="1.5"/>
+            <text x="100" y="50" fill="#60a5fa" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">Host</text>
+            <text x="100" y="66" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Courier New">10.0.1.50</text>
+            <text x="100" y="80" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">GW: 10.0.1.1</text>
+            <text x="100" y="95" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Mask: 255.255.255.0</text>
+            <text x="280" y="50" fill="#475569" font-size="8" text-anchor="middle" font-family="Segoe UI">Same subnet?</text>
+            <text x="280" y="66" fill="#4ade80" font-size="8" text-anchor="middle" font-family="Segoe UI">YES: ARP for dest MAC</text>
+            <text x="280" y="82" fill="#ef4444" font-size="8" text-anchor="middle" font-family="Segoe UI">NO: ARP for gateway MAC</text>
+            <line x1="175" y1="65" x2="220" y2="65" stroke="#3b82f6" stroke-width="1.5"/>
+            <polygon points="217,61 227,65 217,69" fill="#3b82f6"/>
+            <rect x="430" y="25" width="140" height="80" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="500" y="50" fill="#a78bfa" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">Router (GW)</text>
+            <text x="500" y="66" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Courier New">10.0.1.1</text>
+            <text x="500" y="82" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Forwards to remote nets</text>
+            <line x1="340" y1="82" x2="425" y2="65" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,3"/>
+            <polygon points="422,61 432,65 422,69" fill="#ef4444"/>
+        </svg>
+
+        <div class="box box-blue">
+            <div class="box-label">How a Host Decides</div>
+            The host performs a bitwise AND between the destination IP and its own subnet mask. If the result matches the host's network address, the destination is <strong>local</strong> (send directly via ARP). If not, it is <strong>remote</strong> &mdash; send the frame to the default gateway's MAC address, with the remote IP still in the packet header.
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 5 — ARP ===== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 13</div>
+        <div class="slide-title"><span class="accent">ARP</span> &mdash; Address Resolution Protocol</div>
+        <div class="slide-subtitle">Resolving IP addresses to MAC addresses on the local network.</div>
+
+        <svg viewBox="0 0 700 130" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="30" y="20" width="120" height="60" rx="8" fill="rgba(59,130,246,0.08)" stroke="#60a5fa" stroke-width="1.5"/>
+            <text x="90" y="42" fill="#60a5fa" font-size="9" font-weight="700" text-anchor="middle" font-family="Segoe UI">Host A</text>
+            <text x="90" y="58" fill="#94a3b8" font-size="7" text-anchor="middle" font-family="Courier New">10.0.1.5</text>
+            <!-- ARP Request broadcast -->
+            <line x1="155" y1="40" x2="350" y2="40" stroke="#fbbf24" stroke-width="1.5"/>
+            <polygon points="347,36 357,40 347,44" fill="#fbbf24"/>
+            <text x="252" y="32" fill="#fbbf24" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">ARP Request (broadcast)</text>
+            <text x="252" y="52" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">"Who has 10.0.1.1? Tell 10.0.1.5"</text>
+            <!-- ARP Reply unicast -->
+            <line x1="350" y1="95" x2="155" y2="95" stroke="#22c55e" stroke-width="1.5"/>
+            <polygon points="158,91 148,95 158,99" fill="#22c55e"/>
+            <text x="252" y="87" fill="#22c55e" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">ARP Reply (unicast)</text>
+            <text x="252" y="107" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">"10.0.1.1 is at AA:BB:CC:11:22:33"</text>
+            <!-- Router -->
+            <rect x="360" y="20" width="120" height="60" rx="8" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="420" y="42" fill="#a78bfa" font-size="9" font-weight="700" text-anchor="middle" font-family="Segoe UI">Router</text>
+            <text x="420" y="58" fill="#94a3b8" font-size="7" text-anchor="middle" font-family="Courier New">10.0.1.1</text>
+            <!-- ARP cache note -->
+            <rect x="530" y="30" width="150" height="70" rx="8" fill="rgba(59,130,246,0.05)" stroke="#475569" stroke-width="1"/>
+            <text x="605" y="50" fill="#60a5fa" font-size="9" font-weight="600" text-anchor="middle" font-family="Segoe UI">ARP Cache</text>
+            <text x="605" y="66" fill="#94a3b8" font-size="7" text-anchor="middle" font-family="Courier New">10.0.1.1 AA:BB:CC:11:22:33</text>
+            <text x="605" y="80" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Cached for ~300 seconds</text>
+        </svg>
+
+        <div class="box box-gold">
+            <div class="box-label">Security Note</div>
+            <strong>ARP has no authentication.</strong> ARP spoofing/poisoning is a common Layer 2 attack where a malicious host sends fake ARP replies to redirect traffic. Mitigation: Dynamic ARP Inspection (DAI) on managed switches.
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 6 — ICMP ===== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 13</div>
+        <div class="slide-title"><span class="accent">ICMP</span> &mdash; Internet Control Message Protocol</div>
+        <div class="slide-subtitle">The network's error-reporting and diagnostic protocol.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Echo Request/Reply</div>
+                <div class="card-desc"><code>ping</code> sends ICMP Type 8 (request). The target replies with Type 0 (reply). Tests reachability and round-trip time.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Destination Unreachable</div>
+                <div class="card-desc">Type 3. Returned when a router cannot forward a packet: network unreachable, host unreachable, port unreachable, or fragmentation needed but DF bit set.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Time Exceeded</div>
+                <div class="card-desc">Type 11. Sent when TTL reaches 0. This is how <code>traceroute</code>/<code>tracert</code> works: incrementing TTL to discover each hop.</div>
+            </div>
+        </div>
+
+        <svg viewBox="0 0 700 80" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <text x="350" y="15" fill="#475569" font-size="9" font-weight="600" text-anchor="middle" font-family="Segoe UI">TRACEROUTE MECHANISM</text>
+            <rect x="30" y="28" width="70" height="35" rx="5" fill="rgba(59,130,246,0.08)" stroke="#60a5fa" stroke-width="1"/>
+            <text x="65" y="50" fill="#60a5fa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">Source</text>
+            <rect x="160" y="28" width="70" height="35" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="195" y="45" fill="#a78bfa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">Hop 1</text>
+            <text x="195" y="56" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">TTL=1</text>
+            <rect x="290" y="28" width="70" height="35" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="325" y="45" fill="#a78bfa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">Hop 2</text>
+            <text x="325" y="56" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">TTL=2</text>
+            <rect x="420" y="28" width="70" height="35" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="455" y="45" fill="#a78bfa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">Hop 3</text>
+            <text x="455" y="56" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">TTL=3</text>
+            <rect x="560" y="28" width="90" height="35" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+            <text x="605" y="50" fill="#06b6d4" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">Destination</text>
+            <line x1="105" y1="46" x2="155" y2="46" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="235" y1="46" x2="285" y2="46" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="365" y1="46" x2="415" y2="46" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="495" y1="46" x2="555" y2="46" stroke="#06b6d4" stroke-width="1" stroke-dasharray="4,3"/>
+        </svg>
+
+        <div class="box box-red">
+            <div class="box-label">Important</div>
+            ICMP is <strong>not a transport protocol</strong> &mdash; it does not carry application data. It rides directly on top of IP (protocol number 1). Firewalls often block ICMP, so a failed ping does not necessarily mean the host is down.
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 7 — IP PACKET STRUCTURE ===== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 13</div>
+        <div class="slide-title">IPv4 <span class="accent">Packet Structure</span></div>
+        <div class="slide-subtitle">The Layer 3 header fields that control routing and delivery.</div>
+
+        <svg viewBox="0 0 700 150" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <text x="350" y="15" fill="#60a5fa" font-size="10" font-weight="700" text-anchor="middle" font-family="Segoe UI">IPv4 HEADER (20 bytes minimum)</text>
+            <!-- Row 1 -->
+            <rect x="30" y="25" width="80" height="35" rx="4" fill="rgba(59,130,246,0.1)" stroke="#60a5fa" stroke-width="1"/>
+            <text x="70" y="40" fill="#60a5fa" font-size="7" font-weight="600" text-anchor="middle" font-family="Segoe UI">Version</text>
+            <text x="70" y="52" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">4 bits</text>
+            <rect x="115" y="25" width="80" height="35" rx="4" fill="rgba(59,130,246,0.1)" stroke="#60a5fa" stroke-width="1"/>
+            <text x="155" y="40" fill="#60a5fa" font-size="7" font-weight="600" text-anchor="middle" font-family="Segoe UI">IHL</text>
+            <text x="155" y="52" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">4 bits</text>
+            <rect x="200" y="25" width="100" height="35" rx="4" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+            <text x="250" y="40" fill="#06b6d4" font-size="7" font-weight="600" text-anchor="middle" font-family="Segoe UI">ToS / DSCP</text>
+            <text x="250" y="52" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">8 bits (QoS)</text>
+            <rect x="305" y="25" width="130" height="35" rx="4" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>
+            <text x="370" y="40" fill="#4ade80" font-size="7" font-weight="600" text-anchor="middle" font-family="Segoe UI">Total Length</text>
+            <text x="370" y="52" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">16 bits (max 65535)</text>
+            <rect x="440" y="25" width="240" height="35" rx="4" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1"/>
+            <text x="560" y="40" fill="#fbbf24" font-size="7" font-weight="600" text-anchor="middle" font-family="Segoe UI">Identification / Flags / Fragment Offset</text>
+            <text x="560" y="52" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">32 bits (fragmentation)</text>
+            <!-- Row 2 -->
+            <rect x="30" y="68" width="110" height="35" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+            <text x="85" y="83" fill="#fca5a5" font-size="7" font-weight="600" text-anchor="middle" font-family="Segoe UI">TTL</text>
+            <text x="85" y="95" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">8 bits (hop limit)</text>
+            <rect x="145" y="68" width="110" height="35" rx="4" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="200" y="83" fill="#c4b5fd" font-size="7" font-weight="600" text-anchor="middle" font-family="Segoe UI">Protocol</text>
+            <text x="200" y="95" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">8 bits (TCP=6,UDP=17)</text>
+            <rect x="260" y="68" width="130" height="35" rx="4" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>
+            <text x="325" y="83" fill="#4ade80" font-size="7" font-weight="600" text-anchor="middle" font-family="Segoe UI">Header Checksum</text>
+            <text x="325" y="95" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">16 bits</text>
+            <!-- Row 3 -->
+            <rect x="30" y="111" width="320" height="30" rx="4" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="190" y="130" fill="#60a5fa" font-size="8" font-weight="700" text-anchor="middle" font-family="Segoe UI">Source IP Address (32 bits)</text>
+            <rect x="360" y="111" width="320" height="30" rx="4" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="520" y="130" fill="#06b6d4" font-size="8" font-weight="700" text-anchor="middle" font-family="Segoe UI">Destination IP Address (32 bits)</text>
+        </svg>
+
+        <div class="box box-blue">
+            <div class="box-label">Key Fields</div>
+            <strong>TTL</strong>: decremented by 1 at each router; prevents routing loops. <strong>Protocol</strong>: tells the receiving host which Layer 4 protocol to use (1=ICMP, 6=TCP, 17=UDP). <strong>Source/Dest IP</strong>: never change during transit (NAT is the exception).
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 8 — TTL ===== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 13</div>
+        <div class="slide-title"><span class="accent">TTL</span> &mdash; Time to Live</div>
+        <div class="slide-subtitle">The packet's self-destruct counter that prevents infinite routing loops.</div>
+
+        <svg viewBox="0 0 700 100" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="30" y="20" width="80" height="50" rx="6" fill="rgba(59,130,246,0.08)" stroke="#60a5fa" stroke-width="1"/>
+            <text x="70" y="42" fill="#60a5fa" font-size="9" font-weight="600" text-anchor="middle" font-family="Segoe UI">Source</text>
+            <text x="70" y="56" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">TTL=128</text>
+            <rect x="180" y="20" width="80" height="50" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="220" y="42" fill="#a78bfa" font-size="9" font-weight="600" text-anchor="middle" font-family="Segoe UI">Hop 1</text>
+            <text x="220" y="56" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">TTL=127</text>
+            <rect x="330" y="20" width="80" height="50" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="370" y="42" fill="#a78bfa" font-size="9" font-weight="600" text-anchor="middle" font-family="Segoe UI">Hop 2</text>
+            <text x="370" y="56" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">TTL=126</text>
+            <rect x="480" y="20" width="80" height="50" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+            <text x="520" y="42" fill="#ef4444" font-size="9" font-weight="600" text-anchor="middle" font-family="Segoe UI">TTL=0</text>
+            <text x="520" y="56" fill="#fca5a5" font-size="8" text-anchor="middle" font-family="Segoe UI">DROPPED</text>
+            <line x1="115" y1="45" x2="175" y2="45" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="265" y1="45" x2="325" y2="45" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="415" y1="45" x2="475" y2="45" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="350" y="90" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Default TTL: Windows=128, Linux=64, Cisco=255</text>
+        </svg>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Loop Prevention</div>
+                <div class="card-desc">Without TTL, a packet caught in a routing loop would circle forever, consuming bandwidth. TTL ensures every packet has a finite lifespan.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">OS Fingerprinting</div>
+                <div class="card-desc">Default TTL values vary by OS. Seeing TTL=127 in a ping reply (128 - 1 hop) suggests a Windows machine. This is used in network reconnaissance.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 9 — STATIC vs DYNAMIC ROUTING ===== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 13</div>
+        <div class="slide-title"><span class="accent">Static</span> vs <span class="cyan">Dynamic</span> Routing</div>
+        <div class="slide-subtitle">Two approaches to populating the routing table.</div>
+
+        <div class="two-col">
+            <div class="col-card col-a">
+                <div class="col-card-label">Static Routing</div>
+                <div class="col-card-note">
+                    Routes are <strong>manually configured</strong> by the administrator. Simple, predictable, no overhead. Best for small networks or specific paths (e.g., default route, stub networks). No automatic failover &mdash; if a link goes down, you must update manually.
+                </div>
+            </div>
+            <div class="col-card col-b">
+                <div class="col-card-label">Dynamic Routing</div>
+                <div class="col-card-note">
+                    Routes are <strong>automatically learned</strong> from neighboring routers using routing protocols. Adapts to topology changes. More CPU/memory overhead. Essential for medium-to-large networks. Provides automatic failover.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">When to Use Which</div>
+            <strong>Static:</strong> small networks, stub networks, default routes, security-sensitive paths. <strong>Dynamic:</strong> enterprise/ISP networks, redundant paths, growing topologies. Most real networks use a combination of both.
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 10 — ROUTING PROTOCOLS INTRO ===== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 13</div>
+        <div class="slide-title">Dynamic Routing <span class="accent">Protocols</span></div>
+        <div class="slide-subtitle">An introduction to the protocols that automate routing decisions.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">RIP (v1/v2)</div>
+                <div class="card-desc">Distance-vector protocol. Uses <strong>hop count</strong> as its metric (max 15 hops). Simple but slow to converge. Good for small/lab networks. RIPv2 adds VLSM and authentication.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">OSPF</div>
+                <div class="card-desc">Link-state protocol. Uses <strong>cost</strong> (based on bandwidth) as its metric. Fast convergence, scalable. Divides networks into areas. Open standard (RFC 2328). The enterprise workhorse.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">EIGRP</div>
+                <div class="card-desc">Advanced distance-vector (Cisco, now open). Uses <strong>composite metric</strong> (bandwidth + delay). Very fast convergence with DUAL algorithm. Supports unequal-cost load balancing.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Routed vs Routing Protocols</div>
+            <strong>Routed protocol:</strong> the protocol being routed (IP, IPv6). <strong>Routing protocol:</strong> the protocol that builds routing tables (OSPF, EIGRP, RIP). IP is routed; OSPF is the routing protocol that helps routers learn where to send IP packets.
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 11 — ROUTED vs ROUTING ===== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 13</div>
+        <div class="slide-title"><span class="accent">Routed</span> vs <span class="cyan">Routing</span> Protocols</div>
+        <div class="slide-subtitle">Two very different categories that often get confused.</div>
+
+        <svg viewBox="0 0 700 130" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <!-- Routed -->
+            <rect x="30" y="15" width="290" height="100" rx="10" fill="rgba(59,130,246,0.06)" stroke="#60a5fa" stroke-width="1.5"/>
+            <text x="175" y="38" fill="#60a5fa" font-size="12" font-weight="700" text-anchor="middle" font-family="Segoe UI">Routed Protocols</text>
+            <text x="175" y="56" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="Segoe UI">Carry user data across networks</text>
+            <text x="175" y="74" fill="#93c5fd" font-size="9" text-anchor="middle" font-family="Courier New">IPv4, IPv6</text>
+            <text x="175" y="92" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Assigned to host interfaces</text>
+            <text x="175" y="105" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Used by end devices + routers</text>
+            <!-- Routing -->
+            <rect x="380" y="15" width="290" height="100" rx="10" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="525" y="38" fill="#06b6d4" font-size="12" font-weight="700" text-anchor="middle" font-family="Segoe UI">Routing Protocols</text>
+            <text x="525" y="56" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="Segoe UI">Build and maintain routing tables</text>
+            <text x="525" y="74" fill="#67e8f9" font-size="9" text-anchor="middle" font-family="Courier New">OSPF, EIGRP, RIP, BGP</text>
+            <text x="525" y="92" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Run between routers only</text>
+            <text x="525" y="105" fill="#64748b" font-size="8" text-anchor="middle" font-family="Segoe UI">Exchange topology information</text>
+        </svg>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Administrative Distance</div>
+                <div class="card-desc">When multiple routing sources provide paths to the same destination, the router trusts the one with the lowest AD: Connected (0), Static (1), EIGRP (90), OSPF (110), RIP (120).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Metric</div>
+                <div class="card-desc">Within a single routing protocol, the metric determines the best path. Lower is better. OSPF uses cost (bandwidth), RIP uses hop count, EIGRP uses a composite of bandwidth + delay.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 12 — PACKET FLOW END-TO-END ===== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 13</div>
+        <div class="slide-title">End-to-End <span class="accent">Packet Flow</span></div>
+        <div class="slide-subtitle">Putting it all together &mdash; from source host to destination host.</div>
+
+        <svg viewBox="0 0 700 100" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <rect x="10" y="20" width="90" height="55" rx="6" fill="rgba(59,130,246,0.08)" stroke="#60a5fa" stroke-width="1"/>
+            <text x="55" y="40" fill="#60a5fa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">1. ARP</text>
+            <text x="55" y="53" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Resolve GW MAC</text>
+            <rect x="115" y="20" width="90" height="55" rx="6" fill="rgba(59,130,246,0.08)" stroke="#60a5fa" stroke-width="1"/>
+            <text x="160" y="40" fill="#60a5fa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">2. Frame</text>
+            <text x="160" y="53" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Build L2 frame</text>
+            <rect x="220" y="20" width="90" height="55" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="265" y="40" fill="#a78bfa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">3. Switch</text>
+            <text x="265" y="53" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Forward by MAC</text>
+            <rect x="325" y="20" width="90" height="55" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="370" y="40" fill="#a78bfa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">4. Router</text>
+            <text x="370" y="53" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Route by IP</text>
+            <rect x="430" y="20" width="90" height="55" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="475" y="40" fill="#a78bfa" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">5. New Frame</text>
+            <text x="475" y="53" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">New L2 header</text>
+            <rect x="535" y="20" width="90" height="55" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+            <text x="580" y="40" fill="#06b6d4" font-size="8" font-weight="600" text-anchor="middle" font-family="Segoe UI">6. Deliver</text>
+            <text x="580" y="53" fill="#64748b" font-size="7" text-anchor="middle" font-family="Segoe UI">Dest receives</text>
+            <text x="350" y="92" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="Segoe UI">IP addresses stay the same. MAC addresses change at every hop.</text>
+        </svg>
+
+        <div class="box box-green">
+            <div class="box-label">Critical Distinction</div>
+            The <strong>Layer 3 header</strong> (source/destination IP) remains constant end-to-end. The <strong>Layer 2 header</strong> (source/destination MAC) is rewritten at every router hop. This is the fundamental relationship between routing and switching.
+        </div>
+    </div>
+</section>
+
+<!-- ===== SLIDE 13 — SUMMARY ===== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 13</div>
+        <div class="slide-title"><span class="accent">Summary</span> &amp; Key Takeaways</div>
+        <div class="slide-subtitle">Everything you need to remember from this presentation.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Routers</strong> forward packets by checking the destination IP against the <strong>routing table</strong> and selecting the longest prefix match.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">The <strong>default gateway</strong> is the router interface on the local subnet. Hosts use it for all traffic to remote networks.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>ARP</strong> resolves IP to MAC on the local segment (broadcast request, unicast reply). ARP cache entries expire after ~300 seconds.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>ICMP</strong> provides error reporting (Destination Unreachable, Time Exceeded) and diagnostics (ping, traceroute).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>TTL</strong> is decremented at each hop. When it reaches 0, the packet is dropped and an ICMP Time Exceeded is sent back.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Static routing</strong> is manual; <strong>dynamic routing</strong> (RIP, OSPF, EIGRP) automates route discovery and adapts to changes.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">IP addresses <strong>stay constant</strong> end-to-end; MAC addresses are <strong>rewritten at every hop</strong>.</span>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Back to our scenario: the user at 10.0.1.5 cannot reach 172.16.0.10. Check the routing table on R1 &mdash; does it have a route for 172.16.0.0/16? If not, add a static route or enable OSPF. Once the route exists, packets will flow.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ===== NAVIGATION BAR ===== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Cable Run Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 13;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) { completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none'; }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'cr-w2-network-pres', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

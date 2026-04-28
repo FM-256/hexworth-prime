@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Layer Services &amp; Data Communications - Cable Run</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh; color: white; overflow-x: hidden;
+        }
+        .slide-container { display: none; min-height: 100vh; padding: 40px; padding-bottom: 80px; animation: fadeIn 0.5s ease-in-out; overflow-y: auto; }
+        .slide-container.active { display: flex; flex-direction: column; }
+        .scroll-hint { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: rgba(96, 165, 250, 0.9); color: #000; padding: 8px 20px; border-radius: 20px; font-size: 0.9em; font-weight: bold; animation: bounce 2s infinite; z-index: 100; display: none; }
+        .scroll-hint.visible { display: block; }
+        @keyframes bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-10px); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-header { text-align: center; margin-bottom: 30px; }
+        .slide-number { font-size: 0.9em; color: #60a5fa; margin-bottom: 10px; }
+        h1 { font-size: 2.5em; background: linear-gradient(135deg, #60a5fa, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 10px; }
+        h2 { font-size: 1.8em; color: #60a5fa; margin-bottom: 20px; }
+        h3 { font-size: 1.3em; margin-bottom: 12px; }
+        .subtitle { font-size: 1.2em; color: #94a3b8; }
+        .content { flex: 1; display: flex; flex-direction: column; justify-content: center; max-width: 1400px; margin: 0 auto; width: 100%; min-height: 0; }
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+        .three-column { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
+        .info-box { background: rgba(96, 165, 250, 0.1); border: 2px solid #60a5fa; border-radius: 15px; padding: 25px; margin: 15px 0; }
+        .concept-box { background: rgba(59, 130, 246, 0.1); border: 2px solid #3b82f6; border-radius: 15px; padding: 20px; margin: 10px 0; }
+        .warning-box { background: rgba(239, 68, 68, 0.1); border: 2px solid #ef4444; border-radius: 15px; padding: 20px; margin: 15px 0; }
+        .success-box { background: rgba(16, 185, 129, 0.1); border: 2px solid #10b981; border-radius: 15px; padding: 20px; margin: 15px 0; }
+        .highlight-box { background: rgba(139, 92, 246, 0.1); border: 2px solid #8b5cf6; border-radius: 15px; padding: 20px; margin: 15px 0; }
+        .service-card { background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; text-align: center; border: 2px solid transparent; transition: all 0.3s ease; }
+        .service-card:hover { border-color: #60a5fa; transform: translateY(-5px); }
+        ul { list-style: none; padding-left: 0; }
+        li { padding: 8px 0; padding-left: 30px; position: relative; font-size: 1.1em; }
+        li::before { content: ">"; color: #60a5fa; position: absolute; left: 0; font-weight: bold; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .comparison-table th, .comparison-table td { padding: 12px 15px; text-align: center; border: 1px solid rgba(96, 165, 250, 0.3); }
+        .comparison-table th { background: rgba(96, 165, 250, 0.2); color: #60a5fa; font-weight: bold; }
+        .comparison-table tr:nth-child(even) { background: rgba(255, 255, 255, 0.03); }
+        .comparison-table tr:hover { background: rgba(96, 165, 250, 0.1); }
+        .code-block { background: #1a1a2e; border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 10px; padding: 15px 20px; font-family: 'Courier New', monospace; font-size: 1em; margin: 15px 0; overflow-x: auto; white-space: pre-wrap; color: #e2e8f0; }
+        .highlight { color: #60a5fa; font-weight: bold; }
+        .navigation { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; align-items: center; background: rgba(0, 0, 0, 0.5); padding: 15px 30px; border-radius: 50px; backdrop-filter: blur(10px); z-index: 1000; }
+        .nav-btn { background: rgba(96, 165, 250, 0.3); border: 2px solid #60a5fa; color: white; padding: 10px 25px; border-radius: 25px; cursor: pointer; font-size: 1em; transition: all 0.3s ease; }
+        .nav-btn:hover { background: #60a5fa; color: #0f172a; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .progress-text { color: #60a5fa; font-weight: bold; }
+        .progress-bar { position: fixed; top: 0; left: 0; height: 4px; background: linear-gradient(90deg, #60a5fa, #3b82f6); transition: width 0.3s ease; z-index: 1001; }
+        .home-btn { position: fixed; top: 20px; right: 20px; background: rgba(96, 165, 250, 0.9); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; z-index: 1000; transition: all 0.3s ease; display: inline-flex; align-items: center; justify-content: center; }
+        .home-btn:hover { background: #60a5fa; transform: translateY(-2px); }
+        .icon-inline { width: 1.1em; height: 1.1em; vertical-align: middle; display: inline-block; }
+        svg.diagram { max-width: 100%; height: auto; margin: 15px auto; display: block; }
+        @media (max-width: 768px) { .two-column, .three-column { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+    <a href="../index.html" class="home-btn">&#8592; Back</a>
+
+    <!-- Slide 1: Title -->
+    <div class="slide-container active" id="slide1">
+        <div class="content" style="justify-content: center; text-align: center;">
+            <div style="font-size: 5em; margin-bottom: 20px;"><img src="/assets/images/icons/icon-web.webp" alt="" class="icon-inline" style="width:1.5em;height:1.5em;"></div>
+            <h1 style="font-size: 3.5em;">Application Layer Services &amp; Data Communications</h1>
+            <p class="subtitle" style="font-size: 1.5em; margin-top: 20px;">CTS1305C Cable Run -- Week 3</p>
+            <div style="margin-top: 40px; display: flex; justify-content: center; gap: 30px;">
+                <div class="info-box" style="display: inline-block; padding: 15px 30px;">
+                    <span class="highlight">Client-Server</span> | <span class="highlight">Web/Email/File</span> | <span class="highlight">QoS</span> | <span class="highlight">VoIP &amp; Streaming</span>
+                </div>
+            </div>
+            <p style="margin-top: 30px; color: #64748b;">Press <span class="highlight">&#8594;</span> to begin or use navigation below</p>
+        </div>
+    </div>
+
+    <!-- Slide 2: Client-Server Model -->
+    <div class="slide-container" id="slide2">
+        <div class="slide-header">
+            <div class="slide-number">Slide 2 of 13</div>
+            <h2><img src="/assets/images/icons/icon-gear.webp" alt="" class="icon-inline"> Client-Server Model</h2>
+            <p class="subtitle">The Foundation of Network Services</p>
+        </div>
+        <div class="content">
+            <div class="two-column">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">How It Works</h3>
+                        <ul>
+                            <li><strong>Client</strong> initiates requests for resources or services</li>
+                            <li><strong>Server</strong> listens on well-known ports and responds to requests</li>
+                            <li>Centralized resources: easier to manage, back up, and secure</li>
+                            <li>Scalable -- add more servers to handle more clients</li>
+                        </ul>
+                    </div>
+                    <div class="info-box" style="margin-top: 10px;">
+                        <p><img src="/assets/images/icons/icon-info.webp" alt="" class="icon-inline"> <strong>Peer-to-peer (P2P)</strong> is the alternative: each device acts as both client and server. Used in file sharing (BitTorrent) and ad-hoc networks.</p>
+                    </div>
+                </div>
+                <div>
+                    <svg class="diagram" viewBox="0 0 400 280">
+                        <rect x="140" y="10" width="120" height="60" rx="10" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="2"/>
+                        <text x="200" y="35" fill="#60a5fa" font-size="14" text-anchor="middle" font-weight="bold">Server</text>
+                        <text x="200" y="55" fill="#94a3b8" font-size="11" text-anchor="middle">Provides services</text>
+                        <rect x="20" y="120" width="100" height="50" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+                        <text x="70" y="150" fill="#e2e8f0" font-size="11" text-anchor="middle">Client A</text>
+                        <rect x="150" y="120" width="100" height="50" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+                        <text x="200" y="150" fill="#e2e8f0" font-size="11" text-anchor="middle">Client B</text>
+                        <rect x="280" y="120" width="100" height="50" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+                        <text x="330" y="150" fill="#e2e8f0" font-size="11" text-anchor="middle">Client C</text>
+                        <line x1="70" y1="120" x2="170" y2="70" stroke="#3b82f6" stroke-width="1.5"/>
+                        <line x1="200" y1="120" x2="200" y2="70" stroke="#3b82f6" stroke-width="1.5"/>
+                        <line x1="330" y1="120" x2="230" y2="70" stroke="#3b82f6" stroke-width="1.5"/>
+                        <text x="200" y="210" fill="#60a5fa" font-size="13" text-anchor="middle" font-weight="bold">Examples</text>
+                        <text x="200" y="235" fill="#94a3b8" font-size="12" text-anchor="middle">Web server + browser | Email server + Outlook</text>
+                        <text x="200" y="255" fill="#94a3b8" font-size="12" text-anchor="middle">File server + Explorer | Database server + app</text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 3: Web Services -->
+    <div class="slide-container" id="slide3">
+        <div class="slide-header">
+            <div class="slide-number">Slide 3 of 13</div>
+            <h2>Web Services Architecture</h2>
+            <p class="subtitle">How the Web Delivers Content</p>
+        </div>
+        <div class="content">
+            <div class="two-column">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">Web Server Components</h3>
+                        <ul>
+                            <li><strong>HTTP daemon</strong> (Apache, Nginx, IIS) listens on port 80/443</li>
+                            <li>Serves static content: HTML, CSS, JS, images</li>
+                            <li>Proxies dynamic requests to application servers</li>
+                            <li>Virtual hosting: one server, multiple domains</li>
+                        </ul>
+                    </div>
+                    <div class="info-box" style="margin-top: 10px;">
+                        <h3>URL Anatomy</h3>
+                        <div class="code-block">https://www.example.com:443/path/page.html
+
+scheme://host:port/path</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="highlight-box">
+                        <h3 style="color: #8b5cf6;">REST APIs</h3>
+                        <ul>
+                            <li>Representational State Transfer</li>
+                            <li>Uses standard HTTP methods (GET, POST, PUT, DELETE)</li>
+                            <li>Returns data in JSON or XML format</li>
+                            <li>Stateless -- each request carries all needed context</li>
+                            <li>Powers mobile apps, SPAs, microservices</li>
+                        </ul>
+                    </div>
+                    <div class="success-box" style="margin-top: 10px;">
+                        <h3 style="color: #10b981;">Load Balancing</h3>
+                        <p>Distributes incoming requests across multiple servers for high availability and performance. Round-robin, least connections, and IP hash are common algorithms.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4: Email Architecture -->
+    <div class="slide-container" id="slide4">
+        <div class="slide-header">
+            <div class="slide-number">Slide 4 of 13</div>
+            <h2>Email Architecture</h2>
+            <p class="subtitle">The Full Mail Delivery Pipeline</p>
+        </div>
+        <div class="content">
+            <svg class="diagram" viewBox="0 0 800 200" style="max-width:750px;">
+                <rect x="10" y="50" width="130" height="80" rx="10" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"/>
+                <text x="75" y="80" fill="#3b82f6" font-size="13" text-anchor="middle" font-weight="bold">MUA</text>
+                <text x="75" y="100" fill="#94a3b8" font-size="10" text-anchor="middle">Mail User Agent</text>
+                <text x="75" y="115" fill="#94a3b8" font-size="10" text-anchor="middle">(Outlook, Gmail)</text>
+                <line x1="140" y1="90" x2="210" y2="90" stroke="#3b82f6" stroke-width="2" marker-end="url(#arr3)"/>
+                <text x="175" y="82" fill="#3b82f6" font-size="10" text-anchor="middle">SMTP</text>
+                <rect x="210" y="50" width="130" height="80" rx="10" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="2"/>
+                <text x="275" y="80" fill="#60a5fa" font-size="13" text-anchor="middle" font-weight="bold">MTA</text>
+                <text x="275" y="100" fill="#94a3b8" font-size="10" text-anchor="middle">Mail Transfer Agent</text>
+                <text x="275" y="115" fill="#94a3b8" font-size="10" text-anchor="middle">(Postfix, Exchange)</text>
+                <line x1="340" y1="90" x2="410" y2="90" stroke="#60a5fa" stroke-width="2" marker-end="url(#arr3)"/>
+                <text x="375" y="82" fill="#60a5fa" font-size="10" text-anchor="middle">SMTP</text>
+                <rect x="410" y="50" width="130" height="80" rx="10" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="2"/>
+                <text x="475" y="80" fill="#60a5fa" font-size="13" text-anchor="middle" font-weight="bold">MTA</text>
+                <text x="475" y="100" fill="#94a3b8" font-size="10" text-anchor="middle">Recipient's server</text>
+                <text x="475" y="115" fill="#94a3b8" font-size="10" text-anchor="middle">(MX record lookup)</text>
+                <line x1="540" y1="90" x2="610" y2="90" stroke="#22c55e" stroke-width="2" marker-end="url(#arr3)"/>
+                <text x="575" y="82" fill="#22c55e" font-size="10" text-anchor="middle">Store</text>
+                <rect x="610" y="50" width="130" height="80" rx="10" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="2"/>
+                <text x="675" y="80" fill="#22c55e" font-size="13" text-anchor="middle" font-weight="bold">MDA</text>
+                <text x="675" y="100" fill="#94a3b8" font-size="10" text-anchor="middle">Mail Delivery Agent</text>
+                <text x="675" y="115" fill="#94a3b8" font-size="10" text-anchor="middle">(Mailbox)</text>
+                <text x="675" y="170" fill="#8b5cf6" font-size="11" text-anchor="middle">Retrieved via POP3/IMAP</text>
+                <defs><marker id="arr3" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#60a5fa"/></marker></defs>
+            </svg>
+            <div class="two-column" style="margin-top: 20px;">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">Email Security</h3>
+                        <ul>
+                            <li><strong>SPF</strong> -- DNS TXT record listing authorized sending servers</li>
+                            <li><strong>DKIM</strong> -- Digital signature proving message was not altered</li>
+                            <li><strong>DMARC</strong> -- Policy defining how to handle SPF/DKIM failures</li>
+                            <li><strong>STARTTLS</strong> -- Upgrades SMTP to encrypted connection</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="warning-box">
+                        <h3 style="color: #ef4444;">Common Email Threats</h3>
+                        <ul>
+                            <li>Phishing -- spoofed sender, malicious links</li>
+                            <li>Open relay -- misconfigured MTA forwarding spam</li>
+                            <li>Business Email Compromise (BEC)</li>
+                            <li>Attachment-based malware delivery</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 5: File Sharing (SMB/NFS) -->
+    <div class="slide-container" id="slide5">
+        <div class="slide-header">
+            <div class="slide-number">Slide 5 of 13</div>
+            <h2>File Sharing Protocols</h2>
+            <p class="subtitle">SMB and NFS</p>
+        </div>
+        <div class="content">
+            <div class="two-column">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">SMB (Server Message Block)</h3>
+                        <ul>
+                            <li>Port 445 (TCP) -- also uses 137-139 for legacy NetBIOS</li>
+                            <li>Windows-native file and printer sharing</li>
+                            <li>Supports authentication, permissions, encryption (SMB3)</li>
+                            <li>UNC path: <span style="font-family:monospace; color:#60a5fa;">\\server\share\folder</span></li>
+                            <li>Samba implements SMB on Linux/macOS</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="highlight-box">
+                        <h3 style="color: #8b5cf6;">NFS (Network File System)</h3>
+                        <ul>
+                            <li>Port 2049 (TCP/UDP)</li>
+                            <li>Unix/Linux-native file sharing</li>
+                            <li>Transparent remote file access -- appears local</li>
+                            <li>NFSv4 adds security with Kerberos</li>
+                            <li>Mount path: <span style="font-family:monospace; color:#8b5cf6;">server:/export/data</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="info-box" style="margin-top: 20px;">
+                <h3>SMB vs NFS Comparison</h3>
+                <table class="comparison-table" style="margin: 10px 0;">
+                    <tr><th>Feature</th><th>SMB</th><th>NFS</th></tr>
+                    <tr><td>Primary OS</td><td>Windows</td><td>Linux/Unix</td></tr>
+                    <tr><td>Port</td><td>445</td><td>2049</td></tr>
+                    <tr><td>Authentication</td><td>NTLM/Kerberos</td><td>Host-based / Kerberos (v4)</td></tr>
+                    <tr><td>Encryption</td><td>SMB3 built-in</td><td>Kerberos or VPN tunnel</td></tr>
+                    <tr><td>Use Case</td><td>Enterprise Windows file shares</td><td>Linux servers, NAS appliances</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 6: Directory Services -->
+    <div class="slide-container" id="slide6">
+        <div class="slide-header">
+            <div class="slide-number">Slide 6 of 13</div>
+            <h2>Directory Services</h2>
+            <p class="subtitle">LDAP and Active Directory</p>
+        </div>
+        <div class="content">
+            <div class="two-column">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">LDAP (Port 389 / 636 LDAPS)</h3>
+                        <ul>
+                            <li>Lightweight Directory Access Protocol</li>
+                            <li>Hierarchical database of users, groups, computers</li>
+                            <li>Distinguished Name (DN): <span style="font-family:monospace; color:#60a5fa;">CN=jsmith,OU=IT,DC=company,DC=com</span></li>
+                            <li>Supports search, add, modify, delete operations</li>
+                            <li>LDAPS (port 636) adds TLS encryption</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="success-box">
+                        <h3 style="color: #10b981;">Active Directory (AD)</h3>
+                        <ul>
+                            <li>Microsoft implementation built on LDAP + Kerberos</li>
+                            <li>Centralized authentication for Windows domains</li>
+                            <li>Group Policy: enforce security settings at scale</li>
+                            <li>Single Sign-On (SSO) across domain resources</li>
+                            <li>Domain controllers replicate the directory</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <svg class="diagram" viewBox="0 0 700 150" style="max-width:650px;">
+                <rect x="250" y="10" width="200" height="50" rx="10" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="2"/>
+                <text x="350" y="40" fill="#60a5fa" font-size="14" text-anchor="middle" font-weight="bold">Domain Controller</text>
+                <line x1="250" y1="60" x2="100" y2="100" stroke="#3b82f6" stroke-width="1.5"/>
+                <line x1="350" y1="60" x2="350" y2="100" stroke="#3b82f6" stroke-width="1.5"/>
+                <line x1="450" y1="60" x2="600" y2="100" stroke="#3b82f6" stroke-width="1.5"/>
+                <rect x="30" y="100" width="140" height="40" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="100" y="125" fill="#e2e8f0" font-size="11" text-anchor="middle">Authenticate users</text>
+                <rect x="280" y="100" width="140" height="40" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="350" y="125" fill="#e2e8f0" font-size="11" text-anchor="middle">Apply Group Policy</text>
+                <rect x="530" y="100" width="140" height="40" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="600" y="125" fill="#e2e8f0" font-size="11" text-anchor="middle">Manage resources</text>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Slide 7: Network Management (SNMP) -->
+    <div class="slide-container" id="slide7">
+        <div class="slide-header">
+            <div class="slide-number">Slide 7 of 13</div>
+            <h2>Network Management -- SNMP</h2>
+            <p class="subtitle">Traps, Polling, and MIBs</p>
+        </div>
+        <div class="content">
+            <div class="two-column">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">SNMP Architecture</h3>
+                        <ul>
+                            <li><strong>Manager</strong> -- central station that queries and collects data</li>
+                            <li><strong>Agent</strong> -- software on each managed device</li>
+                            <li><strong>MIB</strong> -- Management Information Base: database of device variables (OIDs)</li>
+                        </ul>
+                    </div>
+                    <div class="info-box" style="margin-top: 10px;">
+                        <h3>Polling vs Traps</h3>
+                        <ul>
+                            <li><strong>Polling:</strong> Manager queries agents at intervals (GET requests)</li>
+                            <li><strong>Traps:</strong> Agents send unsolicited alerts when thresholds are exceeded</li>
+                            <li>Best practice: combine both for comprehensive monitoring</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="warning-box">
+                        <h3 style="color: #ef4444;">SNMP Versions</h3>
+                        <table class="comparison-table" style="margin: 10px 0;">
+                            <tr><th>Version</th><th>Auth</th><th>Encryption</th><th>Status</th></tr>
+                            <tr><td>v1</td><td>Community string (plaintext)</td><td>None</td><td>Legacy -- avoid</td></tr>
+                            <tr><td>v2c</td><td>Community string (plaintext)</td><td>None</td><td>Common but insecure</td></tr>
+                            <tr><td>v3</td><td>Username + auth hash</td><td>AES/DES</td><td>Recommended</td></tr>
+                        </table>
+                    </div>
+                    <svg class="diagram" viewBox="0 0 400 140">
+                        <rect x="130" y="10" width="140" height="50" rx="8" fill="rgba(96,165,250,0.15)" stroke="#60a5fa" stroke-width="2"/>
+                        <text x="200" y="40" fill="#60a5fa" font-size="13" text-anchor="middle" font-weight="bold">SNMP Manager</text>
+                        <rect x="20" y="90" width="100" height="40" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+                        <text x="70" y="115" fill="#e2e8f0" font-size="10" text-anchor="middle">Router Agent</text>
+                        <rect x="150" y="90" width="100" height="40" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+                        <text x="200" y="115" fill="#e2e8f0" font-size="10" text-anchor="middle">Switch Agent</text>
+                        <rect x="280" y="90" width="100" height="40" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+                        <text x="330" y="115" fill="#e2e8f0" font-size="10" text-anchor="middle">Server Agent</text>
+                        <line x1="160" y1="60" x2="70" y2="90" stroke="#3b82f6" stroke-width="1.5"/>
+                        <line x1="200" y1="60" x2="200" y2="90" stroke="#3b82f6" stroke-width="1.5"/>
+                        <line x1="240" y1="60" x2="330" y2="90" stroke="#3b82f6" stroke-width="1.5"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 8: QoS Basics -->
+    <div class="slide-container" id="slide8">
+        <div class="slide-header">
+            <div class="slide-number">Slide 8 of 13</div>
+            <h2>Quality of Service (QoS)</h2>
+            <p class="subtitle">Prioritizing Network Traffic</p>
+        </div>
+        <div class="content">
+            <div class="two-column">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">What is QoS?</h3>
+                        <p>QoS is a set of techniques that manage bandwidth, latency, jitter, and packet loss to ensure critical traffic gets priority.</p>
+                        <ul>
+                            <li><strong>Bandwidth</strong> -- total throughput capacity</li>
+                            <li><strong>Latency</strong> -- delay from source to destination</li>
+                            <li><strong>Jitter</strong> -- variation in latency over time</li>
+                            <li><strong>Packet loss</strong> -- percentage of dropped packets</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="highlight-box">
+                        <h3 style="color: #8b5cf6;">QoS Mechanisms</h3>
+                        <ul>
+                            <li><strong>Classification</strong> -- identify traffic type (VoIP, video, web)</li>
+                            <li><strong>Marking</strong> -- tag packets with priority (DSCP, CoS)</li>
+                            <li><strong>Queuing</strong> -- place packets in priority queues</li>
+                            <li><strong>Shaping</strong> -- smooth traffic bursts to match bandwidth</li>
+                            <li><strong>Policing</strong> -- drop or remark traffic exceeding limits</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="info-box" style="margin-top: 15px;">
+                <h3>Traffic Priority Tiers</h3>
+                <table class="comparison-table" style="margin: 10px 0;">
+                    <tr><th>Priority</th><th>Traffic Type</th><th>Sensitivity</th></tr>
+                    <tr><td style="color:#ef4444;font-weight:bold;">Highest</td><td>VoIP / Video conferencing</td><td>Latency + jitter critical</td></tr>
+                    <tr><td style="color:#f59e0b;font-weight:bold;">High</td><td>Business applications (ERP, CRM)</td><td>Latency sensitive</td></tr>
+                    <tr><td style="color:#60a5fa;font-weight:bold;">Medium</td><td>Web browsing, email</td><td>Moderate tolerance</td></tr>
+                    <tr><td style="color:#94a3b8;font-weight:bold;">Low</td><td>File downloads, backups</td><td>Delay tolerant</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 9: VoIP & SIP -->
+    <div class="slide-container" id="slide9">
+        <div class="slide-header">
+            <div class="slide-number">Slide 9 of 13</div>
+            <h2>VoIP &amp; SIP</h2>
+            <p class="subtitle">Voice Over IP Networks</p>
+        </div>
+        <div class="content">
+            <div class="two-column">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">VoIP (Voice over IP)</h3>
+                        <ul>
+                            <li>Converts analog voice to digital packets</li>
+                            <li>Transmitted over IP networks instead of PSTN</li>
+                            <li>Uses <strong>RTP</strong> (Real-time Transport Protocol) for media</li>
+                            <li>Codec compresses audio (G.711, G.729)</li>
+                            <li>Requires low latency (under 150ms one-way)</li>
+                            <li>Jitter buffers smooth out packet timing variations</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="highlight-box">
+                        <h3 style="color: #8b5cf6;">SIP (Session Initiation Protocol)</h3>
+                        <ul>
+                            <li>Signaling protocol for VoIP -- sets up, manages, tears down calls</li>
+                            <li>Port 5060 (unencrypted) / 5061 (TLS)</li>
+                            <li>SIP INVITE initiates a call session</li>
+                            <li>SIP BYE terminates the call</li>
+                            <li>Works with SDP (Session Description Protocol) to negotiate media parameters</li>
+                        </ul>
+                    </div>
+                    <div class="warning-box" style="margin-top: 10px;">
+                        <h3 style="color: #ef4444;">VoIP Challenges</h3>
+                        <ul>
+                            <li>Latency degrades call quality</li>
+                            <li>Jitter causes choppy audio</li>
+                            <li>Packet loss creates gaps in speech</li>
+                            <li>NAT traversal issues with SIP (use STUN/TURN)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 10: Streaming Protocols -->
+    <div class="slide-container" id="slide10">
+        <div class="slide-header">
+            <div class="slide-number">Slide 10 of 13</div>
+            <h2>Streaming Protocols</h2>
+            <p class="subtitle">Delivering Audio and Video Over Networks</p>
+        </div>
+        <div class="content">
+            <div class="three-column">
+                <div class="service-card" style="border-top: 4px solid #3b82f6;">
+                    <h3 style="color: #3b82f6;">RTSP</h3>
+                    <p style="color: #94a3b8; font-size: 0.9em;">Port 554</p>
+                    <ul style="text-align: left; margin-top: 10px;">
+                        <li>Real-Time Streaming Protocol</li>
+                        <li>Controls media playback (play/pause/seek)</li>
+                        <li>Used by IP cameras, media servers</li>
+                        <li>Does not carry the media itself</li>
+                    </ul>
+                </div>
+                <div class="service-card" style="border-top: 4px solid #8b5cf6;">
+                    <h3 style="color: #8b5cf6;">RTP/RTCP</h3>
+                    <p style="color: #94a3b8; font-size: 0.9em;">Dynamic ports (UDP)</p>
+                    <ul style="text-align: left; margin-top: 10px;">
+                        <li>RTP carries the actual audio/video data</li>
+                        <li>RTCP provides quality feedback (jitter, loss)</li>
+                        <li>Typically used with SIP for VoIP</li>
+                        <li>UDP-based for low latency</li>
+                    </ul>
+                </div>
+                <div class="service-card" style="border-top: 4px solid #22c55e;">
+                    <h3 style="color: #22c55e;">HLS / DASH</h3>
+                    <p style="color: #94a3b8; font-size: 0.9em;">HTTP-based (TCP 80/443)</p>
+                    <ul style="text-align: left; margin-top: 10px;">
+                        <li>Adaptive bitrate streaming</li>
+                        <li>Video split into small segments</li>
+                        <li>Quality adjusts to bandwidth</li>
+                        <li>Used by Netflix, YouTube, Twitch</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="info-box" style="margin-top: 20px;">
+                <h3>Multicast vs Unicast</h3>
+                <div class="two-column" style="gap: 20px;">
+                    <div>
+                        <ul>
+                            <li><strong>Unicast:</strong> One sender to one receiver. Each stream is a separate copy. Simple but bandwidth-heavy for many viewers.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul>
+                            <li><strong>Multicast:</strong> One sender to many receivers. Single stream, routers replicate. Efficient for IPTV, live events. Uses 224.0.0.0/4 range.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 11: Data Communication Concepts -->
+    <div class="slide-container" id="slide11">
+        <div class="slide-header">
+            <div class="slide-number">Slide 11 of 13</div>
+            <h2>Data Communication Concepts</h2>
+            <p class="subtitle">How Data Flows Across Networks</p>
+        </div>
+        <div class="content">
+            <div class="two-column">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">Transmission Modes</h3>
+                        <ul>
+                            <li><strong>Simplex:</strong> One direction only (TV broadcast, keyboard)</li>
+                            <li><strong>Half-duplex:</strong> Both directions, but only one at a time (walkie-talkie, 802.11 WiFi)</li>
+                            <li><strong>Full-duplex:</strong> Simultaneous two-way communication (telephone, modern Ethernet)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="highlight-box">
+                        <h3 style="color: #8b5cf6;">Bandwidth vs Throughput</h3>
+                        <ul>
+                            <li><strong>Bandwidth:</strong> Maximum theoretical data rate (Gbps)</li>
+                            <li><strong>Throughput:</strong> Actual data rate achieved in practice</li>
+                            <li><strong>Goodput:</strong> Useful data throughput minus overhead</li>
+                            <li>Throughput is always less than bandwidth due to protocol overhead, congestion, errors</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <svg class="diagram" viewBox="0 0 700 120" style="max-width:650px;">
+                <rect x="10" y="10" width="210" height="100" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="115" y="35" fill="#3b82f6" font-size="13" text-anchor="middle" font-weight="bold">Simplex</text>
+                <line x1="50" y1="65" x2="170" y2="65" stroke="#60a5fa" stroke-width="2" marker-end="url(#arr3)"/>
+                <text x="115" y="90" fill="#94a3b8" font-size="11" text-anchor="middle">One direction</text>
+                <rect x="245" y="10" width="210" height="100" rx="8" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1.5"/>
+                <text x="350" y="35" fill="#8b5cf6" font-size="13" text-anchor="middle" font-weight="bold">Half-Duplex</text>
+                <line x1="285" y1="60" x2="405" y2="60" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arr3)"/>
+                <line x1="405" y1="75" x2="285" y2="75" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arr3)"/>
+                <text x="350" y="100" fill="#94a3b8" font-size="11" text-anchor="middle">One at a time</text>
+                <rect x="480" y="10" width="210" height="100" rx="8" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="585" y="35" fill="#22c55e" font-size="13" text-anchor="middle" font-weight="bold">Full-Duplex</text>
+                <line x1="520" y1="60" x2="640" y2="60" stroke="#22c55e" stroke-width="2" marker-end="url(#arr3)"/>
+                <line x1="640" y1="75" x2="520" y2="75" stroke="#22c55e" stroke-width="2" marker-end="url(#arr3)"/>
+                <text x="585" y="100" fill="#94a3b8" font-size="11" text-anchor="middle">Simultaneous</text>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Slide 12: Proxy & Caching -->
+    <div class="slide-container" id="slide12">
+        <div class="slide-header">
+            <div class="slide-number">Slide 12 of 13</div>
+            <h2>Proxy Servers &amp; Caching</h2>
+            <p class="subtitle">Intermediaries That Optimize and Protect</p>
+        </div>
+        <div class="content">
+            <div class="two-column">
+                <div>
+                    <div class="concept-box">
+                        <h3 style="color: #3b82f6;">Forward Proxy</h3>
+                        <ul>
+                            <li>Sits between clients and the internet</li>
+                            <li>Clients send requests to the proxy, which fetches on their behalf</li>
+                            <li>Content filtering -- block restricted sites</li>
+                            <li>Caching -- store frequently accessed content locally</li>
+                            <li>Anonymity -- hides client IP from destination server</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="highlight-box">
+                        <h3 style="color: #8b5cf6;">Reverse Proxy</h3>
+                        <ul>
+                            <li>Sits in front of servers, facing the internet</li>
+                            <li>Clients connect to the proxy, which forwards to backend servers</li>
+                            <li>Load balancing across multiple servers</li>
+                            <li>SSL termination -- handles encryption</li>
+                            <li>DDoS protection and WAF integration</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="success-box" style="margin-top: 15px;">
+                <h3 style="color: #10b981;">Caching Benefits</h3>
+                <ul>
+                    <li>Reduces bandwidth consumption by serving locally stored copies</li>
+                    <li>Decreases load times for end users</li>
+                    <li>CDNs (Content Delivery Networks) are distributed caching systems -- edge servers worldwide</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 13: Summary -->
+    <div class="slide-container" id="slide13">
+        <div class="slide-header">
+            <div class="slide-number">Slide 13 of 13</div>
+            <h2><img src="/assets/images/icons/icon-web.webp" alt="" class="icon-inline"> Week 3 Summary</h2>
+            <p class="subtitle">Application Layer Services &amp; Data Communications</p>
+        </div>
+        <div class="content">
+            <div class="three-column">
+                <div class="service-card" style="border-top: 4px solid #3b82f6;">
+                    <h3 style="color: #3b82f6;">Service Models</h3>
+                    <ul style="text-align: left;">
+                        <li>Client-server vs peer-to-peer</li>
+                        <li>Web services and REST APIs</li>
+                        <li>Email: MUA, MTA, MDA pipeline</li>
+                        <li>File sharing: SMB and NFS</li>
+                    </ul>
+                </div>
+                <div class="service-card" style="border-top: 4px solid #8b5cf6;">
+                    <h3 style="color: #8b5cf6;">Infrastructure</h3>
+                    <ul style="text-align: left;">
+                        <li>Directory services: LDAP, Active Directory</li>
+                        <li>SNMP: polling, traps, MIBs</li>
+                        <li>Proxy and reverse proxy</li>
+                        <li>Caching and CDNs</li>
+                    </ul>
+                </div>
+                <div class="service-card" style="border-top: 4px solid #22c55e;">
+                    <h3 style="color: #22c55e;">Data Communications</h3>
+                    <ul style="text-align: left;">
+                        <li>QoS: bandwidth, latency, jitter</li>
+                        <li>VoIP: SIP signaling, RTP media</li>
+                        <li>Streaming: RTSP, HLS, DASH</li>
+                        <li>Simplex, half/full-duplex</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="success-box" style="margin-top: 30px; text-align: center;">
+                <h3 style="color: #10b981;">Up Next</h3>
+                <p style="font-size: 1.2em;">Week 4: Network Design &amp; Security -- topologies, VLANs, firewalls, VPN, and troubleshooting.</p>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="completeBtn" onclick="completeModule()" style="background:#22c55e; color:#fff; border:none; padding:14px 36px; border-radius:8px; font-size:1.1rem; cursor:pointer; font-weight:bold;">Mark Complete</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="scroll-hint" id="scrollHint">Scroll down for more content</div>
+
+    <div class="navigation">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">&#8592; Previous</button>
+        <span class="progress-text"><span id="currentSlideNum">1</span> / 13</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next &#8594;</button>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 13;
+
+        function showSlide(n) {
+            const slides = document.querySelectorAll('.slide-container');
+            if (n > totalSlides) currentSlide = totalSlides;
+            if (n < 1) currentSlide = 1;
+            slides.forEach(function(slide) { slide.classList.remove('active'); });
+            var activeSlide = document.getElementById('slide' + currentSlide);
+            activeSlide.classList.add('active');
+            document.getElementById('currentSlideNum').textContent = currentSlide;
+            document.getElementById('prevBtn').disabled = currentSlide === 1;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides;
+            var pct = ((currentSlide - 1) / (totalSlides - 1)) * 100;
+            document.getElementById('progressBar').style.width = pct + '%';
+            activeSlide.scrollTop = 0;
+            window.scrollTo(0, 0);
+            checkScrollHint();
+        }
+
+        function checkScrollHint() {
+            var activeSlide = document.querySelector('.slide-container.active');
+            var scrollHint = document.getElementById('scrollHint');
+            if (activeSlide) {
+                var hasOverflow = activeSlide.scrollHeight > activeSlide.clientHeight;
+                var notAtBottom = activeSlide.scrollTop < (activeSlide.scrollHeight - activeSlide.clientHeight - 50);
+                if (hasOverflow && notAtBottom) { scrollHint.classList.add('visible'); }
+                else { scrollHint.classList.remove('visible'); }
+            }
+        }
+
+        function changeSlide(direction) { currentSlide += direction; showSlide(currentSlide); }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); changeSlide(1); }
+            else if (e.key === 'ArrowLeft') { changeSlide(-1); }
+            else if (e.key === 'ArrowDown') { var s = document.querySelector('.slide-container.active'); if (s) s.scrollBy({ top: 100, behavior: 'smooth' }); }
+            else if (e.key === 'ArrowUp') { var s = document.querySelector('.slide-container.active'); if (s) s.scrollBy({ top: -100, behavior: 'smooth' }); }
+        });
+
+        document.addEventListener('scroll', checkScrollHint, true);
+        window.addEventListener('resize', checkScrollHint);
+        showSlide(currentSlide);
+
+        function completeModule() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('web', 'cr-w3-app-pres', { returnUrl: '../index.html' });
+            }
+        }
+    </script>
+    <script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
