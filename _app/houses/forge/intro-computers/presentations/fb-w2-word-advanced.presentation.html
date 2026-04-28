@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Advanced | First Boot | The Forge</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: absolute; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        #progress-bar {
+            position: absolute; top: 0; left: 0; height: 3px;
+            background: #fbbf24; transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-color: #fbbf24;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+        .slide-meta { font-size: 0.78rem; color: #fbbf24; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #fbbf24; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip {
+            background: rgba(251, 191, 36, 0.08); border-left: 3px solid #fbbf24;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fde68a; font-style: italic;
+        }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-gold  { background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.3); color: #fef3c7; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-purple { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #fbbf24; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #fbbf24;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #fbbf24; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a855f7; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #fbbf24; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #f59e0b; background: rgba(245, 158, 11, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .ic { font-family: 'Courier New', monospace; color: #f59e0b; background: rgba(245, 158, 11, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+        .diagram-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.4);
+            color: #fbbf24; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+        .kbd {
+            display: inline-block; font-family: 'Courier New', monospace;
+            background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.35);
+            color: #fde68a; font-size: 0.78em; padding: 1px 6px; border-radius: 3px;
+            margin: 0 1px;
+        }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes boxGrow { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
+        @keyframes pulse { 0%,100% { opacity:0.4; } 50% { opacity:1; } }
+        @keyframes flow { 0% { stroke-dashoffset:20; } 100% { stroke-dashoffset:0; } }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<!-- SLIDE 1 -- TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner title-hero">
+        <div class="slide-meta">First Boot &mdash; Week 2A</div>
+        <div class="big-title">Word <span class="accent">Advanced</span></div>
+        <div class="slide-subtitle">Styles, references, mail merge, and collaboration &mdash; the features that turn Word into a production tool.</div>
+        <div class="title-meta-row">
+            <span>13 slides</span>
+            <span>~16 minutes</span>
+            <span>CGS1000C &middot; Forge</span>
+        </div>
+        <div class="scenario-strip">By the end of this lesson, you will use heading styles to drive a Table of Contents, manage citations and bibliographies, run a mail merge, and collaborate with Track Changes.</div>
+    </div>
+</section>
+
+<!-- SLIDE 2 -- STYLES -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 13</div>
+        <div class="slide-title">Styles &mdash; Format <span class="accent">Once</span></div>
+        <div class="slide-subtitle">A style bundles formatting (font + size + color + spacing) under a name. Apply the name and every detail follows.</div>
+        <div class="card-grid-2">
+            <div class="card c-cyan"><div class="card-label">Without Styles</div><div class="card-desc">
+                You hand-format every heading: bold, 14 pt, blue, 12 pt space below. Multiply by 30 headings. Then your professor says "make all headings green." You edit 30 headings.
+            </div></div>
+            <div class="card c-gold"><div class="card-label">With Styles</div><div class="card-desc">
+                You apply <strong>Heading 1</strong> to each heading. Change the Heading 1 style once &mdash; all 30 headings update. Plus: Word now <em>knows</em> they are headings, which powers the navigation pane, TOC, and screen readers.
+            </div></div>
+        </div>
+        <div class="diagram-center">
+            <svg width="540" height="80" viewBox="0 0 540 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="15" width="100" height="50" rx="4" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1"/>
+                <text x="70" y="36" text-anchor="middle" font-size="9" fill="#fbbf24" font-family="Segoe UI,sans-serif" font-weight="700">Normal</text>
+                <text x="70" y="50" text-anchor="middle" font-size="7" fill="#fde68a" font-family="Segoe UI,sans-serif">Calibri 11 pt</text>
+                <rect x="135" y="15" width="100" height="50" rx="4" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1"/>
+                <text x="185" y="36" text-anchor="middle" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif" font-weight="700">Heading 1</text>
+                <text x="185" y="50" text-anchor="middle" font-size="7" fill="#86efac" font-family="Segoe UI,sans-serif">26 pt blue</text>
+                <rect x="250" y="15" width="100" height="50" rx="4" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="300" y="36" text-anchor="middle" font-size="9" fill="#06b6d4" font-family="Segoe UI,sans-serif" font-weight="700">Heading 2</text>
+                <text x="300" y="50" text-anchor="middle" font-size="7" fill="#67e8f9" font-family="Segoe UI,sans-serif">18 pt blue</text>
+                <rect x="365" y="15" width="100" height="50" rx="4" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"/>
+                <text x="415" y="36" text-anchor="middle" font-size="9" fill="#a855f7" font-family="Segoe UI,sans-serif" font-weight="700">Quote</text>
+                <text x="415" y="50" text-anchor="middle" font-size="7" fill="#d8b4fe" font-family="Segoe UI,sans-serif">italic indent</text>
+                <text x="270" y="78" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif" font-style="italic">Style gallery on Home tab</text>
+            </svg>
+        </div>
+        <div class="box box-gold"><strong>How to apply:</strong> Click into a paragraph &rarr; Home tab &rarr; click a style in the gallery. Or use shortcuts: <span class="kbd">Ctrl</span>+<span class="kbd">Alt</span>+<span class="kbd">1</span> for Heading 1, <span class="kbd">Ctrl</span>+<span class="kbd">Alt</span>+<span class="kbd">2</span> for Heading 2.</div>
+    </div>
+</section>
+
+<!-- SLIDE 3 -- HEADING STYLES + NAVIGATION -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 13</div>
+        <div class="slide-title">Heading Styles &amp; <span class="accent">Navigation</span></div>
+        <div class="slide-subtitle">Heading 1 / Heading 2 / Heading 3 form the document outline. Word turns the outline into a clickable side panel.</div>
+        <div class="diagram-center">
+            <svg width="560" height="160" viewBox="0 0 560 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="10" width="180" height="140" rx="3" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
+                <text x="32" y="28" font-size="10" fill="#93c5fd" font-family="Segoe UI,sans-serif" font-weight="700">Navigation Pane</text>
+                <text x="32" y="48" font-size="11" fill="#3b82f6" font-family="Segoe UI,sans-serif" font-weight="700">Introduction</text>
+                <text x="42" y="64" font-size="10" fill="#93c5fd" font-family="Segoe UI,sans-serif">Background</text>
+                <text x="42" y="78" font-size="10" fill="#93c5fd" font-family="Segoe UI,sans-serif">Research Question</text>
+                <text x="32" y="98" font-size="11" fill="#3b82f6" font-family="Segoe UI,sans-serif" font-weight="700">Methods</text>
+                <text x="42" y="114" font-size="10" fill="#93c5fd" font-family="Segoe UI,sans-serif">Participants</text>
+                <text x="52" y="128" font-size="9" fill="#bfdbfe" font-family="Segoe UI,sans-serif">Demographics</text>
+                <text x="32" y="148" font-size="11" fill="#3b82f6" font-family="Segoe UI,sans-serif" font-weight="700">Conclusion</text>
+                <line x1="220" y1="80" x2="260" y2="80" stroke="#fbbf24" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#a3)"/>
+                <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#fbbf24"/></marker></defs>
+                <rect x="270" y="10" width="270" height="140" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="284" y="32" font-size="14" fill="#3ab577" font-family="Segoe UI,sans-serif" font-weight="700">Methods</text>
+                <text x="284" y="46" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">[Heading 1]</text>
+                <text x="294" y="68" font-size="11" fill="#06b6d4" font-family="Segoe UI,sans-serif" font-weight="700">Participants</text>
+                <text x="294" y="80" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">[Heading 2]</text>
+                <text x="304" y="102" font-size="10" fill="#a855f7" font-family="Segoe UI,sans-serif" font-weight="700">Demographics</text>
+                <text x="304" y="114" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">[Heading 3]</text>
+                <line x1="284" y1="124" x2="520" y2="124" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <line x1="284" y1="136" x2="500" y2="136" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            </svg>
+        </div>
+        <div class="card-grid">
+            <div class="card c-blue"><div class="card-label">Open it</div><div class="card-desc">View tab &rarr; check Navigation Pane. Or <span class="kbd">Ctrl</span>+<span class="kbd">F</span> &rarr; click the Headings tab.</div></div>
+            <div class="card c-gold"><div class="card-label">Click to jump</div><div class="card-desc">Click any heading in the pane &rarr; the document scrolls to it. Drag headings to reorder entire sections.</div></div>
+            <div class="card c-green"><div class="card-label">Why it matters</div><div class="card-desc">Same outline drives the Table of Contents and lets screen readers announce structure to blind users.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 -- TABLE OF CONTENTS -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 13</div>
+        <div class="slide-title">Table of <span class="accent">Contents</span></div>
+        <div class="slide-subtitle">Once your document uses heading styles, Word can build a TOC for you in two clicks &mdash; and update it whenever you change a heading.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Apply heading styles</strong> to your section titles (Heading 1 for top level, Heading 2 for subsections).</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text">Click where you want the TOC (usually right after the title page).</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text">Go to <strong>References &rarr; Table of Contents</strong> &rarr; pick a built-in style (Automatic Table 1 / 2).</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text">Word inserts the TOC automatically with page numbers and clickable links.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text">When you edit headings or add pages, click the TOC &rarr; <strong>Update Table</strong> &rarr; "Update entire table" to refresh.</span></div>
+        </div>
+        <div class="diagram-center">
+            <svg width="420" height="120" viewBox="0 0 420 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="10" width="380" height="100" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="210" y="30" text-anchor="middle" font-size="13" fill="#fbbf24" font-family="Segoe UI,sans-serif" font-weight="700">Table of Contents</text>
+                <text x="40" y="52" font-size="10" fill="#cbd5e1" font-family="Segoe UI,sans-serif" font-weight="700">1. Introduction</text>
+                <text x="380" y="52" text-anchor="end" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">. . . . . . . . 1</text>
+                <text x="40" y="68" font-size="10" fill="#cbd5e1" font-family="Segoe UI,sans-serif" font-weight="700">2. Methods</text>
+                <text x="380" y="68" text-anchor="end" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">. . . . . . . . 4</text>
+                <text x="55" y="82" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif">2.1 Participants</text>
+                <text x="380" y="82" text-anchor="end" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">. . . . . . . . 5</text>
+                <text x="40" y="98" font-size="10" fill="#cbd5e1" font-family="Segoe UI,sans-serif" font-weight="700">3. Conclusion</text>
+                <text x="380" y="98" text-anchor="end" font-size="10" fill="#94a3b8" font-family="Segoe UI,sans-serif">. . . . . . 12</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 -- SECTION BREAKS AND COLUMNS -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 13</div>
+        <div class="slide-title">Section Breaks &amp; <span class="accent">Columns</span></div>
+        <div class="slide-subtitle">A section break lets one part of the document have different layout from the rest &mdash; different margins, columns, headers, or orientation.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Section Break Types</div><div class="card-desc">
+                <strong>Next Page:</strong> ends section, starts next on a new page.<br>
+                <strong>Continuous:</strong> ends section, no page break (used for switching to columns mid-page).<br>
+                <strong>Even/Odd:</strong> next section starts on even or odd-numbered page.<br>
+                Insert via Layout &rarr; Breaks.
+            </div></div>
+            <div class="card c-cyan"><div class="card-label">Multi-Column Layout</div><div class="card-desc">
+                Layout &rarr; Columns &rarr; pick One / Two / Three / Left / Right. Inserts a continuous section break and reformats the selected text as columns. Newsletters, brochures, programs.
+            </div></div>
+        </div>
+        <div class="diagram-center">
+            <svg width="500" height="120" viewBox="0 0 500 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="40" y="10" width="180" height="100" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <line x1="50" y1="22" x2="210" y2="22" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="50" y1="32" x2="200" y2="32" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="50" y1="42" x2="210" y2="42" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="50" y1="52" x2="180" y2="52" stroke="#cbd5e1" stroke-width="1"/>
+                <text x="130" y="100" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Segoe UI,sans-serif" font-weight="700">1 Column (default)</text>
+                <rect x="270" y="10" width="180" height="100" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <line x1="280" y1="22" x2="345" y2="22" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="280" y1="32" x2="345" y2="32" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="280" y1="42" x2="345" y2="42" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="280" y1="52" x2="335" y2="52" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="360" y1="22" x2="440" y2="22" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="360" y1="32" x2="430" y2="32" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="360" y1="42" x2="440" y2="42" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="360" y1="52" x2="425" y2="52" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="352" y1="20" x2="352" y2="60" stroke="rgba(251,191,36,0.4)" stroke-width="0.8" stroke-dasharray="2,2"/>
+                <text x="360" y="100" text-anchor="middle" font-size="9" fill="#fbbf24" font-family="Segoe UI,sans-serif" font-weight="700">2 Columns (newsletter)</text>
+            </svg>
+        </div>
+        <div class="box box-cyan"><strong>Show formatting marks:</strong> Click the &para; button on the Home tab to see invisible characters &mdash; section breaks appear as a double-dotted line labeled "Section Break (Continuous)" so you can spot them.</div>
+    </div>
+</section>
+
+<!-- SLIDE 6 -- REFERENCES + CITATIONS -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 13</div>
+        <div class="slide-title">Citations &amp; <span class="accent">Bibliography</span></div>
+        <div class="slide-subtitle">Word manages your sources, formats them in any style (APA, MLA, Chicago), and builds the bibliography from your in-text citations.</div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Pick a style:</strong> References &rarr; Style dropdown &rarr; APA, MLA, Chicago, IEEE, etc.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Add a source:</strong> References &rarr; Insert Citation &rarr; Add New Source &rarr; choose type (Book, Journal Article, Website) &rarr; fill in author, title, year.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Insert in-text:</strong> place cursor at quote &rarr; Insert Citation &rarr; pick the source. Word inserts <span class="ic">(Smith, 2024)</span> in the chosen style.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Generate bibliography:</strong> place cursor at end of paper &rarr; References &rarr; Bibliography &rarr; pick a layout. Word lists every cited source.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Update later:</strong> add more citations, then click the bibliography &rarr; Update Citations and Bibliography.</span></div>
+        </div>
+        <div class="box box-gold"><strong>Manage Sources:</strong> References &rarr; Manage Sources opens a master list (across all your documents) and a current list (this document). Edit, delete, copy sources between projects.</div>
+    </div>
+</section>
+
+<!-- SLIDE 7 -- FOOTNOTES + ENDNOTES -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 13</div>
+        <div class="slide-title">Footnotes &amp; <span class="accent">Endnotes</span></div>
+        <div class="slide-subtitle">Side notes that link to a number in the text. Footnotes appear at the bottom of the page; endnotes appear at the end of the document.</div>
+        <div class="diagram-center">
+            <svg width="440" height="160" viewBox="0 0 440 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="40" y="10" width="360" height="140" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <line x1="55" y1="30" x2="385" y2="30" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="55" y1="42" x2="375" y2="42" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="55" y1="54" x2="385" y2="54" stroke="#cbd5e1" stroke-width="1"/>
+                <text x="305" y="55" font-size="8" fill="#fbbf24" font-family="Segoe UI,sans-serif" font-weight="700">&sup1;</text>
+                <line x1="55" y1="66" x2="380" y2="66" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="55" y1="78" x2="370" y2="78" stroke="#cbd5e1" stroke-width="1"/>
+                <line x1="55" y1="90" x2="380" y2="90" stroke="#cbd5e1" stroke-width="1"/>
+                <text x="200" y="91" font-size="8" fill="#fbbf24" font-family="Segoe UI,sans-serif" font-weight="700">&sup2;</text>
+                <line x1="55" y1="115" x2="200" y2="115" stroke="rgba(251,191,36,0.5)" stroke-width="1"/>
+                <text x="55" y="130" font-size="9" fill="#fbbf24" font-family="Segoe UI,sans-serif" font-weight="700">&sup1;</text>
+                <text x="68" y="130" font-size="9" fill="#cbd5e1" font-family="Segoe UI,sans-serif" font-style="italic">First citation lives down here.</text>
+                <text x="55" y="143" font-size="9" fill="#fbbf24" font-family="Segoe UI,sans-serif" font-weight="700">&sup2;</text>
+                <text x="68" y="143" font-size="9" fill="#cbd5e1" font-family="Segoe UI,sans-serif" font-style="italic">Second citation. Numbers auto-increment.</text>
+            </svg>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Insert Footnote</div><div class="card-desc">References &rarr; Insert Footnote (or <span class="kbd">Alt</span>+<span class="kbd">Ctrl</span>+<span class="kbd">F</span>). Word inserts a superscript number, jumps to the bottom of the page, and waits for you to type.</div></div>
+            <div class="card c-cyan"><div class="card-label">Insert Endnote</div><div class="card-desc">References &rarr; Insert Endnote (or <span class="kbd">Alt</span>+<span class="kbd">Ctrl</span>+<span class="kbd">D</span>). Same idea but the note lands at the end of the document, not the page.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 -- CROSS-REFERENCES + CAPTIONS -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 13</div>
+        <div class="slide-title">Captions &amp; <span class="accent">Cross-References</span></div>
+        <div class="slide-subtitle">Number your figures, tables, and equations. Then point to them in the text by their number, and let Word keep the numbers in sync.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Insert a Caption</div><div class="card-desc">
+                Click the figure or table &rarr; References &rarr; Insert Caption &rarr; pick label (Figure / Table / Equation) &rarr; type the description. Word numbers it automatically.
+            </div></div>
+            <div class="card c-cyan"><div class="card-label">Cross-Reference</div><div class="card-desc">
+                References &rarr; Cross-reference &rarr; pick the type (Figure) and choose what to insert (just the label and number, or the full caption). Inserts as a clickable link.
+            </div></div>
+        </div>
+        <div class="box box-gold"><strong>Update fields:</strong> If you insert a new figure between Figure 1 and Figure 2, the numbers do not auto-renumber until you select all (<span class="kbd">Ctrl</span>+<span class="kbd">A</span>) and press <span class="kbd">F9</span>. Always update fields before printing.</div>
+        <div class="box box-cyan"><strong>Table of Figures:</strong> References &rarr; Insert Table of Figures &mdash; lists every captioned figure with page numbers, just like a TOC.</div>
+    </div>
+</section>
+
+<!-- SLIDE 9 -- MAIL MERGE -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 13</div>
+        <div class="slide-title">Mail <span class="accent">Merge</span></div>
+        <div class="slide-subtitle">One Word document + one list of recipients = personalized letters, envelopes, or labels for each person.</div>
+        <div class="diagram-center">
+            <svg width="600" height="120" viewBox="0 0 600 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="20" width="140" height="80" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.3"/>
+                <text x="90" y="45" text-anchor="middle" font-size="10" fill="#3b82f6" font-family="Segoe UI,sans-serif" font-weight="700">Word Letter</text>
+                <text x="90" y="62" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Dear &laquo;FirstName&raquo;,</text>
+                <text x="90" y="76" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">Your balance is</text>
+                <text x="90" y="90" text-anchor="middle" font-size="8" fill="#93c5fd" font-family="Segoe UI,sans-serif">&laquo;Balance&raquo;.</text>
+                <rect x="180" y="20" width="140" height="80" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.3"/>
+                <text x="250" y="45" text-anchor="middle" font-size="10" fill="#3ab577" font-family="Segoe UI,sans-serif" font-weight="700">Excel List</text>
+                <text x="250" y="62" text-anchor="middle" font-size="8" fill="#86efac" font-family="Segoe UI,sans-serif">Maya / $250</text>
+                <text x="250" y="76" text-anchor="middle" font-size="8" fill="#86efac" font-family="Segoe UI,sans-serif">Jordan / $189</text>
+                <text x="250" y="90" text-anchor="middle" font-size="8" fill="#86efac" font-family="Segoe UI,sans-serif">Aisha / $410</text>
+                <line x1="330" y1="60" x2="380" y2="60" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#a4)"/>
+                <text x="355" y="55" text-anchor="middle" font-size="8" fill="#fbbf24" font-family="Segoe UI,sans-serif" font-weight="700">Merge</text>
+                <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#fbbf24"/></marker></defs>
+                <rect x="390" y="10" width="190" height="30" rx="4" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"/>
+                <text x="485" y="29" text-anchor="middle" font-size="9" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Dear Maya, your balance is $250</text>
+                <rect x="390" y="48" width="190" height="30" rx="4" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"/>
+                <text x="485" y="67" text-anchor="middle" font-size="9" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Dear Jordan, your balance is $189</text>
+                <rect x="390" y="85" width="190" height="30" rx="4" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"/>
+                <text x="485" y="104" text-anchor="middle" font-size="9" fill="#d8b4fe" font-family="Segoe UI,sans-serif">Dear Aisha, your balance is $410</text>
+            </svg>
+        </div>
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Mailings &rarr; Start Mail Merge</strong> &rarr; pick Letters (or Envelopes / Labels / Email).</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Select Recipients</strong> &rarr; Use an Existing List &rarr; pick your Excel file or address book.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Insert Merge Field</strong> at each placeholder spot in your letter (FirstName, Address, Balance...).</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Preview Results</strong> &rarr; click forward arrows to see one letter per recipient.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>Finish &amp; Merge</strong> &rarr; Edit Individual Documents (one big file) or Print Documents.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 10 -- TRACK CHANGES + COMMENTS -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 13</div>
+        <div class="slide-title">Track Changes &amp; <span class="accent">Comments</span></div>
+        <div class="slide-subtitle">Collaboration features. Track Changes records every edit. Comments add side notes. Both let multiple reviewers work on a document without losing each other's input.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">Track Changes</div><div class="card-desc">
+                Review &rarr; Track Changes (toggle on). Every insertion, deletion, format change is colored and attributed to the person who made it. Reviewers can later <strong>Accept</strong> or <strong>Reject</strong> each change.
+            </div></div>
+            <div class="card c-cyan"><div class="card-label">Comments</div><div class="card-desc">
+                Select text &rarr; Review &rarr; New Comment. A balloon appears in the margin. Useful for "Should this be in the next chapter?" without changing the text. Resolve when addressed.
+            </div></div>
+        </div>
+        <div class="diagram-center">
+            <svg width="540" height="100" viewBox="0 0 540 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="15" width="380" height="70" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="35" y="38" font-size="11" fill="#cbd5e1" font-family="Segoe UI,sans-serif">The fox jumped</text>
+                <text x="135" y="38" font-size="11" fill="#3ab577" font-family="Segoe UI,sans-serif" font-weight="700">quickly</text>
+                <text x="180" y="38" font-size="11" fill="#cbd5e1" font-family="Segoe UI,sans-serif"> over the </text>
+                <text x="240" y="38" font-size="11" fill="#ef4444" font-family="Segoe UI,sans-serif" text-decoration="line-through">lazy</text>
+                <text x="270" y="38" font-size="11" fill="#cbd5e1" font-family="Segoe UI,sans-serif"> dog.</text>
+                <line x1="170" y1="50" x2="170" y2="60" stroke="#3ab577" stroke-width="1"/>
+                <text x="35" y="72" font-size="9" fill="#3ab577" font-family="Segoe UI,sans-serif">+ insertion (green)</text>
+                <text x="180" y="72" font-size="9" fill="#ef4444" font-family="Segoe UI,sans-serif">- deletion (red strike-through)</text>
+                <rect x="410" y="15" width="120" height="70" rx="3" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1"/>
+                <text x="420" y="32" font-size="9" fill="#fbbf24" font-family="Segoe UI,sans-serif" font-weight="700">Maya, 3:42 PM</text>
+                <text x="420" y="48" font-size="9" fill="#fde68a" font-family="Segoe UI,sans-serif">Add detail about</text>
+                <text x="420" y="60" font-size="9" fill="#fde68a" font-family="Segoe UI,sans-serif">the fox here.</text>
+                <text x="420" y="78" font-size="9" fill="#fde68a" font-family="Segoe UI,sans-serif" font-style="italic">Comment</text>
+            </svg>
+        </div>
+        <div class="box box-cyan"><strong>Co-authoring:</strong> If the document is on OneDrive or SharePoint, multiple people can edit at the same time &mdash; you see their cursors live. No need to email versions back and forth.</div>
+    </div>
+</section>
+
+<!-- SLIDE 11 -- TEMPLATES -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 13</div>
+        <div class="slide-title"><span class="accent">Templates</span> &amp; Building Blocks</div>
+        <div class="slide-subtitle">A template is a pre-built document with styles, layout, and placeholder text. Save your team's standard format as a template; everyone starts from the same baseline.</div>
+        <div class="card-grid">
+            <div class="card c-gold"><div class="card-label">Built-in Templates</div><div class="card-desc">File &rarr; New &rarr; choose from gallery: r&eacute;sum&eacute;s, letters, reports, fliers, cards. Each opens as a fresh document &mdash; you fill in the placeholders.</div></div>
+            <div class="card c-cyan"><div class="card-label">Custom Template</div><div class="card-desc">Build a document with your styles and headers, then File &rarr; Save As &rarr; choose <span class="ic">.dotx</span> (Word Template). Reuse it whenever you need that format.</div></div>
+            <div class="card c-green"><div class="card-label">Building Blocks</div><div class="card-desc">Reusable snippets &mdash; cover pages, headers, watermarks. Insert &rarr; Quick Parts. Save your own selection as a Quick Part for easy reuse.</div></div>
+        </div>
+        <div class="box box-gold"><strong>Where templates live:</strong> Personal templates save to <span class="ic">Documents\Custom Office Templates</span> by default. File &rarr; New &rarr; Personal tab to find them later.</div>
+    </div>
+</section>
+
+<!-- SLIDE 12 -- PROTECT + EXPORT -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 13</div>
+        <div class="slide-title">Protect &amp; <span class="accent">Export</span></div>
+        <div class="slide-subtitle">Keep your document from being changed. Export to other formats so anyone can read it.</div>
+        <div class="card-grid-2">
+            <div class="card c-red"><div class="card-label">Restrict Editing</div><div class="card-desc">
+                Review &rarr; Restrict Editing &rarr; allow only Comments / only Track Changes / only forms. Optionally set a password. Useful when sending out a survey or contract for review.
+            </div></div>
+            <div class="card c-gold"><div class="card-label">Mark as Final</div><div class="card-desc">
+                File &rarr; Info &rarr; Protect Document &rarr; Mark as Final. Document opens read-only with a banner. Reviewers must click "Edit Anyway" to change it &mdash; a soft lock that signals "this is the final version."
+            </div></div>
+            <div class="card c-cyan"><div class="card-label">Encrypt with Password</div><div class="card-desc">
+                File &rarr; Info &rarr; Protect Document &rarr; Encrypt with Password. Anyone opening the file must type the password. Lose the password &mdash; lose the document.
+            </div></div>
+            <div class="card c-green"><div class="card-label">Export to PDF</div><div class="card-desc">
+                File &rarr; Export &rarr; Create PDF/XPS. Locked layout that looks the same on every device. Standard for final delivery: r&eacute;sum&eacute;s, papers, contracts.
+            </div></div>
+        </div>
+        <div class="box box-red"><strong>Encrypted files cannot be recovered:</strong> If you forget the password, Microsoft cannot help you. Save passwords in a password manager, never on a sticky note.</div>
+    </div>
+</section>
+
+<!-- SLIDE 13 -- SUMMARY -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 13</div>
+        <div class="slide-title">Week 2A <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Word Advanced &mdash; the production features that turn a typed page into a managed document.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Styles bundle formatting</strong> under a name. Apply <strong>Heading 1</strong> &rarr; Word knows it is a heading. Change the style once &rarr; every heading updates.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Heading styles drive the Navigation Pane</strong> (View &rarr; Navigation Pane) for click-to-jump and drag-to-reorder.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Table of Contents:</strong> References &rarr; Table of Contents. Auto-built from heading styles. Update on every change.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Section breaks</strong> let parts of one document have different layout (margins, columns, orientation, headers).</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Citations:</strong> References &rarr; Style (APA/MLA/Chicago) &rarr; Insert Citation &rarr; Bibliography. Word manages sources and formats them.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Footnotes</strong> at bottom of page; <strong>endnotes</strong> at end of document. References tab.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Captions + cross-references</strong> auto-number figures and tables. Press <span class="kbd">Ctrl</span>+<span class="kbd">A</span> &rarr; <span class="kbd">F9</span> to update fields.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text"><strong>Mail merge:</strong> Word + Excel list = one personalized letter per recipient. Mailings tab.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text"><strong>Track Changes &amp; Comments</strong> (Review tab) for collaboration. Accept / Reject changes one by one.</span></div>
+            <div class="fact-row"><span class="fact-num">10</span><span class="fact-text"><strong>Protect:</strong> Restrict Editing / Mark as Final / Encrypt with Password. Export &rarr; PDF for locked delivery.</span></div>
+        </div>
+        <div class="box box-gold"><strong>Next up:</strong> Week 2B &mdash; Excel Basics. Cells, rows, columns, formulas, and the start of working with data.</div>
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; First Boot</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide-1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide+1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 13;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        document.getElementById('slide-' + currentSlide).classList.remove('active');
+        currentSlide = n;
+        document.getElementById('slide-' + currentSlide).classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('forge', 'fb-w2-word-adv-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
