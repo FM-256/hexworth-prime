@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOHO Network Security | First Watch</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0414 0%, #1a0a0e 50%, #120810 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #f87171; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(12, 4, 20, 0.95);
+            border-top: 1px solid rgba(248, 113, 113, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(248, 113, 113, 0.12); color: #f87171; border-color: #f87171;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #f87171; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #f97316; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #f87171; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #f87171; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(248, 113, 113, 0.06); border-left: 3px solid #f87171;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fecaca; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red    { background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); color: #fecaca; }
+        .box-orange { background: rgba(249, 115, 22, 0.08); border: 1px solid rgba(249, 115, 22, 0.3); color: #fed7aa; }
+        .box-cyan   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green  { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-gold   { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #f87171; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #f87171;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-red    { border-left-color: #f87171; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #f87171; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #f87171;
+            background: rgba(248, 113, 113, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 4px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; r: 4; } 50% { opacity: 1; r: 6; } }
+        @keyframes signalSend { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">SOHO Network Security | First Watch</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; FW-W4 &nbsp;|&nbsp; Week 4 of 8 &nbsp;|&nbsp; CTS1120C</div>
+        <div class="title-hero">
+            <div class="big-title">
+                SOHO Network<br>
+                <span class="accent">Security</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Router Hardening &nbsp;&bull;&nbsp; Wireless Encryption &nbsp;&bull;&nbsp; Guest Networks &nbsp;&bull;&nbsp; IoT Isolation &nbsp;&bull;&nbsp; DNS Security
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Incident Report FW-403. A small accounting firm operates with a consumer-grade router using the default admin password "admin" and SSID "NETGEAR." The router firmware has not been updated since purchase three years ago. WPS is enabled. A former client sitting in the parking lot uses the Reaver tool to crack the WPS PIN in under 4 hours, connects to the network, and accesses the shared NAS drive containing every client's tax returns, Social Security numbers, and bank account information for the past decade. Total remediation cost: $340,000 in breach notifications, forensics, and regulatory fines. The router cost $79.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>FW-W4</span>
+            <span>Week 4 of 8</span>
+            <span>CTS1120C</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- ROUTER HARDENING ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title"><span class="accent">Router Hardening</span>: Change Defaults</div>
+        <div class="slide-subtitle">The router is the gateway between your network and the internet. Every default setting left unchanged is an open invitation.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 72" width="500" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="20" width="100" height="32" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="70" y="41" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="9">INTERNET</text>
+            <line x1="120" y1="36" x2="170" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="170" y="14" width="140" height="44" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="240" y="32" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10" font-weight="bold">SOHO ROUTER</text>
+            <text x="240" y="48" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">gateway + firewall + AP</text>
+            <line x1="310" y1="36" x2="360" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite 0.3s"/>
+            <rect x="360" y="20" width="120" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="420" y="41" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="9">LAN DEVICES</text>
+            <circle cx="160" cy="36" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite"/>
+            <circle cx="350" cy="36" r="3" fill="#22c55e" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Change Admin Credentials</div>
+                <div class="card-desc">Default credentials (admin/admin, admin/password) are published in manufacturer documentation and indexed on sites like routerpasswords.com. Every scanner and botnet tries default credentials first. Change the admin username (if possible) and set a strong, unique password immediately upon setup.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Disable Remote Management</div>
+                <div class="card-desc">Remote management allows the router's admin interface to be accessed from the internet. This should be disabled on all SOHO routers. If an attacker can reach the login page from the internet, they can brute-force or exploit it. Manage the router only from the internal LAN.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Update Firmware</div>
+                <div class="card-desc">Router firmware vulnerabilities are discovered regularly and exploited by botnets (Mirai, VPNFilter). Check for firmware updates monthly. Enable automatic updates if the router supports it. Unpatched routers are recruited into botnets that launch DDoS attacks and proxy malicious traffic.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- DISABLE WPS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title">Disable <span class="accent">WPS</span></div>
+        <div class="slide-subtitle">Wi-Fi Protected Setup (WPS) was designed for convenience but contains a fundamental cryptographic flaw that makes it trivially crackable.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 68" width="500" height="68" xmlns="http://www.w3.org/2000/svg">
+            <rect x="30" y="18" width="140" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="100" y="39" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9">WPS PIN (8 digits)</text>
+            <line x1="170" y1="34" x2="220" y2="34" stroke="#f87171" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="220" y="12" width="140" height="44" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="290" y="30" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">REAVER ATTACK</text>
+            <text x="290" y="46" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">11,000 attempts max</text>
+            <line x1="360" y1="34" x2="400" y2="34" stroke="#f87171" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite 0.3s"/>
+            <rect x="400" y="18" width="80" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="440" y="39" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">CRACKED</text>
+            <circle cx="210" cy="34" r="3" fill="#f87171" style="animation: pulse 2s ease-in-out infinite"/>
+            <circle cx="392" cy="34" r="3" fill="#f87171" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The WPS Vulnerability</div>
+                <div class="card-desc">WPS uses an 8-digit PIN that is validated in two halves (4 digits + 3 digits + 1 checksum digit). This reduces the search space from 100 million to 11,000 possible combinations. Tools like Reaver and Bully can brute-force the PIN in 2-10 hours depending on the router. Once cracked, the attacker obtains the WPA2 passphrase.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Push-Button WPS</div>
+                <div class="card-desc">Push-button WPS is less vulnerable than PIN-based WPS, but still creates a 2-minute window during which any device can connect without credentials. Some routers do not properly disable PIN mode even when set to push-button only. The safest option is to disable WPS entirely in the router settings.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Non-Negotiable</div>
+            Disable WPS on every SOHO router. There is no secure configuration of WPS that fully mitigates the PIN vulnerability. Enter the Wi-Fi password manually on each device. The 30 seconds of convenience WPS saves is not worth the permanent vulnerability it creates.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- WIRELESS ENCRYPTION ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">Wireless Encryption</span></div>
+        <div class="slide-subtitle">The encryption protocol determines whether your wireless traffic can be intercepted and read by anyone within radio range.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 68" width="520" height="68" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="18" width="90" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="55" y="35" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="8">WEP</text>
+            <text x="55" y="60" text-anchor="middle" fill="#f87171" font-family="Courier New" font-size="7">BROKEN</text>
+            <rect x="115" y="18" width="90" height="32" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="160" y="35" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="8">WPA</text>
+            <text x="160" y="60" text-anchor="middle" fill="#f97316" font-family="Courier New" font-size="7">DEPRECATED</text>
+            <rect x="220" y="18" width="90" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="265" y="35" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="8">WPA2</text>
+            <text x="265" y="60" text-anchor="middle" fill="#eab308" font-family="Courier New" font-size="7">MINIMUM</text>
+            <rect x="325" y="18" width="90" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="2"/>
+            <text x="370" y="35" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="8" font-weight="bold">WPA3</text>
+            <text x="370" y="60" text-anchor="middle" fill="#22c55e" font-family="Courier New" font-size="7">RECOMMENDED</text>
+            <rect x="430" y="18" width="80" height="32" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="470" y="35" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="8">WPA3-ENT</text>
+            <text x="470" y="60" text-anchor="middle" fill="#06b6d4" font-family="Courier New" font-size="7">BEST</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">WEP: Broken</div>
+                <div class="card-desc">Wired Equivalent Privacy can be cracked in under 5 minutes using aircrack-ng. Uses RC4 with predictable initialization vectors. If any device on your network still requires WEP, replace the device. There is no way to secure WEP. Using WEP is approximately equivalent to having no encryption at all.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">WPA2: The Current Minimum</div>
+                <div class="card-desc">WPA2-Personal (PSK) uses AES-CCMP encryption with a shared passphrase. Secure when the passphrase is long and complex (14+ characters). Vulnerable to offline dictionary attacks if the 4-way handshake is captured -- a weak passphrase can be cracked with GPU-accelerated tools like hashcat.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">WPA3: The Standard</div>
+                <div class="card-desc">WPA3-Personal uses Simultaneous Authentication of Equals (SAE) which prevents offline dictionary attacks entirely. Each connection negotiates a unique session key, so capturing the handshake does not help the attacker. WPA3 also provides forward secrecy -- cracking one session does not compromise past sessions.</div>
+            </div>
+        </div>
+
+        <div class="box box-orange">
+            <div class="box-label">Passphrase Strength</div>
+            Even with WPA2, a 20+ character passphrase (e.g., "the-red-fox-runs-at-midnight-2026") is practically immune to offline dictionary attacks. The passphrase is hashed with PBKDF2-SHA1 (4096 iterations) combined with the SSID as salt. Length is the primary defense against brute force.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- GUEST NETWORKS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">Guest Networks</span></div>
+        <div class="slide-subtitle">A separate wireless network that provides internet access to visitors without exposing your internal LAN, file shares, or connected devices.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 80" width="500" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="170" y="4" width="160" height="28" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="250" y="23" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10" font-weight="bold">SOHO ROUTER</text>
+            <line x1="130" y1="50" x2="210" y2="32" stroke="#22c55e" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <line x1="370" y1="50" x2="290" y2="32" stroke="#f97316" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <rect x="40" y="50" width="180" height="24" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="130" y="66" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="8">MAIN NETWORK (trusted)</text>
+            <rect x="280" y="50" width="180" height="24" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="370" y="66" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="8">GUEST NETWORK (isolated)</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Network Isolation</div>
+                <div class="card-desc">Guest network clients can reach the internet but cannot see or communicate with devices on the main LAN. A visitor's infected laptop cannot scan your network, access file shares, or attack your printer. This is the most important feature -- client isolation must be enabled in guest network settings.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Separate Credentials</div>
+                <div class="card-desc">The guest network uses a different SSID and password from the main network. Change the guest password regularly (monthly for businesses, quarterly for home). Visitors never learn the main network credentials. If a guest credential is compromised, only the guest network is affected.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Bandwidth Limiting</div>
+                <div class="card-desc">Many routers allow bandwidth throttling on the guest network. Prevent a visitor from consuming all available bandwidth with streaming or downloads. Set reasonable limits (e.g., 10 Mbps per client). This ensures business operations on the main network are not impacted by guest traffic.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">IoT on Guest Network</div>
+            Smart TVs, smart speakers, security cameras, and other IoT devices should also be placed on the guest network or a dedicated IoT VLAN. These devices have poor security track records and should never share the same network as computers containing sensitive data.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- PORT FORWARDING AND DMZ ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title">Port Forwarding and <span class="accent">DMZ</span> Risks</div>
+        <div class="slide-subtitle">Port forwarding and DMZ expose internal services to the internet. Every open port is a potential attack vector.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 72" width="500" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="20" width="100" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="70" y="41" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9">INTERNET</text>
+            <line x1="120" y1="36" x2="170" y2="26" stroke="#f87171" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="170" y="10" width="130" height="24" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="235" y="27" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="8">PORT FORWARD :3389</text>
+            <line x1="120" y1="36" x2="170" y2="50" stroke="#f87171" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite 0.3s"/>
+            <rect x="170" y="40" width="130" height="24" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="235" y="57" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="8" font-weight="bold">DMZ HOST</text>
+            <line x1="300" y1="22" x2="380" y2="22" stroke="#f97316" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="430" y="26" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">single port exposed</text>
+            <line x1="300" y1="52" x2="380" y2="52" stroke="#f87171" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="430" y="56" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">ALL ports exposed</text>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-orange">
+                <div class="card-label">Port Forwarding</div>
+                <div class="card-desc">Maps an external port to an internal IP:port. Example: forward port 80 to an internal web server at 192.168.1.50:80. Only the specified port is exposed. Use the least number of forwards necessary. Change default ports when possible (e.g., SSH on 2222 instead of 22). Never forward RDP (3389) directly to the internet.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">DMZ: The Danger Zone</div>
+                <div class="card-desc">Placing a device in the DMZ exposes ALL of its ports to the internet -- bypassing the router's NAT firewall entirely. SOHO router DMZ is not the same as an enterprise DMZ with firewall rules. On a consumer router, DMZ means "no protection." Never put a workstation or NAS in the DMZ. If you must expose a service, use specific port forwards instead.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Alternatives to Port Forwarding</div>
+            VPN access: connect to the home/office network securely, then access services internally. Cloud relay services (Cloudflare Tunnel, Tailscale) provide secure remote access without opening ports. If a service must be publicly accessible, put it behind a reverse proxy with TLS and rate limiting.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- UPnP RISKS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title"><span class="accent">UPnP</span> Risks</div>
+        <div class="slide-subtitle">Universal Plug and Play allows devices to automatically open ports on the router without user approval. Convenient for gaming -- catastrophic for security.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 68" width="500" height="68" xmlns="http://www.w3.org/2000/svg">
+            <rect x="30" y="18" width="120" height="32" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="90" y="39" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="9">DEVICE</text>
+            <line x1="150" y1="34" x2="200" y2="34" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="200" y="14" width="120" height="40" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="260" y="32" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="9">UPnP REQUEST</text>
+            <text x="260" y="46" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">"open port 8080"</text>
+            <line x1="320" y1="34" x2="370" y2="34" stroke="#f87171" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite 0.3s"/>
+            <rect x="370" y="18" width="110" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="425" y="39" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">PORT OPENED</text>
+            <circle cx="190" cy="34" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite"/>
+            <circle cx="360" cy="34" r="3" fill="#f87171" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Why UPnP Is Dangerous</div>
+                <div class="card-desc">Any device or application on the LAN can request port forwarding rules without authentication. Malware that compromises any device on the network can use UPnP to open a backdoor port on the router, creating a persistent entry point from the internet. The user has no visibility into which ports are open or why.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Real-World Exploits</div>
+                <div class="card-desc">The Mirai botnet and its variants exploit UPnP to open ports on routers, creating persistent access. The CallStranger vulnerability (CVE-2020-12695) affected billions of UPnP-enabled devices, allowing attackers to exfiltrate data, scan internal networks, and amplify DDoS attacks through UPnP responses.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Disable UPnP</div>
+            Disable UPnP in the router settings. If a game or application needs a specific port open, create a manual port forward for exactly that port and that device. Manual port forwarding is more work but gives you complete control over what is exposed. You should always know exactly which ports are open on your router.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- DNS SECURITY ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title"><span class="accent">DNS</span> Security</div>
+        <div class="slide-subtitle">DNS translates domain names to IP addresses. Whoever controls your DNS controls which websites you can reach and which sites you think you are visiting.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 68" width="500" height="68" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="18" width="120" height="32" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="80" y="39" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="9">YOUR DEVICE</text>
+            <line x1="140" y1="34" x2="190" y2="34" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="190" y="14" width="130" height="40" rx="4" fill="none" stroke="#eab308" stroke-width="2"/>
+            <text x="255" y="32" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="9">DNS RESOLVER</text>
+            <text x="255" y="46" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">who do you trust?</text>
+            <line x1="320" y1="34" x2="370" y2="34" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite 0.3s"/>
+            <rect x="370" y="18" width="110" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="425" y="39" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="9">IP ADDRESS</text>
+            <circle cx="180" cy="34" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">ISP DNS Risks</div>
+                <div class="card-desc">Default ISP DNS servers may log all queries, inject ads into error pages, and provide no malware filtering. ISP DNS is also vulnerable to DNS hijacking -- attackers who compromise the ISP's DNS can redirect your banking site to a phishing replica. Switch to a trusted third-party DNS provider.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Secure DNS Providers</div>
+                <div class="card-desc">Cloudflare (1.1.1.1): fast, privacy-focused, supports DNS-over-HTTPS. Google (8.8.8.8): reliable, global. Quad9 (9.9.9.9): blocks known malicious domains automatically. OpenDNS (208.67.222.222): customizable content filtering and malware blocking. Configure at the router level to protect all devices.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DNS-over-HTTPS (DoH)</div>
+                <div class="card-desc">Standard DNS queries are sent in plaintext -- anyone on the network path can see which domains you visit. DNS-over-HTTPS encrypts DNS queries inside HTTPS traffic. Most modern browsers support DoH natively. Configure at the router level (if supported) or per-browser for encrypted name resolution.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- IoT DEVICE ISOLATION ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">IoT</span> Device Isolation</div>
+        <div class="slide-subtitle">Smart devices have notoriously poor security -- hardcoded passwords, no update mechanism, and always-on network access. Isolate them from your main network.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 72" width="520" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="18" width="100" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="60" y="39" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="8">SMART TV</text>
+            <rect x="125" y="18" width="100" height="32" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="175" y="39" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="8">IP CAMERA</text>
+            <rect x="240" y="18" width="100" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="290" y="39" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="8">THERMOSTAT</text>
+            <rect x="355" y="18" width="100" height="32" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="405" y="39" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="8">SMART PLUG</text>
+            <line x1="60" y1="50" x2="60" y2="62" stroke="#f87171" stroke-width="1" stroke-dasharray="3 2"/>
+            <line x1="175" y1="50" x2="175" y2="62" stroke="#f97316" stroke-width="1" stroke-dasharray="3 2"/>
+            <line x1="290" y1="50" x2="290" y2="62" stroke="#eab308" stroke-width="1" stroke-dasharray="3 2"/>
+            <line x1="405" y1="50" x2="405" y2="62" stroke="#06b6d4" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="250" y="68" text-anchor="middle" fill="#f87171" font-family="Courier New" font-size="8">ALL ON ISOLATED NETWORK / VLAN</text>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Why IoT Is Dangerous</div>
+                <div class="card-desc">Many IoT devices: ship with hardcoded or default credentials, run outdated Linux kernels with known vulnerabilities, cannot be updated by the user, phone home to servers in unknown jurisdictions, and have been recruited into botnets (Mirai compromised 600,000 devices). A compromised smart lightbulb on your main network can scan every device on that subnet.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Isolation Methods</div>
+                <div class="card-desc">Guest network: place all IoT devices on the guest SSID with client isolation enabled. VLAN: if your router supports VLANs, create a dedicated IoT VLAN with firewall rules blocking IoT-to-LAN traffic. Dedicated AP: a separate access point on a different subnet for IoT devices only.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IoT Hardening</div>
+                <div class="card-desc">Change default passwords on every device. Disable UPnP on the IoT network. Check for firmware updates monthly. Disable remote access features you do not use. If a device has no security update mechanism and uses hardcoded credentials, consider whether the convenience is worth the risk to your network.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network Monitoring</div>
+                <div class="card-desc">Use your router's traffic monitoring to watch for IoT devices communicating with unexpected external IP addresses. A smart thermostat should talk to its cloud service and nothing else. Unexpected connections to Chinese or Russian IP ranges from a consumer device are a strong indicator of compromise or built-in telemetry exfiltration.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- NETWORK SEGMENTATION ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Network <span class="accent">Segmentation</span></div>
+        <div class="slide-subtitle">Dividing the network into separate zones limits the blast radius when a device is compromised. An attacker in one segment cannot automatically reach another.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 80" width="520" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="8" width="140" height="30" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="90" y="28" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="8">WORK DEVICES</text>
+            <rect x="190" y="8" width="140" height="30" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="260" y="28" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="8">GUEST / VISITORS</text>
+            <rect x="360" y="8" width="140" height="30" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="430" y="28" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="8">IoT DEVICES</text>
+            <line x1="90" y1="38" x2="90" y2="52" stroke="#64748b" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <line x1="260" y1="38" x2="260" y2="52" stroke="#64748b" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <line x1="430" y1="38" x2="430" y2="52" stroke="#64748b" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <rect x="40" y="52" width="440" height="22" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="260" y="67" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="9">ROUTER / FIREWALL (inter-segment rules)</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Why Segment</div>
+                <div class="card-desc">Without segmentation, all devices share one flat network. A compromised IoT camera can scan and attack your workstation. A visitor's malware-infected laptop can reach your NAS. Segmentation creates boundaries that require explicit firewall rules to cross -- containing threats to the segment they entered.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">SOHO Segmentation</div>
+                <div class="card-desc">At minimum: main network (trusted work devices), guest network (visitors), IoT network (smart devices). Advanced SOHO routers (Ubiquiti, pfSense, OpenWrt) support full VLAN configuration. Even consumer routers with a guest network provide basic two-zone segmentation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Firewall Rules Between Segments</div>
+                <div class="card-desc">Default: deny all traffic between segments. Allow only specific, documented exceptions (e.g., main LAN can reach a printer on the IoT network on port 9100 only). The principle of least privilege applies to network traffic the same way it applies to user permissions.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- SSID AND WIRELESS BEST PRACTICES ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Wireless <span class="accent">Best Practices</span></div>
+        <div class="slide-subtitle">Beyond encryption, several wireless configuration settings affect the security and visibility of your network.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 60" width="500" height="60" xmlns="http://www.w3.org/2000/svg">
+            <rect x="100" y="14" width="300" height="32" rx="6" fill="none" stroke="#f87171" stroke-width="2" stroke-dasharray="5 3"/>
+            <text x="250" y="35" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="11" font-weight="bold">WIRELESS HARDENING</text>
+            <circle cx="80" cy="30" r="5" fill="#f87171" style="animation: pulse 1.5s ease-in-out infinite"/>
+            <circle cx="420" cy="30" r="5" fill="#f87171" style="animation: pulse 1.5s ease-in-out infinite 0.5s"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">SSID Naming</div>
+                <div class="card-desc">Do not use your name, address, or business name as the SSID. Avoid default SSIDs (NETGEAR, ASUS, linksys) because they reveal the router manufacturer, helping attackers target known vulnerabilities. Use a generic, non-identifying name. Hiding the SSID provides negligible security and causes connection issues.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">MAC Filtering: Not Security</div>
+                <div class="card-desc">MAC address filtering (whitelisting specific device MACs) is often cited as a security measure. In reality, MAC addresses are broadcast in plaintext and can be spoofed in seconds with a single command. MAC filtering is an inconvenience, not a control. Do not rely on it for security.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Reduce Signal Strength</div>
+                <div class="card-desc">If your wireless signal reaches the parking lot across the street, an attacker can attempt to connect from there. Reduce transmit power to cover only the necessary area. This is not a primary security control but reduces the attack surface by limiting who can even detect the network.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Disable Unused Bands</div>
+                <div class="card-desc">If all your devices support 5GHz, disable the 2.4GHz radio to reduce the number of access points an attacker can target. 5GHz has shorter range, which inherently limits the physical area from which the network can be attacked. Use dual-band only if legacy devices require 2.4GHz.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Regular Password Rotation</div>
+                <div class="card-desc">Change the Wi-Fi password when employees leave, when you suspect compromise, or at least annually. For businesses with regular staff turnover, quarterly rotation prevents former employees from maintaining network access after departure.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Disable WPS (Again)</div>
+                <div class="card-desc">This bears repeating because WPS is enabled by default on most consumer routers. After every firmware update, verify that WPS is still disabled -- some updates reset the setting to default (enabled). Check the router admin page after every firmware upgrade.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- PARENTAL CONTROLS AS SECURITY ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Parental Controls as <span class="accent">Security Tools</span></div>
+        <div class="slide-subtitle">Built-in parental control features on SOHO routers can serve double duty as lightweight security controls for small business networks.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 68" width="500" height="68" xmlns="http://www.w3.org/2000/svg">
+            <rect x="30" y="18" width="130" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="95" y="39" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="9">CONTENT FILTER</text>
+            <rect x="185" y="18" width="130" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="250" y="39" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="9">TIME SCHEDULING</text>
+            <rect x="340" y="18" width="140" height="32" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="410" y="39" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="9">DEVICE MANAGEMENT</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Content Filtering</div>
+                <div class="card-desc">Block categories of websites: known malware distribution sites, phishing domains, adult content, gambling. Router-level filtering (OpenDNS, CleanBrowsing) applies to all devices without installing software on each one. This provides a baseline content filter even for devices that cannot run endpoint protection.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Access Scheduling</div>
+                <div class="card-desc">Time-based access controls can restrict internet access for specific devices to business hours only. An IoT device that only needs internet during work hours should not be communicating at 3 AM. Unexpected off-hours traffic from a scheduled device is a strong compromise indicator.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Per-Device Visibility</div>
+                <div class="card-desc">Parental control dashboards show which devices are connected and how much bandwidth they use. This provides basic network monitoring without dedicated tools. An unknown device on the network or unusual traffic spikes from a known device should trigger investigation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- SOHO SECURITY CHECKLIST ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">SOHO Security <span class="accent">Checklist</span></div>
+        <div class="slide-subtitle">A practical action list for securing a small office / home office network in under 30 minutes.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Router Configuration</div>
+                <div class="card-desc">Change admin credentials (username + strong password). Update firmware to latest version. Disable remote management. Disable UPnP. Disable WPS. Change default LAN subnet if paranoid (192.168.50.x instead of 192.168.1.x).</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Wireless Security</div>
+                <div class="card-desc">Set WPA3 (or WPA2-AES minimum). Use a 20+ character passphrase. Change default SSID to non-identifying name. Create a separate guest network with client isolation. Put IoT devices on the guest network.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">DNS and Filtering</div>
+                <div class="card-desc">Change DNS to Cloudflare (1.1.1.1) or Quad9 (9.9.9.9). Enable DNS-over-HTTPS if supported. Enable content filtering to block known malicious domains.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Access Control</div>
+                <div class="card-desc">Remove any port forwards you do not actively use. Verify DMZ is not enabled. Review connected devices list for unknowns. Set up access scheduling for IoT devices. Enable router logging if supported.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">30 Minutes, Massive Impact</div>
+            Every item on this checklist can be completed through the router's web admin interface in a single session. The entire process takes 20-30 minutes and transforms a default, vulnerable consumer router into a reasonably hardened network gateway. Schedule a quarterly review to verify settings have not drifted.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- SUMMARY ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14</div>
+        <div class="slide-title">Week 4 Summary: <span class="accent">SOHO Network Security</span></div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Change default admin credentials immediately. Default passwords are published online and tried first by every automated scanner.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Disable WPS -- the PIN vulnerability reduces the search space to 11,000 combinations, crackable in hours with Reaver.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Update router firmware monthly. Unpatched routers are recruited into botnets (Mirai, VPNFilter).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Use WPA3 (or WPA2-AES minimum) with a 20+ character passphrase. WEP is broken. WPA is deprecated.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Create a guest network with client isolation for visitors and IoT devices. Never put smart devices on the main network.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Avoid DMZ on consumer routers -- it exposes ALL ports. Use specific port forwards only when necessary, and prefer VPN access instead.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Disable UPnP. It allows any device to open ports without approval. Malware uses UPnP to create backdoors through the router.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Switch DNS to Cloudflare (1.1.1.1) or Quad9 (9.9.9.9). Enable DNS-over-HTTPS. ISP DNS may log queries and lacks malware filtering.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Segment the network: work devices, guest/visitor, IoT. Default deny between segments. A compromised camera should not reach your workstation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">MAC filtering is not security (spoofable in seconds). SSID hiding causes more problems than it solves. Focus on encryption and segmentation.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; First Watch</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'fw-w4-soho-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

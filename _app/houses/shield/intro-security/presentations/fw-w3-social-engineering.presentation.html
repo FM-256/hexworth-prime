@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Engineering, Threats &amp; Vulnerabilities | First Watch</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0414 0%, #1a0a0e 50%, #120810 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #f87171; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(12, 4, 20, 0.95);
+            border-top: 1px solid rgba(248, 113, 113, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(248, 113, 113, 0.12); color: #f87171; border-color: #f87171;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        #complete-btn {
+            display: none; background: #f87171; color: #fff; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #f97316; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #f87171; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #f87171; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(248, 113, 113, 0.06); border-left: 3px solid #f87171;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fecaca; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-red    { background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); color: #fecaca; }
+        .box-orange { background: rgba(249, 115, 22, 0.08); border: 1px solid rgba(249, 115, 22, 0.3); color: #fed7aa; }
+        .box-cyan   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green  { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-gold   { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-blue   { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #f87171; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #f87171;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.06); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-red    { border-left-color: #f87171; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-gold   { border-left-color: #eab308; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-green  { border-left-color: #22c55e; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+        .card.c-purple { border-left-color: #a855f7; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #f87171; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(248, 113, 113, 0.12);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+
+        .ic {
+            font-family: 'Courier New', monospace; color: #f87171;
+            background: rgba(248, 113, 113, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 4px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+        @keyframes pulse { 0%, 100% { opacity: 0.5; r: 4; } 50% { opacity: 1; r: 6; } }
+        @keyframes flowRight { 0% { transform: translateX(-6px); opacity: 0.3; } 50% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(6px); opacity: 0.3; } }
+        @keyframes signalSend { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Social Engineering, Threats &amp; Vulnerabilities | First Watch</h1>
+
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; FW-W3 &nbsp;|&nbsp; Week 3 of 8 &nbsp;|&nbsp; CTS1120C</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Social Engineering<br>
+                <span class="accent">Threats &amp; Vulnerabilities</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Phishing &nbsp;&bull;&nbsp; Pretexting &nbsp;&bull;&nbsp; Tailgating &nbsp;&bull;&nbsp; Threat Actors &nbsp;&bull;&nbsp; Vulnerability Types
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Incident Report FW-301. A campus IT help desk receives a call from someone claiming to be the provost's executive assistant. The caller has the provost's schedule, office number, and recent travel dates -- all pulled from LinkedIn and the university website. They request an immediate password reset on the provost's account for a "critical board meeting in 20 minutes." The help desk technician complies. Within four hours, 11,000 student records are exfiltrated. The caller was never an employee.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>FW-W3</span>
+            <span>Week 3 of 8</span>
+            <span>CTS1120C</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS SOCIAL ENGINEERING ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">What Is <span class="accent">Social Engineering</span>?</div>
+        <div class="slide-subtitle">Manipulating people instead of systems. The attacker exploits human psychology -- trust, fear, urgency, helpfulness -- to bypass technical controls entirely.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 68" width="500" height="68" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="18" width="90" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="55" y="39" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10">ATTACKER</text>
+            <line x1="100" y1="34" x2="145" y2="34" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="145" y="18" width="110" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="200" y="39" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="10">PSYCHOLOGY</text>
+            <line x1="255" y1="34" x2="300" y2="34" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite 0.3s"/>
+            <rect x="300" y="18" width="80" height="32" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="340" y="39" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="10">VICTIM</text>
+            <line x1="380" y1="34" x2="420" y2="34" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite 0.6s"/>
+            <rect x="420" y="18" width="70" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="455" y="39" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10">BREACH</text>
+            <circle cx="135" cy="34" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite"/>
+            <circle cx="290" cy="34" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+            <circle cx="412" cy="34" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite 1s"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">No Code Required</div>
+                <div class="card-desc">Social engineering bypasses firewalls, IDS, and encryption by targeting the human layer. The victim voluntarily hands over credentials, holds open a door, or wires money. Technical controls cannot prevent an authorized user from performing an authorized action under false pretenses.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Why It Works</div>
+                <div class="card-desc">Humans are wired to cooperate, defer to authority, and respond to urgency. These traits are features of normal social behavior, not defects. Attackers weaponize helpfulness, fear, curiosity, and the instinct to comply with perceived authority figures.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">The #1 Attack Vector</div>
+                <div class="card-desc">Industry reports consistently show 70-90% of data breaches involve a human element. Social engineering is the primary delivery mechanism for ransomware, business email compromise, and credential theft. Organizations that invest only in technical defenses have a structural gap.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- PHISHING TYPES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title"><span class="accent">Phishing</span> Attack Types</div>
+        <div class="slide-subtitle">Email-based social engineering ranges from mass campaigns to precision-targeted strikes against executives.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 72" width="520" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="20" width="95" height="32" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="57" y="41" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="9">PHISHING</text>
+            <text x="57" y="62" text-anchor="middle" fill="#475569" font-family="Courier New" font-size="7">mass / generic</text>
+            <line x1="105" y1="36" x2="145" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1.2s linear infinite"/>
+            <rect x="145" y="20" width="110" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="200" y="41" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="9">SPEAR PHISH</text>
+            <text x="200" y="62" text-anchor="middle" fill="#475569" font-family="Courier New" font-size="7">targeted / OSINT</text>
+            <line x1="255" y1="36" x2="295" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1.2s linear infinite 0.3s"/>
+            <rect x="295" y="20" width="95" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="342" y="41" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">WHALING</text>
+            <text x="342" y="62" text-anchor="middle" fill="#475569" font-family="Courier New" font-size="7">C-suite exec</text>
+            <line x1="390" y1="36" x2="425" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1.2s linear infinite 0.6s"/>
+            <rect x="425" y="20" width="80" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="465" y="41" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">BEC</text>
+            <text x="465" y="62" text-anchor="middle" fill="#475569" font-family="Courier New" font-size="7">wire fraud</text>
+            <text x="57" y="12" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">LOW PRECISION</text>
+            <text x="465" y="12" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">HIGH PRECISION</text>
+            <circle cx="135" cy="36" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite"/>
+            <circle cx="285" cy="36" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+            <circle cx="418" cy="36" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite 1s"/>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Phishing (Mass)</div>
+                <div class="card-desc">Bulk emails impersonating banks, shipping companies, or IT departments. Generic message, spoofed sender, link to credential-harvesting site. Volume game -- even a 0.5% click rate across a million emails yields 5,000 compromised accounts.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Spear Phishing</div>
+                <div class="card-desc">Targeted phishing using personalized OSINT -- real names, projects, and events from LinkedIn and company sites. "Hi Sarah, per your discussion with Mark about Q3 budget, review the attached." Click rates jump from 3% to 30-50% with personalization.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Whaling</div>
+                <div class="card-desc">Spear phishing aimed at C-suite executives. The CFO can authorize wire transfers, the CEO's identity can direct employees. Attackers invest heavy OSINT to craft credible pretexts targeting high-value decision makers.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Business Email Compromise</div>
+                <div class="card-desc">Attacker gains access to or spoofs an executive's email, then sends fraudulent payment instructions to accounting. FBI reports BEC caused over $50 billion in losses globally since 2013. No malware involved -- just a convincing email from the right address.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- VISHING AND SMISHING ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title"><span class="accent">Vishing</span> and <span class="accent">Smishing</span></div>
+        <div class="slide-subtitle">Social engineering delivered by voice call (vishing) and SMS text message (smishing) instead of email.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 80" width="500" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="30" y="10" width="180" height="60" rx="6" fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="120" y="28" text-anchor="middle" fill="#f87171" font-family="Courier New" font-size="9" font-weight="bold">VISHING</text>
+            <text x="120" y="42" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Voice call / VoIP</text>
+            <text x="120" y="56" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Caller ID spoofed</text>
+            <rect x="290" y="10" width="180" height="60" rx="6" fill="none" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="380" y="28" text-anchor="middle" fill="#f97316" font-family="Courier New" font-size="9" font-weight="bold">SMISHING</text>
+            <text x="380" y="42" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">SMS / text message</text>
+            <text x="380" y="56" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="8">Short URL + urgency</text>
+            <line x1="210" y1="40" x2="290" y2="40" stroke="#64748b" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="250" y="36" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="8">BOTH</text>
+            <circle cx="250" cy="40" r="3" fill="#f87171" style="animation: pulse 2s ease-in-out infinite"/>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Vishing</div>
+                <div class="card-desc">Voice phishing via phone calls. Attacker spoofs caller ID to appear as the bank, IRS, or IT department. VoIP services make spoofing trivial. "This is Wells Fargo Fraud Prevention. We detected unauthorized charges on your account. Please verify your SSN and PIN to secure your account." Real-time voice interaction makes it harder for victims to pause and verify.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Smishing</div>
+                <div class="card-desc">SMS-based phishing. Text messages create urgency with shortened URLs: "USPS: Your package cannot be delivered. Confirm address: bit.ly/abc123." Mobile users are less likely to inspect URLs on small screens. SMS bypasses email spam filters entirely and has a 98% open rate compared to 20% for email.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Defense Strategy</div>
+            Never trust caller ID -- it can be spoofed. Never click links in unsolicited texts. If a call claims to be from your bank, hang up and call the number on the back of your card. Legitimate organizations will never ask for your full password, PIN, or SSN over the phone.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- PRETEXTING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title"><span class="accent">Pretexting</span></div>
+        <div class="slide-subtitle">Creating a fabricated scenario (pretext) to gain trust and extract information or access. The attacker invents an identity and a believable story.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 72" width="500" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="20" width="120" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="80" y="41" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9">FAKE IDENTITY</text>
+            <line x1="140" y1="36" x2="185" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="185" y="20" width="130" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="250" y="41" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="9">CRAFTED STORY</text>
+            <line x1="315" y1="36" x2="360" y2="36" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite 0.3s"/>
+            <rect x="360" y="20" width="120" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="420" y="41" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="9">TRUST GAINED</text>
+            <circle cx="175" cy="36" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite"/>
+            <circle cx="350" cy="36" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">IT Support Pretext</div>
+                <div class="card-desc">"Hi, this is James from the IT Security team. We're seeing unusual login attempts on your account and need to verify your identity to prevent a lockout. Can you confirm your username and current password so I can check the logs?" The attacker uses internal jargon and urgency to sound credible.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Vendor Pretext</div>
+                <div class="card-desc">"I'm calling from your HVAC maintenance company. We need remote access to your building management system to run diagnostics before tomorrow's inspection." Target HVAC and vendor systems were the initial entry point in the Target Corporation breach that compromised 40 million credit cards.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Authority Pretext</div>
+                <div class="card-desc">"This is Agent Morris with the FBI Cyber Division. We are investigating a breach involving your organization and need your cooperation immediately. Do not discuss this with anyone -- it could compromise the investigation." Fear and authority create instant compliance.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Key Insight</div>
+            Pretexting is the foundation of nearly every social engineering attack. Phishing emails use a pretext. Vishing calls use a pretext. The quality of the pretext determines the success rate. Always verify identity through an independent channel before complying with unusual requests.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- BAITING ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title"><span class="accent">Baiting</span></div>
+        <div class="slide-subtitle">Luring victims with something enticing -- a free USB drive, a file download, or a too-good-to-be-true offer -- that delivers malware or harvests credentials.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 72" width="500" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="30" y="18" width="100" height="36" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="80" y="33" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="9">BAIT</text>
+            <text x="80" y="46" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">USB / download</text>
+            <line x1="130" y1="36" x2="190" y2="36" stroke="#f87171" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite"/>
+            <rect x="190" y="18" width="110" height="36" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="245" y="33" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="9">CURIOSITY</text>
+            <text x="245" y="46" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">human instinct</text>
+            <line x1="300" y1="36" x2="360" y2="36" stroke="#f87171" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1s linear infinite 0.3s"/>
+            <rect x="360" y="18" width="110" height="36" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="415" y="33" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">COMPROMISE</text>
+            <text x="415" y="46" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">malware exec</text>
+            <circle cx="178" cy="36" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite"/>
+            <circle cx="348" cy="36" r="3" fill="#f87171" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-orange">
+                <div class="card-label">USB Drop Attack</div>
+                <div class="card-desc">Attacker leaves USB drives labeled "Salary Data Q4" or "Confidential -- HR" in the parking lot, break room, or lobby. A 2016 University of Illinois study found that 48% of dropped USB drives were plugged in by finders within hours. Once connected, the drive can auto-execute malware, install a reverse shell, or act as a rubber ducky keystroke injector.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Digital Baiting</div>
+                <div class="card-desc">Free software downloads, pirated media, or "cracked" applications bundled with trojans. Torrent sites and unofficial download portals are prime delivery channels. The victim believes they are getting free software while the installer silently deploys a keylogger, RAT, or cryptocurrency miner alongside the expected application.</div>
+            </div>
+        </div>
+
+        <div class="box box-orange">
+            <div class="box-label">Defense</div>
+            Disable USB autorun via Group Policy. Use endpoint detection and response (EDR) to block unauthorized USB devices. Train employees: if you find a USB drive, do not plug it in -- turn it in to security. Apply the same skepticism to "free" downloads from untrusted sources.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- PHYSICAL SOCIAL ENGINEERING ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title">Physical <span class="accent">Social Engineering</span></div>
+        <div class="slide-subtitle">Tailgating, shoulder surfing, and dumpster diving bypass digital controls by exploiting physical access and human courtesy.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 68" width="520" height="68" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="18" width="120" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="70" y="39" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9">TAILGATING</text>
+            <rect x="145" y="18" width="140" height="32" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="215" y="39" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="9">SHOULDER SURFING</text>
+            <rect x="300" y="18" width="140" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="370" y="39" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="9">DUMPSTER DIVING</text>
+            <line x1="70" y1="50" x2="70" y2="62" stroke="#f87171" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="70" y="67" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">badge door</text>
+            <line x1="215" y1="50" x2="215" y2="62" stroke="#f97316" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="215" y="67" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">screen / keypad</text>
+            <line x1="370" y1="50" x2="370" y2="62" stroke="#eab308" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="370" y="67" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">trash / recycle</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Tailgating</div>
+                <div class="card-desc">Following an authorized person through a secured door without badging in. The attacker carries a box or coffee to make it seem natural to hold the door. Social pressure makes most people reluctant to challenge someone who "looks like they belong." Also called piggybacking when the authorized person knowingly allows entry.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Shoulder Surfing</div>
+                <div class="card-desc">Observing someone enter a password, PIN, or sensitive data by looking over their shoulder. Can be done in person at an ATM, coffee shop, or office cubicle. Attackers may also use binoculars, cameras, or phone cameras from a distance. Privacy screens and awareness of surroundings are primary defenses.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dumpster Diving</div>
+                <div class="card-desc">Searching through trash and recycling bins for sensitive documents, network diagrams, org charts, phone lists, or discarded hardware. Attackers find account numbers, internal memos, and password sticky notes. Not illegal in many jurisdictions if the dumpster is in a public area. Shredding and secure disposal are essential controls.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- WATERING HOLE ATTACKS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title"><span class="accent">Watering Hole</span> Attacks</div>
+        <div class="slide-subtitle">Instead of attacking the target directly, the attacker compromises a website the target frequently visits and waits for them to arrive.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 80" width="520" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="8" width="120" height="30" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="80" y="28" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="9">TARGET ORG</text>
+            <line x1="80" y1="38" x2="80" y2="50" stroke="#64748b" stroke-width="1" stroke-dasharray="3 2"/>
+            <text x="80" y="60" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">visits daily</text>
+            <line x1="100" y1="64" x2="200" y2="64" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1.2s linear infinite"/>
+            <rect x="200" y="48" width="130" height="30" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="265" y="68" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9" font-weight="bold">COMPROMISED SITE</text>
+            <text x="265" y="44" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">injected exploit</text>
+            <line x1="330" y1="64" x2="400" y2="40" stroke="#f87171" stroke-width="1.5" stroke-dasharray="6 3" style="animation: signalSend 1.2s linear infinite 0.3s"/>
+            <rect x="400" y="24" width="100" height="30" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="450" y="44" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9">ATTACKER</text>
+            <text x="450" y="16" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">injects code</text>
+            <circle cx="190" cy="64" r="3" fill="#f97316" style="animation: pulse 2s ease-in-out infinite"/>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">The attacker identifies websites frequented by the target organization -- industry forums, trade association pages, regional news sites, or supply-chain vendor portals. They compromise the site by injecting malicious JavaScript or an exploit kit. When employees visit the site during normal work, the exploit silently delivers malware to their machines.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why It Is Effective</div>
+                <div class="card-desc">The victim never receives a suspicious email or clicks a strange link. They visit a site they trust and have visited before. Browser exploits execute silently. The attack bypasses email filters, URL reputation checks, and user training because the malicious content is hosted on a legitimate, trusted domain.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Real-World Example</div>
+            In 2013, attackers compromised the website of the International Civil Aviation Organization (ICAO) and used it to deliver malware to employees of airlines, airports, and government aviation agencies who regularly visited the site for policy updates. The victims were not randomly selected -- the watering hole was chosen because of its specific audience.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- THREAT ACTORS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title"><span class="accent">Threat Actors</span></div>
+        <div class="slide-subtitle">Understanding who attacks and why is essential to building appropriate defenses. Motivation determines methods, targets, and persistence.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 72" width="520" height="72" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="4" width="95" height="26" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="57" y="21" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="8">SCRIPT KIDDIE</text>
+            <rect x="115" y="4" width="95" height="26" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="162" y="21" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="8">HACKTIVIST</text>
+            <rect x="220" y="4" width="100" height="26" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="270" y="21" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="8">ORGANIZED</text>
+            <rect x="330" y="4" width="85" height="26" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="372" y="21" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="8">INSIDER</text>
+            <rect x="425" y="4" width="85" height="26" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="467" y="21" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="8" font-weight="bold">NATION-ST</text>
+            <line x1="10" y1="42" x2="510" y2="42" stroke="#64748b" stroke-width="0.5"/>
+            <text x="10" y="56" fill="#22c55e" font-family="Courier New" font-size="7">LOW SKILL</text>
+            <text x="460" y="56" fill="#f87171" font-family="Courier New" font-size="7">APT / UNLIMITED</text>
+            <line x1="57" y1="30" x2="57" y2="40" stroke="#64748b" stroke-width="0.8"/>
+            <line x1="162" y1="30" x2="162" y2="40" stroke="#64748b" stroke-width="0.8"/>
+            <line x1="270" y1="30" x2="270" y2="40" stroke="#64748b" stroke-width="0.8"/>
+            <line x1="372" y1="30" x2="372" y2="40" stroke="#64748b" stroke-width="0.8"/>
+            <line x1="467" y1="30" x2="467" y2="40" stroke="#64748b" stroke-width="0.8"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Script Kiddies</div>
+                <div class="card-desc">Low-skill attackers using pre-built tools and exploit scripts. Motivated by curiosity or bragging rights. Dangerous because automated tools require no expertise but can still cause real damage. They scan entire IP ranges looking for known vulnerabilities.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hacktivists</div>
+                <div class="card-desc">Politically or ideologically motivated attackers. Goals: website defacement, data leaks to embarrass targets, DDoS for disruption. Anonymous and similar groups. Skill varies from script kiddie to advanced. Targets chosen for symbolic value rather than financial gain.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Organized Crime</div>
+                <div class="card-desc">Profit-driven criminal enterprises operating ransomware-as-a-service, BEC campaigns, and credential theft rings. Professional operations with developers, operators, and money launderers. Responsible for the majority of ransomware attacks and financial cybercrime.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Insiders</div>
+                <div class="card-desc">Current or former employees with legitimate access. Motivated by financial gain, revenge, or ideology. The most dangerous because they already have credentials, know the systems, and can bypass controls designed to stop external attackers. Hardest to detect.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Nation-State (APT)</div>
+                <div class="card-desc">Government-sponsored attackers with virtually unlimited resources. Advanced persistent threats that maintain long-term access. Targets: critical infrastructure, defense contractors, intellectual property. Groups like APT28, APT29, Lazarus operate with state backing and legal immunity in their home countries.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Competitors</div>
+                <div class="card-desc">Corporate espionage actors seeking trade secrets, pricing data, customer lists, or R&D information. May hire criminal groups or use insiders. The goal is business advantage, not destruction. Particularly prevalent in technology, pharmaceuticals, and defense industries.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- VULNERABILITY TYPES ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title"><span class="accent">Vulnerability</span> Types</div>
+        <div class="slide-subtitle">A vulnerability is a weakness that can be exploited by a threat actor. Vulnerabilities exist in software, hardware, configurations, processes, and people.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 80" width="500" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="170" y="4" width="160" height="28" rx="4" fill="none" stroke="#f87171" stroke-width="2"/>
+            <text x="250" y="23" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10" font-weight="bold">VULNERABILITY</text>
+            <line x1="60" y1="48" x2="250" y2="32" stroke="#64748b" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <line x1="170" y1="48" x2="250" y2="32" stroke="#64748b" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <line x1="280" y1="48" x2="250" y2="32" stroke="#64748b" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <line x1="400" y1="48" x2="250" y2="32" stroke="#64748b" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <rect x="10" y="48" width="100" height="24" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="60" y="64" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="8">SOFTWARE</text>
+            <rect x="130" y="48" width="100" height="24" rx="4" fill="none" stroke="#eab308" stroke-width="1.5"/>
+            <text x="180" y="64" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="8">CONFIG</text>
+            <rect x="250" y="48" width="100" height="24" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="300" y="64" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="8">HUMAN</text>
+            <rect x="370" y="48" width="100" height="24" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="420" y="64" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="8">PHYSICAL</text>
+        </svg></div>
+
+        <div class="card-grid-2">
+            <div class="card c-orange">
+                <div class="card-label">Software Vulnerabilities</div>
+                <div class="card-desc">Buffer overflows, SQL injection, cross-site scripting (XSS), unpatched CVEs, zero-day exploits. Software bugs in operating systems, applications, and firmware that allow unauthorized access, code execution, or data exfiltration. Patching is the primary mitigation.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Configuration Vulnerabilities</div>
+                <div class="card-desc">Default credentials left unchanged, open ports, unnecessary services running, permissive file permissions, misconfigured firewalls. Not a bug in the software itself, but a failure to secure the deployment. Hardening guides and configuration baselines prevent these.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Human Vulnerabilities</div>
+                <div class="card-desc">Susceptibility to social engineering, weak password choices, sharing credentials, clicking phishing links, ignoring security policies. Training reduces risk but cannot eliminate it. Layered controls (MFA, DLP, least privilege) limit the damage when human error occurs.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Physical Vulnerabilities</div>
+                <div class="card-desc">Unlocked server rooms, no security cameras, unshredded documents, unsecured network jacks, missing cable locks on laptops. Physical access to hardware can bypass every software security control. If an attacker can touch the machine, they own the machine.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- THREAT vs VULNERABILITY vs RISK ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Threat vs Vulnerability vs <span class="accent">Risk</span></div>
+        <div class="slide-subtitle">These three terms are distinct but interconnected. Understanding the relationship is fundamental to security analysis.</div>
+
+        <div class="diagram"><svg viewBox="0 0 520 80" width="520" height="80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="24" width="120" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="80" y="44" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="10">THREAT</text>
+            <text x="160" y="44" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="14">+</text>
+            <rect x="180" y="24" width="140" height="32" rx="4" fill="none" stroke="#f97316" stroke-width="1.5"/>
+            <text x="250" y="44" text-anchor="middle" fill="#fed7aa" font-family="Courier New" font-size="10">VULNERABILITY</text>
+            <text x="340" y="44" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="14">=</text>
+            <rect x="360" y="24" width="140" height="32" rx="4" fill="none" stroke="#eab308" stroke-width="2"/>
+            <text x="430" y="44" text-anchor="middle" fill="#fef9c3" font-family="Courier New" font-size="10" font-weight="bold">RISK</text>
+            <text x="80" y="14" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="7">potential danger</text>
+            <text x="250" y="14" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="7">exploitable weakness</text>
+            <text x="430" y="14" text-anchor="middle" fill="#94a3b8" font-family="Courier New" font-size="7">likelihood x impact</text>
+            <text x="430" y="70" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="8">RISK = THREAT x VULN x IMPACT</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Threat</div>
+                <div class="card-desc">Any potential danger that could exploit a vulnerability. A threat exists whether or not you are vulnerable. Hurricanes are a threat to all buildings. Ransomware gangs are a threat to all organizations. Threats include natural disasters, human attackers, and system failures.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Vulnerability</div>
+                <div class="card-desc">A weakness or gap in security that a threat could exploit. An unpatched server has a vulnerability. An untrained employee has a vulnerability. A building without a fire suppression system has a vulnerability. Vulnerabilities are what you can actually fix.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Risk</div>
+                <div class="card-desc">The probability that a threat will exploit a vulnerability multiplied by the impact if it does. Risk = Likelihood x Impact. A high threat with no vulnerability = low risk. A critical vulnerability with no threat = low risk. Security resources should be allocated based on risk, not fear.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Formula to Remember</div>
+            Risk = Threat x Vulnerability x Impact. You cannot eliminate threats (they exist in the environment), but you can reduce vulnerabilities (patch, harden, train) and reduce impact (backups, segmentation, incident response plans). Effective security is risk management, not risk elimination.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- INDICATORS OF SOCIAL ENGINEERING ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Recognizing <span class="accent">Social Engineering</span></div>
+        <div class="slide-subtitle">Common red flags that indicate a social engineering attempt in progress.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 60" width="500" height="60" xmlns="http://www.w3.org/2000/svg">
+            <rect x="100" y="14" width="300" height="32" rx="6" fill="none" stroke="#f87171" stroke-width="2" stroke-dasharray="5 3"/>
+            <text x="250" y="35" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="11" font-weight="bold">RED FLAG INDICATORS</text>
+            <circle cx="80" cy="30" r="5" fill="#f87171" style="animation: pulse 1.5s ease-in-out infinite"/>
+            <circle cx="420" cy="30" r="5" fill="#f87171" style="animation: pulse 1.5s ease-in-out infinite 0.5s"/>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Urgency and Pressure</div>
+                <div class="card-desc">"This must be done immediately." "You have 30 minutes before your account is locked." Legitimate requests rarely require instant action without verification. Time pressure is the attacker's most reliable tool.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Unusual Requests</div>
+                <div class="card-desc">Asking for passwords, requesting wire transfers to new accounts, or needing remote access outside normal procedures. Any request that bypasses established processes should trigger verification through a separate channel.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Authority Claims</div>
+                <div class="card-desc">"I'm the CEO." "This is the FBI." "I'm from IT." Legitimate authority figures do not normally ask employees to bypass security. Verify by calling back on a known number, not the number the caller provides.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Emotional Manipulation</div>
+                <div class="card-desc">Fear, flattery, sympathy, or guilt. "You will be fired if this is not handled now." "I know you are a team player." "I really need your help -- I am in a difficult situation." Emotional responses override rational decision-making.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Too Good to Be True</div>
+                <div class="card-desc">Free gift cards, unexpected prize notifications, unclaimed inheritance, or job offers paying triple market rate. If the offer seems unrealistic, it is the bait in a social engineering attack.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Resistance to Verification</div>
+                <div class="card-desc">"There is no time to verify." "Do not call them back -- I am already on the line." "This is confidential -- do not discuss with anyone." Legitimate callers welcome verification. Only attackers resist it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 -- DEFENSES ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">Defending Against <span class="accent">Social Engineering</span></div>
+        <div class="slide-subtitle">Technical controls, policies, and training work together. No single layer is sufficient.</div>
+
+        <div class="diagram"><svg viewBox="0 0 500 68" width="500" height="68" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="18" width="130" height="32" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="85" y="39" text-anchor="middle" fill="#bbf7d0" font-family="Courier New" font-size="9">TRAINING</text>
+            <rect x="170" y="18" width="130" height="32" rx="4" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+            <text x="235" y="39" text-anchor="middle" fill="#cffafe" font-family="Courier New" font-size="9">POLICY</text>
+            <rect x="320" y="18" width="160" height="32" rx="4" fill="none" stroke="#f87171" stroke-width="1.5"/>
+            <text x="400" y="39" text-anchor="middle" fill="#fecaca" font-family="Courier New" font-size="9">TECHNICAL CONTROLS</text>
+            <line x1="85" y1="50" x2="235" y2="58" stroke="#64748b" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <line x1="235" y1="58" x2="400" y2="50" stroke="#64748b" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <text x="250" y="68" text-anchor="middle" fill="#64748b" font-family="Courier New" font-size="7">DEFENSE IN DEPTH</text>
+        </svg></div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Security Awareness Training</div>
+                <div class="card-desc">Regular training with simulated phishing exercises. Teach employees to recognize red flags, report suspicious contacts, and verify through independent channels. Measure click rates on phishing simulations and track improvement over time.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Verification Policies</div>
+                <div class="card-desc">Require callback verification for password resets, financial transfers, and access requests. Dual authorization for wire transfers over a threshold. No single person should be able to approve a high-risk action based on a single communication channel.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Technical Controls</div>
+                <div class="card-desc">Email filtering (SPF, DKIM, DMARC), multi-factor authentication, endpoint detection, USB device restrictions, Data Loss Prevention (DLP). Technical controls catch what training misses and limit damage when social engineering succeeds.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Physical Security</div>
+                <div class="card-desc">Badge readers with anti-tailgating turnstiles, visitor logs, escorted access for non-employees, secure disposal bins, clean desk policies. Security cameras provide both deterrence and forensic evidence after an incident.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Incident Reporting Culture</div>
+                <div class="card-desc">Make it easy and safe to report suspicious contacts. Employees who report phishing attempts should be praised, not punished if they clicked. A blame-free reporting culture catches attacks faster and produces better threat intelligence.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Least Privilege</div>
+                <div class="card-desc">Limit access to only what each role requires. If a social engineering attack compromises one account, least privilege limits the blast radius. An intern's compromised account should not provide access to financial systems or executive email.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 -- SUMMARY ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14</div>
+        <div class="slide-title">Week 3 Summary: <span class="accent">Social Engineering</span></div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Social engineering attacks humans, not systems. The victim voluntarily performs the action the attacker needs -- no exploit code required.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Phishing (mass email), spear phishing (targeted), whaling (executives), and BEC (wire fraud) form a spectrum from low-effort to precision attacks.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Vishing (voice) and smishing (SMS) bypass email filters. Never trust caller ID. Hang up and call back on a verified number.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Pretexting -- fabricating an identity and scenario -- is the foundation of nearly every social engineering attack.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Baiting uses enticing lures (USB drives, free downloads) to deliver malware. 48% of dropped USBs get plugged in.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Physical attacks: tailgating (following through doors), shoulder surfing (watching screens), dumpster diving (searching trash for data).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Watering hole attacks compromise trusted websites to silently infect visitors. No phishing email needed.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Threat actors range from script kiddies (low skill, automated tools) to nation-state APTs (unlimited resources, persistent access).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">9</span>
+                <span class="fact-text">Risk = Threat x Vulnerability x Impact. You reduce risk by patching vulnerabilities and limiting impact, not by eliminating threats.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">10</span>
+                <span class="fact-text">Defense requires layers: training, verification policies, technical controls (MFA, email filtering, DLP), physical security, and a blame-free reporting culture.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; First Watch</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'fw-w3-social-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
