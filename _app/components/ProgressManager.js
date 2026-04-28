@@ -257,7 +257,14 @@ class ProgressManager {
                     quizHistory: data.quizHistory || defaults.quizHistory,
                     labsCompleted: data.labsCompleted || defaults.labsCompleted,
                     divergentBranches: data.divergentBranches || defaults.divergentBranches,
-                    houses: data.houses || defaults.houses
+                    // Shallow-merge per house key so newly-added houses auto-initialize
+                    // (defaults.houses has all 11 houses with empty arrays) while
+                    // preserving existing data for houses already in saved progress.
+                    // Old behavior: `data.houses || defaults.houses` → empty {} wins,
+                    // leaving missing houses unprotected against the auto-init guard
+                    // in completeModule. That guard would then skip structured updates,
+                    // creating drift between flat and structured formats.
+                    houses: { ...defaults.houses, ...(data.houses || {}) }
                 };
                 // Sanitize numeric fields — prevent "[object Object]50" corruption
                 merged.xp = (typeof merged.xp === 'number' && isFinite(merged.xp))
@@ -534,21 +541,39 @@ class ProgressManager {
         // Mark module as completed
         progress.completedModules.push(moduleId);
 
-        // Update house-specific progress
-        if (progress.houses && progress.houses[houseId]) {
-            const house = progress.houses[houseId];
-            if (!house.modulesCompleted.includes(moduleId)) {
-                house.modulesCompleted.push(moduleId);
-            }
-            house.lastAccessed = Date.now();
+        // Update house-specific progress — auto-init the house if missing.
+        // Previously this block was guarded by `if (progress.houses[houseId])`,
+        // which silently skipped the structured-array update when the house
+        // wasn't already initialized. The flat-format write below still ran,
+        // creating drift between flat (progress[houseId][moduleId]) and
+        // structured (progress.houses[houseId].modulesCompleted) stores.
+        if (!progress.houses) progress.houses = {};
+        if (!progress.houses[houseId]) {
+            progress.houses[houseId] = {
+                unlocked: true,
+                modulesCompleted: [],
+                quizzesPassed: [],
+                labsCompleted: [],
+                currentModule: null,
+                progressPercent: 0,
+                lastAccessed: null
+            };
+        }
+        const house = progress.houses[houseId];
+        if (!Array.isArray(house.modulesCompleted)) house.modulesCompleted = [];
+        if (!Array.isArray(house.quizzesPassed))    house.quizzesPassed = [];
+        if (!Array.isArray(house.labsCompleted))    house.labsCompleted = [];
+        if (!house.modulesCompleted.includes(moduleId)) {
+            house.modulesCompleted.push(moduleId);
+        }
+        house.lastAccessed = Date.now();
 
-            // Update progress percentage
-            const pathModules = LearningPaths.getHouseModules(houseId);
-            if (pathModules && pathModules.length > 0) {
-                house.progressPercent = Math.round(
-                    (house.modulesCompleted.length / pathModules.length) * 100
-                );
-            }
+        // Update progress percentage
+        const pathModules = LearningPaths.getHouseModules(houseId);
+        if (pathModules && pathModules.length > 0) {
+            house.progressPercent = Math.round(
+                (house.modulesCompleted.length / pathModules.length) * 100
+            );
         }
 
         // DUAL-WRITE: Also save in flat format for Handler Dashboard sync
