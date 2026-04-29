@@ -226,6 +226,12 @@
     </style>
 </head>
 <body>
+    <!-- Admin guard: hidden until auth + isAdmin verified -->
+    <div id="admin-guard" style="position:fixed;inset:0;background:#0a0a0f;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;font-family:'Segoe UI',system-ui,sans-serif;color:#06b6d4;">
+        <div style="font-size:1.4rem;font-weight:700;letter-spacing:0.18em;">PULSE</div>
+        <div style="font-size:0.85rem;color:#8892a8;">Verifying admin access...</div>
+    </div>
+
     <!-- Top bar -->
     <div class="top-bar">
         <div class="top-bar-left">
@@ -423,7 +429,12 @@
 
     <!-- ════════════════════════════════════════════════════ -->
     <!-- PULSE ENGINE -->
+    <!-- External components must load BEFORE the inline IIFE so its -->
+    <!-- DOMContentLoaded handler can reference them. -->
     <!-- ════════════════════════════════════════════════════ -->
+    <script src="components/FirebaseAuth.js"></script>
+    <script src="components/AccountFrame.js"></script>
+    <script src="components/NexusReader.js"></script>
     <script>
     (function() {
         'use strict';
@@ -601,25 +612,42 @@
         }
 
         // ── Health score calculation ────────────────────
-        function calculateHealth() {
-            // v1: static calculation based on known metrics
-            var criticals = 0;          // 0 criticals = +30 points
-            var highCount = 524;        // 524 highs (penalty scales)
-            var quizKeysPct = 95;       // 351/~370 keys = 95% coverage
-            var catalogPct = 70;        // 1894/~2700 registered = 70%
-            var gatePass = true;        // gate passed = +10
+        // Tries NexusReader (live _quality_reports/latest from Firestore).
+        // Falls back to static placeholders if Firestore is unreachable.
 
-            var score = 30;                                        // base: no criticals
-            score += gatePass ? 10 : 0;                           // gate bonus
-            score += Math.round(quizKeysPct * 0.3);               // quiz key coverage (max 30)
-            score += Math.round(catalogPct * 0.2);                // catalog coverage (max 20)
-            score -= Math.min(20, Math.round(highCount / 50));    // high penalty (max -20)
+        function fmtInt(n) {
+            return (n || 0).toLocaleString();
+        }
 
+        function fmtRelativeTime(iso) {
+            if (!iso) return '--';
+            try {
+                var then = new Date(iso).getTime();
+                var diff = Date.now() - then;
+                if (diff < 60000) return 'just now';
+                if (diff < 3600000) return Math.round(diff / 60000) + 'm ago';
+                if (diff < 86400000) return Math.round(diff / 3600000) + 'h ago';
+                return Math.round(diff / 86400000) + 'd ago';
+            } catch (e) {
+                return '--';
+            }
+        }
+
+        function renderHealthFromSummary(s) {
+            // Compute health score from live severity counts
+            var crit = (s.severity && s.severity.critical) || 0;
+            var high = (s.severity && s.severity.high) || 0;
+            var gatePass = s.gate === 'PASS';
+
+            // Score: 100 baseline; subtract for criticals (heavy) and highs (lighter)
+            var score = 100;
+            score -= Math.min(60, crit * 15);                    // criticals dominate
+            score -= Math.min(30, Math.round(high / 8));         // highs scale gently
+            score = gatePass ? score : Math.min(score, 60);      // gate fail caps at 60
             score = Math.max(0, Math.min(100, score));
 
-            // Render
             var ring = document.getElementById('healthRing');
-            var circumference = 2 * Math.PI * 58; // r=58
+            var circumference = 2 * Math.PI * 58;
             var offset = circumference - (score / 100) * circumference;
             var color = score >= 80 ? 'var(--pulse-green)' : score >= 50 ? 'var(--pulse-yellow)' : 'var(--pulse-red)';
 
@@ -630,43 +658,146 @@
             document.getElementById('healthScore').textContent = score;
             document.getElementById('healthScore').style.color = color;
 
-            document.getElementById('healthSummary').textContent = score >= 80
-                ? 'Platform is healthy. All critical findings resolved. Gate passing.'
-                : score >= 50
-                ? 'Platform has issues requiring attention. ' + highCount + ' high-severity findings pending.'
-                : 'Platform health is degraded. Immediate attention required.';
+            var summaryText;
+            if (crit > 0) {
+                summaryText = crit + ' critical finding' + (crit > 1 ? 's' : '') + ' require immediate attention.';
+            } else if (high > 100) {
+                summaryText = 'No criticals. ' + fmtInt(high) + ' high-severity findings to triage.';
+            } else if (high > 0) {
+                summaryText = 'Platform stable. ' + fmtInt(high) + ' high-severity items in backlog.';
+            } else {
+                summaryText = 'Platform is healthy. All severity tiers clear.';
+            }
+            document.getElementById('healthSummary').textContent = summaryText;
 
-            // Metrics
-            document.getElementById('metricFiles').textContent = '4,743';
-            document.getElementById('metricModules').textContent = '1,894';
-            document.getElementById('metricKeys').textContent = '351';
+            // Health metrics
+            document.getElementById('metricFiles').textContent = fmtInt(s.filesScanned);
             document.getElementById('metricGate').textContent = gatePass ? 'PASS' : 'FAIL';
             document.getElementById('metricGate').style.color = gatePass ? 'var(--pulse-green)' : 'var(--pulse-red)';
-            document.getElementById('metricLastScan').textContent = '2026-04-23';
+            document.getElementById('metricLastScan').textContent = fmtRelativeTime(s.scannedAt);
+            // Modules + Keys remain static placeholders until aggregation Cloud Fn lands
+            document.getElementById('metricModules').textContent = '1,894';
+            document.getElementById('metricKeys').textContent = '435';
 
-            // Scan stats
-            document.getElementById('scanCritical').textContent = '0';
-            document.getElementById('scanHigh').textContent = '524';
-            document.getElementById('scanMedium').textContent = '1,632';
-            document.getElementById('scanLow').textContent = '6,859';
-            document.getElementById('scanAutofix').textContent = '2,200';
-            document.getElementById('scanBadge').textContent = 'Last: 2026-04-23';
-            document.getElementById('scanBadge').className = 'panel-badge badge-live';
+            // Scan stats grid
+            document.getElementById('scanCritical').textContent = fmtInt(crit);
+            document.getElementById('scanHigh').textContent = fmtInt(high);
+            document.getElementById('scanMedium').textContent = fmtInt((s.severity && s.severity.medium) || 0);
+            document.getElementById('scanLow').textContent = fmtInt((s.severity && s.severity.low) || 0);
+            // Auto-fixable count would require reading per-rule autofix flags; placeholder for now
+            document.getElementById('scanAutofix').textContent = '--';
 
-            // Top findings
+            var scanBadge = document.getElementById('scanBadge');
+            scanBadge.textContent = 'Live · ' + fmtRelativeTime(s.scannedAt);
+            scanBadge.className = 'panel-badge badge-live';
+
+            // Top 5 findings from the live topIssues array
+            var topHtml = '';
+            var top5 = (s.topIssues || []).slice(0, 5);
+            if (top5.length === 0) {
+                topHtml = '<div class="scan-finding"><span class="finding-code" style="color:var(--text-muted)">No top findings reported</span></div>';
+            } else {
+                top5.forEach(function (f) {
+                    var sevClass = (f.severity === 'critical' || f.severity === 'high') ? 'sev-' + f.severity
+                        : f.severity === 'medium' ? 'sev-medium' : '';
+                    var msg = (f.message || '').replace(/</g, '&lt;');
+                    var file = (f.file || '').replace(/</g, '&lt;');
+                    topHtml += '<div class="scan-finding">'
+                        + '<span class="finding-code ' + sevClass + '">' + (f.code || f.severity || '?') + '</span>'
+                        + '<span class="finding-file" title="' + file + '">' + msg.slice(0, 90) + (msg.length > 90 ? '…' : '') + '</span>'
+                        + '</div>';
+                });
+            }
+            document.getElementById('topFindings').innerHTML = topHtml;
+        }
+
+        function renderHealthFallback(reason) {
+            // Static fallback when NexusReader fails. Marks the surface as stale.
+            var ring = document.getElementById('healthRing');
+            var circumference = 2 * Math.PI * 58;
+            ring.style.strokeDasharray = circumference;
+            ring.style.strokeDashoffset = circumference; // empty ring
+            ring.style.stroke = 'var(--pulse-yellow)';
+
+            document.getElementById('healthScore').textContent = '--';
+            document.getElementById('healthScore').style.color = 'var(--pulse-yellow)';
+            document.getElementById('healthSummary').textContent = 'Live data unavailable: ' + reason
+                + '. Run "nexus full --publish" from the build machine to refresh.';
+
+            document.getElementById('metricFiles').textContent = '--';
+            document.getElementById('metricModules').textContent = '--';
+            document.getElementById('metricKeys').textContent = '--';
+            document.getElementById('metricGate').textContent = 'STALE';
+            document.getElementById('metricGate').style.color = 'var(--pulse-yellow)';
+            document.getElementById('metricLastScan').textContent = 'unknown';
+
+            ['scanCritical', 'scanHigh', 'scanMedium', 'scanLow', 'scanAutofix'].forEach(function (id) {
+                document.getElementById(id).textContent = '--';
+            });
+
+            var scanBadge = document.getElementById('scanBadge');
+            scanBadge.textContent = 'Stale';
+            scanBadge.className = 'panel-badge badge-stale';
+
             document.getElementById('topFindings').innerHTML = ''
-                + '<div class="scan-finding"><span class="finding-code sev-high">CFG-001</span><span class="finding-file">10 ethics-it quizzes missing moduleId</span></div>'
-                + '<div class="scan-finding"><span class="finding-code sev-high">CAT-002</span><span class="finding-file">793 files not registered in ContentCatalog</span></div>'
-                + '<div class="scan-finding"><span class="finding-code sev-medium">LP-007</span><span class="finding-file">Modules not in any learning path</span></div>'
-                + '<div class="scan-finding"><span class="finding-code sev-medium">HEUR-006</span><span class="finding-file">Back links using relative paths</span></div>'
-                + '<div class="scan-finding"><span class="finding-code" style="color:var(--text-muted)">+ 2,200 auto-fixable issues</span><span class="finding-file" style="color:var(--pulse-cyan)">Ready for automated repair</span></div>';
+                + '<div class="scan-finding"><span class="finding-code" style="color:var(--text-muted)">'
+                + reason + '</span></div>';
+        }
+
+        async function calculateHealth() {
+            if (typeof window.NexusReader === 'undefined') {
+                renderHealthFallback('NexusReader not loaded');
+                return;
+            }
+            try {
+                var summary = await window.NexusReader.getSummary();
+                renderHealthFromSummary(summary);
+            } catch (e) {
+                console.warn('[Pulse] NexusReader failed:', e);
+                renderHealthFallback(e.message || 'Firestore read failed');
+            }
+        }
+
+        // ── Admin guard ─────────────────────────────────
+        // Pulse is admin-only — _quality_reports/{reportId} Firestore rule
+        // restricts reads to admins. Non-admins are bounced to dashboard.
+        async function guardAdmin() {
+            if (typeof FirebaseAuth === 'undefined') {
+                console.error('[Pulse] FirebaseAuth not loaded');
+                window.location.href = 'dashboard.html';
+                return false;
+            }
+            try {
+                var user = await FirebaseAuth.waitForAuth();
+                if (!user) {
+                    window.location.href = 'dashboard.html';
+                    return false;
+                }
+                var isAdmin = FirebaseAuth.isAdmin();
+                var accountAdmin = (typeof AccountFrame !== 'undefined')
+                    && AccountFrame.getAccountType() === 'admin';
+                if (!isAdmin && !accountAdmin) {
+                    window.location.href = 'dashboard.html';
+                    return false;
+                }
+                var guard = document.getElementById('admin-guard');
+                if (guard) guard.remove();
+                return true;
+            } catch (e) {
+                console.error('[Pulse] guardAdmin failed:', e);
+                window.location.href = 'dashboard.html';
+                return false;
+            }
         }
 
         // ── Initialize ──────────────────────────────────
-        document.addEventListener('DOMContentLoaded', function() {
-            calculateHealth();
+        document.addEventListener('DOMContentLoaded', async function() {
+            var ok = await guardAdmin();
+            if (!ok) return;
+            // Render order: static panels first (no network), then live data
             renderCoverage();
             renderTriage();
+            await calculateHealth();
         });
     })();
     </script>
