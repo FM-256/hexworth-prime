@@ -2055,6 +2055,7 @@ const ContentCatalog = (function() {
         { house: 'divergent', id: 'eth-w3-quiz', title: 'Week 3 Quiz: Software Ethics and IT Impact', description: 'Assessment covering software ethics, quality, and IT societal impact', icon: '/assets/images/icons/icon-notepad.webp', status: 'available', components: ['quiz'], href: 'ethics-it/quizzes/eth-w3.quiz.html', category: 'eth' },
 
         // Divergent — CIS2253 Cybersecurity Ethics (Spinello + NIST CSF anchor)
+        { house: 'divergent', id: 'cse-01', title: 'Cyberethics Overview', description: 'Spinello Ch. 1: Lessig modalities (law/norms/market/code), four ethical frameworks, Sony BMG and Apple v FBI cases', icon: '/assets/images/icons/icon-scales.webp', status: 'available', components: ['presentation'], href: 'cybersecurity-ethics/presentations/cse-01-cyberethics-overview.presentation.html', category: 'cse' },
         { house: 'divergent', id: 'cse-03', title: 'NIST Cybersecurity Framework — The Course Anchor', description: 'NIST CSF Functions and the four subcategories CIS2253 maps to: ID.BE, ID.GV, PR.AT, PR.IP', icon: '/assets/images/icons/icon-compass.webp', status: 'available', components: ['presentation'], href: 'cybersecurity-ethics/presentations/cse-03-nist-csf.presentation.html', category: 'cse' },
 
         // Dark Arts — Labs (DA-16, DA-17, DA-26)
