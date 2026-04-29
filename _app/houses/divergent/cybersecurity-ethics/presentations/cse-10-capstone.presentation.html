@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSE-10: Capstone Synthesis | Cybersecurity Ethics | The Warehouse</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0d0810 0%, #150e18 50%, #1a0c08 100%); color: #e2e8f0; font-size: 15px; line-height: 1.5; }
+        .slide { display: none; position: absolute; inset: 0; padding: 20px 28px 72px; overflow: hidden; animation: slideIn 0.35s ease-out; }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes boxGrow { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 14px; }
+        #progress-bar { position: absolute; top: 0; left: 0; height: 3px; background: #f59e0b; transition: width 0.4s ease; z-index: 200; }
+        #nav-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(13, 8, 16, 0.95); border-top: 1px solid rgba(245, 158, 11, 0.20); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 200; padding: 0 20px; }
+        .nav-btn { background: rgba(255, 255, 255, 0.04); color: #94a3b8; border: 1px solid rgba(245, 158, 11, 0.22); padding: 8px 22px; border-radius: 6px; font-size: 0.88rem; cursor: pointer; }
+        .nav-btn:hover:not(:disabled) { background: rgba(245, 158, 11, 0.10); color: #fcd34d; border-color: #fcd34d; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn { display: none; background: #f59e0b; color: #0d0810; border: none; padding: 9px 26px; border-radius: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; }
+        .slide-meta { font-size: 0.78rem; color: #f59e0b; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #fbbf24; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+        .scenario-strip { background: rgba(245, 158, 11, 0.07); border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 10px 16px; font-size: 0.88rem; color: #fcd34d; font-style: italic; }
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-gold { background: rgba(245, 158, 11, 0.07); border: 1px solid rgba(245, 158, 11, 0.32); color: #fef3c7; }
+        .box-magenta { background: rgba(255, 0, 255, 0.07); border: 1px solid rgba(255, 0, 255, 0.30); color: #f5d5f5; }
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #fbbf24; }
+        .title-hero .capstone-badge { background: rgba(245, 158, 11, 0.10); border: 1px solid rgba(245, 158, 11, 0.45); color: #fcd34d; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; padding: 5px 14px; border-radius: 14px; }
+        .title-meta-row { display: flex; gap: 28px; justify-content: center; margin-top: 6px; font-size: 0.82rem; color: #475569; }
+        .title-meta-row span { border-left: 2px solid #2a1a08; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card { background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 12px 14px; border-left: 3px solid #f59e0b; }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-gold { border-left-color: #f59e0b; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-cyan { border-left-color: #06b6d4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red { border-left-color: #ef4444; }
+        .card.c-purple { border-left-color: #a855f7; }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #fbbf24; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text strong { color: #f1f5f9; }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+    </style>
+</head>
+<body>
+<div id="progress-bar"></div>
+
+<section class="slide active" id="slide-1">
+    <div class="slide-inner title-hero">
+        <div class="slide-meta">Cybersecurity Ethics &mdash; Week 4 &middot; Module 10</div>
+        <span class="capstone-badge">Capstone</span>
+        <div class="big-title">Capstone <span class="accent">Synthesis</span></div>
+        <div class="slide-subtitle">Four weeks of cyberethics in one frame. The decisions you'll actually face after the syllabus is gone.</div>
+        <div class="title-meta-row"><span>13 slides</span><span>~13 min</span><span>All Spinello chapters + Solarium</span></div>
+    </div>
+</section>
+
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 13</div>
+        <div class="slide-title">"This is not the end of the questions. <span class="accent">It is the beginning of having to answer them without a syllabus.</span>"</div>
+        <div class="diagram-center">
+            <svg width="640" height="160" viewBox="0 0 640 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="40" width="290" height="80" rx="8" fill="rgba(245,158,11,0.07)" stroke="#f59e0b" stroke-width="1.4" style="animation:boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="165" y="62" text-anchor="middle" font-size="11" fill="#fbbf24" font-weight="700" font-family="Inter,sans-serif">CASES IN THIS COURSE</text>
+                <text x="165" y="82" text-anchor="middle" font-size="9.5" fill="#fef3c7" font-family="Inter,sans-serif">Sony BMG &middot; Apple v FBI &middot; NSO</text>
+                <text x="165" y="96" text-anchor="middle" font-size="9.5" fill="#fef3c7" font-family="Inter,sans-serif">Equifax &middot; Cambridge &middot; Schrems II</text>
+                <text x="165" y="110" text-anchor="middle" font-size="9" fill="#94a3b8" font-style="italic" font-family="Inter,sans-serif">historical, with known outcomes</text>
+                <line x1="320" y1="80" x2="345" y2="80" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrCap)" style="animation:fadeUp 0.4s ease forwards 0.5s; opacity:0;"/>
+                <rect x="345" y="40" width="275" height="80" rx="8" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="1.6" style="animation:boxGrow 0.4s ease forwards 0.7s; opacity:0;"/>
+                <text x="482" y="62" text-anchor="middle" font-size="11" fill="#a855f7" font-weight="700" font-family="Inter,sans-serif">CASES IN YOUR CAREER</text>
+                <text x="482" y="82" text-anchor="middle" font-size="9.5" fill="#ddd6fe" font-family="Inter,sans-serif">unfolding now, no playbook</text>
+                <text x="482" y="96" text-anchor="middle" font-size="9.5" fill="#ddd6fe" font-family="Inter,sans-serif">decision is yours, in real time</text>
+                <text x="482" y="110" text-anchor="middle" font-size="9" fill="#c4b5fd" font-style="italic" font-family="Inter,sans-serif">no textbook, no precedent yet</text>
+                <defs><marker id="arrCap" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="5" markerHeight="5" orient="auto"><polygon points="0,0 8,4 0,8" fill="#f59e0b"/></marker></defs>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 13 &middot; Week 1 review</div>
+        <div class="slide-title">Week 1: <span class="accent">Foundations</span></div>
+        <div class="card-grid">
+            <div class="card c-magenta"><div class="card-label">CSE-01 Cyberethics Overview</div><div class="card-desc">Lessig's 4 modalities (law/norms/market/code), 4 ethical frameworks, Sony BMG &amp; Apple v FBI cases.</div></div>
+            <div class="card c-cyan"><div class="card-label">CSE-02 Security Pro Role</div><div class="card-desc">5 professional relationships, trust asymmetry, 4 codes (ASIS/ISACA/GIAC/Ethics FIRST), NSO Group.</div></div>
+            <div class="card c-gold"><div class="card-label">CSE-03 NIST CSF Anchor</div><div class="card-desc">5 Functions, 4 subcategories (ID.BE / ID.GV / PR.AT / PR.IP), Equifax cascade across all four.</div></div>
+        </div>
+        <div class="box box-gold"><strong>The Week 1 throughline:</strong> by the end of the week, you have a vocabulary for who is regulating what, what your professional codes obligate you to do when those regulations leave gaps, and where the framework places your decisions in the lifecycle.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 13 &middot; Week 2 review</div>
+        <div class="slide-title">Week 2: <span class="accent">Governance, Speech, Property</span></div>
+        <div class="card-grid">
+            <div class="card c-magenta"><div class="card-label">CSE-04 Cyberspace Governance</div><div class="card-desc">ICANN multistakeholder, 3 visions, Brussels Effect (GDPR), data localization (Russia/China/India), CLOUD Act + Microsoft Ireland.</div></div>
+            <div class="card c-cyan"><div class="card-label">CSE-05 Free Speech</div><div class="card-desc">Section 230(c)(1)+(c)(2) vs DSA, Brandenburg test, foreign election interference (IRA, Mueller Vol I, SSCI Vol II), encryption "going dark".</div></div>
+            <div class="card c-gold"><div class="card-label">CSE-06 IP in Cyberspace</div><div class="card-desc">DMCA 3 pillars, Aaron Swartz/weev cases, Van Buren (2021) CFAA narrowing, Alice (2014), DTSA (2016).</div></div>
+        </div>
+        <div class="box box-gold"><strong>The Week 2 throughline:</strong> who governs cyberspace, who speaks in it, and who owns what runs through it. Each module reveals a different way the legal system has tried &mdash; and partially failed &mdash; to map borderless infrastructure onto territorial law.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 13 &middot; Week 3 review</div>
+        <div class="slide-title">Week 3: <span class="accent">Privacy &amp; Moral Obligation</span></div>
+        <div class="card-grid-2">
+            <div class="card c-magenta"><div class="card-label">CSE-07 Privacy Rights</div><div class="card-desc">Fourth Amendment + Katz, Carpenter v US (2018), US sectoral patchwork (HIPAA/GLBA/FERPA/COPPA/ECPA), state laws (CCPA/CPRA), GDPR operational, Nissenbaum contextual integrity, Schrems II (2020).</div></div>
+            <div class="card c-cyan"><div class="card-label">CSE-08 Cybercrime &amp; Moral Obligation</div><div class="card-desc">Crime actor taxonomy, attribution problem, hack-back debate, ransomware ethics, Colonial Pipeline (2021), defenders ethics: proportionality + honesty + care.</div></div>
+        </div>
+        <div class="box box-gold"><strong>The Week 3 throughline:</strong> the defending side. Privacy as the right that security operations either honor or undermine. The moral frame that makes "cybersecurity is a job" insufficient as a self-description.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 13 &middot; Week 4 review</div>
+        <div class="slide-title">Week 4: <span class="accent">Solarium &amp; Capstone</span></div>
+        <div class="card-grid-2">
+            <div class="card c-magenta"><div class="card-label">CSE-09 Solarium Commission</div><div class="card-desc">2020 final report, layered cyber deterrence, 6 pillars, defend forward doctrine, NCD created (2021), JCDC at CISA, CIRCIA (2022), National Cybersecurity Strategy (2023), SolarWinds reference.</div></div>
+            <div class="card c-gold"><div class="card-label">CSE-10 (this module)</div><div class="card-desc">Synthesis. The framework is in your hands.</div></div>
+        </div>
+        <div class="box box-gold"><strong>The Week 4 throughline:</strong> where individual professional ethics meets state strategy. Where the codes (written for individual practitioner conduct) collide with national-level operational doctrine that asks the practitioner to participate in something larger.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 13 &middot; The three lenses</div>
+        <div class="slide-title">Three Lenses You Carry <span class="accent">Out of This Course</span></div>
+        <div class="diagram-center">
+            <svg width="640" height="240" viewBox="0 0 640 240" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="320" cy="120" r="50" fill="rgba(245,158,11,0.18)" stroke="#f59e0b" stroke-width="2" style="animation:boxGrow 0.5s ease forwards 0.1s; opacity:0;"/>
+                <text x="320" y="115" text-anchor="middle" font-size="11" fill="#fbbf24" font-weight="700" font-family="Inter,sans-serif">EVERY</text>
+                <text x="320" y="130" text-anchor="middle" font-size="11" fill="#fbbf24" font-weight="700" font-family="Inter,sans-serif">DECISION</text>
+                <line x1="285" y1="90" x2="155" y2="40" stroke="rgba(255,0,255,0.4)" stroke-width="1.2" style="animation:fadeUp 0.3s ease forwards 0.4s; opacity:0;"/>
+                <rect x="20" y="20" width="270" height="50" rx="6" fill="rgba(255,0,255,0.08)" stroke="#ff00ff" stroke-width="1.3" style="animation:boxGrow 0.4s ease forwards 0.4s; opacity:0;"/>
+                <text x="155" y="38" text-anchor="middle" font-size="11" fill="#ff66ff" font-weight="700" font-family="Inter,sans-serif">LENS 1: WHICH MODALITY?</text>
+                <text x="155" y="55" text-anchor="middle" font-size="9" fill="#f5d5f5" font-family="Inter,sans-serif">law? norms? market? code?</text>
+                <line x1="355" y1="90" x2="485" y2="40" stroke="rgba(6,182,212,0.4)" stroke-width="1.2" style="animation:fadeUp 0.3s ease forwards 0.6s; opacity:0;"/>
+                <rect x="350" y="20" width="270" height="50" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.3" style="animation:boxGrow 0.4s ease forwards 0.6s; opacity:0;"/>
+                <text x="485" y="38" text-anchor="middle" font-size="11" fill="#06b6d4" font-weight="700" font-family="Inter,sans-serif">LENS 2: WHICH FRAMEWORK?</text>
+                <text x="485" y="55" text-anchor="middle" font-size="9" fill="#cffafe" font-family="Inter,sans-serif">utilitarian / deont / virtue / contract</text>
+                <line x1="320" y1="170" x2="320" y2="200" stroke="rgba(58,181,119,0.4)" stroke-width="1.2" style="animation:fadeUp 0.3s ease forwards 0.8s; opacity:0;"/>
+                <rect x="160" y="200" width="320" height="40" rx="6" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.3" style="animation:boxGrow 0.4s ease forwards 0.8s; opacity:0;"/>
+                <text x="320" y="216" text-anchor="middle" font-size="11" fill="#3ab577" font-weight="700" font-family="Inter,sans-serif">LENS 3: WHICH CSF SUBCATEGORY?</text>
+                <text x="320" y="232" text-anchor="middle" font-size="9" fill="#d1fae5" font-family="Inter,sans-serif">ID.BE / ID.GV / PR.AT / PR.IP</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 13 &middot; CSF subcategories revisited</div>
+        <div class="slide-title">The Four CSF Subcategories <span class="accent">Across This Course</span></div>
+        <div class="diagram-center">
+            <svg width="640" height="220" viewBox="0 0 640 220" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="20" y="30" width="145" height="80" rx="8" fill="rgba(255,0,255,0.07)" stroke="#ff00ff" stroke-width="1.3" style="animation:boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="92" y="50" text-anchor="middle" font-size="13" fill="#ff66ff" font-weight="700" font-family="Inter,sans-serif">ID.BE</text>
+                <text x="92" y="68" text-anchor="middle" font-size="8.5" fill="#f5d5f5" font-family="Inter,sans-serif">Business Environment</text>
+                <text x="92" y="92" text-anchor="middle" font-size="8" fill="#cbd5e1" font-style="italic" font-family="Inter,sans-serif">CSE-02 + CSE-04 +</text>
+                <text x="92" y="104" text-anchor="middle" font-size="8" fill="#cbd5e1" font-style="italic" font-family="Inter,sans-serif">CSE-05 + CSE-09</text>
+                <rect x="180" y="30" width="145" height="80" rx="8" fill="rgba(6,182,212,0.07)" stroke="#06b6d4" stroke-width="1.3" style="animation:boxGrow 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="252" y="50" text-anchor="middle" font-size="13" fill="#06b6d4" font-weight="700" font-family="Inter,sans-serif">ID.GV</text>
+                <text x="252" y="68" text-anchor="middle" font-size="8.5" fill="#cffafe" font-family="Inter,sans-serif">Governance</text>
+                <text x="252" y="92" text-anchor="middle" font-size="8" fill="#cbd5e1" font-style="italic" font-family="Inter,sans-serif">CSE-02 + CSE-03 +</text>
+                <text x="252" y="104" text-anchor="middle" font-size="8" fill="#cbd5e1" font-style="italic" font-family="Inter,sans-serif">CSE-04 + CSE-07</text>
+                <rect x="340" y="30" width="145" height="80" rx="8" fill="rgba(245,158,11,0.07)" stroke="#f59e0b" stroke-width="1.3" style="animation:boxGrow 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="412" y="50" text-anchor="middle" font-size="13" fill="#f59e0b" font-weight="700" font-family="Inter,sans-serif">PR.AT</text>
+                <text x="412" y="68" text-anchor="middle" font-size="8.5" fill="#fef3c7" font-family="Inter,sans-serif">Awareness/Training</text>
+                <text x="412" y="92" text-anchor="middle" font-size="8" fill="#cbd5e1" font-style="italic" font-family="Inter,sans-serif">CSE-03 + CSE-05 +</text>
+                <text x="412" y="104" text-anchor="middle" font-size="8" fill="#cbd5e1" font-style="italic" font-family="Inter,sans-serif">CSE-08</text>
+                <rect x="500" y="30" width="120" height="80" rx="8" fill="rgba(58,181,119,0.07)" stroke="#3ab577" stroke-width="1.3" style="animation:boxGrow 0.4s ease forwards 0.7s; opacity:0;"/>
+                <text x="560" y="50" text-anchor="middle" font-size="13" fill="#3ab577" font-weight="700" font-family="Inter,sans-serif">PR.IP</text>
+                <text x="560" y="68" text-anchor="middle" font-size="8.5" fill="#d1fae5" font-family="Inter,sans-serif">Info Protection</text>
+                <text x="560" y="92" text-anchor="middle" font-size="8" fill="#cbd5e1" font-style="italic" font-family="Inter,sans-serif">CSE-03 + CSE-06 +</text>
+                <text x="560" y="104" text-anchor="middle" font-size="8" fill="#cbd5e1" font-style="italic" font-family="Inter,sans-serif">CSE-07</text>
+                <rect x="80" y="140" width="480" height="60" rx="8" fill="rgba(245,158,11,0.07)" stroke="#f59e0b" stroke-width="1.4" style="animation:boxGrow 0.4s ease forwards 0.9s; opacity:0;"/>
+                <text x="320" y="162" text-anchor="middle" font-size="11" fill="#fbbf24" font-weight="700" font-family="Inter,sans-serif">EVERY MODULE TOUCHES AT LEAST ONE</text>
+                <text x="320" y="182" text-anchor="middle" font-size="9.5" fill="#fef3c7" font-family="Inter,sans-serif">these 4 are the syllabus's anchor &mdash; the exam will ask you to identify which subcategory</text>
+                <text x="320" y="194" text-anchor="middle" font-size="9.5" fill="#fef3c7" font-family="Inter,sans-serif">applies to a given scenario</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 13 &middot; The codes hierarchy</div>
+        <div class="slide-title">When Frameworks Disagree, <span class="accent">Codes Decide</span></div>
+        <div class="diagram-center">
+            <svg width="540" height="200" viewBox="0 0 540 200" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="40" y="20" width="460" height="40" rx="6" fill="rgba(58,181,119,0.18)" stroke="#3ab577" stroke-width="1.5" style="animation:boxGrow 0.4s ease forwards 0.1s; opacity:0;"/>
+                <text x="270" y="40" text-anchor="middle" font-size="12" fill="#3ab577" font-weight="700" font-family="Inter,sans-serif">PUBLIC INTEREST (paramount in all 4 codes)</text>
+                <text x="270" y="55" text-anchor="middle" font-size="9" fill="#d1fae5" font-family="Inter,sans-serif">overrides all subordinate obligations</text>
+                <line x1="270" y1="60" x2="270" y2="80" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrCH)" style="animation:fadeUp 0.3s ease forwards 0.3s; opacity:0;"/>
+                <rect x="40" y="80" width="460" height="36" rx="6" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1.4" style="animation:boxGrow 0.4s ease forwards 0.5s; opacity:0;"/>
+                <text x="270" y="100" text-anchor="middle" font-size="11" fill="#f59e0b" font-weight="700" font-family="Inter,sans-serif">PROFESSION (codes &amp; peers)</text>
+                <text x="270" y="111" text-anchor="middle" font-size="9" fill="#fef3c7" font-family="Inter,sans-serif">the standing community of practitioners</text>
+                <line x1="270" y1="116" x2="270" y2="132" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#arrCH2)" style="animation:fadeUp 0.3s ease forwards 0.7s; opacity:0;"/>
+                <rect x="40" y="132" width="460" height="32" rx="6" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="1.3" style="animation:boxGrow 0.4s ease forwards 0.9s; opacity:0;"/>
+                <text x="270" y="150" text-anchor="middle" font-size="11" fill="#06b6d4" font-weight="700" font-family="Inter,sans-serif">CLIENT / EMPLOYER (contractual)</text>
+                <text x="270" y="161" text-anchor="middle" font-size="9" fill="#cffafe" font-family="Inter,sans-serif">the party paying for the work</text>
+                <line x1="270" y1="164" x2="270" y2="178" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrCH3)" style="animation:fadeUp 0.3s ease forwards 1.1s; opacity:0;"/>
+                <rect x="40" y="178" width="460" height="22" rx="6" fill="rgba(168,85,247,0.08)" stroke="rgba(168,85,247,0.45)" stroke-width="1" style="animation:boxGrow 0.4s ease forwards 1.3s; opacity:0;"/>
+                <text x="270" y="194" text-anchor="middle" font-size="10" fill="#ddd6fe" font-family="Inter,sans-serif">SELF (career, conscience, liability)</text>
+                <defs>
+                    <marker id="arrCH" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="4" markerHeight="4" orient="auto"><polygon points="0,0 8,4 0,8" fill="#f59e0b"/></marker>
+                    <marker id="arrCH2" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="4" markerHeight="4" orient="auto"><polygon points="0,0 8,4 0,8" fill="#06b6d4"/></marker>
+                    <marker id="arrCH3" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="4" markerHeight="4" orient="auto"><polygon points="0,0 8,4 0,8" fill="#a855f7"/></marker>
+                </defs>
+            </svg>
+        </div>
+        <div class="box box-gold"><strong>The single hardest call</strong> in cybersecurity ethics is when the public-interest priority requires you to act against the proximity-driven priority. The codes were written precisely to give you the standing to make that call.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 13 &middot; The defining cases</div>
+        <div class="slide-title">The Cases <span class="accent">Worth Memorizing</span></div>
+        <div class="card-grid">
+            <div class="card c-magenta"><div class="card-label">Sony BMG (2005)</div><div class="card-desc">Code as DRM enforcement. Researcher Mark Russinovich. The defining "code is law" case for cyberethics.</div></div>
+            <div class="card c-cyan"><div class="card-label">Apple v FBI (2016)</div><div class="card-desc">All four Lessig modalities collided. None decisive. The encryption-vs-lawful-access debate's reference case.</div></div>
+            <div class="card c-gold"><div class="card-label">NSO / Pegasus</div><div class="card-desc">Code-vs-contract for individual practitioners. ~50,000 numbers, US Entity List Nov 2021.</div></div>
+            <div class="card c-green"><div class="card-label">Equifax (2017)</div><div class="card-desc">CSF cascade across all 4 subcategories. 147M records. Framework gaps as the cause.</div></div>
+            <div class="card c-red"><div class="card-label">Aaron Swartz (2013)</div><div class="card-desc">CFAA at maximum reach. 13-felony superseding indictment. Catalyzed Van Buren narrowing.</div></div>
+            <div class="card c-purple"><div class="card-label">Carpenter v US (2018)</div><div class="card-desc">Third-party doctrine narrowed. Digital data's pervasive nature defeats "voluntary sharing" framing.</div></div>
+            <div class="card c-magenta"><div class="card-label">Schrems II (2020)</div><div class="card-desc">Privacy Shield invalidated. Cross-border data transfer is a moving target.</div></div>
+            <div class="card c-cyan"><div class="card-label">Colonial Pipeline (2021)</div><div class="card-desc">Single missing MFA control → national fuel-supply consequences. Critical infrastructure stakes.</div></div>
+            <div class="card c-gold"><div class="card-label">SolarWinds (2020)</div><div class="card-desc">Tested the Solarium model in real time. Supply chain became the federal priority.</div></div>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 13 &middot; The path forward</div>
+        <div class="slide-title">Where You Go <span class="accent">From Here</span></div>
+        <div class="card-grid">
+            <div class="card c-gold"><div class="card-label">Read your code end-to-end</div><div class="card-desc">Whichever certification you carry: read the code, end to end, at least once. Then bookmark it.</div></div>
+            <div class="card c-cyan"><div class="card-label">Walk the three lenses</div><div class="card-desc">Before nontrivial decisions: which modality, which framework, which CSF subcategory. Reflex by the tenth time.</div></div>
+            <div class="card c-magenta"><div class="card-label">Document concerns</div><div class="card-desc">When you raise an ethical concern internally, document it: what, when, to whom, the response. The record is what protects you when the situation escalates.</div></div>
+            <div class="card c-green"><div class="card-label">Find the people</div><div class="card-desc">Ethics is easier with community. ASIS chapters, ISACA local groups, FIRST teams, mentors. The decisions get heavier; the support keeps you upright.</div></div>
+        </div>
+        <div class="box box-gold"><strong>The codes do not make ethics easy.</strong> They make ethics possible. The rest is up to you.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 13 &middot; Final exam</div>
+        <div class="slide-title">The Final <span class="accent">Exam</span></div>
+        <div class="slide-subtitle">Server-graded. Comprehensive across all 10 modules. Worth 25% of your course grade.</div>
+        <div class="card-grid-2">
+            <div class="card c-gold"><div class="card-label">What it covers</div><div class="card-desc">All four weeks. Foundational concepts, key cases (the 9 above), four CSF subcategories, four codes. No trick questions &mdash; if you understood the modules, you can answer the exam.</div></div>
+            <div class="card c-cyan"><div class="card-label">How to prepare</div><div class="card-desc">Re-walk slides 3-6 above. Read the cases gallery (slide 10). Spend extra time on CSF subcategory mapping. The framework matters more than memorization.</div></div>
+        </div>
+        <div class="box box-gold"><strong>One reminder:</strong> the exam is server-graded with multiple attempts. Take it seriously the first time, but the structure is built so that learning continues. Use the result as feedback, not verdict.</div>
+    </div>
+</section>
+
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 13</div>
+        <div class="slide-title">Course <span class="accent">Complete</span></div>
+        <div class="slide-subtitle">Six anchors to carry into every system you ever build, ship, or refuse to ship.</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Cybersecurity is a profession.</strong> The codes (ASIS, ISACA, GIAC, Ethics FIRST) are not optional ornament &mdash; they are how you stay one.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>The five obligations</strong> &mdash; employer, client, profession, public, self &mdash; have a hard-case priority order. Public first, even when it costs you.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Code is law in cyberspace.</strong> Engineers make rules whether they admit it or not.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Three lenses</strong> for every decision: which modality, which framework, which CSF subcategory.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Defender's ethics:</strong> proportionality, honesty, care. The three obligations that explain every prior failure case.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>The framework is a discipline, not a checklist.</strong> CSF without the moral frame is paperwork. With it, it's a profession.</span></div>
+        </div>
+        <div class="box box-gold"><strong>Mark this module complete</strong> to record your progress through the synthesis. Then take the Final Exam from the course home page.</div>
+        <div style="text-align:center; margin-top:6px;"><button id="complete-btn" onclick="completeModule()">Mark Complete</button></div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;"><button class="nav-btn back-btn">&larr; Cybersecurity Ethics</button></a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide-1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 13</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide+1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 13;
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        var oldSlide = document.getElementById('slide-' + currentSlide);
+        oldSlide.classList.remove('active');
+        currentSlide = n;
+        var newSlide = document.getElementById('slide-' + currentSlide);
+        var svgs = newSlide.querySelectorAll('svg');
+        svgs.forEach(function (svg) { var p = svg.parentNode; var clone = svg.cloneNode(true); p.replaceChild(clone, svg); });
+        newSlide.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        var cb = document.getElementById('complete-btn');
+        if (cb) cb.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+    goToSlide(1);
+</script>
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'cse-10', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
