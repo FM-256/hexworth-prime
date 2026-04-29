@@ -256,23 +256,24 @@ function sha256Hex(s) {
  * @returns {{triageItems: Array, autoFixItems: Array}}
  */
 function buildTriageItems(issues) {
-    if (!Array.isArray(issues)) return { triageItems: [], autoFixItems: [] };
+    if (!Array.isArray(issues)) {
+        return { triageItems: [], autoFixItems: [], allFingerprints: new Set() };
+    }
 
-    // Group: (rule, normalizedDir) → array of issues
+    // Group ALL issues by (rule, normalizedDir) regardless of severity.
+    // The severity gate decides what enters the queues; the FULL grouping
+    // is needed so reconcileTriageWithScan has every existing-defect
+    // fingerprint, not just the queueable ones. Without this, a rule whose
+    // severity drops from high to medium would cause its existing queue
+    // items to silently auto-resolve as "disappeared" — Nancy round 4 fix.
     const groups = new Map();
     for (const issue of issues) {
         const rule = issue.code || 'UNKNOWN';
         const sev = issue.severity || 'low';
-
-        // Skip severity below the gate UNLESS rule is auto-fix-eligible
-        // (auto-fix items can be at any severity per design doc)
-        const isAutoFix = AUTO_FIX_ELIGIBLE_RULES.has(rule);
-        if (!TRIAGE_SEVERITY_GATE.has(sev) && !isAutoFix) continue;
-
         const dir = directoryPrefix(issue.file);
         const groupKey = `${rule}::${dir}`;
         if (!groups.has(groupKey)) {
-            groups.set(groupKey, { rule, dir, severity: sev, isAutoFix, issues: [] });
+            groups.set(groupKey, { rule, dir, severity: sev, issues: [] });
         }
         const g = groups.get(groupKey);
         g.issues.push(issue);
@@ -285,9 +286,22 @@ function buildTriageItems(issues) {
 
     const triageItems = [];
     const autoFixItems = [];
+    const allFingerprints = new Set();
 
     for (const [groupKey, g] of groups) {
         const fingerprint = sha256Hex(`${g.rule}|${g.dir}`);
+        // Every group's fingerprint is recorded for reconciliation,
+        // independent of whether it makes the severity gate.
+        allFingerprints.add(fingerprint);
+
+        const isAutoFix = AUTO_FIX_ELIGIBLE_RULES.has(g.rule);
+        // Severity gate: only critical+high enter human triage; auto-fix
+        // items bypass the gate (any severity). Items below the gate that
+        // aren't auto-fix-eligible get NO queue write — they only contribute
+        // their fingerprint to allFingerprints (so reconciliation can detect
+        // their continued existence).
+        if (!TRIAGE_SEVERITY_GATE.has(g.severity) && !isAutoFix) continue;
+
         const sample = g.issues[0] || {};
         const childPaths = g.issues
             .slice(0, 50)
@@ -312,20 +326,20 @@ function buildTriageItems(issues) {
             owner: null,
             claimedAt: null,
             heartbeatAt: null,
-            autoFixEligible: g.isAutoFix,
+            autoFixEligible: isAutoFix,
             fixTemplate: null,
             // createdAt / updatedAt are set at write time using server timestamps
             history: [],
         };
 
-        if (g.isAutoFix) {
+        if (isAutoFix) {
             autoFixItems.push({ docId: fingerprint, data: item });
         } else {
             triageItems.push({ docId: fingerprint, data: item });
         }
     }
 
-    return { triageItems, autoFixItems };
+    return { triageItems, autoFixItems, allFingerprints };
 }
 
 /**
@@ -396,24 +410,184 @@ async function publishTriageQueues(items) {
 }
 
 /**
- * High-level entry point called by nexus.js after a scan.
- * Reads issues from TREASURE_MAP.json, aggregates, writes both queues.
+ * Reconcile existing nexus-sourced items in both queues against the
+ * fingerprint set produced by the current scan.
  *
- * @returns {Promise<{triageWrites: number, autoFixWrites: number, groupCount: number}>}
+ * Two transitions:
+ *   1. AUTO-RESOLVE: an item is open/claimed/in-progress but its fingerprint
+ *      is no longer in the fresh scan → status: resolved, resolvedBy:
+ *      'auto-rescan'. This closes the loop for human-fixed items: the human
+ *      makes the fix, the next scan no longer detects the defect, the item
+ *      auto-disappears from Pulse.
+ *
+ *   2. AUTO-REOPEN: an item was previously resolved but its fingerprint
+ *      reappears in the fresh scan → status: open. Treats the recurrence as
+ *      a regression and resurfaces it for triage. Resets owner/claimedAt
+ *      because whoever resolved it last time may not be the next claimer.
+ *
+ * Items in `dismissed` or `deferred` states are NOT touched. A human
+ * deliberately set those, and a recurrence shouldn't override that
+ * judgement automatically (they can re-open manually if needed).
+ *
+ * Sprint-master and manual items are skipped (their lifecycle isn't tied
+ * to Nexus scans).
+ *
+ * @param {Set<string>} currentFingerprints - fingerprints from the just-finished scan
+ * @returns {Promise<{resolved: number, reopened: number, skipped: number}>}
+ */
+async function reconcileTriageWithScan(currentFingerprints) {
+    process.env.GOOGLE_CLOUD_PROJECT = 'hexworth-prime';
+    const admin = require(path.join(FUNCTIONS_DIR, 'node_modules/firebase-admin'));
+    if (!admin.apps.length) {
+        admin.initializeApp({ projectId: 'hexworth-prime' });
+    }
+    const db = admin.firestore();
+    const { FieldValue } = admin.firestore;
+
+    const RECONCILER_ACTOR = 'agent:rescan-reconciler';
+    const ACTIVE_STATUSES = new Set(['open', 'claimed', 'in-progress']);
+
+    let resolved = 0;
+    let reopened = 0;
+    let skipped = 0;
+
+    async function reconcileCollection(collectionName) {
+        // Filter to states the reconciler can act on. Excludes 'dismissed'
+        // and 'deferred' which are deliberate human decisions — never override.
+        // Also avoids ever-growing read cost as resolved items pile up over
+        // time (the 'resolved' state is included only because we may need
+        // to auto-reopen). Nancy round 4: scope-narrowed query.
+        const snap = await db.collection(collectionName)
+            .where('source', '==', 'nexus')
+            .where('status', 'in', ['open', 'claimed', 'in-progress', 'resolved'])
+            .get();
+
+        for (const doc of snap.docs) {
+            const data = doc.data();
+            const fp = data.defectFingerprint;
+            const status = data.status;
+            const inCurrent = currentFingerprints.has(fp);
+
+            let action = null;
+            let updates = null;
+
+            if (!inCurrent && ACTIVE_STATUSES.has(status)) {
+                action = 'auto-resolve';
+                updates = {
+                    status: 'resolved',
+                    resolvedAt: FieldValue.serverTimestamp(),
+                    resolvedBy: 'auto-rescan',
+                };
+            } else if (inCurrent && status === 'resolved') {
+                action = 'auto-reopen';
+                updates = {
+                    status: 'open',
+                    resolvedAt: null,
+                    resolvedBy: null,
+                    owner: null,
+                    claimedAt: null,
+                    heartbeatAt: null,
+                };
+            } else {
+                skipped++;
+                continue;
+            }
+
+            try {
+                await db.runTransaction(async (txn) => {
+                    const fresh = await txn.get(doc.ref);
+                    if (!fresh.exists) return;
+                    const f = fresh.data();
+                    // Re-check inside transaction to avoid races with Pulse mutations
+                    const freshInCurrent = currentFingerprints.has(f.defectFingerprint);
+                    if (action === 'auto-resolve' && (freshInCurrent || !ACTIVE_STATUSES.has(f.status))) {
+                        return;
+                    }
+                    if (action === 'auto-reopen' && (!freshInCurrent || f.status !== 'resolved')) {
+                        return;
+                    }
+                    // For auto-reopen, surface the prior resolver in the note
+                    // so the audit trail makes clear we overrode a human/agent
+                    // resolve decision. Nancy round 4: don't lose context.
+                    const priorResolver = f.resolvedBy || 'unknown';
+                    const note = action === 'auto-resolve'
+                        ? 'defect no longer present in scan'
+                        : `defect re-detected after prior resolve by ${priorResolver}`;
+                    const historyEntry = {
+                        ts: new Date().toISOString(),
+                        actor: RECONCILER_ACTOR,
+                        action: action,
+                        note: note,
+                    };
+                    const newHistory = (Array.isArray(f.history) ? f.history : [])
+                        .concat([historyEntry])
+                        .slice(-20);
+                    txn.update(doc.ref, Object.assign({}, updates, {
+                        updatedAt: FieldValue.serverTimestamp(),
+                        history: newHistory,
+                    }));
+                });
+                if (action === 'auto-resolve') resolved++;
+                else if (action === 'auto-reopen') reopened++;
+            } catch (err) {
+                console.warn(`[reconcileTriageWithScan] ${collectionName}/${doc.id} ${action} failed: ${err.message}`);
+            }
+        }
+    }
+
+    await reconcileCollection('_triage_queue');
+    await reconcileCollection('_auto_fix_queue');
+
+    return { resolved, reopened, skipped };
+}
+
+/**
+ * High-level entry point called by nexus.js after a scan.
+ * Reads issues from TREASURE_MAP.json, aggregates, writes both queues,
+ * then reconciles existing items against the fresh fingerprint set
+ * (auto-resolve disappeared defects + auto-reopen regressed ones).
+ *
+ * @returns {Promise<{triageWrites, autoFixWrites, groupCount, resolved, reopened}>}
  */
 async function publishTriage() {
     const fs = require('fs');
     const reportPath = path.resolve(__dirname, '../reports/TREASURE_MAP.json');
     if (!fs.existsSync(reportPath)) {
         console.warn('[publishTriage] TREASURE_MAP.json not found; skipping triage publish');
-        return { triageWrites: 0, autoFixWrites: 0, groupCount: 0 };
+        return { triageWrites: 0, autoFixWrites: 0, groupCount: 0, resolved: 0, reopened: 0, skippedReconcile: false };
     }
     const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
     const issues = report.issues || [];
     const items = buildTriageItems(issues);
-    const result = await publishTriageQueues(items);
+    const writeResult = await publishTriageQueues(items);
+
+    // EMPTY-SCAN GUARD (Nancy round 4 fix):
+    // If a partial / corrupt / pre-init TREASURE_MAP yields zero issues,
+    // skip reconciliation entirely. Otherwise every active item would
+    // auto-resolve as "disappeared," wiping the queue from one bad scan.
+    // Reconciliation only runs when we have positive signal that the scan
+    // actually saw the codebase.
+    if (items.allFingerprints.size === 0) {
+        console.warn('[publishTriage] zero fingerprints in scan — skipping reconciliation to avoid mass auto-resolve');
+        return {
+            ...writeResult,
+            resolved: 0,
+            reopened: 0,
+            skippedReconcile: true,
+            groupCount: 0,
+        };
+    }
+
+    // Reconcile against ALL fingerprints (not just queue-eligible ones).
+    // A defect that was in the queue but is now severity-reclassified down
+    // is still "present" — its fingerprint stays in allFingerprints, so
+    // reconciliation does not falsely auto-resolve it. (Nancy round 4 fix.)
+    const reconcileResult = await reconcileTriageWithScan(items.allFingerprints);
+
     return {
-        ...result,
+        ...writeResult,
+        ...reconcileResult,
+        skippedReconcile: false,
         groupCount: items.triageItems.length + items.autoFixItems.length,
     };
 }
@@ -427,4 +601,6 @@ module.exports = {
     normalizePath,            // exported for unit testing
     directoryPrefix,          // exported for unit testing
     sha256Hex,                // exported for unit testing
+    // Slice 3b — auto-resolve / auto-reopen via rescan
+    reconcileTriageWithScan,
 };

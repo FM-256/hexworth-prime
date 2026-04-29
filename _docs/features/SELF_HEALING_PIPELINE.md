@@ -471,6 +471,17 @@ After each slice ships:
 
 ## Changelog
 
+- 2026-04-29 — **SLICE 3b SHIPPED.** Loop closure for human-fixed items is live:
+    - `_tools/nexus/publish.js` — new `reconcileTriageWithScan(allFingerprints)` runs after every `publishTriage`. Two transitions:
+        - **Auto-resolve:** items in `[open, claimed, in-progress]` whose `defectFingerprint` is no longer in the fresh scan transition to `status: resolved, resolvedBy: 'auto-rescan'`. This means a human who manually fixes a defect sees it disappear from Pulse on the next Nexus run — no manual "Done" required.
+        - **Auto-reopen:** items in `resolved` whose fingerprint reappears in a fresh scan transition back to `open` (treats recurrence as regression).
+    - Each transition uses Firestore transaction with re-check inside (race-safe vs concurrent Pulse mutations).
+    - `dismissed` and `deferred` items are NEVER touched (deliberate human decisions stay).
+    - `firestore.indexes.json` — composite indexes `(source ASC, status ASC)` on both queues. Deployed first, polled, then function shipped (per Slice 3a sequencing rule).
+    - **Nancy round 4 caught two real bugs before deploy:**
+        - **Empty-scan mass-resolve:** if TREASURE_MAP.json had zero issues (truncated, partial, or pre-init), every active item would auto-resolve. Fixed: explicit guard `if (allFingerprints.size === 0) skip reconciliation`.
+        - **Severity-reclassification silent drop:** `buildTriageItems` previously built fingerprints only from severity-gated groups. A rule reclassified high → medium would cause its existing items to falsely auto-resolve as "disappeared." Fixed: `buildTriageItems` now returns `allFingerprints` covering every (rule, dir) group regardless of gate. Reconciliation uses this complete set; the gate only controls queue routing, not reconciliation visibility. Today: 13 items in queue, 238 fingerprints in scan.
+    - Reconcile query also narrowed to `status in [open, claimed, in-progress, resolved]` — excludes dismissed/deferred at query layer to prevent ever-growing read cost.
 - 2026-04-29 — **SLICE 3a SHIPPED.** Dead-claim safety net is live:
     - `functions/index.js` — new `releaseDeadClaims` scheduled Cloud Function (every 5 min, us-central1). Reaper scans both `_triage_queue` and `_auto_fix_queue` for items where `status in [claimed, in-progress]` AND `claimedAt < now - 10min`. Pre-filters fresh-heartbeat items in code; transactional release with re-check inside txn. Released items revert to `status: open, owner: null, heartbeatAt: null` and get a `release-stale` history entry attributed to `agent:dead-claim-reaper`.
     - `firestore.indexes.json` — composite indexes `(status, claimedAt)` on both queues. Deployed FIRST, build verified before function deploy (Nancy round 3 caught this sequencing risk).

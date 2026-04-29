@@ -209,6 +209,9 @@ async function cmdScan(args, flags) {
         try {
             const tr = await publishTriage();
             console.log(`  ${C.green}Triage published${C.reset} ${C.dim}→ _triage_queue: ${tr.triageWrites}, _auto_fix_queue: ${tr.autoFixWrites}${C.reset}`);
+            if (tr.resolved > 0 || tr.reopened > 0) {
+                console.log(`  ${C.green}Reconciled${C.reset} ${C.dim}→ auto-resolved: ${tr.resolved}, auto-reopened: ${tr.reopened}${C.reset}`);
+            }
         } catch (err) {
             console.error(`  ${C.red}Triage publish failed: ${err.message}${C.reset}`);
         }
@@ -798,6 +801,9 @@ async function cmdFull(args, flags) {
             // Slice 1 — self-healing pipeline triage queues
             const tr = await publishTriage();
             console.log(`  ${C.green}Triage published${C.reset} ${C.dim}→ _triage_queue: ${tr.triageWrites}, _auto_fix_queue: ${tr.autoFixWrites}${C.reset}`);
+            if (tr.resolved > 0 || tr.reopened > 0) {
+                console.log(`  ${C.green}Reconciled${C.reset} ${C.dim}→ auto-resolved: ${tr.resolved}, auto-reopened: ${tr.reopened}${C.reset}`);
+            }
         } catch (err) {
             console.error(`  ${C.red}Publish failed: ${err.message}${C.reset}`);
         }
