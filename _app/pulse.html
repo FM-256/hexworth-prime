@@ -310,6 +310,14 @@
         </div>
 
         <!-- ════════════════════════════════════════════════ -->
+        <!-- SATURATION BANNER (Slice 3d) — hidden unless triggered -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div id="saturationBanner" style="display:none;grid-column:1/-1;padding:12px 16px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:8px;color:var(--pulse-red);font-size:0.85rem;line-height:1.5;">
+            <strong>SATURATION ALARM</strong>
+            <span id="saturationBannerText"></span>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
         <!-- EDUSCAN SUMMARY -->
         <!-- ════════════════════════════════════════════════ -->
         <div class="panel">
@@ -1596,6 +1604,37 @@
             if (badge) badge.textContent = events.length + ' events';
         }
 
+        // ── Saturation banner (Slice 3d) ────────────────
+        // Reads _saturation_history/latest. If currentlySaturated is true
+        // (alarm fired OR cooldown blocked OR webhook misconfigured), render
+        // a banner. Closes the loop when the out-of-band channel fails.
+
+        async function refreshSaturationBanner() {
+            var banner = document.getElementById('saturationBanner');
+            var text = document.getElementById('saturationBannerText');
+            if (!banner || !text) return;
+            try {
+                var state = await TriageQueueClient.getSaturationState();
+                if (!state || !state.currentlySaturated) {
+                    banner.style.display = 'none';
+                    return;
+                }
+                var pieces = [];
+                pieces.push(' — ' + (state.lastSnapshot ? state.lastSnapshot.openCount : '?') + ' open items.');
+                if (state.blockedReason === 'cooldown') {
+                    pieces.push(' Webhook in cooldown (last alarm posted in last 6h).');
+                } else if (state.blockedReason === 'webhook-failed-or-unset') {
+                    pieces.push(' Webhook channel unavailable — check SATURATION_WEBHOOK_URL / DISCORD_WEBHOOK_URL env.');
+                } else if (state.lastAlarmAt) {
+                    pieces.push(' Webhook alarm posted.');
+                }
+                text.textContent = pieces.join('');
+                banner.style.display = 'block';
+            } catch (e) {
+                console.error('[Pulse] refreshSaturationBanner failed:', e);
+            }
+        }
+
         async function refreshAgentActivity() {
             var badge = document.getElementById('agentActivityBadge');
             try {
@@ -1821,6 +1860,9 @@
             var refreshBtn = document.getElementById('refreshAgentActivity');
             if (refreshBtn) refreshBtn.addEventListener('click', refreshAgentActivity);
             setInterval(refreshAgentActivity, 60000);
+            // Saturation banner (Slice 3d) — check on load + every 5min
+            refreshSaturationBanner();
+            setInterval(refreshSaturationBanner, 5 * 60 * 1000);
             await calculateHealth();
         });
     })();

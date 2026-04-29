@@ -305,6 +305,35 @@
     }
 
     /**
+     * Public API: read current saturation state from _saturation_history/latest.
+     * Returns { currentlySaturated, blockedReason, lastSnapshot, lastAlarmAt }
+     * or null if the doc doesn't exist yet.
+     *
+     * Used by Pulse to render a banner when the saturation alarm has either
+     * fired or has been blocked (cooldown / misconfigured webhook). Closes
+     * the loop when out-of-band channels are unavailable.
+     */
+    async function getSaturationState() {
+        var db = await ensureFirestore();
+        var fs = _firestoreModule;
+        try {
+            var snap = await fs.getDoc(fs.doc(db, '_saturation_history/latest'));
+            if (!snap.exists()) return null;
+            var d = snap.data() || {};
+            return {
+                currentlySaturated: !!d.currentlySaturated,
+                blockedReason: d.saturationBlockedReason || null,
+                lastSnapshot: d.lastSnapshot || null,
+                lastAlarmAt: d.lastAlarmAt || null,
+                lastCheckAt: tsToIso(d.lastSaturationCheckAt),
+            };
+        } catch (e) {
+            console.error('[TriageQueueClient] getSaturationState failed:', e);
+            return null;
+        }
+    }
+
+    /**
      * Public API: fetch the last N history entries written by `agent:*`
      * actors across both queues. One-shot read (no subscription) — call
      * periodically or on a refresh button. Returned events sorted by ts desc.
@@ -377,6 +406,7 @@
         reassign: reassign,
         detachAll: detachAll,
         getRecentAgentActivity: getRecentAgentActivity,  // Slice 3c
+        getSaturationState: getSaturationState,           // Slice 3d
         // Constants exposed for callers that need to render/filter
         ACTIVE_STATUSES: ACTIVE_STATUSES,
         QUERY_LIMIT: QUERY_LIMIT,

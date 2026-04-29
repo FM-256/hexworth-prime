@@ -2659,6 +2659,147 @@ exports.releaseDeadClaims = onSchedule({
     }
 });
 
+// ─── Self-Healing Pipeline: Saturation alarm ──────────────────────────
+// Slice 3d. Fires when the triage queue grows faster than humans+agents
+// can drain. Per Nancy round 2: floor (50 items) + percentage (20%/24h)
+// + out-of-band channel (Discord webhook reuses existing infra).
+//
+// Why not a Pulse banner: if the operator is in Pulse, they already see
+// the queue. The alarm needs to reach them when they're NOT in Pulse.
+//
+// Storage: _saturation_history/latest holds rolling 7-day snapshot array.
+// Each hourly run appends {ts, openCount} and trims older entries.
+//
+// Cooldown: hardcoded 6 hours between webhook posts to prevent spam.
+// Stored as lastAlarmAt on the same doc.
+
+const SATURATION_FLOOR = 50;             // items
+const SATURATION_GROWTH_PCT = 20;        // %
+const SATURATION_LOOKBACK_MS = 24 * 60 * 60 * 1000;  // 24h
+const SATURATION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;  // 7d
+const SATURATION_COOLDOWN_MS = 6 * 60 * 60 * 1000;   // 6h between alarms
+
+async function countOpen(collectionName) {
+    const snap = await db.collection(collectionName)
+        .where('status', '==', 'open')
+        .count()
+        .get();
+    return snap.data().count || 0;
+}
+
+async function postSaturationAlarm(totalOpen, priorCount, growthPct) {
+    const url = process.env.SATURATION_WEBHOOK_URL || DISCORD_WEBHOOK_URL;
+    if (!url) {
+        console.warn('[saturationAlarm] No webhook URL configured (SATURATION_WEBHOOK_URL or DISCORD_WEBHOOK_URL)');
+        return false;
+    }
+    const message = '[ALARM] **Hexworth triage queue saturation**\n'
+        + `Open items: ${totalOpen} (was ${priorCount} 24h ago, +${growthPct.toFixed(1)}%)\n`
+        + `Threshold: > ${SATURATION_FLOOR} items AND > ${SATURATION_GROWTH_PCT}% 24h growth\n`
+        + 'Review at https://hexworth.com/pulse.html';
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: message }),
+        });
+        if (!res.ok) {
+            console.error(`[saturationAlarm] Webhook returned ${res.status}: ${await res.text()}`);
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error(`[saturationAlarm] Webhook fetch failed: ${err.message}`);
+        return false;
+    }
+}
+
+exports.checkSaturationAlarm = onSchedule({
+    schedule: 'every 60 minutes',
+    timeZone: 'UTC',
+    region: 'us-central1',
+}, async (event) => {
+    const triageOpen = await countOpen('_triage_queue');
+    const autoFixOpen = await countOpen('_auto_fix_queue');
+    const totalOpen = triageOpen + autoFixOpen;
+    const now = Date.now();
+
+    const histRef = db.doc('_saturation_history/latest');
+    const histSnap = await histRef.get();
+    const histData = histSnap.exists ? histSnap.data() : {};
+    const existingSnapshots = Array.isArray(histData.snapshots) ? histData.snapshots : [];
+    const lastAlarmAt = histData.lastAlarmAt || 0;
+
+    // Find the snapshot closest to the lookback window — search BEFORE
+    // appending the current snapshot, otherwise the current run becomes its
+    // own prior in sparse-history conditions (first ~23h after deploy or
+    // after any outage gap), structurally suppressing alarms during the
+    // exact window the operator most needs them. (Nancy round 5 fix.)
+    const target = now - SATURATION_LOOKBACK_MS;
+    let prior = null;
+    let bestDelta = Infinity;
+    for (const s of existingSnapshots) {
+        const d = Math.abs(s.ts - target);
+        if (d < bestDelta) { bestDelta = d; prior = s; }
+    }
+
+    let alarmFired = false;
+    let alarmBlocked = false;
+    let alarmBlockedReason = null;
+    let growthPct = 0;
+    if (prior && totalOpen > SATURATION_FLOOR) {
+        // Cap growth at +1000% if prior was 0 (avoid Infinity)
+        growthPct = prior.openCount > 0
+            ? ((totalOpen - prior.openCount) / prior.openCount) * 100
+            : (totalOpen > 0 ? 1000 : 0);
+        if (growthPct > SATURATION_GROWTH_PCT) {
+            // Cooldown check: don't spam
+            if (now - lastAlarmAt < SATURATION_COOLDOWN_MS) {
+                console.log(`[saturationAlarm] Conditions met but cooldown active (last alarm ${Math.round((now - lastAlarmAt) / 60000)}min ago)`);
+                alarmBlocked = true;
+                alarmBlockedReason = 'cooldown';
+            } else {
+                const sent = await postSaturationAlarm(totalOpen, prior.openCount, growthPct);
+                if (sent) {
+                    alarmFired = true;
+                } else {
+                    // Webhook misconfigured or returned error. Surface to
+                    // operator via the saturation history doc so Pulse can
+                    // render a banner — silent Cloud Logging warnings are
+                    // not enough. (Nancy round 5 fix.)
+                    alarmBlocked = true;
+                    alarmBlockedReason = 'webhook-failed-or-unset';
+                }
+            }
+        }
+    }
+
+    // Append snapshot AFTER the search; trim retention.
+    const newSnapshots = existingSnapshots.concat([{ ts: now, openCount: totalOpen }]);
+    const cutoff = now - SATURATION_RETENTION_MS;
+    const trimmed = newSnapshots.filter(s => s.ts > cutoff);
+
+    const update = {
+        snapshots: trimmed,
+        updatedAt: FieldValue.serverTimestamp(),
+        lastSnapshot: { ts: now, openCount: totalOpen },
+        // Sentinel for Pulse to render a banner when the alarm fires or is
+        // blocked. Pulse reads this to know "saturation conditions exist
+        // RIGHT NOW" even if the webhook channel is broken.
+        currentlySaturated: alarmFired || alarmBlocked,
+        saturationBlockedReason: alarmBlocked ? alarmBlockedReason : null,
+        lastSaturationCheckAt: FieldValue.serverTimestamp(),
+    };
+    if (alarmFired) update.lastAlarmAt = now;
+    await histRef.set(update, { merge: true });
+
+    if (alarmFired) {
+        console.warn(`[saturationAlarm] FIRED: ${totalOpen} open items, +${growthPct.toFixed(1)}% in 24h (prior=${prior.openCount})`);
+    } else if (alarmBlocked) {
+        console.warn(`[saturationAlarm] CONDITIONS MET but alarm blocked: ${alarmBlockedReason}`);
+    }
+});
+
 /**
  * hideConversation — Callable: hide a conversation from a user's inbox.
  * Adds the user's UID to the conversation's hiddenBy array.

@@ -471,6 +471,21 @@ After each slice ships:
 
 ## Changelog
 
+- 2026-04-29 — **SLICE 3d SHIPPED.** Saturation alarm with out-of-band channel + in-band fallback:
+    - `functions/index.js` — new `checkSaturationAlarm` scheduled CF (every 60min). Counts `status==open` in both queues via `count()` aggregation. If `count > 50 AND growth_24h_pct > 20%`, posts to Discord webhook (`SATURATION_WEBHOOK_URL` or `DISCORD_WEBHOOK_URL` fallback). 6-hour cooldown between posts.
+    - `_saturation_history/latest` — rolling 7-day snapshot array + `currentlySaturated` sentinel + `saturationBlockedReason` + `lastAlarmAt` for state queries.
+    - `firestore.rules` — `_saturation_history` collection admin-read, CF-write.
+    - `_app/components/TriageQueueClient.js` — `getSaturationState()` reads the sentinel.
+    - `_app/pulse.html` — saturation banner above EduScan panel. Renders only when `currentlySaturated`. Surfaces blocked reasons (cooldown, webhook misconfigured) so the operator notices even when the out-of-band channel fails.
+    - **Nancy round 5 caught two real defects before deploy:**
+        - **Push-before-search bug:** snapshot was pushed BEFORE the lookback search, making the current run its own prior in sparse-history conditions (first ~23h after deploy, or any post-outage gap), structurally suppressing alarms during the window operators most need them. Fix: search first, push after.
+        - **Silent webhook fallback failure:** `console.warn` to Cloud Logging is invisible to operators. Fix: write `currentlySaturated: true, saturationBlockedReason: 'webhook-failed-or-unset'` to sentinel doc; Pulse banner surfaces it.
+    - **Hexworth no-emoji rule:** webhook payload uses `[ALARM]` text marker, not the U+26A0 emoji.
+- 2026-04-29 — **SLICE 3c SHIPPED.** Agent activity feed live:
+    - `_app/components/TriageQueueClient.js` — `getRecentAgentActivity(20)` scans both queues' `history[]` for `actor: agent:*` events, sorts by ts desc, returns top N.
+    - `_app/pulse.html` — new "Agent Activity" panel between Triage Queue and Student Signals. Manual refresh button + 60s auto-refresh. Renders relative time, actor short, action, queue, item title, note.
+    - Why now (pre-marathon-agent): reaper + reconciler already write `agent:*` history. This gives visibility into autonomous activity from minute one. Without it, agents act invisibly until something breaks.
+    - Scaling note (in code comment): scans every doc in both queues. Cheap at current scale (~13 items). At 1000+, swap for dedicated `_agent_activity` collection.
 - 2026-04-29 — **SLICE 3b SHIPPED.** Loop closure for human-fixed items is live:
     - `_tools/nexus/publish.js` — new `reconcileTriageWithScan(allFingerprints)` runs after every `publishTriage`. Two transitions:
         - **Auto-resolve:** items in `[open, claimed, in-progress]` whose `defectFingerprint` is no longer in the fresh scan transition to `status: resolved, resolvedBy: 'auto-rescan'`. This means a human who manually fixes a defect sees it disappear from Pulse on the next Nexus run — no manual "Done" required.
