@@ -830,6 +830,8 @@ ${C.bold}COMMANDS${C.reset}
   ${C.cyan}gate${C.reset}                    Deploy gate — block on critical findings
   ${C.cyan}pipe${C.reset} <name>             Run a named pipe (e.g. hed-github)
   ${C.cyan}report${C.reset}                  Cross-tool summary (markdown to stdout)
+  ${C.cyan}autofix-dryrun${C.reset} [rule]    Report what registered fix templates would do
+                          for items in _auto_fix_queue (Slice 3e — read-only)
   ${C.cyan}help${C.reset}                    Show this help message
 
 ${C.bold}FLAGS${C.reset}
@@ -872,6 +874,99 @@ ${C.bold}DATA${C.reset}
 }
 
 // --- Generic Spoke Runner ---
+
+// ─── autofix-dryrun (Slice 3e) ──────────────────────────────────────
+// Reports what registered fix templates WOULD do for items currently
+// in _auto_fix_queue. Read-only. Required step before promoting a rule
+// to AUTO_FIX_ELIGIBLE_RULES per the promotion rule in CONTRACT.md.
+async function cmdAutofixDryRun(args, flags) {
+    const ruleFilter = args[0] || null;  // optional: limit to one rule code
+    const registry = require('./fix-templates/registry');
+    const registered = registry.listRegisteredRules();
+
+    console.log('');
+    console.log(`  ${C.cyan}${C.bold}Autofix Dry-Run${C.reset}`);
+    console.log('');
+
+    if (registered.length === 0) {
+        console.log(`  ${C.dim}No fix templates registered yet.${C.reset}`);
+        console.log(`  ${C.dim}See _tools/nexus/fix-templates/CONTRACT.md to add one.${C.reset}`);
+        console.log('');
+        process.exit(0);
+    }
+
+    // Read _auto_fix_queue items via firebase-admin
+    process.env.GOOGLE_CLOUD_PROJECT = 'hexworth-prime';
+    const FUNCTIONS_DIR = require('path').resolve(__dirname, '../../functions');
+    const admin = require(require('path').join(FUNCTIONS_DIR, 'node_modules/firebase-admin'));
+    if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
+    const db = admin.firestore();
+
+    let queryRef = db.collection('_auto_fix_queue').where('status', '==', 'open');
+    if (ruleFilter) queryRef = queryRef.where('rule', '==', ruleFilter);
+    const snap = await queryRef.get();
+
+    if (snap.empty) {
+        console.log(`  ${C.dim}No open items in _auto_fix_queue${ruleFilter ? ` for rule ${ruleFilter}` : ''}.${C.reset}`);
+        console.log('');
+        process.exit(0);
+    }
+
+    let totalFeasible = 0;
+    let totalBlocked = 0;
+    let totalNoTemplate = 0;
+
+    for (const doc of snap.docs) {
+        const item = Object.assign({ id: doc.id }, doc.data());
+        const template = registry.getTemplate(item.rule);
+
+        console.log(`  ${C.bold}${item.rule}${C.reset} ${C.dim}${item.id.slice(0, 12)}…${C.reset}`);
+        console.log(`    ${item.title}`);
+
+        if (!template) {
+            console.log(`    ${C.yellow}NO TEMPLATE registered for ${item.rule}${C.reset}`);
+            totalNoTemplate++;
+            console.log('');
+            continue;
+        }
+
+        try {
+            const result = await template.dryRun(item);
+            if (result.feasible) {
+                console.log(`    ${C.green}FEASIBLE${C.reset} — ${result.summary}`);
+                if (result.plannedActions && result.plannedActions.length) {
+                    result.plannedActions.slice(0, 5).forEach(a => {
+                        console.log(`      ${C.dim}→ ${a.action}: ${a.file} ${a.detail || ''}${C.reset}`);
+                    });
+                    if (result.plannedActions.length > 5) {
+                        console.log(`      ${C.dim}… and ${result.plannedActions.length - 5} more${C.reset}`);
+                    }
+                }
+                totalFeasible++;
+            } else {
+                console.log(`    ${C.red}NOT FEASIBLE${C.reset} — ${result.summary}`);
+                if (result.blockers && result.blockers.length) {
+                    result.blockers.forEach(b => console.log(`      ${C.red}✗${C.reset} ${b}`));
+                }
+                totalBlocked++;
+            }
+            if (result.risks && result.risks.length) {
+                result.risks.forEach(r => console.log(`      ${C.yellow}⚠${C.reset} ${r}`));
+            }
+        } catch (err) {
+            console.log(`    ${C.red}DRY-RUN ERROR: ${err.message}${C.reset}`);
+            totalBlocked++;
+        }
+        console.log('');
+    }
+
+    console.log(`  ${C.bold}Summary:${C.reset}`);
+    console.log(`    ${C.green}feasible:    ${totalFeasible}${C.reset}`);
+    console.log(`    ${C.red}blocked:     ${totalBlocked}${C.reset}`);
+    console.log(`    ${C.yellow}no template: ${totalNoTemplate}${C.reset}`);
+    console.log('');
+    process.exit(0);
+}
 
 function cmdSpoke(spokeName, args, flags) {
     const config = hub.loadConfig();
@@ -998,6 +1093,9 @@ switch (command) {
     case 'changelog':
     case 'cl':
         cmdSpoke('changelog', positional, flags);
+        break;
+    case 'autofix-dryrun':
+        cmdAutofixDryRun(positional, flags);
         break;
     case 'smoke':
         cmdSpoke('smoke-test', positional, flags);

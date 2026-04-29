@@ -471,6 +471,13 @@ After each slice ships:
 
 ## Changelog
 
+- 2026-04-29 — **SLICE 3e SHIPPED.** Fix-template contract + dry-run harness:
+    - `_tools/nexus/fix-templates/CONTRACT.md` — full template + validator interface, promotion rule, operator workflow, safety boundaries
+    - `_tools/nexus/fix-templates/registry.js` — empty registry by design (Nancy promotion rule: no rule enters `AUTO_FIX_ELIGIBLE_RULES` until template + validator exist for it)
+    - `_tools/nexus/fix-templates/_example.js` + `_example.validator.js` — reference contract, deliberately throws on apply
+    - `_tools/nexus/nexus.js` — new `autofix-dryrun [ruleCode]` command. Reads `_auto_fix_queue` items, dispatches to registered templates' `dryRun()`, reports feasibility/risks/blockers without writing. Read-only.
+    - **No autonomous mutation in Slice 3e.** This slice ships the PATTERN. Each individual rule template is its own micro-slice (3e.1, 3e.2…) that requires explicit operator review of dry-run output before promotion.
+    - Why ship the contract before any real templates: the contract bakes in Nancy's safety boundaries (no git commits from templates, no Firestore writes from templates, idempotency required, single-rule scope) so future templates can't violate them by oversight.
 - 2026-04-29 — **SLICE 3d SHIPPED.** Saturation alarm with out-of-band channel + in-band fallback:
     - `functions/index.js` — new `checkSaturationAlarm` scheduled CF (every 60min). Counts `status==open` in both queues via `count()` aggregation. If `count > 50 AND growth_24h_pct > 20%`, posts to Discord webhook (`SATURATION_WEBHOOK_URL` or `DISCORD_WEBHOOK_URL` fallback). 6-hour cooldown between posts.
     - `_saturation_history/latest` — rolling 7-day snapshot array + `currentlySaturated` sentinel + `saturationBlockedReason` + `lastAlarmAt` for state queries.
