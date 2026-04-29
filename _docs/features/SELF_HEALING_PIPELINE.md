@@ -471,6 +471,11 @@ After each slice ships:
 
 ## Changelog
 
+- 2026-04-29 — **SLICE 3a SHIPPED.** Dead-claim safety net is live:
+    - `functions/index.js` — new `releaseDeadClaims` scheduled Cloud Function (every 5 min, us-central1). Reaper scans both `_triage_queue` and `_auto_fix_queue` for items where `status in [claimed, in-progress]` AND `claimedAt < now - 10min`. Pre-filters fresh-heartbeat items in code; transactional release with re-check inside txn. Released items revert to `status: open, owner: null, heartbeatAt: null` and get a `release-stale` history entry attributed to `agent:dead-claim-reaper`.
+    - `firestore.indexes.json` — composite indexes `(status, claimedAt)` on both queues. Deployed FIRST, build verified before function deploy (Nancy round 3 caught this sequencing risk).
+    - Why this matters even pre-agent: Pulse human claims ARE protected from forgotten-claim deadlock starting now. A human who clicks Claim and walks away gets the item released after 10min, available to the next admin.
+    - Documented assumptions (Nancy round 3): heartbeat enforcement is the agent harness's responsibility, not the reaper's. Long-running legitimate work without heartbeat WILL be released. `in-progress` is treated identically to `claimed`. Malformed `heartbeatAt` (non-Timestamp) is treated as untracked = released.
 - 2026-04-29 — **SLICE 2 SHIPPED.** Pulse is now functional:
     - `_app/components/TriageQueueClient.js` (NEW) — query-filtered `onSnapshot` subscriber + transactional mutations (claim/defer/dismiss/bumpPriority/reassign). Mirrors NexusReader's lazy-load pattern.
     - `firestore.indexes.json` — composite index on `_triage_queue (status, priority desc)` and `_auto_fix_queue (status, priority desc)`. Severity filter dropped from query (already gated at write-time in publishTriage).

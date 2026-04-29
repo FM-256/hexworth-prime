@@ -2543,6 +2543,122 @@ exports.purgeOldMessages = onSchedule({
     console.log(`[purgeOldMessages] Deleted ${deleteCount} messages, checked ${affectedConversations.size} conversations`);
 });
 
+// ─── Self-Healing Pipeline: Dead-claim reaper ─────────────────────────
+// Slice 3a of the bidirectional control plane. See:
+//   _docs/features/SELF_HEALING_PIPELINE.md
+//
+// Every 5 minutes, scans _triage_queue and _auto_fix_queue for items
+// where status is claimed/in-progress but the claim has gone stale.
+// Stale = no heartbeat update for 10+ minutes.
+//
+// HEARTBEAT EXPECTATION (post-Nancy review 2026-04-29):
+//   - Humans (Pulse mutations) never heartbeat. claimedAt is the only
+//     staleness signal for human claims — a human who claims and then
+//     walks away gets their item released after 10min.
+//   - Agents (Slice 3+) MUST heartbeat every 2min during long work, or
+//     the reaper releases their item and a second agent can re-claim
+//     and double-execute. The agent harness must enforce this — the
+//     reaper does not distinguish humans from agents.
+//   - 'in-progress' status is treated identically to 'claimed' here.
+//     Long legitimate work without heartbeat WILL be interrupted.
+//
+// TIMESTAMP NOTE:
+//   history[] entries use new Date().toISOString() because Firestore
+//   serverTimestamp() cannot be embedded inside array elements. The
+//   doc-level updatedAt uses serverTimestamp() for authoritative
+//   ordering; history ts is advisory and matches TriageQueueClient.
+//
+// MALFORMED heartbeatAt:
+//   If heartbeatAt is anything other than a Firestore Timestamp (e.g.
+//   an ISO string from a buggy writer), heartbeatMs is null and the
+//   item gets released. Deliberate safe-fallback: a malformed heartbeat
+//   means the claim is effectively untracked.
+//
+// Uses transactions to avoid race with a fresh heartbeat or claim
+// that may land between the query and the write.
+
+const DEAD_CLAIM_STALE_MS = 10 * 60 * 1000;  // 10 minutes
+const REAPER_ACTOR = 'agent:dead-claim-reaper';
+
+async function reapStaleClaims(collectionName) {
+    const cutoffMs = Date.now() - DEAD_CLAIM_STALE_MS;
+    const cutoff = new Date(cutoffMs);
+
+    const snap = await db.collection(collectionName)
+        .where('status', 'in', ['claimed', 'in-progress'])
+        .where('claimedAt', '<', cutoff)
+        .limit(100)
+        .get();
+
+    let released = 0;
+    let skippedFreshHeartbeat = 0;
+
+    for (const doc of snap.docs) {
+        const data = doc.data();
+        // Skip if heartbeat is fresher than claimedAt and within window —
+        // an agent is still actively working
+        const heartbeatMs = data.heartbeatAt && data.heartbeatAt.toMillis
+            ? data.heartbeatAt.toMillis()
+            : null;
+        if (heartbeatMs && heartbeatMs > cutoffMs) {
+            skippedFreshHeartbeat++;
+            continue;
+        }
+
+        try {
+            await db.runTransaction(async (txn) => {
+                const fresh = await txn.get(doc.ref);
+                if (!fresh.exists) return;
+                const f = fresh.data();
+                // Re-check inside transaction — may have updated since query
+                if (!['claimed', 'in-progress'].includes(f.status)) return;
+                const freshHeartbeatMs = f.heartbeatAt && f.heartbeatAt.toMillis
+                    ? f.heartbeatAt.toMillis()
+                    : null;
+                if (freshHeartbeatMs && freshHeartbeatMs > cutoffMs) return;
+
+                const historyEntry = {
+                    ts: new Date().toISOString(),
+                    actor: REAPER_ACTOR,
+                    action: 'release-stale',
+                    note: `claimedAt=${f.claimedAt && f.claimedAt.toDate ? f.claimedAt.toDate().toISOString() : 'unknown'} owner=${f.owner || 'null'}`,
+                };
+                const newHistory = (Array.isArray(f.history) ? f.history : [])
+                    .concat([historyEntry])
+                    .slice(-20);
+
+                txn.update(doc.ref, {
+                    status: 'open',
+                    owner: null,
+                    heartbeatAt: null,
+                    updatedAt: FieldValue.serverTimestamp(),
+                    history: newHistory,
+                });
+            });
+            released++;
+        } catch (err) {
+            console.error(`[releaseDeadClaims] Failed to release ${collectionName}/${doc.id}:`, err.message);
+        }
+    }
+
+    return { released, skippedFreshHeartbeat, scanned: snap.size };
+}
+
+exports.releaseDeadClaims = onSchedule({
+    schedule: 'every 5 minutes',
+    timeZone: 'UTC',
+    region: 'us-central1',
+}, async (event) => {
+    const start = Date.now();
+    const triageResult = await reapStaleClaims('_triage_queue');
+    const autoFixResult = await reapStaleClaims('_auto_fix_queue');
+    const elapsed = Date.now() - start;
+
+    if (triageResult.released > 0 || autoFixResult.released > 0) {
+        console.log(`[releaseDeadClaims] Released ${triageResult.released} from _triage_queue, ${autoFixResult.released} from _auto_fix_queue (skipped fresh: ${triageResult.skippedFreshHeartbeat + autoFixResult.skippedFreshHeartbeat}, scanned: ${triageResult.scanned + autoFixResult.scanned}, elapsed: ${elapsed}ms)`);
+    }
+});
+
 /**
  * hideConversation — Callable: hide a conversation from a user's inbox.
  * Adds the user's UID to the conversation's hiddenBy array.
