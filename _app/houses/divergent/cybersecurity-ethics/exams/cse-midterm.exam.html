@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side quiz grading (QC-21) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CIS2253 Cybersecurity Ethics Midterm Exam | Hexworth Prime</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f0d1a;
+    --card: #1a1628;
+    --ink: #e0e0e0;
+    --muted: #94a3b8;
+    --accent: #c9a83a;
+    --accent2: #e8c44a;
+    --accent-glow: rgba(201, 168, 58, 0.3);
+    --ok: #2ed573;
+    --warn: #ffc107;
+    --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0a0a0f 0%, #0f0d1a 50%, #1a0d28 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .page-header a:hover { color: var(--accent); }
+
+  .brand {
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  .exam-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(201, 168, 58, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(201, 168, 58, 0.3);
+  }
+
+  .exam-info {
+    background: rgba(26, 22, 40, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .exam-info h2 {
+    color: var(--accent);
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+  }
+
+  .exam-info ul {
+    list-style: none;
+    color: var(--muted);
+  }
+
+  .exam-info li { padding: 4px 0; }
+
+  .exam-info li::before {
+    content: "-> ";
+    color: var(--accent);
+  }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: monospace;
+  }
+
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .progress-text {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .question {
+    background: rgba(26, 22, 40, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .question p {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    flex: 1;
+  }
+
+  .q-num {
+    background: rgba(201, 168, 58, 0.2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 12px;
+    white-space: nowrap;
+  }
+
+  .question label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+  }
+
+  .question label:hover {
+    background: rgba(201, 168, 58, 0.1);
+    border-color: rgba(201, 168, 58, 0.3);
+  }
+
+  .question input[type="radio"] {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+  }
+
+  .question label.correct {
+    background: rgba(46, 213, 115, 0.15) !important;
+    border-color: var(--ok) !important;
+  }
+
+  .question label.wrong {
+    background: rgba(255, 71, 87, 0.15) !important;
+    border-color: var(--bad) !important;
+  }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #0a0a0f;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--accent-glow);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #result {
+    background: rgba(26, 22, 40, 0.95);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+
+  #result h2 {
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    color: var(--ink);
+  }
+
+  .score-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 6px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .score-circle.pass {
+    border-color: var(--ok);
+    box-shadow: 0 0 40px rgba(46, 213, 115, 0.4);
+  }
+
+  .score-circle.fail {
+    border-color: var(--bad);
+    box-shadow: 0 0 40px rgba(255, 71, 87, 0.4);
+  }
+
+  .score-percent {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+
+  .score-fraction {
+    font-size: 1rem;
+    color: var(--muted);
+  }
+
+  .result-msg {
+    font-size: 1.2rem;
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .result-msg.pass {
+    background: rgba(46, 213, 115, 0.15);
+    color: var(--ok);
+    border: 1px solid var(--ok);
+  }
+
+  .result-msg.fail {
+    background: rgba(255, 71, 87, 0.15);
+    color: var(--bad);
+    border: 1px solid var(--bad);
+  }
+
+  .unlock-badge {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(201, 168, 58, 0.2), rgba(232, 196, 74, 0.15));
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+  }
+
+  .unlock-badge h3 {
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .btn-continue {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #0a0a0f;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to Cybersecurity Ethics Hub</a>
+  <span class="brand">Hexworth Prime</span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/25 answered</span>
+  <span class="timer" id="timer">50:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>Cybersecurity Ethics Midterm Exam</h1>
+    <div class="header-meta">
+      <span class="tag">CIS2253</span>
+      <span class="tag">25 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">50 Minutes</span>
+      <span class="tag">Weeks 1-2</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Exam Information</h2>
+    <ul>
+      <li>Covers Week 1 (Cyberethics, Security Pro Role, NIST CSF) and Week 2 (Cyberspace Governance, Free Speech, Intellectual Property) — modules CSE-01 through CSE-06</li>
+      <li>You need 70% to pass and unlock Week 3 content</li>
+      <li>Questions are scenario-based — read each carefully before answering</li>
+      <li>Time limit: 50 minutes (timer starts when the page loads)</li>
+      <li>Server-graded — answers validated server-side via gradeQuiz Cloud Function</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  Part of <a href="../index.html">Cybersecurity Ethics</a> | Hexworth Prime
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function (QC-21)
+// Answer key stored in Firestore quiz_keys/divergent-eth-midterm
+const QUIZ_ID = 'divergent-cse-midterm';
+
+/* ── Exam question bank for Ethics in IT Midterm (Ch. 1-6) ──
+   25 scenario-based questions. No answers in HTML -- server-graded.
+   Array index 0 is always the correct answer; shuffle happens at render. */
+const examData = [
+  {q: "Lawrence Lessig's central claim in Code and Other Laws of Cyberspace is best summarized as:", a: ["In cyberspace, code (architecture) regulates behavior as effectively as law -- often more so", "International treaties are the primary mechanism for governing the internet", "Market forces alone determine acceptable online behavior", "Social norms are the only meaningful constraint on cyberspace conduct"]},
+  {q: "A platform engineer implements rate-limiting on an API. Under Lessig's framework, this is best characterized as:", a: ["Code (architecture) acting as a constraint on behavior", "A market signal that competitors will respond to", "An informal social norm developing organically", "A statutory legal requirement under federal law"]},
+  {q: "The deontological ethical framework most centrally asks:", a: ["Whether an action respects duty and the dignity of persons regardless of consequences", "Whether an action produces the greatest good for the greatest number", "Whether an action reflects the character of a virtuous person", "Whether an action could be agreed to by all rational parties"]},
+  {q: "Five sociological markers of a profession (per Greenwood, Goode, and others) include all of the following EXCEPT:", a: ["Government licensing of every individual practitioner", "Specialized body of knowledge", "Code of ethics", "Self-regulation by peers"]},
+  {q: "'Trust asymmetry' as defined in CIS2253 refers to:", a: ["The structural condition that the security professional sees risks the org cannot independently see", "Customers trusting platforms more than they trust governments", "Disparate trust levels between security and IT operations teams", "Public-private trust gaps in cybersecurity coordination"]},
+  {q: "Of the four security professional codes covered (ASIS, ISACA, GIAC, Ethics FIRST), which one is built specifically for incident response and explicitly prohibits hack-back as an operational rule?", a: ["Ethics FIRST (FIRST.org)", "ASIS Code of Ethics", "ISACA Code of Professional Ethics", "GIAC Code of Ethics"]},
+  {q: "All four security professional codes converge most explicitly on which principle?", a: ["Public-interest service", "Mandatory penetration testing certification", "Specific encryption algorithm preferences", "Annual reporting of all professional engagements"]},
+  {q: "The NIST Cybersecurity Framework is best described as:", a: ["A voluntary risk-based common vocabulary for managing cybersecurity", "A federally mandated control checklist", "A maturity model with five tiers", "A certification program for security professionals"]},
+  {q: "The four CSF subcategories that CIS2253 explicitly maps to per the syllabus are:", a: ["ID.BE, ID.GV, PR.AT, PR.IP", "ID.AM, ID.RA, PR.AC, PR.DS", "DE.AE, DE.CM, RS.RP, RC.RP", "PR.IP, DE.CM, RS.MI, RC.IM"]},
+  {q: "ID.GV-3 in CSF v1.1 specifies that legal and regulatory cybersecurity requirements -- including which additional explicit category -- are understood and managed?", a: ["Privacy and civil liberties obligations", "Trade secret protection", "Federal procurement standards", "International export control compliance"]},
+  {q: "A practitioner facing a confidentiality-vs-disclosure conflict in which internal channels have been exhausted should next:", a: ["Document the analysis, verify proportionality, consult legal, then choose the response the codes' priority order requires", "Immediately publish a public statement on social media", "Resign without further action", "Wait until a third party independently raises the same concern"]},
+  {q: "Equifax (2017) is the canonical CIS2253 case for what?", a: ["A cascade of failures across all four CSF subcategories the course maps to", "A successful coordinated incident response under EU regulation", "An academic study of network segmentation effectiveness", "A federal prosecution of CFAA violations"]},
+  {q: "Anu Bradford's 'Brussels Effect' explains:", a: ["Why a single market's regulation becomes a de facto global standard because companies build to it and apply it everywhere", "How EU regulators directly fine US companies", "Why European cybersecurity vendors dominate the US market", "How the EU forces bilateral trade treaties on cyber matters"]},
+  {q: "The CLOUD Act (March 2018) statutorily settled which question that the Supreme Court was about to rule on in Microsoft v. United States?", a: ["Whether US warrants reach data controlled by US providers regardless of where the data is physically stored", "Whether EU citizens can sue US cloud providers in European courts", "Whether private companies must comply with foreign data localization laws", "Whether ISPs must retain user metadata for federal investigations"]},
+  {q: "Russia's Federal Law 242-FZ, China's Cybersecurity/DSL/PIPL stack, and India's DPDP Act share which characteristic?", a: ["Data localization -- requiring data about citizens to be stored on domestic servers", "International cybersecurity treaty harmonization", "Multilateral export controls on cyber tools", "Public-private threat intelligence sharing requirements"]},
+  {q: "Section 230(c)(1) of the Communications Decency Act primarily protects platforms from liability for:", a: ["User-generated content (the 'under-moderation shield')", "Good-faith moderation decisions (the 'over-moderation shield')", "Foreign government takedown demands", "Federal antitrust enforcement"]},
+  {q: "Per Brandenburg v. Ohio (1969), incitement crosses into unprotected speech only when it is:", a: ["Directed to inciting or producing imminent lawless action AND likely to incite or produce such action", "Critical of government policy and viewed by more than 1 million people", "Directed at a specific named individual with violent intent", "Published anonymously without ID verification"]},
+  {q: "The Pegasus Project consortium reporting (July 2021) and subsequent US Department of Commerce action in November 2021 are reference events for which professional ethics dilemma?", a: ["Code-vs-contract conflict for individual practitioners at a vendor of dual-use surveillance technology", "The legal threshold for federal CFAA prosecution", "International data transfer compliance under GDPR", "The boundaries of the third-party doctrine in Fourth Amendment law"]},
+  {q: "The DMCA's three pillars most relevant to security research are:", a: ["Section 1201 anti-circumvention, Section 512 safe harbor, and notice-and-takedown", "Sections 101, 102, and 107 (definitions, scope, fair use)", "Sections 230, 231, and 232 (intermediary liability)", "Sections 1030, 2510, and 2701 (CFAA, ECPA, SCA)"]},
+  {q: "Aaron Swartz faced which level of CFAA exposure under the superseding indictment that drew sharp public criticism?", a: ["13 felony counts with theoretical maximum exposure of decades and seven-figure fines", "Two misdemeanor counts with a maximum one-year sentence", "A single CFAA felony count with a five-year maximum", "Civil penalties only, with no criminal exposure"]},
+  {q: "Van Buren v. United States (2021) narrowed the CFAA by holding that 'exceeds authorized access':", a: ["Does not cover situations where a person uses access they have for an improper purpose", "Now requires proof of financial harm of at least $5,000", "Applies only to federal computer systems, not private networks", "Requires explicit terms-of-service violation language to be enforceable"]},
+  {q: "Alice Corp. v. CLS Bank (2014) established what for software patents?", a: ["A two-step test: is the claim directed to an abstract idea, and if so does it contain 'significantly more'?", "Software patents are categorically unenforceable", "Only hardware-implemented algorithms can be patented", "Software patents require ten-year usage prior to filing"]},
+  {q: "The DTSA (2016) whistleblower immunity provision (18 U.S.C. § 1833(b)) protects:", a: ["Individuals who disclose trade secrets to government officials or attorneys for the purpose of reporting or investigating a suspected violation of law", "All trade-secret disclosures regardless of context or motive", "Only disclosures made under court subpoena", "Only disclosures made by certified attorneys"]},
+  {q: "Sega v. Accolade (9th Cir. 1992) and Sony v. Connectix (9th Cir. 2000) are cited together because both held that:", a: ["Reverse engineering for interoperability can qualify as fair use", "Software EULAs override federal copyright law", "Game console manufacturers have unlimited control over compatible accessories", "Patent law preempts copyright in the software domain"]},
+  {q: "When ethical frameworks disagree on a hard cybersecurity decision, the codes recommend the practitioner:", a: ["Apply multiple frameworks and make the most defensible choice -- one that survives scrutiny under several frameworks", "Default to whatever framework leadership prefers", "Apply only utilitarianism, since outcomes are most measurable", "Defer the decision to legal counsel"]}
+];
+
+// Shuffle utility
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// Render all questions -- answers are shuffled, correct index tracked per question
+const questionsContainer = document.getElementById("questions");
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement("div");
+  div.classList.add("question");
+  div.setAttribute("data-q", i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q}</p>
+    </div>
+  `;
+
+  // Shuffle answer order but preserve the original index (0 = correct) for server grading
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  questionsContainer.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Countdown timer (50 minutes)
+let timeLeft = 50 * 60;
+const timerEl = document.getElementById("timer");
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 300) timerEl.classList.add('warning');
+  if (timeLeft <= 60) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+// Track answered count in timer bar
+document.addEventListener('change', (e) => {
+  if (e.target.type === 'radio') {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  }
+});
+
+// Submit exam -- server-side graded (QC-21)
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  // Map shuffled positions back to original examData indices for server grading
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+
+      // Highlight correct and incorrect selections based on server results
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected && result) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Server grading failed:', e.message);
+  }
+
+  // Persist result locally
+  if (passed) {
+    localStorage.setItem('hexworth_divergent_cse_midterm_passed', 'true');
+    localStorage.setItem('hexworth_divergent_cse_midterm_score', percent);
+    localStorage.setItem('hexworth_divergent_cse_midterm_date', new Date().toISOString());
+  }
+
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = `
+    <h2>${passed ? 'Midterm Passed' : 'Keep Studying'}</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'You have passed the CIS2253 Midterm. You demonstrated command of cyberethics frameworks, security professional codes, NIST CSF anchoring, cyberspace governance, free speech in cyberspace, and intellectual property law.'
+        : `You need 70% (18/25) to pass. You scored ${score}/25. Review Weeks 1-2 modules and try again.`}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3>Midterm Complete</h3>
+        <p>Week 3 content (privacy and moral obligation) is now unlocked.</p>
+        <a href="../index.html" class="btn-continue">Continue to Week 3 →</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../quizzes/cse-w1.quiz.html" class="btn-continue" style="margin-right: 10px;">Review Week 1 Quiz</a>
+        <a href="../quizzes/cse-w2.quiz.html" class="btn-continue">Review Week 2 Quiz</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  // Record completion via ModuleProgress on pass
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.complete('divergent', 'cse-midterm', { returnUrl: '../index.html' });
+  }
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+</script>
+
+</body>
+</html>

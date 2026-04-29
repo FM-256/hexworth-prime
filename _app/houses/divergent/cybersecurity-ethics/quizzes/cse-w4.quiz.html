@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 4 Quiz: CIS2253</title>
+    <style>
+        :root { --bg: #090910; --bg-card: #12121e; --bg-option: #161625; --cyan: #ff00ff; --cyan-dim: rgba(255, 0, 255, 0.15); --text: #e2e8f0; --text-muted: #8892a8; --success: #22c55e; --danger: #ef4444; --border: rgba(255,255,255,0.08); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, var(--bg) 0%, #0f0f1a 50%, #110828 100%); color: var(--text); min-height: 100vh; line-height: 1.6; }
+        .quiz-container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .nav-links { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .back-link { color: var(--cyan); text-decoration: none; font-size: 0.9rem; transition: all 0.3s; }
+        .back-link:hover { color: #ff88ff; transform: translateX(-5px); }
+        .quiz-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--bg-card); border-radius: 14px; border: 1px solid var(--cyan-dim); }
+        .quiz-header h1 { font-size: 1.6rem; color: var(--cyan); margin-bottom: 0.5rem; }
+        .quiz-header .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .quiz-header .meta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem; }
+        .quiz-header .meta span { background: var(--bg); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); }
+        .progress-bar-wrap { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 1.5rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+        .progress-label { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; min-width: 110px; }
+        .progress-track { flex: 1; height: 6px; background: var(--bg-option); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), #ff66ff); width: 0%; transition: width 0.3s ease; }
+        .score-label { font-size: 0.78rem; color: var(--cyan); white-space: nowrap; min-width: 70px; text-align: right; }
+        .question-card { background: var(--bg-card); border-radius: 14px; padding: 2rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .question-num { font-size: 0.78rem; color: var(--cyan); letter-spacing: 0.1em; font-weight: 700; margin-bottom: 0.75rem; }
+        .question-text { font-size: 1.05rem; color: var(--text); margin-bottom: 1.5rem; line-height: 1.55; }
+        .options { display: flex; flex-direction: column; gap: 0.5rem; }
+        .option { display: flex; gap: 12px; padding: 0.85rem 1rem; background: var(--bg-option); border-radius: 8px; border: 1px solid transparent; cursor: pointer; transition: all 0.2s; align-items: flex-start; }
+        .option:hover:not(.disabled) { border-color: var(--cyan-dim); background: rgba(255, 0, 255, 0.05); }
+        .option.disabled { cursor: default; }
+        .option.correct { background: rgba(34, 197, 94, 0.15); border-color: var(--success); }
+        .option.incorrect { background: rgba(239, 68, 68, 0.15); border-color: var(--danger); }
+        .option-letter { font-weight: 700; color: var(--cyan); min-width: 22px; }
+        .option.correct .option-letter { color: var(--success); }
+        .option.incorrect .option-letter { color: var(--danger); }
+        .option span:last-child { font-size: 0.92rem; color: var(--text); line-height: 1.5; }
+        .feedback { margin-top: 1.25rem; padding: 0.85rem 1rem; border-radius: 8px; font-size: 0.88rem; line-height: 1.55; display: none; }
+        .feedback.correct { background: rgba(34, 197, 94, 0.10); border: 1px solid rgba(34, 197, 94, 0.3); color: #6ee7b7; display: block; }
+        .feedback.incorrect { background: rgba(239, 68, 68, 0.10); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; display: block; }
+        .quiz-nav { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
+        .next-btn { padding: 0.75rem 2rem; background: var(--cyan); color: #fff; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .next-btn:hover:not(:disabled) { background: #ff44ff; transform: translateY(-1px); }
+        .next-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .results-card { display: none; background: var(--bg-card); border-radius: 14px; padding: 2.5rem; border: 1px solid var(--cyan-dim); text-align: center; }
+        .results-card h2 { color: var(--cyan); font-size: 1.5rem; margin-bottom: 1rem; }
+        .score-big { font-size: 2.5rem; font-weight: 700; color: var(--success); margin: 1rem 0; }
+        .score-big.mid { color: #fbbf24; }
+        .score-big.low { color: var(--danger); }
+        .score-msg { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2rem; }
+        .results-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .btn-retry, .btn-hub { padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; }
+        .btn-retry { background: rgba(255, 0, 255, 0.15); border: 1px solid rgba(255, 0, 255, 0.4) !important; color: var(--cyan); }
+        .btn-retry:hover { background: var(--cyan); color: #fff; }
+        .btn-hub { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4) !important; color: var(--success); }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links"><a href="../index.html" class="back-link">&larr; Cybersecurity Ethics Hub</a></div>
+        <div class="quiz-header">
+            <h1>Week 4 Quiz</h1>
+            <p class="subtitle">Cyberspace Solarium Commission and capstone synthesis (CSE-09, CSE-10)</p>
+            <div class="meta">
+                <span>10 Questions</span>
+                <span>70% to Pass</span>
+                <span>Multiple attempts</span>
+            </div>
+        </div>
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 10</span>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav"><button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button></div>
+        </div>
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Hub</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        var questions = [
+            {
+                "q": "The Cyberspace Solarium Commission was chartered by:",
+                "opts": [
+                    "Executive Order 13636 (2013)",
+                    "The 2018 National Defense Authorization Act",
+                    "The Department of Homeland Security in 2019",
+                    "The National Security Council in 2020"
+                ],
+                "ans": 1,
+                "exp": "Congress chartered the Commission in the FY2018 NDAA. Modeled on the original 1953 Project Solarium that shaped Cold War strategy. The final report was published March 2020."
+            },
+            {
+                "q": "The Solarium report's three-layer 'layered cyber deterrence' strategy includes which sequence (top to bottom)?",
+                "opts": [
+                    "Detect \u2192 Respond \u2192 Recover",
+                    "Shape behavior \u2192 Deny benefits \u2192 Impose costs",
+                    "Prevent \u2192 Deter \u2192 Punish",
+                    "Identify \u2192 Protect \u2192 Defend"
+                ],
+                "ans": 1,
+                "exp": "The three layers: shape behavior (norms, diplomacy), deny benefits (resilience, public-private cooperation), and impose costs (defend forward, persistent engagement). Deterrence in cyber requires simultaneous mechanisms because no single one is sufficient."
+            },
+            {
+                "q": "The 'defend forward' doctrine endorsed by the Solarium Commission means:",
+                "opts": [
+                    "Building stronger perimeter firewalls at the network edge",
+                    "Engaging adversaries continuously in cyberspace short of armed conflict, operating against malicious actors before they reach US networks",
+                    "Requiring private companies to share all threat data with the government",
+                    "Pre-emptively encrypting all federal communications"
+                ],
+                "ans": 1,
+                "exp": "Defend forward (and its US Cyber Command counterpart 'persistent engagement') involves ongoing operations against adversary infrastructure before attacks reach US networks. The Commission did not invent this -- it endorsed and recommended structures to scale it. Raises significant ethical questions about private-sector cooperation, attribution thresholds, and collateral risk."
+            },
+            {
+                "q": "Which institutional outcome was most directly traceable to Solarium Pillar 1 (Reform US Government Structure)?",
+                "opts": [
+                    "The creation of the Office of the National Cyber Director (NCD), established by FY2021 NDAA",
+                    "The dissolution of CISA",
+                    "The creation of US Cyber Command",
+                    "The transfer of cybersecurity authority from DHS to DOD"
+                ],
+                "ans": 0,
+                "exp": "The NCD was a Pillar 1 recommendation enacted in the FY2021 NDAA. It centralizes federal cybersecurity policy coordination at Cabinet level, replacing the prior scattered approach across NSC, OMB, Commerce, and DHS."
+            },
+            {
+                "q": "JCDC (Joint Cyber Defense Collaborative), stood up at CISA in 2021, primarily implements which Solarium pillar?",
+                "opts": [
+                    "Pillar 2 -- Strengthen Norms",
+                    "Pillar 5 -- Operationalize Public-Private Collaboration",
+                    "Pillar 6 -- Preserve and Employ the Military Instrument",
+                    "Pillar 4 -- Reshape the Cyber Ecosystem"
+                ],
+                "ans": 1,
+                "exp": "JCDC implements Pillar 5 by moving public-private cooperation from 'share threat intel after the breach' to 'operate together before the breach.' It is the visible institutional outcome of the Solarium's collaboration recommendations."
+            },
+            {
+                "q": "The SolarWinds compromise (publicly disclosed December 2020) is significant for the Solarium narrative because:",
+                "opts": [
+                    "It validated the layered-deterrence strategy as completely successful",
+                    "It tested the Solarium-era model in real time, demonstrating supply-chain compromise as a primary vector and prompting EO 14028 (May 2021)",
+                    "It proved that Solarium's recommendations were impossible to implement",
+                    "It led to the dissolution of the CSC"
+                ],
+                "ans": 1,
+                "exp": "SolarWinds happened just as Solarium recommendations were being implemented. Discovery was private-sector (FireEye); attribution and response coordination tested CISA's then-new role. The supply-chain dimension prompted EO 14028 on supply-chain security. The Commission continues as CSC 2.0 to track implementation."
+            },
+            {
+                "q": "What are the 'three lenses' the course recommends carrying into every nontrivial cybersecurity-ethics decision?",
+                "opts": [
+                    "Risk, cost, schedule",
+                    "Which Lessig modality, which ethical framework, which CSF subcategory",
+                    "Compliance, technology, people",
+                    "Detect, respond, document"
+                ],
+                "ans": 1,
+                "exp": "The three lenses: which modality (law/norms/market/code) is doing the regulatory work, which framework (utilitarian/deontological/virtue/contractual) is being assumed by each side, and which CSF subcategory (ID.BE/ID.GV/PR.AT/PR.IP) the case maps onto."
+            },
+            {
+                "q": "When obligations conflict in a hard case, the priority order all four codes establish (highest to lowest) is:",
+                "opts": [
+                    "Self \u2192 client \u2192 employer \u2192 profession \u2192 public",
+                    "Public \u2192 profession \u2192 client/employer \u2192 self",
+                    "Employer \u2192 client \u2192 profession \u2192 public \u2192 self",
+                    "Profession \u2192 client \u2192 public \u2192 employer \u2192 self"
+                ],
+                "ans": 1,
+                "exp": "All four codes (ASIS, ISACA, GIAC, Ethics FIRST) prioritize public welfare over employer/client when they conflict. The hard-case order inverts the daily-priority order. 'I followed instructions' is not a defense the codes recognize."
+            },
+            {
+                "q": "Which case from this course is the canonical reference for 'code is law' -- a corporation enforcing copyright through architecture?",
+                "opts": [
+                    "Apple v. FBI (2016)",
+                    "Sony BMG rootkit (2005)",
+                    "Carpenter v. United States (2018)",
+                    "Schrems II (2020)"
+                ],
+                "ans": 1,
+                "exp": "Sony BMG (2005) is the defining 'code is law' case: the corporation enforced copyright via DRM software (XCP, MediaMax) that silently installed a rootkit. Researcher Mark Russinovich discovered and publicized it. Recall, FTC consent order, and AG settlements followed."
+            },
+            {
+                "q": "Why does the course describe NIST CSF as the 'right anchor for an ethics course'?",
+                "opts": [
+                    "CSF includes mandatory ethics training requirements",
+                    "CSF tells you what to think about (the questions) rather than what specific control to implement (the answer) -- the same structure as ethical reasoning",
+                    "CSF is the only cybersecurity framework with legal force",
+                    "CSF was specifically designed by ethicists"
+                ],
+                "ans": 1,
+                "exp": "CSF is right-fit because it asks you to think about risk in context rather than mandating specific controls. Ethics is similarly 'what are the rules for, and which one applies here' rather than 'follow the checklist.' The CSF subcategories ARE the ethical decisions, just expressed in defensive language."
+            }
+        ];
+        var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').textContent = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')"><span class="option-letter">' + letters[i] + '</span><span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct. ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+            if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+        }
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) { showResults(); return; }
+            loadQuestion();
+        }
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+            if (pct >= 80) scoreBig.className = 'score-big';
+            else if (pct >= 60) scoreBig.className = 'score-big mid';
+            else scoreBig.className = 'score-big low';
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. You have command of the Week 4 vocabulary.';
+            else if (pct >= 70) msg = 'Solid pass. Review any questions you missed before the midterm.';
+            else if (pct >= 50) msg = 'Close. Re-walk this week's modules and try again.';
+            else msg = 'Keep studying. Re-read the modules and try again.';
+            document.getElementById('scoreMsg').textContent = msg;
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') ModuleProgress.completeQuiz('divergent', 'cse-w4-quiz', score);
+        }
+        function restartQuiz() {
+            current = 0; score = 0; answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            loadQuestion();
+        }
+        loadQuestion();
+    </script>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 2 Quiz: CIS2253</title>
+    <style>
+        :root { --bg: #090910; --bg-card: #12121e; --bg-option: #161625; --cyan: #ff00ff; --cyan-dim: rgba(255, 0, 255, 0.15); --text: #e2e8f0; --text-muted: #8892a8; --success: #22c55e; --danger: #ef4444; --border: rgba(255,255,255,0.08); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, var(--bg) 0%, #0f0f1a 50%, #110828 100%); color: var(--text); min-height: 100vh; line-height: 1.6; }
+        .quiz-container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .nav-links { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .back-link { color: var(--cyan); text-decoration: none; font-size: 0.9rem; transition: all 0.3s; }
+        .back-link:hover { color: #ff88ff; transform: translateX(-5px); }
+        .quiz-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: var(--bg-card); border-radius: 14px; border: 1px solid var(--cyan-dim); }
+        .quiz-header h1 { font-size: 1.6rem; color: var(--cyan); margin-bottom: 0.5rem; }
+        .quiz-header .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .quiz-header .meta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.8rem; }
+        .quiz-header .meta span { background: var(--bg); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-muted); }
+        .progress-bar-wrap { background: var(--bg-card); border-radius: 10px; padding: 14px 18px; margin-bottom: 1.5rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 14px; }
+        .progress-label { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; min-width: 110px; }
+        .progress-track { flex: 1; height: 6px; background: var(--bg-option); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), #ff66ff); width: 0%; transition: width 0.3s ease; }
+        .score-label { font-size: 0.78rem; color: var(--cyan); white-space: nowrap; min-width: 70px; text-align: right; }
+        .question-card { background: var(--bg-card); border-radius: 14px; padding: 2rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        .question-num { font-size: 0.78rem; color: var(--cyan); letter-spacing: 0.1em; font-weight: 700; margin-bottom: 0.75rem; }
+        .question-text { font-size: 1.05rem; color: var(--text); margin-bottom: 1.5rem; line-height: 1.55; }
+        .options { display: flex; flex-direction: column; gap: 0.5rem; }
+        .option { display: flex; gap: 12px; padding: 0.85rem 1rem; background: var(--bg-option); border-radius: 8px; border: 1px solid transparent; cursor: pointer; transition: all 0.2s; align-items: flex-start; }
+        .option:hover:not(.disabled) { border-color: var(--cyan-dim); background: rgba(255, 0, 255, 0.05); }
+        .option.disabled { cursor: default; }
+        .option.correct { background: rgba(34, 197, 94, 0.15); border-color: var(--success); }
+        .option.incorrect { background: rgba(239, 68, 68, 0.15); border-color: var(--danger); }
+        .option-letter { font-weight: 700; color: var(--cyan); min-width: 22px; }
+        .option.correct .option-letter { color: var(--success); }
+        .option.incorrect .option-letter { color: var(--danger); }
+        .option span:last-child { font-size: 0.92rem; color: var(--text); line-height: 1.5; }
+        .feedback { margin-top: 1.25rem; padding: 0.85rem 1rem; border-radius: 8px; font-size: 0.88rem; line-height: 1.55; display: none; }
+        .feedback.correct { background: rgba(34, 197, 94, 0.10); border: 1px solid rgba(34, 197, 94, 0.3); color: #6ee7b7; display: block; }
+        .feedback.incorrect { background: rgba(239, 68, 68, 0.10); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; display: block; }
+        .quiz-nav { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
+        .next-btn { padding: 0.75rem 2rem; background: var(--cyan); color: #fff; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .next-btn:hover:not(:disabled) { background: #ff44ff; transform: translateY(-1px); }
+        .next-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .results-card { display: none; background: var(--bg-card); border-radius: 14px; padding: 2.5rem; border: 1px solid var(--cyan-dim); text-align: center; }
+        .results-card h2 { color: var(--cyan); font-size: 1.5rem; margin-bottom: 1rem; }
+        .score-big { font-size: 2.5rem; font-weight: 700; color: var(--success); margin: 1rem 0; }
+        .score-big.mid { color: #fbbf24; }
+        .score-big.low { color: var(--danger); }
+        .score-msg { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 2rem; }
+        .results-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .btn-retry, .btn-hub { padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; }
+        .btn-retry { background: rgba(255, 0, 255, 0.15); border: 1px solid rgba(255, 0, 255, 0.4) !important; color: var(--cyan); }
+        .btn-retry:hover { background: var(--cyan); color: #fff; }
+        .btn-hub { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4) !important; color: var(--success); }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links"><a href="../index.html" class="back-link">&larr; Cybersecurity Ethics Hub</a></div>
+        <div class="quiz-header">
+            <h1>Week 2 Quiz</h1>
+            <p class="subtitle">Cyberspace governance, free speech, intellectual property (CSE-04, CSE-05, CSE-06)</p>
+            <div class="meta">
+                <span>10 Questions</span>
+                <span>70% to Pass</span>
+                <span>Multiple attempts</span>
+            </div>
+        </div>
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 10</span>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav"><button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button></div>
+        </div>
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Hub</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        var questions = [
+            {
+                "q": "Spinello identifies three competing visions for cyberspace governance. Which one privileges ICANN, IGF, and the IETF as venues for collective decision-making?",
+                "opts": [
+                    "State-led / sovereign",
+                    "Multistakeholder",
+                    "Market-led / private",
+                    "Treaty-based"
+                ],
+                "ans": 1,
+                "exp": "The multistakeholder model gives technical community, civil society, governments, business, academia, and end users formal seats. ICANN, IGF, and IETF are its institutional homes."
+            },
+            {
+                "q": "Anu Bradford's 'Brussels Effect' describes which mechanism?",
+                "opts": [
+                    "EU regulators directly imposing fines on US companies",
+                    "A single market's regulation becoming a de facto global standard because companies build to those rules and apply them everywhere",
+                    "European multinational companies dominating US cybersecurity vendor markets",
+                    "The EU forcing US-EU bilateral trade treaties on cybersecurity"
+                ],
+                "ans": 1,
+                "exp": "The Brussels Effect is unilateral regulatory globalization: EU rules apply globally because firms find it cheaper to comply everywhere than to maintain dual systems. GDPR is the canonical example."
+            },
+            {
+                "q": "The CLOUD Act (2018) primarily resolves which legal question?",
+                "opts": [
+                    "Whether US warrants can compel US-based service providers to produce data they control regardless of where the data is stored",
+                    "Whether EU citizens can sue US cloud providers in European courts",
+                    "Whether private companies can encrypt customer data without government access",
+                    "Whether US courts have jurisdiction over foreign data brokers operating in the US"
+                ],
+                "ans": 0,
+                "exp": "The CLOUD Act extended US warrant authority to data controlled by US providers regardless of physical storage location, statutorily resolving Microsoft v. United States (the 'Microsoft Ireland' case) before the Supreme Court ruled. The case was vacated as moot."
+            },
+            {
+                "q": "Russia's Federal Law 242-FZ, China's Cybersecurity/DSL/PIPL stack, and India's DPDP Act are examples of which trend?",
+                "opts": [
+                    "International cybersecurity treaty harmonization",
+                    "Data localization -- requiring data about citizens to be stored on domestic servers",
+                    "Multilateral export controls on cyber tools",
+                    "Public-private threat intelligence sharing frameworks"
+                ],
+                "ans": 1,
+                "exp": "All three are data localization regimes, pushing toward fragmentation of the global internet ('splinternet' thesis). Multinational platforms increasingly maintain regional data centers and architectural separation to comply."
+            },
+            {
+                "q": "The First Amendment most directly binds which of the following?",
+                "opts": [
+                    "Twitter's content moderation team",
+                    "A small private company's HR department",
+                    "Federal, state, and local government action against speech",
+                    "Foreign governments operating servers accessible from the US"
+                ],
+                "ans": 2,
+                "exp": "The state-action requirement: the First Amendment binds federal government and (via the 14th) state and local government. It does not bind private platforms. Twitter banning an account is not a First Amendment violation; the state ordering Twitter to ban an account would be."
+            },
+            {
+                "q": "Section 230 of the Communications Decency Act has two distinct provisions. Section 230(c)(1) primarily protects platforms from:",
+                "opts": [
+                    "Liability for user-generated content (under-moderation shield)",
+                    "Liability for good-faith moderation decisions (over-moderation shield)",
+                    "Foreign government takedown demands",
+                    "Federal antitrust enforcement"
+                ],
+                "ans": 0,
+                "exp": "Section 230(c)(1) provides platforms aren't 'publisher or speaker' of user content -- the under-moderation shield. Section 230(c)(2) is the separate over-moderation shield protecting good-faith removals. The DSA was designed to address both differently."
+            },
+            {
+                "q": "Per Brandenburg v. Ohio (1969), speech crosses into unprotected 'incitement' only when:",
+                "opts": [
+                    "It expresses any approval of violence",
+                    "It is directed to inciting OR producing imminent lawless action AND is likely to incite or produce such action",
+                    "It targets a specific named individual",
+                    "It receives more than 1 million views online"
+                ],
+                "ans": 1,
+                "exp": "Brandenburg established a two-prong test: speech must be (a) directed at imminent lawless action AND (b) likely to produce such action. The imminence requirement appears in BOTH prongs, which is why most rage-bait fails the test."
+            },
+            {
+                "q": "Which of the following is NOT one of the three pillars of the DMCA most directly relevant to security research?",
+                "opts": [
+                    "Section 1201: Anti-circumvention provisions",
+                    "Section 512: Safe harbor for service providers",
+                    "Notice-and-takedown procedures",
+                    "Section 1031: Mandatory bug bounty disclosure"
+                ],
+                "ans": 3,
+                "exp": "Section 1031 does not exist in the DMCA. The three relevant pillars are anti-circumvention (\u00a7 1201), safe harbor (\u00a7 512), and notice-and-takedown procedures. Library of Congress triennial rulemaking grants security-research exemptions to \u00a7 1201."
+            },
+            {
+                "q": "Van Buren v. United States (2021) narrowed CFAA scope by ruling that:",
+                "opts": [
+                    "All terms-of-service violations are now federal crimes",
+                    "'Exceeds authorized access' does not cover using authorized access for an improper purpose",
+                    "Foreign nationals cannot be charged under the CFAA",
+                    "Civil CFAA actions require government approval"
+                ],
+                "ans": 1,
+                "exp": "The 6-3 ruling: 'exceeds authorized access' applies only to access of specific files/folders the user is not permitted to access. Using authorized access for improper purposes (or violating ToS) is no longer per se a federal crime. Major narrowing for security research."
+            },
+            {
+                "q": "Alice Corp. v. CLS Bank (2014) established that:",
+                "opts": [
+                    "Trade secrets cannot be patented under federal law",
+                    "Reverse engineering for interoperability is always fair use",
+                    "Abstract ideas implemented on a generic computer are not patent-eligible under 35 U.S.C. \u00a7 101",
+                    "Software cannot be copyrighted; only hardware can"
+                ],
+                "ans": 2,
+                "exp": "Alice established the two-step test for software patent eligibility: (1) is the claim directed to an abstract idea? (2) if yes, does it contain 'significantly more'? Many software patents have been invalidated under this test."
+            }
+        ];
+        var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').textContent = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')"><span class="option-letter">' + letters[i] + '</span><span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct. ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+            if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+        }
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) { showResults(); return; }
+            loadQuestion();
+        }
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+            if (pct >= 80) scoreBig.className = 'score-big';
+            else if (pct >= 60) scoreBig.className = 'score-big mid';
+            else scoreBig.className = 'score-big low';
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding. You have command of the Week 2 vocabulary.';
+            else if (pct >= 70) msg = 'Solid pass. Review any questions you missed before the midterm.';
+            else if (pct >= 50) msg = 'Close. Re-walk this week's modules and try again.';
+            else msg = 'Keep studying. Re-read the modules and try again.';
+            document.getElementById('scoreMsg').textContent = msg;
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') ModuleProgress.completeQuiz('divergent', 'cse-w2-quiz', score);
+        }
+        function restartQuiz() {
+            current = 0; score = 0; answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            loadQuestion();
+        }
+        loadQuestion();
+    </script>
+</body>
+</html>
