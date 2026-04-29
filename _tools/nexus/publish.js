@@ -2,7 +2,14 @@
 'use strict';
 
 // ── publish.js ────────────────────────────────────────────────────────
-// Publishes Nexus scan results to Firestore (_quality_reports/latest).
+// Publishes Nexus scan results to Firestore.
+//
+// Two outputs:
+//   1. _quality_reports/latest — read-only summary for Pulse health/severity
+//   2. _triage_queue + _auto_fix_queue — Slice 1 of the bidirectional control
+//      plane. Aggregated, fingerprinted, severity-gated. See:
+//      _docs/features/SELF_HEALING_PIPELINE.md
+//
 // Called by nexus.js when the --publish flag is passed to `full` or `scan`.
 //
 // Uses firebase-admin from the functions/ directory (already installed).
@@ -10,6 +17,28 @@
 // ──────────────────────────────────────────────────────────────────────
 
 const path = require('path');
+const crypto = require('crypto');
+
+// ── Self-healing pipeline configuration ────────────────────────────────
+// Per Nancy review (2026-04-29) and the design doc's promotion rule:
+// classes must have (a) a fix-template document, (b) a FUNC validator
+// before being added here. Slice 1 ships EMPTY. Classes added in Slice 3.
+const AUTO_FIX_ELIGIBLE_RULES = new Set([
+    // Empty in Slice 1 — see _docs/features/SELF_HEALING_PIPELINE.md
+]);
+
+// Severity gate: only critical + high enter the live triage queue.
+// Medium/low/warning/suspect remain in _quality_reports/latest for
+// inspection but do not flood the triage panel.
+const TRIAGE_SEVERITY_GATE = new Set(['critical', 'high']);
+
+// Severity → seed priority. Humans can re-rank freely afterward.
+const SEVERITY_PRIORITY = {
+    critical: 90,
+    high: 70,
+    medium: 40,
+    low: 20,
+};
 
 // Resolve firebase-admin from the functions/ directory
 const FUNCTIONS_DIR = path.resolve(__dirname, '../../functions');
@@ -171,4 +200,231 @@ function buildSummary(hub, config, spokes, store, gateResult, duration) {
     };
 }
 
-module.exports = { publishToFirestore, buildSummary };
+// ──────────────────────────────────────────────────────────────────────
+// Self-healing pipeline: triage queue + auto-fix queue publishers
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Normalize a file path for consistent fingerprinting / grouping.
+ * Strips the leading _app/ if present, strips trailing whitespace.
+ */
+function normalizePath(filePath) {
+    if (!filePath) return '';
+    let p = String(filePath).trim();
+    if (p.startsWith('_app/')) p = p.slice(5);
+    return p;
+}
+
+/**
+ * Compute a stable directory prefix for grouping.
+ * Returns the first N path segments joined with /. For
+ * houses/divergent/cybersecurity-ethics/foo.html, depth=2 gives
+ * houses/divergent/.
+ */
+function directoryPrefix(filePath, depth = 2) {
+    const norm = normalizePath(filePath);
+    if (!norm) return '';
+    const parts = norm.split('/').filter(Boolean);
+    return parts.slice(0, Math.min(depth, parts.length - 1)).join('/') + '/';
+}
+
+/**
+ * sha256 hex of an arbitrary string. 64 chars — matches the rule check.
+ */
+function sha256Hex(s) {
+    return crypto.createHash('sha256').update(String(s)).digest('hex');
+}
+
+/**
+ * Aggregate Nexus issues into triage queue items.
+ *
+ * Input: array of issues (from TREASURE_MAP.issues), each like:
+ *   { code, severity, message, file, line, fix?, category? }
+ *
+ * Output: { triageItems: [...], autoFixItems: [...] }
+ *   - triageItems: severity-gated, grouped by (rule, directoryPrefix)
+ *   - autoFixItems: AUTO_FIX_ELIGIBLE_RULES set, grouped same way
+ *
+ * Each item includes:
+ *   - defectFingerprint: sha256(rule|normalizedDir) — stable across runs
+ *   - groupKey: human-readable identifier (e.g. "PATH-001::houses/divergent/")
+ *   - childCount: how many raw issues rolled up
+ *   - childPaths: up to 50 sample paths
+ *   - severity, priority, status: for queue lifecycle
+ *
+ * @param {Array} issues - raw Nexus findings from TREASURE_MAP.json
+ * @returns {{triageItems: Array, autoFixItems: Array}}
+ */
+function buildTriageItems(issues) {
+    if (!Array.isArray(issues)) return { triageItems: [], autoFixItems: [] };
+
+    // Group: (rule, normalizedDir) → array of issues
+    const groups = new Map();
+    for (const issue of issues) {
+        const rule = issue.code || 'UNKNOWN';
+        const sev = issue.severity || 'low';
+
+        // Skip severity below the gate UNLESS rule is auto-fix-eligible
+        // (auto-fix items can be at any severity per design doc)
+        const isAutoFix = AUTO_FIX_ELIGIBLE_RULES.has(rule);
+        if (!TRIAGE_SEVERITY_GATE.has(sev) && !isAutoFix) continue;
+
+        const dir = directoryPrefix(issue.file);
+        const groupKey = `${rule}::${dir}`;
+        if (!groups.has(groupKey)) {
+            groups.set(groupKey, { rule, dir, severity: sev, isAutoFix, issues: [] });
+        }
+        const g = groups.get(groupKey);
+        g.issues.push(issue);
+        // Promote group severity to the highest of any member
+        const sevOrder = ['low', 'medium', 'high', 'critical'];
+        if (sevOrder.indexOf(sev) > sevOrder.indexOf(g.severity)) {
+            g.severity = sev;
+        }
+    }
+
+    const triageItems = [];
+    const autoFixItems = [];
+
+    for (const [groupKey, g] of groups) {
+        const fingerprint = sha256Hex(`${g.rule}|${g.dir}`);
+        const sample = g.issues[0] || {};
+        const childPaths = g.issues
+            .slice(0, 50)
+            .map(i => i.file)
+            .filter(Boolean);
+
+        const item = {
+            defectFingerprint: fingerprint,
+            source: 'nexus',
+            severity: g.severity,
+            rule: g.rule,
+            ruleVersion: '1.0.0',
+            title: `${g.rule}: ${g.issues.length} finding${g.issues.length === 1 ? '' : 's'} in ${g.dir || 'root'}`,
+            description: sample.message || '',
+            filePath: sample.file || null,
+            lineNumber: sample.line || null,
+            groupKey: groupKey,
+            childCount: g.issues.length,
+            childPaths: childPaths,
+            status: 'open',
+            priority: Math.round(SEVERITY_PRIORITY[g.severity] || 0),
+            owner: null,
+            claimedAt: null,
+            heartbeatAt: null,
+            autoFixEligible: g.isAutoFix,
+            fixTemplate: null,
+            // createdAt / updatedAt are set at write time using server timestamps
+            history: [],
+        };
+
+        if (g.isAutoFix) {
+            autoFixItems.push({ docId: fingerprint, data: item });
+        } else {
+            triageItems.push({ docId: fingerprint, data: item });
+        }
+    }
+
+    return { triageItems, autoFixItems };
+}
+
+/**
+ * Write triage and auto-fix items to Firestore using upsert semantics.
+ * Doc ID = defectFingerprint, so re-runs of nexus update existing items
+ * rather than duplicating. createdAt is preserved on existing items;
+ * mutable fields (status, priority, owner, etc.) are NOT overwritten by
+ * a fresh scan — only the descriptive fields and childCount/childPaths
+ * are refreshed. updatedAt always bumps.
+ *
+ * @param {{triageItems: Array, autoFixItems: Array}} items
+ * @returns {Promise<{triageWrites: number, autoFixWrites: number}>}
+ */
+async function publishTriageQueues(items) {
+    process.env.GOOGLE_CLOUD_PROJECT = 'hexworth-prime';
+    const admin = require(path.join(FUNCTIONS_DIR, 'node_modules/firebase-admin'));
+    if (!admin.apps.length) {
+        admin.initializeApp({ projectId: 'hexworth-prime' });
+    }
+    const db = admin.firestore();
+    const { Timestamp, FieldValue } = admin.firestore;
+
+    let triageWrites = 0;
+    let autoFixWrites = 0;
+
+    async function upsertOne(collection, docId, data) {
+        const ref = db.collection(collection).doc(docId);
+        const snap = await ref.get();
+        const now = Timestamp.now();
+
+        if (!snap.exists) {
+            // Create — set all fields including createdAt
+            await ref.set({
+                ...data,
+                createdAt: now,
+                updatedAt: now,
+            });
+        } else {
+            // Update — preserve createdAt and any human-set lifecycle fields.
+            // Only refresh descriptive fields + childCount/childPaths + updatedAt.
+            const existing = snap.data();
+            await ref.update({
+                title: data.title,
+                description: data.description,
+                filePath: data.filePath,
+                lineNumber: data.lineNumber,
+                childCount: data.childCount,
+                childPaths: data.childPaths,
+                ruleVersion: data.ruleVersion,
+                updatedAt: now,
+                // Status/priority/owner/etc preserved from existing doc.
+                // If status was 'resolved' but the defect re-appeared, leave
+                // it resolved — Slice 2/3 will handle re-open semantics.
+            });
+        }
+    }
+
+    for (const { docId, data } of items.triageItems) {
+        await upsertOne('_triage_queue', docId, data);
+        triageWrites++;
+    }
+    for (const { docId, data } of items.autoFixItems) {
+        await upsertOne('_auto_fix_queue', docId, data);
+        autoFixWrites++;
+    }
+
+    return { triageWrites, autoFixWrites };
+}
+
+/**
+ * High-level entry point called by nexus.js after a scan.
+ * Reads issues from TREASURE_MAP.json, aggregates, writes both queues.
+ *
+ * @returns {Promise<{triageWrites: number, autoFixWrites: number, groupCount: number}>}
+ */
+async function publishTriage() {
+    const fs = require('fs');
+    const reportPath = path.resolve(__dirname, '../reports/TREASURE_MAP.json');
+    if (!fs.existsSync(reportPath)) {
+        console.warn('[publishTriage] TREASURE_MAP.json not found; skipping triage publish');
+        return { triageWrites: 0, autoFixWrites: 0, groupCount: 0 };
+    }
+    const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+    const issues = report.issues || [];
+    const items = buildTriageItems(issues);
+    const result = await publishTriageQueues(items);
+    return {
+        ...result,
+        groupCount: items.triageItems.length + items.autoFixItems.length,
+    };
+}
+
+module.exports = {
+    publishToFirestore,
+    buildSummary,
+    // Slice 1 — self-healing pipeline
+    publishTriage,
+    buildTriageItems,         // exported for unit testing
+    normalizePath,            // exported for unit testing
+    directoryPrefix,          // exported for unit testing
+    sha256Hex,                // exported for unit testing
+};

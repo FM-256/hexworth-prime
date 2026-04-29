@@ -193,7 +193,7 @@ async function cmdScan(args, flags) {
     {
         const duration = Date.now() - scanStart;
         const gateResult = hub.runGate(config, spokes, { strict: false });
-        const { buildSummary, publishToFirestore } = require('./publish');
+        const { buildSummary, publishToFirestore, publishTriage } = require('./publish');
         const summary = buildSummary(hub, config, spokes, store, gateResult, duration);
 
         console.log('');
@@ -203,6 +203,14 @@ async function cmdScan(args, flags) {
             console.log(`  ${C.green}Published${C.reset} ${C.dim}→ _quality_reports/latest${C.reset}`);
         } catch (err) {
             console.error(`  ${C.red}Publish failed: ${err.message}${C.reset}`);
+        }
+
+        // Slice 1 — self-healing pipeline triage queues
+        try {
+            const tr = await publishTriage();
+            console.log(`  ${C.green}Triage published${C.reset} ${C.dim}→ _triage_queue: ${tr.triageWrites}, _auto_fix_queue: ${tr.autoFixWrites}${C.reset}`);
+        } catch (err) {
+            console.error(`  ${C.red}Triage publish failed: ${err.message}${C.reset}`);
         }
     }
 
@@ -782,10 +790,14 @@ async function cmdFull(args, flags) {
         console.log(`  ${C.cyan}Publishing to Firestore...${C.reset}`);
         try {
             const duration = Date.now() - scanStart;
-            const { buildSummary, publishToFirestore } = require('./publish');
+            const { buildSummary, publishToFirestore, publishTriage } = require('./publish');
             const summary = buildSummary(hub, config, spokes, store, gateResult, duration);
             await publishToFirestore(summary);
             console.log(`  ${C.green}Published${C.reset} ${C.dim}→ _quality_reports/latest${C.reset}`);
+
+            // Slice 1 — self-healing pipeline triage queues
+            const tr = await publishTriage();
+            console.log(`  ${C.green}Triage published${C.reset} ${C.dim}→ _triage_queue: ${tr.triageWrites}, _auto_fix_queue: ${tr.autoFixWrites}${C.reset}`);
         } catch (err) {
             console.error(`  ${C.red}Publish failed: ${err.message}${C.reset}`);
         }

@@ -388,6 +388,79 @@ service cloud.firestore {
       // Only CLI (admin SDK) can write — no client writes allowed
     }
 
+    // ─── Self-Healing Pipeline Queues ────────────────────────────────
+    // Slice 1 of the bidirectional control plane. See:
+    //   _docs/features/SELF_HEALING_PIPELINE.md
+    //
+    // _triage_queue: human-reviewed high/critical defects (aggregated)
+    // _auto_fix_queue: agent-pull queue (Slice 1 ships empty allowlist;
+    //                  Slice 3 enables agent-pull when fix templates exist)
+    //
+    // Both queues: admin-only read/write. Schema enforced via hasOnly
+    // (extra-field injection blocked). Immutable fields preserved across
+    // updates (defectFingerprint, source, severity, rule, createdAt).
+    // Owner field validated via agent/human regex when set.
+
+    function isValidActor(id) {
+      return id is string && id.matches('^(agent|human):[a-z0-9_-]+$');
+    }
+
+    function isValidTriageData() {
+      return request.resource.data.keys().hasAll([
+            'defectFingerprint', 'source', 'severity', 'status',
+            'priority', 'autoFixEligible', 'createdAt', 'updatedAt'
+          ])
+        && request.resource.data.keys().hasOnly([
+            'defectFingerprint', 'source', 'severity', 'rule', 'ruleVersion',
+            'title', 'description', 'filePath', 'lineNumber',
+            'groupKey', 'childCount', 'childPaths',
+            'status', 'priority', 'owner', 'claimedAt', 'heartbeatAt',
+            'autoFixEligible', 'fixTemplate',
+            'createdAt', 'updatedAt', 'resolvedAt', 'resolvedBy', 'resolveCommitSha',
+            'history'
+          ])
+        && request.resource.data.defectFingerprint is string
+        && request.resource.data.defectFingerprint.size() == 64
+        && request.resource.data.source in ['nexus', 'sprint-master', 'manual']
+        && request.resource.data.severity in ['critical', 'high', 'medium', 'low']
+        && request.resource.data.status in ['open', 'claimed', 'in-progress', 'resolved', 'deferred', 'dismissed']
+        && request.resource.data.autoFixEligible is bool
+        && request.resource.data.priority is number
+        && request.resource.data.priority >= 0
+        && request.resource.data.priority <= 100
+        && (!('owner' in request.resource.data)
+            || request.resource.data.owner == null
+            || isValidActor(request.resource.data.owner));
+    }
+
+    function preservesImmutableFields() {
+      return request.resource.data.defectFingerprint == resource.data.defectFingerprint
+        && request.resource.data.source == resource.data.source
+        && request.resource.data.severity == resource.data.severity
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.get('rule', null) == resource.data.get('rule', null);
+    }
+
+    match /_triage_queue/{itemId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidTriageData();
+      allow update: if isAdmin() && isValidTriageData() && preservesImmutableFields();
+      allow delete: if isAdmin();
+    }
+
+    match /_auto_fix_queue/{itemId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidTriageData();
+      allow update: if isAdmin() && isValidTriageData() && preservesImmutableFields();
+      allow delete: if isAdmin();
+    }
+
+    // Item history archive — written on resolve to keep main item lean
+    match /_triage_history/{itemId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
     // ─── Admin Task Board ─────────────────────────────────────────────
     // Shared operational task board for the admin team.
     // Full read/write gated to admins only — no student access.

@@ -1,6 +1,6 @@
 # Self-Healing Pipeline — Bidirectional Control Plane
 
-**Status:** PROPOSED — not implemented
+**Status:** APPROVED FOR BUILD — Option A locked 2026-04-29
 **Components (existing):** Nexus, EduScan, Sprint Master, NexusReader, Pulse, Marathon Agents
 **Components (new):** `_triage_queue` Firestore collection, Sprint Master HTTP bridge, marathon priority-poll loop
 **Decision deadline:** Before any further Pulse triage UI work
@@ -365,17 +365,92 @@ A self-healing system that produces a regression once destroys all credibility b
 
 ---
 
-## Decision needed from user
+## Decision log
 
-Three paths forward — pick one before further Pulse triage UI work:
+**2026-04-29 — Option A approved.** User: *"we want it to be functional."*
 
-**A. Build the bidirectional control plane** (described above). 2-week phased build. Real loop closure.
+Rejected:
+- B (strip buttons / stay read-only): rejected as exploratory-only.
+- C (localStorage cosmetic reorder): rejected by both Nancy and primary agent — false-confidence theater.
 
-**B. Strip the buttons from Pulse for now.** Honest stopgap. No promise without delivery. Resume when ready.
+**2026-04-29 — Phase 0 sequencing: Option 2 chosen.** Phase 1 plumbing built before throughput measurement; throughput observed as side-effect of operation rather than as separate exercise. Reasoning: Phase 1 is independently valuable (honest data backend + manual human triage) regardless of agent-fix throughput; Phase 0 risk concentrates in Phase 2 when agents pull from queue.
 
-**C. Build minimal localStorage reordering** (the original "great feature" idea). Cheap, fast, but cosmetic-only. Risk: false confidence.
+---
 
-Recommendation: **A** if the self-healing path is committed-to; **B** if it is exploratory. Do not pick **C**.
+## Execution plan (locked 2026-04-29)
+
+Build is sliced into independently shippable, independently reviewable units. Each slice is committed + deployed + verified before the next begins.
+
+### Slice 1 — Data backend (target: 1–2 hours)
+
+**Goal:** `_triage_queue` populated with real Nexus findings, aggregated, with stable fingerprints. Pulse stays read-only this slice — backend only.
+
+1. Extend `firestore.rules` with `_triage_queue` rules (admin-only read; admin write with `agentId` regex validation; transactional `claim` enforced via field constraints)
+2. Extend `_tools/nexus/publish.js` with `publishTriage(findings)` step:
+   - Compute `defectFingerprint` per finding (sha256 of rule + normalized path + line context)
+   - Roll up by `(rule, directory prefix)` → group items
+   - Severity gate: only `critical + high` enter the live queue; others skipped (still in `_quality_reports/latest`)
+   - Auto-fix-eligible items go to `_auto_fix_queue` instead of `_triage_queue`
+3. Run `nexus full --publish` to populate
+4. **Sanity check:** confirm 117 raw highs collapsed to roughly 8–15 grouped items
+5. Commit + verify Firestore state (no Pulse changes yet)
+
+**Definition of done:** `_triage_queue` collection exists, contains aggregated grouped items, every item has a valid `defectFingerprint`, severity filter working.
+
+**Rollback:** delete the collection, revert `publish.js` and `firestore.rules`. No user-visible regression.
+
+### Slice 2 — Pulse wiring (target: 1–2 hours)
+
+**Goal:** Pulse triage panel reads live from `_triage_queue`, buttons execute real mutations.
+
+6. Build `_app/components/TriageQueueClient.js` modeled on NexusReader:
+   - Query-filtered `onSnapshot` (status + severity + priority + limit 50)
+   - Mutation API: `claim`, `defer`, `dismiss`, `bumpPriority`, `reassign`
+   - Transactional `claim` (Firestore `runTransaction`)
+7. Replace `pulse.html:1417` hardcoded `TRIAGE_ITEMS` with live snapshot rendering
+8. Re-wire the (now stripped) action labels into real mutation buttons
+9. Restore `badge-live` on triage badge (no longer "read-only")
+10. Smoke test in browser: trigger Nexus run → see new item appear → click `Fix` → verify Firestore claim record
+
+**Definition of done:** human can claim/defer/dismiss items in Pulse; mutations land in Firestore; UI updates reflect mutations within 1s via snapshot listener.
+
+**Rollback:** revert pulse.html to read-only tags. `_triage_queue` continues to populate but is unconsumed by UI.
+
+### Slice 3 — Marathon agent integration (target: half-day; HIGHEST risk slice)
+
+**Goal:** Marathon agents pull top-priority `autoFixEligible` items, fix, write results back, Nexus rescan auto-resolves the loop.
+
+11. Marathon agent harness reads top item from `_auto_fix_queue` at task-start
+12. Agent claims via transaction → updates `heartbeatAt` every 2 min during work
+13. On fix completion: agent writes `resolved` + commit SHA to item history
+14. Cloud Function (scheduled, every 5min): release dead claims (in-progress + heartbeat > 10min stale)
+15. Cloud Function (triggered by marathon batch completion): trigger `nexus full --publish`; auto-resolve queue items whose fingerprint no longer appears in fresh findings
+16. Add Pulse "Agent activity" feed (last 10 mutations by `agent:*` owners) — observability
+17. Configure saturation alarm: Slack webhook + email (out-of-band, not Pulse banner)
+
+**Definition of done:** agent can claim → fix → resolve → rescan closes the loop without human intervention for an `autoFixEligible: true` item; observability in Pulse shows activity; saturation alarm tested by seeding dummy items.
+
+**Rollback (per-step):** disable agent harness pull (read-only mode); items stay in queue for human review. Cloud Functions can be disabled without data loss.
+
+### Slice 4 — Sprint Master migration (deferred, target: TBD)
+
+18–22 — Move sprint backlog from `sprints.json` to `_triage_queue` with `source: 'sprint-master'`. Defer until Slice 3 is observed stable (1–2 weeks of operation). `sprints.json` becomes a generated cache.
+
+### Phase 0 — Throughput measurement (parallel to Slice 3)
+
+Runs alongside Slice 3 implementation. First marathon run that drains `_auto_fix_queue` gives us the fix-rate number. If fix:write < 1:3 even on mechanical classes:
+- Stop. Do not enable agent-pull in production.
+- Diagnose: which fix templates are failing? Are agents not running enough mechanical-class items?
+- Iterate on fix templates before re-enabling.
+
+---
+
+## Approval gates between slices
+
+After each slice ships:
+- Operator (user) verifies the slice in production before the next slice begins
+- Nancy adversarial review on each slice's actual code (not just design)
+- No autonomous progression — every slice gets explicit "go" before the next starts
 
 ---
 
@@ -396,6 +471,18 @@ Recommendation: **A** if the self-healing path is committed-to; **B** if it is e
 
 ## Changelog
 
+- 2026-04-29 — **SLICE 1 SHIPPED.** Backend live in production:
+    - `firestore.rules` extended with `_triage_queue`, `_auto_fix_queue`, `_triage_history` rules — admin-only read/write, schema enforced via `hasOnly` (extra-field injection blocked), immutable fields preserved on update
+    - `_tools/nexus/publish.js` extended with `publishTriage()` — aggregates by `(rule, directoryPrefix)`, computes `defectFingerprint` (sha256 of rule+normalizedDir), severity-gates to critical+high, routes auto-fix-eligible items separately
+    - First production run: 117 raw highs collapsed to **13 grouped triage items** (target was 8–15 — bullseye). PATH-001 in houses/shield/ alone collapsed 84 findings into one item.
+    - Auto-fix allowlist EMPTY in Slice 1 per Nancy promotion-rule: classes added in Slice 3 when fix templates + FUNC validators exist.
+    - `_auto_fix_queue` correctly contains 0 items.
+    - Verified: 13/13 schema-valid, 13 unique fingerprints (no collisions), all severities high, all priorities 70.
+    - Pulse remains read-only this slice — Slice 2 wires the consumer.
+- 2026-04-29 — Nancy review on Slice 1 plan caught 3 blockers, all applied before code:
+    - `priority is int` → `is number` + `Math.round()` in publisher (avoids float-arithmetic write failures)
+    - `hasAll` → `hasAll + hasOnly` for schema enforcement (blocks extra-field injection on agent-read queue)
+    - `severity` and `rule` added to `preservesImmutableFields()` (closes silent hide-by-demotion attack)
 - 2026-04-29 — Doc created. Status: PROPOSED. Awaiting decision A/B/C.
 - 2026-04-29 (later) — Nancy adversarial review revisions:
     - HEUR-008 demoted to `autoFixEligible: NO` (CSS-only swap is a regression; needs two-part template + FUNC validator)
