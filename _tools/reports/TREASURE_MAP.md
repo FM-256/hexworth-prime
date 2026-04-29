@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-26 6:30:28 PM
+                    Scanned: 2026-04-29 9:49:41 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 4745 |
-| Directories | 1142 |
-| Content Files | 4745 |
-| Scan Duration | 2102ms |
+| Files Scanned | 5047 |
+| Directories | 1202 |
+| Content Files | 5047 |
+| Scan Duration | 2213ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2114 |
-| html | 1455 |
-| lab | 526 |
-| quiz | 459 |
-| applet | 191 |
+| presentation | 2296 |
+| html | 1484 |
+| lab | 587 |
+| quiz | 487 |
+| applet | 193 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 2700 |
-| Available | 2695 |
+| Total Modules | 2729 |
+| Available | 2724 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 10 |
+| Undeclared Files (CAT-002) | 280 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 60 |
-| Warning | 2188 |
-| Info | 448 |
-| **Total** | **10489** |
+| Suspect | 61 |
+| Warning | 2463 |
+| Info | 451 |
+| **Total** | **11900** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3278 |
+| Ready | 3551 |
 | Not Ready | 12 |
-| Unknown | 1455 |
+| Unknown | 1484 |
 
 
 ## FILE HIERARCHY
@@ -1610,6 +1610,38 @@
 │   │   │       ├── ❓ az900-ch01.quiz.html
 │   │   │       ├── ❓ az900-ch02.quiz.html
 │   │   │       └── ❓ az900-ch03.quiz.html
+│   │   ├── 📁 cloud-essentials
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 cb-final.exam.html
+│   │   │   │   └── 📄 cb-midterm.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 cb-w1-concepts.lab.html
+│   │   │   │   ├── 🔬 cb-w1-deployment.lab.html
+│   │   │   │   ├── 🔬 cb-w2-automation.lab.html
+│   │   │   │   ├── 🔬 cb-w2-security.lab.html
+│   │   │   │   ├── 🔬 cb-w3-backup.lab.html
+│   │   │   │   ├── 🔬 cb-w3-dr.lab.html
+│   │   │   │   ├── 🔬 cb-w4-monitoring.lab.html
+│   │   │   │   └── 🔬 cb-w4-troubleshoot.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 cb-w1-concepts.presentation.html
+│   │   │   │   ├── 📊 cb-w1-deployment.presentation.html
+│   │   │   │   ├── 📊 cb-w2-automation.presentation.html
+│   │   │   │   ├── 📊 cb-w2-security.presentation.html
+│   │   │   │   ├── 📊 cb-w3-backup.presentation.html
+│   │   │   │   ├── 📊 cb-w3-dr.presentation.html
+│   │   │   │   ├── 📊 cb-w4-monitoring.presentation.html
+│   │   │   │   └── 📊 cb-w4-troubleshoot.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ cb-w1-concepts.quiz.html
+│   │   │       ├── ❓ cb-w1-deployment.quiz.html
+│   │   │       ├── ❓ cb-w2-automation.quiz.html
+│   │   │       ├── ❓ cb-w2-security.quiz.html
+│   │   │       ├── ❓ cb-w3-backup.quiz.html
+│   │   │       ├── ❓ cb-w3-dr.quiz.html
+│   │   │       ├── ❓ cb-w4-monitoring.quiz.html
+│   │   │       └── ❓ cb-w4-troubleshoot.quiz.html
 │   │   ├── 📁 cse
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📁 reviews
@@ -2548,6 +2580,7 @@
 │   │   │   │   ├── 🔬 pfi-w3-sandbox.lab.html
 │   │   │   │   ├── 🔬 pfi-w4-checkpoint.lab.html
 │   │   │   │   ├── 🔬 pfi-w4-final-project.lab.html
+│   │   │   │   ├── 🔬 pfi-w4-gui-inclass.lab.html
 │   │   │   │   └── 🔬 pfi-w4-sandbox.lab.html
 │   │   │   ├── 📁 presentations [presentations]
 │   │   │   │   ├── 📊 pfi-course-intro.presentation.html
@@ -2563,6 +2596,7 @@
 │   │   │   │   ├── 📊 pfi-w3-oop.presentation.html
 │   │   │   │   ├── 📊 pfi-w3-random.presentation.html
 │   │   │   │   ├── 📊 pfi-w4-applied.presentation.html
+│   │   │   │   ├── 📊 pfi-w4-gui-classroom.presentation.html
 │   │   │   │   └── 📊 pfi-w4-gui.presentation.html
 │   │   │   ├── 📁 quizzes [quizzes]
 │   │   │   │   ├── ❓ pfi-w1-quiz.quiz.html
@@ -2587,6 +2621,38 @@
 │   │   │   │       └── 📁 data
 │   │   │   ├── 📄 starter-kit.html
 │   │   │   └── 📄 upgrade-guide.html
+│   │   ├── 📁 python-programming
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 sp-w2-midterm.exam.html
+│   │   │   │   └── 📄 sp-w4-final.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 sp-w1-datatypes.lab.html
+│   │   │   │   ├── 🔬 sp-w1-intro.lab.html
+│   │   │   │   ├── 🔬 sp-w2-loops.lab.html
+│   │   │   │   ├── 🔬 sp-w2-strings.lab.html
+│   │   │   │   ├── 🔬 sp-w3-collections.lab.html
+│   │   │   │   ├── 🔬 sp-w3-functions.lab.html
+│   │   │   │   ├── 🔬 sp-w4-analysis.lab.html
+│   │   │   │   └── 🔬 sp-w4-classes.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 sp-w1-datatypes.presentation.html
+│   │   │   │   ├── 📊 sp-w1-intro.presentation.html
+│   │   │   │   ├── 📊 sp-w2-loops.presentation.html
+│   │   │   │   ├── 📊 sp-w2-strings.presentation.html
+│   │   │   │   ├── 📊 sp-w3-collections.presentation.html
+│   │   │   │   ├── 📊 sp-w3-functions.presentation.html
+│   │   │   │   ├── 📊 sp-w4-analysis.presentation.html
+│   │   │   │   └── 📊 sp-w4-classes.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ sp-w1-datatypes.quiz.html
+│   │   │       ├── ❓ sp-w1-intro.quiz.html
+│   │   │       ├── ❓ sp-w2-loops.quiz.html
+│   │   │       ├── ❓ sp-w2-strings.quiz.html
+│   │   │       ├── ❓ sp-w3-collections.quiz.html
+│   │   │       ├── ❓ sp-w3-functions.quiz.html
+│   │   │       ├── ❓ sp-w4-analysis.quiz.html
+│   │   │       └── ❓ sp-w4-classes.quiz.html
 │   │   ├── 📁 quizzes [quizzes]
 │   │   │   ├── ❓ code-agile.quiz.html
 │   │   │   ├── ❓ code-cicd.quiz.html
@@ -2673,28 +2739,120 @@
 │   ├── 📁 devops-fundamentals
 │   │   └── 📍 index.html
 │   ├── 🏠 divergent [house:divergent]
-│   │   ├── 📁 cybersecurity-policy
+│   │   ├── 📁 cybersecurity-ethics
 │   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 cse-final.exam.html
+│   │   │   │   └── 📄 cse-midterm.exam.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 📁 cse-l01-governance-gap [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 cse-l02-the-awareness-deluge [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 cse-l03-the-takedown [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 cse-l04-the-disclosure [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 cse-l05-the-72-hours [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 cse-l06-hack-back [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 cse-l07-defend-forward [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   └── 📁 cse-l08-the-backdoor [labs]
+│   │   │   │       └── 📍 index.html
 │   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 cse-01-cyberethics-overview.presentation.html
+│   │   │   │   ├── 📊 cse-02-security-professional-role.presentation.html
+│   │   │   │   ├── 📊 cse-03-nist-csf.presentation.html
+│   │   │   │   ├── 📊 cse-04-cyberspace-governance.presentation.html
+│   │   │   │   ├── 📊 cse-05-free-speech.presentation.html
+│   │   │   │   ├── 📊 cse-06-ip-cyberspace.presentation.html
+│   │   │   │   ├── 📊 cse-07-privacy-rights.presentation.html
+│   │   │   │   ├── 📊 cse-08-cybercrime-moral-obligation.presentation.html
+│   │   │   │   ├── 📊 cse-09-solarium-commission.presentation.html
+│   │   │   │   └── 📊 cse-10-capstone.presentation.html
 │   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ cse-w1.quiz.html
+│   │   │       ├── ❓ cse-w2.quiz.html
+│   │   │       ├── ❓ cse-w3.quiz.html
+│   │   │       └── ❓ cse-w4.quiz.html
+│   │   ├── 📁 cybersecurity-policy
+│   │   │   ├── 📁 _source
+│   │   │   │   ├── 📄 csp-final-mc.exam.html
+│   │   │   │   ├── 📄 csp-midterm-mc.exam.html
+│   │   │   │   ├── 🔬 csp-w1-concepts.lab.html
+│   │   │   │   ├── 🔬 csp-w1-origins.lab.html
+│   │   │   │   ├── 🔬 csp-w1-security-by-design.lab.html
+│   │   │   │   ├── 🔬 csp-w1-workforce.lab.html
+│   │   │   │   ├── 🔬 csp-w2-bcp-drp.lab.html
+│   │   │   │   ├── 🔬 csp-w2-human-factor.lab.html
+│   │   │   │   ├── 🔬 csp-w2-programs.lab.html
+│   │   │   │   ├── 🔬 csp-w2-threats.lab.html
+│   │   │   │   ├── 🔬 csp-w3-compliance.lab.html
+│   │   │   │   ├── 🔬 csp-w3-governance.lab.html
+│   │   │   │   ├── 🔬 csp-w3-laws.lab.html
+│   │   │   │   ├── 🔬 csp-w3-roles.lab.html
+│   │   │   │   ├── 🔬 csp-w4-nist-800-53.lab.html
+│   │   │   │   ├── 🔬 csp-w4-nist-csf.lab.html
+│   │   │   │   ├── 🔬 csp-w4-risk-management.lab.html
+│   │   │   │   └── 🔬 csp-w4-sovereignty.lab.html
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 csp-final.exam.html
+│   │   │   │   └── 📄 csp-midterm.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 csp-w1-concepts.lab.html
+│   │   │   │   ├── 🔬 csp-w1-origins.lab.html
+│   │   │   │   ├── 🔬 csp-w1-security-by-design.lab.html
+│   │   │   │   ├── 🔬 csp-w1-workforce.lab.html
+│   │   │   │   ├── 🔬 csp-w2-bcp-drp.lab.html
+│   │   │   │   ├── 🔬 csp-w2-human-factor.lab.html
+│   │   │   │   ├── 🔬 csp-w2-programs.lab.html
+│   │   │   │   ├── 🔬 csp-w2-threats.lab.html
+│   │   │   │   ├── 🔬 csp-w3-compliance.lab.html
+│   │   │   │   ├── 🔬 csp-w3-governance.lab.html
+│   │   │   │   ├── 🔬 csp-w3-laws.lab.html
+│   │   │   │   ├── 🔬 csp-w3-roles.lab.html
+│   │   │   │   ├── 🔬 csp-w4-nist-800-53.lab.html
+│   │   │   │   ├── 🔬 csp-w4-nist-csf.lab.html
+│   │   │   │   ├── 🔬 csp-w4-risk-management.lab.html
+│   │   │   │   └── 🔬 csp-w4-sovereignty.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 csp-w1-concepts.presentation.html
+│   │   │   │   ├── 📊 csp-w1-origins.presentation.html
+│   │   │   │   ├── 📊 csp-w1-security-by-design.presentation.html
+│   │   │   │   ├── 📊 csp-w1-workforce.presentation.html
+│   │   │   │   ├── 📊 csp-w2-bcp-drp.presentation.html
+│   │   │   │   ├── 📊 csp-w2-human-factor.presentation.html
+│   │   │   │   ├── 📊 csp-w2-programs.presentation.html
+│   │   │   │   ├── 📊 csp-w2-threats.presentation.html
+│   │   │   │   ├── 📊 csp-w3-compliance.presentation.html
+│   │   │   │   ├── 📊 csp-w3-governance.presentation.html
+│   │   │   │   ├── 📊 csp-w3-laws.presentation.html
+│   │   │   │   ├── 📊 csp-w3-roles.presentation.html
+│   │   │   │   ├── 📊 csp-w4-nist-800-53.presentation.html
+│   │   │   │   ├── 📊 csp-w4-nist-csf.presentation.html
+│   │   │   │   ├── 📊 csp-w4-risk-management.presentation.html
+│   │   │   │   └── 📊 csp-w4-sovereignty.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ csp-w1-concepts.quiz.html
+│   │   │       ├── ❓ csp-w1-origins.quiz.html
+│   │   │       ├── ❓ csp-w1-security-by-design.quiz.html
+│   │   │       ├── ❓ csp-w1-workforce.quiz.html
+│   │   │       ├── ❓ csp-w2-bcp-drp.quiz.html
+│   │   │       ├── ❓ csp-w2-human-factor.quiz.html
+│   │   │       ├── ❓ csp-w2-programs.quiz.html
+│   │   │       ├── ❓ csp-w2-threats.quiz.html
+│   │   │       ├── ❓ csp-w3-compliance.quiz.html
+│   │   │       ├── ❓ csp-w3-governance.quiz.html
+│   │   │       ├── ❓ csp-w3-laws.quiz.html
+│   │   │       ├── ❓ csp-w3-roles.quiz.html
+│   │   │       ├── ❓ csp-w4-nist-800-53.quiz.html
+│   │   │       ├── ❓ csp-w4-nist-csf.quiz.html
+│   │   │       ├── ❓ csp-w4-risk-management.quiz.html
+│   │   │       └── ❓ csp-w4-sovereignty.quiz.html
 │   │   ├── 📁 ethics-it
-│   │   │   ├── 📄 eth-01.html
-│   │   │   ├── 📄 eth-02.html
-│   │   │   ├── 📄 eth-03.html
-│   │   │   ├── 📄 eth-04.html
-│   │   │   ├── 📄 eth-05.html
-│   │   │   ├── 📄 eth-06.html
-│   │   │   ├── 📄 eth-07.html
-│   │   │   ├── 📄 eth-08.html
-│   │   │   ├── 📄 eth-09.html
-│   │   │   ├── 📄 eth-10.html
-│   │   │   ├── 📄 eth-11.html
-│   │   │   ├── 📄 eth-12.html
-│   │   │   ├── 📄 eth-13.html
-│   │   │   ├── 📄 eth-14.html
-│   │   │   ├── 📄 eth-15.html
 │   │   │   ├── 📄 eth-r1.html
 │   │   │   ├── 📄 eth-r2.html
 │   │   │   ├── 📄 eth-r3.html
@@ -2724,6 +2882,21 @@
 │   │   │   │   └── 📁 eth-l10-the-code [labs]
 │   │   │   │       └── 📍 index.html
 │   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 eth-01-overview.presentation.html
+│   │   │   │   ├── 📊 eth-02-it-professionals.presentation.html
+│   │   │   │   ├── 📊 eth-03-cybersecurity-ethics.presentation.html
+│   │   │   │   ├── 📊 eth-04-week1-checkpoint.presentation.html
+│   │   │   │   ├── 📊 eth-05-privacy.presentation.html
+│   │   │   │   ├── 📊 eth-06-freedom-expression.presentation.html
+│   │   │   │   ├── 📊 eth-07-intellectual-property.presentation.html
+│   │   │   │   ├── 📊 eth-08-week2-checkpoint.presentation.html
+│   │   │   │   ├── 📊 eth-09-software-development.presentation.html
+│   │   │   │   ├── 📊 eth-10-it-impact.presentation.html
+│   │   │   │   ├── 📊 eth-11-week3-checkpoint.presentation.html
+│   │   │   │   ├── 📊 eth-12-social-media.presentation.html
+│   │   │   │   ├── 📊 eth-13-it-organizations.presentation.html
+│   │   │   │   ├── 📊 eth-14-codes-of-ethics.presentation.html
+│   │   │   │   ├── 📊 eth-15-final-assessment.presentation.html
 │   │   │   │   ├── 📊 eth-w1-cybersecurity-ethics.presentation.html
 │   │   │   │   ├── 📊 eth-w1-ethics-overview.presentation.html
 │   │   │   │   ├── 📊 eth-w1-it-professionals.presentation.html
@@ -3197,7 +3370,48 @@
 │   │   │   ├── 📄 forge-rack-stack.applet.html
 │   │   │   ├── 📄 forge-raid-calculator.applet.html
 │   │   │   └── 📄 forge-root-access.applet.html
+│   │   ├── 📁 hardware-support
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 bm-final.exam.html
+│   │   │   │   └── 📄 bm-midterm.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 bm-w1-cables.lab.html
+│   │   │   │   ├── 🔬 bm-w1-mobo.lab.html
+│   │   │   │   ├── 🔬 bm-w2-ram.lab.html
+│   │   │   │   ├── 🔬 bm-w2-storage.lab.html
+│   │   │   │   ├── 🔬 bm-w3-custom.lab.html
+│   │   │   │   ├── 🔬 bm-w3-power.lab.html
+│   │   │   │   ├── 🔬 bm-w4-printers.lab.html
+│   │   │   │   └── 🔬 bm-w4-troubleshoot.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 bm-w1-cables.presentation.html
+│   │   │   │   ├── 📊 bm-w1-motherboards.presentation.html
+│   │   │   │   ├── 📊 bm-w2-ram.presentation.html
+│   │   │   │   ├── 📊 bm-w2-storage.presentation.html
+│   │   │   │   ├── 📊 bm-w3-custom.presentation.html
+│   │   │   │   ├── 📊 bm-w3-power.presentation.html
+│   │   │   │   ├── 📊 bm-w4-printers.presentation.html
+│   │   │   │   └── 📊 bm-w4-troubleshoot.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ bm-w1-cables.quiz.html
+│   │   │       ├── ❓ bm-w1-mobo.quiz.html
+│   │   │       ├── ❓ bm-w2-ram.quiz.html
+│   │   │       ├── ❓ bm-w2-storage.quiz.html
+│   │   │       ├── ❓ bm-w3-custom.quiz.html
+│   │   │       ├── ❓ bm-w3-power.quiz.html
+│   │   │       ├── ❓ bm-w4-printers.quiz.html
+│   │   │       └── ❓ bm-w4-troubleshoot.quiz.html
 │   │   ├── 📍 index.html
+│   │   ├── 📁 intro-computers
+│   │   │   ├── 📁 exams
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 fb-w1-fundamentals.presentation.html
+│   │   │   │   ├── 📊 fb-w1-word-basics.presentation.html
+│   │   │   │   └── 📊 fb-w2-word-advanced.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 forge-admin-tools.lab.html
 │   │   │   ├── 🔬 forge-control-panel.lab.html
@@ -3321,6 +3535,38 @@
 │   │   │   ├── 📄 forge-backup-or-bust.html
 │   │   │   ├── 📄 forge-binary-blitz.html
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 server-management
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 sr-final.exam.html
+│   │   │   │   └── 📄 sr-midterm.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 sr-w1-install.lab.html
+│   │   │   │   ├── 🔬 sr-w1-roles.lab.html
+│   │   │   │   ├── 🔬 sr-w2-storage.lab.html
+│   │   │   │   ├── 🔬 sr-w2-virtual.lab.html
+│   │   │   │   ├── 🔬 sr-w3-ha.lab.html
+│   │   │   │   ├── 🔬 sr-w3-monitor.lab.html
+│   │   │   │   ├── 🔬 sr-w4-containers.lab.html
+│   │   │   │   └── 🔬 sr-w4-troubleshoot.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 sr-w1-install.presentation.html
+│   │   │   │   ├── 📊 sr-w1-roles.presentation.html
+│   │   │   │   ├── 📊 sr-w2-storage.presentation.html
+│   │   │   │   ├── 📊 sr-w2-virtualization.presentation.html
+│   │   │   │   ├── 📊 sr-w3-ha.presentation.html
+│   │   │   │   ├── 📊 sr-w3-monitoring.presentation.html
+│   │   │   │   ├── 📊 sr-w4-containers.presentation.html
+│   │   │   │   └── 📊 sr-w4-troubleshoot.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ sr-w1-install.quiz.html
+│   │   │       ├── ❓ sr-w1-roles.quiz.html
+│   │   │       ├── ❓ sr-w2-storage.quiz.html
+│   │   │       ├── ❓ sr-w2-virtual.quiz.html
+│   │   │       ├── ❓ sr-w3-ha.quiz.html
+│   │   │       ├── ❓ sr-w3-monitor.quiz.html
+│   │   │       ├── ❓ sr-w4-containers.quiz.html
+│   │   │       └── ❓ sr-w4-troubleshoot.quiz.html
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 forge-admin-tools.tool.html
 │   │   │   ├── 📄 forge-control-panel.tool.html
@@ -3392,25 +3638,6 @@
 │   │       └── 📄 key-pqc.tool.html
 │   ├── 🏠 matrix [house:matrix]
 │   │   ├── 📁 adv-linux
-│   │   │   ├── 📄 ala-01.html
-│   │   │   ├── 📄 ala-02.html
-│   │   │   ├── 📄 ala-03.html
-│   │   │   ├── 📄 ala-04.html
-│   │   │   ├── 📄 ala-05.html
-│   │   │   ├── 📄 ala-06.html
-│   │   │   ├── 📄 ala-07.html
-│   │   │   ├── 📄 ala-08.html
-│   │   │   ├── 📄 ala-09.html
-│   │   │   ├── 📄 ala-10.html
-│   │   │   ├── 📄 ala-11.html
-│   │   │   ├── 📄 ala-12.html
-│   │   │   ├── 📄 ala-13.html
-│   │   │   ├── 📄 ala-14.html
-│   │   │   ├── 📄 ala-15.html
-│   │   │   ├── 📄 ala-16.html
-│   │   │   ├── 📄 ala-17.html
-│   │   │   ├── 📄 ala-18.html
-│   │   │   ├── 📄 ala-19.html
 │   │   │   ├── 📄 ala-r1.html
 │   │   │   ├── 📄 ala-r2.html
 │   │   │   ├── 📄 ala-r3.html
@@ -4185,6 +4412,38 @@
 │   │   │       ├── 📄 script-permission.tool.html
 │   │   │       ├── 📄 script-process.tool.html
 │   │   │       └── 📄 script-service.tool.html
+│   │   ├── 📁 linux-essentials
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 ra-final.exam.html
+│   │   │   │   └── 📄 ra-midterm.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 ra-w1-kernel.lab.html
+│   │   │   │   ├── 🔬 ra-w1-storage.lab.html
+│   │   │   │   ├── 🔬 ra-w2-files.lab.html
+│   │   │   │   ├── 🔬 ra-w2-servers.lab.html
+│   │   │   │   ├── 🔬 ra-w3-security.lab.html
+│   │   │   │   ├── 🔬 ra-w3-users.lab.html
+│   │   │   │   ├── 🔬 ra-w4-logging.lab.html
+│   │   │   │   └── 🔬 ra-w4-troubleshoot.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 ra-w1-kernel.presentation.html
+│   │   │   │   ├── 📊 ra-w1-storage.presentation.html
+│   │   │   │   ├── 📊 ra-w2-files.presentation.html
+│   │   │   │   ├── 📊 ra-w2-servers.presentation.html
+│   │   │   │   ├── 📊 ra-w3-security.presentation.html
+│   │   │   │   ├── 📊 ra-w3-users.presentation.html
+│   │   │   │   ├── 📊 ra-w4-logging.presentation.html
+│   │   │   │   └── 📊 ra-w4-troubleshoot.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ ra-w1-kernel.quiz.html
+│   │   │       ├── ❓ ra-w1-storage.quiz.html
+│   │   │       ├── ❓ ra-w2-files.quiz.html
+│   │   │       ├── ❓ ra-w2-servers.quiz.html
+│   │   │       ├── ❓ ra-w3-security.quiz.html
+│   │   │       ├── ❓ ra-w3-users.quiz.html
+│   │   │       ├── ❓ ra-w4-logging.quiz.html
+│   │   │       └── ❓ ra-w4-troubleshoot.quiz.html
 │   │   ├── 📁 modules [modules]
 │   │   │   ├── 📁 databases [modules]
 │   │   │   │   ├── 📄 script-db-01-intro.module.html
@@ -4640,6 +4899,28 @@
 │   │   │   └── 🔬 shield-web-security-headers-lab.applet.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 infosec
+│   │   │   ├── 📁 _source
+│   │   │   │   ├── 📄 pis-01.html
+│   │   │   │   ├── 📄 pis-02.html
+│   │   │   │   ├── 📄 pis-03.html
+│   │   │   │   ├── 📄 pis-04.html
+│   │   │   │   ├── 📄 pis-05.html
+│   │   │   │   ├── 📄 pis-06.html
+│   │   │   │   ├── 📄 pis-07.html
+│   │   │   │   ├── 📄 pis-08.html
+│   │   │   │   ├── 📄 pis-09.html
+│   │   │   │   ├── 📄 pis-10.html
+│   │   │   │   ├── 📄 pis-11.html
+│   │   │   │   ├── 📄 pis-12.html
+│   │   │   │   ├── 📄 pis-13.html
+│   │   │   │   ├── 📄 pis-14.html
+│   │   │   │   ├── 📄 pis-15.html
+│   │   │   │   ├── 📄 pis-16.html
+│   │   │   │   ├── 📄 pis-17.html
+│   │   │   │   ├── 📄 pis-18.html
+│   │   │   │   ├── 📄 pis-19.html
+│   │   │   │   ├── 📄 pis-20.html
+│   │   │   │   └── 📄 pis-21.html
 │   │   │   ├── 📁 exams
 │   │   │   │   ├── 📄 pis-final.exam.html
 │   │   │   │   └── 📄 pis-midterm.exam.html
@@ -4669,27 +4950,6 @@
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   └── 📁 pis-l12-full-facility-inspection [labs]
 │   │   │   │       └── 📍 index.html
-│   │   │   ├── 📄 pis-01.html
-│   │   │   ├── 📄 pis-02.html
-│   │   │   ├── 📄 pis-03.html
-│   │   │   ├── 📄 pis-04.html
-│   │   │   ├── 📄 pis-05.html
-│   │   │   ├── 📄 pis-06.html
-│   │   │   ├── 📄 pis-07.html
-│   │   │   ├── 📄 pis-08.html
-│   │   │   ├── 📄 pis-09.html
-│   │   │   ├── 📄 pis-10.html
-│   │   │   ├── 📄 pis-11.html
-│   │   │   ├── 📄 pis-12.html
-│   │   │   ├── 📄 pis-13.html
-│   │   │   ├── 📄 pis-14.html
-│   │   │   ├── 📄 pis-15.html
-│   │   │   ├── 📄 pis-16.html
-│   │   │   ├── 📄 pis-17.html
-│   │   │   ├── 📄 pis-18.html
-│   │   │   ├── 📄 pis-19.html
-│   │   │   ├── 📄 pis-20.html
-│   │   │   ├── 📄 pis-21.html
 │   │   │   ├── 📄 pis-r1.html
 │   │   │   ├── 📄 pis-r2.html
 │   │   │   ├── 📄 pis-r3.html
@@ -4718,6 +4978,44 @@
 │   │   │       ├── ❓ pis-w2.quiz.html
 │   │   │       ├── ❓ pis-w3.quiz.html
 │   │   │       └── ❓ pis-w4.quiz.html
+│   │   ├── 📁 intro-security
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 fw-final.exam.html
+│   │   │   │   └── 📄 fw-midterm.exam.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 fw-w1-logical.lab.html
+│   │   │   │   ├── 🔬 fw-w1-physical.lab.html
+│   │   │   │   ├── 🔬 fw-w2-malware.lab.html
+│   │   │   │   ├── 🔬 fw-w2-wireless.lab.html
+│   │   │   │   ├── 🔬 fw-w3-os-security.lab.html
+│   │   │   │   ├── 🔬 fw-w3-social.lab.html
+│   │   │   │   ├── 🔬 fw-w3-workstation.lab.html
+│   │   │   │   ├── 🔬 fw-w4-data.lab.html
+│   │   │   │   ├── 🔬 fw-w4-mobile.lab.html
+│   │   │   │   └── 🔬 fw-w4-soho.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 fw-w1-logical.presentation.html
+│   │   │   │   ├── 📊 fw-w1-physical.presentation.html
+│   │   │   │   ├── 📊 fw-w2-malware.presentation.html
+│   │   │   │   ├── 📊 fw-w2-wireless.presentation.html
+│   │   │   │   ├── 📊 fw-w3-os-security.presentation.html
+│   │   │   │   ├── 📊 fw-w3-social-engineering.presentation.html
+│   │   │   │   ├── 📊 fw-w3-workstation.presentation.html
+│   │   │   │   ├── 📊 fw-w4-data-destruction.presentation.html
+│   │   │   │   ├── 📊 fw-w4-mobile.presentation.html
+│   │   │   │   └── 📊 fw-w4-soho.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ fw-w1-logical.quiz.html
+│   │   │       ├── ❓ fw-w1-physical.quiz.html
+│   │   │       ├── ❓ fw-w2-malware.quiz.html
+│   │   │       ├── ❓ fw-w2-wireless.quiz.html
+│   │   │       ├── ❓ fw-w3-os-security.quiz.html
+│   │   │       ├── ❓ fw-w3-social.quiz.html
+│   │   │       ├── ❓ fw-w3-workstation.quiz.html
+│   │   │       ├── ❓ fw-w4-data.quiz.html
+│   │   │       ├── ❓ fw-w4-mobile.quiz.html
+│   │   │       └── ❓ fw-w4-soho.quiz.html
 │   │   ├── 📁 isc2-cc
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 labs [labs]
@@ -5146,6 +5444,38 @@
 │       │   └── 📄 web-wireless-warzone.applet.html
 │       ├── 📁 handouts
 │       ├── 📍 index.html
+│       ├── 📁 intro-networks
+│       │   ├── 📁 exams
+│       │   │   ├── 📄 fl-final.exam.html
+│       │   │   └── 📄 fl-midterm.exam.html
+│       │   ├── 📍 index.html
+│       │   ├── 📁 labs [labs]
+│       │   │   ├── 🔬 fl-w1-hardware.lab.html
+│       │   │   ├── 🔬 fl-w1-ports.lab.html
+│       │   │   ├── 🔬 fl-w2-soho.lab.html
+│       │   │   ├── 🔬 fl-w2-wireless.lab.html
+│       │   │   ├── 🔬 fl-w3-config.lab.html
+│       │   │   ├── 🔬 fl-w3-services.lab.html
+│       │   │   ├── 🔬 fl-w4-connections.lab.html
+│       │   │   └── 🔬 fl-w4-tools.lab.html
+│       │   ├── 📁 presentations [presentations]
+│       │   │   ├── 📊 fl-w1-hardware.presentation.html
+│       │   │   ├── 📊 fl-w1-ports.presentation.html
+│       │   │   ├── 📊 fl-w2-soho.presentation.html
+│       │   │   ├── 📊 fl-w2-wireless.presentation.html
+│       │   │   ├── 📊 fl-w3-config.presentation.html
+│       │   │   ├── 📊 fl-w3-services.presentation.html
+│       │   │   ├── 📊 fl-w4-connections.presentation.html
+│       │   │   └── 📊 fl-w4-tools.presentation.html
+│       │   └── 📁 quizzes [quizzes]
+│       │       ├── ❓ fl-w1-hardware.quiz.html
+│       │       ├── ❓ fl-w1-ports.quiz.html
+│       │       ├── ❓ fl-w2-soho.quiz.html
+│       │       ├── ❓ fl-w2-wireless.quiz.html
+│       │       ├── ❓ fl-w3-config.quiz.html
+│       │       ├── ❓ fl-w3-services.quiz.html
+│       │       ├── ❓ fl-w4-connections.quiz.html
+│       │       └── ❓ fl-w4-tools.quiz.html
 │       ├── 📁 labs [labs]
 │       │   ├── 📁 configs [labs]
 │       │   ├── 📁 engine [labs]
@@ -5176,6 +5506,38 @@
 │       │   ├── 📍 index.html
 │       │   ├── 📄 web-ip-addressing-ch7-10.module.html
 │       │   └── 📄 web-networking-flashcards.module.html
+│       ├── 📁 net-essentials
+│       │   ├── 📁 exams
+│       │   │   ├── 📄 cr-final.exam.html
+│       │   │   └── 📄 cr-midterm.exam.html
+│       │   ├── 📍 index.html
+│       │   ├── 📁 labs [labs]
+│       │   │   ├── 🔬 cr-w1-access.lab.html
+│       │   │   ├── 🔬 cr-w1-osi.lab.html
+│       │   │   ├── 🔬 cr-w2-addressing.lab.html
+│       │   │   ├── 🔬 cr-w2-network.lab.html
+│       │   │   ├── 🔬 cr-w3-app.lab.html
+│       │   │   ├── 🔬 cr-w3-transport.lab.html
+│       │   │   ├── 🔬 cr-w4-design.lab.html
+│       │   │   └── 🔬 cr-w4-troubleshoot.lab.html
+│       │   ├── 📁 presentations [presentations]
+│       │   │   ├── 📊 cr-w1-access.presentation.html
+│       │   │   ├── 📊 cr-w1-osi.presentation.html
+│       │   │   ├── 📊 cr-w2-addressing.presentation.html
+│       │   │   ├── 📊 cr-w2-network-layer.presentation.html
+│       │   │   ├── 📊 cr-w3-application.presentation.html
+│       │   │   ├── 📊 cr-w3-transport.presentation.html
+│       │   │   ├── 📊 cr-w4-design.presentation.html
+│       │   │   └── 📊 cr-w4-troubleshoot.presentation.html
+│       │   └── 📁 quizzes [quizzes]
+│       │       ├── ❓ cr-w1-access.quiz.html
+│       │       ├── ❓ cr-w1-osi.quiz.html
+│       │       ├── ❓ cr-w2-addressing.quiz.html
+│       │       ├── ❓ cr-w2-network.quiz.html
+│       │       ├── ❓ cr-w3-app.quiz.html
+│       │       ├── ❓ cr-w3-transport.quiz.html
+│       │       ├── ❓ cr-w4-design.quiz.html
+│       │       └── ❓ cr-w4-troubleshoot.quiz.html
 │       ├── 📁 network-essentials
 │       │   ├── 📄 ne-01.html
 │       │   ├── 📄 ne-02.html
@@ -6324,6 +6686,33 @@
 | az900-ch01-quiz | quiz | ✓ | 0 |
 | az900-ch02-quiz | quiz | ✓ | 0 |
 | az900-ch03-quiz | quiz | ✓ | 0 |
+| cb-final.exam | presentation | ✓ | 0 |
+| cb-midterm.exam | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| cb-w1-concepts.lab | lab | ✓ | 0 |
+| cb-w1-deployment.lab | lab | ✓ | 0 |
+| cb-w2-automation.lab | lab | ✓ | 0 |
+| cb-w2-security.lab | lab | ✓ | 0 |
+| cb-w3-backup.lab | lab | ✓ | 0 |
+| cb-w3-dr.lab | lab | ✓ | 0 |
+| cb-w4-monitoring.lab | lab | ✓ | 0 |
+| cb-w4-troubleshoot.lab | lab | ✓ | 0 |
+| cb-w1-concepts.presentation | presentation | ✓ | 0 |
+| cb-w1-deployment.presentation | presentation | ✓ | 0 |
+| cb-w2-automation.presentation | presentation | ✓ | 0 |
+| cb-w2-security.presentation | presentation | ✓ | 0 |
+| cb-w3-backup.presentation | presentation | ✓ | 0 |
+| cb-w3-dr.presentation | presentation | ✓ | 0 |
+| cb-w4-monitoring.presentation | presentation | ✓ | 0 |
+| cb-w4-troubleshoot.presentation | presentation | ✓ | 0 |
+| cb-w1-concepts.quiz | presentation | ✓ | 0 |
+| cb-w1-deployment.quiz | presentation | ✓ | 0 |
+| cb-w2-automation.quiz | presentation | ✓ | 0 |
+| cb-w2-security.quiz | presentation | ✓ | 0 |
+| cb-w3-backup.quiz | presentation | ✓ | 0 |
+| cb-w3-dr.quiz | presentation | ✓ | 0 |
+| cb-w4-monitoring.quiz | presentation | ✓ | 0 |
+| cb-w4-troubleshoot.quiz | presentation | ✓ | 0 |
 | cloud-cse-comprehensive-review | presentation | ✓ | 0 |
 | cloud-ad-attack-path.applet | presentation | ✓ | 0 |
 | cloud-api-foundations-lab.applet | applet | ✓ | 1 |
@@ -7005,13 +7394,14 @@
 | code-kubernetes-fundamentals.presentation | presentation | ✓ | 0 |
 | code-terraform-fundamentals.presentation | presentation | ✓ | 0 |
 | pfi-w4-final-exam.exam | presentation | ✓ | 0 |
-| index | applet | ✓ | 1 |
+| index | presentation | ✓ | 0 |
 | pfi-w1-checkpoint.lab | applet | ✓ | 1 |
 | pfi-w1-project.lab | lab | ✓ | 0 |
 | pfi-w2-project.lab | lab | ✓ | 0 |
 | pfi-w3-project-oop.lab | lab | ✓ | 0 |
 | pfi-w3-project.lab | lab | ✓ | 0 |
 | pfi-w4-final-project.lab | lab | ✓ | 0 |
+| pfi-w4-gui-inclass.lab | lab | ✓ | 0 |
 | pfi-course-intro.presentation | presentation | ✓ | 0 |
 | pfi-w1-conditionals.presentation | presentation | ✓ | 0 |
 | pfi-w1-datatypes.presentation | presentation | ✓ | 0 |
@@ -7025,12 +7415,40 @@
 | pfi-w3-oop.presentation | presentation | ✓ | 0 |
 | pfi-w3-random.presentation | presentation | ✓ | 0 |
 | pfi-w4-applied.presentation | presentation | ✓ | 0 |
+| pfi-w4-gui-classroom.presentation | presentation | ✓ | 0 |
 | pfi-w4-gui.presentation | presentation | ✓ | 0 |
 | pfi-w1-quiz.quiz | presentation | ✓ | 0 |
 | pfi-w2-quiz.quiz | presentation | ✓ | 0 |
 | pfi-w3-quiz.quiz | presentation | ✓ | 0 |
 | setup-guide | presentation | ✓ | 0 |
 | upgrade-guide | applet | ✓ | 1 |
+| sp-w2-midterm.exam | presentation | ✓ | 0 |
+| sp-w4-final.exam | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| sp-w1-datatypes.lab | lab | ✓ | 0 |
+| sp-w1-intro.lab | lab | ✓ | 0 |
+| sp-w2-loops.lab | lab | ✓ | 0 |
+| sp-w2-strings.lab | lab | ✓ | 0 |
+| sp-w3-collections.lab | lab | ✓ | 0 |
+| sp-w3-functions.lab | lab | ✓ | 0 |
+| sp-w4-analysis.lab | lab | ✓ | 0 |
+| sp-w4-classes.lab | lab | ✓ | 0 |
+| sp-w1-datatypes.presentation | presentation | ✓ | 0 |
+| sp-w1-intro.presentation | presentation | ✓ | 0 |
+| sp-w2-loops.presentation | presentation | ✓ | 0 |
+| sp-w2-strings.presentation | presentation | ✓ | 0 |
+| sp-w3-collections.presentation | presentation | ✓ | 0 |
+| sp-w3-functions.presentation | presentation | ✓ | 0 |
+| sp-w4-analysis.presentation | presentation | ✓ | 0 |
+| sp-w4-classes.presentation | presentation | ✓ | 0 |
+| sp-w1-datatypes.quiz | presentation | ✓ | 0 |
+| sp-w1-intro.quiz | presentation | ✓ | 0 |
+| sp-w2-loops.quiz | presentation | ✓ | 0 |
+| sp-w2-strings.quiz | presentation | ✓ | 0 |
+| sp-w3-collections.quiz | presentation | ✓ | 0 |
+| sp-w3-functions.quiz | presentation | ✓ | 0 |
+| sp-w4-analysis.quiz | presentation | ✓ | 0 |
+| sp-w4-classes.quiz | presentation | ✓ | 0 |
 | agile | quiz | ✓ | 0 |
 | cicd | quiz | ✓ | 0 |
 | cloudformation | quiz | ✓ | 0 |
@@ -7048,27 +7466,93 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| cse-final.exam | presentation | ✓ | 0 |
+| cse-midterm.exam | presentation | ✓ | 0 |
+| cse-01-cyberethics-overview.presentation | presentation | ✓ | 0 |
+| cse-02-security-professional-role.presentation | presentation | ✓ | 0 |
+| cse-03-nist-csf.presentation | presentation | ✓ | 0 |
+| cse-04-cyberspace-governance.presentation | presentation | ✓ | 0 |
+| cse-05-free-speech.presentation | presentation | ✓ | 0 |
+| cse-06-ip-cyberspace.presentation | presentation | ✓ | 0 |
+| cse-07-privacy-rights.presentation | presentation | ✓ | 0 |
+| cse-08-cybercrime-moral-obligation.presentation | presentation | ✓ | 0 |
+| cse-09-solarium-commission.presentation | presentation | ✓ | 0 |
+| cse-10-capstone.presentation | presentation | ✓ | 0 |
+| cse-w1-quiz | quiz | ✓ | 0 |
+| cse-w2-quiz | quiz | ✓ | 0 |
+| cse-w3-quiz | quiz | ✓ | 0 |
+| cse-w4-quiz | quiz | ✓ | 0 |
+| csp-final-mc.exam | presentation | ✓ | 0 |
+| csp-midterm-mc.exam | presentation | ✓ | 0 |
+| csp-w1-concepts.lab | presentation | ✓ | 0 |
+| csp-w1-origins.lab | presentation | ✓ | 0 |
+| csp-w1-security-by-design.lab | presentation | ✓ | 0 |
+| csp-w1-workforce.lab | presentation | ✓ | 0 |
+| csp-w2-bcp-drp.lab | lab | ✓ | 0 |
+| csp-w2-human-factor.lab | lab | ✓ | 0 |
+| csp-w2-programs.lab | lab | ✓ | 0 |
+| csp-w2-threats.lab | lab | ✓ | 0 |
+| csp-w3-compliance.lab | lab | ✓ | 0 |
+| csp-w3-governance.lab | lab | ✓ | 0 |
+| csp-w3-laws.lab | lab | ✓ | 0 |
+| csp-w3-roles.lab | lab | ✓ | 0 |
+| csp-w4-nist-800-53.lab | lab | ✓ | 0 |
+| csp-w4-nist-csf.lab | lab | ✓ | 0 |
+| csp-w4-risk-management.lab | lab | ✓ | 0 |
+| csp-w4-sovereignty.lab | lab | ✓ | 0 |
 | index | presentation | ✓ | 1 |
-| eth-01 | quiz | ✓ | 0 |
-| eth-02 | quiz | ✓ | 0 |
-| eth-03 | quiz | ✓ | 0 |
-| eth-04 | quiz | ✓ | 0 |
-| eth-05 | quiz | ✓ | 0 |
-| eth-06 | quiz | ✓ | 0 |
-| eth-07 | quiz | ✓ | 0 |
-| eth-08 | quiz | ✓ | 0 |
-| eth-09 | quiz | ✓ | 0 |
-| eth-10 | quiz | ✓ | 0 |
-| eth-11 | quiz | ✓ | 0 |
-| eth-12 | quiz | ✓ | 0 |
-| eth-13 | quiz | ✓ | 0 |
-| eth-14 | quiz | ✓ | 0 |
-| eth-15 | quiz | ✓ | 0 |
+| csp-w1-concepts.presentation | presentation | ✓ | 0 |
+| csp-w1-origins.presentation | presentation | ✓ | 0 |
+| csp-w1-security-by-design.presentation | presentation | ✓ | 0 |
+| csp-w1-workforce.presentation | presentation | ✓ | 0 |
+| csp-w2-bcp-drp.presentation | presentation | ✓ | 0 |
+| csp-w2-human-factor.presentation | presentation | ✓ | 0 |
+| csp-w2-programs.presentation | presentation | ✓ | 0 |
+| csp-w2-threats.presentation | presentation | ✓ | 0 |
+| csp-w3-compliance.presentation | presentation | ✓ | 0 |
+| csp-w3-governance.presentation | presentation | ✓ | 0 |
+| csp-w3-laws.presentation | presentation | ✓ | 0 |
+| csp-w3-roles.presentation | presentation | ✓ | 0 |
+| csp-w4-nist-800-53.presentation | presentation | ✓ | 0 |
+| csp-w4-nist-csf.presentation | presentation | ✓ | 0 |
+| csp-w4-risk-management.presentation | presentation | ✓ | 0 |
+| csp-w4-sovereignty.presentation | presentation | ✓ | 0 |
+| csp-w1-concepts-quiz | quiz | ✓ | 0 |
+| csp-w1-origins-quiz | quiz | ✓ | 0 |
+| csp-w1-security-by-design-quiz | quiz | ✓ | 0 |
+| csp-w1-workforce-quiz | quiz | ✓ | 0 |
+| csp-w2-bcp-drp-quiz | quiz | ✓ | 0 |
+| csp-w2-human-factor-quiz | quiz | ✓ | 0 |
+| csp-w2-programs-quiz | quiz | ✓ | 0 |
+| csp-w2-threats-quiz | quiz | ✓ | 0 |
+| csp-w3-compliance-quiz | quiz | ✓ | 0 |
+| csp-w3-governance-quiz | quiz | ✓ | 0 |
+| csp-w3-laws-quiz | quiz | ✓ | 0 |
+| csp-w3-roles-quiz | quiz | ✓ | 0 |
+| csp-w4-nist-800-53-quiz | quiz | ✓ | 0 |
+| csp-w4-nist-csf-quiz | quiz | ✓ | 0 |
+| csp-w4-risk-management-quiz | quiz | ✓ | 0 |
+| csp-w4-sovereignty-quiz | quiz | ✓ | 0 |
 | eth-r1 | presentation | ✓ | 0 |
 | eth-r2 | presentation | ✓ | 0 |
 | eth-r3 | presentation | ✓ | 0 |
 | eth-final.exam | presentation | ✓ | 0 |
 | eth-midterm.exam | presentation | ✓ | 0 |
+| eth-01-overview.presentation | presentation | ✓ | 0 |
+| eth-02-it-professionals.presentation | presentation | ✓ | 0 |
+| eth-03-cybersecurity-ethics.presentation | presentation | ✓ | 0 |
+| eth-04-week1-checkpoint.presentation | presentation | ✓ | 0 |
+| eth-05-privacy.presentation | presentation | ✓ | 0 |
+| eth-06-freedom-expression.presentation | presentation | ✓ | 0 |
+| eth-07-intellectual-property.presentation | presentation | ✓ | 0 |
+| eth-08-week2-checkpoint.presentation | presentation | ✓ | 0 |
+| eth-09-software-development.presentation | presentation | ✓ | 0 |
+| eth-10-it-impact.presentation | presentation | ✓ | 0 |
+| eth-11-week3-checkpoint.presentation | presentation | ✓ | 0 |
+| eth-12-social-media.presentation | presentation | ✓ | 0 |
+| eth-13-it-organizations.presentation | presentation | ✓ | 0 |
+| eth-14-codes-of-ethics.presentation | presentation | ✓ | 0 |
+| eth-15-final-assessment.presentation | presentation | ✓ | 0 |
 | eth-w1-cybersecurity-ethics.presentation | presentation | ✓ | 0 |
 | eth-w1-ethics-overview.presentation | presentation | ✓ | 0 |
 | eth-w1-it-professionals.presentation | presentation | ✓ | 0 |
@@ -7367,6 +7851,35 @@
 | forge-rack-stack.applet | applet | ✓ | 1 |
 | forge-raid-calculator.applet | applet | ✓ | 1 |
 | forge-root-access.applet | applet | ✓ | 1 |
+| bm-final | quiz | ✓ | 0 |
+| bm-midterm | quiz | ✓ | 0 |
+| bm-w1-cables.lab | lab | ✓ | 0 |
+| bm-w1-mobo.lab | lab | ✓ | 0 |
+| bm-w2-ram.lab | lab | ✓ | 0 |
+| bm-w2-storage.lab | lab | ✓ | 0 |
+| bm-w3-custom.lab | lab | ✓ | 0 |
+| bm-w3-power.lab | lab | ✓ | 0 |
+| bm-w4-printers.lab | lab | ✓ | 0 |
+| bm-w4-troubleshoot.lab | lab | ✓ | 0 |
+| bm-w1-cables.presentation | presentation | ✓ | 0 |
+| bm-w1-motherboards.presentation | presentation | ✓ | 0 |
+| bm-w2-ram.presentation | presentation | ✓ | 0 |
+| bm-w2-storage.presentation | presentation | ✓ | 0 |
+| bm-w3-custom.presentation | presentation | ✓ | 0 |
+| bm-w3-power.presentation | presentation | ✓ | 0 |
+| bm-w4-printers.presentation | presentation | ✓ | 0 |
+| bm-w4-troubleshoot.presentation | presentation | ✓ | 0 |
+| bm-w1-cables-quiz | quiz | ✓ | 0 |
+| bm-w1-mobo-quiz | quiz | ✓ | 0 |
+| bm-w2-ram-quiz | quiz | ✓ | 0 |
+| bm-w2-storage-quiz | quiz | ✓ | 0 |
+| bm-w3-custom-quiz | quiz | ✓ | 0 |
+| bm-w3-power-quiz | quiz | ✓ | 0 |
+| bm-w4-printers-quiz | quiz | ✓ | 0 |
+| bm-w4-troubleshoot-quiz | quiz | ✓ | 0 |
+| fb-w1-fundamentals.presentation | presentation | ✓ | 0 |
+| fb-w1-word-basics.presentation | presentation | ✓ | 0 |
+| fb-w2-word-advanced.presentation | presentation | ✓ | 0 |
 | forge-admin-tools.lab | lab | ✓ | 0 |
 | forge-control-panel.lab | lab | ✓ | 0 |
 | forge-core2-roleplay.lab | lab | ✓ | 0 |
@@ -7468,6 +7981,32 @@
 | hardware-essentials | quiz | ✓ | 0 |
 | windows-admin | quiz | ✓ | 0 |
 | forge-backup-or-bust | presentation | ✓ | 0 |
+| sr-final-exam | quiz | ✓ | 0 |
+| sr-midterm-exam | quiz | ✓ | 0 |
+| sr-w1-install.lab | lab | ✓ | 0 |
+| sr-w1-roles.lab | lab | ✓ | 0 |
+| sr-w2-storage.lab | lab | ✓ | 0 |
+| sr-w2-virtual.lab | lab | ✓ | 0 |
+| sr-w3-ha.lab | lab | ✓ | 0 |
+| sr-w3-monitor.lab | lab | ✓ | 0 |
+| sr-w4-containers.lab | lab | ✓ | 0 |
+| sr-w4-troubleshoot.lab | lab | ✓ | 0 |
+| sr-w1-install.presentation | presentation | ✓ | 0 |
+| sr-w1-roles.presentation | presentation | ✓ | 0 |
+| sr-w2-storage.presentation | presentation | ✓ | 0 |
+| sr-w2-virtualization.presentation | presentation | ✓ | 0 |
+| sr-w3-ha.presentation | presentation | ✓ | 0 |
+| sr-w3-monitoring.presentation | presentation | ✓ | 0 |
+| sr-w4-containers.presentation | presentation | ✓ | 0 |
+| sr-w4-troubleshoot.presentation | presentation | ✓ | 0 |
+| sr-w1-install-quiz | quiz | ✓ | 0 |
+| sr-w1-roles-quiz | quiz | ✓ | 0 |
+| sr-w2-storage-quiz | quiz | ✓ | 0 |
+| sr-w2-virtual-quiz | quiz | ✓ | 0 |
+| sr-w3-ha-quiz | quiz | ✓ | 0 |
+| sr-w3-monitor-quiz | quiz | ✓ | 0 |
+| sr-w4-containers-quiz | quiz | ✓ | 0 |
+| sr-w4-troubleshoot-quiz | quiz | ✓ | 0 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
 | forge-control-panel.tool | presentation | ✓ | 0 |
 | forge-os-core.tool | presentation | ✓ | 0 |
@@ -7532,25 +8071,6 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| ala-01 | quiz | ✓ | 0 |
-| ala-02 | quiz | ✓ | 0 |
-| ala-03 | quiz | ✓ | 0 |
-| ala-04 | quiz | ✓ | 0 |
-| ala-05 | quiz | ✓ | 0 |
-| ala-06 | quiz | ✓ | 0 |
-| ala-07 | quiz | ✓ | 0 |
-| ala-08 | quiz | ✓ | 0 |
-| ala-09 | quiz | ✓ | 0 |
-| ala-10 | quiz | ✓ | 0 |
-| ala-11 | quiz | ✓ | 0 |
-| ala-12 | quiz | ✓ | 0 |
-| ala-13 | quiz | ✓ | 0 |
-| ala-14 | quiz | ✓ | 0 |
-| ala-15 | quiz | ✓ | 0 |
-| ala-16 | quiz | ✓ | 0 |
-| ala-17 | quiz | ✓ | 0 |
-| ala-18 | quiz | ✓ | 0 |
-| ala-19 | quiz | ✓ | 0 |
 | ala-r1 | presentation | ✓ | 0 |
 | ala-r2 | presentation | ✓ | 0 |
 | ala-r3 | presentation | ✓ | 0 |
@@ -8189,6 +8709,33 @@
 | script-directory.tool | presentation | ✓ | 0 |
 | script-permission.tool | presentation | ✓ | 0 |
 | script-service.tool | presentation | ✓ | 0 |
+| ra-final.exam | presentation | ✓ | 0 |
+| ra-midterm.exam | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| ra-w1-kernel.lab | presentation | ✓ | 0 |
+| ra-w1-storage.lab | presentation | ✓ | 0 |
+| ra-w2-files.lab | presentation | ✓ | 0 |
+| ra-w2-servers.lab | presentation | ✓ | 0 |
+| ra-w3-security.lab | presentation | ✓ | 0 |
+| ra-w3-users.lab | presentation | ✓ | 0 |
+| ra-w4-logging.lab | presentation | ✓ | 0 |
+| ra-w4-troubleshoot.lab | presentation | ✓ | 0 |
+| ra-w1-kernel.presentation | presentation | ✓ | 0 |
+| ra-w1-storage.presentation | presentation | ✓ | 0 |
+| ra-w2-files.presentation | presentation | ✓ | 0 |
+| ra-w2-servers.presentation | presentation | ✓ | 0 |
+| ra-w3-security.presentation | presentation | ✓ | 0 |
+| ra-w3-users.presentation | presentation | ✓ | 0 |
+| ra-w4-logging.presentation | presentation | ✓ | 0 |
+| ra-w4-troubleshoot.presentation | presentation | ✓ | 0 |
+| ra-w1-kernel.quiz | presentation | ✓ | 0 |
+| ra-w1-storage.quiz | presentation | ✓ | 0 |
+| ra-w2-files.quiz | presentation | ✓ | 0 |
+| ra-w2-servers.quiz | presentation | ✓ | 0 |
+| ra-w3-security.quiz | presentation | ✓ | 0 |
+| ra-w3-users.quiz | presentation | ✓ | 0 |
+| ra-w4-logging.quiz | presentation | ✓ | 0 |
+| ra-w4-troubleshoot.quiz | presentation | ✓ | 0 |
 | script-db-01-intro.module | presentation | ✓ | 0 |
 | script-db-02-select.module | presentation | ✓ | 0 |
 | script-db-03-where.module | presentation | ✓ | 0 |
@@ -8378,9 +8925,6 @@
 | shield-threat-swarm.applet | applet | ✓ | 1 |
 | shield-threatdex.applet | applet | ✓ | 1 |
 | shield-web-security-headers-lab.applet | applet | ✓ | 1 |
-| pis-final | quiz | ✓ | 0 |
-| pis-midterm | quiz | ✓ | 0 |
-| index | applet | ✓ | 1 |
 | pis-01 | quiz | ✓ | 0 |
 | pis-02 | quiz | ✓ | 0 |
 | pis-03 | quiz | ✓ | 0 |
@@ -8402,6 +8946,9 @@
 | pis-19 | quiz | ✓ | 0 |
 | pis-20 | quiz | ✓ | 0 |
 | pis-21 | quiz | ✓ | 0 |
+| pis-final | quiz | ✓ | 0 |
+| pis-midterm | quiz | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | pis-r1 | presentation | ✓ | 0 |
 | pis-r2 | presentation | ✓ | 0 |
 | pis-r3 | presentation | ✓ | 0 |
@@ -8428,6 +8975,38 @@
 | pis-w2-quiz | quiz | ✓ | 0 |
 | pis-w3-quiz | quiz | ✓ | 0 |
 | pis-w4-quiz | quiz | ✓ | 0 |
+| fw-final | quiz | ✓ | 0 |
+| fw-midterm | quiz | ✓ | 0 |
+| fw-w1-logical.lab | presentation | ✓ | 0 |
+| fw-w1-physical.lab | presentation | ✓ | 0 |
+| fw-w2-malware.lab | presentation | ✓ | 0 |
+| fw-w2-wireless.lab | presentation | ✓ | 0 |
+| fw-w3-os-security.lab | presentation | ✓ | 0 |
+| fw-w3-social.lab | presentation | ✓ | 0 |
+| fw-w3-workstation.lab | presentation | ✓ | 0 |
+| fw-w4-data.lab | presentation | ✓ | 0 |
+| fw-w4-mobile.lab | presentation | ✓ | 0 |
+| fw-w4-soho.lab | presentation | ✓ | 0 |
+| fw-w1-logical.presentation | presentation | ✓ | 0 |
+| fw-w1-physical.presentation | presentation | ✓ | 0 |
+| fw-w2-malware.presentation | presentation | ✓ | 0 |
+| fw-w2-wireless.presentation | presentation | ✓ | 0 |
+| fw-w3-os-security.presentation | presentation | ✓ | 0 |
+| fw-w3-social-engineering.presentation | presentation | ✓ | 0 |
+| fw-w3-workstation.presentation | presentation | ✓ | 0 |
+| fw-w4-data-destruction.presentation | presentation | ✓ | 0 |
+| fw-w4-mobile.presentation | presentation | ✓ | 0 |
+| fw-w4-soho.presentation | presentation | ✓ | 0 |
+| fw-w1-logical | quiz | ✓ | 0 |
+| fw-w1-physical | quiz | ✓ | 0 |
+| fw-w2-malware | quiz | ✓ | 0 |
+| fw-w2-wireless | quiz | ✓ | 0 |
+| fw-w3-os-security | quiz | ✓ | 0 |
+| fw-w3-social | quiz | ✓ | 0 |
+| fw-w3-workstation | quiz | ✓ | 0 |
+| fw-w4-data | quiz | ✓ | 0 |
+| fw-w4-mobile | quiz | ✓ | 0 |
+| fw-w4-soho | quiz | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | shield-linux-audit-drill.lab | lab | ✓ | 0 |
 | shield-linux-audit.lab | lab | ✓ | 0 |
@@ -8835,6 +9414,10 @@
 | index | presentation | ✓ | 0 |
 | da-ad-attack-lab.lab | lab | ✓ | 0 |
 | index | applet | ✓ | 1 |
+| pfi-op-01.mission | presentation | ✓ | 0 |
+| pfi-op-02.mission | presentation | ✓ | 0 |
+| pfi-op-03.mission | presentation | ✓ | 0 |
+| pfi-op-04.mission | presentation | ✓ | 0 |
 | product-info | applet | ✓ | 1 |
 | ai-explainable-ml | applet | ✓ | 1 |
 | ai-intrusion-detector | applet | ✓ | 1 |
@@ -9108,6 +9691,32 @@
 | web-subnet-siege.applet | applet | ✓ | 1 |
 | web-wireless-warzone.applet | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
+| fl-final | quiz | ✓ | 0 |
+| fl-midterm | quiz | ✓ | 0 |
+| fl-w1-hardware.lab | lab | ✓ | 0 |
+| fl-w1-ports.lab | lab | ✓ | 0 |
+| fl-w2-soho.lab | lab | ✓ | 0 |
+| fl-w2-wireless.lab | lab | ✓ | 0 |
+| fl-w3-config.lab | lab | ✓ | 0 |
+| fl-w3-services.lab | lab | ✓ | 0 |
+| fl-w4-connections.lab | lab | ✓ | 0 |
+| fl-w4-tools.lab | lab | ✓ | 0 |
+| fl-w1-hardware.presentation | presentation | ✓ | 0 |
+| fl-w1-ports.presentation | presentation | ✓ | 0 |
+| fl-w2-soho.presentation | presentation | ✓ | 0 |
+| fl-w2-wireless.presentation | presentation | ✓ | 0 |
+| fl-w3-config.presentation | presentation | ✓ | 0 |
+| fl-w3-services.presentation | presentation | ✓ | 0 |
+| fl-w4-connections.presentation | presentation | ✓ | 0 |
+| fl-w4-tools.presentation | presentation | ✓ | 0 |
+| fl-w1-hardware-quiz | quiz | ✓ | 0 |
+| fl-w1-ports-quiz | quiz | ✓ | 0 |
+| fl-w2-soho-quiz | quiz | ✓ | 0 |
+| fl-w2-wireless-quiz | quiz | ✓ | 0 |
+| fl-w3-config-quiz | quiz | ✓ | 0 |
+| fl-w3-services-quiz | quiz | ✓ | 0 |
+| fl-w4-connections-quiz | quiz | ✓ | 0 |
+| fl-w4-tools-quiz | quiz | ✓ | 0 |
 | web-dns-troubleshooting.lab | lab | ✓ | 0 |
 | web-firewall-rules.lab | lab | ✓ | 0 |
 | web-ne01-osi-scenario.lab | lab | ✓ | 0 |
@@ -9122,6 +9731,32 @@
 | web-troubleshooting.lab | lab | ✓ | 0 |
 | web-vlan-config.lab | lab | ✓ | 0 |
 | web-ip-addressing-ch7-10.module | presentation | ✓ | 0 |
+| cr-final.exam | presentation | ✓ | 0 |
+| cr-midterm.exam | presentation | ✓ | 0 |
+| cr-w1-access.lab | lab | ✓ | 0 |
+| cr-w1-osi.lab | lab | ✓ | 0 |
+| cr-w2-addressing.lab | lab | ✓ | 0 |
+| cr-w2-network.lab | lab | ✓ | 0 |
+| cr-w3-app.lab | lab | ✓ | 0 |
+| cr-w3-transport.lab | lab | ✓ | 0 |
+| cr-w4-design.lab | lab | ✓ | 0 |
+| cr-w4-troubleshoot.lab | lab | ✓ | 0 |
+| cr-w1-access.presentation | presentation | ✓ | 0 |
+| cr-w1-osi.presentation | presentation | ✓ | 0 |
+| cr-w2-addressing.presentation | presentation | ✓ | 0 |
+| cr-w2-network-layer.presentation | presentation | ✓ | 0 |
+| cr-w3-application.presentation | presentation | ✓ | 0 |
+| cr-w3-transport.presentation | presentation | ✓ | 0 |
+| cr-w4-design.presentation | presentation | ✓ | 0 |
+| cr-w4-troubleshoot.presentation | presentation | ✓ | 0 |
+| cr-w1-access.quiz | presentation | ✓ | 0 |
+| cr-w1-osi.quiz | presentation | ✓ | 0 |
+| cr-w2-addressing.quiz | presentation | ✓ | 0 |
+| cr-w2-network.quiz | presentation | ✓ | 0 |
+| cr-w3-app.quiz | presentation | ✓ | 0 |
+| cr-w3-transport.quiz | presentation | ✓ | 0 |
+| cr-w4-design.quiz | presentation | ✓ | 0 |
+| cr-w4-troubleshoot.quiz | presentation | ✓ | 0 |
 | ne-01 | presentation | ✓ | 0 |
 | ne-02 | presentation | ✓ | 0 |
 | ne-03 | presentation | ✓ | 0 |
@@ -9318,7 +9953,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (60) — heuristic, needs review
+### SUSPECT (61) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -9528,6 +10163,10 @@
   File: `houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html`
   Fix: Remove commented-out code or restore it if needed
 
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `houses/web/intro-networks/labs/fl-w1-ports.lab.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
+
 **[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
   File: `houses/web/network-plus/labs/ne06-dns-dhcp-console-gui.lab.html`
   Fix: Remove commented-out code or restore it if needed
@@ -9560,7 +10199,7 @@
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
-### WARNING (2188)
+### WARNING (2463)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -11516,6 +12155,110 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/az-900/quizzes/az900-ch03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/exams/cb-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/exams/cb-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/labs/cb-w1-concepts.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/labs/cb-w1-deployment.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/labs/cb-w2-automation.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/labs/cb-w2-security.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/labs/cb-w3-backup.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/labs/cb-w3-dr.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/labs/cb-w4-monitoring.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/labs/cb-w4-troubleshoot.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/presentations/cb-w1-concepts.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/presentations/cb-w1-deployment.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/presentations/cb-w2-automation.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/presentations/cb-w2-security.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/presentations/cb-w3-backup.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/presentations/cb-w3-dr.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/presentations/cb-w4-monitoring.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/presentations/cb-w4-troubleshoot.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/quizzes/cb-w1-concepts.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/quizzes/cb-w1-deployment.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/quizzes/cb-w2-automation.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/quizzes/cb-w2-security.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/quizzes/cb-w3-backup.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/quizzes/cb-w3-dr.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/quizzes/cb-w4-monitoring.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cloud-essentials/quizzes/cb-w4-troubleshoot.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13503,6 +14246,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-for-it/labs/pfi-w4-gui-inclass.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/python-for-it/presentations/pfi-course-intro.presentation.html`
   Fix: Add entry to content-registry.js
 
@@ -13555,6 +14302,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-for-it/presentations/pfi-w4-gui-classroom.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/python-for-it/presentations/pfi-w4-gui.presentation.html`
   Fix: Add entry to content-registry.js
 
@@ -13576,6 +14327,110 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/python-for-it/upgrade-guide.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/exams/sp-w2-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/exams/sp-w4-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/labs/sp-w1-datatypes.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/labs/sp-w1-intro.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/labs/sp-w2-loops.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/labs/sp-w2-strings.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/labs/sp-w3-collections.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/labs/sp-w3-functions.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/labs/sp-w4-analysis.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/labs/sp-w4-classes.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/presentations/sp-w1-datatypes.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/presentations/sp-w1-intro.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/presentations/sp-w2-loops.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/presentations/sp-w2-strings.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/presentations/sp-w3-collections.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/presentations/sp-w3-functions.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/presentations/sp-w4-analysis.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/presentations/sp-w4-classes.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/quizzes/sp-w1-datatypes.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/quizzes/sp-w1-intro.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/quizzes/sp-w2-loops.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/quizzes/sp-w2-strings.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/quizzes/sp-w3-collections.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/quizzes/sp-w3-functions.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/quizzes/sp-w4-analysis.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/python-programming/quizzes/sp-w4-classes.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -13610,68 +14465,272 @@
   File: `houses/dark-arts/vault/ehe/da-ad-attack-lab.lab.html`
   Fix: Add entry to content-registry.js
 
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/exams/cse-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/exams/cse-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-01-cyberethics-overview.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-02-security-professional-role.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-03-nist-csf.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-04-cyberspace-governance.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-05-free-speech.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-06-ip-cyberspace.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-07-privacy-rights.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-08-cybercrime-moral-obligation.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-09-solarium-commission.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/presentations/cse-10-capstone.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/quizzes/cse-w1.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/quizzes/cse-w2.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/quizzes/cse-w3.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-ethics/quizzes/cse-w4.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-final-mc.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-midterm-mc.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w1-concepts.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w1-origins.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w1-security-by-design.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w1-workforce.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w2-bcp-drp.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w2-human-factor.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w2-programs.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w2-threats.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w3-compliance.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w3-governance.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w3-laws.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w3-roles.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w4-nist-800-53.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w4-nist-csf.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w4-risk-management.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/_source/csp-w4-sovereignty.lab.html`
+  Fix: Add entry to content-registry.js
+
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/divergent/cybersecurity-policy/index.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-01.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w1-concepts.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-02.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w1-origins.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-03.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w1-security-by-design.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-04.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w1-workforce.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-05.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w2-bcp-drp.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-06.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w2-human-factor.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-07.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w2-programs.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-08.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w2-threats.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-09.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w3-compliance.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-10.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w3-governance.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-11.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w3-laws.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-12.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w3-roles.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-13.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w4-nist-800-53.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-14.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w4-nist-csf.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-15.html`
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w4-risk-management.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/presentations/csp-w4-sovereignty.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w1-concepts.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w1-origins.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w1-security-by-design.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w1-workforce.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w2-bcp-drp.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w2-human-factor.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w2-programs.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w2-threats.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w3-compliance.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w3-governance.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w3-laws.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w3-roles.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-800-53.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-csf.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w4-risk-management.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w4-sovereignty.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13692,6 +14751,66 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/divergent/ethics-it/exams/eth-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-01-overview.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-02-it-professionals.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-03-cybersecurity-ethics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-04-week1-checkpoint.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-05-privacy.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-06-freedom-expression.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-07-intellectual-property.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-08-week2-checkpoint.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-09-software-development.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-10-it-impact.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-11-week3-checkpoint.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-12-social-media.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-13-it-organizations.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-14-codes-of-ethics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-15-final-assessment.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13784,6 +14903,122 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/exams/bm-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/exams/bm-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/labs/bm-w1-cables.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/labs/bm-w1-mobo.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/labs/bm-w2-ram.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/labs/bm-w2-storage.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/labs/bm-w3-custom.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/labs/bm-w3-power.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/labs/bm-w4-printers.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/labs/bm-w4-troubleshoot.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/presentations/bm-w1-cables.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/presentations/bm-w1-motherboards.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/presentations/bm-w2-ram.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/presentations/bm-w2-storage.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/presentations/bm-w3-custom.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/presentations/bm-w3-power.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/presentations/bm-w4-printers.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/presentations/bm-w4-troubleshoot.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/quizzes/bm-w1-cables.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/quizzes/bm-w1-mobo.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/quizzes/bm-w2-ram.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/quizzes/bm-w2-storage.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/quizzes/bm-w3-custom.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/quizzes/bm-w3-power.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/quizzes/bm-w4-printers.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/hardware-support/quizzes/bm-w4-troubleshoot.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/intro-computers/presentations/fb-w1-fundamentals.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/intro-computers/presentations/fb-w1-word-basics.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/intro-computers/presentations/fb-w2-word-advanced.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13967,79 +15202,107 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-01.html`
+  File: `houses/forge/server-management/exams/sr-final.exam.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-02.html`
+  File: `houses/forge/server-management/exams/sr-midterm.exam.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-03.html`
+  File: `houses/forge/server-management/labs/sr-w1-install.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-04.html`
+  File: `houses/forge/server-management/labs/sr-w1-roles.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-05.html`
+  File: `houses/forge/server-management/labs/sr-w2-storage.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-06.html`
+  File: `houses/forge/server-management/labs/sr-w2-virtual.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-07.html`
+  File: `houses/forge/server-management/labs/sr-w3-ha.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-08.html`
+  File: `houses/forge/server-management/labs/sr-w3-monitor.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-09.html`
+  File: `houses/forge/server-management/labs/sr-w4-containers.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-10.html`
+  File: `houses/forge/server-management/labs/sr-w4-troubleshoot.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-11.html`
+  File: `houses/forge/server-management/presentations/sr-w1-install.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-12.html`
+  File: `houses/forge/server-management/presentations/sr-w1-roles.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-13.html`
+  File: `houses/forge/server-management/presentations/sr-w2-storage.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-14.html`
+  File: `houses/forge/server-management/presentations/sr-w2-virtualization.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-15.html`
+  File: `houses/forge/server-management/presentations/sr-w3-ha.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-16.html`
+  File: `houses/forge/server-management/presentations/sr-w3-monitoring.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-17.html`
+  File: `houses/forge/server-management/presentations/sr-w4-containers.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-18.html`
+  File: `houses/forge/server-management/presentations/sr-w4-troubleshoot.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-19.html`
+  File: `houses/forge/server-management/quizzes/sr-w1-install.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/server-management/quizzes/sr-w1-roles.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/server-management/quizzes/sr-w2-storage.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/server-management/quizzes/sr-w2-virtual.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/server-management/quizzes/sr-w3-ha.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/server-management/quizzes/sr-w3-monitor.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/server-management/quizzes/sr-w4-containers.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/server-management/quizzes/sr-w4-troubleshoot.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -15411,6 +16674,110 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/exams/ra-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/exams/ra-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/labs/ra-w1-kernel.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/labs/ra-w1-storage.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/labs/ra-w2-files.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/labs/ra-w2-servers.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/labs/ra-w3-security.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/labs/ra-w3-users.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/labs/ra-w4-logging.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/labs/ra-w4-troubleshoot.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/presentations/ra-w1-kernel.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/presentations/ra-w1-storage.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/presentations/ra-w2-files.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/presentations/ra-w2-servers.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/presentations/ra-w3-security.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/presentations/ra-w3-users.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/presentations/ra-w4-logging.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/presentations/ra-w4-troubleshoot.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/quizzes/ra-w1-kernel.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/quizzes/ra-w1-storage.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/quizzes/ra-w2-files.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/quizzes/ra-w2-servers.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/quizzes/ra-w3-security.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/quizzes/ra-w3-users.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/quizzes/ra-w4-logging.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/linux-essentials/quizzes/ra-w4-troubleshoot.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/modules/databases/script-db-01-intro.module.html`
   Fix: Add entry to content-registry.js
 
@@ -15567,95 +16934,95 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-01.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-02.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-04.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-05.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-06.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-07.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-08.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-09.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-11.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-12.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-13.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-14.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-15.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-16.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-17.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-18.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-19.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-20.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/_source/pis-21.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/exams/pis-final.exam.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/exams/pis-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-01.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-02.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-03.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-04.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-05.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-06.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-07.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-08.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-09.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-10.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-11.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-12.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-13.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-14.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-15.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-16.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-17.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-18.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-19.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-20.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-21.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -15760,6 +17127,134 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/quizzes/pis-w4.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/exams/fw-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/exams/fw-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w1-logical.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w1-physical.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w2-malware.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w2-wireless.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w3-os-security.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w3-social.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w3-workstation.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w4-data.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w4-mobile.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/labs/fw-w4-soho.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w1-logical.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w1-physical.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w2-malware.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w2-wireless.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w3-os-security.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w3-social-engineering.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w3-workstation.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w4-data-destruction.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w4-mobile.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/presentations/fw-w4-soho.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w1-logical.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w1-physical.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w2-malware.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w2-wireless.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w3-os-security.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w3-social.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w3-workstation.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w4-data.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w4-mobile.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/intro-security/quizzes/fw-w4-soho.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -16723,6 +18218,110 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/exams/fl-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/exams/fl-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/labs/fl-w1-hardware.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/labs/fl-w1-ports.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/labs/fl-w2-soho.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/labs/fl-w2-wireless.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/labs/fl-w3-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/labs/fl-w3-services.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/labs/fl-w4-connections.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/labs/fl-w4-tools.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/presentations/fl-w1-hardware.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/presentations/fl-w1-ports.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/presentations/fl-w2-soho.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/presentations/fl-w2-wireless.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/presentations/fl-w3-config.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/presentations/fl-w3-services.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/presentations/fl-w4-connections.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/presentations/fl-w4-tools.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/quizzes/fl-w1-hardware.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/quizzes/fl-w1-ports.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/quizzes/fl-w2-soho.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/quizzes/fl-w2-wireless.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/quizzes/fl-w3-config.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/quizzes/fl-w3-services.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/quizzes/fl-w4-connections.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/intro-networks/quizzes/fl-w4-tools.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/labs/web-ne01-osi-scenario.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -16740,6 +18339,110 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/labs/web-ne08-wireless-scenario.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/exams/cr-final.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/exams/cr-midterm.exam.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/labs/cr-w1-access.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/labs/cr-w1-osi.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/labs/cr-w2-addressing.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/labs/cr-w2-network.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/labs/cr-w3-app.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/labs/cr-w3-transport.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/labs/cr-w4-design.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/labs/cr-w4-troubleshoot.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/presentations/cr-w1-access.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/presentations/cr-w1-osi.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/presentations/cr-w2-addressing.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/presentations/cr-w2-network-layer.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/presentations/cr-w3-application.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/presentations/cr-w3-transport.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/presentations/cr-w4-design.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/presentations/cr-w4-troubleshoot.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/quizzes/cr-w1-access.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/quizzes/cr-w1-osi.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/quizzes/cr-w2-addressing.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/quizzes/cr-w2-network.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/quizzes/cr-w3-app.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/quizzes/cr-w3-transport.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/quizzes/cr-w4-design.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/net-essentials/quizzes/cr-w4-troubleshoot.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -17220,6 +18923,22 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/network-plus/tools/wireless.tool.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `operator/missions/pfi-op-01.mission.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `operator/missions/pfi-op-02.mission.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `operator/missions/pfi-op-03.mission.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `operator/missions/pfi-op-04.mission.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -17907,6 +19626,10 @@
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/code/python-for-it/labs/pfi-w4-gui-inclass.lab.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `lobby.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
@@ -17968,6 +19691,22 @@
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `operator/missions/log-analysis-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/pfi-op-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/pfi-op-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/pfi-op-03.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/pfi-op-04.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
@@ -18182,7 +19921,7 @@
   File: `operator/missions/windows-cmd-02.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (448)
+### INFO (451)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `about.html`
@@ -18389,6 +20128,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/cloud-essentials/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -18453,15 +20196,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/python-for-it/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/python-for-it/labs/pfi-w1-checkpoint.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/python-for-it/upgrade-guide.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/python-programming/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -18598,6 +20341,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/games/script-shell-sprint.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/linux-essentials/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -19632,6 +21379,10 @@
   File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
   Fix: Manual review required - path is constructed dynamically
 
+**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-document.webp
+  File: `houses/divergent/cybersecurity-ethics/index.html`
+  Fix: Manual review required - path is constructed dynamically
+
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/eye/applets/cyberops/eye-content-filtering.applet.html`
   Fix: Manual review required - path is constructed dynamically
@@ -19972,7 +21723,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (1970)
+### Unregistered Content (2240)
 
 | Path | Type | House |
 |------|------|-------|
@@ -20461,6 +22212,32 @@
 | houses/cloud/az-900/quizzes/az900-ch01.quiz.html | quiz | cloud |
 | houses/cloud/az-900/quizzes/az900-ch02.quiz.html | quiz | cloud |
 | houses/cloud/az-900/quizzes/az900-ch03.quiz.html | quiz | cloud |
+| houses/cloud/cloud-essentials/exams/cb-final.exam.html | presentation | cloud |
+| houses/cloud/cloud-essentials/exams/cb-midterm.exam.html | presentation | cloud |
+| houses/cloud/cloud-essentials/labs/cb-w1-concepts.lab.html | lab | cloud |
+| houses/cloud/cloud-essentials/labs/cb-w1-deployment.lab.html | lab | cloud |
+| houses/cloud/cloud-essentials/labs/cb-w2-automation.lab.html | lab | cloud |
+| houses/cloud/cloud-essentials/labs/cb-w2-security.lab.html | lab | cloud |
+| houses/cloud/cloud-essentials/labs/cb-w3-backup.lab.html | lab | cloud |
+| houses/cloud/cloud-essentials/labs/cb-w3-dr.lab.html | lab | cloud |
+| houses/cloud/cloud-essentials/labs/cb-w4-monitoring.lab.html | lab | cloud |
+| houses/cloud/cloud-essentials/labs/cb-w4-troubleshoot.lab.html | lab | cloud |
+| houses/cloud/cloud-essentials/presentations/cb-w1-concepts.presentation.html | presentation | cloud |
+| houses/cloud/cloud-essentials/presentations/cb-w1-deployment.presentation.html | presentation | cloud |
+| houses/cloud/cloud-essentials/presentations/cb-w2-automation.presentation.html | presentation | cloud |
+| houses/cloud/cloud-essentials/presentations/cb-w2-security.presentation.html | presentation | cloud |
+| houses/cloud/cloud-essentials/presentations/cb-w3-backup.presentation.html | presentation | cloud |
+| houses/cloud/cloud-essentials/presentations/cb-w3-dr.presentation.html | presentation | cloud |
+| houses/cloud/cloud-essentials/presentations/cb-w4-monitoring.presentation.html | presentation | cloud |
+| houses/cloud/cloud-essentials/presentations/cb-w4-troubleshoot.presentation.html | presentation | cloud |
+| houses/cloud/cloud-essentials/quizzes/cb-w1-concepts.quiz.html | presentation | cloud |
+| houses/cloud/cloud-essentials/quizzes/cb-w1-deployment.quiz.html | presentation | cloud |
+| houses/cloud/cloud-essentials/quizzes/cb-w2-automation.quiz.html | presentation | cloud |
+| houses/cloud/cloud-essentials/quizzes/cb-w2-security.quiz.html | presentation | cloud |
+| houses/cloud/cloud-essentials/quizzes/cb-w3-backup.quiz.html | presentation | cloud |
+| houses/cloud/cloud-essentials/quizzes/cb-w3-dr.quiz.html | presentation | cloud |
+| houses/cloud/cloud-essentials/quizzes/cb-w4-monitoring.quiz.html | presentation | cloud |
+| houses/cloud/cloud-essentials/quizzes/cb-w4-troubleshoot.quiz.html | presentation | cloud |
 | houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
 | houses/cloud/ms-102/labs/ms102-ch01-tenant.lab.html | lab | cloud |
 | houses/cloud/ms-102/labs/ms102-ch02-users-groups.lab.html | lab | cloud |
@@ -20956,6 +22733,7 @@
 | houses/code/python-for-it/labs/pfi-w3-project-oop.lab.html | lab | code |
 | houses/code/python-for-it/labs/pfi-w3-project.lab.html | lab | code |
 | houses/code/python-for-it/labs/pfi-w4-final-project.lab.html | lab | code |
+| houses/code/python-for-it/labs/pfi-w4-gui-inclass.lab.html | lab | code |
 | houses/code/python-for-it/presentations/pfi-course-intro.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w1-conditionals.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w1-datatypes.presentation.html | presentation | code |
@@ -20969,12 +22747,39 @@
 | houses/code/python-for-it/presentations/pfi-w3-oop.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w3-random.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w4-applied.presentation.html | presentation | code |
+| houses/code/python-for-it/presentations/pfi-w4-gui-classroom.presentation.html | presentation | code |
 | houses/code/python-for-it/presentations/pfi-w4-gui.presentation.html | presentation | code |
 | houses/code/python-for-it/quizzes/pfi-w1-quiz.quiz.html | presentation | code |
 | houses/code/python-for-it/quizzes/pfi-w2-quiz.quiz.html | presentation | code |
 | houses/code/python-for-it/quizzes/pfi-w3-quiz.quiz.html | presentation | code |
 | houses/code/python-for-it/setup-guide.html | presentation | code |
 | houses/code/python-for-it/upgrade-guide.html | applet | code |
+| houses/code/python-programming/exams/sp-w2-midterm.exam.html | presentation | code |
+| houses/code/python-programming/exams/sp-w4-final.exam.html | presentation | code |
+| houses/code/python-programming/labs/sp-w1-datatypes.lab.html | lab | code |
+| houses/code/python-programming/labs/sp-w1-intro.lab.html | lab | code |
+| houses/code/python-programming/labs/sp-w2-loops.lab.html | lab | code |
+| houses/code/python-programming/labs/sp-w2-strings.lab.html | lab | code |
+| houses/code/python-programming/labs/sp-w3-collections.lab.html | lab | code |
+| houses/code/python-programming/labs/sp-w3-functions.lab.html | lab | code |
+| houses/code/python-programming/labs/sp-w4-analysis.lab.html | lab | code |
+| houses/code/python-programming/labs/sp-w4-classes.lab.html | lab | code |
+| houses/code/python-programming/presentations/sp-w1-datatypes.presentation.html | presentation | code |
+| houses/code/python-programming/presentations/sp-w1-intro.presentation.html | presentation | code |
+| houses/code/python-programming/presentations/sp-w2-loops.presentation.html | presentation | code |
+| houses/code/python-programming/presentations/sp-w2-strings.presentation.html | presentation | code |
+| houses/code/python-programming/presentations/sp-w3-collections.presentation.html | presentation | code |
+| houses/code/python-programming/presentations/sp-w3-functions.presentation.html | presentation | code |
+| houses/code/python-programming/presentations/sp-w4-analysis.presentation.html | presentation | code |
+| houses/code/python-programming/presentations/sp-w4-classes.presentation.html | presentation | code |
+| houses/code/python-programming/quizzes/sp-w1-datatypes.quiz.html | presentation | code |
+| houses/code/python-programming/quizzes/sp-w1-intro.quiz.html | presentation | code |
+| houses/code/python-programming/quizzes/sp-w2-loops.quiz.html | presentation | code |
+| houses/code/python-programming/quizzes/sp-w2-strings.quiz.html | presentation | code |
+| houses/code/python-programming/quizzes/sp-w3-collections.quiz.html | presentation | code |
+| houses/code/python-programming/quizzes/sp-w3-functions.quiz.html | presentation | code |
+| houses/code/python-programming/quizzes/sp-w4-analysis.quiz.html | presentation | code |
+| houses/code/python-programming/quizzes/sp-w4-classes.quiz.html | presentation | code |
 | houses/dark-arts/games/dark-ids-evasion-lab.applet.html | lab | - |
 | houses/dark-arts/games/dark-m365-attack-lab.applet.html | applet | - |
 | houses/dark-arts/games/dark-malware-specimen-lab.applet.html | applet | - |
@@ -20982,26 +22787,92 @@
 | houses/dark-arts/games/dark-osint-recon-lab.applet.html | lab | - |
 | houses/dark-arts/games/dark-slowloris-dos-lab.applet.html | applet | - |
 | houses/dark-arts/vault/ehe/da-ad-attack-lab.lab.html | lab | - |
-| houses/divergent/ethics-it/eth-01.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-02.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-03.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-04.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-05.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-06.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-07.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-08.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-09.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-10.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-11.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-12.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-13.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-14.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-15.html | quiz | divergent |
+| houses/divergent/cybersecurity-ethics/exams/cse-final.exam.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/exams/cse-midterm.exam.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-01-cyberethics-overview.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-02-security-professional-role.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-03-nist-csf.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-04-cyberspace-governance.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-05-free-speech.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-06-ip-cyberspace.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-07-privacy-rights.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-08-cybercrime-moral-obligation.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-09-solarium-commission.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/presentations/cse-10-capstone.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-ethics/quizzes/cse-w1.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-ethics/quizzes/cse-w2.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-ethics/quizzes/cse-w3.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-ethics/quizzes/cse-w4.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-final-mc.exam.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-midterm-mc.exam.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w1-concepts.lab.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w1-origins.lab.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w1-security-by-design.lab.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w1-workforce.lab.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w2-bcp-drp.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w2-human-factor.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w2-programs.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w2-threats.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w3-compliance.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w3-governance.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w3-laws.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w3-roles.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w4-nist-800-53.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w4-nist-csf.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w4-risk-management.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/_source/csp-w4-sovereignty.lab.html | lab | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w1-concepts.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w1-origins.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w1-security-by-design.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w1-workforce.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w2-bcp-drp.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w2-human-factor.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w2-programs.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w2-threats.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w3-compliance.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w3-governance.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w3-laws.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w3-roles.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w4-nist-800-53.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w4-nist-csf.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w4-risk-management.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/presentations/csp-w4-sovereignty.presentation.html | presentation | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w1-concepts.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w1-origins.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w1-security-by-design.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w1-workforce.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w2-bcp-drp.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w2-human-factor.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w2-programs.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w2-threats.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w3-compliance.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w3-governance.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w3-laws.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w3-roles.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-800-53.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-csf.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w4-risk-management.quiz.html | quiz | divergent |
+| houses/divergent/cybersecurity-policy/quizzes/csp-w4-sovereignty.quiz.html | quiz | divergent |
 | houses/divergent/ethics-it/eth-r1.html | presentation | divergent |
 | houses/divergent/ethics-it/eth-r2.html | presentation | divergent |
 | houses/divergent/ethics-it/eth-r3.html | presentation | divergent |
 | houses/divergent/ethics-it/exams/eth-final.exam.html | presentation | divergent |
 | houses/divergent/ethics-it/exams/eth-midterm.exam.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-01-overview.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-02-it-professionals.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-03-cybersecurity-ethics.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-04-week1-checkpoint.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-05-privacy.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-06-freedom-expression.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-07-intellectual-property.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-08-week2-checkpoint.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-09-software-development.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-10-it-impact.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-11-week3-checkpoint.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-12-social-media.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-13-it-organizations.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-14-codes-of-ethics.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-15-final-assessment.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w1-cybersecurity-ethics.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w1-ethics-overview.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w1-it-professionals.presentation.html | presentation | divergent |
@@ -21025,6 +22896,35 @@
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html | quiz | forge |
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html | quiz | forge |
 | houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html | quiz | forge |
+| houses/forge/hardware-support/exams/bm-final.exam.html | quiz | forge |
+| houses/forge/hardware-support/exams/bm-midterm.exam.html | quiz | forge |
+| houses/forge/hardware-support/labs/bm-w1-cables.lab.html | lab | forge |
+| houses/forge/hardware-support/labs/bm-w1-mobo.lab.html | lab | forge |
+| houses/forge/hardware-support/labs/bm-w2-ram.lab.html | lab | forge |
+| houses/forge/hardware-support/labs/bm-w2-storage.lab.html | lab | forge |
+| houses/forge/hardware-support/labs/bm-w3-custom.lab.html | lab | forge |
+| houses/forge/hardware-support/labs/bm-w3-power.lab.html | lab | forge |
+| houses/forge/hardware-support/labs/bm-w4-printers.lab.html | lab | forge |
+| houses/forge/hardware-support/labs/bm-w4-troubleshoot.lab.html | lab | forge |
+| houses/forge/hardware-support/presentations/bm-w1-cables.presentation.html | presentation | forge |
+| houses/forge/hardware-support/presentations/bm-w1-motherboards.presentation.html | presentation | forge |
+| houses/forge/hardware-support/presentations/bm-w2-ram.presentation.html | presentation | forge |
+| houses/forge/hardware-support/presentations/bm-w2-storage.presentation.html | presentation | forge |
+| houses/forge/hardware-support/presentations/bm-w3-custom.presentation.html | presentation | forge |
+| houses/forge/hardware-support/presentations/bm-w3-power.presentation.html | presentation | forge |
+| houses/forge/hardware-support/presentations/bm-w4-printers.presentation.html | presentation | forge |
+| houses/forge/hardware-support/presentations/bm-w4-troubleshoot.presentation.html | presentation | forge |
+| houses/forge/hardware-support/quizzes/bm-w1-cables.quiz.html | quiz | forge |
+| houses/forge/hardware-support/quizzes/bm-w1-mobo.quiz.html | quiz | forge |
+| houses/forge/hardware-support/quizzes/bm-w2-ram.quiz.html | quiz | forge |
+| houses/forge/hardware-support/quizzes/bm-w2-storage.quiz.html | quiz | forge |
+| houses/forge/hardware-support/quizzes/bm-w3-custom.quiz.html | quiz | forge |
+| houses/forge/hardware-support/quizzes/bm-w3-power.quiz.html | quiz | forge |
+| houses/forge/hardware-support/quizzes/bm-w4-printers.quiz.html | quiz | forge |
+| houses/forge/hardware-support/quizzes/bm-w4-troubleshoot.quiz.html | quiz | forge |
+| houses/forge/intro-computers/presentations/fb-w1-fundamentals.presentation.html | presentation | forge |
+| houses/forge/intro-computers/presentations/fb-w1-word-basics.presentation.html | presentation | forge |
+| houses/forge/intro-computers/presentations/fb-w2-word-advanced.presentation.html | presentation | forge |
 | houses/forge/md-100/labs/forge-md100-google-dorking.lab.html | applet | forge |
 | houses/forge/md-100/labs/forge-md100-m01-sim.lab.html | lab | forge |
 | houses/forge/md-100/labs/forge-md100-m02-sim.lab.html | lab | forge |
@@ -21070,25 +22970,32 @@
 | houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
-| houses/matrix/adv-linux/ala-01.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-02.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-03.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-04.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-05.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-06.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-07.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-08.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-09.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-10.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-11.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-12.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-13.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-14.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-15.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-16.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-17.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-18.html | quiz | matrix |
-| houses/matrix/adv-linux/ala-19.html | quiz | matrix |
+| houses/forge/server-management/exams/sr-final.exam.html | quiz | forge |
+| houses/forge/server-management/exams/sr-midterm.exam.html | quiz | forge |
+| houses/forge/server-management/labs/sr-w1-install.lab.html | lab | forge |
+| houses/forge/server-management/labs/sr-w1-roles.lab.html | lab | forge |
+| houses/forge/server-management/labs/sr-w2-storage.lab.html | lab | forge |
+| houses/forge/server-management/labs/sr-w2-virtual.lab.html | lab | forge |
+| houses/forge/server-management/labs/sr-w3-ha.lab.html | lab | forge |
+| houses/forge/server-management/labs/sr-w3-monitor.lab.html | lab | forge |
+| houses/forge/server-management/labs/sr-w4-containers.lab.html | lab | forge |
+| houses/forge/server-management/labs/sr-w4-troubleshoot.lab.html | lab | forge |
+| houses/forge/server-management/presentations/sr-w1-install.presentation.html | presentation | forge |
+| houses/forge/server-management/presentations/sr-w1-roles.presentation.html | presentation | forge |
+| houses/forge/server-management/presentations/sr-w2-storage.presentation.html | presentation | forge |
+| houses/forge/server-management/presentations/sr-w2-virtualization.presentation.html | presentation | forge |
+| houses/forge/server-management/presentations/sr-w3-ha.presentation.html | presentation | forge |
+| houses/forge/server-management/presentations/sr-w3-monitoring.presentation.html | presentation | forge |
+| houses/forge/server-management/presentations/sr-w4-containers.presentation.html | presentation | forge |
+| houses/forge/server-management/presentations/sr-w4-troubleshoot.presentation.html | presentation | forge |
+| houses/forge/server-management/quizzes/sr-w1-install.quiz.html | quiz | forge |
+| houses/forge/server-management/quizzes/sr-w1-roles.quiz.html | quiz | forge |
+| houses/forge/server-management/quizzes/sr-w2-storage.quiz.html | quiz | forge |
+| houses/forge/server-management/quizzes/sr-w2-virtual.quiz.html | quiz | forge |
+| houses/forge/server-management/quizzes/sr-w3-ha.quiz.html | quiz | forge |
+| houses/forge/server-management/quizzes/sr-w3-monitor.quiz.html | quiz | forge |
+| houses/forge/server-management/quizzes/sr-w4-containers.quiz.html | quiz | forge |
+| houses/forge/server-management/quizzes/sr-w4-troubleshoot.quiz.html | quiz | forge |
 | houses/matrix/adv-linux/ala-r1.html | presentation | matrix |
 | houses/matrix/adv-linux/ala-r2.html | presentation | matrix |
 | houses/matrix/adv-linux/ala-r3.html | presentation | matrix |
@@ -21431,6 +23338,32 @@
 | houses/script/courses/clh/modules/clh-030/script-lab.lab.html | lab | script |
 | houses/script/courses/clh/modules/clh-031/script-intro.module.html | presentation | script |
 | houses/script/courses/clh/modules/clh-031/script-lab.lab.html | lab | script |
+| houses/script/linux-essentials/exams/ra-final.exam.html | presentation | script |
+| houses/script/linux-essentials/exams/ra-midterm.exam.html | presentation | script |
+| houses/script/linux-essentials/labs/ra-w1-kernel.lab.html | presentation | script |
+| houses/script/linux-essentials/labs/ra-w1-storage.lab.html | presentation | script |
+| houses/script/linux-essentials/labs/ra-w2-files.lab.html | presentation | script |
+| houses/script/linux-essentials/labs/ra-w2-servers.lab.html | presentation | script |
+| houses/script/linux-essentials/labs/ra-w3-security.lab.html | presentation | script |
+| houses/script/linux-essentials/labs/ra-w3-users.lab.html | presentation | script |
+| houses/script/linux-essentials/labs/ra-w4-logging.lab.html | presentation | script |
+| houses/script/linux-essentials/labs/ra-w4-troubleshoot.lab.html | presentation | script |
+| houses/script/linux-essentials/presentations/ra-w1-kernel.presentation.html | presentation | script |
+| houses/script/linux-essentials/presentations/ra-w1-storage.presentation.html | presentation | script |
+| houses/script/linux-essentials/presentations/ra-w2-files.presentation.html | presentation | script |
+| houses/script/linux-essentials/presentations/ra-w2-servers.presentation.html | presentation | script |
+| houses/script/linux-essentials/presentations/ra-w3-security.presentation.html | presentation | script |
+| houses/script/linux-essentials/presentations/ra-w3-users.presentation.html | presentation | script |
+| houses/script/linux-essentials/presentations/ra-w4-logging.presentation.html | presentation | script |
+| houses/script/linux-essentials/presentations/ra-w4-troubleshoot.presentation.html | presentation | script |
+| houses/script/linux-essentials/quizzes/ra-w1-kernel.quiz.html | presentation | script |
+| houses/script/linux-essentials/quizzes/ra-w1-storage.quiz.html | presentation | script |
+| houses/script/linux-essentials/quizzes/ra-w2-files.quiz.html | presentation | script |
+| houses/script/linux-essentials/quizzes/ra-w2-servers.quiz.html | presentation | script |
+| houses/script/linux-essentials/quizzes/ra-w3-security.quiz.html | presentation | script |
+| houses/script/linux-essentials/quizzes/ra-w3-users.quiz.html | presentation | script |
+| houses/script/linux-essentials/quizzes/ra-w4-logging.quiz.html | presentation | script |
+| houses/script/linux-essentials/quizzes/ra-w4-troubleshoot.quiz.html | presentation | script |
 | houses/script/modules/databases/script-db-01-intro.module.html | presentation | script |
 | houses/script/modules/databases/script-db-02-select.module.html | presentation | script |
 | houses/script/modules/databases/script-db-03-where.module.html | presentation | script |
@@ -21470,29 +23403,29 @@
 | houses/shield/games/shield-debugger.applet.html | applet | shield |
 | houses/shield/games/shield-threatdex.applet.html | applet | shield |
 | houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
+| houses/shield/infosec/_source/pis-01.html | quiz | shield |
+| houses/shield/infosec/_source/pis-02.html | quiz | shield |
+| houses/shield/infosec/_source/pis-03.html | quiz | shield |
+| houses/shield/infosec/_source/pis-04.html | quiz | shield |
+| houses/shield/infosec/_source/pis-05.html | quiz | shield |
+| houses/shield/infosec/_source/pis-06.html | quiz | shield |
+| houses/shield/infosec/_source/pis-07.html | quiz | shield |
+| houses/shield/infosec/_source/pis-08.html | quiz | shield |
+| houses/shield/infosec/_source/pis-09.html | quiz | shield |
+| houses/shield/infosec/_source/pis-10.html | quiz | shield |
+| houses/shield/infosec/_source/pis-11.html | quiz | shield |
+| houses/shield/infosec/_source/pis-12.html | quiz | shield |
+| houses/shield/infosec/_source/pis-13.html | quiz | shield |
+| houses/shield/infosec/_source/pis-14.html | quiz | shield |
+| houses/shield/infosec/_source/pis-15.html | quiz | shield |
+| houses/shield/infosec/_source/pis-16.html | quiz | shield |
+| houses/shield/infosec/_source/pis-17.html | quiz | shield |
+| houses/shield/infosec/_source/pis-18.html | quiz | shield |
+| houses/shield/infosec/_source/pis-19.html | quiz | shield |
+| houses/shield/infosec/_source/pis-20.html | quiz | shield |
+| houses/shield/infosec/_source/pis-21.html | quiz | shield |
 | houses/shield/infosec/exams/pis-final.exam.html | quiz | shield |
 | houses/shield/infosec/exams/pis-midterm.exam.html | quiz | shield |
-| houses/shield/infosec/pis-01.html | quiz | shield |
-| houses/shield/infosec/pis-02.html | quiz | shield |
-| houses/shield/infosec/pis-03.html | quiz | shield |
-| houses/shield/infosec/pis-04.html | quiz | shield |
-| houses/shield/infosec/pis-05.html | quiz | shield |
-| houses/shield/infosec/pis-06.html | quiz | shield |
-| houses/shield/infosec/pis-07.html | quiz | shield |
-| houses/shield/infosec/pis-08.html | quiz | shield |
-| houses/shield/infosec/pis-09.html | quiz | shield |
-| houses/shield/infosec/pis-10.html | quiz | shield |
-| houses/shield/infosec/pis-11.html | quiz | shield |
-| houses/shield/infosec/pis-12.html | quiz | shield |
-| houses/shield/infosec/pis-13.html | quiz | shield |
-| houses/shield/infosec/pis-14.html | quiz | shield |
-| houses/shield/infosec/pis-15.html | quiz | shield |
-| houses/shield/infosec/pis-16.html | quiz | shield |
-| houses/shield/infosec/pis-17.html | quiz | shield |
-| houses/shield/infosec/pis-18.html | quiz | shield |
-| houses/shield/infosec/pis-19.html | quiz | shield |
-| houses/shield/infosec/pis-20.html | quiz | shield |
-| houses/shield/infosec/pis-21.html | quiz | shield |
 | houses/shield/infosec/pis-r1.html | presentation | shield |
 | houses/shield/infosec/pis-r2.html | presentation | shield |
 | houses/shield/infosec/pis-r3.html | presentation | shield |
@@ -21519,6 +23452,38 @@
 | houses/shield/infosec/quizzes/pis-w2.quiz.html | quiz | shield |
 | houses/shield/infosec/quizzes/pis-w3.quiz.html | quiz | shield |
 | houses/shield/infosec/quizzes/pis-w4.quiz.html | quiz | shield |
+| houses/shield/intro-security/exams/fw-final.exam.html | quiz | shield |
+| houses/shield/intro-security/exams/fw-midterm.exam.html | quiz | shield |
+| houses/shield/intro-security/labs/fw-w1-logical.lab.html | presentation | shield |
+| houses/shield/intro-security/labs/fw-w1-physical.lab.html | presentation | shield |
+| houses/shield/intro-security/labs/fw-w2-malware.lab.html | presentation | shield |
+| houses/shield/intro-security/labs/fw-w2-wireless.lab.html | presentation | shield |
+| houses/shield/intro-security/labs/fw-w3-os-security.lab.html | presentation | shield |
+| houses/shield/intro-security/labs/fw-w3-social.lab.html | presentation | shield |
+| houses/shield/intro-security/labs/fw-w3-workstation.lab.html | presentation | shield |
+| houses/shield/intro-security/labs/fw-w4-data.lab.html | presentation | shield |
+| houses/shield/intro-security/labs/fw-w4-mobile.lab.html | presentation | shield |
+| houses/shield/intro-security/labs/fw-w4-soho.lab.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w1-logical.presentation.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w1-physical.presentation.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w2-malware.presentation.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w2-wireless.presentation.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w3-os-security.presentation.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w3-social-engineering.presentation.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w3-workstation.presentation.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w4-data-destruction.presentation.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w4-mobile.presentation.html | presentation | shield |
+| houses/shield/intro-security/presentations/fw-w4-soho.presentation.html | presentation | shield |
+| houses/shield/intro-security/quizzes/fw-w1-logical.quiz.html | quiz | shield |
+| houses/shield/intro-security/quizzes/fw-w1-physical.quiz.html | quiz | shield |
+| houses/shield/intro-security/quizzes/fw-w2-malware.quiz.html | quiz | shield |
+| houses/shield/intro-security/quizzes/fw-w2-wireless.quiz.html | quiz | shield |
+| houses/shield/intro-security/quizzes/fw-w3-os-security.quiz.html | quiz | shield |
+| houses/shield/intro-security/quizzes/fw-w3-social.quiz.html | quiz | shield |
+| houses/shield/intro-security/quizzes/fw-w3-workstation.quiz.html | quiz | shield |
+| houses/shield/intro-security/quizzes/fw-w4-data.quiz.html | quiz | shield |
+| houses/shield/intro-security/quizzes/fw-w4-mobile.quiz.html | quiz | shield |
+| houses/shield/intro-security/quizzes/fw-w4-soho.quiz.html | quiz | shield |
 | houses/shield/ms-security/ms-sec-01.html | presentation | shield |
 | houses/shield/ms-security/ms-sec-02.html | presentation | shield |
 | houses/shield/ms-security/ms-sec-03.html | presentation | shield |
@@ -21759,11 +23724,63 @@
 | houses/web/exams/web-network-plus-practice.exam.html | presentation | web |
 | houses/web/games/web-dns-resolver-race.applet.html | applet | web |
 | houses/web/games/web-subnet-siege.applet.html | applet | web |
+| houses/web/intro-networks/exams/fl-final.exam.html | quiz | web |
+| houses/web/intro-networks/exams/fl-midterm.exam.html | quiz | web |
+| houses/web/intro-networks/labs/fl-w1-hardware.lab.html | lab | web |
+| houses/web/intro-networks/labs/fl-w1-ports.lab.html | lab | web |
+| houses/web/intro-networks/labs/fl-w2-soho.lab.html | lab | web |
+| houses/web/intro-networks/labs/fl-w2-wireless.lab.html | lab | web |
+| houses/web/intro-networks/labs/fl-w3-config.lab.html | lab | web |
+| houses/web/intro-networks/labs/fl-w3-services.lab.html | lab | web |
+| houses/web/intro-networks/labs/fl-w4-connections.lab.html | lab | web |
+| houses/web/intro-networks/labs/fl-w4-tools.lab.html | lab | web |
+| houses/web/intro-networks/presentations/fl-w1-hardware.presentation.html | presentation | web |
+| houses/web/intro-networks/presentations/fl-w1-ports.presentation.html | presentation | web |
+| houses/web/intro-networks/presentations/fl-w2-soho.presentation.html | presentation | web |
+| houses/web/intro-networks/presentations/fl-w2-wireless.presentation.html | presentation | web |
+| houses/web/intro-networks/presentations/fl-w3-config.presentation.html | presentation | web |
+| houses/web/intro-networks/presentations/fl-w3-services.presentation.html | presentation | web |
+| houses/web/intro-networks/presentations/fl-w4-connections.presentation.html | presentation | web |
+| houses/web/intro-networks/presentations/fl-w4-tools.presentation.html | presentation | web |
+| houses/web/intro-networks/quizzes/fl-w1-hardware.quiz.html | quiz | web |
+| houses/web/intro-networks/quizzes/fl-w1-ports.quiz.html | quiz | web |
+| houses/web/intro-networks/quizzes/fl-w2-soho.quiz.html | quiz | web |
+| houses/web/intro-networks/quizzes/fl-w2-wireless.quiz.html | quiz | web |
+| houses/web/intro-networks/quizzes/fl-w3-config.quiz.html | quiz | web |
+| houses/web/intro-networks/quizzes/fl-w3-services.quiz.html | quiz | web |
+| houses/web/intro-networks/quizzes/fl-w4-connections.quiz.html | quiz | web |
+| houses/web/intro-networks/quizzes/fl-w4-tools.quiz.html | quiz | web |
 | houses/web/labs/web-ne01-osi-scenario.lab.html | lab | web |
 | houses/web/labs/web-ne02-tcpip-scenario.lab.html | lab | web |
 | houses/web/labs/web-ne03-subnet-scenario.lab.html | lab | web |
 | houses/web/labs/web-ne07-nat-scenario.lab.html | lab | web |
 | houses/web/labs/web-ne08-wireless-scenario.lab.html | lab | web |
+| houses/web/net-essentials/exams/cr-final.exam.html | presentation | web |
+| houses/web/net-essentials/exams/cr-midterm.exam.html | presentation | web |
+| houses/web/net-essentials/labs/cr-w1-access.lab.html | lab | web |
+| houses/web/net-essentials/labs/cr-w1-osi.lab.html | lab | web |
+| houses/web/net-essentials/labs/cr-w2-addressing.lab.html | lab | web |
+| houses/web/net-essentials/labs/cr-w2-network.lab.html | lab | web |
+| houses/web/net-essentials/labs/cr-w3-app.lab.html | lab | web |
+| houses/web/net-essentials/labs/cr-w3-transport.lab.html | lab | web |
+| houses/web/net-essentials/labs/cr-w4-design.lab.html | lab | web |
+| houses/web/net-essentials/labs/cr-w4-troubleshoot.lab.html | lab | web |
+| houses/web/net-essentials/presentations/cr-w1-access.presentation.html | presentation | web |
+| houses/web/net-essentials/presentations/cr-w1-osi.presentation.html | presentation | web |
+| houses/web/net-essentials/presentations/cr-w2-addressing.presentation.html | presentation | web |
+| houses/web/net-essentials/presentations/cr-w2-network-layer.presentation.html | presentation | web |
+| houses/web/net-essentials/presentations/cr-w3-application.presentation.html | presentation | web |
+| houses/web/net-essentials/presentations/cr-w3-transport.presentation.html | presentation | web |
+| houses/web/net-essentials/presentations/cr-w4-design.presentation.html | presentation | web |
+| houses/web/net-essentials/presentations/cr-w4-troubleshoot.presentation.html | presentation | web |
+| houses/web/net-essentials/quizzes/cr-w1-access.quiz.html | presentation | web |
+| houses/web/net-essentials/quizzes/cr-w1-osi.quiz.html | presentation | web |
+| houses/web/net-essentials/quizzes/cr-w2-addressing.quiz.html | presentation | web |
+| houses/web/net-essentials/quizzes/cr-w2-network.quiz.html | presentation | web |
+| houses/web/net-essentials/quizzes/cr-w3-app.quiz.html | presentation | web |
+| houses/web/net-essentials/quizzes/cr-w3-transport.quiz.html | presentation | web |
+| houses/web/net-essentials/quizzes/cr-w4-design.quiz.html | presentation | web |
+| houses/web/net-essentials/quizzes/cr-w4-troubleshoot.quiz.html | presentation | web |
 | houses/web/network-essentials/ne-01.html | presentation | web |
 | houses/web/network-essentials/ne-02.html | presentation | web |
 | houses/web/network-essentials/ne-03.html | presentation | web |
@@ -21884,6 +23901,10 @@
 | houses/web/network-plus/tools/vlan.tool.html | presentation | web |
 | houses/web/network-plus/tools/wireless-architecture.tool.html | presentation | web |
 | houses/web/network-plus/tools/wireless.tool.html | presentation | web |
+| operator/missions/pfi-op-01.mission.html | presentation | - |
+| operator/missions/pfi-op-02.mission.html | presentation | - |
+| operator/missions/pfi-op-03.mission.html | presentation | - |
+| operator/missions/pfi-op-04.mission.html | presentation | - |
 | projects/ai-explainable-ml.html | applet | - |
 | projects/ai-intrusion-detector.html | applet | - |
 | projects/ai-music-generation.html | applet | - |
