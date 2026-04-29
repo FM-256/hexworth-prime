@@ -468,6 +468,27 @@ service cloud.firestore {
       // Cloud Function only (admin SDK) writes — no client writes
     }
 
+    // ─── Self-Healing System Master Toggle ─────────────────────────────
+    // _system_config/self_healing — single doc holding the master kill
+    // switch + per-template enable map. Defaults to disabled.
+    // Pulse admin UI writes; CLI agent commands and Cloud Functions read
+    // before acting. No autonomous code mutation can happen unless this
+    // doc says enabled: true.
+    function isValidSystemConfig() {
+      return request.resource.data.keys().hasOnly([
+            'enabled', 'enabledBy', 'enabledAt',
+            'lastDisabledBy', 'lastDisabledAt',
+            'enabledTemplates',
+            'updatedAt'
+          ])
+        && request.resource.data.enabled is bool;
+    }
+    match /_system_config/{configId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidSystemConfig();
+      allow delete: if false;
+    }
+
     // ─── Admin Task Board ─────────────────────────────────────────────
     // Shared operational task board for the admin team.
     // Full read/write gated to admins only — no student access.

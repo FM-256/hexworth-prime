@@ -832,6 +832,11 @@ ${C.bold}COMMANDS${C.reset}
   ${C.cyan}report${C.reset}                  Cross-tool summary (markdown to stdout)
   ${C.cyan}autofix-dryrun${C.reset} [rule]    Report what registered fix templates would do
                           for items in _auto_fix_queue (Slice 3e — read-only)
+  ${C.cyan}autofix-status${C.reset}          Self-healing system state (toggle, queue depths)
+  ${C.cyan}autofix-claim${C.reset} [--rule X] Claim top auto-fix item (gated by master toggle)
+  ${C.cyan}autofix-heartbeat${C.reset} <id>  Extend heartbeat on a claimed item
+  ${C.cyan}autofix-resolve${C.reset} <id>    Mark resolved [--commit <sha>] [--note <text>]
+  ${C.cyan}autofix-release${C.reset} <id>    Voluntarily release claim [--reason <text>]
   ${C.cyan}help${C.reset}                    Show this help message
 
 ${C.bold}FLAGS${C.reset}
@@ -1097,6 +1102,31 @@ switch (command) {
     case 'autofix-dryrun':
         cmdAutofixDryRun(positional, flags);
         break;
+    case 'autofix-status': {
+        const cli = require('./autofix-cli');
+        cli.cmdStatus().then(c => process.exit(c)).catch(e => { console.error(e.message); process.exit(2); });
+        break;
+    }
+    case 'autofix-claim': {
+        const cli = require('./autofix-cli');
+        cli.cmdClaim(positional, flags).then(c => process.exit(c)).catch(e => { console.error(e.message); process.exit(2); });
+        break;
+    }
+    case 'autofix-heartbeat': {
+        const cli = require('./autofix-cli');
+        cli.cmdHeartbeat(positional).then(c => process.exit(c)).catch(e => { console.error(e.message); process.exit(2); });
+        break;
+    }
+    case 'autofix-resolve': {
+        const cli = require('./autofix-cli');
+        cli.cmdResolve(positional, flags).then(c => process.exit(c)).catch(e => { console.error(e.message); process.exit(2); });
+        break;
+    }
+    case 'autofix-release': {
+        const cli = require('./autofix-cli');
+        cli.cmdRelease(positional, flags).then(c => process.exit(c)).catch(e => { console.error(e.message); process.exit(2); });
+        break;
+    }
     case 'smoke':
         cmdSpoke('smoke-test', positional, flags);
         break;

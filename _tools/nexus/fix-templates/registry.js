@@ -15,10 +15,10 @@
 // See fix-templates/CONTRACT.md for the full operator workflow.
 
 const TEMPLATES = {
-    // 'CAT-002': {
-    //     template: require('./CAT-002'),
-    //     validator: require('./CAT-002.validator'),
-    // },
+    'CAT-002': {
+        template: require('./CAT-002'),
+        validator: require('./CAT-002.validator'),
+    },
     // 'MISSING-ICON': {
     //     template: require('./MISSING-ICON'),
     //     validator: require('./MISSING-ICON.validator'),

@@ -88,9 +88,10 @@
      */
     function currentActorId() {
         try {
-            var auth = window.firebaseAuth;
-            var user = auth && typeof auth.getCurrentUser === 'function'
-                ? auth.getCurrentUser()
+            // FirebaseAuth is a top-level IIFE in components/FirebaseAuth.js;
+            // .getUser() returns { uid, email, displayName, ... } once auth is ready
+            var user = (typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.getUser === 'function')
+                ? FirebaseAuth.getUser()
                 : null;
             if (!user) return 'human:unknown';
             var local = (user.email || user.uid || 'unknown').split('@')[0]

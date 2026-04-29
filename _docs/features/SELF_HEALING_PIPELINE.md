@@ -471,6 +471,39 @@ After each slice ships:
 
 ## Changelog
 
+- 2026-04-29 — **MARATHON SHIP — Phases A through G complete. Working product.**
+    - **Phase A — Master kill switch infrastructure.** `_system_config/{configId}` Firestore collection added. Schema: `enabled` bool + `enabledBy` + `enabledAt` + `lastDisabledBy` + `lastDisabledAt` + `enabledTemplates[]` + `updatedAt`. Admin-only read/write, schema-enforced. Defaults to disabled.
+    - **Phase B — Pulse Self-Healing System panel.** New panel above Agent Activity with master ON/OFF toggle (red/green slider), live status line (enabled by, when, template count), per-template enable/disable list. Toggle uses confirm dialog before enable AND disable. Live snapshot subscription so multi-admin changes reflect immediately. Defaults to "DISABLED".
+    - **Phase C — Coverage panel live.** Replaced 11 hardcoded `HOUSE_COVERAGE` entries with live computation from `window.ContentCatalog.getAllModules()`. Now reflects real `status: 'available'` counts per house. ContentCatalog.js added to Pulse script tags.
+    - **Phase D — Agent CLI plumbing.** `_tools/nexus/autofix-cli.js` with 5 commands wired into `nexus.js`: `autofix-status`, `autofix-claim [--rule X]`, `autofix-heartbeat <id>`, `autofix-resolve <id> [--commit X]`, `autofix-release <id>`. All commands except `status` and `release` gated by `_system_config/self_healing.enabled` — exit code 2 with "GATE: master toggle is OFF" when disabled. Gate works also against per-template allowlist.
+    - **Phase E — Button audit.** Every clickable element in Pulse verified to have a real handler: 5 `<button>` tags (refresh activity, claim/defer/dismiss x triage row, template toggle), 1 master toggle, 1 cert dropdown, 11 nav links. **Zero decorative buttons.**
+    - **Phase F — First fix template (CAT-002).** Real `_tools/nexus/fix-templates/CAT-002.js` + `.validator.js` registered in `registry.js`. Tested against 5 real CAT-002 findings — 5/5 feasible, sensible IDs/titles derived. Apply uses single-file-per-call + .bak backup + DRAFT/TODO/WIP rejection + ID collision check + house-prefix scoping. Validator does positive assertions (module present in MODULES, href resolves to disk) + regression check (no new CAT-001/003 introduced). **CAT-002 NOT promoted to `AUTO_FIX_ELIGIBLE_RULES`** — operator decision per Nancy promotion rule.
+    - **Phase G — Final Nancy review caught one blocker + fixed:**
+        - `currentActorId()` in `SystemConfigClient.js` AND `TriageQueueClient.js` was using `window.firebaseAuth.getCurrentUser()` — that method doesn't exist on the Firebase Auth SDK module object. Both fixed to use `FirebaseAuth.getUser()` (the real public API exposed by `_app/components/FirebaseAuth.js`). Fix prevents every audit-trail entry from defaulting to `human:unknown`.
+    - Phase G also documented two non-blocking gaps (heartbeat-ownership advisory check; CAT-002 .bak single-generation backup orchestrator contract) inline as code comments per Nancy round 6.
+
+## How to actually use the platform (operator workflow)
+
+Right now (default state):
+1. Pulse shows the Self-Healing System panel with toggle in **DISABLED**.
+2. CAT-002 template is registered but not in the allowlist.
+3. `_auto_fix_queue` is empty (no rules promoted to `AUTO_FIX_ELIGIBLE_RULES`).
+4. All Phases A-G live; nothing autonomous can happen until you act.
+
+To turn it on with one rule (CAT-002):
+1. Add `'CAT-002'` to `AUTO_FIX_ELIGIBLE_RULES` in `_tools/nexus/publish.js`.
+2. Run `cd _tools/nexus && node nexus.js full --publish`. ~280 medium-severity CAT-002 items will roll up to ~10 grouped items in `_auto_fix_queue`.
+3. Open https://hexworth.com/pulse.html, scroll to Self-Healing System panel.
+4. Click the master toggle to **ENABLED** (confirm).
+5. Click `enable` next to `CAT-002` in the template list.
+6. From a terminal: `node nexus.js autofix-status` confirms gate is open.
+7. `node nexus.js autofix-claim --rule CAT-002` returns the highest-priority item as JSON.
+8. Run dry-run + planning: `node nexus.js autofix-dryrun CAT-002`.
+9. The next iteration adds an `autofix-apply` orchestrator that calls template.apply() → validator.validate() → resolve() in a single command. Today, manual operator runs are the only path.
+
+To turn it off in an emergency:
+- Click the master toggle to **DISABLED** in Pulse. Cloud Functions and CLI commands immediately refuse new work. In-flight transactions complete; the dead-claim reaper releases anything stuck.
+
 - 2026-04-29 — **SLICE 3e SHIPPED.** Fix-template contract + dry-run harness:
     - `_tools/nexus/fix-templates/CONTRACT.md` — full template + validator interface, promotion rule, operator workflow, safety boundaries
     - `_tools/nexus/fix-templates/registry.js` — empty registry by design (Nancy promotion rule: no rule enters `AUTO_FIX_ELIGIBLE_RULES` until template + validator exist for it)

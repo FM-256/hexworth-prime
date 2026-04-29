@@ -213,6 +213,50 @@
             background: rgba(6,182,212,0.15); color: var(--pulse-cyan);
         }
 
+        /* ── Self-Healing System Toggle ── */
+        .system-toggle {
+            display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+            font-size: 0.7rem; user-select: none;
+        }
+        .system-toggle-switch {
+            position: relative; width: 36px; height: 20px;
+            background: rgba(239,68,68,0.25); border: 1px solid rgba(239,68,68,0.5);
+            border-radius: 10px; transition: all 0.2s;
+        }
+        .system-toggle-switch::after {
+            content: ''; position: absolute; top: 1px; left: 1px;
+            width: 16px; height: 16px; background: var(--pulse-red);
+            border-radius: 50%; transition: all 0.2s;
+        }
+        .system-toggle.is-enabled .system-toggle-switch {
+            background: rgba(34,197,94,0.25); border-color: rgba(34,197,94,0.5);
+        }
+        .system-toggle.is-enabled .system-toggle-switch::after {
+            left: 17px; background: var(--pulse-green);
+        }
+        .system-toggle.is-disabled-loading {
+            opacity: 0.5; cursor: progress;
+        }
+        .system-status-line {
+            font-size: 0.65rem; color: var(--text-muted); padding: 6px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .system-status-line strong { color: var(--text); }
+        .template-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 12px; font-size: 0.7rem;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .template-row:last-child { border-bottom: none; }
+        .template-rule { font-family: 'Courier New', monospace; color: var(--pulse-cyan); }
+        .template-name { flex: 1; padding: 0 12px; color: var(--text-muted); }
+        .template-toggle-mini {
+            font-size: 0.55rem; padding: 3px 8px; border-radius: 3px; cursor: pointer;
+            border: 1px solid var(--border); background: none; color: var(--text-muted);
+        }
+        .template-toggle-mini.on { color: var(--pulse-green); border-color: rgba(34,197,94,0.5); background: rgba(34,197,94,0.1); }
+        .template-toggle-mini:hover { border-color: var(--pulse-cyan); }
+
         /* ── Student Signals ── */
         .signal-row {
             display: flex; align-items: center; gap: 10px; padding: 8px 12px;
@@ -459,6 +503,24 @@
         </div>
 
         <!-- ════════════════════════════════════════════════ -->
+        <!-- SELF-HEALING SYSTEM (Phase A/B) -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Self-Healing System</span>
+                <label class="system-toggle is-disabled-loading" id="systemToggle">
+                    <span id="systemToggleLabel">Loading…</span>
+                    <span class="system-toggle-switch"></span>
+                    <input type="checkbox" id="systemToggleInput" style="display:none;">
+                </label>
+            </div>
+            <div class="system-status-line" id="systemStatusLine">Checking system state…</div>
+            <div id="systemTemplateList">
+                <div class="template-row" style="color:var(--text-muted);justify-content:center;">No fix templates registered yet</div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
         <!-- AGENT ACTIVITY (Slice 3c) -->
         <!-- ════════════════════════════════════════════════ -->
         <div class="panel">
@@ -529,6 +591,15 @@
     <script src="components/AccountFrame.js"></script>
     <script src="components/NexusReader.js"></script>
     <script src="components/TriageQueueClient.js"></script>
+    <script src="components/SystemConfigClient.js"></script>
+    <script src="components/ContentCatalog.js"></script>
+    <script>
+        // Mirror of _tools/nexus/fix-templates/registry.js for the Pulse UI.
+        // KEEP IN SYNC when adding/removing templates server-side.
+        window.__SELF_HEALING_TEMPLATES__ = [
+            { ruleCode: 'CAT-002', description: 'Register undeclared content file in ContentCatalog' }
+        ];
+    </script>
     <script>
     (function() {
         'use strict';
@@ -1424,29 +1495,68 @@
             container.innerHTML = html;
         };
 
-        // ── Coverage data (static for v1) ───────────────
-        var HOUSE_COVERAGE = [
-            { name: 'Shield', modules: 85, estimated: 120, color: '#00bfff', href: 'houses/shield/index.html' },
-            { name: 'Dark Arts', modules: 45, estimated: 80, color: '#ff0044', href: 'houses/dark-arts/index.html' },
-            { name: 'Eye', modules: 95, estimated: 130, color: '#ffd700', href: 'houses/eye/index.html' },
-            { name: 'Cloud', modules: 180, estimated: 200, color: '#4fc3f7', href: 'houses/cloud/index.html' },
-            { name: 'Forge', modules: 210, estimated: 250, color: '#fb923c', href: 'houses/forge/index.html' },
-            { name: 'Web', modules: 165, estimated: 190, color: '#00e5ff', href: 'houses/web/index.html' },
-            { name: 'Code', modules: 120, estimated: 160, color: '#76ff03', href: 'houses/code/index.html' },
-            { name: 'Key', modules: 55, estimated: 70, color: '#e040fb', href: 'houses/key/index.html' },
-            { name: 'Script', modules: 90, estimated: 110, color: '#69f0ae', href: 'houses/script/index.html' },
-            { name: 'Matrix', modules: 320, estimated: 350, color: '#00ff41', href: 'houses/matrix/index.html' },
-            { name: 'Divergent', modules: 25, estimated: 80, color: '#ff00ff', href: 'houses/divergent/index.html' }
-        ];
+        // ── Coverage (Phase C — live from ContentCatalog) ────────────────
+        // Counts modules by house from window.ContentCatalog. The "estimated"
+        // target per house is curated below — represents the architect's
+        // target footprint. Real modules count is `status === 'available'`.
+        // Divergent + Aminos are intentionally smaller targets (newer houses).
+        var HOUSE_TARGETS = {
+            'shield':    { name: 'Shield',    color: '#00bfff', estimated: 120 },
+            'dark-arts': { name: 'Dark Arts', color: '#ff0044', estimated: 80 },
+            'eye':       { name: 'Eye',       color: '#ffd700', estimated: 130 },
+            'cloud':     { name: 'Cloud',     color: '#4fc3f7', estimated: 200 },
+            'forge':     { name: 'Forge',     color: '#fb923c', estimated: 250 },
+            'web':       { name: 'Web',       color: '#00e5ff', estimated: 190 },
+            'code':      { name: 'Code',      color: '#76ff03', estimated: 160 },
+            'key':       { name: 'Key',       color: '#e040fb', estimated: 70 },
+            'script':    { name: 'Script',    color: '#69f0ae', estimated: 110 },
+            'matrix':    { name: 'Matrix',    color: '#00ff41', estimated: 350 },
+            'divergent': { name: 'Divergent', color: '#ff00ff', estimated: 80 },
+        };
+
+        function computeHouseCoverage() {
+            var rows = [];
+            if (!window.ContentCatalog || typeof window.ContentCatalog.getAllModules !== 'function') {
+                return rows;
+            }
+            var allModules = window.ContentCatalog.getAllModules();
+            Object.keys(HOUSE_TARGETS).forEach(function (houseId) {
+                var meta = HOUSE_TARGETS[houseId];
+                var available = allModules.filter(function (m) {
+                    return m.house === houseId && m.status === 'available';
+                }).length;
+                var declared = allModules.filter(function (m) {
+                    return m.house === houseId;
+                }).length;
+                rows.push({
+                    houseId: houseId,
+                    name: meta.name,
+                    color: meta.color,
+                    available: available,
+                    declared: declared,
+                    estimated: meta.estimated,
+                    href: 'houses/' + houseId + '/index.html',
+                });
+            });
+            return rows;
+        }
 
         function renderCoverage() {
+            var rows = computeHouseCoverage();
+            if (!rows.length) {
+                document.getElementById('coverageBars').innerHTML =
+                    '<div class="coverage-row" style="color:var(--text-muted);justify-content:center;">ContentCatalog not loaded — coverage unavailable</div>';
+                return;
+            }
             var html = '';
-            HOUSE_COVERAGE.forEach(function(h) {
-                var pct = Math.round((h.modules / h.estimated) * 100);
+            rows.forEach(function (h) {
+                var pct = h.estimated > 0 ? Math.round((h.available / h.estimated) * 100) : 0;
+                var pctCapped = Math.min(100, pct);
                 var color = pct >= 80 ? 'var(--pulse-green)' : pct >= 50 ? 'var(--pulse-yellow)' : 'var(--pulse-red)';
-                html += '<div class="coverage-row">'
+                var title = h.available + ' available / ' + h.declared + ' declared / ' + h.estimated + ' target';
+                html += '<div class="coverage-row" title="' + escHtml(title) + '">'
                     + '<a href="' + h.href + '" class="coverage-label" style="color:' + h.color + ';text-decoration:none;">' + h.name + '</a>'
-                    + '<div class="coverage-bar-track"><div class="coverage-bar-fill" style="width:' + pct + '%;background:' + h.color + ';"></div></div>'
+                    + '<div class="coverage-bar-track"><div class="coverage-bar-fill" style="width:' + pctCapped + '%;background:' + h.color + ';"></div></div>'
                     + '<span class="coverage-pct" style="color:' + color + ';">' + pct + '%</span>'
                     + '</div>';
             });
@@ -1602,6 +1712,126 @@
             });
             container.innerHTML = html;
             if (badge) badge.textContent = events.length + ' events';
+        }
+
+        // ── Self-Healing System toggle (Phase A/B) ──────
+        // Live state via SystemConfigClient.subscribeSelfHealingState.
+        // Toggle defaults to OFF. Per-template enable shown if any
+        // templates are registered.
+
+        var _systemToggleUnsub = null;
+        var _systemTogglePending = false;
+
+        function renderSystemState(state) {
+            var toggle = document.getElementById('systemToggle');
+            var label = document.getElementById('systemToggleLabel');
+            var statusLine = document.getElementById('systemStatusLine');
+            if (!toggle || !label || !statusLine) return;
+
+            toggle.classList.remove('is-disabled-loading');
+            if (state.enabled) {
+                toggle.classList.add('is-enabled');
+                label.textContent = 'ENABLED';
+            } else {
+                toggle.classList.remove('is-enabled');
+                label.textContent = 'DISABLED';
+            }
+
+            var lines = [];
+            if (state.enabled) {
+                lines.push('<strong style="color:var(--pulse-green);">Active</strong>');
+                if (state.enabledBy) lines.push('by ' + escHtml(state.enabledBy));
+                if (state.enabledAt) lines.push('· ' + fmtRelTimeShort(state.enabledAt) + ' ago');
+                if (state.enabledTemplates && state.enabledTemplates.length) {
+                    lines.push('· ' + state.enabledTemplates.length + ' template' + (state.enabledTemplates.length === 1 ? '' : 's') + ' enabled');
+                } else {
+                    lines.push('· <span style="color:var(--pulse-yellow);">no templates enabled — toggle has no effect</span>');
+                }
+            } else {
+                lines.push('<strong style="color:var(--pulse-red);">Stopped</strong>');
+                if (state.lastDisabledBy) lines.push('· last disabled by ' + escHtml(state.lastDisabledBy));
+                if (state.lastDisabledAt) lines.push('· ' + fmtRelTimeShort(state.lastDisabledAt) + ' ago');
+            }
+            statusLine.innerHTML = lines.join(' ');
+            renderTemplateList(state.enabledTemplates || []);
+        }
+
+        function renderTemplateList(enabledTemplates) {
+            var container = document.getElementById('systemTemplateList');
+            if (!container) return;
+            // Templates are listed by the registry; we don't have a runtime list
+            // in the browser, so we read from a hardcoded sentinel maintained
+            // alongside _tools/nexus/fix-templates/registry.js. Phase F will
+            // add the first real entry; until then this list is curated here.
+            var REGISTERED = window.__SELF_HEALING_TEMPLATES__ || [];
+            if (!REGISTERED.length) {
+                container.innerHTML = '<div class="template-row" style="color:var(--text-muted);justify-content:center;">No fix templates registered yet — see _tools/nexus/fix-templates/CONTRACT.md</div>';
+                return;
+            }
+            var html = '';
+            REGISTERED.forEach(function (tmpl) {
+                var isOn = enabledTemplates.indexOf(tmpl.ruleCode) >= 0;
+                html += '<div class="template-row" data-rule="' + escHtml(tmpl.ruleCode) + '">'
+                    + '<span class="template-rule">' + escHtml(tmpl.ruleCode) + '</span>'
+                    + '<span class="template-name">' + escHtml(tmpl.description) + '</span>'
+                    + '<button class="template-toggle-mini ' + (isOn ? 'on' : '') + '" data-action="toggle-template" data-rule="' + escHtml(tmpl.ruleCode) + '">' + (isOn ? 'ENABLED' : 'enable') + '</button>'
+                    + '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        async function bindSystemToggle() {
+            var toggle = document.getElementById('systemToggle');
+            var input = document.getElementById('systemToggleInput');
+            if (!toggle || !input) return;
+            try {
+                _systemToggleUnsub = await SystemConfigClient.subscribeSelfHealingState(renderSystemState, function (err) {
+                    console.error('[Pulse] system state subscription error:', err);
+                    document.getElementById('systemStatusLine').innerHTML = '<span style="color:var(--pulse-red);">subscription error — see console</span>';
+                });
+            } catch (err) {
+                console.error('[Pulse] bindSystemToggle init failed:', err);
+                document.getElementById('systemStatusLine').innerHTML = '<span style="color:var(--pulse-red);">unavailable — ' + escHtml(err.message || 'unknown') + '</span>';
+                return;
+            }
+            toggle.addEventListener('click', async function () {
+                if (_systemTogglePending) return;
+                var willEnable = !toggle.classList.contains('is-enabled');
+                if (willEnable) {
+                    if (!confirm('Enable self-healing system? Cloud Functions and agent CLI will be permitted to act on _auto_fix_queue items (subject to per-template enable + registered templates).')) return;
+                } else {
+                    if (!confirm('Disable self-healing system? In-flight agent claims will complete but no new actions will start.')) return;
+                }
+                _systemTogglePending = true;
+                toggle.classList.add('is-disabled-loading');
+                try {
+                    await SystemConfigClient.setEnabled(willEnable);
+                } catch (err) {
+                    console.error('[Pulse] setEnabled failed:', err);
+                    alert('Toggle failed: ' + (err.message || err));
+                    toggle.classList.remove('is-disabled-loading');
+                } finally {
+                    _systemTogglePending = false;
+                }
+            });
+            // Per-template toggle delegation
+            var templateContainer = document.getElementById('systemTemplateList');
+            if (templateContainer) {
+                templateContainer.addEventListener('click', async function (e) {
+                    var btn = e.target.closest('.template-toggle-mini');
+                    if (!btn) return;
+                    var rule = btn.dataset.rule;
+                    var willEnable = btn.textContent.toLowerCase() === 'enable';
+                    btn.disabled = true;
+                    try {
+                        await SystemConfigClient.setTemplateEnabled(rule, willEnable);
+                    } catch (err) {
+                        alert('Template toggle failed: ' + (err.message || err));
+                    } finally {
+                        btn.disabled = false;
+                    }
+                });
+            }
         }
 
         // ── Saturation banner (Slice 3d) ────────────────
@@ -1863,6 +2093,8 @@
             // Saturation banner (Slice 3d) — check on load + every 5min
             refreshSaturationBanner();
             setInterval(refreshSaturationBanner, 5 * 60 * 1000);
+            // Self-healing system toggle (Phase B) — live subscription
+            bindSystemToggle();
             await calculateHealth();
         });
     })();
