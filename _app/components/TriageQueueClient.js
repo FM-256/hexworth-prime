@@ -305,6 +305,51 @@
     }
 
     /**
+     * Public API: fetch the last N history entries written by `agent:*`
+     * actors across both queues. One-shot read (no subscription) — call
+     * periodically or on a refresh button. Returned events sorted by ts desc.
+     *
+     * Each event:
+     *   { ts, actor, action, note, itemId, itemTitle, collection }
+     *
+     * SCALING NOTE: scans every doc in both queues. Cheap at current scale
+     * (~13 items). At 1000+ items, replace with a dedicated `_agent_activity`
+     * collection or paginated history-only query.
+     */
+    async function getRecentAgentActivity(limit) {
+        var max = typeof limit === 'number' && limit > 0 ? limit : 20;
+        var db = await ensureFirestore();
+        var fs = _firestoreModule;
+        var collections = ['_triage_queue', '_auto_fix_queue'];
+        var events = [];
+        for (var i = 0; i < collections.length; i++) {
+            var col = collections[i];
+            var snap = await fs.getDocs(fs.collection(db, col));
+            snap.forEach(function (doc) {
+                var data = doc.data() || {};
+                var hist = Array.isArray(data.history) ? data.history : [];
+                hist.forEach(function (entry) {
+                    if (entry && typeof entry.actor === 'string' && entry.actor.indexOf('agent:') === 0) {
+                        events.push({
+                            ts: entry.ts || '',
+                            actor: entry.actor,
+                            action: entry.action || 'update',
+                            note: entry.note || null,
+                            itemId: doc.id,
+                            itemTitle: data.title || '(untitled)',
+                            collection: col,
+                        });
+                    }
+                });
+            });
+        }
+        events.sort(function (a, b) {
+            return (b.ts || '').localeCompare(a.ts || '');
+        });
+        return events.slice(0, max);
+    }
+
+    /**
      * Public API: explicit init for callers that want errors at page load.
      */
     async function init() {
@@ -331,6 +376,7 @@
         bumpPriority: bumpPriority,
         reassign: reassign,
         detachAll: detachAll,
+        getRecentAgentActivity: getRecentAgentActivity,  // Slice 3c
         // Constants exposed for callers that need to render/filter
         ACTIVE_STATUSES: ACTIVE_STATUSES,
         QUERY_LIMIT: QUERY_LIMIT,

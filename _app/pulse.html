@@ -451,6 +451,24 @@
         </div>
 
         <!-- ════════════════════════════════════════════════ -->
+        <!-- AGENT ACTIVITY (Slice 3c) -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Agent Activity</span>
+                <span style="display:flex;gap:8px;align-items:center;">
+                    <span class="panel-badge badge-live" id="agentActivityBadge">—</span>
+                    <button class="triage-action-btn" id="refreshAgentActivity" title="Refresh">↻</button>
+                </span>
+            </div>
+            <div id="agentActivityFeed">
+                <div class="triage-item" style="color:var(--text-muted); justify-content:center;">
+                    Loading agent activity…
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
         <!-- STUDENT SIGNALS -->
         <!-- ════════════════════════════════════════════════ -->
         <div class="panel">
@@ -1535,6 +1553,63 @@
             container._triageBound = true;
         }
 
+        // ── Agent Activity feed (Slice 3c) ───────────────
+        // One-shot fetch of recent agent:* mutations across both queues.
+        // Refreshed on init + on the ↻ button + every 60s.
+
+        function fmtRelTimeShort(iso) {
+            if (!iso) return '—';
+            try {
+                var diff = Date.now() - new Date(iso).getTime();
+                if (diff < 60000) return Math.max(0, Math.round(diff / 1000)) + 's';
+                if (diff < 3600000) return Math.round(diff / 60000) + 'm';
+                if (diff < 86400000) return Math.round(diff / 3600000) + 'h';
+                return Math.round(diff / 86400000) + 'd';
+            } catch (e) { return '—'; }
+        }
+
+        function renderAgentActivity(events) {
+            var container = document.getElementById('agentActivityFeed');
+            var badge = document.getElementById('agentActivityBadge');
+            if (!Array.isArray(events) || events.length === 0) {
+                container.innerHTML = '<div class="triage-item" style="color:var(--text-muted);justify-content:center;">No agent activity recorded yet</div>';
+                if (badge) badge.textContent = '0 events';
+                return;
+            }
+            var html = '';
+            events.forEach(function (ev) {
+                var actorShort = (ev.actor || '').replace('agent:', '');
+                var collShort = (ev.collection || '').replace('_triage_queue', 'triage').replace('_auto_fix_queue', 'autofix');
+                var rel = fmtRelTimeShort(ev.ts);
+                var note = ev.note ? ' · ' + escHtml(ev.note) : '';
+                html += '<div class="triage-item" style="font-size:0.7rem;">'
+                    + '<div style="width:36px;font-family:monospace;color:var(--text-muted);font-size:0.6rem;">' + escHtml(rel) + '</div>'
+                    + '<div style="flex:1;">'
+                    +   '<span style="color:var(--pulse-cyan);">' + escHtml(actorShort) + '</span>'
+                    +   ' <span style="color:var(--pulse-yellow);">' + escHtml(ev.action) + '</span>'
+                    +   ' <span style="color:var(--text-muted);">' + escHtml(collShort) + '</span>'
+                    +   '<br><span class="triage-source">' + escHtml(ev.itemTitle) + note + '</span>'
+                    + '</div>'
+                    + '</div>';
+            });
+            container.innerHTML = html;
+            if (badge) badge.textContent = events.length + ' events';
+        }
+
+        async function refreshAgentActivity() {
+            var badge = document.getElementById('agentActivityBadge');
+            try {
+                if (badge) badge.textContent = 'loading…';
+                var events = await TriageQueueClient.getRecentAgentActivity(20);
+                renderAgentActivity(events);
+            } catch (err) {
+                console.error('[Pulse] refreshAgentActivity failed:', err);
+                document.getElementById('agentActivityFeed').innerHTML =
+                    '<div class="triage-item" style="color:var(--pulse-red);justify-content:center;">Activity feed error — ' + escHtml(err.message || 'unknown') + '</div>';
+                if (badge) badge.textContent = 'error';
+            }
+        }
+
         async function subscribeTriage() {
             try {
                 await TriageQueueClient.init();
@@ -1741,6 +1816,11 @@
             // subscribeTriage() returns once initial subscription is established;
             // subsequent updates flow through the snapshot listener.
             subscribeTriage();
+            // Agent activity feed (Slice 3c) — one-shot fetch + button + 60s refresh
+            refreshAgentActivity();
+            var refreshBtn = document.getElementById('refreshAgentActivity');
+            if (refreshBtn) refreshBtn.addEventListener('click', refreshAgentActivity);
+            setInterval(refreshAgentActivity, 60000);
             await calculateHealth();
         });
     })();
