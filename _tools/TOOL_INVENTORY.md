@@ -205,6 +205,7 @@ Hub & Spoke orchestrator that connects the other six tools through spoke adapter
 | Content Encoder | Python | `_tools/content-encoder.py` | Base64 content encoding |
 | Brand Hasher | Python | `_tools/brand_hashing.py` | Consistent brand hash generation |
 | Hash Quiz Answers | Node | `_app/scripts/hash-quiz-answers.js` | SHA-256 quiz answer obfuscation |
+| Verify Quiz Keys | Node | `functions/verify-quiz-keys.js` | Verify gradeQuiz bridge: live Firestore quiz_keys vs static registry; mandatory before deploying any new server-graded exam |
 | Registry Generator | Node | `_tools/eduscan/generate-content-registry.js` | Auto-generate content-registry.js |
 | Inject Access Guard | Python | `_tools/inject-access-guard.py` | Insert access-guard.js into HTML pages |
 | Firebase Functions | Node | `functions/` | setAdminClaim, validateFlag |
