@@ -197,6 +197,21 @@
             background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.08);
             color: var(--text-muted); font-style: italic;
         }
+        .triage-action-btn {
+            font-size: 0.6rem; padding: 4px 8px; border-radius: 4px; cursor: pointer;
+            background: rgba(6,182,212,0.12); border: 1px solid rgba(6,182,212,0.3);
+            color: var(--pulse-cyan); transition: all 0.15s; margin-left: 4px;
+            font-family: inherit;
+        }
+        .triage-action-btn:hover { background: rgba(6,182,212,0.25); border-color: var(--pulse-cyan); }
+        .triage-action-btn.btn-defer { color: var(--pulse-yellow); border-color: rgba(234,179,8,0.3); background: rgba(234,179,8,0.08); }
+        .triage-action-btn.btn-defer:hover { background: rgba(234,179,8,0.2); }
+        .triage-action-btn.btn-dismiss { color: var(--text-muted); border-color: rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
+        .triage-action-btn.btn-dismiss:hover { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4); color: var(--pulse-red); }
+        .triage-status-pill {
+            font-size: 0.55rem; padding: 1px 6px; border-radius: 3px; margin-left: 6px;
+            background: rgba(6,182,212,0.15); color: var(--pulse-cyan);
+        }
 
         /* ── Student Signals ── */
         .signal-row {
@@ -426,7 +441,7 @@
         <div class="panel">
             <div class="panel-header">
                 <span class="panel-title">Triage Queue</span>
-                <span class="panel-badge badge-stale" id="triageBadge">0 items · read-only</span>
+                <span class="panel-badge badge-stale" id="triageBadge">— connecting…</span>
             </div>
             <div id="triageItems">
                 <div class="triage-item" style="color:var(--text-muted); justify-content:center;">
@@ -487,6 +502,7 @@
     <script src="components/FirebaseAuth.js"></script>
     <script src="components/AccountFrame.js"></script>
     <script src="components/NexusReader.js"></script>
+    <script src="components/TriageQueueClient.js"></script>
     <script>
     (function() {
         'use strict';
@@ -1411,30 +1427,129 @@
             document.getElementById('coverageBars').innerHTML = html;
         }
 
-        // ── Triage items (static for v1) ────────────────
-        var TRIAGE_ITEMS = [
-            { priority: 'critical', desc: 'Progress protection: Firestore writes silent-fail', source: 'Platform Improvement Tier 0', action: 'Plan' },
-            { priority: 'high', desc: '67 dispatch walkthroughs remaining', source: 'Marathon Queue', action: 'Resume' },
-            { priority: 'high', desc: 'Divergent house not in ContentCatalog HOUSES', source: 'EduScan', action: 'Fix' },
-            { priority: 'high', desc: 'CISSP: 4 domain gaps (Asset, Architecture, Assessment, AppSec)', source: 'Cert Analyzer', action: 'Plan' },
-            { priority: 'medium', desc: '793 undeclared files not in ContentCatalog', source: 'EduScan CAT-002', action: 'Register' },
-            { priority: 'medium', desc: 'Presentation width audit pending (narrow strip issue)', source: 'Platform Improvement Tier 2', action: 'Audit' },
-            { priority: 'medium', desc: 'CIS2208 content build on hold (waiting for textbook)', source: 'Marathon Queue', action: 'Blocked' }
-        ];
+        // ── Triage items (Slice 2 — live from _triage_queue) ──────────────
+        // Wired to TriageQueueClient (components/TriageQueueClient.js).
+        // Subscription is established in DOMContentLoaded after admin guard.
+        // See _docs/features/SELF_HEALING_PIPELINE.md.
 
-        function renderTriage() {
+        function escHtml(s) {
+            return String(s || '').replace(/[&<>"']/g, function(c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        function renderTriageItems(items) {
+            var container = document.getElementById('triageItems');
+            var badge = document.getElementById('triageBadge');
+            if (!Array.isArray(items) || items.length === 0) {
+                container.innerHTML = '<div class="triage-item" style="color:var(--text-muted);justify-content:center;">No active triage items — platform is healthy</div>';
+                if (badge) badge.textContent = '0 items · live';
+                return;
+            }
             var html = '';
-            TRIAGE_ITEMS.forEach(function(item) {
-                var pClass = item.priority === 'critical' ? 'priority-critical' : item.priority === 'high' ? 'priority-high' : 'priority-medium';
-                var pLabel = item.priority === 'critical' ? 'C' : item.priority === 'high' ? 'H' : 'M';
-                html += '<div class="triage-item">'
+            items.forEach(function(item) {
+                var sev = item.severity || 'low';
+                var pClass = sev === 'critical' ? 'priority-critical' : sev === 'high' ? 'priority-high' : 'priority-medium';
+                var pLabel = sev === 'critical' ? 'C' : sev === 'high' ? 'H' : 'M';
+                var statusPill = (item.status && item.status !== 'open')
+                    ? '<span class="triage-status-pill">' + escHtml(item.status) + (item.owner ? ' · ' + escHtml(item.owner) : '') + '</span>'
+                    : '';
+                var title = escHtml(item.title || '(no title)');
+                var sourceLabel = item.rule
+                    ? escHtml(item.rule) + ' · ' + escHtml(item.source)
+                    : escHtml(item.source);
+                if (item.childCount && item.childCount > 1) {
+                    sourceLabel += ' · ' + item.childCount + ' findings';
+                }
+                var claimLabel = item.status === 'open' ? 'Claim' : (item.status === 'claimed' ? 'Reclaim' : 'Resume');
+                html += '<div class="triage-item" data-item-id="' + escHtml(item.id) + '">'
                     + '<div class="triage-priority ' + pClass + '">' + pLabel + '</div>'
-                    + '<div class="triage-desc">' + item.desc + '<br><span class="triage-source">' + item.source + '</span></div>'
-                    + '<span class="triage-tag" title="Read-only — actions not yet wired. See _docs/features/SELF_HEALING_PIPELINE.md">' + item.action + '</span>'
+                    + '<div class="triage-desc">' + title + statusPill + '<br><span class="triage-source">' + sourceLabel + '</span></div>'
+                    + '<button class="triage-action-btn" data-action="claim" data-item-id="' + escHtml(item.id) + '">' + claimLabel + '</button>'
+                    + '<button class="triage-action-btn btn-defer" data-action="defer" data-item-id="' + escHtml(item.id) + '">Defer</button>'
+                    + '<button class="triage-action-btn btn-dismiss" data-action="dismiss" data-item-id="' + escHtml(item.id) + '">Dismiss</button>'
                     + '</div>';
             });
-            document.getElementById('triageItems').innerHTML = html;
-            document.getElementById('triageBadge').textContent = TRIAGE_ITEMS.length + ' items';
+            container.innerHTML = html;
+            if (badge) {
+                badge.textContent = items.length + ' items · live';
+                badge.classList.remove('badge-stale');
+                badge.classList.add('badge-live');
+            }
+        }
+
+        async function handleTriageAction(action, itemId, btn) {
+            if (!window.TriageQueueClient) {
+                alert('Triage client not loaded');
+                return;
+            }
+            // Disable button during in-flight mutation
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+            try {
+                if (action === 'claim') {
+                    // If item already claimed by another actor, warn before stealing
+                    var row = btn.closest('.triage-item');
+                    var pillText = row ? (row.querySelector('.triage-status-pill') || {}).textContent || '' : '';
+                    if (pillText && pillText.indexOf('claimed') !== -1 && !confirm('This item is already claimed. Reclaim it (overrides current owner)?')) {
+                        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+                        return;
+                    }
+                    await TriageQueueClient.claim(itemId);
+                } else if (action === 'defer') {
+                    var deferReason = prompt('Defer reason (optional, e.g. "waiting on textbook"):');
+                    if (deferReason === null) { if (btn) { btn.disabled = false; btn.style.opacity = ''; } return; }
+                    await TriageQueueClient.defer(itemId, deferReason || null);
+                } else if (action === 'dismiss') {
+                    if (!confirm('Dismiss this item? Use only for false positives or wont-fix decisions.')) {
+                        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+                        return;
+                    }
+                    var dismissReason = prompt('Dismiss reason (required for audit trail):');
+                    var trimmed = (dismissReason || '').trim();
+                    if (!trimmed) {
+                        alert('A non-empty reason is required to dismiss.');
+                        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+                        return;
+                    }
+                    await TriageQueueClient.dismiss(itemId, trimmed);
+                }
+                // Snapshot listener will re-render automatically
+            } catch (err) {
+                console.error('[Pulse] triage action failed:', err);
+                alert(action + ' failed: ' + (err.message || err));
+                if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+            }
+        }
+
+        // Event delegation — attach once, survives renders
+        function bindTriageActions() {
+            var container = document.getElementById('triageItems');
+            if (!container || container._triageBound) return;
+            container.addEventListener('click', function(e) {
+                var btn = e.target.closest('.triage-action-btn');
+                if (!btn) return;
+                var action = btn.dataset.action;
+                var itemId = btn.dataset.itemId;
+                if (action && itemId) handleTriageAction(action, itemId, btn);
+            });
+            container._triageBound = true;
+        }
+
+        async function subscribeTriage() {
+            try {
+                await TriageQueueClient.init();
+                await TriageQueueClient.subscribe(renderTriageItems, function(err) {
+                    document.getElementById('triageItems').innerHTML =
+                        '<div class="triage-item" style="color:var(--pulse-red);justify-content:center;">Triage subscription error — see browser console</div>';
+                });
+                bindTriageActions();
+            } catch (err) {
+                console.error('[Pulse] subscribeTriage failed:', err);
+                document.getElementById('triageItems').innerHTML =
+                    '<div class="triage-item" style="color:var(--pulse-red);justify-content:center;">Triage queue unavailable — ' + escHtml(err.message || 'unknown error') + '</div>';
+                var badge = document.getElementById('triageBadge');
+                if (badge) badge.textContent = '— offline';
+            }
         }
 
         // ── Health score calculation ────────────────────
@@ -1622,7 +1737,10 @@
             if (!ok) return;
             // Render order: static panels first (no network), then live data
             renderCoverage();
-            renderTriage();
+            // Triage queue is now live via TriageQueueClient (Slice 2).
+            // subscribeTriage() returns once initial subscription is established;
+            // subsequent updates flow through the snapshot listener.
+            subscribeTriage();
             await calculateHealth();
         });
     })();

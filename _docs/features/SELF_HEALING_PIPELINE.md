@@ -471,6 +471,12 @@ After each slice ships:
 
 ## Changelog
 
+- 2026-04-29 — **SLICE 2 SHIPPED.** Pulse is now functional:
+    - `_app/components/TriageQueueClient.js` (NEW) — query-filtered `onSnapshot` subscriber + transactional mutations (claim/defer/dismiss/bumpPriority/reassign). Mirrors NexusReader's lazy-load pattern.
+    - `firestore.indexes.json` — composite index on `_triage_queue (status, priority desc)` and `_auto_fix_queue (status, priority desc)`. Severity filter dropped from query (already gated at write-time in publishTriage).
+    - `_app/pulse.html` — hardcoded `TRIAGE_ITEMS` array deleted, replaced with live `subscribeTriage()` reading from Firestore. Three real action buttons per row: **Claim** (transactional, throws on contention), **Defer** (with reason), **Dismiss** (confirm + non-empty trimmed reason for audit trail). Event delegation bound once on container. Triage badge transitions from `read-only` → `connecting…` → `N items · live`.
+    - Nancy round 2 caught + fixed before deploy: whitespace-bypass on dismiss reason (`!dismissReason` → `!dismissReason.trim()`); double `currentActorId()` call inside claim transaction (now cached once per call); dead `canClaim` variable removed; Reclaim now requires confirm dialog before stealing another actor's claim (symmetry with Dismiss).
+    - Pulse remains admin-gated. Mutations honored only for f.mora80@gmail.com / jorden@hexworth.com / users with admin custom claim.
 - 2026-04-29 — **SLICE 1 SHIPPED.** Backend live in production:
     - `firestore.rules` extended with `_triage_queue`, `_auto_fix_queue`, `_triage_history` rules — admin-only read/write, schema enforced via `hasOnly` (extra-field injection blocked), immutable fields preserved on update
     - `_tools/nexus/publish.js` extended with `publishTriage()` — aggregates by `(rule, directoryPrefix)`, computes `defectFingerprint` (sha256 of rule+normalizedDir), severity-gates to critical+high, routes auto-fix-eligible items separately
