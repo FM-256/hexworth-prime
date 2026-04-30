@@ -56,7 +56,8 @@ while [ $ITER -lt $MAX_ITER ]; do
 
     # Check exit code
     if [ $EC -ne 0 ]; then
-        # Could be: gate, claim race, validator failure, item not found
+        # Could be: gate, claim race, validator failure, item not found, or
+        # graceful "no actionable items" (all remaining childPaths rejected)
         if echo "$OUT" | grep -q "GATE: master toggle is OFF"; then
             echo "HALT: master toggle is OFF (operator disabled mid-flight?)"
             exit 1
@@ -64,6 +65,11 @@ while [ $ITER -lt $MAX_ITER ]; do
         if echo "$OUT" | grep -q "GATE: template .* is not in the enabled allowlist"; then
             echo "HALT: per-template enable was disabled mid-flight"
             exit 1
+        fi
+        if echo "$OUT" | grep -q "apply rejected: no-actionable-items"; then
+            echo "DONE: all remaining childPaths are non-actionable (_source/_archive/etc or already registered)"
+            echo "drained $WIN canonical files in $ITER iterations"
+            exit 0
         fi
         if echo "$OUT" | grep -q "item not found"; then
             echo "DONE: item no longer in queue (group fully drained or removed)"
@@ -112,9 +118,15 @@ while [ $ITER -lt $MAX_ITER ]; do
         echo "$OUT"
         echo "HALT: validator failed — operator review required"
         exit 1
+    elif echo "$OUT" | grep -q '"allSkipped": true'; then
+        # All remaining childPaths are permanently rejected (e.g. _source/ copies)
+        # OR already registered. Group is drained as far as auto-fix can take it;
+        # the residual items would need template enhancement to handle.
+        echo "DONE: all remaining childPaths are non-actionable (drained $WIN canonical files)"
+        echo "(some files skipped — see apply output for reasons)"
+        exit 0
     elif echo "$OUT" | grep -q "apply rejected"; then
-        # Apply rejected (e.g., DRAFT marker, ID collision). Item stays in queue but this file
-        # is unfixable. Run rescan and try next iteration which will pick the NEXT childPath.
+        # Apply rejected for some other reason. Run rescan and try next iteration.
         echo "  apply rejected — running rescan to advance childPaths"
         node nexus.js full --publish > /dev/null 2>&1
         continue

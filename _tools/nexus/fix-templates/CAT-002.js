@@ -174,6 +174,16 @@ function planForFile(filePath) {
         result.blockers.push('file path contains "/draft" — likely not navigable');
         return result;
     }
+    // Internal staging directories (_source/, _build/, _staging/) hold
+    // pre-publication or master copies. Registering them creates wrong
+    // hrefs pointing to non-canonical paths. Discovered cycle 7 marathon
+    // 2026-04-30: 16 divergent labs were registered against _source/
+    // before the no-op-loop detector caught the collision with the
+    // canonical labs/ versions.
+    if (/\/_(source|build|staging)\//.test(filePath)) {
+        result.blockers.push('file is under internal staging dir (_source/_build/_staging) — not a navigable canonical file');
+        return result;
+    }
 
     result.feasible = true;
     result.module = {
@@ -320,23 +330,8 @@ module.exports = {
             return { success: false, summary: 'no childPaths to apply', filesChanged: [] };
         }
 
-        // Process ONE file per apply() call. Caller batches.
-        const targetPath = paths[0];
-        const plan = planForFile(targetPath);
-        if (!plan.feasible) {
-            return {
-                success: false,
-                summary: `cannot register ${targetPath}: ${plan.blockers.join('; ')}`,
-                filesChanged: [],
-                error: plan.blockers.join('; '),
-            };
-        }
-
         const { ids: existingIds, parseError } = loadExistingIds();
         if (parseError) {
-            // Refuse to apply against an unparseable catalog — appending
-            // would compound the corruption AND overwrite the .bak alias
-            // with the corrupt content.
             return {
                 success: false,
                 summary: 'refusing to apply: ' + parseError,
@@ -344,15 +339,48 @@ module.exports = {
                 error: parseError,
             };
         }
-        if (existingIds.has(plan.module.id)) {
-            // Idempotent — already registered, treat as success
+
+        // Iterate childPaths to find the first file that is BOTH feasible
+        // (passes planForFile gates: title extractable, not draft, not in
+        // _source/_archive, etc.) AND not already registered. Skipping
+        // unfeasible files lets the wrapper drain a group even when some
+        // files in childPaths are permanently rejected (e.g., _source/
+        // copies that were already canonically registered via labs/).
+        // Cycle 7 marathon 2026-04-30 fix.
+        let plan = null;
+        let targetPath = null;
+        const skipped = [];
+        for (const p of paths) {
+            const candidate = planForFile(p);
+            if (!candidate.feasible) {
+                skipped.push(`${p}: ${candidate.blockers.join('; ')}`);
+                continue;
+            }
+            if (existingIds.has(candidate.module.id)) {
+                skipped.push(`${p}: id ${candidate.module.id} already in catalog`);
+                continue;
+            }
+            plan = candidate;
+            targetPath = p;
+            break;
+        }
+
+        if (!plan) {
+            // All childPaths exhausted with no actionable file. Group
+            // remaining items are either rejected (e.g., _source/) or
+            // already registered. Caller treats this as graceful drain end.
             return {
-                success: true,
-                summary: `module ${plan.module.id} already in catalog (no-op)`,
+                success: false,
+                summary: `all ${paths.length} childPaths skipped — group has no remaining actionable files`,
                 filesChanged: [],
-                idempotent: true,
+                error: 'no-actionable-items',
+                skipped: skipped.slice(0, 10),
+                allSkipped: true,
             };
         }
+        // Note: if we got here, plan is feasible AND id is fresh.
+        // The original idempotent-success branch is now folded into the
+        // for-loop above (we just skip already-registered ids and try next).
 
         // Backup + read catalog. Timestamped .bak (Nancy round 7 fix):
         // single-generation .bak overwrote prior backup on each apply, so
