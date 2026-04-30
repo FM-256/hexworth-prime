@@ -239,6 +239,35 @@ module.exports = {
     },
 
     /**
+     * rollback: restore ContentCatalog from the .bak file written by apply().
+     * Called by the autofix-apply orchestrator when validate() returns
+     * validated:false. Returns { restored: bool, summary: string }.
+     *
+     * Single-generation .bak limitation (Nancy round 6): if rollback is
+     * called twice in a row without an intervening successful apply, the
+     * second call has nothing meaningful to restore.
+     */
+    async rollback(applyResult) {
+        const bakPath = CATALOG_PATH + '.bak';
+        if (!fs.existsSync(bakPath)) {
+            return { restored: false, summary: 'no .bak file present — cannot rollback' };
+        }
+        try {
+            const bakContent = fs.readFileSync(bakPath, 'utf8');
+            fs.writeFileSync(CATALOG_PATH, bakContent, 'utf8');
+            return {
+                restored: true,
+                summary: `restored ContentCatalog.js from ${bakPath}`,
+            };
+        } catch (err) {
+            return {
+                restored: false,
+                summary: `rollback failed: ${err.message}`,
+            };
+        }
+    },
+
+    /**
      * apply: register ONE file's worth of modules to ContentCatalog.
      * Idempotent: if all modules already exist, no-op success.
      * One file per call by design — the validator runs between calls.

@@ -253,12 +253,193 @@ async function cmdRelease(args, flags) {
     return 0;
 }
 
+/**
+ * autofix-apply <itemId> — full orchestrator for one queue item.
+ *
+ * Sequence:
+ *   1. Load item from _auto_fix_queue
+ *   2. Look up template + validator from registry
+ *   3. Gate: master toggle ON + rule in enabledTemplates
+ *   4. Claim the item (transactional)
+ *   5. Heartbeat
+ *   6. template.apply(item)
+ *   7. Heartbeat
+ *   8. validator.validate(item, applyResult)
+ *   9a. If validated: mark resolved with evidence note
+ *   9b. If NOT validated: call template.rollback(applyResult) if available,
+ *       then release item with reason from validator
+ *
+ * Side-effect warning: apply() may modify files on disk. The orchestrator
+ * does NOT git-commit those changes — the operator commits manually after
+ * reviewing the diff. This is intentional per CONTRACT.md safety boundary.
+ */
+async function cmdApply(args, flags) {
+    const itemId = args[0];
+    if (!itemId) { console.error('usage: autofix-apply <itemId>'); return 1; }
+    const dryFlag = !!flags['dry-run'];
+
+    const db = getDb();
+    const admin = getAdmin();
+    const { FieldValue } = admin.firestore;
+
+    // 1. Load item
+    const ref = db.doc(`_auto_fix_queue/${itemId}`);
+    const snap = await ref.get();
+    if (!snap.exists) {
+        console.error(`item not found: _auto_fix_queue/${itemId}`);
+        return 1;
+    }
+    const item = Object.assign({ id: itemId }, snap.data());
+
+    // 2. Look up template
+    const registry = require('./fix-templates/registry');
+    const template = registry.getTemplate(item.rule);
+    const validator = registry.getValidator(item.rule);
+    if (!template || !validator) {
+        console.error(`no template/validator registered for rule ${item.rule}`);
+        return 1;
+    }
+
+    // 3. Gate
+    try {
+        await requireEnabledForRule(item.rule);
+    } catch (err) {
+        console.error(err.message);
+        return 2;
+    }
+
+    // 4. Claim (skip if --dry-run)
+    if (!dryFlag) {
+        try {
+            await _mutate('_auto_fix_queue', itemId, {
+                status: 'claimed',
+                owner: getAgentId(),
+                claimedAt: FieldValue.serverTimestamp(),
+                heartbeatAt: FieldValue.serverTimestamp(),
+            }, 'apply-claim', null, ['open']);
+        } catch (err) {
+            console.error(`claim failed: ${err.message}`);
+            return 1;
+        }
+    }
+
+    // 5. Heartbeat (no-op if --dry-run)
+    if (!dryFlag) {
+        try {
+            await _mutate('_auto_fix_queue', itemId, {
+                heartbeatAt: FieldValue.serverTimestamp(),
+                status: 'in-progress',
+            }, 'apply-heartbeat', null, ['claimed', 'in-progress']);
+        } catch (err) {
+            console.warn(`heartbeat failed: ${err.message}`);
+        }
+    }
+
+    // 6. Apply
+    let applyResult;
+    try {
+        applyResult = await template.apply(item);
+    } catch (err) {
+        console.error(`apply threw: ${err.message}`);
+        if (!dryFlag) {
+            try {
+                await _mutate('_auto_fix_queue', itemId, {
+                    status: 'open', owner: null, claimedAt: null, heartbeatAt: null,
+                }, 'apply-failed-exception', err.message, ['claimed', 'in-progress']);
+            } catch (e) { /* noop */ }
+        }
+        return 1;
+    }
+    if (!applyResult || !applyResult.success) {
+        const msg = applyResult && applyResult.error ? applyResult.error : 'apply returned non-success';
+        console.error(`apply rejected: ${msg}`);
+        if (!dryFlag) {
+            try {
+                await _mutate('_auto_fix_queue', itemId, {
+                    status: 'open', owner: null, claimedAt: null, heartbeatAt: null,
+                }, 'apply-rejected', msg, ['claimed', 'in-progress']);
+            } catch (e) { /* noop */ }
+        }
+        return 1;
+    }
+
+    // 7. Heartbeat after apply
+    if (!dryFlag) {
+        try {
+            await _mutate('_auto_fix_queue', itemId, {
+                heartbeatAt: FieldValue.serverTimestamp(),
+            }, 'apply-heartbeat-2', null, ['claimed', 'in-progress']);
+        } catch (err) { /* tolerated */ }
+    }
+
+    // 8. Validate
+    let validateResult;
+    try {
+        validateResult = await validator.validate(item, applyResult);
+    } catch (err) {
+        validateResult = { validated: false, evidence: 'validator threw: ' + err.message, secondaryIssues: [] };
+    }
+
+    // 9. Resolve or rollback+release
+    if (validateResult.validated) {
+        if (!dryFlag) {
+            try {
+                await _mutate('_auto_fix_queue', itemId, {
+                    status: 'resolved',
+                    resolvedAt: FieldValue.serverTimestamp(),
+                    resolvedBy: getAgentId(),
+                    resolveCommitSha: null,  // operator commits manually
+                }, 'apply-resolved', validateResult.evidence, ['claimed', 'in-progress']);
+            } catch (err) {
+                console.error(`resolve write failed: ${err.message}`);
+            }
+        }
+        console.log(JSON.stringify({
+            itemId, success: true, validated: true,
+            applySummary: applyResult.summary,
+            evidence: validateResult.evidence,
+            filesChanged: applyResult.filesChanged || [],
+            commitReminder: (applyResult.filesChanged || []).length > 0
+                ? `IMPORTANT: ${(applyResult.filesChanged || []).length} file(s) modified — review and git commit manually`
+                : null,
+        }, null, 2));
+        return 0;
+    }
+
+    // Validation failed — try to rollback
+    let rollbackResult = { restored: false, summary: 'no rollback() implemented on template' };
+    if (typeof template.rollback === 'function') {
+        try {
+            rollbackResult = await template.rollback(applyResult);
+        } catch (err) {
+            rollbackResult = { restored: false, summary: 'rollback threw: ' + err.message };
+        }
+    }
+    if (!dryFlag) {
+        try {
+            await _mutate('_auto_fix_queue', itemId, {
+                status: 'open', owner: null, claimedAt: null, heartbeatAt: null,
+            }, 'apply-validate-failed', `validate: ${validateResult.evidence} | rollback: ${rollbackResult.summary}`, ['claimed', 'in-progress']);
+        } catch (err) { /* noop */ }
+    }
+    console.log(JSON.stringify({
+        itemId, success: false, validated: false,
+        applySummary: applyResult.summary,
+        validatorEvidence: validateResult.evidence,
+        secondaryIssues: validateResult.secondaryIssues,
+        rollback: rollbackResult,
+        manualReviewRequired: !rollbackResult.restored,
+    }, null, 2));
+    return 1;
+}
+
 module.exports = {
     cmdStatus,
     cmdClaim,
     cmdHeartbeat,
     cmdResolve,
     cmdRelease,
+    cmdApply,
     getSystemConfig,
     getAgentId,
 };

@@ -837,6 +837,8 @@ ${C.bold}COMMANDS${C.reset}
   ${C.cyan}autofix-heartbeat${C.reset} <id>  Extend heartbeat on a claimed item
   ${C.cyan}autofix-resolve${C.reset} <id>    Mark resolved [--commit <sha>] [--note <text>]
   ${C.cyan}autofix-release${C.reset} <id>    Voluntarily release claim [--reason <text>]
+  ${C.cyan}autofix-apply${C.reset} <id>      Full orchestrator: claim+apply+validate+resolve
+                          (or rollback+release on validation failure)
   ${C.cyan}help${C.reset}                    Show this help message
 
 ${C.bold}FLAGS${C.reset}
@@ -1125,6 +1127,11 @@ switch (command) {
     case 'autofix-release': {
         const cli = require('./autofix-cli');
         cli.cmdRelease(positional, flags).then(c => process.exit(c)).catch(e => { console.error(e.message); process.exit(2); });
+        break;
+    }
+    case 'autofix-apply': {
+        const cli = require('./autofix-cli');
+        cli.cmdApply(positional, flags).then(c => process.exit(c)).catch(e => { console.error(e.message); process.exit(2); });
         break;
     }
     case 'smoke':

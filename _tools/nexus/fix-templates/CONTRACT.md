@@ -70,6 +70,18 @@ module.exports = {
      * }>}
      */
     apply: async function (item) { ... },
+
+    /**
+     * Optional but RECOMMENDED: undo a successful apply.
+     * Called by autofix-apply orchestrator when validate() returns
+     * validated:false. Templates that touch files MUST implement this
+     * (e.g. via .bak file restore). Templates that don't touch files
+     * (e.g., a Firestore-only fix) may omit it.
+     *
+     * @param {Object} applyResult - return value from apply()
+     * @returns {Promise<{ restored: boolean, summary: string }>}
+     */
+    rollback: async function (applyResult) { ... },
 };
 ```
 
