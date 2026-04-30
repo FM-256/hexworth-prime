@@ -214,6 +214,51 @@
         }
 
         /* ── Self-Healing System Toggle ── */
+        .system-explainer {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.7rem; line-height: 1.5;
+        }
+        .system-explainer summary {
+            padding: 8px 12px; cursor: pointer; user-select: none;
+            color: var(--pulse-cyan); font-size: 0.65rem;
+            letter-spacing: 0.06em; text-transform: uppercase;
+            list-style: none;
+        }
+        .system-explainer summary::-webkit-details-marker { display: none; }
+        .system-explainer summary::before {
+            content: '▶ '; display: inline-block; transition: transform 0.15s;
+            font-size: 0.55rem;
+        }
+        .system-explainer[open] summary::before { transform: rotate(90deg); }
+        .system-explainer summary:hover { color: var(--text); }
+        .system-explainer-body {
+            padding: 4px 16px 16px 16px;
+            color: var(--text-muted); font-size: 0.7rem;
+        }
+        .system-explainer-body h4 {
+            color: var(--pulse-cyan); font-size: 0.7rem; margin: 14px 0 4px 0;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .system-explainer-body h4:first-child { margin-top: 6px; }
+        .system-explainer-body p { margin: 4px 0; }
+        .system-explainer-body code {
+            font-size: 0.62rem; padding: 1px 5px; border-radius: 3px;
+            background: rgba(6,182,212,0.08); color: var(--pulse-cyan);
+            font-family: 'Courier New', monospace;
+        }
+        .system-explainer-body ol { margin: 4px 0 8px 18px; padding: 0; }
+        .system-explainer-body ol li { margin-bottom: 4px; }
+        .system-explainer-body strong { color: var(--text); }
+        .system-flow {
+            display: grid; grid-template-columns: 24px 1fr; gap: 6px 10px;
+            margin: 8px 0; align-items: start;
+        }
+        .system-flow-step {
+            font-family: 'Courier New', monospace; font-size: 0.55rem;
+            color: var(--pulse-yellow); padding-top: 2px;
+        }
+        .system-flow-text { font-size: 0.7rem; }
+        .system-flow-text strong { color: var(--text); }
         .system-toggle {
             display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
             font-size: 0.7rem; user-select: none;
@@ -513,6 +558,53 @@
                     <span class="system-toggle-switch"></span>
                 </label>
             </div>
+
+            <details class="system-explainer">
+                <summary>How does this work? (the cogs &amp; how to grease them)</summary>
+                <div class="system-explainer-body">
+
+                    <h4>What it does</h4>
+                    <p>EduScan finds defects in the codebase (broken links, undeclared catalog files, security issues, etc). Most are surfaced for human triage. <strong>A few classes are mechanical enough to fix autonomously</strong> — and this system runs those fixes when you explicitly authorize it. Nothing happens automatically without operator action.</p>
+
+                    <h4>The 4 cogs (and how each gets greased)</h4>
+                    <div class="system-flow">
+                        <span class="system-flow-step">[1]</span>
+                        <span class="system-flow-text"><strong>Nexus scan</strong> finds defects, groups them, populates the queue.<br><span style="color:var(--text-muted);">Grease: run <code>node nexus.js full --publish</code></span></span>
+
+                        <span class="system-flow-step">[2]</span>
+                        <span class="system-flow-text"><strong>Promotion</strong> — a rule must be in <code>AUTO_FIX_ELIGIBLE_RULES</code> in <code>_tools/nexus/publish.js</code> for items to enter <code>_auto_fix_queue</code>.<br><span style="color:var(--text-muted);">Grease: edit the file, add a rule code, re-run nexus</span></span>
+
+                        <span class="system-flow-step">[3]</span>
+                        <span class="system-flow-text"><strong>Master toggle</strong> (above) — global kill switch. CLI commands return "GATE: master toggle is OFF" until enabled.<br><span style="color:var(--text-muted);">Grease: click the slider</span></span>
+
+                        <span class="system-flow-step">[4]</span>
+                        <span class="system-flow-text"><strong>Per-template enable</strong> (list below) — per-rule gate. Even with master ON, each template must be individually enabled.<br><span style="color:var(--text-muted);">Grease: click <code>enable</code> next to a rule</span></span>
+                    </div>
+
+                    <h4>To make something get fixed (full workflow)</h4>
+                    <ol>
+                        <li>Edit <code>_tools/nexus/publish.js</code> — add a rule (e.g. <code>'CAT-002'</code>) to <code>AUTO_FIX_ELIGIBLE_RULES</code></li>
+                        <li>Run <code>cd _tools/nexus &amp;&amp; node nexus.js full --publish</code> — grouped items appear in <code>_auto_fix_queue</code></li>
+                        <li>Open this panel — toggle master <strong>ENABLED</strong> + click <code>enable</code> next to the rule</li>
+                        <li>Get an itemId: <code>node nexus.js autofix-status</code> or query Firestore</li>
+                        <li>Run <code>node nexus.js autofix-apply &lt;itemId&gt;</code> — claims, applies, validates, resolves (one file per call)</li>
+                        <li>Review the diff, <code>git commit</code>, <code>firebase deploy --only hosting</code></li>
+                    </ol>
+
+                    <h4>What runs autonomously vs what needs you</h4>
+                    <p><strong>Always automatic (no operator needed):</strong> Nexus rescan auto-resolves items whose defect disappeared (e.g., you fixed it manually); auto-reopens items whose defect reappeared; dead-claim reaper releases stuck claims after 10min; saturation alarm fires Discord webhook + Pulse banner if queue grows past 50 with 20%+ 24h growth.</p>
+                    <p><strong>Needs operator action:</strong> promoting a rule (step 1 above), enabling toggles, running <code>autofix-apply</code>, reviewing diffs, committing, deploying.</p>
+
+                    <h4>Safety — to STOP everything</h4>
+                    <p>Click master toggle <strong>DISABLED</strong>. Every CLI agent command immediately returns exit 2 with a GATE error. In-flight transactions complete; the dead-claim reaper releases anything stuck within 10min. Per-template enables are preserved (re-enabling later doesn't lose state).</p>
+
+                    <h4>Why three gates instead of one</h4>
+                    <p>Per Nancy review: each gate guards a different failure mode. <strong>Promotion</strong> gates "can this rule mechanically be fixed." <strong>Master toggle</strong> gates "is anyone watching." <strong>Per-template</strong> gates "are we comfortable with THIS specific class of fix." Defense in depth.</p>
+
+                    <p style="margin-top:14px;color:var(--text-muted);font-size:0.62rem;">Full architecture: <code>_docs/features/SELF_HEALING_PIPELINE.md</code> · Template contract: <code>_tools/nexus/fix-templates/CONTRACT.md</code></p>
+                </div>
+            </details>
+
             <div class="system-status-line" id="systemStatusLine">Checking system state…</div>
             <div id="systemTemplateList">
                 <div class="template-row" style="color:var(--text-muted);justify-content:center;">No fix templates registered yet</div>
