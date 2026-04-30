@@ -306,6 +306,49 @@
     }
 
     /**
+     * Public API: fetch the most recent N resolved items across both queues.
+     * Includes both human resolves and auto-rescan / auto-fix resolves so
+     * operators can see "what just got fixed" in real time.
+     *
+     * @param {number} max - default 10
+     * @returns {Promise<Array<{id, rule, title, resolvedBy, resolvedAt, source, collection}>>}
+     */
+    async function getRecentResolves(max) {
+        var limit = typeof max === 'number' && max > 0 ? max : 10;
+        var db = await ensureFirestore();
+        var fs = _firestoreModule;
+        var collections = ['_triage_queue', '_auto_fix_queue'];
+        var items = [];
+        for (var i = 0; i < collections.length; i++) {
+            var col = collections[i];
+            // Filter on resolved status; existing (source ASC, status ASC)
+            // index covers this query.
+            var q = fs.query(
+                fs.collection(db, col),
+                fs.where('status', '==', 'resolved'),
+                fs.limit(limit * 2)  // grab extra; we re-sort across both
+            );
+            var snap = await fs.getDocs(q);
+            snap.forEach(function (doc) {
+                var d = doc.data() || {};
+                items.push({
+                    id: doc.id,
+                    rule: d.rule || null,
+                    title: d.title || '(untitled)',
+                    resolvedBy: d.resolvedBy || null,
+                    resolvedAt: tsToIso(d.resolvedAt),
+                    source: d.source || 'unknown',
+                    collection: col,
+                });
+            });
+        }
+        items.sort(function (a, b) {
+            return (b.resolvedAt || '').localeCompare(a.resolvedAt || '');
+        });
+        return items.slice(0, limit);
+    }
+
+    /**
      * Public API: read current saturation state from _saturation_history/latest.
      * Returns { currentlySaturated, blockedReason, lastSnapshot, lastAlarmAt }
      * or null if the doc doesn't exist yet.
@@ -413,6 +456,7 @@
         reassign: reassign,
         detachAll: detachAll,
         getRecentAgentActivity: getRecentAgentActivity,  // Slice 3c
+        getRecentResolves: getRecentResolves,             // QC round 8
         getSaturationState: getSaturationState,           // Slice 3d
         // Constants exposed for callers that need to render/filter
         ACTIVE_STATUSES: ACTIVE_STATUSES,

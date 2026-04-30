@@ -76,22 +76,7 @@
      * Get current self-healing state. Returns a default-disabled object
      * if the doc doesn't exist yet.
      */
-    async function getSelfHealingState() {
-        var db = await ensureFirestore();
-        var fs = _firestoreModule;
-        var snap = await fs.getDoc(fs.doc(db, COLLECTION, DOC_ID));
-        if (!snap.exists()) {
-            return {
-                enabled: false,
-                enabledBy: null,
-                enabledAt: null,
-                lastDisabledBy: null,
-                lastDisabledAt: null,
-                enabledTemplates: [],
-                updatedAt: null,
-            };
-        }
-        var d = snap.data() || {};
+    function _shapeState(d) {
         return {
             enabled: !!d.enabled,
             enabledBy: d.enabledBy || null,
@@ -99,8 +84,20 @@
             lastDisabledBy: d.lastDisabledBy || null,
             lastDisabledAt: tsToIso(d.lastDisabledAt),
             enabledTemplates: Array.isArray(d.enabledTemplates) ? d.enabledTemplates : [],
+            availableTemplates: Array.isArray(d.availableTemplates) ? d.availableTemplates : [],
+            availableTemplatesUpdatedAt: tsToIso(d.availableTemplatesUpdatedAt),
             updatedAt: tsToIso(d.updatedAt),
         };
+    }
+
+    async function getSelfHealingState() {
+        var db = await ensureFirestore();
+        var fs = _firestoreModule;
+        var snap = await fs.getDoc(fs.doc(db, COLLECTION, DOC_ID));
+        if (!snap.exists()) {
+            return _shapeState({});
+        }
+        return _shapeState(snap.data() || {});
     }
 
     /**
@@ -111,22 +108,7 @@
         var db = await ensureFirestore();
         var fs = _firestoreModule;
         var unsub = fs.onSnapshot(fs.doc(db, COLLECTION, DOC_ID), function (snap) {
-            if (!snap.exists()) {
-                onState({ enabled: false, enabledBy: null, enabledAt: null,
-                          lastDisabledBy: null, lastDisabledAt: null,
-                          enabledTemplates: [], updatedAt: null });
-                return;
-            }
-            var d = snap.data() || {};
-            onState({
-                enabled: !!d.enabled,
-                enabledBy: d.enabledBy || null,
-                enabledAt: tsToIso(d.enabledAt),
-                lastDisabledBy: d.lastDisabledBy || null,
-                lastDisabledAt: tsToIso(d.lastDisabledAt),
-                enabledTemplates: Array.isArray(d.enabledTemplates) ? d.enabledTemplates : [],
-                updatedAt: tsToIso(d.updatedAt),
-            });
+            onState(snap.exists() ? _shapeState(snap.data() || {}) : _shapeState({}));
         }, function (err) {
             if (typeof onError === 'function') onError(err);
         });
@@ -166,7 +148,9 @@
                 update.lastDisabledBy = actor;
                 update.lastDisabledAt = fs.serverTimestamp();
             }
-            txn.set(ref, update);
+            // merge:true preserves fields written by other code paths
+            // (e.g., availableTemplates from nexus publish.js mirror)
+            txn.set(ref, update, { merge: true });
             return update;
         });
     }
@@ -200,7 +184,9 @@
                 lastDisabledBy: existing.lastDisabledBy || null,
                 lastDisabledAt: existing.lastDisabledAt || null,
             };
-            txn.set(ref, update);
+            // merge:true preserves fields written by other code paths
+            // (e.g., availableTemplates from nexus publish.js mirror)
+            txn.set(ref, update, { merge: true });
             return update;
         });
     }

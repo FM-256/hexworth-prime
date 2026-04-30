@@ -549,6 +549,60 @@ async function reconcileTriageWithScan(currentFingerprints) {
  *
  * @returns {Promise<{triageWrites, autoFixWrites, groupCount, resolved, reopened}>}
  */
+/**
+ * Mirror the fix-template registry into Firestore at
+ * _system_config/self_healing.availableTemplates so Pulse renders
+ * the per-template toggle list without a hardcoded mirror.
+ *
+ * Eliminates the previously-documented drift risk where adding a
+ * template server-side required updating window.__SELF_HEALING_TEMPLATES__
+ * in pulse.html separately. Now Pulse reads from this single source.
+ *
+ * Called at the end of publishTriage() so every nexus full --publish
+ * keeps the mirror fresh.
+ */
+async function mirrorTemplateRegistry() {
+    try {
+        const registry = require('./fix-templates/registry');
+        const ruleCodes = registry.listRegisteredRules();
+        const available = ruleCodes.map(rc => {
+            const t = registry.getTemplate(rc);
+            return {
+                ruleCode: rc,
+                description: t && t.description ? t.description : '',
+                touchesExtensions: t && Array.isArray(t.touchesExtensions) ? t.touchesExtensions : [],
+            };
+        });
+
+        process.env.GOOGLE_CLOUD_PROJECT = 'hexworth-prime';
+        const admin = require(path.join(FUNCTIONS_DIR, 'node_modules/firebase-admin'));
+        if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
+        const db = admin.firestore();
+        const { FieldValue } = admin.firestore;
+
+        // Read existing config to preserve enabled/enabledBy/enabledAt etc.
+        const ref = db.doc('_system_config/self_healing');
+        const snap = await ref.get();
+        const existing = snap.exists ? snap.data() : {};
+        await ref.set({
+            enabled: !!existing.enabled,
+            enabledTemplates: Array.isArray(existing.enabledTemplates) ? existing.enabledTemplates : [],
+            enabledBy: existing.enabledBy || null,
+            enabledAt: existing.enabledAt || null,
+            lastDisabledBy: existing.lastDisabledBy || null,
+            lastDisabledAt: existing.lastDisabledAt || null,
+            availableTemplates: available,
+            availableTemplatesUpdatedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        return { mirroredCount: available.length };
+    } catch (err) {
+        console.warn('[mirrorTemplateRegistry] failed:', err.message);
+        return { mirroredCount: 0, error: err.message };
+    }
+}
+
 async function publishTriage() {
     const fs = require('fs');
     const reportPath = path.resolve(__dirname, '../reports/TREASURE_MAP.json');
@@ -584,11 +638,16 @@ async function publishTriage() {
     // reconciliation does not falsely auto-resolve it. (Nancy round 4 fix.)
     const reconcileResult = await reconcileTriageWithScan(items.allFingerprints);
 
+    // Mirror the fix-template registry into _system_config.availableTemplates
+    // so Pulse renders the per-template toggle list without a hardcoded mirror.
+    const mirrorResult = await mirrorTemplateRegistry();
+
     return {
         ...writeResult,
         ...reconcileResult,
         skippedReconcile: false,
         groupCount: items.triageItems.length + items.autoFixItems.length,
+        templatesMirrored: mirrorResult.mirroredCount,
     };
 }
 
@@ -603,4 +662,6 @@ module.exports = {
     sha256Hex,                // exported for unit testing
     // Slice 3b — auto-resolve / auto-reopen via rescan
     reconcileTriageWithScan,
+    // QC round 8 — auto-mirror template registry to Firestore
+    mirrorTemplateRegistry,
 };

@@ -168,20 +168,27 @@ function planForFile(filePath) {
 
 /**
  * Read the existing ContentCatalog and find existing module IDs.
- * Returns Set<string> of IDs.
+ * Returns { ids: Set<string>, parseError: string | null }.
+ *
+ * Per Nancy QC: a silent empty Set on parse error meant apply()
+ * would proceed against a corrupt catalog, append to it, and write
+ * the corrupt-plus-append as the new .bak. Now propagates the error
+ * so apply() can refuse to run when the catalog is unparseable.
  */
 function loadExistingIds() {
     const vm = require('vm');
     const code = readFileSafe(CATALOG_PATH);
-    if (!code) return new Set();
+    if (!code) return { ids: new Set(), parseError: 'cannot read ContentCatalog.js' };
     try {
         const ctx = vm.createContext({ window: {} });
         vm.runInContext(code, ctx);
         const cat = ctx.window.ContentCatalog;
-        if (!cat || !Array.isArray(cat.MODULES)) return new Set();
-        return new Set(cat.MODULES.map(m => m.id));
+        if (!cat || !Array.isArray(cat.MODULES)) {
+            return { ids: new Set(), parseError: 'ContentCatalog loaded but has no MODULES array' };
+        }
+        return { ids: new Set(cat.MODULES.map(m => m.id)), parseError: null };
     } catch (e) {
-        return new Set();
+        return { ids: new Set(), parseError: 'ContentCatalog.js failed to parse: ' + e.message };
     }
 }
 
@@ -205,7 +212,16 @@ module.exports = {
                 blockers: ['no files to analyze'],
             };
         }
-        const existingIds = loadExistingIds();
+        const { ids: existingIds, parseError } = loadExistingIds();
+        if (parseError) {
+            return {
+                feasible: false,
+                summary: 'cannot proceed — ' + parseError,
+                plannedActions: [],
+                risks: [],
+                blockers: [parseError, 'fix the catalog parse error before any auto-fix can run'],
+            };
+        }
         const plans = paths.map(p => planForFile(p));
         const feasiblePlans = plans.filter(p => p.feasible);
         const blockedPlans = plans.filter(p => !p.feasible);
@@ -292,7 +308,18 @@ module.exports = {
             };
         }
 
-        const existingIds = loadExistingIds();
+        const { ids: existingIds, parseError } = loadExistingIds();
+        if (parseError) {
+            // Refuse to apply against an unparseable catalog — appending
+            // would compound the corruption AND overwrite the .bak alias
+            // with the corrupt content.
+            return {
+                success: false,
+                summary: 'refusing to apply: ' + parseError,
+                filesChanged: [],
+                error: parseError,
+            };
+        }
         if (existingIds.has(plan.module.id)) {
             // Idempotent — already registered, treat as success
             return {

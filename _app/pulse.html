@@ -511,12 +511,29 @@
                 <label class="system-toggle is-disabled-loading" id="systemToggle">
                     <span id="systemToggleLabel">Loading…</span>
                     <span class="system-toggle-switch"></span>
-                    <input type="checkbox" id="systemToggleInput" style="display:none;">
                 </label>
             </div>
             <div class="system-status-line" id="systemStatusLine">Checking system state…</div>
             <div id="systemTemplateList">
                 <div class="template-row" style="color:var(--text-muted);justify-content:center;">No fix templates registered yet</div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
+        <!-- RECENT RESOLVES (QC round 8) -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Recent Resolves</span>
+                <span style="display:flex;gap:8px;align-items:center;">
+                    <span class="panel-badge badge-live" id="resolvesBadge">—</span>
+                    <button class="triage-action-btn" id="refreshResolves" title="Refresh">↻</button>
+                </span>
+            </div>
+            <div id="resolvesFeed">
+                <div class="triage-item" style="color:var(--text-muted); justify-content:center;">
+                    Loading recent resolves…
+                </div>
             </div>
         </div>
 
@@ -594,8 +611,10 @@
     <script src="components/SystemConfigClient.js"></script>
     <script src="components/ContentCatalog.js"></script>
     <script>
-        // Mirror of _tools/nexus/fix-templates/registry.js for the Pulse UI.
-        // KEEP IN SYNC when adding/removing templates server-side.
+        // Bootstrap fallback: if _system_config.availableTemplates has never
+        // been written (fresh install before any `nexus full --publish` runs),
+        // Pulse uses this minimal list. Auto-mirror takes over from the first
+        // publish onward; this fallback is rarely seen.
         window.__SELF_HEALING_TEMPLATES__ = [
             { ruleCode: 'CAT-002', description: 'Register undeclared content file in ContentCatalog' }
         ];
@@ -1753,19 +1772,22 @@
                 if (state.lastDisabledAt) lines.push('· ' + fmtRelTimeShort(state.lastDisabledAt) + ' ago');
             }
             statusLine.innerHTML = lines.join(' ');
-            renderTemplateList(state.enabledTemplates || []);
+            renderTemplateList(state.enabledTemplates || [], state.availableTemplates || []);
         }
 
-        function renderTemplateList(enabledTemplates) {
+        function renderTemplateList(enabledTemplates, availableTemplates) {
             var container = document.getElementById('systemTemplateList');
             if (!container) return;
-            // Templates are listed by the registry; we don't have a runtime list
-            // in the browser, so we read from a hardcoded sentinel maintained
-            // alongside _tools/nexus/fix-templates/registry.js. Phase F will
-            // add the first real entry; until then this list is curated here.
-            var REGISTERED = window.__SELF_HEALING_TEMPLATES__ || [];
+            // Source of truth: availableTemplates field in _system_config doc,
+            // written by `nexus full --publish` (mirrorTemplateRegistry).
+            // Falls back to the hardcoded window.__SELF_HEALING_TEMPLATES__
+            // mirror only if the auto-mirror has never run. Eliminates the
+            // previously-documented drift risk.
+            var REGISTERED = (Array.isArray(availableTemplates) && availableTemplates.length)
+                ? availableTemplates
+                : (window.__SELF_HEALING_TEMPLATES__ || []);
             if (!REGISTERED.length) {
-                container.innerHTML = '<div class="template-row" style="color:var(--text-muted);justify-content:center;">No fix templates registered yet — see _tools/nexus/fix-templates/CONTRACT.md</div>';
+                container.innerHTML = '<div class="template-row" style="color:var(--text-muted);justify-content:center;">No fix templates registered yet — run `nexus full --publish` to mirror the registry</div>';
                 return;
             }
             var html = '';
@@ -1782,8 +1804,7 @@
 
         async function bindSystemToggle() {
             var toggle = document.getElementById('systemToggle');
-            var input = document.getElementById('systemToggleInput');
-            if (!toggle || !input) return;
+            if (!toggle) return;
             try {
                 _systemToggleUnsub = await SystemConfigClient.subscribeSelfHealingState(renderSystemState, function (err) {
                     console.error('[Pulse] system state subscription error:', err);
@@ -1866,6 +1887,54 @@
                 banner.style.display = 'block';
             } catch (e) {
                 console.error('[Pulse] refreshSaturationBanner failed:', e);
+            }
+        }
+
+        // ── Recent Resolves feed (QC round 8) ──────────────
+        // Shows the LAST N items resolved across both queues.
+        // Includes auto-rescan resolves so operator can see the loop closing.
+
+        function renderResolves(items) {
+            var container = document.getElementById('resolvesFeed');
+            var badge = document.getElementById('resolvesBadge');
+            if (!Array.isArray(items) || items.length === 0) {
+                container.innerHTML = '<div class="triage-item" style="color:var(--text-muted);justify-content:center;">No items resolved yet</div>';
+                if (badge) badge.textContent = '0';
+                return;
+            }
+            var html = '';
+            items.forEach(function (it) {
+                var rel = fmtRelTimeShort(it.resolvedAt);
+                var by = it.resolvedBy || 'unknown';
+                var byShort = by.indexOf(':') >= 0 ? by.split(':')[1] : by;
+                var byColor = by.indexOf('agent:') === 0 ? 'var(--pulse-cyan)' : 'var(--pulse-green)';
+                var collShort = (it.collection || '').replace('_triage_queue', 'triage').replace('_auto_fix_queue', 'autofix');
+                html += '<div class="triage-item" style="font-size:0.7rem;">'
+                    + '<div style="width:36px;font-family:monospace;color:var(--text-muted);font-size:0.6rem;">' + escHtml(rel) + '</div>'
+                    + '<div style="flex:1;">'
+                    +   '<span style="color:' + byColor + ';">' + escHtml(byShort) + '</span>'
+                    +   ' <span style="color:var(--text-muted);">resolved</span>'
+                    +   ' <span style="color:var(--pulse-yellow);">' + escHtml(it.rule || 'unknown') + '</span>'
+                    +   ' <span style="color:var(--text-muted);">in ' + escHtml(collShort) + '</span>'
+                    +   '<br><span class="triage-source">' + escHtml(it.title) + '</span>'
+                    + '</div>'
+                    + '</div>';
+            });
+            container.innerHTML = html;
+            if (badge) badge.textContent = String(items.length);
+        }
+
+        async function refreshResolves() {
+            var badge = document.getElementById('resolvesBadge');
+            try {
+                if (badge) badge.textContent = '…';
+                var items = await TriageQueueClient.getRecentResolves(10);
+                renderResolves(items);
+            } catch (err) {
+                console.error('[Pulse] refreshResolves failed:', err);
+                document.getElementById('resolvesFeed').innerHTML =
+                    '<div class="triage-item" style="color:var(--pulse-red);justify-content:center;">Resolves feed error — ' + escHtml(err.message || 'unknown') + '</div>';
+                if (badge) badge.textContent = 'error';
             }
         }
 
@@ -2094,6 +2163,11 @@
             var refreshBtn = document.getElementById('refreshAgentActivity');
             if (refreshBtn) refreshBtn.addEventListener('click', refreshAgentActivity);
             setInterval(refreshAgentActivity, 60000);
+            // Recent Resolves feed (QC round 8) — same cadence, different data source
+            refreshResolves();
+            var resolvesBtn = document.getElementById('refreshResolves');
+            if (resolvesBtn) resolvesBtn.addEventListener('click', refreshResolves);
+            setInterval(refreshResolves, 60000);
             // Saturation banner (Slice 3d) — check on load + every 5min
             refreshSaturationBanner();
             setInterval(refreshSaturationBanner, 5 * 60 * 1000);
