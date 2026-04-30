@@ -59,11 +59,35 @@ function deriveHouse(filePath) {
     return m ? m[1] : null;
 }
 
+// Type suffix matches the convention seen in hand-curated entries
+// (e.g. data-module="sp-w1-datatypes-pres" / "-lab" / "-quiz" in
+// houses/code/python-programming/index.html). Without this, the same
+// base name in different file types collides and produces an
+// idempotency loop in the marathon drain. Bug found in marathon cycle 1
+// (cloud drain) 2026-04-30.
+const TYPE_SUFFIX = {
+    'presentation': 'pres',
+    'quiz': 'quiz',
+    'lab': 'lab',
+    'applet': 'applet',
+    'tool': 'tool',
+    'module': 'mod',
+};
+
 function deriveModuleId(houseId, filePath) {
     const filename = path.basename(filePath);
-    const base = filename.replace(/\.(presentation|quiz|lab|applet|tool|module)\.html$/, '');
-    // Prefix with houseId to namespace; lowercase + alnum/dash only
-    const slug = (houseId + '-' + base).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+    const m = filename.match(/^(.+?)\.(presentation|quiz|lab|applet|tool|module)\.html$/);
+    if (!m) {
+        // Fallback: untyped HTML file, use plain base name
+        const base = filename.replace(/\.html$/, '');
+        return (houseId + '-' + base).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+    }
+    const base = m[1];
+    const typeSuffix = TYPE_SUFFIX[m[2]] || m[2];
+    const slug = (houseId + '-' + base + '-' + typeSuffix)
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-');
     return slug;
 }
 
