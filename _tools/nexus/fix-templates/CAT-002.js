@@ -303,12 +303,19 @@ module.exports = {
             };
         }
 
-        // Backup + read catalog
+        // Backup + read catalog. Timestamped .bak (Nancy round 7 fix):
+        // single-generation .bak overwrote prior backup on each apply, so
+        // a corrupt apply followed by another apply lost the only known-good
+        // copy. Now each apply gets its own .bak.{epoch}.bak file. The plain
+        // .bak filename is also written as a "latest" alias for rollback().
         const catalogCode = readFileSafe(CATALOG_PATH);
         if (!catalogCode) {
             return { success: false, summary: 'cannot read ContentCatalog.js', filesChanged: [], error: 'catalog unreadable' };
         }
-        fs.writeFileSync(CATALOG_PATH + '.bak', catalogCode, 'utf8');
+        const ts = Date.now();
+        const tsBakPath = CATALOG_PATH + '.' + ts + '.bak';
+        fs.writeFileSync(tsBakPath, catalogCode, 'utf8');
+        fs.writeFileSync(CATALOG_PATH + '.bak', catalogCode, 'utf8');  // alias for rollback()
 
         // Find the MODULES array end and insert before the closing ]
         // Strategy: locate the literal `];\n` that closes MODULES. The catalog

@@ -352,9 +352,15 @@
         var fs = _firestoreModule;
         var collections = ['_triage_queue', '_auto_fix_queue'];
         var events = [];
+        // Cap collection scan at 200 docs each (Nancy round 7 fix):
+        // unbounded getDocs becomes a latency/cost bomb at scale. 200 is
+        // generous given current ~13 active items + reasonable history of
+        // resolved items. If the queue grows past this, the activity feed
+        // would miss older events — acceptable tradeoff vs full scan.
         for (var i = 0; i < collections.length; i++) {
             var col = collections[i];
-            var snap = await fs.getDocs(fs.collection(db, col));
+            var q = fs.query(fs.collection(db, col), fs.limit(200));
+            var snap = await fs.getDocs(q);
             snap.forEach(function (doc) {
                 var data = doc.data() || {};
                 var hist = Array.isArray(data.history) ? data.history : [];

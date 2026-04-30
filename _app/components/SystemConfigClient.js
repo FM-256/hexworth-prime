@@ -136,60 +136,73 @@
     /**
      * Flip the master toggle. Preserves existing enabledTemplates.
      * Records actor and timestamp.
+     *
+     * Uses Firestore runTransaction (Nancy round 7 fix): two operators
+     * clicking simultaneously previously had a lost-update race because
+     * read-then-write-via-setDoc isn't atomic. Transaction guarantees
+     * each write sees the result of the prior write.
      */
     async function setEnabled(enabled) {
         var db = await ensureFirestore();
         var fs = _firestoreModule;
         var ref = fs.doc(db, COLLECTION, DOC_ID);
-        var snap = await fs.getDoc(ref);
-        var existing = snap.exists() ? snap.data() : {};
         var actor = currentActorId();
-        var update = {
-            enabled: !!enabled,
-            enabledTemplates: Array.isArray(existing.enabledTemplates) ? existing.enabledTemplates : [],
-            updatedAt: fs.serverTimestamp(),
-            // Preserve prior values unless overwritten below
-            enabledBy: existing.enabledBy || null,
-            enabledAt: existing.enabledAt || null,
-            lastDisabledBy: existing.lastDisabledBy || null,
-            lastDisabledAt: existing.lastDisabledAt || null,
-        };
-        if (enabled) {
-            update.enabledBy = actor;
-            update.enabledAt = fs.serverTimestamp();
-        } else {
-            update.lastDisabledBy = actor;
-            update.lastDisabledAt = fs.serverTimestamp();
-        }
-        await fs.setDoc(ref, update);
-        return update;
+        return fs.runTransaction(db, async function (txn) {
+            var snap = await txn.get(ref);
+            var existing = snap.exists() ? snap.data() : {};
+            var update = {
+                enabled: !!enabled,
+                enabledTemplates: Array.isArray(existing.enabledTemplates) ? existing.enabledTemplates : [],
+                updatedAt: fs.serverTimestamp(),
+                enabledBy: existing.enabledBy || null,
+                enabledAt: existing.enabledAt || null,
+                lastDisabledBy: existing.lastDisabledBy || null,
+                lastDisabledAt: existing.lastDisabledAt || null,
+            };
+            if (enabled) {
+                update.enabledBy = actor;
+                update.enabledAt = fs.serverTimestamp();
+            } else {
+                update.lastDisabledBy = actor;
+                update.lastDisabledAt = fs.serverTimestamp();
+            }
+            txn.set(ref, update);
+            return update;
+        });
     }
 
     /**
      * Add or remove a template from the per-template allowlist.
      * The master `enabled` flag must also be true for any template to run.
+     *
+     * Uses Firestore runTransaction (Nancy round 7 fix): if two admins
+     * click different template toggles in quick succession, the second
+     * write previously could clobber the first's change. Transaction
+     * ensures both updates land.
      */
     async function setTemplateEnabled(ruleCode, enabled) {
         var db = await ensureFirestore();
         var fs = _firestoreModule;
         var ref = fs.doc(db, COLLECTION, DOC_ID);
-        var snap = await fs.getDoc(ref);
-        var existing = snap.exists() ? snap.data() : {};
-        var current = Array.isArray(existing.enabledTemplates) ? existing.enabledTemplates : [];
-        var next = enabled
-            ? (current.includes(ruleCode) ? current : current.concat([ruleCode]))
-            : current.filter(function (r) { return r !== ruleCode; });
-        var update = {
-            enabled: !!existing.enabled,
-            enabledTemplates: next,
-            updatedAt: fs.serverTimestamp(),
-            enabledBy: existing.enabledBy || null,
-            enabledAt: existing.enabledAt || null,
-            lastDisabledBy: existing.lastDisabledBy || null,
-            lastDisabledAt: existing.lastDisabledAt || null,
-        };
-        await fs.setDoc(ref, update);
-        return update;
+        return fs.runTransaction(db, async function (txn) {
+            var snap = await txn.get(ref);
+            var existing = snap.exists() ? snap.data() : {};
+            var current = Array.isArray(existing.enabledTemplates) ? existing.enabledTemplates : [];
+            var next = enabled
+                ? (current.includes(ruleCode) ? current : current.concat([ruleCode]))
+                : current.filter(function (r) { return r !== ruleCode; });
+            var update = {
+                enabled: !!existing.enabled,
+                enabledTemplates: next,
+                updatedAt: fs.serverTimestamp(),
+                enabledBy: existing.enabledBy || null,
+                enabledAt: existing.enabledAt || null,
+                lastDisabledBy: existing.lastDisabledBy || null,
+                lastDisabledAt: existing.lastDisabledAt || null,
+            };
+            txn.set(ref, update);
+            return update;
+        });
     }
 
     async function init() {

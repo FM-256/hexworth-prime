@@ -300,7 +300,27 @@ async function cmdApply(args, flags) {
         return 1;
     }
 
-    // 3. Gate
+    // DRY-RUN PATH (Nancy round 7 fix):
+    // --dry-run means "preview without ANY mutation" — call template.dryRun()
+    // and bypass gate, claim, apply, validate, resolve. Apply was previously
+    // called regardless of dryFlag, which silently wrote to disk.
+    if (dryFlag) {
+        try {
+            const dryResult = await template.dryRun(item);
+            console.log(JSON.stringify({
+                itemId,
+                rule: item.rule,
+                dryRun: true,
+                ...dryResult,
+            }, null, 2));
+            return 0;
+        } catch (err) {
+            console.error(`dryRun threw: ${err.message}`);
+            return 1;
+        }
+    }
+
+    // 3. Gate (real apply path only)
     try {
         await requireEnabledForRule(item.rule);
     } catch (err) {
@@ -308,31 +328,27 @@ async function cmdApply(args, flags) {
         return 2;
     }
 
-    // 4. Claim (skip if --dry-run)
-    if (!dryFlag) {
-        try {
-            await _mutate('_auto_fix_queue', itemId, {
-                status: 'claimed',
-                owner: getAgentId(),
-                claimedAt: FieldValue.serverTimestamp(),
-                heartbeatAt: FieldValue.serverTimestamp(),
-            }, 'apply-claim', null, ['open']);
-        } catch (err) {
-            console.error(`claim failed: ${err.message}`);
-            return 1;
-        }
+    // 4. Claim
+    try {
+        await _mutate('_auto_fix_queue', itemId, {
+            status: 'claimed',
+            owner: getAgentId(),
+            claimedAt: FieldValue.serverTimestamp(),
+            heartbeatAt: FieldValue.serverTimestamp(),
+        }, 'apply-claim', null, ['open']);
+    } catch (err) {
+        console.error(`claim failed: ${err.message}`);
+        return 1;
     }
 
-    // 5. Heartbeat (no-op if --dry-run)
-    if (!dryFlag) {
-        try {
-            await _mutate('_auto_fix_queue', itemId, {
-                heartbeatAt: FieldValue.serverTimestamp(),
-                status: 'in-progress',
-            }, 'apply-heartbeat', null, ['claimed', 'in-progress']);
-        } catch (err) {
-            console.warn(`heartbeat failed: ${err.message}`);
-        }
+    // 5. Heartbeat
+    try {
+        await _mutate('_auto_fix_queue', itemId, {
+            heartbeatAt: FieldValue.serverTimestamp(),
+            status: 'in-progress',
+        }, 'apply-heartbeat', null, ['claimed', 'in-progress']);
+    } catch (err) {
+        console.warn(`heartbeat failed: ${err.message}`);
     }
 
     // 6. Apply
@@ -341,36 +357,30 @@ async function cmdApply(args, flags) {
         applyResult = await template.apply(item);
     } catch (err) {
         console.error(`apply threw: ${err.message}`);
-        if (!dryFlag) {
-            try {
-                await _mutate('_auto_fix_queue', itemId, {
-                    status: 'open', owner: null, claimedAt: null, heartbeatAt: null,
-                }, 'apply-failed-exception', err.message, ['claimed', 'in-progress']);
-            } catch (e) { /* noop */ }
-        }
+        try {
+            await _mutate('_auto_fix_queue', itemId, {
+                status: 'open', owner: null, claimedAt: null, heartbeatAt: null,
+            }, 'apply-failed-exception', err.message, ['claimed', 'in-progress']);
+        } catch (e) { /* noop */ }
         return 1;
     }
     if (!applyResult || !applyResult.success) {
         const msg = applyResult && applyResult.error ? applyResult.error : 'apply returned non-success';
         console.error(`apply rejected: ${msg}`);
-        if (!dryFlag) {
-            try {
-                await _mutate('_auto_fix_queue', itemId, {
-                    status: 'open', owner: null, claimedAt: null, heartbeatAt: null,
-                }, 'apply-rejected', msg, ['claimed', 'in-progress']);
-            } catch (e) { /* noop */ }
-        }
+        try {
+            await _mutate('_auto_fix_queue', itemId, {
+                status: 'open', owner: null, claimedAt: null, heartbeatAt: null,
+            }, 'apply-rejected', msg, ['claimed', 'in-progress']);
+        } catch (e) { /* noop */ }
         return 1;
     }
 
     // 7. Heartbeat after apply
-    if (!dryFlag) {
-        try {
-            await _mutate('_auto_fix_queue', itemId, {
-                heartbeatAt: FieldValue.serverTimestamp(),
-            }, 'apply-heartbeat-2', null, ['claimed', 'in-progress']);
-        } catch (err) { /* tolerated */ }
-    }
+    try {
+        await _mutate('_auto_fix_queue', itemId, {
+            heartbeatAt: FieldValue.serverTimestamp(),
+        }, 'apply-heartbeat-2', null, ['claimed', 'in-progress']);
+    } catch (err) { /* tolerated */ }
 
     // 8. Validate
     let validateResult;
@@ -382,17 +392,15 @@ async function cmdApply(args, flags) {
 
     // 9. Resolve or rollback+release
     if (validateResult.validated) {
-        if (!dryFlag) {
-            try {
-                await _mutate('_auto_fix_queue', itemId, {
-                    status: 'resolved',
-                    resolvedAt: FieldValue.serverTimestamp(),
-                    resolvedBy: getAgentId(),
-                    resolveCommitSha: null,  // operator commits manually
-                }, 'apply-resolved', validateResult.evidence, ['claimed', 'in-progress']);
-            } catch (err) {
-                console.error(`resolve write failed: ${err.message}`);
-            }
+        try {
+            await _mutate('_auto_fix_queue', itemId, {
+                status: 'resolved',
+                resolvedAt: FieldValue.serverTimestamp(),
+                resolvedBy: getAgentId(),
+                resolveCommitSha: null,  // operator commits manually
+            }, 'apply-resolved', validateResult.evidence, ['claimed', 'in-progress']);
+        } catch (err) {
+            console.error(`resolve write failed: ${err.message}`);
         }
         console.log(JSON.stringify({
             itemId, success: true, validated: true,
@@ -415,13 +423,11 @@ async function cmdApply(args, flags) {
             rollbackResult = { restored: false, summary: 'rollback threw: ' + err.message };
         }
     }
-    if (!dryFlag) {
-        try {
-            await _mutate('_auto_fix_queue', itemId, {
-                status: 'open', owner: null, claimedAt: null, heartbeatAt: null,
-            }, 'apply-validate-failed', `validate: ${validateResult.evidence} | rollback: ${rollbackResult.summary}`, ['claimed', 'in-progress']);
-        } catch (err) { /* noop */ }
-    }
+    try {
+        await _mutate('_auto_fix_queue', itemId, {
+            status: 'open', owner: null, claimedAt: null, heartbeatAt: null,
+        }, 'apply-validate-failed', `validate: ${validateResult.evidence} | rollback: ${rollbackResult.summary}`, ['claimed', 'in-progress']);
+    } catch (err) { /* noop */ }
     console.log(JSON.stringify({
         itemId, success: false, validated: false,
         applySummary: applyResult.summary,
