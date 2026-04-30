@@ -24,7 +24,11 @@ const crypto = require('crypto');
 // classes must have (a) a fix-template document, (b) a FUNC validator
 // before being added here. Slice 1 ships EMPTY. Classes added in Slice 3.
 const AUTO_FIX_ELIGIBLE_RULES = new Set([
-    // Empty in Slice 1 — see _docs/features/SELF_HEALING_PIPELINE.md
+    // CAT-002 promoted 2026-04-30 by operator after Phase H end-to-end test
+    // PASSED 6/6 against real findings. Template + validator + rollback at
+    // _tools/nexus/fix-templates/CAT-002.{js,validator.js}. Items still gated
+    // by master toggle + per-template enable in _system_config/self_healing.
+    'CAT-002',
 ]);
 
 // Severity gate: only critical + high enter the live triage queue.
