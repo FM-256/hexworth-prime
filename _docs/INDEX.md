@@ -142,6 +142,7 @@ Man pages for shipped features. Each document covers purpose, architecture, and 
 | [Sandbox Labs](features/SANDBOX_LABS.md) | lab-manager/server.js, docker-compose.yml, SandboxLauncher.js | Docker containers, Traefik routing, Cloudflare Tunnel, Sablier idle mgmt |
 | [Multiplayer & Hive](features/MULTIPLAYER_HIVE.md) | MultiplayerManager.js, HiveManager.js, VsBridge.js | 2-player arcade, ghost replay, Hive exploration, Red Queen, CTF VS mode |
 | [Digital Life](features/DIGITAL_LIFE.md) | digital-life/index.js + 30 modules | Binary firefly ecosystem, 8 phases, procedural audio, cosmic events |
+| [Incubation Hubs](features/INCUBATION_HUBS.md) | `houses/<h>/incubator/index.html` × 8, `INCUBATOR_MODULES[]` pattern, graduation README | Per-house parking lot for orphan modules without a curriculum yet — graduates at ≥10 modules + clear scope. Placement pipeline tooling in `_tools/eduscan/` |
 
 ---
 

@@ -536,6 +536,37 @@ EduScan generates reports in `_tools/reports/` (gitignored):
 
 ---
 
+## Orphan Placement Pipeline (Stragglers, 2026-04-30)
+
+> **Positioning:** these scripts are a **post-scan placement pipeline**, not a replacement for `npm run scan:orphans` / `scan:orphans:deep`. Those existing commands surface raw orphans at scan time. The placement pipeline starts from the strict scanner's report and produces an actionable per-cluster placement plan (existing hub vs new hub vs incubation vs cleanup). They are not registered as `npm run scan:*` because they output planning artifacts, not pass/fail validation results.
+
+Run order (each step writes to `_tools/reports/` and feeds the next):
+
+```bash
+# 1. Strict orphan detection (4 mechanisms — see definition v2 in scanner header)
+node _tools/eduscan/strict-orphan-scanner.js
+#    → _tools/reports/STRICT_ORPHAN_MAP.json
+
+# 2. Sub-content + cluster analysis + existing hub inventory
+node _tools/eduscan/orphan-cluster-analyzer.js
+#    → _tools/reports/ORPHAN_CLUSTER_MATRIX.{json,md}
+
+# 3. Per-cluster placement recommendations (existing/new/incubation/cleanup)
+node _tools/eduscan/placement-recommender.js
+#    → _tools/reports/PLACEMENT_RECOMMENDATIONS.{json,md}
+
+# 4. Generate per-house incubation hubs from the recommendations
+node _tools/eduscan/incubator-generator.js
+#    → _app/houses/<h>/incubator/index.html  (× 8 houses)
+#    → _app/houses/<h>/incubator/README.md   (graduation log per hub)
+```
+
+**Strict-orphan definition vs `scan:orphans:deep`:** the existing scan commands consider a module reachable via 6 mechanisms (data-module attrs, getHouseModules() catalog dumps, LearningPaths, bespoke `<a href>`, ContentDiscovery search, dedicated *Engine renderers). The strict scanner only counts the *curated* subset (data-module attrs, LearningPaths, dedicated-engine, inline-hub script ids — see scanner header). It will report *more* orphans than `scan:orphans:deep` because it rejects loose mechanisms.
+
+See `_docs/features/INCUBATION_HUBS.md` for the incubation hub design + graduation rule.
+
+---
+
 ## Auto-Fix Tools
 
 ### Fix Broken LearningPaths References
