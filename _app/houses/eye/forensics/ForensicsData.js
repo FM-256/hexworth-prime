@@ -22,7 +22,7 @@ const ForensicsData = {
         name: 'Digital Forensics Hub',
         tagline: 'Investigate. Analyze. Prove.',
         description: 'Master digital forensics from evidence handling to advanced analysis. 6 tracks, 60 modules covering disk, memory, network, log analysis, and courtroom-ready investigation techniques.',
-        icon: '../../../assets/images/icons/icon-detective.webp',
+        icon: '/assets/images/icons/icon-detective.webp',
         accentColor: '#818cf8',
         accentColorDim: 'rgba(129, 140, 248, 0.15)',
         secondaryColor: '#a78bfa',
@@ -44,7 +44,7 @@ const ForensicsData = {
             name: 'Evidence Foundations & Legal Framework',
             shortName: 'Evidence & Legal',
             description: 'Chain of custody, NIST frameworks, federal computer crime laws, expert testimony, and ethics in digital forensics.',
-            icon: '../../../assets/images/icons/icon-scales.webp',
+            icon: '/assets/images/icons/icon-scales.webp',
             color: '#818cf8',
             colorDim: 'rgba(129, 140, 248, 0.12)',
             moduleCount: 10,
@@ -127,7 +127,7 @@ const ForensicsData = {
             name: 'Disk & File System Forensics',
             shortName: 'Disk Forensics',
             description: 'File system internals, disk imaging, Autopsy, file carving, metadata extraction, and forensic integrity verification.',
-            icon: '../../../assets/images/icons/icon-cabinet.webp',
+            icon: '/assets/images/icons/icon-cabinet.webp',
             color: '#34d399',
             colorDim: 'rgba(52, 211, 153, 0.12)',
             moduleCount: 10,
@@ -211,7 +211,7 @@ const ForensicsData = {
             name: 'Memory Forensics',
             shortName: 'Memory Forensics',
             description: 'Volatile evidence acquisition, Volatility framework, process analysis, malware artifacts, and registry extraction from memory.',
-            icon: '../../../assets/images/icons/icon-memory.webp',
+            icon: '/assets/images/icons/icon-memory.webp',
             color: '#f472b6',
             colorDim: 'rgba(244, 114, 182, 0.12)',
             moduleCount: 10,
@@ -295,7 +295,7 @@ const ForensicsData = {
             name: 'Network Forensics',
             shortName: 'Network Forensics',
             description: 'Packet capture, Wireshark mastery, DNS exfiltration, encrypted traffic analysis, and wireless forensics.',
-            icon: '../../../assets/images/icons/icon-antenna.webp',
+            icon: '/assets/images/icons/icon-antenna.webp',
             color: '#38bdf8',
             colorDim: 'rgba(56, 189, 248, 0.12)',
             moduleCount: 10,
@@ -380,7 +380,7 @@ const ForensicsData = {
             name: 'Log & Timeline Analysis',
             shortName: 'Logs & Timelines',
             description: 'Windows Event Logs, Linux syslog, super timelines with plaso, SIEM queries, browser forensics, and registry analysis.',
-            icon: '../../../assets/images/icons/icon-clock.webp',
+            icon: '/assets/images/icons/icon-clock.webp',
             color: '#fbbf24',
             colorDim: 'rgba(251, 191, 36, 0.12)',
             moduleCount: 10,
@@ -463,7 +463,7 @@ const ForensicsData = {
             name: 'Advanced & Specialized Forensics',
             shortName: 'Advanced Topics',
             description: 'Anti-forensics detection, cloud forensics, mobile analysis, IoT, steganography, and incident response integration.',
-            icon: '../../../assets/images/icons/icon-microscope.webp',
+            icon: '/assets/images/icons/icon-microscope.webp',
             color: '#fb923c',
             colorDim: 'rgba(251, 146, 60, 0.12)',
             moduleCount: 10,
@@ -561,6 +561,17 @@ const ForensicsData = {
         { source: 'Operator', path: '/operator/missions/forensics-01.mission.html', title: 'Forensics Mission 1' },
         { source: 'Operator', path: '/operator/missions/forensics-02.mission.html', title: 'Forensics Mission 2' },
         { source: 'Operator', path: '/operator/missions/forensics-03.mission.html', title: 'Forensics Mission 3' }
+    ],
+
+    // Cert hubs nested under the Forensics Hub (Stragglers Phase 2 — 2026-04-30).
+    // Each entry has a corresponding ContentCatalog module (id matches) and a
+    // physical hub at certs/{id-without-prefix}/index.html. Listed here so the
+    // orphan-finder's mechanism 6 (dedicated engine pattern) detects them as
+    // reachable, and so renderHub can iterate them for the Cert Paths section.
+    certHubs: [
+        { id: 'forensics-chfi-hub', name: 'CHFI v10', body: 'EC-Council', href: 'certs/chfi/index.html', certId: 'chfi' },
+        { id: 'forensics-gcfa-hub', name: 'GCFA',    body: 'GIAC / SANS', href: 'certs/gcfa/index.html', certId: 'gcfa' },
+        { id: 'forensics-gcfe-hub', name: 'GCFE',    body: 'GIAC / SANS', href: 'certs/gcfe/index.html', certId: 'gcfe' }
     ]
 };
 

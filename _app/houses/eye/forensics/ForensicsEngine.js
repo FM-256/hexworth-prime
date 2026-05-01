@@ -226,16 +226,191 @@ const ForensicsEngine = (() => {
         const section = document.createElement('div');
         section.className = 'fh-section fh-cert-section';
 
+        // Map cert names to their cert-hub destinations.
+        // Forensics-dedicated certs (CHFI, GCFA, GCFE) live nested under this hub.
+        // Cross-discipline certs (CySA+, Sec+) live at their own top-level hubs.
+        const certLinks = {
+            'EC-Council CHFI': 'certs/chfi/index.html',
+            'GIAC GCFA': 'certs/gcfa/index.html',
+            'GIAC GCFE': 'certs/gcfe/index.html',
+            'CompTIA CySA+ (CS0-003)': '/houses/cysa-plus/index.html',
+            'CompTIA Security+': '/houses/security-plus/index.html',
+        };
+
         section.innerHTML = `
-            <h3 class="fh-section-title">Certification Alignment</h3>
-            <p class="fh-section-desc">Forensics Hub modules map directly to these certification objectives.</p>
+            <h3 class="fh-section-title">Certification Paths</h3>
+            <p class="fh-section-desc">Forensics modules map to these certifications. Click any badge to enter its dedicated cert hub.</p>
             <div class="fh-cert-grid">
-                ${ForensicsData.stats.certAlignments.map(cert => `
-                    <div class="fh-cert-badge">${cert}</div>
-                `).join('')}
+                ${ForensicsData.stats.certAlignments.map(certName => {
+                    const matchKey = Object.keys(certLinks).find(k => certName.includes(k.split(' ')[0]) && certName.includes(k.split(' ').slice(-1)[0].split('(')[0]));
+                    const href = certLinks[matchKey] || certLinks[certName];
+                    return href
+                        ? `<a class="fh-cert-badge" href="${href}" style="text-decoration:none;cursor:pointer;">${certName}</a>`
+                        : `<div class="fh-cert-badge">${certName}</div>`;
+                }).join('')}
             </div>`;
 
         return section;
+    }
+
+    // ── Cert Hub Renderer (Phase 2 — nested cert hubs) ──────────────────
+    // Renders a per-cert page filtered to that cert's mapped modules.
+    // Loaded by certs/{cert-id}/index.html — same engine, different entry.
+
+    function _findCert(certId) {
+        if (typeof ForensicsCertAlignment === 'undefined') return null;
+        return (ForensicsCertAlignment.certifications || []).find(c => c.id === certId);
+    }
+
+    function _moduleLookup() {
+        const map = new Map();
+        (ForensicsData.tracks || []).forEach(track => {
+            (track.modules || []).forEach(m => {
+                map.set(m.id, Object.assign({}, m, { trackId: track.id, trackName: track.name }));
+            });
+        });
+        return map;
+    }
+
+    function renderCertHub(certId) {
+        const cert = _findCert(certId);
+        if (!cert) {
+            document.body.innerHTML = '<div style="padding:40px;color:#fff;background:#0a0a0f;font-family:Inter,sans-serif;">'
+                + '<h1>Cert not found: ' + certId + '</h1>'
+                + '<p>Available cert ids: '
+                + (typeof ForensicsCertAlignment !== 'undefined'
+                    ? (ForensicsCertAlignment.certifications || []).map(c => c.id).join(', ')
+                    : '(ForensicsCertAlignment.js not loaded)')
+                + '</p>'
+                + '<p><a href="../../index.html" style="color:#818cf8;">&larr; Forensics Hub</a></p></div>';
+            return;
+        }
+
+        _loadProgress();
+        _injectFonts();
+        _injectStyles();
+
+        const root = document.createElement('div');
+        root.className = 'fh-root';
+        _buildParticles(root);
+        root.appendChild(_buildCertHeader(cert));
+        root.appendChild(_buildCertHero(cert));
+        root.appendChild(_buildCertModules(cert));
+        root.appendChild(_buildBackToHub());
+        document.body.appendChild(root);
+    }
+
+    function _buildCertHeader(cert) {
+        const header = document.createElement('div');
+        header.className = 'fh-header';
+        header.innerHTML = `
+            <div class="fh-header-left">
+                <img class="fh-header-icon" src="${ForensicsData.hub.icon}" alt="" width="28" height="28">
+                <div>
+                    <div class="fh-header-title">${cert.name}</div>
+                    <div class="fh-header-sub">Forensics Cert Path · ${cert.domain}</div>
+                </div>
+            </div>
+            <div class="fh-header-right">
+                <a href="../../index.html" class="fh-btn">&larr; Forensics Hub</a>
+                <a href="${(typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getUrl('dashboard') : '/dashboard.html'}" class="fh-btn">Dashboard</a>
+            </div>`;
+        return header;
+    }
+
+    function _buildCertHero(cert) {
+        const hero = document.createElement('div');
+        hero.className = 'fh-hero';
+        const completed = cert.modules.filter(id => _isComplete(id)).length;
+        const total = cert.modules.length;
+        const pct = total ? Math.round((completed / total) * 100) : 0;
+        hero.innerHTML = `
+            <h2 class="fh-hero-title">${cert.name}</h2>
+            <p class="fh-hero-desc">${cert.domain}</p>
+            <div class="fh-hero-stats">
+                <div class="fh-stat">
+                    <span class="fh-stat-num">${total}</span>
+                    <span class="fh-stat-label">Mapped Modules</span>
+                </div>
+                <div class="fh-stat">
+                    <span class="fh-stat-num">${completed}</span>
+                    <span class="fh-stat-label">Completed</span>
+                </div>
+                <div class="fh-stat">
+                    <span class="fh-stat-num">${pct}%</span>
+                    <span class="fh-stat-label">Progress</span>
+                </div>
+                <div class="fh-stat">
+                    <span class="fh-stat-num">${cert.objectives.length}</span>
+                    <span class="fh-stat-label">Objectives</span>
+                </div>
+            </div>
+            <div class="fh-progress-bar">
+                <div class="fh-progress-fill" style="width:${pct}%"></div>
+            </div>
+            <div class="fh-progress-text">${completed} / ${total} cert-mapped modules completed</div>
+            <div style="margin-top:24px;padding:16px;background:rgba(255,255,255,0.03);border-radius:8px;">
+                <h4 style="margin:0 0 8px 0;font-size:0.85rem;color:${ACCENT};text-transform:uppercase;letter-spacing:0.06em;">Exam Objectives</h4>
+                <ul style="margin:0;padding-left:20px;font-size:0.8rem;color:rgba(255,255,255,0.7);line-height:1.6;">
+                    ${cert.objectives.map(o => `<li>${o}</li>`).join('')}
+                </ul>
+            </div>`;
+        return hero;
+    }
+
+    function _buildCertModules(cert) {
+        const section = document.createElement('div');
+        section.className = 'fh-section';
+        const heading = document.createElement('h3');
+        heading.className = 'fh-section-title';
+        heading.textContent = 'Cert-Mapped Modules';
+        section.appendChild(heading);
+
+        const lookup = _moduleLookup();
+        const byTrack = new Map();
+        cert.modules.forEach(id => {
+            const m = lookup.get(id);
+            if (!m) return;
+            if (!byTrack.has(m.trackId)) byTrack.set(m.trackId, { name: m.trackName, items: [] });
+            byTrack.get(m.trackId).items.push(m);
+        });
+
+        const grid = document.createElement('div');
+        grid.style.display = 'grid';
+        grid.style.gap = '20px';
+
+        for (const [trackId, data] of byTrack) {
+            const block = document.createElement('div');
+            block.style.background = BG_CARD;
+            block.style.padding = '16px';
+            block.style.borderRadius = '8px';
+            block.innerHTML = `
+                <h4 style="margin:0 0 12px 0;color:${ACCENT};font-size:0.9rem;font-weight:600;">${data.name}</h4>
+                <div style="display:grid;gap:8px;">
+                    ${data.items.map(m => {
+                        const done = _isComplete(m.id);
+                        return `
+                            <a href="../../${m.href}" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,0.02);border-radius:6px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,0.05);transition:all 0.15s;">
+                                <span style="font-family:'JetBrains Mono',monospace;color:${ACCENT};font-size:0.7rem;width:50px;">${m.id}</span>
+                                <span style="flex:1;font-size:0.85rem;">${m.title}</span>
+                                <span style="font-size:0.65rem;color:${done ? '#22c55e' : 'rgba(255,255,255,0.3)'};text-transform:uppercase;letter-spacing:0.05em;">${done ? 'done' : 'open'}</span>
+                            </a>
+                        `;
+                    }).join('')}
+                </div>`;
+            grid.appendChild(block);
+        }
+
+        section.appendChild(grid);
+        return section;
+    }
+
+    function _buildBackToHub() {
+        const div = document.createElement('div');
+        div.style.textAlign = 'center';
+        div.style.padding = '32px';
+        div.innerHTML = `<a href="../../index.html" class="fh-btn">&larr; Back to Forensics Hub</a>`;
+        return div;
     }
 
     // ── Particles ─────────────────────────────────────────────────────────
@@ -440,7 +615,7 @@ const ForensicsEngine = (() => {
 
     // ── Public API ────────────────────────────────────────────────────────
 
-    return { renderHub };
+    return { renderHub, renderCertHub };
 
 })();
 
