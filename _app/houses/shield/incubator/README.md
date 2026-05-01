@@ -9,6 +9,7 @@ Created: 2026-05-01 (Stragglers branch)
 | `threat-*` | 17 | Eligible — promote to dedicated hub |
 | `linux-*` | 15 | Eligible — promote to dedicated hub |
 | `crypto-*` | 15 | Eligible — promote to dedicated hub |
+| `cse-*` | 3 | Need 7 more |
 | `hash-*` | 3 | Need 7 more |
 | `social-*` | 2 | Need 8 more |
 | `osint-*` | 2 | Need 8 more |

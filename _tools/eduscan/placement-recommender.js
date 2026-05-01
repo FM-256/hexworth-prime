@@ -54,7 +54,10 @@ const HUB_RULES = [
     { match: { signalIncludes: 'GCFE' }, target: 'houses/eye/forensics/certs/gcfe/index.html', mech: 'data-module', notes: 'Existing GCFE cert hub' },
     { match: { signalIncludes: 'ISC2 CC' }, target: 'houses/shield/isc2-cc/index.html', mech: 'data-module', notes: 'Existing ISC2 CC hub' },
     { match: { signalIncludes: 'Server+' }, target: 'houses/cloud/server-plus/index.html', mech: 'data-module', notes: 'Existing Server+ cert hub' },
-    { match: { signalIncludes: 'Cloud Security Engineer' }, target: 'houses/cloud/cse/index.html', mech: 'data-module', notes: 'Existing CSE cert hub' },
+    // Shield cse-* parking rule MUST fire before this signalIncludes rule, otherwise
+    // shield CSE content silently cross-routes to cloud/cse/ without a catalog house fix.
+    { match: { idPrefix: 'cse-', house: 'shield' }, target: 'NEW (incubation): houses/shield/incubator/index.html', mech: 'inline-id', proposed: true, incubation: true, notes: 'PARK pending operator decision (STR-26): titled "CSE:" = EC-Council Cloud Security Engineer cert content; parallel files exist at cloud-cse-* in cloud house. Decide: re-house to cloud (delete parallels), or keep as shield-side cert prep companion (cross-link to cloud/cse/).' },
+    { match: { signalIncludes: 'Cloud Security Engineer' }, target: 'houses/cloud/cse/index.html', mech: 'data-module', notes: 'Existing CSE cert hub (cloud house)' },
 
     // ──── COURSE HUBS (existing) ────
     { match: { idPrefix: 'clh-', house: 'script' }, target: 'houses/script/courses/clh/index.html', mech: 'inline-id', notes: 'Existing CLH course hub' },
@@ -67,12 +70,12 @@ const HUB_RULES = [
     { match: { signalIncludes: 'First Watch' }, target: 'houses/shield/intro-security/index.html', mech: 'inline-id', notes: 'First Watch / CTS1120C' },
     { match: { signalIncludes: 'Bare Metal' }, target: 'houses/forge/hardware-support/index.html', mech: 'inline-id', notes: 'Bare Metal / CTS1150C' },
     { match: { signalIncludes: 'Server Room' }, target: 'houses/forge/server-management/index.html', mech: 'inline-id', notes: 'Server Room / CTS1328C' },
-    { match: { signalIncludes: 'CIS2253' }, target: 'houses/divergent/cybersecurity-ethics/index.html', mech: 'inline-id', notes: 'CIS2253 Cybersecurity Ethics (currently divergent)' },
+    { match: { signalIncludes: 'CIS2253', house: 'divergent' }, target: 'houses/divergent/cybersecurity-ethics/index.html', mech: 'inline-id', notes: 'CIS2253 Cybersecurity Ethics — only route here if house=divergent (other houses with cse- are CSE cert content, not ethics)' },
     { match: { signalIncludes: 'CIS4253' }, target: 'houses/divergent/ethics-it/index.html', mech: 'inline-id', notes: 'CIS4253 Ethics in IT' },
     { match: { signalIncludes: 'CIS2208' }, target: 'houses/divergent/cybersecurity-policy/index.html', mech: 'inline-id', notes: 'CIS2208 Cybersecurity Policy' },
     { match: { idPrefix: 'eth-', house: 'divergent' }, target: 'houses/divergent/ethics-it/index.html', mech: 'inline-id', notes: 'CIS4253 Ethics modules' },
-    { match: { idPrefix: 'cse-', house: 'shield' }, target: 'houses/divergent/cybersecurity-ethics/index.html', mech: 'inline-id', notes: 'CIS2253 Cybersecurity Ethics — currently shield, belongs in divergent' },
-    { match: { idPrefix: 'cse-', house: 'cloud' }, target: 'houses/cloud/cse/index.html', mech: 'data-module', notes: 'Cloud Security Engineer cert' },
+    // (Shield cse-* parking rule moved above, before the Cloud Security Engineer signal rule.)
+    { match: { idPrefix: 'cse-', house: 'cloud' }, target: 'houses/cloud/cse/index.html', mech: 'data-module', notes: 'Cloud Security Engineer cert — existing hub at cloud/cse/' },
     { match: { signalIncludes: 'Dark Arts Feh' }, target: 'houses/dark-arts/feh/index.html', mech: 'inline-id', notes: 'Existing Feh course hub' },
     { match: { idPrefix: 'feh-', house: 'dark-arts' }, target: 'houses/dark-arts/feh/index.html', mech: 'inline-id', notes: 'Feh course modules' },
     { match: { signalIncludes: 'CyberOps' }, target: 'houses/eye/modules/cyberops/index.html', mech: 'data-module', notes: 'Existing CyberOps course hub' },
@@ -111,7 +114,7 @@ const HUB_RULES = [
     { match: { idPrefix: 'openstack', house: 'cloud' }, target: 'houses/cloud/openstack/index.html', mech: 'data-module', notes: 'Existing OpenStack hub' },
     { match: { idPrefix: 'aws-', house: 'cloud' }, target: 'houses/aws-ccp/index.html', mech: 'learning-path', notes: 'AWS topics — assign to AWS CCP hub (most general)' },
     { match: { idPrefix: 'wsa', house: 'cloud' }, target: 'houses/cloud/modules/wsa/index.html', mech: 'data-module', notes: 'WSA course hub' },
-    { match: { idPrefix: 'cmmc', house: 'shield' }, target: 'NEW: houses/shield/cmmc/index.html', mech: 'data-module', proposed: true, notes: 'NEW — CMMC Domain hub. CMMC modules currently scattered.' },
+    { match: { idPrefix: 'cmmc', house: 'shield' }, target: 'NEW: houses/shield/cmmc/index.html', mech: 'data-module', proposed: true, notes: 'NEW hub WRAPPER over existing applets. The 15 cmmc-* catalog ids point to applet files at houses/shield/applets/compliance/cmmc_* (17 applet dirs already exist). Build = a cards-grid index.html that registers the 15 catalog ids; applet files unchanged.' },
     { match: { idPrefix: 'threat', house: 'shield' }, target: 'NEW (incubation): houses/shield/threat-detection-lab/index.html', mech: 'inline-id', proposed: true, incubation: true, notes: 'INCUBATION — Threat Detection Lab. 17 mods: runner, swarm, botnets — game-style. Park here until topic resolves to Sec+/CySA+ alignment.' },
     { match: { idPrefix: 'sec101', house: 'shield' }, target: 'NEW: houses/shield/sec-101/index.html', mech: 'inline-id', proposed: true, notes: 'NEW — Sec-101 module series (8 modules). Could roll up into First Watch or stand alone.' },
     { match: { idPrefix: 'cf-', house: 'shield' }, target: 'houses/shield/cyber-framework/index.html', mech: 'data-module', notes: 'Existing Cyber Framework hub' },

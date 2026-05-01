@@ -155,7 +155,11 @@ function detectCluster(mod) {
         ['cr-w', 'Cyber Range'],
         ['bm-w', 'Bare Metal (Hardware Support)'],
         ['sr-w', 'Server Room'],
-        ['cse-', 'CIS2253 Cybersecurity Ethics'],
+        // cse- is overloaded: divergent uses it for CIS2253 Cybersecurity Ethics,
+        // cloud + shield use it for EC-Council Cloud Security Engineer cert.
+        // Disambiguate by title: titles starting "CSE:" or "CSE Module" are CSE cert;
+        // anything else (Cyberethics, Cybercrime, NIST CSF) is CIS2253.
+        // (No house-conditional — that would compensate for catalog data, not classify it.)
         ['eth-', 'CIS4253 Ethics in IT'],
         ['csp-', 'CIS2208 Cybersecurity Policy'],
         ['feh-', 'Dark Arts Feh'],
@@ -175,6 +179,14 @@ function detectCluster(mod) {
         if (id.startsWith(prefix) || id.includes('-' + prefix)) {
             return { signal: 'course', pattern: prefix, label };
         }
+    }
+
+    // cse- disambiguation (title-based, not house-based)
+    if (id.startsWith('cse-') || id.includes('-cse-')) {
+        if (/^cse:|^cse module/.test(title)) {
+            return { signal: 'cert', pattern: 'cse-cert', label: 'EC-Council Cloud Security Engineer (CSE)' };
+        }
+        return { signal: 'course', pattern: 'cse-ethics', label: 'CIS2253 Cybersecurity Ethics' };
     }
 
     // Topic signals (broader)

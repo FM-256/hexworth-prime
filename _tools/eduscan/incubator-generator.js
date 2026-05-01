@@ -243,6 +243,37 @@ function main() {
         const dir = path.join(ROOT_APP, 'houses', house, 'incubator');
         fs.mkdirSync(dir, { recursive: true });
         const file = path.join(dir, 'index.html');
+
+        // ── ADDITIVE MERGE ──
+        // If an incubator already exists, parse its INCUBATOR_MODULES array and
+        // merge with the new orphans. This prevents the path-dependence bug:
+        // first run finds 489 orphans → all routed to incubator → on next run those
+        // 489 are no longer orphans → recommender produces 0 incubation → naive
+        // generator would overwrite the file with empty content.
+        if (fs.existsSync(file)) {
+            const prev = fs.readFileSync(file, 'utf8');
+            // Parse existing INCUBATOR_MODULES — match objects: { id: '...', subcluster: '...', title: ... }
+            const objRe = /\{\s*id:\s*['"]([^'"]+)['"]\s*,\s*subcluster:\s*['"]([^'"]+)['"]\s*,\s*title:\s*([^}]+?)\s*\}/g;
+            const existingIds = new Set(data.allModules.map(m => m.id));
+            const existingClustersByPrefix = new Map(data.clusters.map(c => [c.prefix, c]));
+            let m;
+            while ((m = objRe.exec(prev)) !== null) {
+                const id = m[1], subcluster = m[2], titleRaw = m[3].trim();
+                if (existingIds.has(id)) continue; // new run already covers this
+                // Strip the JSON-string-wrapping quotes if present
+                let title = titleRaw.replace(/^["'](.*)["']$/, '$1');
+                data.allModules.push({ id, subcluster, title });
+                if (!existingClustersByPrefix.has(subcluster)) {
+                    const c = { prefix: subcluster, modules: [] };
+                    data.clusters.push(c);
+                    existingClustersByPrefix.set(subcluster, c);
+                }
+                existingClustersByPrefix.get(subcluster).modules.push({
+                    id, title, description: '', href: '',
+                });
+            }
+        }
+
         // Sort clusters: largest first
         data.clusters.sort((a, b) => b.modules.length - a.modules.length);
         const html = renderIncubator(house, data.clusters, data.allModules);
