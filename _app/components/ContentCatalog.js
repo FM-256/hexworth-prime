@@ -117,7 +117,7 @@ const ContentCatalog = (function() {
             icon: '/assets/images/icons/icon-detective.webp',
             color: '#818cf8',
             description: 'Digital Forensics Investigation & Analysis',
-            basePath: 'forensics/'
+            basePath: 'houses/eye/forensics/'
         }
     };
 

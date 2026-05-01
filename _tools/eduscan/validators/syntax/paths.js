@@ -135,10 +135,10 @@ const STRUCTURAL_DEPTH_RULES = [
     },
     {
         // Forensics hub module pages - exactly 3 levels
-        // forensics(1)/sections(2)/advanced-forensics(3)/file.html → ../../../components/
-        filePattern: /^forensics\/sections\/[^/]+\/[^/]+\.html$/,
+        // houses(1)/eye(2)/forensics(3)/sections(4)/track(5)/file.html → ../../../../../components/
+        filePattern: /^houses\/eye\/forensics\/sections\/[^/]+\/[^/]+\.html$/,
         targetPattern: /components\//,
-        exactDepth: 3,
+        exactDepth: 5,
         description: 'forensics hub module files'
     },
     {

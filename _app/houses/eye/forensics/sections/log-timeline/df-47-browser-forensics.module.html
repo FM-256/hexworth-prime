@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DF-47: Browser Forensics | Forensics Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #fbbf24; --accent-dim: rgba(251,191,36,0.12); --accent-border: rgba(251,191,36,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .fh-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .fh-header-left { display: flex; align-items: center; gap: 14px; }
+        .fh-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .fh-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .fh-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .fh-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .fh-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .fh-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .fh-breadcrumb a:hover { opacity: 0.8; }
+        .fh-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .evidence-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .evidence-table th { background: rgba(251,191,36,0.08); color: var(--accent); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid rgba(251,191,36,0.2); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .evidence-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .evidence-table tr:hover td { background: rgba(251,191,36,0.04); }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--accent); }
+        .try-it { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; }
+        .try-it ol { padding-left: 20px; }
+        .takeaways { background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(251,191,36,0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { filter: brightness(1.1); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="fh-header">
+        <div class="fh-header-left">
+            <span class="fh-badge">DF-47</span>
+            <h1>Browser Forensics</h1>
+        </div>
+        <a href="../../index.html" class="fh-back">&lt; Forensics Hub</a>
+    </header>
+    <nav class="fh-breadcrumb" aria-label="Breadcrumb">
+        <a href="/dashboard.html">Dashboard</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Forensics Hub</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Log &amp; Timeline Analysis</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        DF-47: Browser Forensics
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Locate browser artifact files for Chrome, Firefox, Edge, and Safari</li>
+                <li>Query SQLite history databases for browsing timeline reconstruction</li>
+                <li>Analyze cache, cookies, downloads, and local storage data</li>
+                <li>Understand incognito/private mode forensic implications</li>
+                <li>Use specialized browser forensics tools (Hindsight, DB Browser)</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Browser Artifact Locations</h2>
+            <p class="content-text">Browser data is stored in well-known locations on each operating system. Chromium-based browsers (Chrome, Edge, Brave, Opera) share a similar structure. Firefox uses its own format. All modern browsers store structured data in SQLite databases.</p>
+
+            <table class="evidence-table">
+                <thead>
+                    <tr>
+                        <th>Browser</th>
+                        <th>Windows Path</th>
+                        <th>Key Files</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Chrome</td>
+                        <td><span class="inline-code">%LOCALAPPDATA%\Google\Chrome\User Data\Default\</span></td>
+                        <td>History, Cookies, Login Data, Web Data, Bookmarks, Preferences</td>
+                    </tr>
+                    <tr>
+                        <td>Edge</td>
+                        <td><span class="inline-code">%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\</span></td>
+                        <td>Same as Chrome (Chromium-based)</td>
+                    </tr>
+                    <tr>
+                        <td>Firefox</td>
+                        <td><span class="inline-code">%APPDATA%\Mozilla\Firefox\Profiles\*.default-release\</span></td>
+                        <td>places.sqlite, cookies.sqlite, formhistory.sqlite, logins.json</td>
+                    </tr>
+                    <tr>
+                        <td>Safari (macOS)</td>
+                        <td><span class="inline-code">~/Library/Safari/</span></td>
+                        <td>History.db, Downloads.plist, Bookmarks.plist</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout--warn">
+                <h4>Database Locking</h4>
+                <p>SQLite databases used by running browsers may be locked. On a live system, copy the files before querying. On a forensic image, this is not an issue. Some databases also have Write-Ahead Log (WAL) files (<span class="inline-code">-wal</span> and <span class="inline-code">-shm</span>) that contain recent uncommitted data -- always collect these alongside the main database.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">History Database Analysis</h2>
+            <p class="content-text">The browsing history database is the most frequently examined browser artifact. Chrome and Edge store history in a SQLite file named <span class="inline-code">History</span>. Firefox stores it in <span class="inline-code">places.sqlite</span>.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Chrome/Edge History -- SQL Queries</div>
+                <pre><span class="cm">-- All visited URLs with timestamps (Chrome epoch: microseconds since 1601-01-01)</span>
+SELECT
+    datetime(last_visit_time/1000000 - 11644473600, 'unixepoch') as visit_time,
+    url,
+    title,
+    visit_count,
+    typed_count
+FROM urls
+ORDER BY last_visit_time DESC;
+
+<span class="cm">-- Visit details with transition types</span>
+SELECT
+    datetime(v.visit_time/1000000 - 11644473600, 'unixepoch') as visit_time,
+    u.url,
+    u.title,
+    CASE v.transition & 0xFF
+        WHEN 0 THEN 'Link'
+        WHEN 1 THEN 'Typed'
+        WHEN 2 THEN 'Auto Bookmark'
+        WHEN 3 THEN 'Auto Subframe'
+        WHEN 5 THEN 'Form Submit'
+        WHEN 6 THEN 'Reload'
+        WHEN 7 THEN 'Generated'
+    END as transition_type
+FROM visits v
+JOIN urls u ON v.url = u.id
+ORDER BY v.visit_time DESC;
+
+<span class="cm">-- Downloads with source URLs and file paths</span>
+SELECT
+    datetime(start_time/1000000 - 11644473600, 'unixepoch') as download_time,
+    tab_url as source_url,
+    target_path,
+    total_bytes,
+    mime_type,
+    CASE state WHEN 0 THEN 'In Progress' WHEN 1 THEN 'Complete' WHEN 2 THEN 'Cancelled' END as status
+FROM downloads
+ORDER BY start_time DESC;</pre>
+            </div>
+
+            <div class="code-block">
+                <div class="code-block-header">Firefox places.sqlite -- SQL Queries</div>
+                <pre><span class="cm">-- Firefox browsing history (uses standard Unix epoch in microseconds)</span>
+SELECT
+    datetime(v.visit_date/1000000, 'unixepoch') as visit_time,
+    p.url,
+    p.title,
+    p.visit_count,
+    CASE v.visit_type
+        WHEN 1 THEN 'Link'
+        WHEN 2 THEN 'Typed'
+        WHEN 3 THEN 'Bookmark'
+        WHEN 4 THEN 'Embed'
+        WHEN 5 THEN 'Redirect Permanent'
+        WHEN 6 THEN 'Redirect Temporary'
+        WHEN 7 THEN 'Download'
+    END as visit_type
+FROM moz_historyvisits v
+JOIN moz_places p ON v.place_id = p.id
+ORDER BY v.visit_date DESC;</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Additional Browser Artifacts</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Cache</strong>
+                    <span>Cached web content (images, scripts, HTML). Chrome uses a proprietary format in the Cache directory. Tools like ChromeCacheView or NirSoft can extract cached content including resources from visited sites.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Cookies</strong>
+                    <span>Session tokens, tracking identifiers, authentication state. The Cookies SQLite database maps domains to cookie values with expiration dates. Can prove site access even if history was deleted.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Local Storage / IndexedDB</strong>
+                    <span>Web application data stored persistently. Can contain login state, application configuration, cached API responses, and user-generated content for web apps.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Form Autofill Data</strong>
+                    <span>Stored in Web Data (Chrome) or formhistory.sqlite (Firefox). Contains text entered into form fields -- names, addresses, search queries, usernames. Highly revealing of user activity.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Bookmarks</strong>
+                    <span>Chrome: JSON file (Bookmarks). Firefox: embedded in places.sqlite. Bookmarked URLs indicate intentional interest. Timestamps show when bookmarks were added.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Extensions</strong>
+                    <span>Installed browser extensions in the Extensions directory. Malicious extensions can steal credentials, inject ads, or exfiltrate data. Check extension IDs against known malicious lists.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Incognito / Private Mode</h2>
+            <p class="content-text">Incognito mode prevents the browser from writing history, cookies, and form data to disk after the session ends. However, it does not provide complete privacy from forensic analysis:</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>What IS Protected</strong>
+                    <span>Browser history, cookies, form data, and site data are deleted when the incognito window closes. No entries appear in the History database after the session.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>What Is NOT Protected</strong>
+                    <span>Downloaded files remain on disk. DNS cache may retain lookups. RAM may contain session data (memory forensics). Network traffic is logged by firewalls/proxies. Websites log your visits server-side.</span>
+                </div>
+            </div>
+
+            <div class="callout callout--info">
+                <h4>Memory Forensics and Incognito</h4>
+                <p>If the incognito session is still active (or was recently closed), memory forensics can recover URLs, page content, and session data. The Chrome process stores page content in heap memory that may persist even after the tab is closed, until the memory is reallocated. Tools like Volatility's chromehistory plugin target this data.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Forensic Tools</h2>
+
+            <table class="evidence-table">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Purpose</th>
+                        <th>Key Feature</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="inline-code">DB Browser for SQLite</span></td>
+                        <td>GUI SQLite viewer/query tool</td>
+                        <td>Open any browser database, run custom SQL queries, export results</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">Hindsight</span></td>
+                        <td>Chrome/Chromium forensic parser</td>
+                        <td>Parses all Chrome artifacts, handles timestamp conversion, outputs unified timeline</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">KAPE</span></td>
+                        <td>Artifact collection and processing</td>
+                        <td>Browser-specific targets collect all relevant files from live or mounted images</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">sqlite3</span></td>
+                        <td>Command-line SQLite client</td>
+                        <td>Scriptable queries for automated analysis pipelines</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-block">
+                <div class="code-block-header">Hindsight -- Chromium Browser Parser</div>
+                <pre><span class="cm"># Install Hindsight</span>
+pip install pyhindsight
+
+<span class="cm"># Parse a Chrome profile directory</span>
+hindsight.py -i "/evidence/User Data/Default/" -o /output/chrome_analysis
+
+<span class="cm"># Output: XLSX file with tabs for History, Downloads, Cookies,</span>
+<span class="cm">#         Autofill, Bookmarks, Cache, Local Storage, Login Data</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="try-it">
+                <h3>Practice: Analyze Browser Evidence</h3>
+                <p>Given this SQL query result from a suspect's Chrome History database, answer the questions below:</p>
+                <div class="code-block">
+                    <pre>visit_time           | url                                           | typed_count
+2026-03-15 09:12:01  | https://mail.google.com/                        | 1
+2026-03-15 09:15:33  | https://mail.google.com/mail/#inbox/FMfcgz...   | 0
+2026-03-15 09:15:48  | https://drive.google.com/file/d/1xK.../view    | 0
+2026-03-15 09:16:02  | https://suspicious-domain.xyz/invoice.pdf       | 0
+2026-03-15 09:16:44  | https://suspicious-domain.xyz/download/payload  | 0
+2026-03-15 09:20:11  | https://www.google.com/search?q=how+to+open+.hta+file | 1
+2026-03-15 09:22:05  | https://stackoverflow.com/questions/hta-file    | 0</pre>
+                </div>
+                <ol>
+                    <li>What was the likely attack vector?</li>
+                    <li>Which entries indicate user interaction vs. automatic navigation?</li>
+                    <li>What does the Google search suggest about the payload?</li>
+                </ol>
+                <p><strong style="color:var(--green)">Analysis:</strong> (1) Phishing email via Gmail -- user opened an email, clicked a Drive link that redirected to a malicious domain. (2) typed_count=1 entries were directly navigated; typed_count=0 entries were reached via links/redirects. (3) The search for "how to open .hta file" suggests the downloaded payload was an HTA file, and the user was unfamiliar with the format -- indicating the attack may have required user action to execute.</p>
+            </div>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Browser artifacts are stored in SQLite databases at well-known OS-specific paths</li>
+                <li>Chrome uses a custom epoch (microseconds since 1601-01-01) -- conversion is required</li>
+                <li>Always collect WAL and SHM files alongside main SQLite databases</li>
+                <li>Incognito mode does not survive memory forensics, DNS cache, or network monitoring</li>
+                <li>Downloaded files persist on disk regardless of browsing mode</li>
+                <li>Hindsight automates Chromium artifact parsing into an investigation-ready spreadsheet</li>
+                <li>Form autofill data can reveal searches, usernames, and personal information</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <a href="df-46-siem-integration.module.html" class="nav-btn">&larr; Previous: SIEM Integration</a>
+            <a href="df-48-email-headers.module.html" class="nav-btn primary">Next: Email Header Analysis &rarr;</a>
+        </div>
+    </div>
+
+    <script>
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.init({ moduleId: 'df-47', hubKey: 'hexworth_forensics_progress' });
+        }
+    </script>
+</body>
+</html>
