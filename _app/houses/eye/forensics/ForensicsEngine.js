@@ -58,14 +58,19 @@ const ForensicsEngine = (() => {
         // Hero
         root.appendChild(_buildHero(comp));
 
+        // Forensics cert paths — promoted to high position (Phase 3, Stragglers).
+        // The 3 nested forensics cert hubs (CHFI/GCFA/GCFE) deserve prominent
+        // placement: cert prep is a primary navigation intent for many learners.
+        root.appendChild(_buildForensicsCertCards());
+
         // Track grid
         root.appendChild(_buildTrackGrid());
 
         // Cross-linked content
         root.appendChild(_buildCrossLinks());
 
-        // Cert alignment
-        root.appendChild(_buildCertSection());
+        // External cert alignment (CySA+ / Sec+) — informational badges at bottom.
+        root.appendChild(_buildExternalCertSection());
 
         document.body.appendChild(root);
     }
@@ -222,31 +227,85 @@ const ForensicsEngine = (() => {
 
     // ── Cert Alignment ────────────────────────────────────────────────────
 
-    function _buildCertSection() {
+    // ── Forensics cert cards (Phase 3 — promoted, rich, with progress) ──
+    function _buildForensicsCertCards() {
+        const section = document.createElement('div');
+        section.className = 'fh-section fh-cert-section-primary';
+
+        const heading = document.createElement('h3');
+        heading.className = 'fh-section-title';
+        heading.textContent = 'Forensics Cert Paths';
+        section.appendChild(heading);
+
+        const desc = document.createElement('p');
+        desc.className = 'fh-section-desc';
+        desc.textContent = 'Three dedicated cert tracks. Each filters the curriculum to its mapped modules with progress tracking against the exam objectives.';
+        section.appendChild(desc);
+
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px;';
+
+        (ForensicsData.certHubs || []).forEach(hub => {
+            const cert = _findCert(hub.certId);
+            if (!cert) return;
+            const total = cert.modules.length;
+            const done = cert.modules.filter(id => _isComplete(id)).length;
+            const pct = total ? Math.round((done / total) * 100) : 0;
+
+            const card = document.createElement('a');
+            card.href = hub.href;
+            card.className = 'fh-cert-card';
+            card.style.cssText = `
+                display:block;background:${BG_CARD};border:1px solid rgba(255,255,255,0.06);
+                border-radius:10px;padding:20px;text-decoration:none;color:#fff;
+                transition:border-color 0.15s,transform 0.15s;
+            `;
+            card.onmouseover = () => { card.style.borderColor = ACCENT; card.style.transform = 'translateY(-2px)'; };
+            card.onmouseout = () => { card.style.borderColor = 'rgba(255,255,255,0.06)'; card.style.transform = 'translateY(0)'; };
+
+            card.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:1.05rem;font-weight:600;color:${ACCENT};margin-bottom:2px;">${hub.name}</div>
+                        <div style="font-size:0.65rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.06em;">${hub.body}</div>
+                    </div>
+                    <div style="font-size:1.1rem;color:rgba(255,255,255,0.4);">&rarr;</div>
+                </div>
+                <div style="font-size:0.82rem;color:rgba(255,255,255,0.7);margin-bottom:14px;line-height:1.4;">${cert.domain}</div>
+                <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:rgba(255,255,255,0.5);margin-bottom:6px;">
+                    <span>${total} mapped modules</span>
+                    <span style="color:${pct > 0 ? ACCENT : 'rgba(255,255,255,0.5)'};">${done} / ${total} &middot; ${pct}%</span>
+                </div>
+                <div class="fh-progress-bar" style="height:4px;">
+                    <div class="fh-progress-fill" style="width:${pct}%;"></div>
+                </div>`;
+            grid.appendChild(card);
+        });
+
+        section.appendChild(grid);
+        return section;
+    }
+
+    // ── External certs (CySA+ / Sec+) — small informational section ──
+    function _buildExternalCertSection() {
         const section = document.createElement('div');
         section.className = 'fh-section fh-cert-section';
 
-        // Map cert names to their cert-hub destinations.
-        // Forensics-dedicated certs (CHFI, GCFA, GCFE) live nested under this hub.
-        // Cross-discipline certs (CySA+, Sec+) live at their own top-level hubs.
-        const certLinks = {
-            'EC-Council CHFI': 'certs/chfi/index.html',
-            'GIAC GCFA': 'certs/gcfa/index.html',
-            'GIAC GCFE': 'certs/gcfe/index.html',
-            'CompTIA CySA+ (CS0-003)': '/houses/cysa-plus/index.html',
-            'CompTIA Security+': '/houses/security-plus/index.html',
-        };
+        const externalCerts = [
+            { name: 'CompTIA CySA+ (CS0-003)', body: 'Domain 4: Incident Response', href: '/houses/cysa-plus/index.html', certId: 'cysa-plus' },
+            { name: 'CompTIA Security+ (SY0-701)', body: 'Domain 4: Security Operations', href: '/houses/security-plus/index.html', certId: 'security-plus' },
+        ];
 
         section.innerHTML = `
-            <h3 class="fh-section-title">Certification Paths</h3>
-            <p class="fh-section-desc">Forensics modules map to these certifications. Click any badge to enter its dedicated cert hub.</p>
+            <h3 class="fh-section-title">Also Covered By</h3>
+            <p class="fh-section-desc">Forensics modules are referenced by these cross-discipline certs. Click to visit each cert's full hub.</p>
             <div class="fh-cert-grid">
-                ${ForensicsData.stats.certAlignments.map(certName => {
-                    const matchKey = Object.keys(certLinks).find(k => certName.includes(k.split(' ')[0]) && certName.includes(k.split(' ').slice(-1)[0].split('(')[0]));
-                    const href = certLinks[matchKey] || certLinks[certName];
-                    return href
-                        ? `<a class="fh-cert-badge" href="${href}" style="text-decoration:none;cursor:pointer;">${certName}</a>`
-                        : `<div class="fh-cert-badge">${certName}</div>`;
+                ${externalCerts.map(c => {
+                    const cert = _findCert(c.certId);
+                    const moduleCount = cert ? cert.modules.length : 0;
+                    return `<a class="fh-cert-badge" href="${c.href}" style="text-decoration:none;cursor:pointer;">
+                        ${c.name} <span style="opacity:0.6;font-size:0.65rem;">(${moduleCount} fx modules)</span>
+                    </a>`;
                 }).join('')}
             </div>`;
 
