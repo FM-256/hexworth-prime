@@ -250,6 +250,13 @@ class PathValidator {
      */
     validate(file) {
         const issues = [];
+
+        // Skip files in _source/ and _archive/ — these are pre-render sources or
+        // archived content, not navigable; broken script paths there are not bugs.
+        if (file.path.includes('/_source/') || file.path.includes('/_archive/')) {
+            return issues;
+        }
+
         const content = file.content;
         const fileDir = path.dirname(file.path);
 

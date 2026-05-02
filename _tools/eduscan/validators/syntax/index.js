@@ -331,6 +331,13 @@ class SyntaxValidator {
                 continue;
             }
 
+            // Skip _source/ and _archive/ — pre-render sources and archived
+            // content. Per-file validators that don't enforce this themselves
+            // (heuristics, html, js, engine, naming, etc.) get the skip here.
+            if (file.path.includes('/_source/') || file.path.includes('/_archive/')) {
+                continue;
+            }
+
             // Load file content if not present (parser strips it for memory)
             let content = file.content;
             if (!content) {
