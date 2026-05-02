@@ -46,6 +46,7 @@ const SandboxValidator = require('./sandbox');
 const LinuxTerminalValidator = require('./linux-terminal');
 const ProgressKeysValidator = require('./progress-keys');
 const TagsValidator = require('./tags');
+const HubRefsValidator = require('./hub-refs');
 const XPAuditValidator = require('./xp-audit');
 const ClientSecretsValidator = require('../security/client-secrets');
 
@@ -156,6 +157,10 @@ class SyntaxValidator {
             rootPath: this.rootPath  // needed for PROG-003 cross-file walk
         });
         this.tagsValidator = new TagsValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath
+        });
+        this.hubRefsValidator = new HubRefsValidator({
             verbose: this.verbose,
             rootPath: this.rootPath
         });
@@ -270,6 +275,17 @@ class SyntaxValidator {
             results.summary.tagsErrors = tagsResults.issues.length;
             if (this.verbose) {
                 console.log(`[SYNTAX] Tags: ${tagsResults.issues.length} issues`);
+            }
+        }
+
+        // Run HubRefs validation (global). HUB-001 detects hub data-module
+        // refs to ids not in catalog. Added 2026-04-30 (Stragglers).
+        const hubRefsResults = this.hubRefsValidator.validate();
+        if (hubRefsResults.issues && hubRefsResults.issues.length > 0) {
+            results.issues.push(...hubRefsResults.issues);
+            results.summary.hubRefsErrors = hubRefsResults.issues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] HubRefs: ${hubRefsResults.issues.length} hubs with broken refs (${hubRefsResults.summary.brokenRefs} total broken)`);
             }
         }
 
