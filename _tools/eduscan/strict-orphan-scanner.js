@@ -239,6 +239,12 @@ function main() {
         allDirs.push(path.resolve(ROOT_APP, basePath));
     }
     allDirs.push(path.resolve(ROOT_APP, 'houses'));
+    // Top-level hub locations outside houses/ (signal, arctic, arena, dark-arts/vault, etc.)
+    // — walk these too so their inline-script ids count toward Mech 4.
+    for (const topDir of ['signal', 'arctic', 'arena', 'wireshark', 'dark-arts']) {
+        const p = path.resolve(ROOT_APP, topDir);
+        if (fs.existsSync(p)) allDirs.push(p);
+    }
     const seen = new Set();
     const indexFiles = [];
     for (const d of allDirs) {
@@ -310,7 +316,7 @@ function main() {
     //   (d) marking a catalog id in-hub if its literal id (or stripped form)
     //       appears in that quoted-string set.
     // The hub-gate prevents contamination from leaf content pages.
-    const HUB_SIGNATURE_RE = /HouseRenderer|CertPathRenderer|LearningPathRenderer|ContentCatalog\.getHouseModules|renderModules|renderTracks|renderHub|PathRenderer\.init|MODULES\s*=\s*\[\s*[{[]|MODULE_IDS\s*=\s*\[\s*[{['"]/;
+    const HUB_SIGNATURE_RE = /HouseRenderer|CertPathRenderer|LearningPathRenderer|ContentCatalog\.getHouseModules|renderModules|renderTracks|renderHub|PathRenderer\.init|MODULES\s*=\s*\[\s*[{['"]|MODULE_IDS\s*=\s*\[\s*[{['"]/;
     const SCRIPT_BLOCK_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
     const QUOTED_SLUG_RE = /['"]([a-zA-Z0-9][a-zA-Z0-9_-]{2,})['"]/g;
     const inlineIds = new Set();

@@ -1,18 +1,18 @@
 # Placement Recommendations — Phase 3 + 4
 
-**Generated:** 2026-05-02T00:02:13.865Z
+**Generated:** 2026-05-02T00:11:50.644Z
 
 ## Summary
 
 | Metric | Count |
 |---|---:|
-| Total cluster recommendations | 46 |
-| → To existing hub | 37 clusters / **675 modules** |
-| → To proposed new hub | 6 / **85** |
+| Total cluster recommendations | 43 |
+| → To existing hub | 37 clusters / **613 modules** |
+| → To proposed new hub | 3 / **39** |
 | → To incubation hub | 0 / **0** |
 | → CLEANUP (dedupe / roll-up) | 3 / **57** |
 | Unmatched (need manual review) | 0 |
-| **Total modules covered** | **817** |
+| **Total modules covered** | **709** |
 
 ## Recommendation Types
 
@@ -43,22 +43,19 @@
 | ✓ `openstack-*` | 4 | 4/0 | — | `houses/cloud/openstack/index.html` | data-module | Existing OpenStack hub |
 | ✓ `aws-*` | 2 | 2/0 | AWS | `houses/aws-ccp/index.html` | learning-path | AWS topics — assign to AWS CCP hub (most general) |
 
-### `code` (87 orphan modules)
+### `code` (63 orphan modules)
 
 | Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
 |---|---:|---|---|---|---|---|
 | 🆕 `do-*` | 31 | 31/0 | — | `NEW: houses/code/devops-foundations/index.html` | inline-id | NEW — DevOps Foundations course (do-7 .. do-N). Existing forge/devops/ may be related; verify. |
 | ✓ `pfi-*` | 31 | 31/0 | Python Programming | `houses/code/python-for-it/index.html` | data-module | Existing PFI course hub — likely just needs data-module attrs added |
-| 🆕 `arm-*` | 24 | 24/0 | — | `NEW: houses/code/arm-assembly/index.html` | inline-id | NEW — ARM Assembly course hub. 160 modules across asm/bash/c/cpp/go/rust/etc. variants. Needs grouping by language and level. |
 | ✓ `sp-*` | 1 | 1/0 | Snake Pit (Python Programming) | `houses/code/python-programming/index.html` | inline-id | Snake Pit / COP2891 |
 
-### `dark-arts` (43 orphan modules)
+### `dark-arts` (21 orphan modules)
 
 | Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
 |---|---:|---|---|---|---|---|
 | ✓ `feh-*` | 21 | 21/0 | Dark Arts Feh | `houses/dark-arts/feh/index.html` | inline-id | Existing Feh course hub |
-| 🆕 `da-*` | 14 | 14/0 | — | `NEW: houses/dark-arts/vault-labs/index.html` | inline-id | NEW — Vault Labs hub. da-* prefix lab series. |
-| 🆕 `dark-*` | 8 | 8/0 | OSINT | `NEW: houses/dark-arts/vault-labs/index.html` | inline-id | NEW — Vault Labs hub. dark-* prefix lab series. |
 
 ### `divergent` (15 orphan modules)
 
@@ -112,11 +109,11 @@
 | ✓ `op-*` | 24 | 24/0 | Python Programming | `houses/matrix/protocore/index.html` | inline-id | Op-* Python modules — Protocore (matrix) |
 | ✓ `ala-*` | 15 | 15/0 | The Matrix | `houses/matrix/adv-linux/index.html` | inline-id | Adv Linux Administration |
 
-### `script` (135 orphan modules)
+### `script` (73 orphan modules)
 
 | Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
 |---|---:|---|---|---|---|---|
-| ✓ `clh-*` | 127 | 97/30 | CLH Terminal | `houses/script/courses/clh/index.html` | inline-id | Existing CLH course hub |
+| ✓ `clh-*` | 65 | 35/30 | CLH Terminal | `houses/script/courses/clh/index.html` | inline-id | Existing CLH course hub |
 | 🆕 `mission-*` | 4 | 4/0 | — | `NEW: houses/script/missions/index.html` | inline-id | NEW — Script Missions incubator. 4 modules. |
 | 🆕 `pwsh-*` | 4 | 4/0 | — | `NEW: houses/script/powershell/index.html` | inline-id | NEW — PowerShell hub. 4 modules so far — incubator. |
 

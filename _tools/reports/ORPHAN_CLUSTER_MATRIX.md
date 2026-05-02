@@ -1,16 +1,16 @@
 # Orphan Cluster Matrix — Phase 2
 
-**Generated:** 2026-05-02T00:02:13.823Z
+**Generated:** 2026-05-02T00:11:50.605Z
 
 ## Summary
 
 | Metric | Count |
 |---|---:|
 | Catalog total | 2996 |
-| In-hub (curated) | 2179 |
-| All orphans (strict) | 817 |
-| **True curriculum orphans** | **667** |
-| Sub-content orphans (parent in-hub) | 150 |
+| In-hub (curated) | 2287 |
+| All orphans (strict) | 709 |
+| **True curriculum orphans** | **600** |
+| Sub-content orphans (parent in-hub) | 109 |
 | Existing hub indices detected | 88 |
 
 > "True curriculum orphan" = catalog module not in any curated hub AND not the child of an in-hub parent module.
@@ -23,15 +23,15 @@
 | web | 161 | 1 | Networking (112) | `np` (108) |
 | eye | 102 | 0 | unclassified (40) | `cyberops` (85) |
 | forge | 102 | 22 | unclassified (66) | `core2` (47) |
-| code | 87 | 0 | unclassified (52) | `do` (31) |
 | cloud | 64 | 22 | unclassified (55) | `guilab` (19) |
-| script | 50 | 85 | CLH Terminal (42) | `clh` (42) |
+| code | 63 | 0 | Python Programming (32) | `do` (31) |
 | matrix | 39 | 0 | The Matrix (15) | `op` (24) |
-| dark-arts | 23 | 20 | unclassified (11) | `da` (14) |
+| script | 29 | 44 | CLH Terminal (21) | `clh` (21) |
 | divergent | 15 | 0 | CIS4253 Ethics in IT (15) | `eth` (15) |
 | key | 12 | 0 | Cryptography (9) | `crypto` (3) |
 | shield | 9 | 0 | Shield (Security) (8) | `cf` (8) |
 | ai | 2 | 0 | unclassified (2) | `text` (1) |
+| dark-arts | 1 | 20 | Dark Arts Feh (1) | `feh` (1) |
 | forensics | 1 | 0 | Digital Forensics (1) | `df` (1) |
 
 ## Per-House Detail
@@ -104,27 +104,6 @@
 - topic:Incident Response (3)
 - topic:Cryptography (3)
 
-### `code` — 87 true orphans, 0 sub-content
-
-**Top id-prefix sub-clusters:**
-
-- `do-*` (31): do-7=1, do-8=1, do-9=1, do-10=1
-  - sample: `do-7-git-fundamentals`, `do-8-branches`, `do-9-remote-repos`
-- `pfi-*` (31): pfi-w3=9, pfi-w2=8, pfi-w1=7, pfi-w4=5
-  - sample: `code-pfi-sandbox-tour-lab`, `code-pfi-w1-checkpoint-lab`, `code-pfi-w1-project-lab`
-- `arm-*` (24): arm-c=10, arm-js=10, arm-cpp=2, arm-go=2
-  - sample: `code-arm-c-01-intro.module`, `code-arm-c-02-variables-types.module`, `code-arm-c-03-operators-control.module`
-- `sp-*` (1): sp-w1=1
-  - sample: `code-sp-w1-datatypes`
-
-**Top curriculum-signal clusters:**
-
-- unclassified (52)
-- topic:Python Programming (32)
-- topic:Docker / Containers (1)
-- topic:JavaScript (1)
-- course:Snake Pit (Python Programming) (1)
-
 ### `cloud` — 64 true orphans, 22 sub-content
 
 **Top id-prefix sub-clusters:**
@@ -148,22 +127,23 @@
 - topic:Cloud (1)
 - topic:Docker / Containers (1)
 
-### `script` — 50 true orphans, 85 sub-content
+### `code` — 63 true orphans, 0 sub-content
 
 **Top id-prefix sub-clusters:**
 
-- `clh-*` (42): clh-031=4, clh-012=2, clh-013=2, clh-014=2
-  - sample: `script-clh-012-network-basics`, `script-clh-013-environment`, `script-clh-014-process-control`
-- `mission-*` (4): mission-file=2, mission-permissions=1, mission-text=1
-  - sample: `script-mission-file-operations`, `script-mission-file-search`, `script-mission-permissions`
-- `pwsh-*` (4): pwsh-fundamentals=1, pwsh-pipeline=1, pwsh-scripting=1, pwsh-admin=1
-  - sample: `script-pwsh-fundamentals`, `script-pwsh-pipeline`, `script-pwsh-scripting`
+- `do-*` (31): do-7=1, do-8=1, do-9=1, do-10=1
+  - sample: `do-7-git-fundamentals`, `do-8-branches`, `do-9-remote-repos`
+- `pfi-*` (31): pfi-w3=9, pfi-w2=8, pfi-w1=7, pfi-w4=5
+  - sample: `code-pfi-sandbox-tour-lab`, `code-pfi-w1-checkpoint-lab`, `code-pfi-w1-project-lab`
+- `sp-*` (1): sp-w1=1
+  - sample: `code-sp-w1-datatypes`
 
 **Top curriculum-signal clusters:**
 
-- course:CLH Terminal (42)
-- unclassified (7)
-- topic:Incident Response (1)
+- topic:Python Programming (32)
+- unclassified (29)
+- topic:Docker / Containers (1)
+- course:Snake Pit (Python Programming) (1)
 
 ### `matrix` — 39 true orphans, 0 sub-content
 
@@ -185,27 +165,22 @@
 - topic:Incident Response (2)
 - topic:Cryptography (2)
 
-### `dark-arts` — 23 true orphans, 20 sub-content
+### `script` — 29 true orphans, 44 sub-content
 
 **Top id-prefix sub-clusters:**
 
-- `da-*` (14): da-linux=13, da-ad=1
-  - sample: `da-linux-nmap-drill`, `da-linux-nmap-advanced`, `da-linux-hash-drill`
-- `dark-*` (8): dark-osint=1, dark-phishing=1, dark-network=1, dark-m365=1
-  - sample: `dark-osint-recon-lab`, `dark-phishing-campaign-lab`, `dark-network-forensics-lab`
-- `feh-*` (1): feh-comprehensive=1
-  - sample: `dark-arts-feh-comprehensive-review`
+- `clh-*` (21): clh-031=2, clh-012=1, clh-013=1, clh-014=1
+  - sample: `script-clh-012-network-basics`, `script-clh-013-environment`, `script-clh-014-process-control`
+- `mission-*` (4): mission-file=2, mission-permissions=1, mission-text=1
+  - sample: `script-mission-file-operations`, `script-mission-file-search`, `script-mission-permissions`
+- `pwsh-*` (4): pwsh-fundamentals=1, pwsh-pipeline=1, pwsh-scripting=1, pwsh-admin=1
+  - sample: `script-pwsh-fundamentals`, `script-pwsh-pipeline`, `script-pwsh-scripting`
 
 **Top curriculum-signal clusters:**
 
-- unclassified (11)
-- topic:OSINT (2)
-- topic:Networking (2)
-- topic:Linux (2)
-- course:Dark Arts Feh (1)
-- topic:Python Programming (1)
-- topic:Cloud (1)
-- topic:Malware Analysis (1)
+- course:CLH Terminal (21)
+- unclassified (7)
+- topic:Incident Response (1)
 
 ### `divergent` — 15 true orphans, 0 sub-content
 
@@ -271,6 +246,17 @@
 **Top curriculum-signal clusters:**
 
 - unclassified (2)
+
+### `dark-arts` — 1 true orphans, 20 sub-content
+
+**Top id-prefix sub-clusters:**
+
+- `feh-*` (1): feh-comprehensive=1
+  - sample: `dark-arts-feh-comprehensive-review`
+
+**Top curriculum-signal clusters:**
+
+- course:Dark Arts Feh (1)
 
 ### `forensics` — 1 true orphans, 0 sub-content
 
@@ -417,33 +403,33 @@ These orphans have a parent module already in-hub. Decision needed: roll up into
 
 | Orphan id | Parent (in-hub) |
 |---|---|
-| `clh-001-quiz` | `clh-001` |
-| `clh-002-quiz` | `clh-002` |
-| `clh-003-quiz` | `clh-003` |
-| `clh-004-quiz` | `clh-004` |
-| `clh-005-quiz` | `clh-005` |
-| `clh-006-quiz` | `clh-006` |
-| `clh-007-quiz` | `clh-007` |
-| `clh-008-quiz` | `clh-008` |
-| `clh-009-quiz` | `clh-009` |
-| `clh-010-quiz` | `clh-010` |
-| `clh-011-quiz` | `clh-011` |
-| `clh-012-quiz` | `clh-012` |
-| `clh-013-quiz` | `clh-013` |
-| `clh-014-quiz` | `clh-014` |
-| `clh-015-quiz` | `clh-015` |
-| `clh-016-quiz` | `clh-016` |
-| `clh-017-quiz` | `clh-017` |
-| `clh-018-quiz` | `clh-018` |
-| `clh-019-quiz` | `clh-019` |
-| `clh-020-quiz` | `clh-020` |
-| `clh-021-quiz` | `clh-021` |
-| `clh-022-quiz` | `clh-022` |
-| `clh-023-quiz` | `clh-023` |
-| `clh-024-quiz` | `clh-024` |
-| `clh-025-quiz` | `clh-025` |
-| `clh-026-quiz` | `clh-026` |
-| `clh-027-quiz` | `clh-027` |
-| `clh-028-quiz` | `clh-028` |
-| `clh-029-quiz` | `clh-029` |
-| `clh-030-quiz` | `clh-030` |
+| `clh-001-presentation` | `clh-001` |
+| `clh-002-presentation` | `clh-002` |
+| `clh-003-presentation` | `clh-003` |
+| `clh-004-presentation` | `clh-004` |
+| `clh-005-presentation` | `clh-005` |
+| `clh-006-presentation` | `clh-006` |
+| `clh-007-presentation` | `clh-007` |
+| `clh-008-presentation` | `clh-008` |
+| `clh-009-presentation` | `clh-009` |
+| `clh-010-presentation` | `clh-010` |
+| `clh-011-presentation` | `clh-011` |
+| `clh-012-presentation` | `clh-012` |
+| `clh-013-presentation` | `clh-013` |
+| `clh-014-presentation` | `clh-014` |
+| `clh-015-presentation` | `clh-015` |
+| `clh-016-presentation` | `clh-016` |
+| `clh-017-presentation` | `clh-017` |
+| `clh-018-presentation` | `clh-018` |
+| `clh-019-presentation` | `clh-019` |
+| `clh-020-presentation` | `clh-020` |
+| `clh-021-presentation` | `clh-021` |
+| `clh-022-presentation` | `clh-022` |
+| `clh-023-presentation` | `clh-023` |
+| `clh-024-presentation` | `clh-024` |
+| `clh-025-presentation` | `clh-025` |
+| `clh-026-presentation` | `clh-026` |
+| `clh-027-presentation` | `clh-027` |
+| `clh-028-presentation` | `clh-028` |
+| `clh-029-presentation` | `clh-029` |
+| `clh-030-presentation` | `clh-030` |
