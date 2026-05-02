@@ -310,7 +310,7 @@ function main() {
     //   (d) marking a catalog id in-hub if its literal id (or stripped form)
     //       appears in that quoted-string set.
     // The hub-gate prevents contamination from leaf content pages.
-    const HUB_SIGNATURE_RE = /HouseRenderer|CertPathRenderer|LearningPathRenderer|ContentCatalog\.getHouseModules|renderModules|renderTracks|renderHub|PathRenderer\.init/;
+    const HUB_SIGNATURE_RE = /HouseRenderer|CertPathRenderer|LearningPathRenderer|ContentCatalog\.getHouseModules|renderModules|renderTracks|renderHub|PathRenderer\.init|MODULES\s*=\s*\[\s*[{[]|MODULE_IDS\s*=\s*\[\s*[{['"]/;
     const SCRIPT_BLOCK_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
     const QUOTED_SLUG_RE = /['"]([a-zA-Z0-9][a-zA-Z0-9_-]{2,})['"]/g;
     const inlineIds = new Set();
@@ -349,10 +349,14 @@ function main() {
         const house = m.house || '?';
         const stripped = (house !== '?' && id.startsWith(house + '-')) ? id.slice(house.length + 1) : null;
 
-        const inMech1 = hubCardIds.has(id) || (stripped && hubCardIds.has(stripped));
-        const inMech2 = lpIds.has(id) || (stripped && lpIds.has(stripped));
-        const inMech3 = engineIds.has(id) || (stripped && engineIds.has(stripped));
-        const inMech4 = inlineIds.has(id) || (stripped && inlineIds.has(stripped));
+        // Also tolerate `.module` suffix on catalog ids (CAT-002 deriveModuleId artifact).
+        // Open STR-28 to clean these up at the catalog level — until then strip in matching.
+        const desuffixed = id.endsWith('.module') ? id.slice(0, -'.module'.length) : null;
+        const strippedDesuffixed = stripped && stripped.endsWith('.module') ? stripped.slice(0, -'.module'.length) : null;
+        const inMech1 = hubCardIds.has(id) || (stripped && hubCardIds.has(stripped)) || (desuffixed && hubCardIds.has(desuffixed)) || (strippedDesuffixed && hubCardIds.has(strippedDesuffixed));
+        const inMech2 = lpIds.has(id) || (stripped && lpIds.has(stripped)) || (desuffixed && lpIds.has(desuffixed)) || (strippedDesuffixed && lpIds.has(strippedDesuffixed));
+        const inMech3 = engineIds.has(id) || (stripped && engineIds.has(stripped)) || (desuffixed && engineIds.has(desuffixed)) || (strippedDesuffixed && engineIds.has(strippedDesuffixed));
+        const inMech4 = inlineIds.has(id) || (stripped && inlineIds.has(stripped)) || (desuffixed && inlineIds.has(desuffixed)) || (strippedDesuffixed && inlineIds.has(strippedDesuffixed));
         const isInHub = inMech1 || inMech2 || inMech3 || inMech4;
 
         const record = {

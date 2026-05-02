@@ -1,17 +1,17 @@
 # Orphan Cluster Matrix — Phase 2
 
-**Generated:** 2026-05-01T15:01:28.238Z
+**Generated:** 2026-05-02T00:02:13.823Z
 
 ## Summary
 
 | Metric | Count |
 |---|---:|
 | Catalog total | 2996 |
-| In-hub (curated) | 1942 |
-| All orphans (strict) | 1054 |
-| **True curriculum orphans** | **901** |
-| Sub-content orphans (parent in-hub) | 153 |
-| Existing hub indices detected | 85 |
+| In-hub (curated) | 2179 |
+| All orphans (strict) | 817 |
+| **True curriculum orphans** | **667** |
+| Sub-content orphans (parent in-hub) | 150 |
+| Existing hub indices detected | 88 |
 
 > "True curriculum orphan" = catalog module not in any curated hub AND not the child of an in-hub parent module.
 > "Sub-content orphan" = parent module IS in a hub, but child cards (quizzes, labs, intros) aren't separately curated. Not necessarily wrong — depends on whether the platform should expose them as separate cards or roll them up.
@@ -20,45 +20,21 @@
 
 | House | True orphans | Sub-content | Top cluster | Top id-prefix |
 |---|---:|---:|---|---|
-| code | 223 | 0 | unclassified (174) | `arm` (160) |
 | web | 161 | 1 | Networking (112) | `np` (108) |
-| script | 123 | 85 | unclassified (52) | `clh` (42) |
 | eye | 102 | 0 | unclassified (40) | `cyberops` (85) |
 | forge | 102 | 22 | unclassified (66) | `core2` (47) |
-| cloud | 66 | 22 | unclassified (55) | `guilab` (19) |
+| code | 87 | 0 | unclassified (52) | `do` (31) |
+| cloud | 64 | 22 | unclassified (55) | `guilab` (19) |
+| script | 50 | 85 | CLH Terminal (42) | `clh` (42) |
 | matrix | 39 | 0 | The Matrix (15) | `op` (24) |
-| shield | 32 | 3 | Shield (Security) (31) | `cmmc` (15) |
 | dark-arts | 23 | 20 | unclassified (11) | `da` (14) |
 | divergent | 15 | 0 | CIS4253 Ethics in IT (15) | `eth` (15) |
 | key | 12 | 0 | Cryptography (9) | `crypto` (3) |
+| shield | 9 | 0 | Shield (Security) (8) | `cf` (8) |
 | ai | 2 | 0 | unclassified (2) | `text` (1) |
 | forensics | 1 | 0 | Digital Forensics (1) | `df` (1) |
 
 ## Per-House Detail
-
-### `code` — 223 true orphans, 0 sub-content
-
-**Top id-prefix sub-clusters:**
-
-- `arm-*` (160): arm-asm=10, arm-bash=10, arm-c=10, arm-cpp=10
-  - sample: `code-arm-asm-01-intro.module`, `code-arm-asm-02-registers.module`, `code-arm-asm-03-arithmetic.module`
-- `do-*` (31): do-7=1, do-8=1, do-9=1, do-10=1
-  - sample: `do-7-git-fundamentals`, `do-8-branches`, `do-9-remote-repos`
-- `pfi-*` (31): pfi-w3=9, pfi-w2=8, pfi-w1=7, pfi-w4=5
-  - sample: `code-pfi-sandbox-tour-lab`, `code-pfi-w1-checkpoint-lab`, `code-pfi-w1-project-lab`
-- `sp-*` (1): sp-w1=1
-  - sample: `code-sp-w1-datatypes`
-
-**Top curriculum-signal clusters:**
-
-- unclassified (174)
-- topic:Python Programming (33)
-- topic:SQL / Databases (10)
-- topic:Docker / Containers (1)
-- topic:Cloud (1)
-- topic:JavaScript (1)
-- topic:Incident Response (1)
-- topic:Networking (1)
 
 ### `web` — 161 true orphans, 1 sub-content
 
@@ -77,31 +53,6 @@
 - cert:Cisco CCNA (40)
 - unclassified (8)
 - topic:Linux (1)
-
-### `script` — 123 true orphans, 85 sub-content
-
-**Top id-prefix sub-clusters:**
-
-- `clh-*` (42): clh-031=4, clh-012=2, clh-013=2, clh-014=2
-  - sample: `script-clh-012-network-basics`, `script-clh-013-environment`, `script-clh-014-process-control`
-- `db-*` (35): db-01=1, db-02=1, db-03=1, db-04=1
-  - sample: `script-db-01`, `script-db-02`, `script-db-03`
-- `ra-*` (24): ra-w1=6, ra-w2=6, ra-w3=6, ra-w4=6
-  - sample: `script-ra-w1-kernel-lab`, `script-ra-w1-storage-lab`, `script-ra-w2-files-lab`
-- `bash-*` (14): bash-cron=2, bash-loops=2, bash-arrays=1, bash-basics=1
-  - sample: `script-bash-arrays`, `script-bash-basics`, `script-bash-conditionals`
-- `mission-*` (4): mission-file=2, mission-permissions=1, mission-text=1
-  - sample: `script-mission-file-operations`, `script-mission-file-search`, `script-mission-permissions`
-- `pwsh-*` (4): pwsh-fundamentals=1, pwsh-pipeline=1, pwsh-scripting=1, pwsh-admin=1
-  - sample: `script-pwsh-fundamentals`, `script-pwsh-pipeline`, `script-pwsh-scripting`
-
-**Top curriculum-signal clusters:**
-
-- unclassified (52)
-- course:CLH Terminal (42)
-- course:Linux Ascent (Linux Essentials) (24)
-- topic:SQL / Databases (4)
-- topic:Incident Response (1)
 
 ### `eye` — 102 true orphans, 0 sub-content
 
@@ -153,7 +104,28 @@
 - topic:Incident Response (3)
 - topic:Cryptography (3)
 
-### `cloud` — 66 true orphans, 22 sub-content
+### `code` — 87 true orphans, 0 sub-content
+
+**Top id-prefix sub-clusters:**
+
+- `do-*` (31): do-7=1, do-8=1, do-9=1, do-10=1
+  - sample: `do-7-git-fundamentals`, `do-8-branches`, `do-9-remote-repos`
+- `pfi-*` (31): pfi-w3=9, pfi-w2=8, pfi-w1=7, pfi-w4=5
+  - sample: `code-pfi-sandbox-tour-lab`, `code-pfi-w1-checkpoint-lab`, `code-pfi-w1-project-lab`
+- `arm-*` (24): arm-c=10, arm-js=10, arm-cpp=2, arm-go=2
+  - sample: `code-arm-c-01-intro.module`, `code-arm-c-02-variables-types.module`, `code-arm-c-03-operators-control.module`
+- `sp-*` (1): sp-w1=1
+  - sample: `code-sp-w1-datatypes`
+
+**Top curriculum-signal clusters:**
+
+- unclassified (52)
+- topic:Python Programming (32)
+- topic:Docker / Containers (1)
+- topic:JavaScript (1)
+- course:Snake Pit (Python Programming) (1)
+
+### `cloud` — 64 true orphans, 22 sub-content
 
 **Top id-prefix sub-clusters:**
 
@@ -165,8 +137,6 @@
   - sample: `cloud-quizquiz`, `cloud-quizquiz-module`, `cloud-quizquiz-2`
 - `wsa-*` (6): wsa-gauntlet=2, wsa-course=1, wsa-review=1, wsa-midterm=1
   - sample: `wsa-course`, `cloud-wsa-review`, `wsa-midterm-outpost`
-- `cse-*` (2): cse-06=1, cse-07=1
-  - sample: `cloud-cse-06-quiz`, `cloud-cse-07-quiz`
 - `aws-*` (1): aws-sts=1
   - sample: `cloud-aws-sts`
 
@@ -175,9 +145,25 @@
 - unclassified (55)
 - topic:Networking (4)
 - topic:Firewalls (3)
-- cert:EC-Council Cloud Security Engineer (CSE) (2)
 - topic:Cloud (1)
 - topic:Docker / Containers (1)
+
+### `script` — 50 true orphans, 85 sub-content
+
+**Top id-prefix sub-clusters:**
+
+- `clh-*` (42): clh-031=4, clh-012=2, clh-013=2, clh-014=2
+  - sample: `script-clh-012-network-basics`, `script-clh-013-environment`, `script-clh-014-process-control`
+- `mission-*` (4): mission-file=2, mission-permissions=1, mission-text=1
+  - sample: `script-mission-file-operations`, `script-mission-file-search`, `script-mission-permissions`
+- `pwsh-*` (4): pwsh-fundamentals=1, pwsh-pipeline=1, pwsh-scripting=1, pwsh-admin=1
+  - sample: `script-pwsh-fundamentals`, `script-pwsh-pipeline`, `script-pwsh-scripting`
+
+**Top curriculum-signal clusters:**
+
+- course:CLH Terminal (42)
+- unclassified (7)
+- topic:Incident Response (1)
 
 ### `matrix` — 39 true orphans, 0 sub-content
 
@@ -198,24 +184,6 @@
 - topic:Digital Forensics (3)
 - topic:Incident Response (2)
 - topic:Cryptography (2)
-
-### `shield` — 32 true orphans, 3 sub-content
-
-**Top id-prefix sub-clusters:**
-
-- `cmmc-*` (15): cmmc-quiz=2, cmmc-au=1, cmmc-at=1, cmmc-cm=1
-  - sample: `shield-cmmc-au`, `shield-cmmc-at`, `shield-cmmc-cm`
-- `cf-*` (8): cf-mm01=1, cf-mm02=1, cf-mm03=1, cf-mm04=1
-  - sample: `shield-cf-mm01-quiz`, `shield-cf-mm02-quiz`, `shield-cf-mm03-quiz`
-- `sec101-*` (8): sec101-m01=1, sec101-m02=1, sec101-m03=1, sec101-m04=1
-  - sample: `shield-sec101-m01`, `shield-sec101-m02`, `shield-sec101-m03`
-- `fw-*` (1): fw-w3=1
-  - sample: `shield-fw-w3-social-engineering-pres`
-
-**Top curriculum-signal clusters:**
-
-- course:Shield (Security) (31)
-- course:First Watch (Intro Security) (1)
 
 ### `dark-arts` — 23 true orphans, 20 sub-content
 
@@ -277,6 +245,20 @@
 - unclassified (2)
 - topic:Networking (1)
 
+### `shield` — 9 true orphans, 0 sub-content
+
+**Top id-prefix sub-clusters:**
+
+- `cf-*` (8): cf-mm01=1, cf-mm02=1, cf-mm03=1, cf-mm04=1
+  - sample: `shield-cf-mm01-quiz`, `shield-cf-mm02-quiz`, `shield-cf-mm03-quiz`
+- `fw-*` (1): fw-w3=1
+  - sample: `shield-fw-w3-social-engineering-pres`
+
+**Top curriculum-signal clusters:**
+
+- course:Shield (Security) (8)
+- course:First Watch (Intro Security) (1)
+
 ### `ai` — 2 true orphans, 0 sub-content
 
 **Top id-prefix sub-clusters:**
@@ -301,7 +283,7 @@
 
 - course:Digital Forensics (1)
 
-## Existing Hub Inventory (85)
+## Existing Hub Inventory (88)
 
 Hubs indexed by mechanism 1/3/4 detection (data-module attrs or renderer-call signature).
 
@@ -397,15 +379,18 @@ Hubs indexed by mechanism 1/3/4 detection (data-module attrs or renderer-call si
 
 - `houses/key/index.html` — House of the Key - Hexworth Prime
 
-### `script` (4 hubs)
+### `script` (6 hubs)
 
 - `houses/script/courses/clh/index.html` — Command Line Hacker - House of Script
 - `houses/script/incubator/index.html` — Script Incubator — Hexworth Prime
 - `houses/script/index.html` — House of the Script - Hexworth Prime
+- `houses/script/labs/linux/bash/index.html` — Bash Mastery | House of the Script | Hexworth Prime
 - `houses/script/linux/index.html` — Linux Administration - House of the Script
+- `houses/script/modules/databases/index.html` — Database Track | House of the Script | Hexworth Prime
 
-### `shield` (10 hubs)
+### `shield` (11 hubs)
 
+- `houses/shield/compliance/cmmc/index.html` — CMMC | Compliance | House of the Shield | Hexworth Prime
 - `houses/shield/cyber-framework/index.html` — Cyber Law & Policy Framework - House of the Shield
 - `houses/shield/incubator/index.html` — Shield Incubator — Hexworth Prime
 - `houses/shield/index.html` — House of the Shield - Hexworth Prime
