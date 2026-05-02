@@ -60,7 +60,7 @@ function renderIncubator(house, clusters, allOrphansForHouse) {
                 <a class="incubator-card" href="${escapeHtml(m.href || '#')}" data-module="${escapeHtml(m.id)}">
                     <div class="card-id">${escapeHtml(m.id)}</div>
                     <div class="card-title">${escapeHtml(m.title || m.id)}</div>
-                    ${m.description ? `<div class="card-desc">${escapeHtml(m.description.slice(0, 120))}</div>` : ''}
+                    ${m.description ? `<div class="card-desc">${escapeHtml(m.description)}</div>` : ''}
                 </a>`).join('');
         return `
         <section class="cluster" id="cluster-${escapeHtml(c.prefix)}">
@@ -175,7 +175,18 @@ function renderIncubator(house, clusters, allOrphansForHouse) {
             margin-bottom: 4px;
         }
         .card-title { font-size: 14px; color: #f3f4f6; margin-bottom: 6px; line-height: 1.3; }
-        .card-desc { font-size: 12px; color: #9ca3af; line-height: 1.4; }
+        .card-desc {
+            font-size: 12px; color: #9ca3af; line-height: 1.4;
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .incubator-tag {
+            display: inline-block; padding: 2px 8px; border-radius: 999px;
+            background: rgba(245, 158, 11, 0.15); color: #fbbf24;
+            font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
