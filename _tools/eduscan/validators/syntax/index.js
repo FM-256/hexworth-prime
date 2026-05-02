@@ -45,6 +45,7 @@ const FlexOverflowValidator = require('./flex-overflow');
 const SandboxValidator = require('./sandbox');
 const LinuxTerminalValidator = require('./linux-terminal');
 const ProgressKeysValidator = require('./progress-keys');
+const TagsValidator = require('./tags');
 const XPAuditValidator = require('./xp-audit');
 const ClientSecretsValidator = require('../security/client-secrets');
 
@@ -151,7 +152,12 @@ class SyntaxValidator {
         });
         this.progressKeysValidator = new ProgressKeysValidator({
             verbose: this.verbose,
-            profile: this.profile
+            profile: this.profile,
+            rootPath: this.rootPath  // needed for PROG-003 cross-file walk
+        });
+        this.tagsValidator = new TagsValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath
         });
         this.xpAuditValidator = new XPAuditValidator({
             verbose: this.verbose,
@@ -233,6 +239,8 @@ class SyntaxValidator {
         }
 
         // Run ContentCatalog validation (global, not per-file)
+        // Now also includes CAT-006 (suffix-polluted ids) and CAT-007 (dup hrefs)
+        // added 2026-04-30 (Stragglers branch).
         const catResults = this.contentCatalogValidator.validate();
         if (catResults.issues.length > 0) {
             results.issues.push(...catResults.issues);
@@ -242,6 +250,28 @@ class SyntaxValidator {
             }
         }
         results.summary.contentCatalog = catResults.summary;
+
+        // Run PROG-003 cross-file shared-key detection (global). Per-file
+        // PROG-001/002 still run in the per-file loop below.
+        const prog003Results = this.progressKeysValidator.validateAll();
+        if (prog003Results.issues && prog003Results.issues.length > 0) {
+            results.issues.push(...prog003Results.issues);
+            results.summary.progressKeysGlobalErrors = prog003Results.issues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] PROG-003 cross-file: ${prog003Results.issues.length} collisions`);
+            }
+        }
+
+        // Run Tags validation (global). TAG-001 case-variant detection,
+        // TAG-002 untagged-modules summary. Added 2026-04-30 (Stragglers).
+        const tagsResults = this.tagsValidator.validate();
+        if (tagsResults.issues && tagsResults.issues.length > 0) {
+            results.issues.push(...tagsResults.issues);
+            results.summary.tagsErrors = tagsResults.issues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] Tags: ${tagsResults.issues.length} issues`);
+            }
+        }
 
         // Run Heuristic renderer link validation (global, scans .js files)
         const rendererLinkResults = this.heuristicsValidator.validateRendererLinks();
