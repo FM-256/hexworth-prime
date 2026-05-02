@@ -73,6 +73,10 @@ cd _tools/nexus && node nexus.js status                # QC health across all to
 | [catalog-validation.md](operations/catalog-validation.md) | 86 | ContentCatalog.js validation rules and known discrepancies |
 | [presentation-status.md](operations/presentation-status.md) | 382 | Status of all presentations platform-wide -- completion, speaker notes, slide counts |
 | [package-manifest.md](operations/package-manifest.md) | 711 | Build manifest -- every file in the deploy package, sizes, checksums |
+| [stragglers-deploy-notes.md](operations/stragglers-deploy-notes.md) | — | v7.1.0 ZION pre-deploy disclosure: PROG-003 student-progress regression scheduling, STR-40 quiz-key workflow, incubator + truncation fixes |
+| [stragglers-merge-runbook.md](operations/stragglers-merge-runbook.md) | — | Step-by-step copy-paste runbook for the v7.1.0 ZION merge + deploy + verification + rollback |
+| [stragglers-progress-safety-audit.md](operations/stragglers-progress-safety-audit.md) | — | Per-change audit (8 categories) of branch impact on student progress data; recovery procedure |
+| [stragglers-pr-body.md](operations/stragglers-pr-body.md) | — | Comprehensive PR description for the Stragglers branch landing |
 
 **See also:**
 - [`_tools/NEXUS_DESIGN.md`](../_tools/NEXUS_DESIGN.md) -- Nexus hub-and-spoke QC orchestrator design
