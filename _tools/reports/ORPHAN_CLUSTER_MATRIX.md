@@ -1,16 +1,16 @@
 # Orphan Cluster Matrix — Phase 2
 
-**Generated:** 2026-05-02T00:11:50.605Z
+**Generated:** 2026-05-02T01:41:31.782Z
 
 ## Summary
 
 | Metric | Count |
 |---|---:|
 | Catalog total | 2996 |
-| In-hub (curated) | 2287 |
-| All orphans (strict) | 709 |
-| **True curriculum orphans** | **600** |
-| Sub-content orphans (parent in-hub) | 109 |
+| In-hub (curated) | 2817 |
+| All orphans (strict) | 179 |
+| **True curriculum orphans** | **135** |
+| Sub-content orphans (parent in-hub) | 44 |
 | Existing hub indices detected | 88 |
 
 > "True curriculum orphan" = catalog module not in any curated hub AND not the child of an in-hub parent module.
@@ -20,91 +20,20 @@
 
 | House | True orphans | Sub-content | Top cluster | Top id-prefix |
 |---|---:|---:|---|---|
-| web | 161 | 1 | Networking (112) | `np` (108) |
-| eye | 102 | 0 | unclassified (40) | `cyberops` (85) |
-| forge | 102 | 22 | unclassified (66) | `core2` (47) |
-| cloud | 64 | 22 | unclassified (55) | `guilab` (19) |
-| code | 63 | 0 | Python Programming (32) | `do` (31) |
-| matrix | 39 | 0 | The Matrix (15) | `op` (24) |
+| cloud | 57 | 0 | unclassified (49) | `guilab` (19) |
+| code | 32 | 0 | unclassified (29) | `do` (31) |
 | script | 29 | 44 | CLH Terminal (21) | `clh` (21) |
-| divergent | 15 | 0 | CIS4253 Ethics in IT (15) | `eth` (15) |
-| key | 12 | 0 | Cryptography (9) | `crypto` (3) |
-| shield | 9 | 0 | Shield (Security) (8) | `cf` (8) |
+| key | 5 | 0 | Cryptography (3) | `tls` (1) |
+| web | 4 | 0 | Cisco CCNA (4) | `ccna` (4) |
+| forge | 3 | 0 | Server Room (2) | `sr` (2) |
 | ai | 2 | 0 | unclassified (2) | `text` (1) |
-| dark-arts | 1 | 20 | Dark Arts Feh (1) | `feh` (1) |
+| eye | 1 | 0 | Wireshark (Eye) (1) | `wireshark` (1) |
 | forensics | 1 | 0 | Digital Forensics (1) | `df` (1) |
+| shield | 1 | 0 | First Watch (Intro Security) (1) | `fw` (1) |
 
 ## Per-House Detail
 
-### `web` — 161 true orphans, 1 sub-content
-
-**Top id-prefix sub-clusters:**
-
-- `np-*` (108): np-n10009=6, np-osi=6, np-network=5, np-wireless=5
-  - sample: `web-np-dns-troubleshooting-lab`, `web-np-firewall-rules-lab`, `web-np-midterm-gui-lab`
-- `ccna-*` (40): ccna-ccna=40
-  - sample: `web-ccna-ccna-acl-lab-lab`, `web-ccna-ccna-ios-cli-lab`, `web-ccna-ccna-nat-config-lab`
-- `ip-*` (13): ip-ipv6=2, ip-subnet=2, ip-cidr=1, ip-ipv4=1
-  - sample: `web-ip-cidr-notation`, `web-ip-ipv4-classes`, `web-ip-ipv6-addressing`
-
-**Top curriculum-signal clusters:**
-
-- topic:Networking (112)
-- cert:Cisco CCNA (40)
-- unclassified (8)
-- topic:Linux (1)
-
-### `eye` — 102 true orphans, 0 sub-content
-
-**Top id-prefix sub-clusters:**
-
-- `cyberops-*` (85): cyberops-w6=9, cyberops-w7=9, cyberops-w3=7, cyberops-w5=7
-  - sample: `eye-cyberops-review`, `eye-cyberops-certificate`, `cyberops-app-visibility-control`
-- `cysa-*` (16): cysa-ch01=1, cysa-ch02=1, cysa-ch03=1, cysa-ch04=1
-  - sample: `eye-cysa-ch01-quiz`, `eye-cysa-ch02-quiz`, `eye-cysa-ch03-quiz`
-- `wireshark-*` (1): wireshark-ta=1
-  - sample: `eye-wireshark-ta`
-
-**Top curriculum-signal clusters:**
-
-- unclassified (40)
-- topic:Networking (19)
-- cert:CompTIA CySA+ (CS0-003) (16)
-- topic:Digital Forensics (9)
-- topic:Cryptography (7)
-- topic:Incident Response (3)
-- topic:Malware Analysis (3)
-- topic:Firewalls (2)
-
-### `forge` — 102 true orphans, 22 sub-content
-
-**Top id-prefix sub-clusters:**
-
-- `core2-*` (47): core2-windows=5, core2-quiz=2, core2-roleplay=2, core2-admin=2
-  - sample: `forge-core2-quiz-ch19-22`, `forge-core2-roleplay-lab`, `forge-core2-admin-tools-lab`
-- `core1-*` (40): core1-mobile=3, core1-network=3, core1-pc=2, core1-soho=2
-  - sample: `forge-core1-bluetooth-pairing`, `forge-core1-cable-matching`, `forge-core1-cloud-scenarios`
-- `aplus-*` (11): aplus-core1=6, aplus-core2=3, aplus-quiz=1, aplus-jeopardy=1
-  - sample: `forge-aplus-core1-full`, `forge-aplus-quiz`, `forge-aplus-core2-quiz`
-- `sr-*` (2): sr-w2=1, sr-w3=1
-  - sample: `forge-sr-w2-virtualization-pres`, `forge-sr-w3-monitoring-pres`
-- `md100-*` (1): md100-google=1
-  - sample: `forge-md100-google-dorking`
-- `bm-*` (1): bm-w1=1
-  - sample: `forge-bm-w1-motherboards-pres`
-
-**Top curriculum-signal clusters:**
-
-- unclassified (66)
-- topic:Networking (7)
-- cert:CompTIA A+ Core 1 (6)
-- topic:Linux (4)
-- topic:Malware Analysis (4)
-- cert:CompTIA A+ Core 2 (3)
-- topic:Incident Response (3)
-- topic:Cryptography (3)
-
-### `cloud` — 64 true orphans, 22 sub-content
+### `cloud` — 57 true orphans, 0 sub-content
 
 **Top id-prefix sub-clusters:**
 
@@ -114,56 +43,29 @@
   - sample: `cloud-pslab`, `cloud-pslab-module`, `cloud-pslab-2`
 - `quizquiz-*` (19): quizquiz=1, quizquiz-module=1, quizquiz-2=1, quizquiz-3=1
   - sample: `cloud-quizquiz`, `cloud-quizquiz-module`, `cloud-quizquiz-2`
-- `wsa-*` (6): wsa-gauntlet=2, wsa-course=1, wsa-review=1, wsa-midterm=1
-  - sample: `wsa-course`, `cloud-wsa-review`, `wsa-midterm-outpost`
-- `aws-*` (1): aws-sts=1
-  - sample: `cloud-aws-sts`
 
 **Top curriculum-signal clusters:**
 
-- unclassified (55)
+- unclassified (49)
 - topic:Networking (4)
 - topic:Firewalls (3)
-- topic:Cloud (1)
 - topic:Docker / Containers (1)
 
-### `code` — 63 true orphans, 0 sub-content
+### `code` — 32 true orphans, 0 sub-content
 
 **Top id-prefix sub-clusters:**
 
 - `do-*` (31): do-7=1, do-8=1, do-9=1, do-10=1
   - sample: `do-7-git-fundamentals`, `do-8-branches`, `do-9-remote-repos`
-- `pfi-*` (31): pfi-w3=9, pfi-w2=8, pfi-w1=7, pfi-w4=5
-  - sample: `code-pfi-sandbox-tour-lab`, `code-pfi-w1-checkpoint-lab`, `code-pfi-w1-project-lab`
 - `sp-*` (1): sp-w1=1
   - sample: `code-sp-w1-datatypes`
 
 **Top curriculum-signal clusters:**
 
-- topic:Python Programming (32)
 - unclassified (29)
 - topic:Docker / Containers (1)
+- topic:Python Programming (1)
 - course:Snake Pit (Python Programming) (1)
-
-### `matrix` — 39 true orphans, 0 sub-content
-
-**Top id-prefix sub-clusters:**
-
-- `op-*` (24): op-python=4, op-recon=3, op-linux=3, op-incident=3
-  - sample: `op-python-01`, `op-python-02`, `op-python-03`
-- `ala-*` (15): ala-w1=4, ala-w2=4, ala-w3=4, ala-w4=3
-  - sample: `matrix-ala-w1-cli-operations-pres`, `matrix-ala-w1-network-config-pres`, `matrix-ala-w1-network-diag-pres`
-
-**Top curriculum-signal clusters:**
-
-- course:The Matrix (15)
-- topic:Networking (5)
-- topic:Python Programming (4)
-- unclassified (4)
-- topic:Linux (3)
-- topic:Digital Forensics (3)
-- topic:Incident Response (2)
-- topic:Cryptography (2)
 
 ### `script` — 29 true orphans, 44 sub-content
 
@@ -182,27 +84,10 @@
 - unclassified (7)
 - topic:Incident Response (1)
 
-### `divergent` — 15 true orphans, 0 sub-content
+### `key` — 5 true orphans, 0 sub-content
 
 **Top id-prefix sub-clusters:**
 
-- `eth-*` (15): eth-01=1, eth-02=1, eth-03=1, eth-04=1
-  - sample: `divergent-eth-01-overview-pres`, `divergent-eth-02-it-professionals-pres`, `divergent-eth-03-cybersecurity-ethics-pres`
-
-**Top curriculum-signal clusters:**
-
-- course:CIS4253 Ethics in IT (15)
-
-### `key` — 12 true orphans, 0 sub-content
-
-**Top id-prefix sub-clusters:**
-
-- `crypto-*` (3): crypto-stego=1, crypto-flap=1, crypto-pong=1
-  - sample: `key-crypto-stego-lab`, `key-crypto-flap`, `key-crypto-pong`
-- `cipher-*` (2): cipher-cracker=1, cipher-bubbles=1
-  - sample: `key-cipher-cracker`, `key-cipher-bubbles`
-- `encryption-*` (2): encryption-ascii=1, encryption-dh=1
-  - sample: `key-encryption-ascii-binary`, `key-encryption-dh-rsa`
 - `tls-*` (1): tls-ssl=1
   - sample: `key-tls-ssl`
 - `dont-*` (1): dont-leak=1
@@ -216,23 +101,34 @@
 
 **Top curriculum-signal clusters:**
 
-- topic:Cryptography (9)
-- unclassified (2)
+- topic:Cryptography (3)
+- unclassified (1)
 - topic:Networking (1)
 
-### `shield` — 9 true orphans, 0 sub-content
+### `web` — 4 true orphans, 0 sub-content
 
 **Top id-prefix sub-clusters:**
 
-- `cf-*` (8): cf-mm01=1, cf-mm02=1, cf-mm03=1, cf-mm04=1
-  - sample: `shield-cf-mm01-quiz`, `shield-cf-mm02-quiz`, `shield-cf-mm03-quiz`
-- `fw-*` (1): fw-w3=1
-  - sample: `shield-fw-w3-social-engineering-pres`
+- `ccna-*` (4): ccna-ccna=4
+  - sample: `web-ccna-ccna-acl-builder.tool`, `web-ccna-ccna-ios-reference.tool`, `web-ccna-ccna-ospf-visualizer.tool`
 
 **Top curriculum-signal clusters:**
 
-- course:Shield (Security) (8)
-- course:First Watch (Intro Security) (1)
+- cert:Cisco CCNA (4)
+
+### `forge` — 3 true orphans, 0 sub-content
+
+**Top id-prefix sub-clusters:**
+
+- `sr-*` (2): sr-w2=1, sr-w3=1
+  - sample: `forge-sr-w2-virtualization-pres`, `forge-sr-w3-monitoring-pres`
+- `bm-*` (1): bm-w1=1
+  - sample: `forge-bm-w1-motherboards-pres`
+
+**Top curriculum-signal clusters:**
+
+- course:Server Room (2)
+- course:Bare Metal (Hardware Support) (1)
 
 ### `ai` — 2 true orphans, 0 sub-content
 
@@ -247,16 +143,16 @@
 
 - unclassified (2)
 
-### `dark-arts` — 1 true orphans, 20 sub-content
+### `eye` — 1 true orphans, 0 sub-content
 
 **Top id-prefix sub-clusters:**
 
-- `feh-*` (1): feh-comprehensive=1
-  - sample: `dark-arts-feh-comprehensive-review`
+- `wireshark-*` (1): wireshark-ta=1
+  - sample: `eye-wireshark-ta`
 
 **Top curriculum-signal clusters:**
 
-- course:Dark Arts Feh (1)
+- course:Wireshark (Eye) (1)
 
 ### `forensics` — 1 true orphans, 0 sub-content
 
@@ -268,6 +164,17 @@
 **Top curriculum-signal clusters:**
 
 - course:Digital Forensics (1)
+
+### `shield` — 1 true orphans, 0 sub-content
+
+**Top id-prefix sub-clusters:**
+
+- `fw-*` (1): fw-w3=1
+  - sample: `shield-fw-w3-social-engineering-pres`
+
+**Top curriculum-signal clusters:**
+
+- course:First Watch (Intro Security) (1)
 
 ## Existing Hub Inventory (88)
 
