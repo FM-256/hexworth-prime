@@ -318,7 +318,9 @@ function main() {
     // The hub-gate prevents contamination from leaf content pages.
     const HUB_SIGNATURE_RE = /HouseRenderer|CertPathRenderer|LearningPathRenderer|ContentCatalog\.getHouseModules|renderModules|renderTracks|renderHub|PathRenderer\.init|MODULES\s*=\s*\[\s*[{['"]|MODULE_IDS\s*=\s*\[\s*[{['"]/;
     const SCRIPT_BLOCK_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-    const QUOTED_SLUG_RE = /['"]([a-zA-Z0-9][a-zA-Z0-9_-]{2,})['"]/g;
+    // Allow . in slugs so CAT-002 deriveModuleId artifacts (e.g., 'web-ccna-foo.tool')
+    // match between catalog ids and inline-registered ids.
+    const QUOTED_SLUG_RE = /['"]([a-zA-Z0-9][a-zA-Z0-9_.-]{2,})['"]/g;
     const inlineIds = new Set();
     const inlineSources = new Map();
     for (const file of indexFiles) {
@@ -355,10 +357,12 @@ function main() {
         const house = m.house || '?';
         const stripped = (house !== '?' && id.startsWith(house + '-')) ? id.slice(house.length + 1) : null;
 
-        // Also tolerate `.module` suffix on catalog ids (CAT-002 deriveModuleId artifact).
-        // Open STR-28 to clean these up at the catalog level — until then strip in matching.
-        const desuffixed = id.endsWith('.module') ? id.slice(0, -'.module'.length) : null;
-        const strippedDesuffixed = stripped && stripped.endsWith('.module') ? stripped.slice(0, -'.module'.length) : null;
+        // Also tolerate component-type suffixes on catalog ids (CAT-002 deriveModuleId
+        // artifact: .module, .tool, .lab, .quiz, .applet). STR-28 + STR-29 cover the
+        // catalog cleanup; until then, strip in matching.
+        const SUFFIX_RE = /\.(module|tool|lab|quiz|applet)$/;
+        const desuffixed = SUFFIX_RE.test(id) ? id.replace(SUFFIX_RE, '') : null;
+        const strippedDesuffixed = stripped && SUFFIX_RE.test(stripped) ? stripped.replace(SUFFIX_RE, '') : null;
         const inMech1 = hubCardIds.has(id) || (stripped && hubCardIds.has(stripped)) || (desuffixed && hubCardIds.has(desuffixed)) || (strippedDesuffixed && hubCardIds.has(strippedDesuffixed));
         const inMech2 = lpIds.has(id) || (stripped && lpIds.has(stripped)) || (desuffixed && lpIds.has(desuffixed)) || (strippedDesuffixed && lpIds.has(strippedDesuffixed));
         const inMech3 = engineIds.has(id) || (stripped && engineIds.has(stripped)) || (desuffixed && engineIds.has(desuffixed)) || (strippedDesuffixed && engineIds.has(strippedDesuffixed));
