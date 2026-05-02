@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script><script>AccessGuard.require('sorted');</script><script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DF-59: Live vs Dead-Box Analysis | Forensics Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117; --accent: #fb923c; --accent-dim: rgba(251,146,60,0.12); --accent-border: rgba(251,146,60,0.25); --green: #4ade80; --yellow: #fbbf24; --red: #f87171; --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .fh-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .fh-header-left { display: flex; align-items: center; gap: 14px; }
+        .fh-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .fh-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .fh-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; text-decoration: none; } .fh-back:hover { background: var(--accent); color: #000; }
+        .fh-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .fh-breadcrumb a { color: var(--accent); text-decoration: none; } .fh-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; } .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; } .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .hl { color: var(--yellow); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; }
+        .callout--info h4 { color: var(--accent); } .callout--danger h4 { color: var(--red); }
+        .callout p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .evidence-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .evidence-table th { background: rgba(251,146,60,0.08); color: var(--accent); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid rgba(251,146,60,0.2); font-size: 0.8rem; text-transform: uppercase; }
+        .evidence-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--accent); }
+        .try-it { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; } .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; } .try-it ol { padding-left: 20px; }
+        .takeaways { background: linear-gradient(135deg, rgba(251,146,60,0.08), rgba(251,146,60,0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--accent); margin-bottom: 12px; } .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="fh-header"><div class="fh-header-left"><span class="fh-badge">DF-59</span><h1>Live vs Dead-Box Analysis</h1></div><a href="../../index.html" class="fh-back">&lt; Forensics Hub</a></header>
+    <nav class="fh-breadcrumb"><a href="/dashboard.html">Dashboard</a><span class="fh-breadcrumb-sep">/</span><a href="../../index.html">Forensics Hub</a><span class="fh-breadcrumb-sep">/</span><a href="../../index.html">Advanced &amp; Specialized Forensics</a><span class="fh-breadcrumb-sep">/</span>DF-59: Live vs Dead-Box</nav>
+    <div class="content-panel">
+        <div class="objectives"><h2>Learning Objectives</h2><ul>
+            <li>Determine when to use live forensics vs dead-box analysis</li>
+            <li>Understand the trade-offs in integrity, evidence scope, and legal requirements</li>
+            <li>Build and deploy a live response toolkit</li>
+            <li>Apply dead-box imaging and mounting procedures</li>
+            <li>Use the hybrid approach for maximum evidence coverage</li>
+        </ul></div>
+
+        <section class="section">
+            <h2 class="section-title">When to Use Live Forensics</h2>
+            <p class="content-text">Live forensics collects evidence from a running system. This approach is necessary when volatile evidence must be captured, when full-disk encryption prevents dead-box analysis, or when business continuity prevents system shutdown.</p>
+            <div class="feature-grid">
+                <div class="feature-card"><strong>Encrypted Systems</strong><span>If the disk is encrypted (BitLocker, LUKS, FileVault), shutting down the system locks the encryption. Live acquisition can access the decrypted filesystem while the system is running.</span></div>
+                <div class="feature-card"><strong>Volatile Evidence</strong><span>Running processes, network connections, logged-in users, clipboard contents, and memory-resident malware are lost on power-off. These artifacts only exist while the system is live.</span></div>
+                <div class="feature-card"><strong>Active Malware</strong><span>Some malware only exists in memory (fileless malware). If you power off the system, the malware and its artifacts are destroyed. Memory acquisition must happen live.</span></div>
+                <div class="feature-card"><strong>Business Continuity</strong><span>Production servers, medical devices, or critical infrastructure may not be available for shutdown. Live forensics minimizes operational disruption.</span></div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">When to Use Dead-Box Analysis</h2>
+            <p class="content-text">Dead-box forensics involves powering off the system, removing the storage media, and analyzing a forensic image on an examiner workstation. This is the gold standard for evidence integrity.</p>
+            <div class="feature-grid">
+                <div class="feature-card"><strong>Evidence Integrity</strong><span>No risk of altering evidence during analysis. Write blockers prevent any modification. Hash verification proves the image matches the original exactly.</span></div>
+                <div class="feature-card"><strong>Legal Proceedings</strong><span>Courts prefer dead-box analysis because the methodology is well-established, repeatable, and the chain of custody is clearer. Defense attorneys have fewer grounds to challenge.</span></div>
+                <div class="feature-card"><strong>Thorough Analysis</strong><span>Allows examination of deleted files, unallocated space, slack space, and file system metadata without OS interference. No file locks, no access time updates.</span></div>
+                <div class="feature-card"><strong>Reproducibility</strong><span>Multiple analysts can independently examine the same forensic image and reach the same conclusions. The image can be re-examined years later.</span></div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Live Response Toolkit</h2>
+            <div class="code-block">
+                <div class="code-block-header">Windows Live Response Collection Script</div>
+                <pre><span class="cm">REM Run from USB drive -- all tools pre-compiled, statically linked</span>
+
+<span class="cm">REM 1. System information</span>
+systeminfo > %OUTPUT%\systeminfo.txt
+hostname > %OUTPUT%\hostname.txt
+date /t > %OUTPUT%\datetime.txt
+time /t >> %OUTPUT%\datetime.txt
+
+<span class="cm">REM 2. Network connections and state</span>
+netstat -anob > %OUTPUT%\netstat.txt
+ipconfig /all > %OUTPUT%\ipconfig.txt
+arp -a > %OUTPUT%\arp.txt
+route print > %OUTPUT%\routes.txt
+netsh wlan show profiles > %OUTPUT%\wifi_profiles.txt
+
+<span class="cm">REM 3. Running processes</span>
+tasklist /v > %OUTPUT%\tasklist.txt
+wmic process list full > %OUTPUT%\wmic_processes.txt
+
+<span class="cm">REM 4. Logged-in users and sessions</span>
+query user > %OUTPUT%\logged_in_users.txt
+net session > %OUTPUT%\net_sessions.txt
+
+<span class="cm">REM 5. Persistence mechanisms</span>
+schtasks /query /fo csv /v > %OUTPUT%\scheduled_tasks.csv
+reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run > %OUTPUT%\run_keys.txt
+wmic startup list full > %OUTPUT%\startup_items.txt
+
+<span class="cm">REM 6. Memory dump (requires admin + tool on USB)</span>
+winpmem_mini.exe %OUTPUT%\memory.raw</pre>
+            </div>
+
+            <div class="callout callout--danger"><h4>Live Response Alters Evidence</h4><p>Every command you run on a live system modifies it: processes are created, memory is used, timestamps update, prefetch files are generated. This is unavoidable. Document every command executed, the time it was run, and the tool used. Run tools from a USB drive to minimize disk writes to the evidence drive.</p></div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Dead-Box Imaging Procedures</h2>
+            <p class="content-text">Dead-box imaging follows a strict protocol to ensure evidence integrity. Every step must be documented, and the resulting image must be verified against the source.</p>
+            <div class="code-block">
+                <div class="code-block-header">Standard Dead-Box Imaging Workflow</div>
+                <pre><span class="cm"># 1. Document the physical state before touching anything</span>
+<span class="cm">#    Photograph: front, back, cables, screen state, serial numbers</span>
+
+<span class="cm"># 2. Power off (if running, capture volatile data first)</span>
+<span class="cm">#    For desktops: pull the power cord (do NOT use shutdown)</span>
+<span class="cm">#    Reason: shutdown modifies timestamps, deletes temp files</span>
+
+<span class="cm"># 3. Remove storage media and connect via write blocker</span>
+<span class="cm">#    Verify write blocker is functioning: check indicator LEDs</span>
+<span class="cm">#    Connect source drive to write-blocked port</span>
+
+<span class="cm"># 4. Calculate source hash BEFORE imaging</span>
+md5sum /dev/sdb > source_hash_md5.txt
+sha256sum /dev/sdb > source_hash_sha256.txt
+
+<span class="cm"># 5. Create forensic image (E01 format with compression)</span>
+ewfacquire /dev/sdb \
+  -t evidence_image \
+  -C "Case 2026-0318" \
+  -D "Seagate 1TB SN:ABC123" \
+  -e "Analyst Name" \
+  -E "Organization" \
+  -f encase6 \
+  -S 2G
+
+<span class="cm"># 6. Verify image hash matches source hash</span>
+ewfverify evidence_image.E01
+<span class="cm"># Output must show: MD5 hash match, SHA-256 hash match</span>
+
+<span class="cm"># 7. Create a second image copy for working analysis</span>
+<span class="cm"># 8. Store original image on write-once media if possible</span></pre>
+            </div>
+            <div class="callout callout--info"><h4>Pull the Plug vs Shutdown</h4><p>For evidence preservation, pulling the power cord is preferred over graceful shutdown. A shutdown command modifies hundreds of files: updates last-access timestamps, writes to the pagefile, flushes caches, updates registry hives, and deletes temporary files. Pulling the plug preserves the disk state as-is. The trade-off is potential filesystem inconsistencies, but forensic tools handle these gracefully.</p></div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Linux Live Response Toolkit</h2>
+            <p class="content-text">While the Windows live response script covers the most common corporate scenario, Linux systems require a different toolkit. The same principle applies: run everything from external media, minimize writes to the evidence disk.</p>
+            <div class="code-block">
+                <div class="code-block-header">Linux Live Response Script</div>
+                <pre><span class="cm">#!/bin/bash</span>
+<span class="cm"># Run from USB: /mnt/usb/linux_live_response.sh</span>
+OUT="/mnt/usb/output/$(hostname)_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$OUT"
+
+<span class="cm"># System info</span>
+uname -a > "$OUT/uname.txt"
+cat /etc/os-release > "$OUT/os_release.txt"
+uptime > "$OUT/uptime.txt"
+date -u > "$OUT/utc_time.txt"
+
+<span class="cm"># Network state</span>
+ss -tulnp > "$OUT/listening_ports.txt"
+ss -anp > "$OUT/all_connections.txt"
+ip addr show > "$OUT/ip_addresses.txt"
+ip route show > "$OUT/routes.txt"
+iptables -L -n -v > "$OUT/iptables.txt" 2>&1
+cat /etc/resolv.conf > "$OUT/dns_config.txt"
+
+<span class="cm"># Processes and open files</span>
+ps auxf > "$OUT/processes.txt"
+lsof -nP > "$OUT/open_files.txt" 2>&1
+
+<span class="cm"># Users and authentication</span>
+who > "$OUT/logged_in.txt"
+last -50 > "$OUT/last_logins.txt"
+cat /etc/passwd > "$OUT/passwd.txt"
+cat /etc/shadow > "$OUT/shadow.txt" 2>/dev/null
+
+<span class="cm"># Persistence mechanisms</span>
+crontab -l > "$OUT/crontab_root.txt" 2>&1
+ls -la /etc/cron.d/ > "$OUT/cron_d.txt"
+systemctl list-unit-files --type=service > "$OUT/services.txt"
+
+<span class="cm"># Memory acquisition (requires LiME kernel module)</span>
+<span class="cm"># insmod /mnt/usb/tools/lime.ko "path=$OUT/memory.lime format=lime"</span>
+
+echo "Collection complete: $OUT"
+sha256sum "$OUT"/* > "$OUT/collection_hashes.txt"</pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Decision Matrix</h2>
+            <table class="evidence-table">
+                <thead><tr><th>Factor</th><th>Choose Live</th><th>Choose Dead-Box</th></tr></thead>
+                <tbody>
+                    <tr><td>Disk encryption active</td><td>Yes -- shutdown locks the data</td><td>Only if key/password is known</td></tr>
+                    <tr><td>Fileless malware suspected</td><td>Yes -- memory is the only evidence</td><td>After memory capture is complete</td></tr>
+                    <tr><td>Criminal prosecution</td><td>Capture volatile, then proceed to dead-box</td><td>Preferred for integrity</td></tr>
+                    <tr><td>Production server</td><td>Yes -- minimize downtime</td><td>Only during maintenance window</td></tr>
+                    <tr><td>Deleted file recovery needed</td><td>Risky -- OS may overwrite</td><td>Yes -- direct access to unallocated space</td></tr>
+                    <tr><td>Multiple analysts needed</td><td>Difficult -- one shot</td><td>Yes -- image can be shared</td></tr>
+                </tbody>
+            </table>
+            <div class="callout callout--info"><h4>The Hybrid Approach</h4><p>The best practice is the hybrid approach: perform live response first (volatile data capture, memory acquisition), then proceed to dead-box analysis (power off, image disk). This captures the maximum evidence from both volatile and non-volatile sources.</p></div>
+        </section>
+
+        <section class="section">
+            <div class="try-it"><h3>Practice: Choose Your Approach</h3>
+                <p>For each scenario, determine whether to use live, dead-box, or hybrid analysis:</p>
+                <ol>
+                    <li>A BitLocker-encrypted laptop suspected of containing child exploitation material</li>
+                    <li>A web server with an active webshell that is currently being used by an attacker</li>
+                    <li>A desktop computer seized during a search warrant execution (system is off)</li>
+                    <li>A database server experiencing data exfiltration that cannot be taken offline</li>
+                </ol>
+                <p><strong style="color:var(--green)">Answers:</strong> (1) Live first -- capture decrypted disk image while BitLocker is unlocked, then dead-box the encrypted copy as backup. (2) Hybrid -- capture memory and network state immediately (webshell may be fileless), then image disk. Do not alert the attacker by shutting down prematurely. (3) Dead-box -- system is already off, no volatile evidence to capture. Standard imaging with write blocker. (4) Live -- system cannot be taken offline. Deploy network monitoring, capture memory dump, collect logs remotely. Image a secondary disk during a maintenance window if possible.</p>
+            </div>
+        </section>
+
+        <div class="takeaways"><h3>Key Takeaways</h3><ul>
+            <li>Live forensics is required when volatile evidence, encryption access, or business continuity demand it</li>
+            <li>Dead-box analysis is the gold standard for evidence integrity and legal defensibility</li>
+            <li>The hybrid approach (live first, then dead-box) captures maximum evidence from both sources</li>
+            <li>Every live response action modifies the system -- document everything with timestamps</li>
+            <li>Run live response tools from a USB drive to minimize writes to the evidence disk</li>
+            <li>Full-disk encryption forces live acquisition -- shutting down locks the data</li>
+        </ul></div>
+
+        <div class="nav-footer">
+            <a href="df-58-tool-validation.module.html" class="nav-btn">&larr; Previous: Tool Validation</a>
+            <a href="df-60-advanced-capstone.module.html" class="nav-btn primary">Next: Advanced Capstone &rarr;</a>
+        </div>
+    </div>
+    <script>if (typeof ModuleProgress !== 'undefined') { ModuleProgress.init({ moduleId: 'df-59', hubKey: 'hexworth_forensics_progress' }); }</script>
+</body>
+</html>

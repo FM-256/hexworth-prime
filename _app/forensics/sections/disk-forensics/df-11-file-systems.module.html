@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File System Internals — Digital Forensics Hub — Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-detective.webp">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: #0a0a0f; color: #e2e8f0; min-height: 100vh; line-height: 1.7; }
+        :root { --accent: #34d399; --accent-dim: rgba(52,211,153,0.12); --accent-border: rgba(52,211,153,0.3); --green: #34d399; --yellow: #fbbf24; --red: #f87171; }
+
+        .fh-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--accent-dim); max-width: 900px; margin: 0 auto; }
+        .fh-header img { width: 28px; height: 28px; }
+        .fh-header-badge { font-size: 0.75rem; padding: 3px 10px; border-radius: 10px; background: var(--accent-dim); color: var(--accent); font-weight: 600; }
+        .fh-header-title { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; }
+        .fh-header-back { margin-left: auto; color: #64748b; text-decoration: none; font-size: 0.82rem; }
+        .fh-header-back:hover { color: var(--accent); }
+
+        .fh-breadcrumb { max-width: 900px; margin: 12px auto 0; padding: 0 20px; font-size: 0.78rem; color: #475569; }
+        .fh-breadcrumb a { color: #64748b; text-decoration: none; }
+        .fh-breadcrumb a:hover { color: var(--accent); }
+
+        .content-panel { max-width: 900px; margin: 24px auto; padding: 0 20px 60px; }
+        .content-panel h1 { font-size: 1.8rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+        .content-panel h2 { font-size: 1.3rem; font-weight: 700; color: var(--accent); margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--accent-dim); }
+        .content-panel h3 { font-size: 1.05rem; font-weight: 600; color: #e2e8f0; margin: 20px 0 8px; }
+        .content-panel p { color: #94a3b8; margin-bottom: 12px; }
+
+        .objectives { background: var(--accent-dim); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 20px; margin: 20px 0; }
+        .objectives h3 { color: var(--accent); margin-top: 0; }
+        .objectives ul { list-style: none; padding: 0; }
+        .objectives li { padding: 6px 0; color: #94a3b8; font-size: 0.9rem; padding-left: 20px; position: relative; }
+        .objectives li::before { content: ''; position: absolute; left: 0; top: 14px; width: 8px; height: 8px; background: var(--accent); border-radius: 2px; }
+
+        .code-block { background: #1a1a2e; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 16px; margin: 12px 0; overflow-x: auto; }
+        .code-block code { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #e2e8f0; white-space: pre; }
+
+        .info-box { padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 3px solid; }
+        .info-box.note { background: rgba(56,189,248,0.08); border-color: #38bdf8; }
+        .info-box.warning { background: rgba(251,191,36,0.08); border-color: #fbbf24; }
+        .info-box.critical { background: rgba(248,113,113,0.08); border-color: #f87171; }
+        .info-box p { margin: 0; }
+
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.88rem; }
+        th { background: rgba(52,211,153,0.1); color: var(--accent); padding: 10px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--accent-dim); }
+        td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #94a3b8; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .try-it { background: #12121a; border: 1px solid var(--accent-dim); border-radius: 10px; padding: 20px; margin: 24px 0; }
+        .try-it h3 { color: var(--accent); margin-top: 0; }
+
+        .takeaways { background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.15); border-radius: 10px; padding: 20px; margin: 24px 0; }
+        .takeaways h3 { color: #34d399; margin-top: 0; }
+        .takeaways ul { padding-left: 20px; }
+        .takeaways li { color: #94a3b8; margin: 6px 0; font-size: 0.9rem; }
+
+        .nav-footer { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06); }
+        .nav-footer a { color: #64748b; text-decoration: none; font-size: 0.85rem; padding: 8px 16px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); }
+        .nav-footer a:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+        @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+        @media (prefers-contrast: more) { .content-panel p, td, .objectives li, .takeaways li { color: #e2e8f0; } }
+    </style>
+</head>
+<body>
+    <header class="fh-header">
+        <img src="/assets/images/icons/icon-detective.webp" alt="">
+        <span class="fh-header-badge">DF-11</span>
+        <span class="fh-header-title">File System Internals</span>
+        <a href="../../index.html" class="fh-header-back">Back to Hub</a>
+    </header>
+
+    <nav class="fh-breadcrumb">
+        <a href="../../index.html">Digital Forensics Hub</a> &rsaquo;
+        <a href="../../index.html">Disk &amp; File System Forensics</a> &rsaquo;
+        File System Internals
+    </nav>
+
+    <main class="content-panel">
+        <h1>File System Internals</h1>
+        <p>Understanding how file systems organize data on disk is essential for forensic analysis. Each file system stores metadata differently, handles deletion differently, and leaves different forensic artifacts. This module covers the five major file systems you will encounter: NTFS, ext4, FAT32, APFS, and HFS+.</p>
+
+        <div class="objectives">
+            <h3>Learning Objectives</h3>
+            <ul>
+                <li>Describe the internal structures of NTFS, ext4, FAT32, APFS, and HFS+</li>
+                <li>Identify forensic artifacts unique to each file system</li>
+                <li>Compare file systems by journaling, metadata, and recovery potential</li>
+                <li>Determine which file system is present on a given disk image</li>
+            </ul>
+        </div>
+
+        <h2>NTFS (New Technology File System)</h2>
+
+        <p>NTFS is the default file system for Windows. It uses the Master File Table (MFT) as a centralized database of all file metadata.</p>
+
+        <h3>Key Structures</h3>
+        <ul style="padding-left: 20px; color: #94a3b8; margin-bottom: 12px;">
+            <li><strong>$MFT (Master File Table):</strong> Every file and directory has at least one MFT entry (1024 bytes). Contains all metadata attributes. Files under ~700 bytes can be stored entirely within the MFT entry (resident data).</li>
+            <li><strong>$LogFile:</strong> Transaction journal recording all metadata changes. Critical for determining what operations occurred recently.</li>
+            <li><strong>$UsnJrnl (Change Journal):</strong> Records file creation, deletion, modification, and renaming events. Invaluable for timeline analysis.</li>
+            <li><strong>Alternate Data Streams (ADS):</strong> NTFS allows multiple data streams per file. Malware and data hiding commonly use ADS (e.g., file.txt:hidden_stream).</li>
+        </ul>
+
+        <h3>NTFS Timestamps</h3>
+        <p>NTFS stores timestamps in two attributes with different update behaviors:</p>
+        <ul style="padding-left: 20px; color: #94a3b8; margin-bottom: 12px;">
+            <li><strong>$STANDARD_INFORMATION (SI):</strong> Created, Modified, Accessed, Entry Modified (MACE). Updated by the OS and easily modified by user-space tools (timestomping).</li>
+            <li><strong>$FILE_NAME (FN):</strong> Also has MACE timestamps but is only updated by the kernel during specific operations. Harder to tamper with &mdash; discrepancies between SI and FN timestamps indicate timestomping.</li>
+        </ul>
+
+        <h2>ext4 (Fourth Extended File System)</h2>
+
+        <p>ext4 is the default file system for most Linux distributions. It uses inodes to store file metadata.</p>
+
+        <h3>Key Structures</h3>
+        <ul style="padding-left: 20px; color: #94a3b8; margin-bottom: 12px;">
+            <li><strong>Superblock:</strong> Contains file system metadata (block size, inode count, mount time, last write time). Multiple backup copies exist.</li>
+            <li><strong>Inodes:</strong> Each file has an inode (typically 256 bytes) containing permissions, ownership, timestamps, size, and pointers to data blocks. Inode number is the file's unique identifier.</li>
+            <li><strong>Journal (jbd2):</strong> Metadata journal ensuring consistency after crashes. Can contain remnants of previous file operations.</li>
+            <li><strong>Extents:</strong> ext4 uses extents (contiguous block ranges) instead of indirect block pointers, reducing fragmentation and improving performance.</li>
+        </ul>
+
+        <h3>ext4 Timestamps</h3>
+        <p>ext4 stores four timestamps per inode: Access (atime), Modification (mtime), Change (ctime), and Creation/Birth (crtime). The crtime field was added in ext4 &mdash; ext2/ext3 did not track creation time.</p>
+
+        <h2>FAT32 (File Allocation Table)</h2>
+
+        <p>FAT32 is a legacy file system still widely used on USB drives, SD cards, and cross-platform storage.</p>
+
+        <h3>Key Structures</h3>
+        <ul style="padding-left: 20px; color: #94a3b8; margin-bottom: 12px;">
+            <li><strong>FAT (File Allocation Table):</strong> Two copies of a table mapping clusters to files. Each entry points to the next cluster in the chain, or marks end-of-file/free.</li>
+            <li><strong>Directory Entries:</strong> 32-byte entries containing filename (8.3 format), attributes, timestamps, starting cluster, and file size. Long filenames use additional VFAT entries.</li>
+            <li><strong>No journaling:</strong> FAT32 has no journal, making it more susceptible to corruption but leaving fewer metadata traces.</li>
+        </ul>
+
+        <div class="info-box warning">
+            <p><strong>FAT32 Deletion:</strong> When a file is deleted, FAT32 replaces the first character of the filename with 0xE5 and marks the FAT clusters as free. The data remains until overwritten. This makes recovery straightforward but also means the original filename's first character is lost.</p>
+        </div>
+
+        <h2>APFS (Apple File System)</h2>
+
+        <p>APFS is the default file system for macOS 10.13+ and iOS 10.3+. It was designed for flash storage and encryption.</p>
+
+        <h3>Key Structures</h3>
+        <ul style="padding-left: 20px; color: #94a3b8; margin-bottom: 12px;">
+            <li><strong>Container:</strong> A physical partition that can hold multiple volumes sharing free space</li>
+            <li><strong>Volumes:</strong> Logical file systems within a container. Each volume has its own namespace and security settings.</li>
+            <li><strong>Snapshots:</strong> Point-in-time read-only copies of a volume. Created automatically during OS updates. Forensically valuable for recovering previous states.</li>
+            <li><strong>Clones:</strong> Copy-on-write clones of files that share data blocks until modified</li>
+            <li><strong>Native encryption:</strong> Full-disk and per-file encryption are built into APFS</li>
+        </ul>
+
+        <h2>HFS+ (Hierarchical File System Plus)</h2>
+
+        <p>HFS+ was the macOS file system before APFS. Still found on older Macs and some external drives.</p>
+
+        <h3>Key Structures</h3>
+        <ul style="padding-left: 20px; color: #94a3b8; margin-bottom: 12px;">
+            <li><strong>Catalog File:</strong> B-tree structure mapping file/folder IDs to their metadata and names</li>
+            <li><strong>Extents Overflow File:</strong> Handles files that have more extents than the catalog can store inline</li>
+            <li><strong>Allocation File:</strong> Bitmap tracking which blocks are allocated</li>
+            <li><strong>Journal:</strong> Optional but typically enabled. Records metadata changes.</li>
+        </ul>
+
+        <h2>File System Comparison</h2>
+
+        <table>
+            <thead>
+                <tr><th>Feature</th><th>NTFS</th><th>ext4</th><th>FAT32</th><th>APFS</th><th>HFS+</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Max file size</td><td>16 TB</td><td>16 TB</td><td>4 GB</td><td>8 EB</td><td>8 EB</td></tr>
+                <tr><td>Journaling</td><td>Yes (metadata)</td><td>Yes (metadata)</td><td>No</td><td>Copy-on-write</td><td>Optional</td></tr>
+                <tr><td>Timestamps</td><td>4 (MACE) x 2 attrs</td><td>4 (amcb)</td><td>3 (create/modify/access)</td><td>4</td><td>4</td></tr>
+                <tr><td>File metadata</td><td>MFT entries</td><td>Inodes</td><td>Directory entries</td><td>Objects</td><td>Catalog B-tree</td></tr>
+                <tr><td>ADS/forks</td><td>Yes (ADS)</td><td>Extended attrs</td><td>No</td><td>Extended attrs</td><td>Resource forks</td></tr>
+                <tr><td>Encryption</td><td>EFS, BitLocker</td><td>fscrypt</td><td>No</td><td>Native</td><td>FileVault</td></tr>
+                <tr><td>Deletion recovery</td><td>High (MFT preserved)</td><td>Moderate (inode cleared)</td><td>High (data intact)</td><td>Low (CoW)</td><td>Moderate</td></tr>
+            </tbody>
+        </table>
+
+        <h2>Forensic Artifacts by File System</h2>
+
+        <table>
+            <thead>
+                <tr><th>Artifact</th><th>NTFS</th><th>ext4</th><th>FAT32</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Deleted file metadata</td><td>MFT entry marked as free but data often intact</td><td>Inode pointers cleared; journal may have remnants</td><td>First byte changed to 0xE5; FAT clusters freed</td></tr>
+                <tr><td>Timestamp tampering</td><td>Compare $SI vs $FN timestamps</td><td>Check ctime (cannot be set by users)</td><td>Limited detection ability</td></tr>
+                <tr><td>Hidden data</td><td>ADS, slack space, $MFT resident data</td><td>Extended attributes, reserved blocks</td><td>Slack space, volume slack</td></tr>
+                <tr><td>Activity log</td><td>$UsnJrnl, $LogFile</td><td>Journal (jbd2)</td><td>None</td></tr>
+            </tbody>
+        </table>
+
+        <div class="try-it">
+            <h3>Practice: Identify the File System</h3>
+            <p>Given the following hex signatures at the beginning of a disk image, identify the file system:</p>
+            <ol style="padding-left: 20px; color: #94a3b8; margin-top: 12px;">
+                <li style="margin-bottom: 8px;">Offset 0x03: "NTFS    " (NTFS OEM ID)</li>
+                <li style="margin-bottom: 8px;">Offset 0x438: Magic number 0xEF53</li>
+                <li style="margin-bottom: 8px;">Offset 0x52: "FAT32   " (BS_FilSysType)</li>
+                <li style="margin-bottom: 8px;">Block 0 contains "NXSB" (container superblock magic)</li>
+            </ol>
+            <p style="margin-top: 16px; font-size: 0.85rem; color: #64748b;"><strong>Answers:</strong> 1. NTFS | 2. ext2/3/4 | 3. FAT32 | 4. APFS</p>
+        </div>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>NTFS: MFT-centric, dual timestamp attributes (SI vs FN), ADS for hidden data, $UsnJrnl for activity tracking</li>
+                <li>ext4: Inode-based, four timestamps including creation (crtime), journal for crash recovery</li>
+                <li>FAT32: Simple structure, no journaling, high recovery potential, 4 GB file size limit</li>
+                <li>APFS: Container/volume model, native encryption, snapshots, copy-on-write (complicates recovery)</li>
+                <li>Different file systems require different forensic tools and analysis approaches</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <span></span>
+            <a href="df-12-disk-imaging.module.html">Next: Disk Imaging &rsaquo;</a>
+        </div>
+    </main>
+
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script>ModuleProgress.init({ moduleId: 'df-11', hubKey: 'hexworth_forensics_progress' });</script>
+</body>
+</html>

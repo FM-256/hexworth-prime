@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-05-01 10:08:41 PM
+                    Scanned: 2026-04-29 9:49:41 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,10 +10,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5048 |
-| Directories | 1203 |
-| Content Files | 5048 |
-| Scan Duration | 528ms |
+| Files Scanned | 5047 |
+| Directories | 1202 |
+| Content Files | 5047 |
+| Scan Duration | 2213ms |
 
 ### Content by Type
 
@@ -23,16 +23,16 @@
 | html | 1484 |
 | lab | 587 |
 | quiz | 487 |
-| applet | 194 |
+| applet | 193 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 2993 |
-| Available | 2988 |
+| Total Modules | 2729 |
+| Available | 2724 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 17 |
+| Undeclared Files (CAT-002) | 280 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -42,15 +42,15 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 61 |
-| Warning | 2464 |
-| Info | 452 |
-| **Total** | **11973** |
+| Warning | 2463 |
+| Info | 451 |
+| **Total** | **11900** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3552 |
+| Ready | 3551 |
 | Not Ready | 12 |
 | Unknown | 1484 |
 
@@ -1066,7 +1066,75 @@
 ├── 📁 docs
 ├── 📄 faq.html
 ├── 📁 forensics
-│   └── 📍 index.html
+│   ├── 📍 index.html
+│   └── 📁 sections
+│       ├── 📁 advanced-forensics
+│       │   ├── 📄 df-51-anti-forensics.module.html
+│       │   ├── 📄 df-52-cloud-forensics.module.html
+│       │   ├── 📄 df-53-mobile-forensics.module.html
+│       │   ├── 📄 df-54-iot-forensics.module.html
+│       │   ├── 📄 df-55-malware-forensics.module.html
+│       │   ├── 📄 df-56-steganography.module.html
+│       │   ├── 📄 df-57-incident-response.module.html
+│       │   ├── 📄 df-58-tool-validation.module.html
+│       │   ├── 📄 df-59-live-vs-dead.module.html
+│       │   ├── 📄 df-60-advanced-capstone.module.html
+│       │   └── 📄 df-61-ai-generated-imagery.module.html
+│       ├── 📁 disk-forensics
+│       │   ├── 📄 df-11-file-systems.module.html
+│       │   ├── 📄 df-12-disk-imaging.module.html
+│       │   ├── 📄 df-13-autopsy.module.html
+│       │   ├── 📄 df-14-file-carving.module.html
+│       │   ├── 📄 df-15-metadata.module.html
+│       │   ├── 📄 df-16-deleted-recovery.module.html
+│       │   ├── 📄 df-17-mft-inodes.module.html
+│       │   ├── 📄 df-18-slack-space.module.html
+│       │   ├── 📄 df-19-write-blockers.module.html
+│       │   └── 📄 df-20-disk-capstone.module.html
+│       ├── 📁 evidence-foundations
+│       │   ├── 📄 df-01-evidence-types.module.html
+│       │   ├── 📄 df-02-chain-of-custody.module.html
+│       │   ├── 📄 df-03-nist-800-86.module.html
+│       │   ├── 📄 df-04-order-of-volatility.module.html
+│       │   ├── 📄 df-05-cfaa-federal-laws.module.html
+│       │   ├── 📄 df-06-ecpa-wiretap.module.html
+│       │   ├── 📄 df-07-fourth-amendment.module.html
+│       │   ├── 📄 df-08-expert-witness.module.html
+│       │   ├── 📄 df-09-ethics.module.html
+│       │   └── 📄 df-10-evidence-capstone.module.html
+│       ├── 📁 log-timeline
+│       │   ├── 📄 df-41-windows-events.module.html
+│       │   ├── 📄 df-42-linux-logs.module.html
+│       │   ├── 📄 df-43-log-correlation.module.html
+│       │   ├── 📄 df-44-plaso-timeline.module.html
+│       │   ├── 🔬 df-45-timeline-lab.module.html
+│       │   ├── 📄 df-46-siem-integration.module.html
+│       │   ├── 📄 df-47-browser-forensics.module.html
+│       │   ├── 📄 df-48-email-headers.module.html
+│       │   ├── 📄 df-49-registry-forensics.module.html
+│       │   └── 📄 df-50-timeline-capstone.module.html
+│       ├── 📁 memory-forensics
+│       │   ├── 📄 df-21-volatile-evidence.module.html
+│       │   ├── 📄 df-22-acquisition-tools.module.html
+│       │   ├── 📄 df-23-volatility-setup.module.html
+│       │   ├── 📄 df-24-process-analysis.module.html
+│       │   ├── 📄 df-25-injection-detection.module.html
+│       │   ├── 📄 df-26-malware-recovery.module.html
+│       │   ├── 📄 df-27-registry-extraction.module.html
+│       │   ├── 📄 df-28-network-connections.module.html
+│       │   ├── 🔬 df-29-workflow-lab.module.html
+│       │   └── 📄 df-30-memory-capstone.module.html
+│       └── 📁 network-forensics
+│           ├── 📄 df-31-packet-capture.module.html
+│           ├── 📄 df-32-wireshark.module.html
+│           ├── 📄 df-33-tcp-streams.module.html
+│           ├── 📄 df-34-dns-exfiltration.module.html
+│           ├── 📄 df-35-encrypted-traffic.module.html
+│           ├── 📄 df-36-netflow.module.html
+│           ├── 📄 df-37-pcap-extraction.module.html
+│           ├── 📄 df-38-ids-correlation.module.html
+│           ├── 📄 df-39-wireless.module.html
+│           └── 📄 df-40-network-capstone.module.html
 ├── 📁 funding
 │   ├── 📍 index.html
 │   └── 📄 proposal-guide.html
@@ -3020,76 +3088,6 @@
 │   │   │   │   └── ❓ eye-cysa-ch16-quiz.quiz.html
 │   │   │   └── 📁 reviews
 │   │   │       └── 📄 eye-cysa-comprehensive-review.html
-│   │   ├── 📁 forensics
-│   │   │   ├── 📍 index.html
-│   │   │   └── 📁 sections
-│   │   │       ├── 📁 advanced-forensics
-│   │   │       │   ├── 📄 df-51-anti-forensics.module.html
-│   │   │       │   ├── 📄 df-52-cloud-forensics.module.html
-│   │   │       │   ├── 📄 df-53-mobile-forensics.module.html
-│   │   │       │   ├── 📄 df-54-iot-forensics.module.html
-│   │   │       │   ├── 📄 df-55-malware-forensics.module.html
-│   │   │       │   ├── 📄 df-56-steganography.module.html
-│   │   │       │   ├── 📄 df-57-incident-response.module.html
-│   │   │       │   ├── 📄 df-58-tool-validation.module.html
-│   │   │       │   ├── 📄 df-59-live-vs-dead.module.html
-│   │   │       │   ├── 📄 df-60-advanced-capstone.module.html
-│   │   │       │   └── 📄 df-61-ai-generated-imagery.module.html
-│   │   │       ├── 📁 disk-forensics
-│   │   │       │   ├── 📄 df-11-file-systems.module.html
-│   │   │       │   ├── 📄 df-12-disk-imaging.module.html
-│   │   │       │   ├── 📄 df-13-autopsy.module.html
-│   │   │       │   ├── 📄 df-14-file-carving.module.html
-│   │   │       │   ├── 📄 df-15-metadata.module.html
-│   │   │       │   ├── 📄 df-16-deleted-recovery.module.html
-│   │   │       │   ├── 📄 df-17-mft-inodes.module.html
-│   │   │       │   ├── 📄 df-18-slack-space.module.html
-│   │   │       │   ├── 📄 df-19-write-blockers.module.html
-│   │   │       │   └── 📄 df-20-disk-capstone.module.html
-│   │   │       ├── 📁 evidence-foundations
-│   │   │       │   ├── 📄 df-01-evidence-types.module.html
-│   │   │       │   ├── 📄 df-02-chain-of-custody.module.html
-│   │   │       │   ├── 📄 df-03-nist-800-86.module.html
-│   │   │       │   ├── 📄 df-04-order-of-volatility.module.html
-│   │   │       │   ├── 📄 df-05-cfaa-federal-laws.module.html
-│   │   │       │   ├── 📄 df-06-ecpa-wiretap.module.html
-│   │   │       │   ├── 📄 df-07-fourth-amendment.module.html
-│   │   │       │   ├── 📄 df-08-expert-witness.module.html
-│   │   │       │   ├── 📄 df-09-ethics.module.html
-│   │   │       │   └── 📄 df-10-evidence-capstone.module.html
-│   │   │       ├── 📁 log-timeline
-│   │   │       │   ├── 📄 df-41-windows-events.module.html
-│   │   │       │   ├── 📄 df-42-linux-logs.module.html
-│   │   │       │   ├── 📄 df-43-log-correlation.module.html
-│   │   │       │   ├── 📄 df-44-plaso-timeline.module.html
-│   │   │       │   ├── 🔬 df-45-timeline-lab.module.html
-│   │   │       │   ├── 📄 df-46-siem-integration.module.html
-│   │   │       │   ├── 📄 df-47-browser-forensics.module.html
-│   │   │       │   ├── 📄 df-48-email-headers.module.html
-│   │   │       │   ├── 📄 df-49-registry-forensics.module.html
-│   │   │       │   └── 📄 df-50-timeline-capstone.module.html
-│   │   │       ├── 📁 memory-forensics
-│   │   │       │   ├── 📄 df-21-volatile-evidence.module.html
-│   │   │       │   ├── 📄 df-22-acquisition-tools.module.html
-│   │   │       │   ├── 📄 df-23-volatility-setup.module.html
-│   │   │       │   ├── 📄 df-24-process-analysis.module.html
-│   │   │       │   ├── 📄 df-25-injection-detection.module.html
-│   │   │       │   ├── 📄 df-26-malware-recovery.module.html
-│   │   │       │   ├── 📄 df-27-registry-extraction.module.html
-│   │   │       │   ├── 📄 df-28-network-connections.module.html
-│   │   │       │   ├── 🔬 df-29-workflow-lab.module.html
-│   │   │       │   └── 📄 df-30-memory-capstone.module.html
-│   │   │       └── 📁 network-forensics
-│   │   │           ├── 📄 df-31-packet-capture.module.html
-│   │   │           ├── 📄 df-32-wireshark.module.html
-│   │   │           ├── 📄 df-33-tcp-streams.module.html
-│   │   │           ├── 📄 df-34-dns-exfiltration.module.html
-│   │   │           ├── 📄 df-35-encrypted-traffic.module.html
-│   │   │           ├── 📄 df-36-netflow.module.html
-│   │   │           ├── 📄 df-37-pcap-extraction.module.html
-│   │   │           ├── 📄 df-38-ids-correlation.module.html
-│   │   │           ├── 📄 df-39-wireless.module.html
-│   │   │           └── 📄 df-40-network-capstone.module.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 eye-alert-triage.html
 │   │   │   ├── 📄 eye-detection-engineering.applet.html
@@ -7689,15 +7687,6 @@
 | eye-cysa-ch15-quiz | quiz | ✓ | 0 |
 | eye-cysa-ch16-quiz | quiz | ✓ | 0 |
 | eye-cysa-comprehensive-review | presentation | ✓ | 0 |
-| df-55 | applet | ✓ | 1 |
-| df-61 | applet | ✓ | 1 |
-| df-14 | applet | ✓ | 1 |
-| df-01 | applet | ✓ | 1 |
-| df-10 | applet | ✓ | 1 |
-| df-41 | applet | ✓ | 1 |
-| df-46 | applet | ✓ | 1 |
-| df-33 | applet | ✓ | 1 |
-| df-36 | applet | ✓ | 1 |
 | eye-alert-triage | applet | ✓ | 1 |
 | eye-detection-engineering.applet | applet | ✓ | 1 |
 | eye-log-analysis-lab.applet | applet | ✓ | 1 |
@@ -9373,6 +9362,15 @@
 | dashboard | applet | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | faq | applet | ✓ | 1 |
+| df-55 | applet | ✓ | 1 |
+| df-61 | applet | ✓ | 1 |
+| df-14 | applet | ✓ | 1 |
+| df-01 | applet | ✓ | 1 |
+| df-10 | applet | ✓ | 1 |
+| df-41 | applet | ✓ | 1 |
+| df-46 | applet | ✓ | 1 |
+| df-33 | applet | ✓ | 1 |
+| df-36 | applet | ✓ | 1 |
 | proposal-guide | applet | ✓ | 1 |
 | index | presentation | ✓ | 1 |
 | dark-ids-evasion-lab.applet | lab | ✓ | 0 |
@@ -9463,7 +9461,6 @@
 | web-online-portfolio | applet | ✓ | 1 |
 | web-pi-network-probe | applet | ✓ | 1 |
 | web-topology-visualizer | applet | ✓ | 1 |
-| pulse | applet | ✓ | 1 |
 | sg-92-swarm-simulator | applet | ✓ | 1 |
 | ducky-course-03-payloads | applet | ✓ | 1 |
 | ducky-course-04-recon | applet | ✓ | 1 |
@@ -10202,7 +10199,7 @@
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
-### WARNING (2464)
+### WARNING (2463)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -10718,6 +10715,42 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/wifi-arsenal/tools/wifi-tool-reference.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `forensics/sections/advanced-forensics/df-55-malware-forensics.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `forensics/sections/disk-forensics/df-14-file-carving.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `forensics/sections/evidence-foundations/df-01-evidence-types.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `forensics/sections/log-timeline/df-41-windows-events.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `forensics/sections/log-timeline/df-46-siem-integration.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `forensics/sections/network-forensics/df-33-tcp-streams.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `forensics/sections/network-forensics/df-36-netflow.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -14838,42 +14871,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/applets/cyberops/eye-kill-chain-diamond.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/advanced-forensics/df-55-malware-forensics.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/disk-forensics/df-14-file-carving.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/evidence-foundations/df-01-evidence-types.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/log-timeline/df-41-windows-events.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/log-timeline/df-46-siem-integration.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/network-forensics/df-33-tcp-streams.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/network-forensics/df-36-netflow.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -19113,10 +19110,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `pulse.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `signal/sections/drone-security/sg-92-swarm-simulator.html`
   Fix: Add entry to content-registry.js
 
@@ -19928,7 +19921,7 @@
   File: `operator/missions/windows-cmd-02.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (452)
+### INFO (451)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `about.html`
@@ -20044,6 +20037,42 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `faq.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `forensics/sections/advanced-forensics/df-55-malware-forensics.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `forensics/sections/disk-forensics/df-14-file-carving.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `forensics/sections/evidence-foundations/df-01-evidence-types.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `forensics/sections/log-timeline/df-41-windows-events.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `forensics/sections/log-timeline/df-46-siem-integration.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `forensics/sections/network-forensics/df-33-tcp-streams.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `forensics/sections/network-forensics/df-36-netflow.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -20220,42 +20249,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/applets/cyberops/eye-traffic-analysis.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/forensics/sections/advanced-forensics/df-55-malware-forensics.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/forensics/sections/disk-forensics/df-14-file-carving.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/forensics/sections/evidence-foundations/df-01-evidence-types.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/forensics/sections/log-timeline/df-41-windows-events.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/forensics/sections/log-timeline/df-46-siem-integration.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/forensics/sections/network-forensics/df-33-tcp-streams.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/forensics/sections/network-forensics/df-36-netflow.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -20620,10 +20613,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/web-topology-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `pulse.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -21734,7 +21723,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (2241)
+### Unregistered Content (2240)
 
 | Path | Type | House |
 |------|------|-------|
@@ -21864,6 +21853,15 @@
 | dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-rita.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-snitch.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/tools/wifi-tool-reference.html | presentation | - |
+| forensics/sections/advanced-forensics/df-55-malware-forensics.module.html | applet | - |
+| forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html | applet | - |
+| forensics/sections/disk-forensics/df-14-file-carving.module.html | applet | - |
+| forensics/sections/evidence-foundations/df-01-evidence-types.module.html | applet | - |
+| forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html | applet | - |
+| forensics/sections/log-timeline/df-41-windows-events.module.html | applet | - |
+| forensics/sections/log-timeline/df-46-siem-integration.module.html | applet | - |
+| forensics/sections/network-forensics/df-33-tcp-streams.module.html | applet | - |
+| forensics/sections/network-forensics/df-36-netflow.module.html | applet | - |
 | funding/proposal-guide.html | applet | - |
 | houses/ai/advanced/ai-adv-01.html | presentation | ai |
 | houses/ai/advanced/ai-adv-02.html | presentation | ai |
@@ -22890,15 +22888,6 @@
 | houses/divergent/ethics-it/quizzes/eth-w2.quiz.html | quiz | divergent |
 | houses/divergent/ethics-it/quizzes/eth-w3.quiz.html | quiz | divergent |
 | houses/eye/applets/cyberops/eye-kill-chain-diamond.applet.html | presentation | eye |
-| houses/eye/forensics/sections/advanced-forensics/df-55-malware-forensics.module.html | applet | eye |
-| houses/eye/forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html | applet | eye |
-| houses/eye/forensics/sections/disk-forensics/df-14-file-carving.module.html | applet | eye |
-| houses/eye/forensics/sections/evidence-foundations/df-01-evidence-types.module.html | applet | eye |
-| houses/eye/forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html | applet | eye |
-| houses/eye/forensics/sections/log-timeline/df-41-windows-events.module.html | applet | eye |
-| houses/eye/forensics/sections/log-timeline/df-46-siem-integration.module.html | applet | eye |
-| houses/eye/forensics/sections/network-forensics/df-33-tcp-streams.module.html | applet | eye |
-| houses/eye/forensics/sections/network-forensics/df-36-netflow.module.html | applet | eye |
 | houses/eye/games/eye-detection-engineering.applet.html | applet | eye |
 | houses/eye/games/eye-log-analysis-lab.applet.html | applet | eye |
 | houses/eye/games/eye-security-onion-soc.applet.html | applet | eye |
@@ -23958,7 +23947,6 @@
 | projects/web-online-portfolio.html | applet | - |
 | projects/web-pi-network-probe.html | applet | - |
 | projects/web-topology-visualizer.html | applet | - |
-| pulse.html | applet | - |
 | signal/sections/drone-security/sg-92-swarm-simulator.html | applet | - |
 | signal/sections/red-team-hw/ducky-course-03-payloads.html | applet | - |
 | signal/sections/red-team-hw/ducky-course-04-recon.html | applet | - |

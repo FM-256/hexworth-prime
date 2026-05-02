@@ -277,7 +277,7 @@ class LearningPathsValidator {
                     if (seenIds.has(module.id)) {
                         issues.push({
                             code: 'LP-003',
-                            severity: 'info',  // Cross-path inclusion is usually intentional (e.g., CCNA + Network+ overlap on networking modules). Was 'warning' until 2026-04-30 audit confirmed all 132 instances were cross-cert overlaps, no within-path dups.
+                            severity: 'warning',
                             category: 'learning-paths',
                             message: `Duplicate module ID '${module.id}' found in '${pathId}' (also in '${seenIds.get(module.id)}')`,
                             file: this.learningPathsFile,
@@ -412,37 +412,21 @@ class LearningPathsValidator {
         if (catalog) {
             const catalogIds = new Set(catalog.MODULES.map(m => m.id));
 
-            // Build prefix-tolerant lookup: catalog often house-prefixes ids
-            // (e.g., 'code-pyh-graphics-01') while LP references the bare form
-            // ('pyh-graphics-01'). Match either way to avoid false positives.
-            const catalogIdsByStripped = new Map();  // stripped -> [houseId-prefixed ids]
-            for (const m of catalog.MODULES) {
-                if (!m.id) continue;
-                const houseStripPattern = /^([a-z-]+?)-(.+)$/;
-                const match = m.id.match(houseStripPattern);
-                if (match) {
-                    const stripped = match[2];
-                    if (!catalogIdsByStripped.has(stripped)) catalogIdsByStripped.set(stripped, []);
-                    catalogIdsByStripped.get(stripped).push(m.id);
-                }
-            }
-
-            // LP-006: LP module not in ContentCatalog (with prefix-tolerant matching)
+            // LP-006: LP module not in ContentCatalog
             for (const [moduleId] of seenIds) {
-                if (catalogIds.has(moduleId)) continue;
-                // Try house-prefixed forms (catalog has e.g. 'code-pyh-...' for LP 'pyh-...')
-                if (catalogIdsByStripped.has(moduleId)) continue;
-                stats.missingFromCatalog++;
-                issues.push({
-                    code: 'LP-006',
-                    severity: 'low',  // Informational: module works fine, just not in ContentCatalog
-                    category: 'learning-paths',
-                    message: `LearningPaths module '${moduleId}' has no matching entry in ContentCatalog`,
-                    file: this.learningPathsFile,
-                    moduleId,
-                    pathId: seenIds.get(moduleId),
-                    fix: `Add module '${moduleId}' to ContentCatalog.js or remove it from LearningPaths`
-                });
+                if (!catalogIds.has(moduleId)) {
+                    stats.missingFromCatalog++;
+                    issues.push({
+                        code: 'LP-006',
+                        severity: 'low',  // Informational: module works fine, just not in ContentCatalog
+                        category: 'learning-paths',
+                        message: `LearningPaths module '${moduleId}' has no matching entry in ContentCatalog`,
+                        file: this.learningPathsFile,
+                        moduleId,
+                        pathId: seenIds.get(moduleId),
+                        fix: `Add module '${moduleId}' to ContentCatalog.js or remove it from LearningPaths`
+                    });
+                }
             }
 
             // LP-007: ContentCatalog course module not in any LP
