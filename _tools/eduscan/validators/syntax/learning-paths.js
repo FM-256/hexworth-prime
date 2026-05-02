@@ -277,7 +277,7 @@ class LearningPathsValidator {
                     if (seenIds.has(module.id)) {
                         issues.push({
                             code: 'LP-003',
-                            severity: 'warning',
+                            severity: 'info',  // Cross-path inclusion is usually intentional (e.g., CCNA + Network+ overlap on networking modules). Was 'warning' until 2026-04-30 audit confirmed all 132 instances were cross-cert overlaps, no within-path dups.
                             category: 'learning-paths',
                             message: `Duplicate module ID '${module.id}' found in '${pathId}' (also in '${seenIds.get(module.id)}')`,
                             file: this.learningPathsFile,
