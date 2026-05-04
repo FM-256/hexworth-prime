@@ -79,6 +79,35 @@ const TARGETS = [
             { type: 'selector-count', selector: '[data-module]', min: 10,
               note: 'WSA hub should render 20+ module cards via data-module attrs' }
         ]
+    },
+    // SYM-6 Tier 1 (Minimal): close the missing-house-index coverage gap. Eye,
+    // Script, and Dark Arts had ZERO smoke coverage. Each adds ~5s to deploy.
+    {
+        name: 'House of Eye',
+        url: '/houses/eye/index.html',
+        seedLocalStorage: { hexworth_house: 'eye' },
+        assertions: [
+            { type: 'selector-count', selector: '.module-card', min: 1,
+              note: 'House page should render at least one module card' }
+        ]
+    },
+    {
+        name: 'House of Script',
+        url: '/houses/script/index.html',
+        seedLocalStorage: { hexworth_house: 'script' },
+        assertions: [
+            { type: 'selector-count', selector: '.module-card', min: 1,
+              note: 'House page should render at least one module card' }
+        ]
+    },
+    {
+        name: 'House of Dark Arts',
+        url: '/houses/dark-arts/index.html',
+        seedLocalStorage: { hexworth_house: 'dark-arts' },
+        assertions: [
+            { type: 'selector-count', selector: '.module-card', min: 1,
+              note: 'House page should render at least one module card' }
+        ]
     }
 ];
 

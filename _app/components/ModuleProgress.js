@@ -1286,6 +1286,74 @@ const ModuleProgress = (function() {
         }
     }
 
+    /**
+     * Copy progress data from oldKey to newKey WITHOUT removing the source.
+     *
+     * Companion to migrateLegacyKey. Designed for N-way splits: when one
+     * legacy progress key needs to credit MULTIPLE new keys (each a distinct
+     * file that previously shared the legacy key), call copyLegacyKey N-1
+     * times with the same oldKey. Each call writes a new flat-format entry
+     * + a new completion stamp. The source key is preserved so subsequent
+     * copies can read it.
+     *
+     * IMPORTANT — what this does NOT touch (deliberately):
+     *   - progress.completedModules array. That array drives count-based
+     *     consumers (FirestoreManager sync, instructor dashboards, badges,
+     *     XP totals). Pushing newKey here would inflate "modules completed"
+     *     metrics across the platform. The student officially completed ONE
+     *     module under the legacy key; the secondary keys get progress-bar
+     *     visual credit only.
+     *   - progress.houses[houseId].modulesCompleted array — same reason.
+     *
+     * Order-of-operations contract: when used alongside migrateLegacyKey
+     * for the same oldKey, ALL copyLegacyKey calls MUST run before any
+     * migrateLegacyKey call. Migrate deletes the source; subsequent copies
+     * would silently no-op.
+     *
+     * @param {string} houseId  - house owning the progress (e.g., 'forge')
+     * @param {string} oldKey   - legacy moduleId to read progress FROM
+     * @param {string} newKey   - additional moduleId to ALSO credit
+     * @returns {string} 'copied' on success, 'already-set' if newKey already
+     *                   has progress (no-op), 'no-source' if oldKey has no
+     *                   progress data, '' on caller error
+     */
+    function copyLegacyKey(houseId, oldKey, newKey) {
+        if (!houseId || !oldKey || !newKey || oldKey === newKey) return '';
+        try {
+            const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+            const houseBlock = progress[houseId];
+            if (!houseBlock || houseBlock[oldKey] === undefined) return 'no-source';
+
+            // Strict undefined check — don't overwrite an existing entry even
+            // if its value is falsy (e.g., a partially-initialized record with
+            // percentComplete: 0). Any truthy/falsy non-undefined value means
+            // the key has been touched and we must not clobber.
+            if (houseBlock[newKey] !== undefined) return 'already-set';
+
+            // Copy the flat-format entry. JSON.stringify below produces an
+            // independent serialization, so the brief reference-share between
+            // the two keys is invisible to any future read.
+            houseBlock[newKey] = houseBlock[oldKey];
+
+            // Copy completion stamp (visual stamp on the secondary file's card).
+            try {
+                const stampKey = 'hexworth_completion_stamps';
+                const stamps = JSON.parse(localStorage.getItem(stampKey) || '{}');
+                const oldStampId = `${houseId}/${oldKey}`;
+                const newStampId = `${houseId}/${newKey}`;
+                if (stamps[oldStampId] && stamps[newStampId] === undefined) {
+                    stamps[newStampId] = stamps[oldStampId];
+                    localStorage.setItem(stampKey, JSON.stringify(stamps));
+                }
+            } catch (_) { /* completion stamps are visual-only; failure is non-critical */ }
+
+            localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+            return 'copied';
+        } catch (_) {
+            return '';
+        }
+    }
+
     return {
         complete,
         completeQuiz,
@@ -1295,6 +1363,7 @@ const ModuleProgress = (function() {
         updateStreak,
         trackVisit,
         migrateLegacyKey,
+        copyLegacyKey,
         _goToDashboard: navigateToDashboard  // Exposed for onclick in overlay HTML
     };
 })();
