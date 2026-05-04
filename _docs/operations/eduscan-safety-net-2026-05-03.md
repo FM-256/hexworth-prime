@@ -232,6 +232,13 @@ The safety net is platform infrastructure benefiting all future work. Putting it
 - Bypass flags: `--force` (skip Nexus only), `--skip-smoke` (skip smoke only), or both
 - `npm run deploy` is the canonical entry point — wrapper at `_tools/eduscan/smoke/deploy.sh` stays alive for non-hosting deploys
 
+**2026-05-04 — STR-30 PROG-003 resolved on Stragglers (Option C + migration shim)**
+- **What:** 5 web-troubleshooting modules shared one progress key. Only first-completed got XP; other 4 silently failed. Pre-existing on master too — Stragglers' enhanced progress-keys validator caught it as critical.
+- **Fix scope:** 5 module HTMLs + ContentCatalog (orphan deleted) + LearningPaths (id + prerequisites) + content-registry (entry + path) + skill-tree (contentId) + network-plus hub HTML (data-module attr) + ModuleProgress.js (new `migrateLegacyKey` function) + tool HTML (calls migrate before complete). 11 changes across 9 files.
+- **Why Option C not B:** Allowlisting suppresses the symptom; the bug was actively losing student XP in production. Comprehensive cross-system update aligns all consumers with catalog-canonical IDs. Migration shim preserves any existing single-completion legacy data.
+- **Verified:** EduScan critical 1 → 0, suite 58/58, smoke 6/6, ASGN-001 still 0 (LP rename safe).
+- **Commit:** Stragglers `66e123a3`.
+
 ### Smoke gate could be expanded later (low priority)
 Current 6 targets are blast-radius high. Could add:
 - Per-house index pages (currently only web + forge tested)
