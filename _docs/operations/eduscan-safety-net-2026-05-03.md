@@ -204,16 +204,28 @@ The safety net is platform infrastructure benefiting all future work. Putting it
 - Wired into run.js with code-validity + baseline regression assertions.
 - Test count: 54 → 58.
 
-**2026-05-04 — Runtime monitor Cloud Run deploy assets ready (NOT YET ACTIVATED)**
-- `_tools/runtime-monitor/Dockerfile` — node:20-bookworm-slim + system Chromium for Puppeteer
-- `_tools/runtime-monitor/package.json` — puppeteer dep, single-file npm package
-- `_tools/runtime-monitor/DEPLOY.md` — comprehensive gcloud command runbook (build + push + Cloud Run job + Cloud Scheduler trigger + cost estimate + rollback + Firestore-write upgrade path)
-- **Decisions still pending before activation:**
-  1. Cadence (recommended: every 15 min always, simplest cron `*/15 * * * *`; or business-hours-aware split)
-  2. Alert sink (MVP: Cloud Logging only; later: Firestore writes for Pulse, then optional Cloud Monitoring → email/push)
-  3. Per-operation authorization for each gcloud command per CLAUDE.md Rule #10
-- **Cost estimate at 15-min cadence:** ~$5-15/month
-- **To activate:** follow DEPLOY.md §0-§6 in order, decisions ratified one at a time
+**2026-05-04 — Runtime monitor Cloud Run deploy assets ready, then ACTIVATED**
+- Assets: `_tools/runtime-monitor/Dockerfile`, `package.json`, `DEPLOY.md` (full gcloud runbook with cost/rollback/Pulse-upgrade)
+- **Activated 2026-05-04 19:08Z** with recommended defaults:
+  - Cadence: `*/15 * * * *` America/New_York (every 15 min always)
+  - Alert sink: Cloud Logging only (Firestore→Pulse upgrade path documented in DEPLOY.md, deferred)
+- **Live GCP resources:**
+  - Image: `gcr.io/hexworth-prime/runtime-monitor:latest` (digest `sha256:8d438dd7...`)
+  - Cloud Run job: `runtime-monitor` (region us-central1, 1 vCPU / 1Gi RAM / 300s timeout)
+  - Cloud Scheduler: `runtime-monitor-15min` (us-central1, ENABLED)
+- **Verified end-to-end:**
+  - Manual `gcloud run jobs execute` from Cloud Run → 5/5 targets pass against hexworth.com
+  - Manual `gcloud scheduler jobs run` → triggers Cloud Run job → executes
+  - Output structured JSON in Cloud Logging via `gcloud logging read 'resource.type="cloud_run_job" AND resource.labels.job_name="runtime-monitor"'`
+- **Inspect status anytime:**
+  ```bash
+  gcloud run jobs executions list --job=runtime-monitor --region=us-central1 --limit=5
+  gcloud logging read 'resource.type="cloud_run_job" AND resource.labels.job_name="runtime-monitor"' --limit 3 --format="value(jsonPayload)"
+  ```
+- **Pause / disable** (zero cost, easy reactivate):
+  ```bash
+  gcloud scheduler jobs pause runtime-monitor-15min --location us-central1
+  ```
 
 **2026-05-04 — `deploy.sh` enhanced with branch check + smoke gate chain**
 - Now: branch (master only) → Nexus → smoke → firebase deploy
