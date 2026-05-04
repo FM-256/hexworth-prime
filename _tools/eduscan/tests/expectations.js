@@ -31,5 +31,8 @@ module.exports = {
     'progress-issues.html':            ['PROG-001', 'PROG-002'],
     'xp-issues.js':                     ['XP-001', 'XP-002', 'XP-003', 'XP-004'],
     'escape-issues.html':                ['HEUR-027'],
-    'completion-sig-issues.html':         ['HEUR-028']
+    'completion-sig-issues.html':         ['HEUR-028'],
+    'dep-issues.html':                     ['DEP-001', 'DEP-002', 'DEP-003', 'DEP-004', 'DEP-005'],
+    'blob-issues.module.html':              ['BLOB-001', 'BLOB-002', 'BLOB-003', 'BLOB-004'],
+    'heur-029-issues.html':                  ['HEUR-029']
 };

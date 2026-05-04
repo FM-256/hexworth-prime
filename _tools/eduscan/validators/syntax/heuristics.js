@@ -42,6 +42,7 @@
  * - HEUR-026: Course module links to house root instead of course hub — file inside a course directory (courses/xxx/) has a back/home link that escapes to the house root instead of the course's own index.html
  * - HEUR-027: Content link escapes to platform root — any file inside houses/ has an href that resolves above the house directory to the main platform dashboard (tenant isolation breach — students escape course context)
  * - HEUR-028: ModuleProgress.complete() signature mismatch — call does not follow the (houseId, moduleId, options) pattern; first arg is not a recognized house ID, or second arg appears to be a score/number instead of a module ID string
+ * - HEUR-029: Looks-clickable but isn't — non-anchor element styled as clickable (role="link"/"button", cursor:pointer + tabindex, onkeydown navigation, or href on non-anchor) with no onclick attribute AND no class/id wired up via JS addEventListener('click') or .onclick assignment; mouse clicks silently fail
  */
 
 const fs = require('fs');
@@ -134,6 +135,7 @@ class HeuristicsValidator {
         issues.push(...this.checkCourseModuleEscapesToHouseRoot(file));
         issues.push(...this.checkContentLinkEscapesToPlatformRoot(file));
         issues.push(...this.checkModuleProgressSignature(file));
+        issues.push(...this.checkLooksClickableButIsnt(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -2598,6 +2600,136 @@ class HeuristicsValidator {
 
         if (current.trim()) args.push(current);
         return args;
+    }
+
+    /**
+     * HEUR-029: Looks-clickable elements without click handlers.
+     *
+     * Catches the silent dead-click pattern: a non-anchor element styled to
+     * appear clickable (role="link"/"button", cursor:pointer + tabindex,
+     * onkeydown navigation, href on a non-anchor) that has neither an inline
+     * onclick attribute nor a JS-attached handler keyed off its class/id.
+     *
+     * Suppression: if the element's class or id appears in a JS context with
+     * addEventListener('click') or .onclick = wiring, assume it's JS-wired
+     * and skip. Severity is 'suspect' (human triage) not 'high' (block).
+     */
+    checkLooksClickableButIsnt(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        // Strip <style> blocks so CSS class references don't count as JS wiring
+        const jsOnly = content
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<!--[\s\S]*?-->/g, '');
+
+        // File has ANY click wiring at all? (cheap pre-check)
+        const hasAnyClickWiring = /\baddEventListener\s*\(\s*['"]click['"]/i.test(jsOnly)
+                                || /\.\s*onclick\s*=/i.test(jsOnly);
+
+        const tagPattern = /<([a-z][a-z0-9]*)\b([^>]*)>/gi;
+        const inherentlyClickable = new Set(['a', 'area', 'button', 'input', 'select', 'textarea', 'option', 'label', 'summary']);
+
+        let match;
+        while ((match = tagPattern.exec(content)) !== null) {
+            const tagName = match[1].toLowerCase();
+            const attrs = match[2];
+            if (inherentlyClickable.has(tagName)) continue;
+
+            const hasRoleLinkOrButton = /\brole\s*=\s*["'](?:link|button)["']/i.test(attrs);
+            const hasCursorPointer = /\bcursor\s*:\s*pointer\b/i.test(attrs);
+            const hasTabindex0 = /\btabindex\s*=\s*["']?0["']?/i.test(attrs);
+            const hasNavOnKeydown = /\bonkeydown\s*=\s*["'][^"']*window\.location/i.test(attrs);
+            const hasHrefAttr = /\bhref\s*=/i.test(attrs);
+            const hasOnclick = /\bonclick\s*=/i.test(attrs);
+
+            // Strong "looks clickable" signal
+            const explicit = hasRoleLinkOrButton;
+            // Weaker "looks clickable" requires combination
+            const implicit = (hasCursorPointer && hasTabindex0)
+                          || hasNavOnKeydown
+                          || (hasCursorPointer && hasHrefAttr);
+
+            if (!(explicit || implicit) || hasOnclick) continue;
+
+            // Suppression: is this element's class or id wired in JS?
+            if (hasAnyClickWiring) {
+                const classMatch = attrs.match(/\bclass\s*=\s*["']([^"']+)["']/i);
+                const idMatch = attrs.match(/\bid\s*=\s*["']([^"']+)["']/i);
+                const classList = classMatch ? classMatch[1].split(/\s+/).filter(Boolean) : [];
+                const elemId = idMatch ? idMatch[1] : null;
+
+                // Suppression requires PROXIMITY: a query for this class/id within 500 chars
+                // of an actual click attachment (.onclick = X or .addEventListener('click', X)).
+                // Bare querySelector('.X') without click wiring nearby = NOT suppressed.
+                const CLICK_WINDOW = 500;
+                const clickAttachRe = /(?:\.\s*onclick\s*=|\.\s*addEventListener\s*\(\s*['"]click['"])/i;
+
+                function hasNearbyClickWiring(queryRe) {
+                    let m;
+                    queryRe.lastIndex = 0;
+                    while ((m = queryRe.exec(jsOnly)) !== null) {
+                        const window = jsOnly.slice(m.index, m.index + CLICK_WINDOW);
+                        if (clickAttachRe.test(window)) return true;
+                    }
+                    return false;
+                }
+
+                let probablyWired = false;
+                if (elemId) {
+                    const escId = elemId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const idQueryRe = new RegExp(`(?:getElementById\\s*\\(\\s*['"]${escId}['"]|querySelector(?:All)?\\s*\\(\\s*['"]#${escId}\\b[^'"]*['"])`, 'gi');
+                    if (hasNearbyClickWiring(idQueryRe)) probablyWired = true;
+
+                    // Variable tracking: var/let/const X = document.getElementById('Y'); ... ; X.addEventListener('click'
+                    if (!probablyWired) {
+                        const varAssignRe = new RegExp(`\\b(?:var|let|const)\\s+(\\w+)\\s*=\\s*(?:document\\.)?getElementById\\s*\\(\\s*['"]${escId}['"]`, 'gi');
+                        let vm;
+                        while ((vm = varAssignRe.exec(jsOnly)) !== null) {
+                            const varName = vm[1];
+                            const escVar = varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            if (new RegExp(`\\b${escVar}\\s*\\.\\s*addEventListener\\s*\\(\\s*['"]click['"]`, 'i').test(jsOnly)
+                             || new RegExp(`\\b${escVar}\\s*\\.\\s*onclick\\s*=`, 'i').test(jsOnly)) {
+                                probablyWired = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!probablyWired) {
+                    for (const cls of classList) {
+                        const escCls = cls.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const clsQueryRe = new RegExp(`(?:querySelector(?:All)?\\s*\\(\\s*['"]\\.${escCls}\\b[^'"]*['"]|getElementsByClassName\\s*\\(\\s*['"]${escCls}\\b[^'"]*['"]|closest\\s*\\(\\s*['"]\\.${escCls}\\b[^'"]*['"])`, 'gi');
+                        if (hasNearbyClickWiring(clsQueryRe)) {
+                            probablyWired = true;
+                            break;
+                        }
+                    }
+                }
+                if (probablyWired) continue;
+            }
+
+            const line = this.getLineNumber(content, match.index);
+            const signals = [];
+            if (hasRoleLinkOrButton) signals.push('role="link/button"');
+            if (hasCursorPointer) signals.push('cursor:pointer');
+            if (hasTabindex0) signals.push('tabindex="0"');
+            if (hasNavOnKeydown) signals.push('onkeydown→navigation');
+            if (hasHrefAttr) signals.push('href= (inert on non-anchor)');
+
+            issues.push({
+                code: 'HEUR-029',
+                severity: 'suspect',
+                category: 'heuristic',
+                message: `<${tagName}> looks clickable (${signals.join(', ')}) but has no onclick handler and no JS-wired class/id`,
+                file: file.path,
+                line,
+                fix: `Add onclick="..." matching intent, or convert <${tagName}> to <a href="..."> for navigation`
+            });
+        }
+
+        return issues;
     }
 
     /**
