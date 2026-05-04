@@ -124,6 +124,37 @@ _tools/eduscan/smoke/deploy.sh --only functions
 _tools/eduscan/smoke/deploy.sh --only firestore:rules,firestore:indexes
 ```
 
+#### Runtime Monitor (continuous)
+`_tools/runtime-monitor/`
+
+Cloud Run job triggered by Cloud Scheduler every 15 min. Same Puppeteer headless probes as the smoke gate, but pointed at LIVE production (`https://hexworth.com`) instead of a local server. Outputs structured JSON to Cloud Logging.
+
+Catches outages that occur AFTER deploy passed: CDN propagation issues, Firestore index changes, third-party degradation, slow-burn JS errors that only surface after auth-token refresh.
+
+Live status:
+```
+gcloud logging read 'resource.type="cloud_run_job" AND resource.labels.job_name="runtime-monitor"' --limit 1 --format='value(timestamp,jsonPayload.allPassed,jsonPayload.passed,jsonPayload.failed)'
+```
+
+Deploy + scheduler details: `_tools/runtime-monitor/DEPLOY.md`. Tiered alerts (push/email): designed in `_docs/operations/sym-3-tiered-alerts-design.md` (pending build).
+
+#### Safety net architecture (full picture)
+
+```
+[1] PRE-COMMIT      [2] PRE-MERGE       [3] PRE-DEPLOY      [4] CONTINUOUS
+single-file lint    cross-file checks   smoke + nexus       runtime monitor
+~1 sec              ~5 sec              ~60 sec             every 15 min
+local hook (SYM-5)  local script        deploy.sh chain     Cloud Run job
+                                                            ↓
+                                                            tiered alerts (SYM-3)
+                                                            ↓
+                                                            Pulse / push / email
+```
+
+Per-stage validator matrix and override rules: `_docs/operations/safety-net-architecture.md`.
+What humans do when a stage fires after deploy: `_docs/operations/incident-response-playbook.md`.
+How to use the architecture for a high-stakes merge: `_docs/operations/fusion-runbook.md`.
+
 ### Sprint Master — The Backlog
 `_tools/sprint-master/`
 

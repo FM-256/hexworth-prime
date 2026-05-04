@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "lastUpdated": "2026-05-04T22:18:04.939Z",
+    "lastUpdated": "2026-05-04T22:27:47.435Z",
     "migratedFrom": "SPRINT_BACKLOG.md",
     "migratedAt": "2026-02-21T16:29:10.805Z",
     "archivedCount": 488
@@ -23603,12 +23603,12 @@
       "id": "SYM-3",
       "title": "Tiered alerts — Cloud Function watcher for runtime monitor failures",
       "series": "SYM",
-      "status": "open",
+      "status": "design-review",
       "priority": "high",
       "houses": [],
       "depends": [],
       "commits": [],
-      "notes": "Currently runtime monitor (Cloud Run, every 15 min) writes results to Cloud Logging only — failures sit there until someone looks. Build alert plumbing: Cloud Function triggered by Cloud Logging entries where jsonPayload.allPassed=false. Send tiered alerts: Pulse dashboard refresh (passive), push notification (medium), email via SendGrid/Mailgun (high — prod-down level). Decision points: which severity triggers which channel; rate-limiting (alert storm prevention); on-call rotation. DEPLOY.md has the basic Firestore-write upgrade pattern; alerts build on top.",
+      "notes": "Currently runtime monitor (Cloud Run, every 15 min) writes results to Cloud Logging only — failures sit there until someone looks. Build alert plumbing: Cloud Function triggered by Cloud Logging entries where jsonPayload.allPassed=false. Send tiered alerts: Pulse dashboard refresh (passive), push notification (medium), email via SendGrid/Mailgun (high — prod-down level). Decision points: which severity triggers which channel; rate-limiting (alert storm prevention); on-call rotation. DEPLOY.md has the basic Firestore-write upgrade pattern; alerts build on top.\n\nDESIGN DRAFTED 2026-05-04: Architecture proposal at _docs/operations/sym-3-tiered-alerts-design.md. Recommends Option 1 (Cloud Function watcher via Pub/Sub from Cloud Logging sink) in 3 phases: Phase A (Pulse passive — also SYM-4), Phase B (push notifications), Phase C (email for PAGE severity). 5 user decisions required before code: routing option, phase order, push channel, email provider, severity thresholds. <$1/month added cost. Awaiting user direction.",
       "created": "2026-05-04",
       "updated": "2026-05-04"
     },
@@ -23631,12 +23631,12 @@
       "id": "SYM-5",
       "title": "Pre-commit hook — single-file EduScan lint at edit time",
       "series": "SYM",
-      "status": "open",
+      "status": "design-review",
       "priority": "medium",
       "houses": [],
       "depends": [],
       "commits": [],
-      "notes": "Catch validator failures before commit (faster feedback than pre-merge or pre-deploy). Add .git/hooks/pre-commit (or husky) running EduScan against staged files only. Should complete fast (target <2s for typical commit). Validators to include: emoji, paths, naming, syntax (HTML/JS), heuristics — the per-file ones. Skip global validators (CSP, palette, content-catalog) — those run pre-deploy. Provide --no-verify escape hatch with logged reason. Documents the staged-rules architecture (pre-commit / pre-merge / pre-deploy / continuous tiers).",
+      "notes": "Catch validator failures before commit (faster feedback than pre-merge or pre-deploy). Add .git/hooks/pre-commit (or husky) running EduScan against staged files only. Should complete fast (target <2s for typical commit). Validators to include: emoji, paths, naming, syntax (HTML/JS), heuristics — the per-file ones. Skip global validators (CSP, palette, content-catalog) — those run pre-deploy. Provide --no-verify escape hatch with logged reason. Documents the staged-rules architecture (pre-commit / pre-merge / pre-deploy / continuous tiers).\n\nDESIGN GAPS SURFACED 2026-05-04 by adversarial review. Three blockers before implementation:\n1) Architecture-contract conflict: safety-net-architecture.md specifies cli.js --staged but lower-blast-radius option is a separate staged.js. Need explicit decision (Option A=modify cli.js, Option B=new file).\n2) Three validators (heuristics, sandbox, xp-audit) have partial per-file coverage — .validate() handles single-file rules but .validateGlobal() handles cross-file rules. Doc updated to clarify which rules surface at which stage.\n3) Shell handoff must use null-delimited (mapfile -d) not newline-quoted to handle filenames with spaces. Doc updated.\n4) paths.js disk-vs-index edge case for renames — caveat documented, runner must pass post-rename paths.\n\nImplementation paused. Need user decision on Option A vs Option B.",
       "created": "2026-05-04",
       "updated": "2026-05-04"
     },
@@ -23657,14 +23657,16 @@
       "id": "SYM-7",
       "title": "Stage validators by deployment phase — formal architecture doc",
       "series": "SYM",
-      "status": "open",
+      "status": "done",
       "priority": "medium",
       "houses": [],
       "depends": [
         "SYM-5"
       ],
-      "commits": [],
-      "notes": "Formalize the staged-rules architecture: pre-commit (single-file fast lint) / pre-merge (cross-file consistency) / pre-deploy (smoke gate + Nexus) / continuous (runtime monitor). Document which validator runs at which stage and why. Currently ad-hoc — Nexus runs pre-deploy via deploy.sh, smoke gate runs pre-deploy, EduScan tests run on demand. Need explicit contract per stage: which validators, what blocks vs warns, what override mechanism. Output: _docs/operations/safety-net-architecture.md.",
+      "commits": [
+        "pending"
+      ],
+      "notes": "Formalize the staged-rules architecture: pre-commit (single-file fast lint) / pre-merge (cross-file consistency) / pre-deploy (smoke gate + Nexus) / continuous (runtime monitor). Document which validator runs at which stage and why. Currently ad-hoc — Nexus runs pre-deploy via deploy.sh, smoke gate runs pre-deploy, EduScan tests run on demand. Need explicit contract per stage: which validators, what blocks vs warns, what override mechanism. Output: _docs/operations/safety-net-architecture.md.\n\nDONE 2026-05-04: Architecture doc written at _docs/operations/safety-net-architecture.md. Defines 4 stages (pre-commit / pre-merge / pre-deploy / continuous), assigns each of 28 validators to its owning stage (per-validator matrix), specifies override mechanisms, documents current baselines and gaps. SYM-11 (INTRO.md update) and SYM-5 (pre-commit hook) build on this contract.",
       "created": "2026-05-04",
       "updated": "2026-05-04"
     },
@@ -23711,14 +23713,16 @@
       "id": "SYM-11",
       "title": "INTRO.md update — full safety net architecture",
       "series": "SYM",
-      "status": "open",
+      "status": "done",
       "priority": "low",
       "houses": [],
       "depends": [
         "SYM-7"
       ],
-      "commits": [],
-      "notes": "_tools/INTRO.md currently mentions smoke gate + deploy chain in the EduScan section. Add full architecture diagram showing: pre-commit hook → pre-merge validators → pre-deploy smoke + Nexus → firebase deploy → runtime monitor → tiered alerts → Pulse. Cross-link to operations doc, fusion runbook, runtime monitor DEPLOY.md. Goal: a new contributor can understand the safety net end-to-end from one file.",
+      "commits": [
+        "pending"
+      ],
+      "notes": "_tools/INTRO.md currently mentions smoke gate + deploy chain in the EduScan section. Add full architecture diagram showing: pre-commit hook → pre-merge validators → pre-deploy smoke + Nexus → firebase deploy → runtime monitor → tiered alerts → Pulse. Cross-link to operations doc, fusion runbook, runtime monitor DEPLOY.md. Goal: a new contributor can understand the safety net end-to-end from one file.\n\nDONE 2026-05-04: Updated _tools/INTRO.md EduScan section to add Runtime Monitor subsection + full safety net architecture diagram (4 stages) with cross-links to safety-net-architecture.md, incident-response-playbook.md, fusion-runbook.md, sym-3-tiered-alerts-design.md.",
       "created": "2026-05-04",
       "updated": "2026-05-04"
     },
@@ -23726,12 +23730,14 @@
       "id": "SYM-12",
       "title": "Incident response playbook",
       "series": "SYM",
-      "status": "open",
+      "status": "done",
       "priority": "medium",
       "houses": [],
       "depends": [],
-      "commits": [],
-      "notes": "Codify the v7.1.0 ZION lessons + Phase 3 fusion experience as an incident response runbook. Sections: (1) Detection — what each safety net layer catches, what reaches humans. (2) Triage — severity classification, who responds. (3) Rollback — rollback tag pattern (pre-fusion-2026-05-04 example), git reset commands, redeploy via ./deploy.sh, Cloud Run scheduler pause. (4) Diagnosis — runtime monitor logs, Cloud Logging queries, common failure patterns. (5) Recovery — post-incident: tag retention, branch cleanup, doc updates. Output: _docs/operations/incident-response-playbook.md.",
+      "commits": [
+        "pending"
+      ],
+      "notes": "Codify the v7.1.0 ZION lessons + Phase 3 fusion experience as an incident response runbook. Sections: (1) Detection — what each safety net layer catches, what reaches humans. (2) Triage — severity classification, who responds. (3) Rollback — rollback tag pattern (pre-fusion-2026-05-04 example), git reset commands, redeploy via ./deploy.sh, Cloud Run scheduler pause. (4) Diagnosis — runtime monitor logs, Cloud Logging queries, common failure patterns. (5) Recovery — post-incident: tag retention, branch cleanup, doc updates. Output: _docs/operations/incident-response-playbook.md.\n\nDONE 2026-05-04: Playbook written at _docs/operations/incident-response-playbook.md. 5 sections (detection, triage, rollback, diagnosis, recovery), 3 appendices (cheat sheet, forbidden actions, reference incidents v7.1.0 ZION + Phase 3 fusion). Self-extending: §5f forces post-mortem questions whose answers become next sprint items.",
       "created": "2026-05-04",
       "updated": "2026-05-04"
     },
@@ -23767,14 +23773,15 @@
       "id": "SYM-15",
       "title": "PROG-003 cross-platform audit — find other shared-key bugs",
       "series": "SYM",
-      "status": "open",
+      "status": "in-review",
       "priority": "high",
       "houses": [],
       "depends": [],
       "commits": [],
-      "notes": "STR-30 fixed the web-troubleshooting shared key (5 modules sharing one key). Run PROG-003 validator against the full platform (post-fusion) to find any OTHER shared-key bugs we have not yet caught. Each occurrence means students lose XP credit on subsequent completions. Use ModuleProgress.migrateLegacyKey shim pattern (reference_module_progress_migrate_legacy_key.md memory) for each fix. Likely candidates: any topic with multiple delivery formats (presentation + lab + tool) sharing the topic name as key. Output: list of all occurrences in PROG_003_REPORT.json, then fix each as separate ticket SYM-15a, SYM-15b, etc.",
+      "notes": "STR-30 fixed the web-troubleshooting shared key (5 modules sharing one key). Run PROG-003 validator against the full platform (post-fusion) to find any OTHER shared-key bugs we have not yet caught. Each occurrence means students lose XP credit on subsequent completions. Use ModuleProgress.migrateLegacyKey shim pattern (reference_module_progress_migrate_legacy_key.md memory) for each fix. Likely candidates: any topic with multiple delivery formats (presentation + lab + tool) sharing the topic name as key. Output: list of all occurrences in PROG_003_REPORT.json, then fix each as separate ticket SYM-15a, SYM-15b, etc.\n\nAUDIT COMPLETE 2026-05-04: 132 collisions found (0 critical, 132 medium). Full report: _docs/operations/prog003-audit-2026-05-04.md. Categories: 17 three-plus collisions (all bug), 24 web NP/NE duplicates (all bug), 5 forge triples (all bug), 31 CLH pairs (likely bug), 23 presentation+lab pairs (mixed), 10 lab+tool pairs (likely intentional), 11 other. Recommended path: Option B hybrid (fix unambiguous bugs ~100 + allowlist intentional ~30). Awaiting user direction on per-category fix vs allowlist.",
       "created": "2026-05-04",
-      "updated": "2026-05-04"
+      "updated": "2026-05-04",
+      "completed": null
     }
   ]
 }
