@@ -3651,7 +3651,7 @@ class LearningPaths {
                     prerequisites: ['web-acl-viz']
                 },
                 {
-                    id: 'web-troubleshooting',
+                    id: 'web-troubleshoot-viz',
                     title: 'Troubleshooting Toolkit',
                     type: 'tool',
                     difficulty: 'intermediate',
@@ -3666,7 +3666,7 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '30 min',
                     href: 'houses/web/labs/web-static-routes.lab.html',
-                    prerequisites: ['web-troubleshooting']
+                    prerequisites: ['web-troubleshoot-viz']
                 },
                 // Hands-on & Final
                 {

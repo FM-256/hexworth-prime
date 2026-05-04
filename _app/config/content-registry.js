@@ -498,8 +498,8 @@ const ContentRegistry = {
             ]
         },
 
-        'web-troubleshooting': {
-            id: 'web-troubleshooting',
+        'web-troubleshoot-viz': {
+            id: 'web-troubleshoot-viz',
             title: 'Network Troubleshooting',
             description: 'Systematic approach to diagnosing network issues',
             house: 'web',
@@ -24167,7 +24167,7 @@ const ContentRegistry = {
                 'web-wireless',
                 'web-network-services',
                 // Domain 3: Network Operations
-                'web-troubleshooting',
+                'web-troubleshoot-viz',
                 // Domain 4: Network Security
                 'shield-cia-triad',
                 // Hands-on Lab
