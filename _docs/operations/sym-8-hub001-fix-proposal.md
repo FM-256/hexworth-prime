@@ -63,18 +63,28 @@ Three observed root causes:
 
 ## Three fix strategies
 
+### Stale-ref handling (applies to all strategies below)
+
+Per the "we do not destroy" rule, broken hub refs are NEVER fixed by removing the line. When the content file genuinely doesn't exist, the canonical handling is:
+
+1. **Add a catalog entry with `status: "planned"`** — the hub renderer reads `status` and renders a "coming soon" tile instead of a broken card. Catalog entry stays as a tracked TODO.
+2. **Add an HTML comment + `data-status="placeholder"`** on the card itself, so the source clearly declares intent without changing visible behavior. Renderer can style placeholders distinctly.
+3. **Open a sprint item** for building the missing content. The hub line stays; the sprint backlog grows by one entry.
+
+What is NEVER done: deleting the `<div data-module="X">` line, removing `data-module="X"` from a card, or stripping the catalog entry. Every reference is a documented intent — the broken state means we need to fulfill it, not erase it.
+
 ### Strategy 1 — Per-hub manual fix (most thorough)
 
 For each of the 27 hubs:
 1. Open the hub
 2. For each broken ref, identify whether the content file exists
-3. If exists: add the catalog entry (with proper title, href, type, tags)
-4. If missing: remove the hub reference OR build the missing content
+3. If exists: add the catalog entry (full metadata — title, href, type, tags)
+4. If missing: add the catalog entry with `status: "planned"` AND open a sprint item AND tag the HTML card `data-status="placeholder"`
 5. Verify hub renders cleanly with a smoke gate test
 
 **Pros:**
 - Cleanest end state
-- Catches stale refs (case 3) that other strategies might paper over
+- Catches stale refs (case 3) and converts them into tracked sprint work, not lost intent
 - Hub layouts get reviewed for sanity at the same time
 - Each fix is a small, audit-trail-friendly commit
 
@@ -127,8 +137,9 @@ After each commit: re-run HUB-001 standalone, verify baseline drops as expected.
 
 1. **Strategy 1, 2, or 3?** Strategy 3 (hybrid) recommended.
 2. **Order of attack** — small hubs first (recommended) or biggest hubs first?
-3. **Stale ref handling** — when a hub references content that doesn't exist on disk, default to (a) remove the hub reference or (b) leave a placeholder card with "coming soon" text?
-4. **Pacing** — fix all in this sprint, or land in chunks across sprints?
+3. **Stale ref placeholder mechanism** — confirm the pattern: catalog entry with `status: "planned"` + HTML card with `data-status="placeholder"` + sprint backlog item per missing piece. Renderer must read `status` and render a "coming soon" tile rather than a broken card.
+4. **Renderer support** — does the current hub renderer already honor `status: "planned"`? If not, that's a small renderer change (one commit, no production impact for existing planned-status entries because there are zero today) that should land BEFORE any hub fixes.
+5. **Pacing** — fix all in this sprint, or land in chunks across sprints?
 
 ---
 

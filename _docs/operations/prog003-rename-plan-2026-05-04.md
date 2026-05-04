@@ -56,7 +56,7 @@ This preserves student progress for the file most likely to have been completed 
 
 ## Migration shim contract
 
-Every rename adds one line to `_app/components/ModuleProgress.js` initialization:
+Every rename adds one or more lines to `_app/components/ModuleProgress.js` initialization. The shim API:
 
 ```js
 ModuleProgress.migrateLegacyKey('houseId', 'oldKey', 'newKey');
@@ -66,8 +66,33 @@ Per `reference_module_progress_migrate_legacy_key.md` memory:
 - Idempotent — no-op if already migrated for the user
 - Migrates flat-format progress + completedModules array + completion-stamps registry
 - Runs once on app boot, low overhead
+- The shim COPIES (rather than moves) when the source key still has a canonical owner — see "cross-credit handling" below
 
-After all 76 entries are added, every student who already completed the OLD key gets credit transferred to the NEW key on next visit. No XP loss.
+### Cross-credit handling for N-way splits (default policy)
+
+When ONE old shared key splits into MULTIPLE new keys (3+ collisions in Section A, all of Section B/C/D where the canonical-keeper file also retains the old key), the migration shim has a 1-to-N problem: a student's old `forge-admin-tools` completion could have been done in any of the three files, and the platform never knew which.
+
+**Default policy: cross-credit.** The legacy key migrates to ALL new keys. Every student who had the old key marked complete gets credit for ALL files in the original collision.
+
+```js
+// Cross-credit pattern for forge-admin-tools triple
+ModuleProgress.migrateLegacyKey('forge', 'forge-admin-tools', 'forge-admin-tools-aplus-c2-lab');
+ModuleProgress.migrateLegacyKey('forge', 'forge-admin-tools', 'forge-admin-tools-aplus-c2-pres');
+// Note: canonical-keeper file (houses/forge/labs/forge-admin-tools.lab.html) keeps the
+// original 'forge-admin-tools' key — no migration needed for it; pre-existing progress
+// already maps correctly. The two migrateLegacyKey calls COPY the legacy completion
+// flag to the two new keys without removing it from the source.
+```
+
+**Why cross-credit over single-inheritor:**
+- Honest about the bug: under the old shared key the platform genuinely could not tell which file a student completed. Picking one file as primary inheritor would arbitrarily strand legitimate completions.
+- "We do not destroy" applies to student progress data too. Cross-credit preserves; single-inheritor erases (for the non-chosen files).
+- Inflation risk is small: students get credit for a few files they may not have done, but the alternative is they get no credit for files they DID do.
+- Reversible: if cross-credit produces noise, a future shim run with `--single-inheritor` flag could un-credit, but the student data itself is preserved.
+
+**When single-inheritor IS appropriate:** when ONE renamed file is unambiguously the historical canonical (e.g., the standalone version that predates the applet copy). The plan flags these case-by-case in execution.
+
+After all 76 entries are added (with cross-credit lines for the 17 three-plus collisions adding ~34 extra shim calls), every student who already completed any file in any collision gets credit for all files in that collision. No XP loss; some XP gain for cross-credited completions.
 
 ---
 
