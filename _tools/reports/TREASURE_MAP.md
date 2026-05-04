@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-04-29 9:49:41 AM
+                    Scanned: 2026-05-04 5:35:57 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5047 |
-| Directories | 1202 |
-| Content Files | 5047 |
-| Scan Duration | 2213ms |
+| Files Scanned | 5062 |
+| Directories | 1185 |
+| Content Files | 5062 |
+| Scan Duration | 441ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
 | presentation | 2296 |
-| html | 1484 |
+| html | 1490 |
 | lab | 587 |
 | quiz | 487 |
-| applet | 193 |
+| applet | 202 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 2729 |
-| Available | 2724 |
+| Total Modules | 2996 |
+| Available | 2991 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 280 |
+| Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 61 |
-| Warning | 2463 |
-| Info | 451 |
-| **Total** | **11900** |
+| Warning | 2332 |
+| Info | 593 |
+| **Total** | **11943** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3551 |
+| Ready | 3560 |
 | Not Ready | 12 |
-| Unknown | 1484 |
+| Unknown | 1490 |
 
 
 ## FILE HIERARCHY
@@ -389,59 +389,47 @@
 │   │   │   ├── 📄 badge.html
 │   │   │   ├── 📄 caseboard.html
 │   │   │   ├── 📄 email.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📄 hr.html
 │   │   │   ├── 📍 index.html
-│   │   │   ├── 📁 reports
 │   │   │   ├── 📄 siem.html
 │   │   │   └── 📄 workstation.html
 │   │   ├── 📁 ow-02-dead-drop
 │   │   │   ├── 📄 caseboard.html
 │   │   │   ├── 📄 comms.html
 │   │   │   ├── 📄 contracts.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📄 exchange.html
 │   │   │   ├── 📄 explorer.html
 │   │   │   ├── 📍 index.html
-│   │   │   ├── 📄 mixer.html
-│   │   │   └── 📁 reports
+│   │   │   └── 📄 mixer.html
 │   │   ├── 📁 ow-03-glass-house
 │   │   │   ├── 📄 bms.html
 │   │   │   ├── 📄 cameras.html
 │   │   │   ├── 📄 caseboard.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 network.html
-│   │   │   ├── 📁 reports
 │   │   │   ├── 📄 workstation-a.html
 │   │   │   └── 📄 workstation-b.html
 │   │   ├── 📁 ow-04-burned-source
 │   │   │   ├── 📄 caseboard.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 laptop.html
 │   │   │   ├── 📄 newsroom.html
 │   │   │   ├── 📄 osint.html
 │   │   │   ├── 📄 phone.html
-│   │   │   ├── 📁 reports
 │   │   │   └── 📄 tipline.html
 │   │   ├── 📁 ow-05-phantom-ledger
 │   │   │   ├── 📄 banking.html
 │   │   │   ├── 📄 caseboard.html
 │   │   │   ├── 📄 email.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📍 index.html
-│   │   │   ├── 📁 reports
 │   │   │   ├── 📄 sar.html
 │   │   │   ├── 📄 shell.html
 │   │   │   └── 📄 surveillance.html
 │   │   ├── 📁 ow-06-signal-lost
 │   │   │   ├── 📄 briefing.html
 │   │   │   ├── 📄 caseboard.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 network.html
-│   │   │   ├── 📁 reports
 │   │   │   ├── 📄 satellite.html
 │   │   │   ├── 📄 sigint.html
 │   │   │   └── 📄 telemetry.html
@@ -449,62 +437,50 @@
 │   │   │   ├── 📄 attribution.html
 │   │   │   ├── 📄 caseboard.html
 │   │   │   ├── 📄 domains.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 narrative.html
 │   │   │   ├── 📄 payments.html
-│   │   │   ├── 📁 reports
 │   │   │   └── 📄 social.html
 │   │   ├── 📁 ows-01-ghost-haul
 │   │   │   ├── 📄 caseboard.html
 │   │   │   ├── 📄 email.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📄 gps.html
 │   │   │   ├── 📄 iam.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 network.html
-│   │   │   ├── 📁 reports
 │   │   │   └── 📄 tms.html
 │   │   ├── 📁 ows-02-paper-trail
 │   │   │   ├── 📄 carrier.html
 │   │   │   ├── 📄 caseboard.html
 │   │   │   ├── 📄 docs.html
 │   │   │   ├── 📄 email.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📄 financial.html
 │   │   │   ├── 📍 index.html
-│   │   │   ├── 📄 loadboard.html
-│   │   │   └── 📁 reports
+│   │   │   └── 📄 loadboard.html
 │   │   ├── 📁 ows-03-black-box
 │   │   │   ├── 📄 api.html
 │   │   │   ├── 📄 cameras.html
 │   │   │   ├── 📄 caseboard.html
 │   │   │   ├── 📄 eld.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 manifest.html
-│   │   │   ├── 📄 network.html
-│   │   │   └── 📁 reports
+│   │   │   └── 📄 network.html
 │   │   ├── 📁 ows-04-iron-gate
 │   │   │   ├── 📄 caseboard.html
 │   │   │   ├── 📄 customs.html
 │   │   │   ├── 📄 drayage.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📄 gate.html
 │   │   │   ├── 📄 iam.html
 │   │   │   ├── 📍 index.html
-│   │   │   ├── 📁 reports
 │   │   │   └── 📄 tos.html
 │   │   ├── 📁 ows-05-blind-spot
 │   │   │   ├── 📄 carrier.html
 │   │   │   ├── 📄 caseboard.html
 │   │   │   ├── 📄 dispatch.html
 │   │   │   ├── 📄 email.html
-│   │   │   ├── 📁 evidence
 │   │   │   ├── 📄 financial.html
 │   │   │   ├── 📍 index.html
-│   │   │   ├── 📄 loadboard.html
-│   │   │   └── 📁 reports
+│   │   │   └── 📄 loadboard.html
 │   │   ├── 📁 rev-01-strings-basics
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 rev-02-disassembly
@@ -1066,75 +1042,7 @@
 ├── 📁 docs
 ├── 📄 faq.html
 ├── 📁 forensics
-│   ├── 📍 index.html
-│   └── 📁 sections
-│       ├── 📁 advanced-forensics
-│       │   ├── 📄 df-51-anti-forensics.module.html
-│       │   ├── 📄 df-52-cloud-forensics.module.html
-│       │   ├── 📄 df-53-mobile-forensics.module.html
-│       │   ├── 📄 df-54-iot-forensics.module.html
-│       │   ├── 📄 df-55-malware-forensics.module.html
-│       │   ├── 📄 df-56-steganography.module.html
-│       │   ├── 📄 df-57-incident-response.module.html
-│       │   ├── 📄 df-58-tool-validation.module.html
-│       │   ├── 📄 df-59-live-vs-dead.module.html
-│       │   ├── 📄 df-60-advanced-capstone.module.html
-│       │   └── 📄 df-61-ai-generated-imagery.module.html
-│       ├── 📁 disk-forensics
-│       │   ├── 📄 df-11-file-systems.module.html
-│       │   ├── 📄 df-12-disk-imaging.module.html
-│       │   ├── 📄 df-13-autopsy.module.html
-│       │   ├── 📄 df-14-file-carving.module.html
-│       │   ├── 📄 df-15-metadata.module.html
-│       │   ├── 📄 df-16-deleted-recovery.module.html
-│       │   ├── 📄 df-17-mft-inodes.module.html
-│       │   ├── 📄 df-18-slack-space.module.html
-│       │   ├── 📄 df-19-write-blockers.module.html
-│       │   └── 📄 df-20-disk-capstone.module.html
-│       ├── 📁 evidence-foundations
-│       │   ├── 📄 df-01-evidence-types.module.html
-│       │   ├── 📄 df-02-chain-of-custody.module.html
-│       │   ├── 📄 df-03-nist-800-86.module.html
-│       │   ├── 📄 df-04-order-of-volatility.module.html
-│       │   ├── 📄 df-05-cfaa-federal-laws.module.html
-│       │   ├── 📄 df-06-ecpa-wiretap.module.html
-│       │   ├── 📄 df-07-fourth-amendment.module.html
-│       │   ├── 📄 df-08-expert-witness.module.html
-│       │   ├── 📄 df-09-ethics.module.html
-│       │   └── 📄 df-10-evidence-capstone.module.html
-│       ├── 📁 log-timeline
-│       │   ├── 📄 df-41-windows-events.module.html
-│       │   ├── 📄 df-42-linux-logs.module.html
-│       │   ├── 📄 df-43-log-correlation.module.html
-│       │   ├── 📄 df-44-plaso-timeline.module.html
-│       │   ├── 🔬 df-45-timeline-lab.module.html
-│       │   ├── 📄 df-46-siem-integration.module.html
-│       │   ├── 📄 df-47-browser-forensics.module.html
-│       │   ├── 📄 df-48-email-headers.module.html
-│       │   ├── 📄 df-49-registry-forensics.module.html
-│       │   └── 📄 df-50-timeline-capstone.module.html
-│       ├── 📁 memory-forensics
-│       │   ├── 📄 df-21-volatile-evidence.module.html
-│       │   ├── 📄 df-22-acquisition-tools.module.html
-│       │   ├── 📄 df-23-volatility-setup.module.html
-│       │   ├── 📄 df-24-process-analysis.module.html
-│       │   ├── 📄 df-25-injection-detection.module.html
-│       │   ├── 📄 df-26-malware-recovery.module.html
-│       │   ├── 📄 df-27-registry-extraction.module.html
-│       │   ├── 📄 df-28-network-connections.module.html
-│       │   ├── 🔬 df-29-workflow-lab.module.html
-│       │   └── 📄 df-30-memory-capstone.module.html
-│       └── 📁 network-forensics
-│           ├── 📄 df-31-packet-capture.module.html
-│           ├── 📄 df-32-wireshark.module.html
-│           ├── 📄 df-33-tcp-streams.module.html
-│           ├── 📄 df-34-dns-exfiltration.module.html
-│           ├── 📄 df-35-encrypted-traffic.module.html
-│           ├── 📄 df-36-netflow.module.html
-│           ├── 📄 df-37-pcap-extraction.module.html
-│           ├── 📄 df-38-ids-correlation.module.html
-│           ├── 📄 df-39-wireless.module.html
-│           └── 📄 df-40-network-capstone.module.html
+│   └── 📍 index.html
 ├── 📁 funding
 │   ├── 📍 index.html
 │   └── 📄 proposal-guide.html
@@ -1659,6 +1567,8 @@
 │   │   │   ├── 📄 cloud-hop.applet.html
 │   │   │   ├── 📄 cloud-iam-debugger.html
 │   │   │   └── 📄 cloud-text-adventure-whoami.html
+│   │   ├── 📁 incubator
+│   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 cloud-architecture.lab.html
@@ -2468,6 +2378,8 @@
 │   │   │   ├── 📄 code-pipeline-panic.html
 │   │   │   └── 📄 code-text-adventure-rmrf.html
 │   │   ├── 📁 guides
+│   │   ├── 📁 incubator
+│   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 code-cicd.lab.html
@@ -2690,6 +2602,8 @@
 │   │   │   ├── 🔬 dark-osint-recon-lab.applet.html
 │   │   │   ├── 🔬 dark-phishing-campaign-lab.applet.html
 │   │   │   └── 🔬 dark-slowloris-dos-lab.applet.html
+│   │   ├── 📁 incubator
+│   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 dark-arts-feh-01.lab.html
@@ -3088,6 +3002,83 @@
 │   │   │   │   └── ❓ eye-cysa-ch16-quiz.quiz.html
 │   │   │   └── 📁 reviews
 │   │   │       └── 📄 eye-cysa-comprehensive-review.html
+│   │   ├── 📁 forensics
+│   │   │   ├── 📁 certs
+│   │   │   │   ├── 📁 chfi
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 gcfa
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   └── 📁 gcfe
+│   │   │   │       └── 📍 index.html
+│   │   │   ├── 📍 index.html
+│   │   │   └── 📁 sections
+│   │   │       ├── 📁 advanced-forensics
+│   │   │       │   ├── 📄 df-51-anti-forensics.module.html
+│   │   │       │   ├── 📄 df-52-cloud-forensics.module.html
+│   │   │       │   ├── 📄 df-53-mobile-forensics.module.html
+│   │   │       │   ├── 📄 df-54-iot-forensics.module.html
+│   │   │       │   ├── 📄 df-55-malware-forensics.module.html
+│   │   │       │   ├── 📄 df-56-steganography.module.html
+│   │   │       │   ├── 📄 df-57-incident-response.module.html
+│   │   │       │   ├── 📄 df-58-tool-validation.module.html
+│   │   │       │   ├── 📄 df-59-live-vs-dead.module.html
+│   │   │       │   ├── 📄 df-60-advanced-capstone.module.html
+│   │   │       │   └── 📄 df-61-ai-generated-imagery.module.html
+│   │   │       ├── 📁 disk-forensics
+│   │   │       │   ├── 📄 df-11-file-systems.module.html
+│   │   │       │   ├── 📄 df-12-disk-imaging.module.html
+│   │   │       │   ├── 📄 df-13-autopsy.module.html
+│   │   │       │   ├── 📄 df-14-file-carving.module.html
+│   │   │       │   ├── 📄 df-15-metadata.module.html
+│   │   │       │   ├── 📄 df-16-deleted-recovery.module.html
+│   │   │       │   ├── 📄 df-17-mft-inodes.module.html
+│   │   │       │   ├── 📄 df-18-slack-space.module.html
+│   │   │       │   ├── 📄 df-19-write-blockers.module.html
+│   │   │       │   └── 📄 df-20-disk-capstone.module.html
+│   │   │       ├── 📁 evidence-foundations
+│   │   │       │   ├── 📄 df-01-evidence-types.module.html
+│   │   │       │   ├── 📄 df-02-chain-of-custody.module.html
+│   │   │       │   ├── 📄 df-03-nist-800-86.module.html
+│   │   │       │   ├── 📄 df-04-order-of-volatility.module.html
+│   │   │       │   ├── 📄 df-05-cfaa-federal-laws.module.html
+│   │   │       │   ├── 📄 df-06-ecpa-wiretap.module.html
+│   │   │       │   ├── 📄 df-07-fourth-amendment.module.html
+│   │   │       │   ├── 📄 df-08-expert-witness.module.html
+│   │   │       │   ├── 📄 df-09-ethics.module.html
+│   │   │       │   └── 📄 df-10-evidence-capstone.module.html
+│   │   │       ├── 📁 log-timeline
+│   │   │       │   ├── 📄 df-41-windows-events.module.html
+│   │   │       │   ├── 📄 df-42-linux-logs.module.html
+│   │   │       │   ├── 📄 df-43-log-correlation.module.html
+│   │   │       │   ├── 📄 df-44-plaso-timeline.module.html
+│   │   │       │   ├── 🔬 df-45-timeline-lab.module.html
+│   │   │       │   ├── 📄 df-46-siem-integration.module.html
+│   │   │       │   ├── 📄 df-47-browser-forensics.module.html
+│   │   │       │   ├── 📄 df-48-email-headers.module.html
+│   │   │       │   ├── 📄 df-49-registry-forensics.module.html
+│   │   │       │   └── 📄 df-50-timeline-capstone.module.html
+│   │   │       ├── 📁 memory-forensics
+│   │   │       │   ├── 📄 df-21-volatile-evidence.module.html
+│   │   │       │   ├── 📄 df-22-acquisition-tools.module.html
+│   │   │       │   ├── 📄 df-23-volatility-setup.module.html
+│   │   │       │   ├── 📄 df-24-process-analysis.module.html
+│   │   │       │   ├── 📄 df-25-injection-detection.module.html
+│   │   │       │   ├── 📄 df-26-malware-recovery.module.html
+│   │   │       │   ├── 📄 df-27-registry-extraction.module.html
+│   │   │       │   ├── 📄 df-28-network-connections.module.html
+│   │   │       │   ├── 🔬 df-29-workflow-lab.module.html
+│   │   │       │   └── 📄 df-30-memory-capstone.module.html
+│   │   │       └── 📁 network-forensics
+│   │   │           ├── 📄 df-31-packet-capture.module.html
+│   │   │           ├── 📄 df-32-wireshark.module.html
+│   │   │           ├── 📄 df-33-tcp-streams.module.html
+│   │   │           ├── 📄 df-34-dns-exfiltration.module.html
+│   │   │           ├── 📄 df-35-encrypted-traffic.module.html
+│   │   │           ├── 📄 df-36-netflow.module.html
+│   │   │           ├── 📄 df-37-pcap-extraction.module.html
+│   │   │           ├── 📄 df-38-ids-correlation.module.html
+│   │   │           ├── 📄 df-39-wireless.module.html
+│   │   │           └── 📄 df-40-network-capstone.module.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 eye-alert-triage.html
 │   │   │   ├── 📄 eye-detection-engineering.applet.html
@@ -3100,6 +3091,8 @@
 │   │   │   ├── 📄 eye-text-adventure-wireshark.html
 │   │   │   ├── 🔬 eye-threat-hunting-lab.applet.html
 │   │   │   └── 📄 eye-threat-modeler.html
+│   │   ├── 📁 incubator
+│   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 eye-correlation.lab.html
@@ -3402,16 +3395,15 @@
 │   │   │       ├── ❓ bm-w3-power.quiz.html
 │   │   │       ├── ❓ bm-w4-printers.quiz.html
 │   │   │       └── ❓ bm-w4-troubleshoot.quiz.html
+│   │   ├── 📁 incubator
+│   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 intro-computers
-│   │   │   ├── 📁 exams
 │   │   │   ├── 📍 index.html
-│   │   │   ├── 📁 labs [labs]
-│   │   │   ├── 📁 presentations [presentations]
-│   │   │   │   ├── 📊 fb-w1-fundamentals.presentation.html
-│   │   │   │   ├── 📊 fb-w1-word-basics.presentation.html
-│   │   │   │   └── 📊 fb-w2-word-advanced.presentation.html
-│   │   │   └── 📁 quizzes [quizzes]
+│   │   │   └── 📁 presentations [presentations]
+│   │   │       ├── 📊 fb-w1-fundamentals.presentation.html
+│   │   │       ├── 📊 fb-w1-word-basics.presentation.html
+│   │   │       └── 📊 fb-w2-word-advanced.presentation.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 forge-admin-tools.lab.html
 │   │   │   ├── 🔬 forge-control-panel.lab.html
@@ -4144,133 +4136,131 @@
 │   │   ├── 📁 courses [courses]
 │   │   │   ├── 📁 clh [courses]
 │   │   │   │   ├── 📍 index.html
-│   │   │   │   ├── 📁 modules [modules]
-│   │   │   │   │   ├── 📁 clh-001 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-002 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-003 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-004 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-005 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-006 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-007 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-008 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-009 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-010 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-011 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-012 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-013 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-014 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-015 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-016 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-017 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-018 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-019 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-020 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-021 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-022 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-023 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-024 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-025 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-026 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-027 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-028 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-029 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   ├── 📁 clh-030 [modules]
-│   │   │   │   │   │   ├── 📄 script-intro.module.html
-│   │   │   │   │   │   ├── 🔬 script-lab.lab.html
-│   │   │   │   │   │   └── ❓ script-quiz.quiz.html
-│   │   │   │   │   └── 📁 clh-031 [modules]
-│   │   │   │   │       ├── 📄 script-intro.module.html
-│   │   │   │   │       ├── 🔬 script-lab.lab.html
-│   │   │   │   │       └── ❓ script-quiz.quiz.html
-│   │   │   │   ├── 📁 reference [courses]
-│   │   │   │   └── 📁 tiers [courses]
+│   │   │   │   └── 📁 modules [modules]
+│   │   │   │       ├── 📁 clh-001 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-002 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-003 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-004 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-005 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-006 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-007 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-008 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-009 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-010 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-011 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-012 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-013 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-014 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-015 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-016 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-017 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-018 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-019 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-020 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-021 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-022 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-023 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-024 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-025 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-026 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-027 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-028 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-029 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       ├── 📁 clh-030 [modules]
+│   │   │   │       │   ├── 📄 script-intro.module.html
+│   │   │   │       │   ├── 🔬 script-lab.lab.html
+│   │   │   │       │   └── ❓ script-quiz.quiz.html
+│   │   │   │       └── 📁 clh-031 [modules]
+│   │   │   │           ├── 📄 script-intro.module.html
+│   │   │   │           ├── 🔬 script-lab.lab.html
+│   │   │   │           └── ❓ script-quiz.quiz.html
 │   │   │   └── 📁 grep-pipe-mastery [courses]
 │   │   │       ├── 📍 index.html
 │   │   │       └── 📄 script-blacksite-demo.applet.html
@@ -4291,9 +4281,13 @@
 │   │   │   ├── 📄 script-sudo-flap.html
 │   │   │   ├── 📄 script-sudo-su.html
 │   │   │   └── 📄 script-text-adventure-chmod777.html
+│   │   ├── 📁 incubator
+│   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 📁 linux [labs]
+│   │   │   │   ├── 📁 bash [labs]
+│   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 🔬 script-bash-arrays.lab.html
 │   │   │   │   ├── 🔬 script-bash-basics.lab.html
@@ -4446,6 +4440,7 @@
 │   │   │       └── ❓ ra-w4-troubleshoot.quiz.html
 │   │   ├── 📁 modules [modules]
 │   │   │   ├── 📁 databases [modules]
+│   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 📄 script-db-01-intro.module.html
 │   │   │   │   ├── 📄 script-db-02-select.module.html
 │   │   │   │   ├── 📄 script-db-03-where.module.html
@@ -4846,6 +4841,9 @@
 │   │   ├── 📁 challenges
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📄 shield-attack-vector-challenge.applet.html
+│   │   ├── 📁 compliance
+│   │   │   └── 📁 cmmc
+│   │   │       └── 📍 index.html
 │   │   ├── 📁 cyber-framework
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
@@ -4897,6 +4895,8 @@
 │   │   │   ├── 📄 shield-threatdex.applet.html
 │   │   │   ├── 📄 shield-tor-darkweb.html
 │   │   │   └── 🔬 shield-web-security-headers-lab.applet.html
+│   │   ├── 📁 incubator
+│   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 infosec
 │   │   │   ├── 📁 _source
@@ -5378,7 +5378,6 @@
 │       │       ├── 📄 bb-wl-10.html
 │       │       └── 📍 index.html
 │       ├── 📁 ccna
-│       │   ├── 📁 configs [config]
 │       │   ├── 📍 index.html
 │       │   ├── 📁 labs [labs]
 │       │   │   ├── 🔬 ccna-acl-lab.lab.html
@@ -5413,14 +5412,12 @@
 │       │   │   ├── 📄 ccna-23.module.html
 │       │   │   ├── 📄 ccna-24.module.html
 │       │   │   └── 📄 ccna-25.module.html
-│       │   ├── 📁 presentations [presentations]
 │       │   ├── 📁 quizzes [quizzes]
 │       │   │   ├── ❓ ccna-comprehensive.quiz.html
 │       │   │   ├── ❓ ccna-domain1.quiz.html
 │       │   │   ├── ❓ ccna-domain2.quiz.html
 │       │   │   ├── ❓ ccna-domain3.quiz.html
 │       │   │   └── ❓ ccna-domain4-5-6.quiz.html
-│       │   ├── 📁 reviews
 │       │   └── 📁 tools
 │       │       ├── 📄 ccna-acl-builder.tool.html
 │       │       ├── 📄 ccna-ios-reference.tool.html
@@ -5443,6 +5440,8 @@
 │       │   ├── 📄 web-subnet-siege.applet.html
 │       │   └── 📄 web-wireless-warzone.applet.html
 │       ├── 📁 handouts
+│       ├── 📁 incubator
+│       │   └── 📍 index.html
 │       ├── 📍 index.html
 │       ├── 📁 intro-networks
 │       │   ├── 📁 exams
@@ -5769,7 +5768,6 @@
 │       │   └── 🔬 web-lab-troubleshooting.reference.html
 │       └── 📁 tutorials
 ├── 📍 index.html
-├── 📁 instructor
 ├── 📁 js
 ├── 📁 key
 │   └── 📁 districts
@@ -6720,6 +6718,7 @@
 | cloud-destroyer.applet | applet | ✓ | 1 |
 | cloud-hop-vertical.applet | applet | ✓ | 1 |
 | cloud-hop.applet | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | cloud-architecture.lab | lab | ✓ | 0 |
 | cloud-aws-services.lab | lab | ✓ | 0 |
@@ -7322,6 +7321,7 @@
 | code-git-blame | applet | ✓ | 1 |
 | code-kill-nine.applet | applet | ✓ | 1 |
 | code-kubernetes-rescue.applet | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | code-cicd.lab | presentation | ✓ | 0 |
 | code-cloudformation.lab | presentation | ✓ | 0 |
 | code-docker.lab | presentation | ✓ | 0 |
@@ -7687,6 +7687,15 @@
 | eye-cysa-ch15-quiz | quiz | ✓ | 0 |
 | eye-cysa-ch16-quiz | quiz | ✓ | 0 |
 | eye-cysa-comprehensive-review | presentation | ✓ | 0 |
+| df-55 | applet | ✓ | 1 |
+| df-61 | applet | ✓ | 1 |
+| df-14 | applet | ✓ | 1 |
+| df-01 | applet | ✓ | 1 |
+| df-10 | applet | ✓ | 1 |
+| df-41 | applet | ✓ | 1 |
+| df-46 | applet | ✓ | 1 |
+| df-33 | applet | ✓ | 1 |
+| df-36 | applet | ✓ | 1 |
 | eye-alert-triage | applet | ✓ | 1 |
 | eye-detection-engineering.applet | applet | ✓ | 1 |
 | eye-log-analysis-lab.applet | applet | ✓ | 1 |
@@ -7695,6 +7704,7 @@
 | eye-security-onion-soc.applet | applet | ✓ | 1 |
 | eye-threat-hunting-lab.applet | applet | ✓ | 1 |
 | eye-threat-modeler | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
 | eye-hunting.lab | presentation | ✓ | 0 |
 | eye-log-detective.lab | presentation | ✓ | 0 |
 | eye-siem.lab | presentation | ✓ | 0 |
@@ -7877,6 +7887,7 @@
 | bm-w3-power-quiz | quiz | ✓ | 0 |
 | bm-w4-printers-quiz | quiz | ✓ | 0 |
 | bm-w4-troubleshoot-quiz | quiz | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | fb-w1-fundamentals.presentation | presentation | ✓ | 0 |
 | fb-w1-word-basics.presentation | presentation | ✓ | 0 |
 | fb-w2-word-advanced.presentation | presentation | ✓ | 0 |
@@ -8602,6 +8613,7 @@
 | script-dont-kill-the-server | applet | ✓ | 1 |
 | script-pipe-snake.applet | applet | ✓ | 1 |
 | script-shell-sprint.applet | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | script-bash-arrays.lab | lab | ✓ | 0 |
 | script-bash-basics.lab | lab | ✓ | 0 |
@@ -8925,6 +8937,7 @@
 | shield-threat-swarm.applet | applet | ✓ | 1 |
 | shield-threatdex.applet | applet | ✓ | 1 |
 | shield-web-security-headers-lab.applet | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
 | pis-01 | quiz | ✓ | 0 |
 | pis-02 | quiz | ✓ | 0 |
 | pis-03 | quiz | ✓ | 0 |
@@ -9362,15 +9375,6 @@
 | dashboard | applet | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | faq | applet | ✓ | 1 |
-| df-55 | applet | ✓ | 1 |
-| df-61 | applet | ✓ | 1 |
-| df-14 | applet | ✓ | 1 |
-| df-01 | applet | ✓ | 1 |
-| df-10 | applet | ✓ | 1 |
-| df-41 | applet | ✓ | 1 |
-| df-46 | applet | ✓ | 1 |
-| df-33 | applet | ✓ | 1 |
-| df-36 | applet | ✓ | 1 |
 | proposal-guide | applet | ✓ | 1 |
 | index | presentation | ✓ | 1 |
 | dark-ids-evasion-lab.applet | lab | ✓ | 0 |
@@ -9379,6 +9383,7 @@
 | dark-network-forensics-lab.applet | applet | ✓ | 1 |
 | dark-osint-recon-lab.applet | lab | ✓ | 0 |
 | dark-slowloris-dos-lab.applet | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
 | dark-arts-feh-01.lab | presentation | ✓ | 0 |
 | dark-arts-feh-02.lab | lab | ✓ | 0 |
 | dark-arts-feh-03.lab | lab | ✓ | 0 |
@@ -9461,6 +9466,7 @@
 | web-online-portfolio | applet | ✓ | 1 |
 | web-pi-network-probe | applet | ✓ | 1 |
 | web-topology-visualizer | applet | ✓ | 1 |
+| pulse | applet | ✓ | 1 |
 | sg-92-swarm-simulator | applet | ✓ | 1 |
 | ducky-course-03-payloads | applet | ✓ | 1 |
 | ducky-course-04-recon | applet | ✓ | 1 |
@@ -9690,6 +9696,7 @@
 | web-packet-sniffer.applet | presentation | ✓ | 0 |
 | web-subnet-siege.applet | applet | ✓ | 1 |
 | web-wireless-warzone.applet | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | fl-final | quiz | ✓ | 0 |
 | fl-midterm | quiz | ✓ | 0 |
@@ -10199,7 +10206,7 @@
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
-### WARNING (2463)
+### WARNING (2332)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -10715,42 +10722,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/wifi-arsenal/tools/wifi-tool-reference.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `forensics/sections/advanced-forensics/df-55-malware-forensics.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `forensics/sections/disk-forensics/df-14-file-carving.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `forensics/sections/evidence-foundations/df-01-evidence-types.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `forensics/sections/log-timeline/df-41-windows-events.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `forensics/sections/log-timeline/df-46-siem-integration.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `forensics/sections/network-forensics/df-33-tcp-streams.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `forensics/sections/network-forensics/df-36-netflow.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -14871,6 +14842,42 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/applets/cyberops/eye-kill-chain-diamond.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/forensics/sections/advanced-forensics/df-55-malware-forensics.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/forensics/sections/disk-forensics/df-14-file-carving.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/forensics/sections/evidence-foundations/df-01-evidence-types.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/forensics/sections/log-timeline/df-41-windows-events.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/forensics/sections/log-timeline/df-46-siem-integration.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/forensics/sections/network-forensics/df-33-tcp-streams.module.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/forensics/sections/network-forensics/df-36-netflow.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -19110,6 +19117,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `pulse.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `signal/sections/drone-security/sg-92-swarm-simulator.html`
   Fix: Add entry to content-registry.js
 
@@ -19192,6 +19203,1152 @@
 **[REG-001]** Content file is not registered in content-registry.js
   File: `wireshark/sections/security-analysis/ws-16-exfiltration.module.html`
   Fix: Add entry to content-registry.js
+
+**[CAT-004]** Module 'key-hashing' (status: coming-soon) href 'applets/hashing-lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'code-pod-crossing' (status: coming-soon) href 'games/pod-crossing.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `bot-knowledge-forge.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `bot-knowledge.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `career-quiz.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `dark-arts/vault/dojo/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `dark-arts/vault/owasp-top10-lab.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `dark-arts/vault/privilege-escalation-lab.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `funding/index.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/code/python-for-it/labs/pfi-w4-gui-inclass.lab.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `lobby.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/crypto-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/crypto-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/firewall-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/firewall-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/forensics-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/forensics-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/forensics-03.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/incident-response-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/incident-response-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/incident-response-03.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/linux-fs-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/linux-fs-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/linux-fs-03.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/log-analysis-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/log-analysis-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/pfi-op-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/pfi-op-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/pfi-op-03.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/pfi-op-04.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-03.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-04.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-05.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-06.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-07.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-08.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-09.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-10.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-11.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-12.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-13.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-14.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-15.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-16.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-17.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-18.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-19.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-20.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-21.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-22.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-23.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-24.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-25.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-26.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-27.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-28.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-29.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-30.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-31.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-32.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-33.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-34.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-35.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-36.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-37.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-38.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-39.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-40.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-41.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-42.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-43.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-44.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-45.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-46.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-47.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-48.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-49.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/python-50.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/recon-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/recon-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/recon-03.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/windows-cmd-01.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `operator/missions/windows-cmd-02.mission.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+### INFO (593)
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `about.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `admin/audit-tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `arctic/districts/data-science/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `arctic/districts/javascript/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `arena/boxes/ow-01-mole-hunt/siem.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `arena/boxes/ow-01-mole-hunt/workstation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `arena/tournament-board.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-ai.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-cloud.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-code.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-combined.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-dark-arts.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-divergent.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-eye.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-forge.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-key.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-script.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-shield.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-signal.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-web.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `career-quiz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `components/slides/admissions-2026.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/bug-hunting/dojo/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/bug-hunting/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/ehe/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dark-arts/vault/wifi-arsenal/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `dispatch/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `faq.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `funding/proposal-guide.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/ai-900/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/cortex/capstone/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/cortex/cnn/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/cortex/rl/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/cortex/unsupervised/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/games/ai-agent-builder.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/hubs/ai-advanced-hub.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/tools/ai-flashcards.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/tools/ai-tokenizer.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/applets/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/az-104/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/az-900/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/cloud-essentials/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-destroyer.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-hop-vertical.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-hop.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/pl-300/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/algorithm-chamber/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/compare.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/javascript/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/lua-perl-r/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/armory/python-graphics/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/cortex/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/games/code-build-breaker.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/games/code-git-blame.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/games/code-kill-nine.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/modules/python-hub/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/python-for-it/labs/pfi-w1-checkpoint.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/python-for-it/upgrade-guide.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/python-programming/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/games/dark-m365-attack-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/games/dark-malware-specimen-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/games/dark-network-forensics-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/games/dark-slowloris-dos-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/dark-arts/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/applets/cyberops/eye-artifact-elements.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/applets/cyberops/eye-intrusion-elements.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/applets/cyberops/eye-protected-data.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/applets/cyberops/eye-regular-expressions.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/applets/cyberops/eye-source-technologies.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/applets/cyberops/eye-tcp-stream-extraction.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/applets/cyberops/eye-traffic-analysis.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/forensics/sections/advanced-forensics/df-55-malware-forensics.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/forensics/sections/disk-forensics/df-14-file-carving.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/forensics/sections/evidence-foundations/df-01-evidence-types.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/forensics/sections/log-timeline/df-41-windows-events.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/forensics/sections/log-timeline/df-46-siem-integration.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/forensics/sections/network-forensics/df-33-tcp-streams.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/forensics/sections/network-forensics/df-36-netflow.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-alert-triage.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-detection-engineering.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-log-analysis-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-log-centipede.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-memory-forensics.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-security-onion-soc.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-threat-hunting-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-threat-modeler.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-bit-dash.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-chip-match.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-rack-stack.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-raid-calculator.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-root-access.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/md-100/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/md-100/labs/forge-md100-google-dorking.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/key-cipher-bubbles.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/key-crypto-pong.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/key-dont-leak-the-key.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/matrix/adv-linux/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/applets/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/games/script-dont-kill-the-server.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/games/script-pipe-snake.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/games/script-shell-sprint.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/linux-essentials/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/cyber-framework/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-contra.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-debugger.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-dr-malware.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-life-force.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-threat-runner.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-threat-swarm.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-threatdex.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-web-security-headers-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/infosec/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/isc2-cc/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/security-plus/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/ccna/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/ccna/tools/ccna-ospf-visualizer.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/ccna/tools/ccna-subnet-calculator.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-dns-resolver-race.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-network-architect.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-packet-invaders.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-packet-run.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-subnet-siege.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-wireless-warzone.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/network-plus/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `product-info.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/ai-explainable-ml.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/ai-intrusion-detector.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/ai-music-generation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/ai-network-anomaly.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/ai-rag-chatbot.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/ai-reinforcement-taxi.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/cloud-container-checker.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/code-memory-game.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/code-serial-console.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/code-typing-speed.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/darkarts-wifi-scanner.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/eye-osint-dashboard.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/eye-playwright-testing.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/eye-pytorch-onnx.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/forge-crossword-puzzle.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/forge-flashcard-engine.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/forge-sensor-dashboard.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/key-blockchain.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/key-brownie-contracts.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/key-password-vault.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-climate-analysis.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-customer-segmentation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-data-viz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-kafka-streaming.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-packet-visualizer.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-plotly-viz.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-sentiment-nlp.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-stock-analysis.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-time-series.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/matrix-traffic-dashboard.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/script-data-logger.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/script-data-pipeline.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/script-video-summarizer.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/shield-fake-news.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/shield-log-analyzer.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/starter-calculator.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/starter-first-bot.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/starter-first-database.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/starter-first-gui.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/web-online-portfolio.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/web-pi-network-probe.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/web-topology-visualizer.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `pulse.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/sections/drone-security/sg-92-swarm-simulator.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/sections/red-team-hw/ducky-course-03-payloads.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/sections/red-team-hw/ducky-course-04-recon.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/sections/red-team-hw/ducky-course-08-capstone.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/sections/red-team-hw/sg-34-bad-usb.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/sections/red-team-hw/sg-37-packet-sniffer.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/toolkit/c2-dashboard.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/toolkit/duckyscript-ide.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `signal/toolkit/tools/dban.tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `subscription.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/fundamentals/ws-01-interface-tour.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/fundamentals/ws-03-capture-filters.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/fundamentals/ws-04-display-filters.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/fundamentals/ws-05-filter-builder.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/fundamentals/ws-06-profiles.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/protocol-analysis/ws-pa-01-ethernet.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/protocol-analysis/ws-pa-03-icmp.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/protocol-analysis/ws-pa-04-tcp.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/security-analysis/ws-14-malware-traffic.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `wireshark/sections/security-analysis/ws-16-exfiltration.module.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `workshop/a2-shadow-encoder/current.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[LP-003]** Duplicate module ID 'code-git-basics' found in 'devops-fundamentals' (also in 'code')
   File: `./components/LearningPaths.js`
@@ -19589,1116 +20746,6 @@
 **[LP-003]** Duplicate module ID 'eye-hunt-workbench' found in 'security-operations' (also in 'eye')
   File: `./components/LearningPaths.js`
 
-**[CAT-004]** Module 'key-hashing' (status: coming-soon) href 'applets/hashing-lab.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[CAT-004]** Module 'code-pod-crossing' (status: coming-soon) href 'games/pod-crossing.html' does not exist on disk
-  File: `components/ContentCatalog.js`
-  Fix: Create the file before setting status to 'available', or remove the dead href
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `bot-knowledge-forge.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `bot-knowledge.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `career-quiz.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `dark-arts/vault/dojo/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `dark-arts/vault/owasp-top10-lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `dark-arts/vault/privilege-escalation-lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `funding/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w4-gui-inclass.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `lobby.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/crypto-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/crypto-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/firewall-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/firewall-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/forensics-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/forensics-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/forensics-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/incident-response-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/incident-response-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/incident-response-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/linux-fs-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/linux-fs-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/linux-fs-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/log-analysis-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/log-analysis-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/pfi-op-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/pfi-op-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/pfi-op-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/pfi-op-04.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-04.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-05.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-06.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-07.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-08.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-09.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-10.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-11.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-12.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-13.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-14.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-15.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-16.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-17.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-18.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-19.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-20.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-21.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-22.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-23.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-24.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-25.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-26.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-27.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-28.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-29.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-30.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-31.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-32.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-33.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-34.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-35.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-36.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-37.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-38.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-39.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-40.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-41.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-42.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-43.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-44.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-45.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-46.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-47.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-48.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-49.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-50.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/recon-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/recon-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/recon-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/windows-cmd-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/windows-cmd-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-### INFO (451)
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `about.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `admin/audit-tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `arctic/districts/data-science/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `arctic/districts/javascript/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `arena/boxes/ow-01-mole-hunt/siem.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `arena/boxes/ow-01-mole-hunt/workstation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `arena/tournament-board.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-ai.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-cloud.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-code.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-combined.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-dark-arts.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-divergent.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-eye.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-forge.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-key.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-script.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-shield.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-signal.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge-web.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `bot-knowledge.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `career-quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `components/slides/admissions-2026.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/bug-hunting/dojo/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/bug-hunting/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/ehe/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/wifi-arsenal/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dispatch/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `faq.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `forensics/sections/advanced-forensics/df-55-malware-forensics.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `forensics/sections/disk-forensics/df-14-file-carving.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `forensics/sections/evidence-foundations/df-01-evidence-types.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `forensics/sections/log-timeline/df-41-windows-events.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `forensics/sections/log-timeline/df-46-siem-integration.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `forensics/sections/network-forensics/df-33-tcp-streams.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `forensics/sections/network-forensics/df-36-netflow.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `funding/proposal-guide.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/ai-900/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/cortex/capstone/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/cortex/cnn/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/cortex/rl/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/cortex/unsupervised/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/games/ai-agent-builder.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/hubs/ai-advanced-hub.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/tools/ai-flashcards.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/ai/tools/ai-tokenizer.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/az-104/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/az-900/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/cloud-essentials/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/games/cloud-destroyer.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/games/cloud-hop-vertical.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/games/cloud-hop.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/pl-300/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/algorithm-chamber/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/armory/compare.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/armory/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/armory/javascript/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/armory/lua-perl-r/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/armory/python-graphics/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/cortex/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/games/code-build-breaker.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/games/code-git-blame.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/games/code-kill-nine.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/modules/python-hub/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/python-for-it/labs/pfi-w1-checkpoint.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/python-for-it/upgrade-guide.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/python-programming/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/games/dark-m365-attack-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/games/dark-malware-specimen-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/games/dark-network-forensics-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/games/dark-slowloris-dos-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-artifact-elements.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-intrusion-elements.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-protected-data.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-regular-expressions.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-source-technologies.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-tcp-stream-extraction.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-traffic-analysis.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-alert-triage.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-detection-engineering.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-log-analysis-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-log-centipede.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-memory-forensics.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-security-onion-soc.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-threat-hunting-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-threat-modeler.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/forge-bit-dash.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/forge-chip-match.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/forge-rack-stack.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/forge-raid-calculator.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/forge-root-access.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/md-100/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/md-100/labs/forge-md100-google-dorking.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/games/key-cipher-bubbles.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/games/key-crypto-pong.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/games/key-dont-leak-the-key.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/matrix/adv-linux/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/games/script-dont-kill-the-server.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/games/script-pipe-snake.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/games/script-shell-sprint.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/linux-essentials/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/cyber-framework/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-contra.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-debugger.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-dr-malware.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-life-force.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-threat-runner.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-threat-swarm.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-threatdex.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-web-security-headers-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/infosec/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/isc2-cc/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/security-plus/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/ccna/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/ccna/tools/ccna-ospf-visualizer.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/ccna/tools/ccna-subnet-calculator.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-dns-resolver-race.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-network-architect.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-packet-invaders.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-packet-run.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-subnet-siege.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-wireless-warzone.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/network-plus/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `product-info.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-explainable-ml.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-intrusion-detector.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-music-generation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-network-anomaly.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-rag-chatbot.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-reinforcement-taxi.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/cloud-container-checker.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/code-memory-game.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/code-serial-console.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/code-typing-speed.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/darkarts-wifi-scanner.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/eye-osint-dashboard.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/eye-playwright-testing.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/eye-pytorch-onnx.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/forge-crossword-puzzle.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/forge-flashcard-engine.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/forge-sensor-dashboard.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/key-blockchain.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/key-brownie-contracts.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/key-password-vault.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-climate-analysis.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-customer-segmentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-data-viz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-kafka-streaming.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-packet-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-plotly-viz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-sentiment-nlp.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-stock-analysis.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-time-series.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-traffic-dashboard.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/script-data-logger.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/script-data-pipeline.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/script-video-summarizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/shield-fake-news.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/shield-log-analyzer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/starter-calculator.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/starter-first-bot.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/starter-first-database.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/starter-first-gui.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/web-online-portfolio.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/web-pi-network-probe.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/web-topology-visualizer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `signal/sections/drone-security/sg-92-swarm-simulator.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `signal/sections/red-team-hw/ducky-course-03-payloads.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `signal/sections/red-team-hw/ducky-course-04-recon.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `signal/sections/red-team-hw/ducky-course-08-capstone.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `signal/sections/red-team-hw/sg-34-bad-usb.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `signal/sections/red-team-hw/sg-37-packet-sniffer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `signal/toolkit/c2-dashboard.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `signal/toolkit/duckyscript-ide.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `signal/toolkit/tools/dban.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `subscription.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/fundamentals/ws-01-interface-tour.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/fundamentals/ws-03-capture-filters.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/fundamentals/ws-04-display-filters.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/fundamentals/ws-05-filter-builder.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/fundamentals/ws-06-profiles.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/protocol-analysis/ws-pa-01-ethernet.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/protocol-analysis/ws-pa-03-icmp.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/protocol-analysis/ws-pa-04-tcp.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/security-analysis/ws-14-malware-traffic.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `wireshark/sections/security-analysis/ws-16-exfiltration.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `workshop/a2-shadow-encoder/current.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
 **[ASGN-002]** Path 'shield': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'shield' as path segment)
   File: `./components/LearningPaths.js`
 
@@ -20722,6 +20769,10 @@
 
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
+
+**[TAG-002]** 2563 of 2996 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+  File: `components/ContentCatalog.js`
+  Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `career/index.html`
@@ -21723,7 +21774,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (2240)
+### Unregistered Content (2241)
 
 | Path | Type | House |
 |------|------|-------|
@@ -21853,15 +21904,6 @@
 | dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-rita.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-snitch.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/tools/wifi-tool-reference.html | presentation | - |
-| forensics/sections/advanced-forensics/df-55-malware-forensics.module.html | applet | - |
-| forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html | applet | - |
-| forensics/sections/disk-forensics/df-14-file-carving.module.html | applet | - |
-| forensics/sections/evidence-foundations/df-01-evidence-types.module.html | applet | - |
-| forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html | applet | - |
-| forensics/sections/log-timeline/df-41-windows-events.module.html | applet | - |
-| forensics/sections/log-timeline/df-46-siem-integration.module.html | applet | - |
-| forensics/sections/network-forensics/df-33-tcp-streams.module.html | applet | - |
-| forensics/sections/network-forensics/df-36-netflow.module.html | applet | - |
 | funding/proposal-guide.html | applet | - |
 | houses/ai/advanced/ai-adv-01.html | presentation | ai |
 | houses/ai/advanced/ai-adv-02.html | presentation | ai |
@@ -22888,6 +22930,15 @@
 | houses/divergent/ethics-it/quizzes/eth-w2.quiz.html | quiz | divergent |
 | houses/divergent/ethics-it/quizzes/eth-w3.quiz.html | quiz | divergent |
 | houses/eye/applets/cyberops/eye-kill-chain-diamond.applet.html | presentation | eye |
+| houses/eye/forensics/sections/advanced-forensics/df-55-malware-forensics.module.html | applet | eye |
+| houses/eye/forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html | applet | eye |
+| houses/eye/forensics/sections/disk-forensics/df-14-file-carving.module.html | applet | eye |
+| houses/eye/forensics/sections/evidence-foundations/df-01-evidence-types.module.html | applet | eye |
+| houses/eye/forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html | applet | eye |
+| houses/eye/forensics/sections/log-timeline/df-41-windows-events.module.html | applet | eye |
+| houses/eye/forensics/sections/log-timeline/df-46-siem-integration.module.html | applet | eye |
+| houses/eye/forensics/sections/network-forensics/df-33-tcp-streams.module.html | applet | eye |
+| houses/eye/forensics/sections/network-forensics/df-36-netflow.module.html | applet | eye |
 | houses/eye/games/eye-detection-engineering.applet.html | applet | eye |
 | houses/eye/games/eye-log-analysis-lab.applet.html | applet | eye |
 | houses/eye/games/eye-security-onion-soc.applet.html | applet | eye |
@@ -23947,6 +23998,7 @@
 | projects/web-online-portfolio.html | applet | - |
 | projects/web-pi-network-probe.html | applet | - |
 | projects/web-topology-visualizer.html | applet | - |
+| pulse.html | applet | - |
 | signal/sections/drone-security/sg-92-swarm-simulator.html | applet | - |
 | signal/sections/red-team-hw/ducky-course-03-payloads.html | applet | - |
 | signal/sections/red-team-hw/ducky-course-04-recon.html | applet | - |

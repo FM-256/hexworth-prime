@@ -536,6 +536,56 @@ EduScan generates reports in `_tools/reports/` (gitignored):
 
 ---
 
+## New Validators (Stragglers, 2026-04-30)
+
+Six new checks added during the Stragglers branch QA pass. All wired into the main `SyntaxValidator` pipeline (STR-34 done) — `npm run scan` picks them up automatically. Standalone runners exist for ad-hoc inspection.
+
+| Code | Severity | What it catches | Runner |
+|------|----------|-----------------|--------|
+| **PROG-003** | critical (≥5 files), medium (2–4) | Cross-file shared `ModuleProgress.complete('house', 'sameKey', ...)` calls. Bug: `isFirstCompletion` uses bare moduleId (no house) — only the first file's completion pushes XP/badges to Firestore; subsequent completions are silently suppressed. Found 5 critical clusters / 70 buggy files (WSA `cloud-guilab/pslab/presentation` series + A+ Core 2 chapters using `'forge', 'index'` template leftover). 4 of 5 critical clusters fixed in branch (65 files renamed). | `node _tools/eduscan/run-prog-003.js` |
+| **CAT-006** | medium | Catalog ids ending in `.module/.tool/.lab/.quiz/.applet` — CAT-002 deriveModuleId artifact (file extensions leaked into ID generation). Hub inline arrays use the clean form, requiring scanner Mech 4 to apply a suffix-stripping workaround. Found 164 polluted ids (160 armory + 4 CCNA tools); cleaned in same branch (164 → 0). | `node _tools/eduscan/run-cat-006.js` (also runs as part of `ContentCatalogValidator.validate()`) |
+| **CAT-007** | medium | Multiple catalog entries pointing to the same `(house, href)`. Indicates dual-naming (legacy + new id during migration) OR dead code. Found 51 duplicate pairs / 104 modules (mostly CLH parent dual-naming `clh-001` + `script-clh-001` × 31, plus `web-ip-*` triples). Operator decision pending — STR-33. | runs as part of `ContentCatalogValidator.validate()` |
+| **TAG-001** | medium | Tag case variants (`SIEM` vs `siem`). Tag filtering is case-sensitive — variants split the discovery surface. Found 23 case-variant pairs; auto-fixed via lowercase canonicalization (23 → 0). | runs as part of `TagsValidator.validate()` |
+| **TAG-002** | info | Modules with no tags (discoverability gap). One summary issue, not per-module. Currently 2564 of 2997 modules (~85%) lack tags. Large-scope content cleanup; flagged INFO not blocker. | (same) |
+| **HUB-001** | medium / high (20+) | Hub `data-module="X"` references where X has no matching catalog entry (after house-prefix tolerance). Renderer creates card slots for nonexistent modules — students see broken/empty/silent-skip cards. Found 503 broken refs across 27 hubs (10 hubs ≥20 broken). Operator decision per hub — STR-44. | runs as part of `HubRefsValidator.validate()` |
+
+`PROG-003` lives in `validators/syntax/progress-keys.js` alongside PROG-001 (individual key reads) and PROG-002 (2-arg complete missing houseId). Cross-file analysis — runs as global validator, loads its own content via `fs.readFileSync`.
+
+`CAT-006` and `CAT-007` live in `validators/syntax/content-catalog.js` alongside CAT-001..CAT-005.
+
+---
+
+## Orphan Placement Pipeline (Stragglers, 2026-04-30)
+
+> **Positioning:** these scripts are a **post-scan placement pipeline**, not a replacement for `npm run scan:orphans` / `scan:orphans:deep`. Those existing commands surface raw orphans at scan time. The placement pipeline starts from the strict scanner's report and produces an actionable per-cluster placement plan (existing hub vs new hub vs incubation vs cleanup). They are not registered as `npm run scan:*` because they output planning artifacts, not pass/fail validation results.
+
+Run order (each step writes to `_tools/reports/` and feeds the next):
+
+```bash
+# 1. Strict orphan detection (4 mechanisms — see definition v2 in scanner header)
+node _tools/eduscan/strict-orphan-scanner.js
+#    → _tools/reports/STRICT_ORPHAN_MAP.json
+
+# 2. Sub-content + cluster analysis + existing hub inventory
+node _tools/eduscan/orphan-cluster-analyzer.js
+#    → _tools/reports/ORPHAN_CLUSTER_MATRIX.{json,md}
+
+# 3. Per-cluster placement recommendations (existing/new/incubation/cleanup)
+node _tools/eduscan/placement-recommender.js
+#    → _tools/reports/PLACEMENT_RECOMMENDATIONS.{json,md}
+
+# 4. Generate per-house incubation hubs from the recommendations
+node _tools/eduscan/incubator-generator.js
+#    → _app/houses/<h>/incubator/index.html  (× 8 houses)
+#    → _app/houses/<h>/incubator/README.md   (graduation log per hub)
+```
+
+**Strict-orphan definition vs `scan:orphans:deep`:** the existing scan commands consider a module reachable via 6 mechanisms (data-module attrs, getHouseModules() catalog dumps, LearningPaths, bespoke `<a href>`, ContentDiscovery search, dedicated *Engine renderers). The strict scanner only counts the *curated* subset (data-module attrs, LearningPaths, dedicated-engine, inline-hub script ids — see scanner header). It will report *more* orphans than `scan:orphans:deep` because it rejects loose mechanisms.
+
+See `_docs/features/INCUBATION_HUBS.md` for the incubation hub design + graduation rule.
+
+---
+
 ## Auto-Fix Tools
 
 ### Fix Broken LearningPaths References

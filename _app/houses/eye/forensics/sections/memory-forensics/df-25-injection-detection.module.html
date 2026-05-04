@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DF-25: DLL &amp; Code Injection Detection | Forensics Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #818cf8; --accent-dim: rgba(129,140,248,0.1); --accent-border: rgba(129,140,248,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .fh-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .fh-header-left { display: flex; align-items: center; gap: 14px; }
+        .fh-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .fh-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .fh-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .fh-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .fh-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .fh-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .fh-breadcrumb a:hover { opacity: 0.8; }
+        .fh-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .callout ul { list-style: none; }
+        .callout ul li { padding-left: 16px; position: relative; margin-bottom: 4px; }
+        .callout ul li::before { content: '-'; position: absolute; left: 0; color: var(--accent); }
+        .evidence-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .evidence-table th { background: rgba(129,140,248,0.08); color: var(--accent); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid rgba(129,140,248,0.2); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .evidence-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .evidence-table tr:hover td { background: rgba(129,140,248,0.04); }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--accent); }
+        .try-it { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; }
+        .try-it ol { padding-left: 20px; }
+        .takeaways { background: linear-gradient(135deg, rgba(129,140,248,0.08), rgba(129,140,248,0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .nav-btn.primary:hover { filter: brightness(1.1); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="fh-header">
+        <div class="fh-header-left">
+            <span class="fh-badge">DF-25</span>
+            <h1>DLL &amp; Code Injection Detection</h1>
+        </div>
+        <a href="../../index.html" class="fh-back">&lt; Forensics Hub</a>
+    </header>
+    <nav class="fh-breadcrumb" aria-label="Breadcrumb">
+        <a href="/dashboard.html">Dashboard</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Forensics Hub</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Memory Forensics</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        DF-25: DLL &amp; Code Injection Detection
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand the major code injection techniques used by malware</li>
+                <li>Use malfind to detect injected code in process memory</li>
+                <li>Analyze DLL lists with dlllist and ldrmodules for discrepancies</li>
+                <li>Identify process hollowing indicators in memory dumps</li>
+                <li>Recognize reflective DLL injection artifacts</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Code Injection Techniques</h2>
+            <p class="content-text">Attackers inject code into legitimate processes to evade detection, inherit process privileges, and blend into normal system activity. Memory forensics is uniquely positioned to detect these techniques because the injected code must reside in memory to execute.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <strong>Classic DLL Injection</strong>
+                    <span>Uses CreateRemoteThread + LoadLibrary to force a target process to load a malicious DLL. The DLL appears on disk and in the process's module list.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Reflective DLL Injection</strong>
+                    <span>Loads a DLL from memory without using LoadLibrary. The DLL never touches disk and does not appear in the PEB module lists. Detected by malfind.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Process Hollowing</strong>
+                    <span>Creates a legitimate process in suspended state, unmaps its memory, replaces it with malicious code, then resumes. The process name looks legitimate but the code is not.</span>
+                </div>
+                <div class="feature-card">
+                    <strong>Shellcode Injection</strong>
+                    <span>Allocates executable memory in a remote process via VirtualAllocEx, writes shellcode with WriteProcessMemory, executes via CreateRemoteThread.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Malfind: Detecting Injected Code</h2>
+            <p class="content-text">The <span class="inline-code">malfind</span> plugin searches for memory regions with suspicious characteristics: executable permissions (PAGE_EXECUTE_READWRITE), no associated file on disk, and content that looks like executable code (MZ headers, shellcode patterns).</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Malfind Output - Injected Code Detected</div>
+                <pre>$ python3 vol.py -f memory.raw windows.malfind
+
+<span class="out">PID   Process          Start VPN       End VPN         Tag   Protection          Hexdump / Disasm</span>
+
+<span class="hl">3284  svchost.exe      0x00400000      0x00410000      VadS  PAGE_EXECUTE_READWRITE</span>
+<span class="out">4d 5a 90 00 03 00 00 00  MZ......    </span><span class="cm">&lt;-- MZ header = PE file injected</span>
+<span class="out">04 00 00 00 ff ff 00 00  ........</span>
+<span class="out">b8 00 00 00 00 00 00 00  ........</span>
+<span class="out">40 00 00 00 00 00 00 00  @.......</span>
+
+<span class="hl">1852  explorer.exe     0x02b10000      0x02b15000      VadS  PAGE_EXECUTE_READWRITE</span>
+<span class="out">fc 48 83 e4 f0 e8 c0 00  .H......    </span><span class="cm">&lt;-- Shellcode (no MZ header)</span>
+<span class="out">00 00 41 51 41 50 52 51  ..AQAPRQ</span>
+<span class="out">56 48 31 d2 65 48 8b 52  VH1.eH.R</span>
+<span class="out">60 48 8b 52 18 48 8b 52  `H.R.H.R</span></pre>
+            </div>
+
+            <div class="callout callout--info">
+                <h4>Reading Malfind Output</h4>
+                <ul>
+                    <li><span class="inline-code">PAGE_EXECUTE_READWRITE</span> -- Memory that is both writable and executable. Legitimate code is typically PAGE_EXECUTE_READ (not writable).</li>
+                    <li><span class="inline-code">MZ header (4d 5a)</span> -- A PE executable has been injected into the process. This is a DLL or EXE loaded without the loader.</li>
+                    <li><span class="inline-code">fc 48 83 e4 f0</span> -- Common Metasploit/Cobalt Strike shellcode prologue. The fc is a CLD instruction, followed by stack alignment.</li>
+                    <li><span class="inline-code">VadS tag</span> -- Indicates a private (non-shared) memory allocation, typical for injected code.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">DLL Analysis: dlllist vs ldrmodules</h2>
+            <p class="content-text">Comparing the DLL lists from different sources reveals hidden or injected modules. The Windows PEB maintains three separate linked lists for loaded modules. Discrepancies between them indicate manipulation.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">DLL List Analysis</div>
+                <pre><span class="cm"># List DLLs loaded by a specific process</span>
+$ python3 vol.py -f memory.raw windows.dlllist --pid 3284
+
+<span class="out">PID   Process       Base             Size   Name                    Path</span>
+<span class="out">3284  svchost.exe   0x7ff678a30000   0x1e000  svchost.exe            C:\Windows\system32\svchost.exe</span>
+<span class="out">3284  svchost.exe   0x7ffc8b1f0000   0x1f8000 ntdll.dll              C:\Windows\SYSTEM32\ntdll.dll</span>
+<span class="out">3284  svchost.exe   0x7ffc89e60000   0x10d000 KERNEL32.DLL           C:\Windows\System32\KERNEL32.DLL</span>
+<span class="out">3284  svchost.exe   0x7ffc88cc0000   0x2f1000 KERNELBASE.dll         C:\Windows\System32\KERNELBASE.dll</span>
+
+<span class="cm"># Cross-reference with ldrmodules to find hidden DLLs</span>
+$ python3 vol.py -f memory.raw windows.ldrmodules --pid 3284
+
+<span class="out">PID   Process       Base             InLoad  InInit  InMem   MappedPath</span>
+<span class="out">3284  svchost.exe   0x7ff678a30000   True    True    True    \Windows\system32\svchost.exe</span>
+<span class="out">3284  svchost.exe   0x7ffc8b1f0000   True    True    True    \Windows\SYSTEM32\ntdll.dll</span>
+<span class="hl">3284  svchost.exe   0x00400000       False   False   False   </span><span class="cm">&lt;-- Not in any list = injected</span></pre>
+            </div>
+
+            <div class="callout callout--danger">
+                <h4>ldrmodules False/False/False</h4>
+                <p>A module showing False for InLoad, InInit, and InMem with no mapped path is almost certainly injected code. Legitimate DLLs appear in at least one of the three PEB module lists. This is one of the strongest indicators of reflective DLL injection or process hollowing.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Process Hollowing Detection</h2>
+            <p class="content-text">In process hollowing, the attacker creates a legitimate process (e.g., svchost.exe) in a suspended state, unmaps the original executable from memory, maps malicious code in its place, then resumes the process. The process appears legitimate in Task Manager but executes entirely different code.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Detecting Hollowed Processes</div>
+                <pre><span class="cm"># Step 1: Check if the process image on disk matches memory</span>
+$ python3 vol.py -f memory.raw windows.pslist --pid 3284
+<span class="out">PID   PPID  ImageFileName     Offset(V)        CreateTime</span>
+<span class="out">3284  588   svchost.exe       0xfa800321a080   2026-03-12 14:15:33</span>
+
+<span class="cm"># Step 2: Dump the process executable from memory</span>
+$ python3 vol.py -f memory.raw windows.procdump --pid 3284 --dump-dir ./dump/
+<span class="out">PID   Process       ImageBase       Result</span>
+<span class="out">3284  svchost.exe   0x00400000      file.3284.0x400000.dmp</span>
+
+<span class="cm"># Step 3: Check if dumped PE matches known svchost.exe hash</span>
+$ sha256sum ./dump/file.3284.0x400000.dmp
+<span class="hl">e4b9c2f1a3d5e7f8... (does NOT match known svchost.exe hash)</span>
+
+<span class="cm"># Step 4: Check the PEB image path vs actual code</span>
+<span class="cm"># The PEB says "svchost.exe" but the code is something else entirely</span>
+<span class="cm"># This confirms process hollowing</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="try-it">
+                <h3>Practice: Injection Analysis</h3>
+                <p>Given the following malfind output, classify each finding:</p>
+                <ol>
+                    <li>svchost.exe PID 784 at 0x10000 with PAGE_EXECUTE_READWRITE and bytes <span class="inline-code">4d 5a 90 00</span></li>
+                    <li>chrome.exe PID 2100 at 0x7ffc0000 with PAGE_EXECUTE_READ and bytes <span class="inline-code">4d 5a 90 00</span></li>
+                    <li>explorer.exe PID 3100 at 0x50000 with PAGE_EXECUTE_READWRITE and bytes <span class="inline-code">fc 48 83 e4</span></li>
+                    <li>notepad.exe PID 4200 at 0x400000 with PAGE_EXECUTE_READWRITE and bytes <span class="inline-code">4d 5a 90 00</span>, but ldrmodules shows False/False/False</li>
+                </ol>
+                <p><strong style="color:var(--green)">Analysis:</strong> #1: Reflective DLL injection (RWX + MZ in svchost). #2: Likely legitimate (RX, not RWX -- normal DLL mapping). #3: Shellcode injection (RWX + no MZ header). #4: Process hollowing (RWX + MZ + not in any PEB list).</p>
+            </div>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>malfind detects executable memory regions without associated files -- the primary injection indicator</li>
+                <li>PAGE_EXECUTE_READWRITE permission on private memory is almost always suspicious</li>
+                <li>MZ headers (4d 5a) in unexpected locations indicate PE injection; raw shellcode lacks this header</li>
+                <li>ldrmodules False/False/False entries are strong evidence of reflective injection or hollowing</li>
+                <li>Process hollowing creates processes that look legitimate but execute malicious code</li>
+                <li>Cross-referencing dlllist with ldrmodules reveals DLLs hidden from normal enumeration</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <a href="df-24-process-analysis.module.html" class="nav-btn">&larr; Prev: Process Analysis</a>
+            <a href="df-26-malware-recovery.module.html" class="nav-btn primary">Next: Malware Recovery &rarr;</a>
+        </div>
+    </div>
+
+    <script>
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.init({ moduleId: 'df-25', hubKey: 'hexworth_forensics_progress' });
+        }
+    </script>
+</body>
+</html>

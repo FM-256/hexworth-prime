@@ -10,6 +10,19 @@
  * - CAT-003: Module status 'available' with empty/missing href (HIGH)
  * - CAT-004: Module status not 'available' but href doesn't exist on disk (WARNING)
  * - CAT-005: Duplicate module IDs in ContentCatalog (HIGH)
+ * - CAT-006: Suffix-polluted module ID (CAT-002 deriveModuleId artifact).
+ *            Catalog id ends with .module/.tool/.lab/.quiz/.applet — these
+ *            are file-extension fragments leaked into ID generation. Hub
+ *            inline arrays use the clean form (no suffix). Mismatch causes
+ *            scanner Mech 4 to miss matches without suffix-stripping
+ *            workaround. Added 2026-04-30 (Stragglers branch). MEDIUM.
+ * - CAT-007: Duplicate (house, href) — multiple catalog entries point to
+ *            the same content file. Examples found in Stragglers audit:
+ *            clh-001 + script-clh-001 (CLH parent dual-naming), web-ip-*
+ *            triples for subnetting practice. Either dual-naming was
+ *            intentional (legacy id + new id during migration) or one of
+ *            the entries is dead code. Operator decision needed —
+ *            validator flags but doesn't auto-resolve. Added 2026-04-30. MEDIUM.
  *
  * Created: 2026-02-13 (after pod-crossing 404 bug)
  */
@@ -70,7 +83,83 @@ class ContentCatalogValidator {
         // Reverse check: HTML files in house dirs not in catalog (CAT-002)
         this._checkUndeclared(catalog, issues, summary);
 
+        // CAT-006: Suffix-polluted module IDs
+        this._checkSuffixPollution(catalog, issues, summary);
+
+        // CAT-007: Duplicate (house, href) — multiple ids for same file
+        this._checkDuplicateHrefs(catalog, issues, summary);
+
         return { issues, summary };
+    }
+
+    /**
+     * CAT-007: Multiple catalog entries pointing to the same (house, href).
+     * Indicates dual-naming (legacy + new id during migration) OR dead code
+     * (one entry is unused). Operator must decide which id to keep — validator
+     * flags but doesn't auto-resolve.
+     */
+    _checkDuplicateHrefs(catalog, issues, summary) {
+        const byHref = {};
+        for (const m of catalog.MODULES || []) {
+            if (!m.href || !m.house) continue;
+            const k = m.house + '::' + m.href;
+            if (!byHref[k]) byHref[k] = [];
+            byHref[k].push(m.id);
+        }
+        const dups = Object.entries(byHref).filter(([_, ids]) => ids.length > 1);
+        if (dups.length === 0) return;
+        summary.duplicateHrefs = dups.length;
+        summary.duplicateHrefModules = dups.reduce((s, [_, ids]) => s + ids.length, 0);
+        for (const [k, ids] of dups) {
+            const [house, href] = k.split('::');
+            issues.push({
+                code: 'CAT-007',
+                severity: 'medium',
+                category: 'content-catalog',
+                message: `${ids.length} catalog ids point to (${house}, ${href}): ${ids.join(', ')}. Either dual-naming or dead code.`,
+                file: this.catalogFile,
+                fix: `Decide which id to keep (typically the more recent / more descriptive). Remove duplicate(s) from MODULES array.`,
+            });
+        }
+    }
+
+    /**
+     * CAT-006: Module IDs ending in file-type suffixes (.module/.tool/.lab/.quiz/.applet).
+     * These are CAT-002 deriveModuleId artifacts — file extensions leaked into ID
+     * generation. Hub inline arrays use the clean form (no suffix), so Mech 4 of the
+     * strict-orphan-scanner only matches via a suffix-stripping workaround. Cleaning
+     * the catalog removes the workaround dependency and aligns IDs with hub registrations.
+     */
+    _checkSuffixPollution(catalog, issues, summary) {
+        const SUFFIX_RE = /\.(module|tool|lab|quiz|applet)$/;
+        const polluted = [];
+        for (const m of catalog.MODULES || []) {
+            if (m.id && SUFFIX_RE.test(m.id)) {
+                polluted.push(m.id);
+            }
+        }
+        if (polluted.length === 0) return;
+        summary.suffixPolluted = polluted.length;
+        // Group by suffix for cleaner reporting
+        const bySuffix = {};
+        for (const id of polluted) {
+            const m = id.match(SUFFIX_RE);
+            const sfx = m[0];
+            if (!bySuffix[sfx]) bySuffix[sfx] = [];
+            bySuffix[sfx].push(id);
+        }
+        for (const [sfx, ids] of Object.entries(bySuffix)) {
+            const sample = ids.slice(0, 5).map(i => `  - ${i}`).join('\n');
+            const more = ids.length > 5 ? `\n  ... (${ids.length - 5} more)` : '';
+            issues.push({
+                code: 'CAT-006',
+                severity: 'medium',
+                category: 'content-catalog',
+                message: `${ids.length} catalog id(s) carry trailing '${sfx}' suffix (CAT-002 deriveModuleId artifact). Hub inline arrays use the clean form. Strict-orphan-scanner Mech 4 currently strips this suffix in matching as a workaround. Sample:\n${sample}${more}`,
+                file: this.catalogFile,
+                fix: `Rename catalog ids to drop trailing '${sfx}'. Verify no runtime consumers reference the suffix-form id (typical: only the scanner does — STR-28).`,
+            });
+        }
     }
 
     /**
@@ -249,8 +338,8 @@ class ContentCatalogValidator {
             const htmlFiles = this._findHtmlFiles(houseDir);
 
             for (const filePath of htmlFiles) {
-                // Skip archived content
-                if (filePath.includes('_archive')) continue;
+                // Skip archived and source-only content directories
+                if (filePath.includes('/_archive/') || filePath.includes('/_source/')) continue;
 
                 // Only check files matching content patterns
                 if (!CONTENT_PATTERNS.some(p => p.test(filePath))) continue;

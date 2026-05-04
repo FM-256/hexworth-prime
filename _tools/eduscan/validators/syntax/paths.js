@@ -135,10 +135,10 @@ const STRUCTURAL_DEPTH_RULES = [
     },
     {
         // Forensics hub module pages - exactly 3 levels
-        // forensics(1)/sections(2)/advanced-forensics(3)/file.html → ../../../components/
-        filePattern: /^forensics\/sections\/[^/]+\/[^/]+\.html$/,
+        // houses(1)/eye(2)/forensics(3)/sections(4)/track(5)/file.html → ../../../../../components/
+        filePattern: /^houses\/eye\/forensics\/sections\/[^/]+\/[^/]+\.html$/,
         targetPattern: /components\//,
-        exactDepth: 3,
+        exactDepth: 5,
         description: 'forensics hub module files'
     },
     {
@@ -250,6 +250,13 @@ class PathValidator {
      */
     validate(file) {
         const issues = [];
+
+        // Skip files in _source/ and _archive/ — these are pre-render sources or
+        // archived content, not navigable; broken script paths there are not bugs.
+        if (file.path.includes('/_source/') || file.path.includes('/_archive/')) {
+            return issues;
+        }
+
         const content = file.content;
         const fileDir = path.dirname(file.path);
 

@@ -15,12 +15,30 @@
  *             houseId. The API is complete(houseId, moduleId, options). With 2
  *             args, moduleId lands in houseId position and the URL in moduleId,
  *             writing to a nonsense key like hexworth_progress['cloud-openstack-intro']['../index.html'].
+ *
+ * - PROG-003: Cross-file shared (houseId, moduleId) keys. Multiple distinct
+ *             content files call ModuleProgress.complete('HOUSE', 'KEY', ...)
+ *             with the same KEY. Harm: ModuleProgress.isFirstCompletion uses
+ *             bare moduleId (without house), so only the first file's
+ *             completion pushes XP/badges to Firestore — subsequent
+ *             completions are silently suppressed. Confirmed bugs:
+ *             WSA cloud-guilab (17 files), cloud-pslab (17 files);
+ *             A+ Core 2 'forge'/'index' (12 chapter applets — template
+ *             leftover, each chapter is distinct content).
+ *             Severity: medium at 2-4 files (review for legitimacy),
+ *             critical at 5+ files (almost certainly broken).
+ *             Cross-file analysis — runs as global validator.
+ *             Skips dynamic-key calls (e.g., complete('h', PREFIX + var)).
  */
+
+const fs = require('fs');
+const path = require('path');
 
 class ProgressKeysValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.profile = options.profile || 'ci';
+        this.rootPath = options.rootPath || './_app';
     }
 
     /**
@@ -130,6 +148,107 @@ class ProgressKeysValidator {
         }
 
         return issues;
+    }
+
+    /**
+     * PROG-003: Cross-file shared (houseId, moduleId) progress keys.
+     *
+     * Walks ALL .html files under rootPath, extracts every literal-string
+     * `ModuleProgress.complete('houseId', 'moduleId', ...)` call, groups by
+     * the (houseId, moduleId) pair, and reports collisions.
+     *
+     * Skips dynamic concatenation calls — `complete('h', PREFIX + id)` etc.
+     * Otherwise the regex captures the partial literal `'PREFIX-'` from
+     * `'PREFIX-' + variable` and produces false positives.
+     *
+     * Severity tiers (per Nancy round-3 audit):
+     *   2-4 files share key  → medium  (review for legitimacy: e.g., a
+     *                          tool page and presentation page intentionally
+     *                          marking the same module complete)
+     *   5+ files share key   → critical (overwhelmingly likely a template
+     *                          leftover or copy-paste bug)
+     *
+     * This is a GLOBAL validator (cross-file). Loads its own content via
+     * fs.readFileSync — does not receive pre-loaded file objects. Reads each
+     * .html file once during the global pass.
+     */
+    validateAll() {
+        if (this.profile === 'inventory') return { issues: [] };
+
+        const issues = [];
+        const callSitesByKey = new Map();  // 'house::module' -> [{file, line}, ...]
+        const htmlFiles = this._collectHtmlFiles(this.rootPath);
+
+        // Match: ModuleProgress.complete('houseId', 'moduleId'...
+        // Capture the trailing context (after second arg) to detect concatenation.
+        const COMPLETE_RE = /ModuleProgress\.complete\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"](\s*[,)+])/g;
+
+        for (const file of htmlFiles) {
+            let content;
+            try { content = fs.readFileSync(file, 'utf8'); } catch (e) { continue; }
+            if (!content.includes('ModuleProgress.complete')) continue;
+            COMPLETE_RE.lastIndex = 0;
+            let m;
+            while ((m = COMPLETE_RE.exec(content)) !== null) {
+                const houseId = m[1];
+                const moduleId = m[2];
+                const trail = m[3];
+                // Skip dynamic-key calls — if next non-whitespace after the
+                // closing quote is `+`, the literal is being concatenated with
+                // a variable. The captured `moduleId` is only the static prefix.
+                if (trail.includes('+')) continue;
+                // Skip the 2-arg URL pattern — that's PROG-002's territory
+                // (fingerprint: arg2 contains / or ends in .html)
+                if (moduleId.includes('/') || moduleId.endsWith('.html')) continue;
+
+                const key = `${houseId}::${moduleId}`;
+                const line = content.substring(0, m.index).split('\n').length;
+                const relFile = path.relative(this.rootPath, file);
+                if (!callSitesByKey.has(key)) callSitesByKey.set(key, []);
+                callSitesByKey.get(key).push({ file: relFile, line });
+            }
+        }
+
+        // Report collisions
+        for (const [key, sites] of callSitesByKey) {
+            // Distinct files only (a file with multiple identical calls is fine)
+            const uniqueFiles = Array.from(new Set(sites.map(s => s.file)));
+            if (uniqueFiles.length < 2) continue;
+            const [houseId, moduleId] = key.split('::');
+            const severity = uniqueFiles.length >= 5 ? 'critical' : 'medium';
+            const sample = uniqueFiles.slice(0, 6).map(f => `  - ${f}`).join('\n');
+            const more = uniqueFiles.length > 6 ? `\n  ... (${uniqueFiles.length - 6} more)` : '';
+            issues.push({
+                code: 'PROG-003',
+                severity,
+                category: 'progress-keys',
+                message: `Shared progress key — ${uniqueFiles.length} files all call ModuleProgress.complete('${houseId}', '${moduleId}', ...). ModuleProgress.isFirstCompletion uses bare moduleId, so only the first file's completion pushes XP/badges to Firestore; subsequent completions across these ${uniqueFiles.length} files are silently suppressed. Files:\n${sample}${more}`,
+                file: uniqueFiles[0],
+                line: sites.find(s => s.file === uniqueFiles[0]).line,
+                fix: `Use module-scoped keys per file. Pattern: '${houseId}-COURSE-PARENT-MODULE' where each parent module has a unique slug. E.g., 'cloud-wsa-m04-guilab' instead of shared 'cloud-guilab'.`,
+            });
+        }
+
+        if (this.verbose) {
+            console.log(`[PROG-003] Scanned ${htmlFiles.length} files, found ${issues.length} shared-key collisions`);
+        }
+        return { issues };
+    }
+
+    _collectHtmlFiles(root) {
+        const out = [];
+        const walk = (d) => {
+            let entries;
+            try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { return; }
+            for (const e of entries) {
+                if (e.name.startsWith('_') || e.name === 'node_modules') continue;
+                const full = path.join(d, e.name);
+                if (e.isDirectory()) walk(full);
+                else if (e.isFile() && e.name.endsWith('.html')) out.push(full);
+            }
+        };
+        walk(root);
+        return out;
     }
 }
 

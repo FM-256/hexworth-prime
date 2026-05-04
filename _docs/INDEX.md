@@ -73,6 +73,10 @@ cd _tools/nexus && node nexus.js status                # QC health across all to
 | [catalog-validation.md](operations/catalog-validation.md) | 86 | ContentCatalog.js validation rules and known discrepancies |
 | [presentation-status.md](operations/presentation-status.md) | 382 | Status of all presentations platform-wide -- completion, speaker notes, slide counts |
 | [package-manifest.md](operations/package-manifest.md) | 711 | Build manifest -- every file in the deploy package, sizes, checksums |
+| [stragglers-deploy-notes.md](operations/stragglers-deploy-notes.md) | — | v7.1.0 ZION pre-deploy disclosure: PROG-003 student-progress regression scheduling, STR-40 quiz-key workflow, incubator + truncation fixes |
+| [stragglers-merge-runbook.md](operations/stragglers-merge-runbook.md) | — | Step-by-step copy-paste runbook for the v7.1.0 ZION merge + deploy + verification + rollback |
+| [stragglers-progress-safety-audit.md](operations/stragglers-progress-safety-audit.md) | — | Per-change audit (8 categories) of branch impact on student progress data; recovery procedure |
+| [stragglers-pr-body.md](operations/stragglers-pr-body.md) | — | Comprehensive PR description for the Stragglers branch landing |
 
 **See also:**
 - [`_tools/NEXUS_DESIGN.md`](../_tools/NEXUS_DESIGN.md) -- Nexus hub-and-spoke QC orchestrator design
@@ -142,6 +146,7 @@ Man pages for shipped features. Each document covers purpose, architecture, and 
 | [Sandbox Labs](features/SANDBOX_LABS.md) | lab-manager/server.js, docker-compose.yml, SandboxLauncher.js | Docker containers, Traefik routing, Cloudflare Tunnel, Sablier idle mgmt |
 | [Multiplayer & Hive](features/MULTIPLAYER_HIVE.md) | MultiplayerManager.js, HiveManager.js, VsBridge.js | 2-player arcade, ghost replay, Hive exploration, Red Queen, CTF VS mode |
 | [Digital Life](features/DIGITAL_LIFE.md) | digital-life/index.js + 30 modules | Binary firefly ecosystem, 8 phases, procedural audio, cosmic events |
+| [Incubation Hubs](features/INCUBATION_HUBS.md) | `houses/<h>/incubator/index.html` × 8, `INCUBATOR_MODULES[]` pattern, graduation README | Per-house parking lot for orphan modules without a curriculum yet — graduates at ≥10 modules + clear scope. Placement pipeline tooling in `_tools/eduscan/` |
 
 ---
 

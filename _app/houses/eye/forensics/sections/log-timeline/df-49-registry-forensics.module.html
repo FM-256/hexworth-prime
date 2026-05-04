@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DF-49: Windows Registry Forensics | Forensics Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910; --bg-card: #111120; --bg-terminal: #0d1117;
+            --accent: #fbbf24; --accent-dim: rgba(251,191,36,0.12); --accent-border: rgba(251,191,36,0.25);
+            --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+            --text-primary: #e2e8f0; --text-secondary: #8b949e; --border: rgba(255,255,255,0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .fh-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .fh-header-left { display: flex; align-items: center; gap: 14px; }
+        .fh-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .fh-header h1 { font-size: 1.05rem; font-weight: 600; color: var(--accent); }
+        .fh-back { color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; }
+        .fh-back:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+        .fh-breadcrumb { padding: 9px 24px; font-size: 12px; color: var(--text-secondary); background: rgba(9,9,16,0.6); border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .fh-breadcrumb a { color: var(--accent); text-decoration: none; }
+        .fh-breadcrumb a:hover { opacity: 0.8; }
+        .fh-breadcrumb-sep { margin: 0 7px; color: #333; }
+        .content-panel { max-width: 820px; margin: 0 auto; padding: 30px 32px 60px; }
+        .section { margin-bottom: 36px; }
+        .section-title { font-size: 1.25rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; flex-shrink: 0; }
+        .objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+        .objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .objectives ul { list-style: none; }
+        .objectives li { padding: 4px 0 4px 20px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .content-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+        .feature-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .feature-card span { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.5; }
+        .code-block { background: var(--bg-terminal); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; overflow-x: auto; }
+        .code-block-header { font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .code-block-header::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        .code-block pre { font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; font-size: 0.83rem; line-height: 1.75; color: var(--text-primary); }
+        .cm { color: #6a737d; } .num { color: #79c0ff; } .out { color: var(--green); } .hl { color: var(--yellow); }
+        .callout { border-radius: 8px; padding: 16px 20px; margin: 20px 0; }
+        .callout--info { background: var(--accent-dim); border: 1px solid var(--accent-border); }
+        .callout--warn { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); }
+        .callout--danger { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); }
+        .callout h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .callout--info h4 { color: var(--accent); } .callout--warn h4 { color: var(--yellow); } .callout--danger h4 { color: var(--red); }
+        .callout p, .callout li { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+        .evidence-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .evidence-table th { background: rgba(251,191,36,0.08); color: var(--accent); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid rgba(251,191,36,0.2); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .evidence-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        .evidence-table tr:hover td { background: rgba(251,191,36,0.04); }
+        .inline-code { background: var(--bg-terminal); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.83em; color: var(--accent); }
+        .try-it { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 18px 20px; margin: 20px 0; }
+        .try-it h3 { color: var(--green); margin-bottom: 10px; font-size: 0.95rem; }
+        .try-it p, .try-it li { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; }
+        .try-it ol { padding-left: 20px; }
+        .takeaways { background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(251,191,36,0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .takeaways ul { list-style: none; }
+        .takeaways li { padding: 5px 0 5px 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .nav-footer { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .nav-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+        .nav-btn.primary:hover { filter: brightness(1.1); }
+        @media (max-width: 700px) { .content-panel { padding: 20px 16px 40px; } .feature-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="fh-header">
+        <div class="fh-header-left">
+            <span class="fh-badge">DF-49</span>
+            <h1>Windows Registry Forensics</h1>
+        </div>
+        <a href="../../index.html" class="fh-back">&lt; Forensics Hub</a>
+    </header>
+    <nav class="fh-breadcrumb" aria-label="Breadcrumb">
+        <a href="/dashboard.html">Dashboard</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Forensics Hub</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        <a href="../../index.html">Log &amp; Timeline Analysis</a>
+        <span class="fh-breadcrumb-sep">/</span>
+        DF-49: Windows Registry Forensics
+    </nav>
+
+    <div class="content-panel">
+        <div class="objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Understand Windows Registry structure: hives, keys, values, and types</li>
+                <li>Extract forensic artifacts from SAM, SYSTEM, SOFTWARE, and NTUSER.DAT hives</li>
+                <li>Identify persistence mechanisms in registry Run keys and services</li>
+                <li>Analyze USB device history from USBSTOR registry entries</li>
+                <li>Use Registry Explorer and RegRipper for automated analysis</li>
+            </ul>
+        </div>
+
+        <section class="section">
+            <h2 class="section-title">Registry Structure</h2>
+            <p class="content-text">The Windows Registry is a hierarchical database that stores OS configuration, user preferences, installed software, and hardware information. For forensic investigators, the registry is a goldmine -- it records user activity, persistence mechanisms, connected devices, network connections, and application usage, often with timestamps.</p>
+
+            <table class="evidence-table">
+                <thead>
+                    <tr>
+                        <th>Hive File</th>
+                        <th>Disk Location</th>
+                        <th>Mounted At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="inline-code">SAM</span></td>
+                        <td>C:\Windows\System32\config\SAM</td>
+                        <td>HKLM\SAM</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">SYSTEM</span></td>
+                        <td>C:\Windows\System32\config\SYSTEM</td>
+                        <td>HKLM\SYSTEM</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">SOFTWARE</span></td>
+                        <td>C:\Windows\System32\config\SOFTWARE</td>
+                        <td>HKLM\SOFTWARE</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">SECURITY</span></td>
+                        <td>C:\Windows\System32\config\SECURITY</td>
+                        <td>HKLM\SECURITY</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">NTUSER.DAT</span></td>
+                        <td>C:\Users\[username]\NTUSER.DAT</td>
+                        <td>HKCU (per-user)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">UsrClass.dat</span></td>
+                        <td>C:\Users\[username]\AppData\Local\Microsoft\Windows\UsrClass.dat</td>
+                        <td>HKCU\Software\Classes</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout--info">
+                <h4>Transaction Logs</h4>
+                <p>Each hive has associated transaction log files (.LOG1, .LOG2) that contain recent changes not yet flushed to the main hive file. When analyzing offline hives, use tools that merge transaction logs to ensure you see the most recent data. Registry Explorer does this automatically.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">SAM Hive -- User Accounts</h2>
+            <p class="content-text">The SAM (Security Account Manager) hive contains local user account information including usernames, RIDs (Relative Identifiers), account creation timestamps, last login times, password hashes, and account flags.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Key SAM Registry Paths</div>
+                <pre><span class="cm"># User account list</span>
+SAM\Domains\Account\Users\Names\
+
+<span class="cm"># User account details (per RID)</span>
+SAM\Domains\Account\Users\<span class="hl">000001F4</span>   <span class="cm"># RID 500 = Administrator</span>
+SAM\Domains\Account\Users\<span class="hl">000003E9</span>   <span class="cm"># RID 1001 = first created user</span>
+
+<span class="cm"># Forensic data per account:</span>
+<span class="cm"># - Account creation time</span>
+<span class="cm"># - Last login timestamp</span>
+<span class="cm"># - Login count</span>
+<span class="cm"># - Password last changed</span>
+<span class="cm"># - Account disabled/enabled flag</span>
+<span class="cm"># - NT hash and LM hash (if stored)</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">SYSTEM Hive -- Services, Devices, Network</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">Key SYSTEM Registry Paths</div>
+                <pre><span class="cm"># Installed services (persistence mechanism)</span>
+SYSTEM\CurrentControlSet\Services\
+<span class="cm"># Look for: ImagePath pointing to unusual locations (Temp, AppData)</span>
+<span class="cm"># Look for: Start value = 2 (auto-start) with suspicious names</span>
+
+<span class="cm"># USB device history (USBSTOR)</span>
+SYSTEM\CurrentControlSet\Enum\<span class="hl">USBSTOR</span>\
+<span class="cm"># Records: Device class, vendor, product, serial number</span>
+<span class="cm"># Timestamps: First connected, last connected, last removed</span>
+
+<span class="cm"># Computer name</span>
+SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName
+
+<span class="cm"># Timezone (critical for timestamp correlation)</span>
+SYSTEM\CurrentControlSet\Control\TimeZoneInformation
+
+<span class="cm"># Network interfaces</span>
+SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\
+<span class="cm"># IP addresses, DHCP settings, DNS servers, gateway</span>
+
+<span class="cm"># Last shutdown time</span>
+SYSTEM\CurrentControlSet\Control\Windows\ShutdownTime</pre>
+            </div>
+
+            <div class="callout callout--danger">
+                <h4>USB Forensics via USBSTOR</h4>
+                <p>The USBSTOR key records every USB storage device ever connected. Cross-reference with <span class="inline-code">SYSTEM\MountedDevices</span> to find drive letter assignments and with <span class="inline-code">NTUSER.DAT\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2</span> to tie devices to specific user accounts. This chain of evidence proves that a specific user connected a specific device at a specific time.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">SOFTWARE Hive -- Applications and Persistence</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">Key SOFTWARE Registry Paths</div>
+                <pre><span class="cm"># Auto-start programs (persistence)</span>
+SOFTWARE\Microsoft\Windows\CurrentVersion\<span class="hl">Run</span>
+SOFTWARE\Microsoft\Windows\CurrentVersion\<span class="hl">RunOnce</span>
+SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run
+
+<span class="cm"># Installed programs</span>
+SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\
+<span class="cm"># Install dates, versions, publisher information</span>
+
+<span class="cm"># Network profiles (Wi-Fi/Ethernet history)</span>
+SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles\
+<span class="cm"># Network names, first/last connection timestamps, network type</span>
+
+<span class="cm"># OS information</span>
+SOFTWARE\Microsoft\Windows NT\CurrentVersion\
+<span class="cm"># Build number, install date, registered owner, product name</span></pre>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">NTUSER.DAT -- User Activity</h2>
+            <p class="content-text">Each user profile has an NTUSER.DAT hive that records user-specific activity. This is often the most forensically rich hive for understanding what a user did.</p>
+
+            <div class="code-block">
+                <div class="code-block-header">Key NTUSER.DAT Paths</div>
+                <pre><span class="cm"># User-specific auto-start (persistence per user)</span>
+NTUSER\Software\Microsoft\Windows\CurrentVersion\Run
+NTUSER\Software\Microsoft\Windows\CurrentVersion\RunOnce
+
+<span class="cm"># Recent documents</span>
+NTUSER\Software\Microsoft\Windows\CurrentVersion\Explorer\RecentDocs\
+
+<span class="cm"># Typed paths in Explorer address bar</span>
+NTUSER\Software\Microsoft\Windows\CurrentVersion\Explorer\<span class="hl">TypedPaths</span>
+
+<span class="cm"># Run dialog history (Win+R)</span>
+NTUSER\Software\Microsoft\Windows\CurrentVersion\Explorer\<span class="hl">RunMRU</span>
+
+<span class="cm"># UserAssist -- program execution tracking (ROT13 encoded)</span>
+NTUSER\Software\Microsoft\Windows\CurrentVersion\Explorer\<span class="hl">UserAssist</span>\
+<span class="cm"># Execution count, last execution time, focus time</span>
+
+<span class="cm"># Mounted network shares</span>
+NTUSER\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2\</pre>
+            </div>
+
+            <div class="callout callout--info">
+                <h4>UserAssist Decoding</h4>
+                <p>UserAssist entries are ROT13 encoded to prevent casual observation. For example, <span class="inline-code">PNYPF.RKR</span> decodes to <span class="inline-code">CALCS.EXE</span>. Registry Explorer and RegRipper automatically decode these entries, but if you are working manually, apply ROT13 to the value names to reveal the actual program paths.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title">Forensic Tools</h2>
+
+            <div class="code-block">
+                <div class="code-block-header">RegRipper -- Automated Registry Analysis</div>
+                <pre><span class="cm"># Run RegRipper against a hive file</span>
+rip.pl -r /evidence/SYSTEM -p compname
+rip.pl -r /evidence/SYSTEM -p services
+rip.pl -r /evidence/SYSTEM -p usbstor
+rip.pl -r /evidence/SAM -p samparse
+rip.pl -r /evidence/NTUSER.DAT -p userassist
+rip.pl -r /evidence/SOFTWARE -p autoruns
+
+<span class="cm"># Run all plugins for a hive type</span>
+rip.pl -r /evidence/NTUSER.DAT -a > ntuser_full_analysis.txt</pre>
+            </div>
+
+            <table class="evidence-table">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Type</th>
+                        <th>Strength</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="inline-code">Registry Explorer</span></td>
+                        <td>GUI (Eric Zimmerman)</td>
+                        <td>Merges transaction logs, bookmarks forensic keys, hex/decoded views, timeline generation</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">RegRipper</span></td>
+                        <td>CLI (Harlan Carvey)</td>
+                        <td>Plugin-based, automated extraction, scriptable for batch processing</td>
+                    </tr>
+                    <tr>
+                        <td><span class="inline-code">regedit</span></td>
+                        <td>Built-in Windows</td>
+                        <td>Load hives via File > Load Hive for quick inspection on live systems</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <div class="try-it">
+                <h3>Practice: Extract Forensic Artifacts</h3>
+                <p>Given the following registry entries found during an investigation, identify the forensic significance of each:</p>
+                <ol>
+                    <li><span class="inline-code">HKLM\SYSTEM\CurrentControlSet\Services\WinUpdateSvc</span> -- ImagePath: C:\Windows\Temp\svchost.exe, Start: 2</li>
+                    <li><span class="inline-code">HKCU\Software\Microsoft\Windows\CurrentVersion\Run</span> -- "SystemCheck" = "powershell -ep bypass -w hidden -f C:\Users\jsmith\AppData\beacon.ps1"</li>
+                    <li><span class="inline-code">HKLM\SYSTEM\CurrentControlSet\Enum\USBSTOR\Disk&Ven_SanDisk&Prod_Ultra&Rev_1.00</span> -- Serial: 4C530000110823</li>
+                    <li><span class="inline-code">HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU</span> -- a: "cmd /c net user hacker P@ss /add"</li>
+                </ol>
+                <p><strong style="color:var(--green)">Analysis:</strong> (1) Malicious service persistence -- legitimate svchost.exe does not run from Temp directory; auto-start on boot. (2) PowerShell-based persistence -- bypasses execution policy, runs hidden, executes beacon script on every user logon. (3) SanDisk Ultra USB device was connected -- serial number uniquely identifies the specific device for evidence tracking. (4) User executed a command to create a backdoor account named "hacker" -- preserved in Run dialog history even if command prompt was closed.</p>
+            </div>
+        </section>
+
+        <div class="takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Registry hives (SAM, SYSTEM, SOFTWARE, NTUSER.DAT) are stored as files under C:\Windows\System32\config\ and user profiles</li>
+                <li>SAM hive reveals user accounts, creation times, login counts, and password hashes</li>
+                <li>SYSTEM hive contains services (persistence), USBSTOR (device history), and timezone info</li>
+                <li>SOFTWARE hive stores Run keys (persistence) and installed program records</li>
+                <li>NTUSER.DAT records user activity: recent docs, typed paths, RunMRU, UserAssist (execution tracking)</li>
+                <li>Always collect transaction logs (.LOG1, .LOG2) alongside hive files</li>
+                <li>Registry Explorer and RegRipper are the primary analysis tools for offline hive examination</li>
+            </ul>
+        </div>
+
+        <div class="nav-footer">
+            <a href="df-48-email-headers.module.html" class="nav-btn">&larr; Previous: Email Header Analysis</a>
+            <a href="df-50-timeline-capstone.module.html" class="nav-btn primary">Next: Timeline Capstone &rarr;</a>
+        </div>
+    </div>
+
+    <script>
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.init({ moduleId: 'df-49', hubKey: 'hexworth_forensics_progress' });
+        }
+    </script>
+</body>
+</html>
