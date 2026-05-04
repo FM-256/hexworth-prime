@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+#
+# Hexworth Prime — EduScan Stage 1 (pre-commit) hook
+# Per safety-net-architecture.md §"Stage 1".
+#
+# INSTALL (developer opt-in):
+#   cp _tools/eduscan/hooks/pre-commit.sample .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# UNINSTALL:
+#   rm .git/hooks/pre-commit
+#
+# OVERRIDE (emergency only — logged to stderr):
+#   PRECOMMIT_BYPASS=1 PRECOMMIT_BYPASS_REASON="why" git commit ...
+#
+# Behavior:
+#   - Runs _tools/eduscan/staged.js against staged .html/.js/.css/.json files only
+#   - Blocks commit on critical/high severity issues
+#   - Allows commit on medium/low/info (printed but non-blocking)
+#   - Skips silently if no scannable files staged
+
+set -e
+
+# ── Bypass escape hatch (logged) ────────────────────────────────────────
+if [ "${PRECOMMIT_BYPASS:-0}" = "1" ]; then
+    if [ -z "${PRECOMMIT_BYPASS_REASON:-}" ]; then
+        echo "[pre-commit] BYPASS requested but PRECOMMIT_BYPASS_REASON is empty." >&2
+        echo "[pre-commit] Set PRECOMMIT_BYPASS_REASON=\"<why>\" to skip the hook." >&2
+        exit 1
+    fi
+    echo "[pre-commit] BYPASSED — reason: ${PRECOMMIT_BYPASS_REASON}" >&2
+    exit 0
+fi
+
+# ── Locate the runner ───────────────────────────────────────────────────
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+RUNNER="${REPO_ROOT}/_tools/eduscan/staged.js"
+
+if [ ! -f "$RUNNER" ]; then
+    echo "[pre-commit] WARNING: $RUNNER not found — skipping (hook is misconfigured)." >&2
+    exit 0
+fi
+
+# ── Collect staged files (null-delimited handles spaces/newlines) ───────
+STAGED=()
+while IFS= read -r -d '' f; do
+    STAGED+=("$f")
+done < <(git diff --cached --name-only --diff-filter=ACM -z)
+
+if [ ${#STAGED[@]} -eq 0 ]; then
+    exit 0
+fi
+
+# ── Filter to scannable extensions (the runner re-filters too, belt+suspenders) ─
+SCAN=()
+for f in "${STAGED[@]}"; do
+    case "$f" in
+        *.html|*.js|*.css|*.json) SCAN+=("$f") ;;
+    esac
+done
+
+if [ ${#SCAN[@]} -eq 0 ]; then
+    exit 0
+fi
+
+# ── Run the staged runner ──────────────────────────────────────────────
+node "$RUNNER" "${SCAN[@]}"
+RC=$?
+
+if [ $RC -ne 0 ]; then
+    echo "" >&2
+    echo "[pre-commit] EduScan Stage 1 found blocking issues." >&2
+    echo "[pre-commit] Fix above, OR override (emergency only):" >&2
+    echo "[pre-commit]   PRECOMMIT_BYPASS=1 PRECOMMIT_BYPASS_REASON=\"<why>\" git commit ..." >&2
+    exit $RC
+fi
+
+exit 0

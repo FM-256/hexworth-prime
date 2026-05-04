@@ -77,11 +77,12 @@ if [ ${#STAGED[@]} -eq 0 ]; then exit 0; fi
 node _tools/eduscan/<staged-runner> "${STAGED[@]}"
 ```
 
-`<staged-runner>` is one of:
-- **(Option A)** `cli.js --staged --profile pre-commit --files` — augments the existing CLI with a new flag. Single source of truth, but invasive change to a critical file.
-- **(Option B)** `staged.js` — a separate ~80-line runner that loads only the per-file validators above and runs them against passed files. Lower blast radius, but creates a parallel code path.
+`<staged-runner>` is `_tools/eduscan/staged.js` — a thin standalone runner (~80 lines) that loads ONLY the per-file validators above and runs them against the named files. **Decision (2026-05-04): Option B over modifying the main `cli.js`.** Reasoning:
 
-**The implementation must pick A or B and align this section with that choice.** SYM-5 includes the decision.
+1. The main `cli.js` is critical infrastructure used by every other developer flow (full scans, archive, drift, fixers). A new flag would mean every cli.js change risks breaking the pre-commit path.
+2. A separate runner can be reasoned about in isolation — the file is short enough to fully audit on every change.
+3. If Option B proves inadequate, the migration cost to fold it into cli.js is small (move the loader + main loop).
+4. The cost of duplication is low because both code paths share the SAME validator classes — only the orchestration is duplicated, not the rules.
 
 Exit code 0 = pass, 1 = block. Profile excludes any global validator (PROG-003, HUB-001, XREF-001, content-catalog, assignment-links, learning-paths, csp, palette, tags) and the `.validateGlobal()` halves of partial validators (heuristics, sandbox, xp-audit).
 
