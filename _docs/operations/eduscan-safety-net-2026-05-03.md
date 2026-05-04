@@ -257,6 +257,47 @@ The safety net is platform infrastructure benefiting all future work. Putting it
 6. Verify with runtime monitor
 - Production impact: 263+ files including the STR-30 fix that benefits real students immediately.
 
+**2026-05-04 — Phase 3 (fusion) COMPLETE — full content payload live in production**
+
+First attempt (`git merge --no-ff Stragglers`) was a partial success / partial surprise:
+- Tagged `pre-fusion-2026-05-04` on master HEAD `d93cfa72` for rollback
+- Merge completed with 3 conflicts (one more than dry-merge predicted: ops doc add/add)
+- BUT the merge only brought 15 files / 355 insertions, NOT the 263 predicted
+- **Why:** Phase 2 prep had cherry-picked master's safety-net commits ONTO Stragglers. Git then considered the original Stragglers content "already in master's history" (because commit 17941adb was in master's history, even though 165ab73a reverted it). So merging Stragglers→master only brought what was NEW SINCE the cherry-picks — the Phase 2 deltas.
+- **Master commit:** `9fb59c48` ("Merge branch 'Stragglers'")
+- **Production impact:** Phase 2 fixes shipped (STR-30, WSA realign, firebase :rest*) but original Stragglers content payload (forensics relocation, incubator hubs, etc.) did NOT ship.
+- **Loose end:** firebase.json had a redirect rule pointing to `/houses/eye/forensics/` which didn't exist in production (the relocation hadn't shipped). Anyone hitting `/forensics/something` would have gotten a redirect to a 404. Resolved by the second attempt below.
+
+Second attempt — **revert-the-revert on a scratch branch**:
+- Created `feat/stragglers-content` off `9fb59c48`
+- `git revert -n 165ab73a` — re-applied 262 files of Stragglers content as a pending change
+- 2 conflicts: firebase.json (took Stragglers' two-rule redirect — handles `/forensics/:rest*` AND bare `/forensics`), dashboard.html (kept HEAD's BF-1 onclick fix on the new canonical URL)
+- Discovered: Phase 2 P2-3 WSA hub fix had been silently undone by the revert-of-revert (data-module attrs reverted to wsa-moduleNN). Re-applied via sed.
+- All other Phase 2 fixes survived naturally (STR-30, m20 removal, catalog orphan deletion, LP rename).
+- Verified: EduScan 58/58, smoke 6/6, PROG-003 critical 0
+- **Master commit:** `10fb08a6` ("revert revert: re-apply Stragglers content payload + preserve Phase 2 fixes")
+- 262 files changed, 142,661 insertions, 95,067 deletions
+- FF-merged scratch branch to master, pushed
+- Deployed via `./deploy.sh` — all 4 gates passed (branch + Nexus + smoke + firebase deploy)
+
+**Production verifications (post-deploy, all green):**
+- `/houses/eye/forensics/index.html` → 200 (relocation live)
+- `/forensics/index.html` → 301 (redirect live)
+- `/houses/cloud/incubator/index.html` → 200 (incubator hub live)
+- `/houses/web/incubator/index.html` → 200 (incubator hub live)
+- `/houses/script/modules/databases/index.html` → 200 (curriculum hub live)
+- STR-30 unique progress keys live in production
+- WSA hub data-module attrs aligned to m01..m19 in production
+- Runtime monitor first probe post-deploy: 5/5 allPassed=True
+
+**Lessons from Phase 3:**
+1. **Cherry-picking before merging changes git's view of "shared history."** The Phase 2 safety-net cherry-picks made the original Stragglers commits look "already merged" to git. Future similar work should either (a) cherry-pick AFTER merge, not before, or (b) anticipate the partial-merge by planning the revert-of-revert from the start.
+2. **Revert-of-revert silently undoes things in conflict zones.** When undoing a revert, files that received later fixes (like Phase 2 P2-3 WSA hub) can get reverted along with the bigger payload. Verify ALL prior fixes after a revert-of-revert; re-apply any that got silently undone.
+3. **Tag before any merge that might need rollback.** The `pre-fusion-2026-05-04` tag was the safety net that made the second attempt low-risk.
+4. **The safety net we built was the difference.** v7.1.0 ZION shipped this same content payload and broke production for hours. v7.1.0 ZION redo (today) shipped the same content with HEUR-029, XREF-001, smoke gate, and runtime monitor catching every failure mode that took down v7.1.0. Same content, different process, completely different outcome.
+
+**Master HEAD:** `10fb08a6` (live in production).
+**Rollback anchor:** tag `pre-fusion-2026-05-04` (commit `d93cfa72`).
 
 ### Smoke gate could be expanded later (low priority)
 Current 6 targets are blast-radius high. Could add:
