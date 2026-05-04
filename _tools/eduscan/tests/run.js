@@ -29,6 +29,8 @@ const SandboxValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/sandb
 const LinuxTerminalValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/linux-terminal'));
 const ProgressKeysValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/progress-keys'));
 const XPAuditValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/xp-audit'));
+const DependencyCheckValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/dependency-check'));
+const ContentBlobValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/content-blob'));
 
 // ── Import expectations ──────────────────────────────────────────────
 const expectations = require('./expectations');
@@ -64,7 +66,9 @@ const validators = [
     new SandboxValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
     new LinuxTerminalValidator({ profile: 'strict' }),
     new ProgressKeysValidator({ profile: 'strict' }),
-    new XPAuditValidator({ rootPath: ROOT_PATH, profile: 'strict' })
+    new XPAuditValidator({ rootPath: ROOT_PATH, profile: 'strict' }),
+    new DependencyCheckValidator({ profile: 'strict' }),
+    new ContentBlobValidator({ profile: 'strict' })
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────
@@ -554,6 +558,137 @@ console.log('');
 
     // Cleanup
     try { fs.unlinkSync(testFile2); fs.rmdirSync(tmpDir2); } catch (_) {}
+}
+
+// CSPValidator: all emitted issues use CSP-001 code; current platform has zero CSP gaps
+{
+    const CSPValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/csp'));
+    const cspValidator = new CSPValidator({ rootPath: ROOT_PATH });
+    const cspResult = cspValidator.validate();
+    const validCodes = ['CSP-001'];
+    const badCodes = cspResult.issues.filter(i => !validCodes.includes(i.code));
+    if (badCodes.length === 0) {
+        console.log(`  ✓ CSPValidator — all ${cspResult.issues.length} issues use CSP-001 code`);
+        passed++;
+    } else {
+        console.log(`  ✗ CSPValidator — found ${badCodes.length} issues with invalid codes: ${[...new Set(badCodes.map(i => i.code))].join(', ')}`);
+        failed++;
+    }
+    if (cspResult.issues.length === 0) {
+        console.log(`  ✓ CSPValidator — zero uncovered external domains (CSP-001 count: 0, ${cspResult.summary.totalExternalDomains} domains scanned)`);
+        passed++;
+    } else {
+        console.log(`  ✗ CSPValidator — found ${cspResult.issues.length} uncovered external domains:`);
+        cspResult.issues.slice(0, 5).forEach(i => console.log(`    - ${i.message}`));
+        failed++;
+    }
+}
+
+// PaletteValidator: all emitted issues use PALETTE-001/002/003 codes; current platform has zero palette drift
+{
+    const PaletteValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/palette'));
+    const palValidator = new PaletteValidator({ rootPath: ROOT_PATH });
+    const palResult = palValidator.validate();
+    const validCodes = ['PALETTE-001', 'PALETTE-002', 'PALETTE-003'];
+    const badCodes = palResult.issues.filter(i => !validCodes.includes(i.code));
+    if (badCodes.length === 0) {
+        console.log(`  ✓ PaletteValidator — all ${palResult.issues.length} issues use PALETTE-001/002/003 codes`);
+        passed++;
+    } else {
+        console.log(`  ✗ PaletteValidator — found ${badCodes.length} issues with invalid codes: ${[...new Set(badCodes.map(i => i.code))].join(', ')}`);
+        failed++;
+    }
+    if (palResult.issues.length === 0) {
+        console.log(`  ✓ PaletteValidator — zero palette drift (${palResult.summary.housesChecked} houses checked)`);
+        passed++;
+    } else {
+        console.log(`  ✗ PaletteValidator — found ${palResult.issues.length} palette issues:`);
+        palResult.issues.slice(0, 5).forEach(i => console.log(`    - ${i.code}: ${i.message}`));
+        failed++;
+    }
+}
+
+// AssignmentLinkValidator: all emitted issues use ASGN-001..006 codes; current platform has zero broken item assignments (ASGN-001)
+{
+    const AssignmentLinkValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/assignment-links'));
+    const asgnValidator = new AssignmentLinkValidator({ rootPath: ROOT_PATH });
+    const asgnResult = asgnValidator.validate();
+    const validCodes = ['ASGN-001', 'ASGN-002', 'ASGN-003', 'ASGN-004', 'ASGN-005', 'ASGN-006'];
+    const badCodes = asgnResult.issues.filter(i => !validCodes.includes(i.code));
+    if (badCodes.length === 0) {
+        console.log(`  ✓ AssignmentLinkValidator — all ${asgnResult.issues.length} issues use ASGN-001..006 codes`);
+        passed++;
+    } else {
+        console.log(`  ✗ AssignmentLinkValidator — found ${badCodes.length} issues with invalid codes: ${[...new Set(badCodes.map(i => i.code))].join(', ')}`);
+        failed++;
+    }
+    const asgn001s = asgnResult.issues.filter(i => i.code === 'ASGN-001');
+    if (asgn001s.length === 0) {
+        console.log(`  ✓ AssignmentLinkValidator — zero broken item assignments (ASGN-001 count: 0, ${asgnResult.stats.itemAssignmentsChecked} item assignments checked)`);
+        passed++;
+    } else {
+        console.log(`  ✗ AssignmentLinkValidator — found ${asgn001s.length} broken item assignments (ASGN-001):`);
+        asgn001s.slice(0, 5).forEach(i => console.log(`    - ${i.moduleId}: ${i.message}`));
+        failed++;
+    }
+}
+
+// XRefValidator: cross-layer ID coupling check (progress.js MODULES ↔ hub data-module attrs)
+// Currently flags 1 known stale orphan (WSA m20). Test passes as long as no NEW mismatches appear (regression gate).
+{
+    const XRefValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/xref'));
+    const xrefValidator = new XRefValidator({ rootPath: ROOT_PATH });
+    const xrefResult = xrefValidator.validate();
+    const validCodes = ['XREF-001'];
+    const badCodes = xrefResult.issues.filter(i => !validCodes.includes(i.code));
+    if (badCodes.length === 0) {
+        console.log(`  ✓ XRefValidator — all ${xrefResult.issues.length} issues use XREF-001 code (${xrefResult.summary.coursesChecked} courses checked)`);
+        passed++;
+    } else {
+        console.log(`  ✗ XRefValidator — found ${badCodes.length} issues with invalid codes: ${[...new Set(badCodes.map(i => i.code))].join(', ')}`);
+        failed++;
+    }
+    // Regression gate: known baseline is 1 issue (WSA m20 orphan). New mismatches above that fail the test.
+    const KNOWN_XREF_BASELINE = 1;
+    if (xrefResult.issues.length <= KNOWN_XREF_BASELINE) {
+        console.log(`  ✓ XRefValidator — at-or-below baseline (${xrefResult.issues.length} ≤ ${KNOWN_XREF_BASELINE} known mismatches)`);
+        passed++;
+    } else {
+        console.log(`  ✗ XRefValidator — NEW coupling regressions (${xrefResult.issues.length} > ${KNOWN_XREF_BASELINE} baseline):`);
+        xrefResult.issues.slice(0, 10).forEach(i => console.log(`    - [${i.course}] ${i.message}`));
+        failed++;
+    }
+}
+
+// ContentBlobValidator + DependencyCheckValidator: regression — production house indices and module HTMLs should not exhibit BLOB or DEP issues at scale
+// (per-file fixture coverage is in the fixture suite; integration just confirms validators don't crash on real content)
+{
+    const blobV = new ContentBlobValidator({ profile: 'strict' });
+    const depV = new DependencyCheckValidator({ profile: 'strict' });
+    const Scanner = require(path.join(EDUSCAN_DIR, 'scanner'));
+    const ParserOrchestrator = require(path.join(EDUSCAN_DIR, 'parsers'));
+    const sc = new Scanner({ rootPath: ROOT_PATH, verbose: false });
+    const pa = new ParserOrchestrator({ verbose: false });
+    const scanRes = sc.scan();
+    const files = pa.parseAll(scanRes.files);
+    let blobIssues = 0, depIssues = 0, blobThrew = 0, depThrew = 0;
+    for (const f of files) {
+        if (!f.path.endsWith('.html')) continue;
+        let content = f.content;
+        if (!content) {
+            try { content = fs.readFileSync(path.resolve(ROOT_PATH, f.path), 'utf8'); } catch (_) { continue; }
+        }
+        const file = { ...f, content };
+        try { blobIssues += blobV.validate(file).length; } catch (_) { blobThrew++; }
+        try { depIssues += depV.validate(file).length; } catch (_) { depThrew++; }
+    }
+    if (blobThrew === 0 && depThrew === 0) {
+        console.log(`  ✓ ContentBlobValidator + DependencyCheckValidator — ran cleanly across ${files.filter(f => f.path.endsWith('.html')).length} files (BLOB issues: ${blobIssues}, DEP issues: ${depIssues})`);
+        passed++;
+    } else {
+        console.log(`  ✗ BLOB/DEP integration — BlobValidator threw on ${blobThrew} files, DepValidator threw on ${depThrew} files`);
+        failed++;
+    }
 }
 
 console.log('');
