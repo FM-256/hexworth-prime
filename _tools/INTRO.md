@@ -84,15 +84,44 @@ node nexus.js gate       # pass/fail deploy check
 ### EduScan — The Antivirus
 `_tools/eduscan/`
 
-Signature-based code scanner. Every bug found gets its signature added as a test fixture for regression. Currently tracks 7,312 issues across 30 rule codes.
+Signature-based code scanner. Every bug found gets its signature added as a test fixture for regression. Currently tracks 7,312 issues across 30+ rule codes.
 
-14 validators: HTML, JS, Engine, Path, LearningPaths, AssignmentLinks, Naming, Heuristics, ContentCatalog, DependencyCheck, CSP, Navigation, Emoji, Semantic.
+20+ validators including HEUR-029 (looks-clickable, isn't), XREF-001 (cross-layer ID coupling), DEP-* (dependency check), BLOB-* (content blob detection), CSP, PALETTE, ASGN, plus the originals: HTML, JS, Engine, Path, LearningPaths, Naming, Heuristics, ContentCatalog, Navigation, Emoji, Semantic.
 
 The Emoji validator alone has 6 rules, decodes Unicode surrogate pairs, and scans 162 JS files. The codebase has 0 decorative emoji — all 125 webp icons generated via fal.ai.
 
 ```
 node cli.js -p ../../_app           # full scan, reports to TREASURE_MAP.json
-node tests/run.js                   # 36 regression tests
+node tests/run.js                   # 54 regression tests (all passing as of 2026-05-03)
+```
+
+#### EduScan Smoke Gate (pre-deploy)
+`_tools/eduscan/smoke/`
+
+Real-browser pre-render check that runs before `firebase deploy`. Spins up a local HTTP server pointed at `_app/`, launches Puppeteer headless, hits 6 critical pages with localStorage seeding, and asserts:
+- Zero unfiltered JS errors (pageerror + console.error + requestfailed)
+- Required DOM elements present (e.g., dashboard mini-house-cards, house module-cards, WSA hub data-module attrs)
+
+Catches the v7.1.0 ZION class of failure (JS cascade leaves cards visible-but-dead, smoke battery returns HTTP 200s).
+
+```
+node _tools/eduscan/smoke/run.js              # standalone — exit 0 pass, 1 fail
+SKIP_SMOKE=1 SKIP_SMOKE_REASON="why"          # emergency override (audit-logged)
+```
+
+**Canonical deploy command** (replaces bare `firebase deploy --only hosting`):
+```
+./deploy.sh                                   # branch check → Nexus → smoke → firebase deploy --only hosting
+./deploy.sh --strict                          # Nexus blocks on HIGH too
+./deploy.sh --force                           # skip Nexus only
+./deploy.sh --skip-smoke                      # skip smoke only
+./deploy.sh --force --skip-smoke              # skip both (explicit, audit-friendly)
+```
+
+For non-hosting deploys (functions, firestore rules), use the standalone smoke wrapper:
+```
+_tools/eduscan/smoke/deploy.sh --only functions
+_tools/eduscan/smoke/deploy.sh --only firestore:rules,firestore:indexes
 ```
 
 ### Sprint Master — The Backlog
