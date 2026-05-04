@@ -648,8 +648,9 @@ console.log('');
         console.log(`  ✗ XRefValidator — found ${badCodes.length} issues with invalid codes: ${[...new Set(badCodes.map(i => i.code))].join(', ')}`);
         failed++;
     }
-    // Regression gate: known baseline is 1 issue (WSA m20 orphan). New mismatches above that fail the test.
-    const KNOWN_XREF_BASELINE = 1;
+    // Regression gate: baseline is 0 (WSA m20 orphan resolved 2026-05-03 commit-pending).
+    // Any new mismatch must either be fixed or this baseline must be raised with justification.
+    const KNOWN_XREF_BASELINE = 0;
     if (xrefResult.issues.length <= KNOWN_XREF_BASELINE) {
         console.log(`  ✓ XRefValidator — at-or-below baseline (${xrefResult.issues.length} ≤ ${KNOWN_XREF_BASELINE} known mismatches)`);
         passed++;

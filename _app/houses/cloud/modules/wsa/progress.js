@@ -8,9 +8,12 @@ const WSAProgress = (function() {
     const STORAGE_KEY = 'wsa-course-progress';
 
     // Module IDs
+    // NOTE: 'm20' was removed (XREF-001 surfaced 2026-05-03) — orphan key in MODULES
+    // with no data-module="m20" card in the WSA hub. The capstone module
+    // (m20-failsafe-capstone/) writes to key 'capstone', not 'm20'.
     const MODULES = [
         'm01', 'm02', 'm03', 'm04', 'm05', 'm06', 'm07', 'm08', 'm09', 'm10',
-        'm11', 'm12', 'm13', 'm14', 'm15', 'm16', 'm17', 'm18', 'm19', 'm20',
+        'm11', 'm12', 'm13', 'm14', 'm15', 'm16', 'm17', 'm18', 'm19',
         'midterm', 'gauntlet', 'gauntlet-advanced', 'capstone'
     ];
 
