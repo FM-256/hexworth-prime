@@ -204,6 +204,17 @@ The safety net is platform infrastructure benefiting all future work. Putting it
 - Wired into run.js with code-validity + baseline regression assertions.
 - Test count: 54 → 58.
 
+**2026-05-04 — Runtime monitor Cloud Run deploy assets ready (NOT YET ACTIVATED)**
+- `_tools/runtime-monitor/Dockerfile` — node:20-bookworm-slim + system Chromium for Puppeteer
+- `_tools/runtime-monitor/package.json` — puppeteer dep, single-file npm package
+- `_tools/runtime-monitor/DEPLOY.md` — comprehensive gcloud command runbook (build + push + Cloud Run job + Cloud Scheduler trigger + cost estimate + rollback + Firestore-write upgrade path)
+- **Decisions still pending before activation:**
+  1. Cadence (recommended: every 15 min always, simplest cron `*/15 * * * *`; or business-hours-aware split)
+  2. Alert sink (MVP: Cloud Logging only; later: Firestore writes for Pulse, then optional Cloud Monitoring → email/push)
+  3. Per-operation authorization for each gcloud command per CLAUDE.md Rule #10
+- **Cost estimate at 15-min cadence:** ~$5-15/month
+- **To activate:** follow DEPLOY.md §0-§6 in order, decisions ratified one at a time
+
 **2026-05-04 — `deploy.sh` enhanced with branch check + smoke gate chain**
 - Now: branch (master only) → Nexus → smoke → firebase deploy
 - Bypass flags: `--force` (skip Nexus only), `--skip-smoke` (skip smoke only), or both
