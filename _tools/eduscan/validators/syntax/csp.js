@@ -86,13 +86,39 @@ class CSPValidator {
     }
 
     /**
-     * Check if a domain is covered by a CSP directive
-     * @param {string} domain - e.g., "api.github.com"
+     * Check if a domain is covered by a CSP directive.
+     *
+     * Browser behavior (per CSP Level 3): fallback to `default-src` happens
+     * ONLY when the specific directive is COMPLETELY ABSENT from the policy.
+     * If the directive is present (even with restrictive values, even empty),
+     * the browser uses ONLY that directive — no fallback.
+     *
+     * Empirically caught 2026-05-04: prior version always fell back to
+     * default-src, masking real bugs. Live hexworth.com has
+     * `style-src 'self' 'unsafe-inline'` (no https:) and `default-src 'self' https:`
+     * (with https:) — old logic said Google Fonts CSS was covered (false),
+     * browser blocked it (true). Runtime monitor surfaced the discrepancy.
+     *
+     * The empty-array case (e.g., `style-src;` with no values) is correctly
+     * handled by the natural fall-through: includes() returns false, no exact
+     * match, returns false. Browsers treat empty directives as deny-all,
+     * matching this behavior.
+     *
+     * @param {string} domain - e.g., "api.github.com" or "https://api.github.com"
      * @param {string} directive - e.g., "connect-src"
      * @returns {boolean}
      */
     isDomainCovered(domain, directive) {
-        const values = this.cspDirectives[directive] || [];
+        // Directive absent? Fall back to default-src per CSP spec.
+        // (Guard against infinite recursion via the directive !== 'default-src' check.)
+        if (this.cspDirectives[directive] === undefined) {
+            if (directive !== 'default-src') {
+                return this.isDomainCovered(domain, 'default-src');
+            }
+            return false;
+        }
+
+        const values = this.cspDirectives[directive];
 
         // Check for broad wildcards
         if (values.includes('*')) return true;
@@ -112,11 +138,8 @@ class CSPValidator {
             }
         }
 
-        // Check default-src as fallback
-        if (directive !== 'default-src') {
-            return this.isDomainCovered(domain, 'default-src');
-        }
-
+        // Directive present but no match — do NOT fall back to default-src.
+        // (Browser uses only the present directive.)
         return false;
     }
 

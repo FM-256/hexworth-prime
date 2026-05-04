@@ -169,6 +169,29 @@ The safety net is platform infrastructure benefiting all future work. Putting it
 - Decide direction on WSA: full canonicalization (update progress.js + migrate Firestore) OR revert the rename (keep `m01..m20` keys). XREF-001 will catch either resolution; the question is which is right semantically.
 - Decide whether Stragglers branch is worth retrying or whether to selectively cherry-pick its content work onto master
 
+### Bugs surfaced post-2026-05-03 (running log — populate as work continues)
+
+**2026-05-04 — Runtime monitor MVP built (`_tools/runtime-monitor/run.js`)**
+- Hits 5 critical hexworth.com URLs from a real browser, outputs structured JSON
+- First run caught Google Fonts CSP block on `index.html` Landing page (4/5 pass)
+- Designed for Cloud Run scheduled job; SB-3 deploy is the open follow-up
+
+**2026-05-04 — CSPValidator over-permissive `default-src` fallback (FIXED)**
+- **What:** `isDomainCovered()` always fell back to `default-src` even when the specific directive was present-but-restrictive. Browsers don't fall back when the directive is present.
+- **Surfaced by:** Runtime monitor caught Google Fonts CSS being CSP-blocked on live `index.html`. Validator had reported 0 issues because it incorrectly thought `default-src 'self' https:` covered the gap in `style-src 'self' 'unsafe-inline'`.
+- **Fixed in:** `_tools/eduscan/validators/syntax/csp.js` — fallback now only happens when the directive is `undefined` (absent from policy).
+- **Production fix:** `firebase.json` CSP `style-src` augmented with `https://fonts.googleapis.com https://fonts.gstatic.com`.
+
+**2026-05-04 — CSPValidator `<link>` context detection too broad (TODO)**
+- **What:** All `<link>` tags map to `style` context. But `<link rel="preconnect">`, `<link rel="prefetch">`, `<link rel="dns-prefetch">`, `<link rel="preload" as="font">` should map differently (preconnect → connect-src, font preload → font-src, etc.).
+- **Why deferred:** Pragmatic fix (adding gstatic.com to style-src) resolved the immediate blocker. Validator improvement is correctness-positive but doesn't unblock anything.
+- **Where:** `_tools/eduscan/validators/syntax/csp.js` `scanForExternalDomains()` (the `<link>` regex around line 237).
+
+**2026-05-04 — `deploy.sh` enhanced with branch check + smoke gate chain**
+- Now: branch (master only) → Nexus → smoke → firebase deploy
+- Bypass flags: `--force` (skip Nexus only), `--skip-smoke` (skip smoke only), or both
+- `npm run deploy` is the canonical entry point — wrapper at `_tools/eduscan/smoke/deploy.sh` stays alive for non-hosting deploys
+
 ### Smoke gate could be expanded later (low priority)
 Current 6 targets are blast-radius high. Could add:
 - Per-house index pages (currently only web + forge tested)
