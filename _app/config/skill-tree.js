@@ -106,7 +106,7 @@ const SkillTree = {
                 icon: '<img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
                 items: [
                     { file: 'packet_tracer.md', contentId: 'web-network-simulator', title: 'Network Simulator Lab' },
-                    { file: 'troubleshooting_tools.md', contentId: 'web-troubleshooting', title: 'Network Troubleshooting' },
+                    { file: 'troubleshooting_tools.md', contentId: 'web-troubleshoot-viz', title: 'Network Troubleshooting' },
                     { file: 'visualizers.md', contentId: 'web-switching', title: 'VLAN Visualizer' }
                 ]
             },

@@ -1215,6 +1215,77 @@ const ModuleProgress = (function() {
     }
 
     // ── Public API ──────────────────────────────────────────────
+    /**
+     * One-time legacy progress key migration.
+     *
+     * When a moduleId is renamed (e.g., the 5 web-troubleshooting files moved
+     * from a shared 'web-troubleshooting' key to 5 unique catalog-canonical
+     * keys per STR-30), existing student progress would orphan under the old
+     * key. This shim transfers their data to the new key so they don't see
+     * any lost progress.
+     *
+     * Idempotent: deletes the old key after migrating, so subsequent calls are
+     * no-ops. Safe to call from multiple module pages — each call only affects
+     * the new key passed in.
+     *
+     * Migrates BOTH formats (flat + structured completedModules array) plus
+     * the completion stamp registry.
+     *
+     * @param {string} houseId  - house owning the progress (e.g., 'web')
+     * @param {string} oldKey   - legacy moduleId previously used
+     * @param {string} newKey   - canonical moduleId to migrate to
+     * @returns {boolean} true if migration happened, false if no legacy data
+     */
+    function migrateLegacyKey(houseId, oldKey, newKey) {
+        if (!houseId || !oldKey || !newKey || oldKey === newKey) return false;
+        try {
+            const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+            const houseBlock = progress[houseId];
+            if (!houseBlock || !houseBlock[oldKey]) return false;
+
+            // Skip if new key already has data — don't clobber
+            if (houseBlock[newKey]) {
+                delete houseBlock[oldKey];
+                localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+                return true;
+            }
+
+            // Copy flat-format entry
+            houseBlock[newKey] = houseBlock[oldKey];
+            delete houseBlock[oldKey];
+
+            // Update completedModules structured array
+            if (Array.isArray(progress.completedModules)) {
+                const idx = progress.completedModules.indexOf(oldKey);
+                if (idx !== -1) {
+                    if (!progress.completedModules.includes(newKey)) {
+                        progress.completedModules[idx] = newKey;
+                    } else {
+                        progress.completedModules.splice(idx, 1);
+                    }
+                }
+            }
+
+            // Update completion stamps registry (visual tracking)
+            try {
+                const stampKey = 'hexworth_completion_stamps';
+                const stamps = JSON.parse(localStorage.getItem(stampKey) || '{}');
+                const oldStampId = `${houseId}/${oldKey}`;
+                const newStampId = `${houseId}/${newKey}`;
+                if (stamps[oldStampId] && !stamps[newStampId]) {
+                    stamps[newStampId] = stamps[oldStampId];
+                    delete stamps[oldStampId];
+                    localStorage.setItem(stampKey, JSON.stringify(stamps));
+                }
+            } catch (_) { /* completion stamps are visual-only; failure is non-critical */ }
+
+            localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
     return {
         complete,
         completeQuiz,
@@ -1223,6 +1294,7 @@ const ModuleProgress = (function() {
         isCompleted,
         updateStreak,
         trackVisit,
+        migrateLegacyKey,
         _goToDashboard: navigateToDashboard  // Exposed for onclick in overlay HTML
     };
 })();

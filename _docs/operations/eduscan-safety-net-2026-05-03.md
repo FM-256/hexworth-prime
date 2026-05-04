@@ -232,6 +232,32 @@ The safety net is platform infrastructure benefiting all future work. Putting it
 - Bypass flags: `--force` (skip Nexus only), `--skip-smoke` (skip smoke only), or both
 - `npm run deploy` is the canonical entry point — wrapper at `_tools/eduscan/smoke/deploy.sh` stays alive for non-hosting deploys
 
+**2026-05-04 — STR-30 PROG-003 resolved on Stragglers (Option C + migration shim)**
+- **What:** 5 web-troubleshooting modules shared one progress key. Only first-completed got XP; other 4 silently failed. Pre-existing on master too — Stragglers' enhanced progress-keys validator caught it as critical.
+- **Fix scope:** 5 module HTMLs + ContentCatalog (orphan deleted) + LearningPaths (id + prerequisites) + content-registry (entry + path) + skill-tree (contentId) + network-plus hub HTML (data-module attr) + ModuleProgress.js (new `migrateLegacyKey` function) + tool HTML (calls migrate before complete). 11 changes across 9 files.
+- **Why Option C not B:** Allowlisting suppresses the symptom; the bug was actively losing student XP in production. Comprehensive cross-system update aligns all consumers with catalog-canonical IDs. Migration shim preserves any existing single-completion legacy data.
+- **Verified:** EduScan critical 1 → 0, suite 58/58, smoke 6/6, ASGN-001 still 0 (LP rename safe).
+- **Commit:** Stragglers `66e123a3`.
+
+**2026-05-04 — Phase 2 (Stragglers branch fixes) COMPLETE — fusion-ready**
+- **Cherry-picked safety net commits** from master onto Stragglers (8 commits — `a308fbe9`, `47a99917`, `21f8f24f`, `b2b95445`, `4ac8fe2e`, `ba951593`, `a9c90daa`, `a741b4e7`). 0 conflicts. Stragglers now has the full safety net AND the Stragglers content payload.
+- **P2-2 firebase.json** `:splat` → `:rest*` (commit `07c15cc6`).
+- **P2-3 WSA Option B** — reverted Stragglers' wsa-module-prefixed data-module attrs back to leaf-key-aligned m01..m19/midterm/capstone/gauntlet, removed orphan m20 from progress.js MODULES (commit `07c15cc6`).
+- **STR-30 PROG-003 Option C + shim** (commit `66e123a3`, doc `dd4e6972`).
+- **Stragglers HEAD**: `dd4e6972`. Pushed to `origin/Stragglers`.
+- **Dry-merge to master tested** — 2 mechanical conflicts: `firebase.json` (keep Stragglers' `redirects` block, master discarded it in revert) and `_tools/eduscan/tests/run.js` (keep master's stricter XREF baseline=0). Both have obvious resolutions.
+- **Stragglers QC posture**: EduScan 58/58, smoke 6/6, critical 0, XREF-001 0, HUB-001 27 (under master baseline 28), TAG 1 (under master baseline 24), CSP-001 0, ASGN-001 0.
+
+**Phase 3 (fusion) ready when authorized:**
+1. Switch to master
+2. `git merge --no-ff Stragglers`
+3. Resolve 2 known conflicts (resolutions documented above)
+4. EduScan + smoke verify on merged tree
+5. `./deploy.sh` (branch + Nexus + smoke + firebase deploy gates)
+6. Verify with runtime monitor
+- Production impact: 263+ files including the STR-30 fix that benefits real students immediately.
+
+
 ### Smoke gate could be expanded later (low priority)
 Current 6 targets are blast-radius high. Could add:
 - Per-house index pages (currently only web + forge tested)
