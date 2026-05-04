@@ -661,6 +661,60 @@ console.log('');
     }
 }
 
+// HubRefsValidator (HUB-001): catches hubs that reference module ids not in ContentCatalog.
+// Cherry-picked from Stragglers branch 2026-05-04. Baseline locked at current platform count.
+{
+    const HubRefsValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/hub-refs'));
+    const hubV = new HubRefsValidator({ rootPath: ROOT_PATH });
+    const hubR = hubV.validate();
+    const validCodes = ['HUB-001'];
+    const badCodes = (hubR.issues || []).filter(i => !validCodes.includes(i.code));
+    if (badCodes.length === 0) {
+        console.log(`  ✓ HubRefsValidator — all ${(hubR.issues || []).length} issues use HUB-001 code`);
+        passed++;
+    } else {
+        console.log(`  ✗ HubRefsValidator — found ${badCodes.length} issues with invalid codes: ${[...new Set(badCodes.map(i => i.code))].join(', ')}`);
+        failed++;
+    }
+    const HUB_BASELINE = 28;
+    const hubCount = (hubR.issues || []).length;
+    if (hubCount <= HUB_BASELINE) {
+        console.log(`  ✓ HubRefsValidator — at-or-below baseline (${hubCount} ≤ ${HUB_BASELINE} known broken hub refs)`);
+        passed++;
+    } else {
+        console.log(`  ✗ HubRefsValidator — NEW broken hub refs (${hubCount} > ${HUB_BASELINE} baseline):`);
+        (hubR.issues || []).slice(0, 5).forEach(i => console.log(`    - ${(i.message || '').substring(0, 120)}`));
+        failed++;
+    }
+}
+
+// TagsValidator (TAG-001/002): catches case-variant tags + tagless-modules summary.
+// Cherry-picked from Stragglers branch 2026-05-04. Baseline locked at current platform count.
+{
+    const TagsValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/tags'));
+    const tagV = new TagsValidator({ rootPath: ROOT_PATH });
+    const tagR = tagV.validate();
+    const validCodes = ['TAG-001', 'TAG-002'];
+    const badCodes = (tagR.issues || []).filter(i => !validCodes.includes(i.code));
+    if (badCodes.length === 0) {
+        console.log(`  ✓ TagsValidator — all ${(tagR.issues || []).length} issues use TAG-001/002 codes`);
+        passed++;
+    } else {
+        console.log(`  ✗ TagsValidator — found ${badCodes.length} issues with invalid codes: ${[...new Set(badCodes.map(i => i.code))].join(', ')}`);
+        failed++;
+    }
+    const TAG_BASELINE = 24;
+    const tagCount = (tagR.issues || []).length;
+    if (tagCount <= TAG_BASELINE) {
+        console.log(`  ✓ TagsValidator — at-or-below baseline (${tagCount} ≤ ${TAG_BASELINE} known tag issues)`);
+        passed++;
+    } else {
+        console.log(`  ✗ TagsValidator — NEW tag issues (${tagCount} > ${TAG_BASELINE} baseline):`);
+        (tagR.issues || []).slice(0, 5).forEach(i => console.log(`    - ${i.code}: ${(i.message || '').substring(0, 120)}`));
+        failed++;
+    }
+}
+
 // ContentBlobValidator + DependencyCheckValidator: regression — production house indices and module HTMLs should not exhibit BLOB or DEP issues at scale
 // (per-file fixture coverage is in the fixture suite; integration just confirms validators don't crash on real content)
 {

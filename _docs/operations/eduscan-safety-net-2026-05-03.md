@@ -187,6 +187,23 @@ The safety net is platform infrastructure benefiting all future work. Putting it
 - **Why deferred:** Pragmatic fix (adding gstatic.com to style-src) resolved the immediate blocker. Validator improvement is correctness-positive but doesn't unblock anything.
 - **Where:** `_tools/eduscan/validators/syntax/csp.js` `scanForExternalDomains()` (the `<link>` regex around line 237).
 
+**2026-05-04 — Link-context detection in CSPValidator (FIXED)**
+- **What:** All `<link>` tags were mapped to `style` context regardless of `rel` attribute. Browsers actually apply different directives based on `rel` (preconnect → connect-src, preload as=font → font-src, etc.).
+- **Surfaced by:** Today's CSPValidator fix flagged `fonts.gstatic.com` in style-src for a `<link rel="preconnect">` — false positive.
+- **Fixed in:** `_tools/eduscan/validators/syntax/csp.js`:
+  - `relToContext(rel, as)` helper maps rel/as to correct context (connect/font/script/img/style/manifest/etc.)
+  - Multi-rel tokens handled via token-presence check
+  - Unknown rel returns `null` → skip emission (no false positive on novel rel values)
+  - `getDirectiveForContext` map gained `connect` and `manifest` keys
+  - `<link>` tags now scanned file-wide (supports multi-line tags)
+
+**2026-05-04 — Cherry-picked HUB-001 + TAG-001/002 validators from Stragglers**
+- **HUB-001:** `_tools/eduscan/validators/syntax/hub-refs.js` — flags hubs that reference module ids not in ContentCatalog. **28 real hits on master** (regression-locked at baseline 28). Each is a hub card that resolves to nothing.
+- **TAG-001:** Catches case-variant tags (e.g., `siem`/`SIEM`, `linux`/`Linux`). **23 real hits on master**. Tag filtering is case-sensitive — variants split discovery.
+- **TAG-002:** Single summary issue counting tagless modules. **2564 of 2993 modules currently lack tags.**
+- Wired into run.js with code-validity + baseline regression assertions.
+- Test count: 54 → 58.
+
 **2026-05-04 — `deploy.sh` enhanced with branch check + smoke gate chain**
 - Now: branch (master only) → Nexus → smoke → firebase deploy
 - Bypass flags: `--force` (skip Nexus only), `--skip-smoke` (skip smoke only), or both

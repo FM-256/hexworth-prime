@@ -144,24 +144,69 @@ class CSPValidator {
     }
 
     /**
-     * Determine which CSP directive governs a given usage
-     * @param {string} context - "fetch", "script", "style", "frame", "img", "font", "websocket"
+     * Determine which CSP directive governs a given usage context.
+     *
+     * @param {string} context - one of: 'fetch', 'xhr', 'connect', 'websocket',
+     *   'eventsource', 'script', 'style', 'img', 'frame', 'font', 'manifest', 'object'
      * @returns {string} CSP directive name
      */
     getDirectiveForContext(context) {
         const map = {
-            'fetch': 'connect-src',
-            'xhr': 'connect-src',
-            'websocket': 'connect-src',
+            'fetch':       'connect-src',
+            'xhr':         'connect-src',
+            'connect':     'connect-src',  // <link rel="preconnect"|"dns-prefetch">
+            'websocket':   'connect-src',
             'eventsource': 'connect-src',
-            'script': 'script-src',
-            'style': 'style-src',
-            'img': 'img-src',
-            'frame': 'frame-src',
-            'font': 'font-src',
-            'object': 'object-src'
+            'script':      'script-src',
+            'style':       'style-src',
+            'img':         'img-src',
+            'frame':       'frame-src',
+            'font':        'font-src',
+            'manifest':    'manifest-src',  // <link rel="manifest">
+            'object':      'object-src'
         };
         return map[context] || 'default-src';
+    }
+
+    /**
+     * Map a <link> tag's rel + as attributes to the CSP context that the
+     * browser actually enforces. Returns null for unrecognized rel values
+     * so the validator does NOT emit false positives.
+     *
+     * Per CSP Level 3 / browser behavior:
+     *   stylesheet                 → style-src (loads the CSS file)
+     *   preconnect, dns-prefetch   → connect-src (TCP/TLS connection hint)
+     *   preload as=font            → font-src
+     *   preload as=script          → script-src
+     *   preload as=image           → img-src
+     *   preload as=style           → style-src
+     *   preload (other/missing as) → connect-src (generic fetch)
+     *   modulepreload              → script-src
+     *   icon, apple-touch-icon     → img-src
+     *   manifest                   → manifest-src
+     *   prefetch                   → connect-src (no specific directive — connect-src is closest)
+     *   <unknown>                  → null (skip emission to avoid false positive)
+     *
+     * Multi-value rel (e.g., rel="stylesheet preload") is handled by token
+     * presence-check in priority order.
+     */
+    relToContext(rel, as) {
+        const tokens = (rel || '').toLowerCase().split(/\s+/).filter(Boolean);
+        const asNorm = (as || '').toLowerCase().trim();
+        if (tokens.includes('stylesheet')) return 'style';
+        if (tokens.includes('preconnect') || tokens.includes('dns-prefetch')) return 'connect';
+        if (tokens.includes('preload')) {
+            if (asNorm === 'font') return 'font';
+            if (asNorm === 'script') return 'script';
+            if (asNorm === 'image') return 'img';
+            if (asNorm === 'style') return 'style';
+            return 'fetch';
+        }
+        if (tokens.includes('modulepreload')) return 'script';
+        if (tokens.includes('icon') || tokens.includes('apple-touch-icon')) return 'img';
+        if (tokens.includes('manifest')) return 'manifest';
+        if (tokens.includes('prefetch')) return 'fetch';
+        return null;  // unknown rel — skip rather than guess (avoids false positive)
     }
 
     /**
@@ -242,6 +287,37 @@ class CSPValidator {
             const fileKey = relPath;
             if (!seenPerFile.has(fileKey)) seenPerFile.set(fileKey, new Set());
 
+            // ── <link> tags handled file-wide (supports multi-line tags) ──
+            // Done before per-line loop because rel-aware context needs all
+            // attributes from a single tag, and tags can span multiple lines
+            // in prettified HTML.
+            const linkTagRe = /<link\b([^>]*?)>/gi;
+            let lm;
+            while ((lm = linkTagRe.exec(content)) !== null) {
+                const attrs = lm[1];
+                const hrefMatch = attrs.match(/\bhref\s*=\s*["'](https?:\/\/[^"']+)/i);
+                if (!hrefMatch) continue;
+                const url = hrefMatch[1];
+                const relMatch = attrs.match(/\brel\s*=\s*["']([^"']+)["']/i);
+                const asMatch  = attrs.match(/\bas\s*=\s*["']([^"']+)["']/i);
+                const context = this.relToContext(
+                    relMatch ? relMatch[1] : '',
+                    asMatch  ? asMatch[1]  : ''
+                );
+                if (context === null) continue;  // unknown rel — skip
+                try {
+                    const domain = new URL(url).hostname;
+                    if (domain === 'localhost' || domain === '127.0.0.1') continue;
+                    const dedupKey = `${domain}:${context}`;
+                    if (!seenPerFile.get(fileKey).has(dedupKey)) {
+                        seenPerFile.get(fileKey).add(dedupKey);
+                        const before = content.substring(0, lm.index);
+                        const lineNum = (before.match(/\n/g) || []).length + 1;
+                        results.push({ domain, context, file: relPath, line: lineNum });
+                    }
+                } catch (_) { /* invalid URL */ }
+            }
+
             const lines = content.split('\n');
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
@@ -250,7 +326,7 @@ class CSPValidator {
                 // Skip HTML comments
                 if (line.trim().startsWith('<!--')) continue;
 
-                // Extract URLs from various patterns
+                // Extract URLs from various patterns. <link> is handled file-wide above.
                 const urlPatterns = [
                     // fetch('https://...') or fetch("https://...")
                     { pattern: /fetch\s*\(\s*['"`](https?:\/\/[^'"`\s]+)/g, context: 'fetch' },
@@ -258,8 +334,6 @@ class CSPValidator {
                     { pattern: /\.open\s*\(\s*['"][^'"]+['"]\s*,\s*['"`](https?:\/\/[^'"`\s]+)/g, context: 'xhr' },
                     // <script src="https://...">
                     { pattern: /<script[^>]+src\s*=\s*["'](https?:\/\/[^"']+)/gi, context: 'script' },
-                    // <link href="https://...">
-                    { pattern: /<link[^>]+href\s*=\s*["'](https?:\/\/[^"']+)/gi, context: 'style' },
                     // <img src="https://...">
                     { pattern: /<img[^>]+src\s*=\s*["'](https?:\/\/[^"']+)/gi, context: 'img' },
                     // <iframe src="https://...">
