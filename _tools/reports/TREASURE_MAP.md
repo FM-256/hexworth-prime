@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-05-05 1:24:48 PM
+                    Scanned: 2026-05-05 6:48:10 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 5062 |
 | Directories | 1185 |
 | Content Files | 5062 |
-| Scan Duration | 494ms |
+| Scan Duration | 600ms |
 
 ### Content by Type
 
@@ -43,8 +43,8 @@
 | Critical | 0 |
 | Suspect | 61 |
 | Warning | 2326 |
-| Info | 593 |
-| **Total** | **11775** |
+| Info | 926 |
+| **Total** | **11706** |
 
 ### Sync Status
 
@@ -19512,7 +19512,7 @@
   File: `operator/missions/windows-cmd-02.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (593)
+### INFO (926)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `about.html`
@@ -21294,6 +21294,498 @@
   File: `funding/proposal-guide.html`
   Fix: Manual review required - path is constructed dynamically
 
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/adversarial/cx-adv-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/capstone/cx-cap-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cnn/cx-cnn-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/cyber-ml/cx-sec-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/deep-learning/cx-dl-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/foundations/cx-ai-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/generative/cx-gen-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/math/cx-math-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/mlops/cx-ops-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/rl/cx-rl-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/rl/cx-rl-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/rl/cx-rl-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/rl/cx-rl-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/rl/cx-rl-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/rl/cx-rl-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/rl/cx-rl-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/rl/cx-rl-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/supervised/cx-sup-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/transformers/cx-rnn-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/transformers/cx-rnn-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/transformers/cx-rnn-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/transformers/cx-rnn-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/transformers/cx-rnn-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/ai/cortex/unsupervised/cx-uns-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/ai/games/ai-triage-trainer.applet.html`
   Fix: Manual review required - path is constructed dynamically
@@ -21386,9 +21878,849 @@
   File: `houses/cloud/tools/cloud-ch12-use-cases.tool.html`
   Fix: Manual review required - path is constructed dynamically
 
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/complexity/ac-bigo-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/data-structures/ac-ds-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/discrete-math/ac-dm-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/dp/ac-dp-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/graphs/ac-gr-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/greedy/ac-grd-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/sorting/ac-sort-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/algorithm-chamber/strings/ac-str-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/code/applets/code-pipeline-builder.applet.html`
   Fix: Manual review required - path is constructed dynamically
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-02-registers.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-03-arithmetic.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-04-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-05-stack-functions.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-06-memory.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-07-syscalls.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-08-debugging.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-09-reverse-engineering.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/assembly/arm-asm-10-exploits.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-02-variables.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-03-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-04-oop.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-05-inheritance.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-06-templates-stl.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-07-memory.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-08-modern-cpp.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-09-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/cpp/arm-cpp-10-advanced.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-02-variables.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-03-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-04-oop.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-05-inheritance.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-06-collections.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-07-exceptions.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-08-async.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-09-aspnet.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/csharp/arm-cs-10-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-02-variables.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-03-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-04-data-structures.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-05-interfaces.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-06-concurrency.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-07-errors-testing.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-08-stdlib.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-09-cli-cloud.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/go/arm-go-10-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-02-variables.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-03-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-04-oop.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-05-inheritance.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-06-collections.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-07-exceptions.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-08-threads.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-09-spring.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/java/arm-java-10-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-02-lua-basics.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-03-lua-apps.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-04-perl-basics.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-05-perl-text.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-06-perl-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-07-r-basics.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-08-r-analysis.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-09-r-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/lua-perl-r/arm-lpr-10-comparison.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-02-variables.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-03-control.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-04-arrays.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-05-oop.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-06-forms.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-07-pdo.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-08-sessions.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-09-modern.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/php/arm-php-10-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-02-cmdlets-pipeline.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-03-variables-types.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-04-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-05-objects.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-06-filesystem.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-07-active-directory.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-08-remoting.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-09-scripting.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/powershell/arm-ps-10-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-02-variables.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-03-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-04-loops.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-05-functions.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-06-data-structures.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-07-strings-io.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-08-oop.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-09-modules-packages.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python/arm-py-10-error-handling.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-01.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-02.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-03.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-04.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-05.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-06.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-07.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-08.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-09.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/python-graphics/pg-10.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-02-variables.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-03-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-04-collections.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-05-oop.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-06-blocks.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-07-file-io.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-08-regex.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-09-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/ruby/arm-rb-10-advanced.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-02-variables.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-03-ownership.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-04-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-05-structs-enums.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-06-traits-generics.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-07-error-handling.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-08-collections.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-09-concurrency.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/rust/arm-rs-10-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-01-intro.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-02-variables.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-03-control-flow.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-04-collections.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-05-oop.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-06-error-handling.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-07-concurrency.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-08-mobile-ui.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-09-networking.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
+  File: `houses/code/armory/swift-kotlin/arm-sk-10-security.module.html`
+  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
   File: `houses/code/games/code-dont-deploy-on-friday.html`
