@@ -88,6 +88,18 @@ class SemanticValidator {
         if (/quiz\.start\s*\(\s*\)/i.test(content)) return true;
         // ArcticEngine renders district hub dynamically
         if (/ArcticEngine\.render/i.test(content)) return true;
+        // Slide-deck presentations — pages with multiple <div class="slide">
+        // panels (custom presentation systems used across CSE, ethics, policy
+        // courses). Title text lives inside individual slide divs (which are
+        // initially display:none), so static-source h1/heading checks fire
+        // false positives. Discriminator: presence of class="slide" + a slide
+        // navigation/counter element typical of these decks.
+        if (/class=["']slide["']/i.test(content) &&
+            /(?:id=["']slide-counter["']|class=["'][^"']*nav-btn|class=["'][^"']*slide-inner)/i.test(content)) {
+            return true;
+        }
+        // PresentationEngine convention (just in case it exists)
+        if (/new\s+PresentationEngine\s*\(/i.test(content)) return true;
         return false;
     }
 
