@@ -1962,6 +1962,12 @@ class HeuristicsValidator {
         while ((match = assetPattern.exec(content)) !== null) {
             const assetPath = match[1];
 
+            // Skip dynamic paths containing template-literal interpolation
+            // (e.g., /assets/images/categories/${cat}.webp). The path is
+            // resolved at runtime; static fs.existsSync would always fail
+            // on the literal string with `${...}` in it.
+            if (assetPath.includes('${') || /\{\{/.test(assetPath)) continue;
+
             // Resolve against _app directory
             const resolvedPath = path.join(this.rootPath, assetPath);
 
