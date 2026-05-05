@@ -202,10 +202,15 @@ class ClientSecretsValidator {
         const issues = [];
         const lines = content.split('\n');
 
-        // Patterns that look like password variable assignments
+        // Patterns that look like password variable assignments. Tightened to
+        // require the FULL keyword (password / passwd / secret / credential) —
+        // the previous `pass(?:wd)?` variant matched substrings like
+        // `QUIZZES_PASSED_KEY` (PASS inside PASSED → false positive).
+        // Real password identifiers always contain the full word; abbreviations
+        // are rare enough that the false-positive cost outweighs the catch.
         const assignmentPatterns = [
-            // const/let/var passwordVar = 'value'
-            /\b(?:const|let|var)\s+\w*(?:password|passwd|pass(?:wd)?|secret|credential)\w*\s*=\s*['"][^'"]+['"]/i,
+            // const/let/var passwordVar = 'value' — full word match
+            /\b(?:const|let|var)\s+\w*(?:password|passwd|secret|credential)\w*\s*=\s*['"][^'"]+['"]/i,
             // object property — password: 'value' or password = 'value'
             /\b(?:correct_?password|admin_?pass(?:word)?|db_?pass(?:word)?|user_?pass(?:word)?|root_?pass(?:word)?|default_?pass(?:word)?)\s*[:=]\s*['"][^'"]+['"]/i,
         ];
