@@ -54,8 +54,13 @@ class HeuristicsValidator {
         this.profile = options.profile || 'ci';
         this.rootPath = options.rootPath || './_app';
 
-        // Load quarantine allowlist
+        // Load quarantine allowlist (generic, per-code)
         this.allowlist = this.loadAllowlist();
+        // Load per-rule allowlist for HEUR-018 false positives (parallel to
+        // prog003-allowlist.json pattern). Suppresses files where the
+        // scroll+complete+threshold colocation is coincidental, not a real
+        // scroll-completion gate.
+        this.heur018Allowlist = this.loadHeur018Allowlist();
     }
 
     /**
@@ -72,6 +77,22 @@ class HeuristicsValidator {
                 console.log('[HEURISTICS] No allowlist found, using empty list');
             }
             return [];
+        }
+    }
+
+    /**
+     * Load HEUR-018 false-positive allowlist (per-rule, file-only).
+     * @returns {Set<string>} Allowlisted file paths (normalized)
+     */
+    loadHeur018Allowlist() {
+        const allowlistPath = path.resolve(__dirname, '../../config/heur018-allowlist.json');
+        try {
+            const raw = fs.readFileSync(allowlistPath, 'utf8');
+            const data = JSON.parse(raw);
+            const files = (data.entries || []).map(e => e.file);
+            return new Set(files);
+        } catch (err) {
+            return new Set();
         }
     }
 
@@ -1799,6 +1820,16 @@ class HeuristicsValidator {
 
         // Only check HTML files
         if (!file.path.endsWith('.html')) return issues;
+
+        // HEUR-018 per-rule allowlist (loaded from config/heur018-allowlist.json
+        // at construction time). Skip files whose scroll+complete colocation
+        // is coincidental rather than a real scroll-completion gate.
+        const normalized = file.path.replace(/\\/g, '/');
+        for (const allowed of this.heur018Allowlist) {
+            if (normalized.endsWith(allowed) || normalized.includes(allowed)) {
+                return issues;
+            }
+        }
 
         // Must have a scroll listener
         if (!content.includes("addEventListener('scroll'") &&
