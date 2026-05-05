@@ -60,3 +60,53 @@ Files I'd touch (5 edits total — the 5 non-canonical files):
 3. `_app/houses/script/courses/clh/modules/clh-031/script-lab.lab.html`
 4. `_app/houses/script/courses/grep-pipe-mastery/index.html`
 5. `_app/houses/web/simulators/index.html`
+
+
+## CLH curriculum reorganization mismatch — 16 collisions
+
+The CLH course was reorganized (different topic taught at each CLH-NNN slot) but the OLD applet path naming was preserved. Result: `script/clh/script-clh-NNN-intro.applet.html` teaches one topic, `script/courses/clh/modules/clh-NNN/script-intro.module.html` teaches a different topic, both call complete with the same `script-clh-NNN-intro` key. Students complete the wrong-titled credit silently.
+
+This is a bug, but the fix involves choosing WHICH topic owns each CLH-NNN slot — the applet topic or the module topic? That requires curriculum-level judgment about the canonical CLH-NNN sequence.
+
+| CLH | Applet topic | Module topic |
+|---|---|---|
+| 003 | CLH-003: Pattern Hunting | CLH-003: Network Analysis |
+| 004 | CLH-004: Process Investigation | CLH-004: Text Analysis & Pattern Hunting |
+| 005 | CLH-005: Log Analysis | CLH-005: Process Investigation |
+| 006 | CLH-006: File Operations | CLH-006: Permissions & Access Control |
+| 007 | CLH-007: Permissions & Access Control | CLH-007: Shell Scripting Basics |
+| 008 | CLH-008: Shell Scripting | CLH-008: Advanced Shell Scripting |
+| 009 | CLH-009: Text Processing | CLH-009: System Administration |
+| 010 | CLH-010: I/O Redirection | CLH-010: Log Analysis & Forensics |
+| 011 | CLH-011: Advanced Grep & Regex | CLH-011: Network Reconnaissance |
+| 012 | CLH-012: Network Basics | CLH-012: Web Enumeration |
+| 013 | CLH-013: Environment Variables | CLH-013: Incident Response |
+| 014 | CLH-014: Process Control | CLH-014: Automation & Tooling |
+| 015 | CLH-015: OPERATION MOLE HUNT | CLH-015: Capstone Challenge |
+
+## Other title-mismatch pairs (3)
+
+### forge/forge-core2-roleplay
+- houses/forge/applets/comptia-aplus/core-2/labs/forge-core2-roleplay.lab.html :: Core 2 Roleplay Lab - IT Support Scenarios
+- houses/forge/labs/forge-core2-roleplay.lab.html :: IT Support Roleplay Lab
+
+### script/script-python-chapter1
+- houses/script/applets/python/script-python-chapter1.applet.html :: Zero to Python: Chapter 1 - Interactive Learning Module
+- houses/script/presentations/python/script-python-chapter1.presentation.html :: Zero to Python: Chapter 1 - The First Bit
+
+### shield/shield-security-fundamentals
+- houses/shield/presentations/shield-security-fundamentals.presentation.html :: Security Fundamentals
+- houses/shield/presentations/shield-security.presentation.html :: Network Security Fundamentals - Network+ N10-008
+
+## How to resolve (per pair)
+
+For each title-mismatch pair, decide:
+
+1. **Which topic is the canonical CLH-NNN?** (e.g., is CLH-003 "Pattern Hunting" or "Network Analysis"?)
+2. The canonical-topic file keeps the original key.
+3. The other file gets renamed to a topic-specific key (e.g., `script-network-analysis-intro`).
+4. Add `copyLegacyKey` shim so any prior progress on the legacy key cross-credits.
+
+OR alternative: if BOTH topics belong in the curriculum at separate CLH numbers, both files get renamed (one CLH stays as-is, the other gets reassigned).
+
+Awaiting curriculum direction before any file edits.
