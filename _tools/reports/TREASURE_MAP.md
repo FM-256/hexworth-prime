@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-05-05 11:22:42 PM
+                    Scanned: 2026-05-05 1:24:48 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 5062 |
 | Directories | 1185 |
 | Content Files | 5062 |
-| Scan Duration | 596ms |
+| Scan Duration | 494ms |
 
 ### Content by Type
 
@@ -42,9 +42,9 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 61 |
-| Warning | 2332 |
+| Warning | 2326 |
 | Info | 593 |
-| **Total** | **11884** |
+| **Total** | **11775** |
 
 ### Sync Status
 
@@ -10206,7 +10206,7 @@
   File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
   Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
-### WARNING (2332)
+### WARNING (2326)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -19213,22 +19213,6 @@
   Fix: Create the file before setting status to 'available', or remove the dead href
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `bot-knowledge-forge.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `bot-knowledge.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `career-quiz.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `dark-arts/vault/dojo/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `dark-arts/vault/owasp-top10-lab.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
@@ -19237,15 +19221,7 @@
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `funding/index.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `houses/code/python-for-it/labs/pfi-w4-gui-inclass.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `lobby.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
