@@ -113,6 +113,33 @@ class ClientSecretsValidator {
             return true;
         }
 
+        // INTENTIONAL EDUCATIONAL CONTENT — these directories exist to teach
+        // students about secrets/flags/vulnerable code patterns. The validator
+        // catching "leaked passwords" inside CTF box configs / bug-bounty
+        // training labs is a category error: the secrets ARE the lesson.
+        // Real production secret leaks elsewhere on the platform are still
+        // caught by this validator.
+        //
+        // arena/boxes/ — CTF box configs (flags/credentials are by-design)
+        // dark-arts/vault/bug-hunting/ — bug-bounty practice labs (vulnerable
+        //   code samples are the curriculum)
+        // dark-arts/vault/ehe/ — ethical hacker exercises (same pattern)
+        // dark-arts/vault/owasp-top10-lab — OWASP Top 10 demo (vulnerability
+        //   examples)
+        // houses/key/labs/ — cryptography labs (HMAC/JWT/AES demos require
+        //   literal secret keys for the demonstration)
+        // houses/eye/applets/cyberops/ — security operations labs (demo
+        //   passwords for exercises)
+        // houses/code/devops/sections/ansible/ — Ansible vault tutorials
+        //   (explicitly TEACHING about secrets management)
+        if (/(?:^|\/)arena\/boxes\//.test(normalized)) return true;
+        if (/dark-arts\/vault\/bug-hunting\//.test(normalized)) return true;
+        if (/dark-arts\/vault\/ehe\//.test(normalized)) return true;
+        if (/dark-arts\/vault\/owasp-top10-lab/.test(normalized)) return true;
+        if (/houses\/key\/labs\//.test(normalized)) return true;
+        if (/houses\/eye\/applets\/cyberops\//.test(normalized)) return true;
+        if (/houses\/code\/devops\/sections\/ansible\//.test(normalized)) return true;
+
         return false;
     }
 
@@ -149,6 +176,23 @@ class ClientSecretsValidator {
                 if (flagValue === '...' || flagValue === 'xxx' || flagValue === 'example') {
                     continue;
                 }
+
+                // Skip JS startsWith / matches / test patterns checking for
+                // the 'flag{' string prefix — this is checking IF something
+                // is a flag, not exposing one. E.g.:
+                //   v.startsWith('flag{')         → flag{')  ← false positive
+                //   /flag\{/i.test(input)         → flag{   ← false positive
+                //   "flag{" + computed + "}"     → flag{   ← false positive
+                // Heuristic: the matched flag value contains a closing quote
+                // or starts with non-flag-content characters that suggest
+                // it's a string literal being checked, not a real flag.
+                if (flagValue.startsWith("'") || flagValue.startsWith('"')) continue;
+                if (/['"]\s*\)/.test(flagValue)) continue;  // contains ') or ")
+                // signal-toolkit BLE badge XOR-encoded flags shown in COMMENT
+                // explaining the encoding (e.g., '// Decodes to: "flag{badge_h4ck3d}"')
+                // — these are educational examples, not exposed runtime flags.
+                const beforeMatch2 = line.substring(0, match.index);
+                if (/Decodes? to:/i.test(beforeMatch2)) continue;
 
                 // Skip HTML comments containing flag references (documentation)
                 const trimmed = line.trim();
@@ -237,6 +281,29 @@ class ClientSecretsValidator {
 
             // Skip placeholder/label attributes
             if (/placeholder\s*=\s*["'][^"']*password[^"']*["']/i.test(line)) {
+                continue;
+            }
+
+            // Skip ARM template parameter placeholders — adminPassword references
+            // pulled from deployment parameters, NOT literal credentials.
+            // Pattern:  '[parameters(\'paramName\')]'  (Azure ARM syntax;
+            // the ` may be escaped as \' inside JS string literals).
+            // Just check for the unique '[parameters(' substring.
+            if (/\[parameters\(/.test(line)) {
+                continue;
+            }
+            // Also skip Bicep / ARM template variable references:
+            //   adminPassword: '[variables(...)]'
+            //   adminPassword: '[reference(...)]'
+            if (/\[(?:variables|reference|listKeys|secret)\s*\(/.test(line)) {
+                continue;
+            }
+
+            // Skip values that are obvious placeholders, not real secrets:
+            // REDACTED, PLACEHOLDER, YOUR_*, CHANGEME, ********, EXAMPLE, etc.
+            // The validator catches the assignment SHAPE; if the VALUE is a
+            // documented placeholder, no real secret leaks.
+            if (/=\s*['"](?:REDACTED|PLACEHOLDER|CHANGEME|EXAMPLE|YOUR_[A-Z_]+|TODO|FIXME|XXX|\*+)['"]/i.test(line)) {
                 continue;
             }
 
