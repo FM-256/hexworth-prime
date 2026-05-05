@@ -1191,8 +1191,21 @@ class HeuristicsValidator {
         const hasServerGrading = /serverGrading\s*:\s*true/.test(content);
         // Match correct: N where it appears in a question context (near 'options:' or 'question:').
         // Exclude correct: 0 in counter/tracker objects (e.g., { count: 0, correct: 0 }).
-        const hasClientAnswers = /\bcorrect\s*:\s*[1-9]/.test(content) ||
-            (/\bcorrect\s*:\s*0/.test(content) && /options\s*:\s*\[/.test(content));
+        // Refined: scan ALL `correct: <int>` occurrences and reject those that
+        // appear on a line ALSO containing `count:` (counter sibling pattern).
+        // Real quiz-answer correct: never co-occurs with count: on one line.
+        const correctAnswerRe = /^.*?\bcorrect\s*:\s*(\d+).*$/gm;
+        let hasClientAnswers = false;
+        let m;
+        while ((m = correctAnswerRe.exec(content)) !== null) {
+            const lineText = m[0];
+            // Skip counter objects: same-line `count:` sibling
+            if (/\bcount\s*:/.test(lineText)) continue;
+            // Real answer field: any positive index, OR index 0 in a quiz with options
+            const idx = parseInt(m[1], 10);
+            if (idx > 0) { hasClientAnswers = true; break; }
+            if (idx === 0 && /options\s*:\s*\[/.test(content)) { hasClientAnswers = true; break; }
+        }
 
         // Count questions to distinguish real quizzes from pages that mention QuizEngine
         const questionCount = (content.match(/question\s*:\s*['"]/g) || []).length;
