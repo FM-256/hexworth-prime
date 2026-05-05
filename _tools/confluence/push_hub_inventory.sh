@@ -86,10 +86,12 @@ if [ "$DRY" = true ]; then
     exit 0
 fi
 
-# Read current page version (need it +1 for the PUT)
+# Read current page version + body (need version+1 for the PUT, and body for
+# dedup detection — Confluence silently dedups identical content and refuses
+# to advance the version, which used to surface as a confusing post-PUT WARN).
 META=$(curl -sf --max-time 15 \
     -u "${EMAIL}:${TOKEN}" \
-    "https://${DOMAIN}/wiki/rest/api/content/${PAGE_ID}?expand=version" 2>/dev/null)
+    "https://${DOMAIN}/wiki/rest/api/content/${PAGE_ID}?expand=version,body.storage" 2>/dev/null)
 if [ -z "$META" ]; then
     warn "Confluence page metadata fetch failed (auth/network/page-not-found) — skipping"
     exit 0
@@ -101,6 +103,15 @@ if [ -z "$CURRENT_VER" ] || ! [[ "$CURRENT_VER" =~ ^[0-9]+$ ]]; then
     exit 0
 fi
 NEXT_VER=$((CURRENT_VER + 1))
+
+# Note on Confluence dedup behavior: Confluence will silently refuse the PUT
+# (no version advance, no error) when the new body is semantically identical
+# to the current body — even though our raw bytes differ. Confluence's
+# normalization includes auto-injecting ac:macro-id attributes, converting
+# UTF-8 chars to HTML entities (em-dash → &mdash;), and other rewrites that
+# make a client-side pre-check unreliable. We push anyway and treat
+# "version-stayed-the-same" as a normal "no semantic change" outcome
+# in the post-PUT verification below.
 
 log "Confluence current version: $CURRENT_VER → pushing $NEXT_VER"
 
@@ -137,10 +148,29 @@ if [ $RC -ne 0 ] || [ -z "$RESP" ]; then
 fi
 
 NEW_VER=$(echo "$RESP" | jq -r '.version.number // empty' 2>/dev/null)
-if [ "$NEW_VER" = "$NEXT_VER" ]; then
-    log "Inventory page updated to v${NEW_VER} — https://${DOMAIN}/wiki/spaces/KBA/pages/${PAGE_ID}"
+
+# Independent post-PUT verification — fetch the page state directly instead of
+# trusting the PUT response. Confluence has shown intermittent stale responses
+# (PUT response.version.number == old value even when the PUT actually
+# advanced the version, OR vice versa). The authoritative state is what a
+# subsequent GET returns. 2s sleep gives Confluence's index time to settle.
+sleep 2
+VERIFY=$(curl -sf --max-time 15 \
+    -u "${EMAIL}:${TOKEN}" \
+    "https://${DOMAIN}/wiki/rest/api/content/${PAGE_ID}?expand=version" 2>/dev/null)
+ACTUAL_VER=$(echo "$VERIFY" | jq -r '.version.number // empty' 2>/dev/null)
+
+if [ "$ACTUAL_VER" = "$NEXT_VER" ]; then
+    log "Inventory page updated to v${ACTUAL_VER} — https://${DOMAIN}/wiki/spaces/KBA/pages/${PAGE_ID}"
+elif [ "$ACTUAL_VER" = "$CURRENT_VER" ]; then
+    # Version didn't advance — Confluence deduped (semantic-identical body).
+    # This is a NORMAL outcome when nothing meaningful changed in the inventory.
+    log "Inventory unchanged from v${CURRENT_VER} (Confluence skipped — no semantic diff) — https://${DOMAIN}/wiki/spaces/KBA/pages/${PAGE_ID}"
+elif [ "$NEW_VER" = "$NEXT_VER" ] && [ -z "$ACTUAL_VER" ]; then
+    # PUT response said success but verify GET failed (network) — trust the PUT
+    log "Inventory page updated to v${NEW_VER} (verify GET unreachable, PUT response confirmed) — https://${DOMAIN}/wiki/spaces/KBA/pages/${PAGE_ID}"
 else
-    warn "PUT response did not confirm v${NEXT_VER} (got: ${NEW_VER:-empty}) — verify manually"
+    warn "Post-PUT verification: page is at v${ACTUAL_VER:-unknown} (expected v${NEXT_VER}, PUT response said v${NEW_VER:-empty}). Run $0 manually to retry, or check Confluence directly."
 fi
 
 exit 0
