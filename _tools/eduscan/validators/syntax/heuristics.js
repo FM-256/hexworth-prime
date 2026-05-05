@@ -2183,6 +2183,17 @@ class HeuristicsValidator {
         if (!content.includes('ModuleProgress')) return issues;
         if (!file.path.endsWith('.html')) return issues;
 
+        // FALSE-POSITIVE GUARDS:
+        // 1. Files named index.html ARE the Course Home — they don't need
+        //    a link to themselves.
+        if (/(?:^|\/)index\.html$/.test(file.path)) return issues;
+        // 2. Files at platform root (no parent directory) have no parent
+        //    course to link back to. These are top-level utility pages
+        //    (career-quiz, bot-knowledge, lobby, etc.), not course modules.
+        //    Use file.path which the orchestrator passes as relative-to-root.
+        const relativePath = file.path.replace(/^.*?\/_app\//, '').replace(/^_app\//, '');
+        if (!relativePath.includes('/')) return issues;
+
         // Check for any <a> tag with href containing index.html
         const hasIndexLink = /href="[^"]*index\.html"/i.test(content);
 
