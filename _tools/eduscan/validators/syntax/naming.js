@@ -284,6 +284,17 @@ class NamingValidator {
             return null;
         }
 
+        // Only enforce type-suffix naming on COURSE CONTENT files inside
+        // houses/<house>/. Files outside that hierarchy (admin/, components/,
+        // signal/toolkit/, tenant/, top-level utility pages) are platform
+        // infrastructure / UI scaffolding — they don't follow course-naming
+        // conventions. Detection by JS content (e.g., interactive UI looking
+        // like an "applet") falsely flags admin consoles, settings pages, etc.
+        const normalized = filePath.replace(/\\/g, '/');
+        if (!/(?:^|\/)houses\/[a-z-]+\//.test(normalized)) {
+            return null;
+        }
+
         const nameWithoutExt = filename.replace(/\.html$/, '');
 
         // Check for both dot-separator and dash-separator formats
