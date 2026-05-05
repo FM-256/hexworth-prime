@@ -1,8 +1,24 @@
 # PROG-003 Rename Plan — Unambiguous Bugs
 
 > Companion to `prog003-audit-2026-05-04.md`. This is the EXECUTION SPEC for the
-> ~76 unambiguous bug renames in Option B of the SYM-15 triage. Awaiting user
-> approval before any file is modified.
+> ~76 unambiguous bug renames in Option B of the SYM-15 triage.
+
+## STATUS — 2026-05-04 19:18 UTC
+
+| Section | Scope | State | Commits |
+|---|---|---|---|
+| **A** | 17 three-plus collisions (5 forge + 12 web triples) | **DONE + DEPLOYED** | `5a0584d3`, `c3281cdf` |
+| **B** | 42 web NP/standalone duplicates (originally estimated 31; reality 42) | **DONE + DEPLOYED** | `88338d5d`, `b523ed58` |
+| **C** | NE/NP labs | folded into Section B (validator categorization shifted post-Section A) | — |
+| **D** | CLH applet+module pairs | not started | — |
+
+**Cumulative:** PROG-003 baseline reduced from 132 → 73 (-59 collisions, -45%) via 76 file edits. The `copyLegacyKey` enabling shim shipped at `841e70a3`. Both deploys verified live (HTTP 200 + runtime monitor 5/5).
+
+**Remaining 73 collisions** are the harder triage category (lab+tool intentional pairs, presentation+lab judgment calls, "other" mixed). They are NOT bulk-fix work like Sections A+B were — each needs a per-pair allowlist-vs-fix decision. See live PROG-003 audit (re-run validator) for current breakdown.
+
+The original plan content below is preserved as the historical execution spec for Sections A+B.
+
+---
 
 ## Scope
 

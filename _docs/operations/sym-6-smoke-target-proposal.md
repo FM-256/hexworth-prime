@@ -1,7 +1,18 @@
 # SYM-6 — Smoke Gate Target Expansion Proposal
 
 > Companion to `safety-net-architecture.md` Stage 3.
-> Current targets: 6. Proposes expansion candidates with rationale + latency cost.
+
+## STATUS — 2026-05-04 19:18 UTC
+
+**EXECUTED — Tier 1 Minimal landed and live.** Three missing house indices added to TARGETS array (commit `841e70a3`, deployed): House of Eye, House of Script, House of Dark Arts. Smoke gate now runs **9 targets** (was 6), all PASS. Each adds ~5s to deploy (~+15s total).
+
+Tier 2/3 from this proposal NOT taken — deferred per the plan's own guidance ("add only after a regression slips past current 9"). Re-evaluate if any of the 9 targets misses something a deploy would have caught.
+
+The proposal text below is preserved as the original recommendation + reasoning.
+
+---
+
+> Original (now historical): Current targets: 6. Proposes expansion candidates with rationale + latency cost.
 > User picks which to land — each target adds time to every deploy.
 
 ## Current 6 targets

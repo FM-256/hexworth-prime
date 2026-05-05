@@ -268,7 +268,7 @@ Some validators carry "known-issue baselines" — accepted findings that don't f
 | TAG-002 | 1 (the 2564-untagged summary) | 0 (SYM-10) |
 | XREF-001 | 0 (tightened post-fusion) | Maintain 0 |
 | PROG-003 critical | 0 | Maintain 0 |
-| PROG-003 medium | 132 (post-audit, SYM-15) | Reduce per Option B |
+| PROG-003 medium | 73 (live as of 2026-05-04 19:18 UTC; was 132 pre-Section-A) | Continue per Option B Sections C/D |
 
 Baselines live in `_tools/eduscan/tests/run.js` as named constants. Every change to a baseline requires a comment explaining why and a sprint item to drive it back to zero.
 

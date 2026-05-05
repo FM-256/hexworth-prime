@@ -3,7 +3,17 @@
 > Two in-review SYM proposals (SYM-8, SYM-15) depend on platform features that
 > need to land BEFORE the proposed bulk work can execute correctly. This doc
 > captures the verification results and the small enabling changes required.
-> All discoveries are non-destructive — proposals updated, no platform edits yet.
+
+## STATUS — 2026-05-04 19:18 UTC
+
+| Prerequisite | State |
+|---|---|
+| SYM-15: `ModuleProgress.copyLegacyKey` shim | **DONE + DEPLOYED** (commit `841e70a3`). Used by 76 file edits across Sections A+B. Functional test confirmed cross-credit pattern works without inflating `completedModules` analytics. |
+| SYM-8: hub renderer `status:"planned"` branch | **NOT NEEDED** — verification revealed HUB-001 broken refs are NOT student-visible defects (cards render fine, links point at real files; missing-catalog only impacts completion stamps + search index). SYM-8 priority dropped from "HIGH active student harm" to "LOW infrastructure cleanup." Renderer change deferred until catalog backfill is independently scheduled. |
+
+The detailed analysis below remains accurate as the verification record.
+
+---
 
 ## Verification 1 — `ModuleProgress.migrateLegacyKey` (SYM-15 prerequisite)
 
