@@ -133,13 +133,63 @@ class HTMLValidator {
     checkCriticalUnclosedTags(file, content) {
         const issues = [];
 
+        // Strip false-positive contexts before counting tags. Three categories:
+        //
+        // 1. JS comments inside inline <script> blocks (no src) — without
+        //    stripping, `// see <script> block` inside a script falsely
+        //    counts as another tag opener.
+        //    CRITICAL: skip <script src="..."> blocks (the `//` in https://
+        //    URLs would be misread as a JS comment and eat the closing tag).
+        //
+        // 2. <textarea>...</textarea> content — text inside textarea is
+        //    a STRING (placeholder/value), not HTML. An XSS-attack example
+        //    in instructional content (e.g., "enter: <script>alert(1)</script>")
+        //    is literal text, not real tags.
+        //
+        // 3. <pre>...</pre> and <code>...</code> content — verbatim code
+        //    examples often contain literal tag-like substrings.
+        //
+        // Length-preserving replacements keep line numbers accurate.
+        const stripPreserveLines = (s) => s.replace(/[^\n]/g, ' ');
+        let tagSafeContent = content.replace(
+            /<script(?![^>]*\bsrc\b)[^>]*>[\s\S]*?<\/script>/gi,
+            (block) => block
+                // ORDER MATTERS: strip JS string literals FIRST so that `//`
+                // appearing inside `"http://..."` or `"//etc/path/"` is NOT
+                // treated as a comment-start. Without this, the comment
+                // stripper eats from the string's `//` to end of line,
+                // including any `</script>` that follows.
+                .replace(/"(?:[^"\\\n]|\\[\s\S])*"/g, (m) => '"' + stripPreserveLines(m.slice(1, -1)) + '"')
+                .replace(/'(?:[^'\\\n]|\\[\s\S])*'/g, (m) => "'" + stripPreserveLines(m.slice(1, -1)) + "'")
+                // Now strip line + block comments (no risk of matching inside
+                // string literals because those have been blanked).
+                .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length))
+                .replace(/\/\*[\s\S]*?\*\//g, (m) => stripPreserveLines(m))
+        );
+        // Strip <textarea>, <pre>, <code> body content (preserve outer tags
+        // and line breaks; only inner text is replaced with spaces).
+        tagSafeContent = tagSafeContent.replace(
+            /(<(textarea|pre|code)\b[^>]*>)([\s\S]*?)(<\/\2>)/gi,
+            (_full, openTag, _name, body, closeTag) => openTag + stripPreserveLines(body) + closeTag
+        );
+        // Strip HTML attribute VALUES (anything between =" " or = ' '). An
+        // attribute value can legitimately contain text like
+        // `placeholder="enter <script>alert(1)</script>"` (XSS instructional
+        // content, code examples, etc.) — to the HTML parser, this is text,
+        // not tags, but our regex-based count would double-count without this.
+        // Length-preserving replacement keeps line numbers accurate.
+        tagSafeContent = tagSafeContent.replace(
+            /=(["'])([\s\S]*?)\1/g,
+            (_full, quote, value) => '=' + quote + stripPreserveLines(value) + quote
+        );
+
         for (const tagName of this.criticalTags) {
             // Count opening and closing tags
             const openPattern = new RegExp(`<${tagName}(?:\\s[^>]*)?>`, 'gi');
             const closePattern = new RegExp(`</${tagName}\\s*>`, 'gi');
 
-            const opens = (content.match(openPattern) || []).length;
-            const closes = (content.match(closePattern) || []).length;
+            const opens = (tagSafeContent.match(openPattern) || []).length;
+            const closes = (tagSafeContent.match(closePattern) || []).length;
 
             if (opens > closes) {
                 // Find the position of the last unclosed opening tag
