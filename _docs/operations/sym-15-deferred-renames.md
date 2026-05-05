@@ -110,3 +110,39 @@ For each title-mismatch pair, decide:
 OR alternative: if BOTH topics belong in the curriculum at separate CLH numbers, both files get renamed (one CLH stays as-is, the other gets reassigned).
 
 Awaiting curriculum direction before any file edits.
+
+
+---
+
+## Other deferred items surfaced during marathon validator-accuracy run (2026-05-05)
+
+These are NOT SYM-15 PROG-003 work but were surfaced/verified during the same marathon block. Documented here so they don't get lost.
+
+### HEUR-018 — Scroll-triggered auto-completion (398 medium findings)
+
+**Pattern:** files where `ModuleProgress.complete()` fires inside a scroll event listener at an 80% threshold. The student auto-completes the module just by scrolling past the threshold — no deliberate "I'm done" action.
+
+**Why deferred (not autonomous):** the fix is well-defined (replace scroll listener with explicit Mark Complete button), but it CHANGES STUDENT-FACING BEHAVIOR on 398 pages. Students who currently get auto-credit by scrolling will suddenly need to click a button. That's a regression in convenience even if it's pedagogically more correct.
+
+**Decision needed from user:**
+1. Bulk-fix: convert all 398 files to Mark Complete button pattern (UX consistency, but adds a click step everyone)
+2. Selective fix: only convert pages where scroll-completion is genuinely problematic (which? specific houses/courses?)
+3. Accept the pattern: lower HEUR-018 severity to `low` and document the design choice (scroll = engagement signal sufficient for completion)
+
+### HUB-001 — 10 hubs with broken data-module refs (high)
+
+Verified earlier (`symbiosis-prerequisites-2026-05-04.md`) as discoverability gap, NOT student-visible defect. Cards render, links work, files exist. Already documented; this is a reminder.
+
+### QUIZ-002 (5), QUIZ-005 (10), QUIZ-006 (4) — server grading gaps (19 total high)
+
+Quizzes that lack server-graded keys in `quiz_keys.json`. The fix involves running the quiz_keys deployment script (the PD-1 task in-progress: STR-40 quiz keys — operator verification required). NOT autonomous; tied to the existing operator-verification work.
+
+### Bulk LOW-severity buckets
+
+Surveyed but not addressed in this marathon round (decision needed on whether to invest):
+- LP-007 (2,295): course modules not in any learning path — fix = add to LearningPaths.js or accept as not-LP-tracked
+- NAME-003 (1,904): files missing house prefix — fix = rename files (cascades to many href references)
+- SEM-001 (793): heading hierarchy skips (h1→h3 without h2) — accessibility, manual review per-page
+- BLOB-001 (612), BLOB-004 (552): large inline style/script blocks — extract to external files (changes deploy-cache behavior)
+
+Each is a multi-day cleanup effort with cascading consequences. User direction on which (if any) to prioritize.
