@@ -78,6 +78,29 @@ cd _tools/nexus && node nexus.js status                # QC health across all to
 | [stragglers-progress-safety-audit.md](operations/stragglers-progress-safety-audit.md) | — | Per-change audit (8 categories) of branch impact on student progress data; recovery procedure |
 | [stragglers-pr-body.md](operations/stragglers-pr-body.md) | — | Comprehensive PR description for the Stragglers branch landing |
 
+#### Safety Net & SYM Sprint (added 2026-05-03 onward)
+
+Docs spawned by the post-fusion safety-net work and the SYM follow-up sprint. These are runbooks, design proposals, and investigation reports — not audits.
+
+| Doc | Purpose |
+|-----|---------|
+| [safety-net-architecture.md](operations/safety-net-architecture.md) | Foundational document — full 4-stage architecture (validator → smoke → runtime monitor → alerts), what each stage catches, deploy gate flow |
+| [eduscan-safety-net-2026-05-03.md](operations/eduscan-safety-net-2026-05-03.md) | HEUR-029 + XREF-001 + smoke-gate landing report |
+| [fusion-runbook.md](operations/fusion-runbook.md) | Stragglers fusion (v7.1.0 ZION) operator runbook |
+| [incident-response-playbook.md](operations/incident-response-playbook.md) | SYM-12 — when production breaks, who does what; rollback decision tree |
+| [symbiosis-prerequisites-2026-05-04.md](operations/symbiosis-prerequisites-2026-05-04.md) | What had to land before SYM sprint could start; current state of HUB-001 verification |
+| [prog003-audit-2026-05-04.md](operations/prog003-audit-2026-05-04.md) | Full 132-collision PROG-003 audit results, category breakdown, fix strategy |
+| [prog003-rename-plan-2026-05-04.md](operations/prog003-rename-plan-2026-05-04.md) | Per-file rename plan for the ~100 unambiguous PROG-003 collisions |
+| [sym-1-branch-archival.md](operations/sym-1-branch-archival.md) | SYM-1 — non-destructive branch archival via refs/archive/* |
+| [sym-3-tiered-alerts-design.md](operations/sym-3-tiered-alerts-design.md) | SYM-3 — tiered alert design (PULSE/WARN/PAGE), MVP shipped via Cloud Monitoring log-based alert + email |
+| [sym-6-smoke-target-proposal.md](operations/sym-6-smoke-target-proposal.md) | SYM-6 — smoke gate target expansion analysis (Tier 1 Minimal landed, +3 house indices) |
+| [sym-8-hub001-fix-proposal.md](operations/sym-8-hub001-fix-proposal.md) | SYM-8 — fix strategy options for 503 broken hub refs (verified non-defect; deferred) |
+| [sym-10-untagged-audit.md](operations/sym-10-untagged-audit.md) | SYM-10 — categorization of 2,563 untagged catalog modules (deferred until tag UI exists) |
+| [sym-13-gcp-cost-monitoring.md](operations/sym-13-gcp-cost-monitoring.md) | SYM-13 — Cloud Billing budget runbook ($30/mo alerts at 50/100/110%); shipped 2026-05-05 |
+| [sym-14-auth-probe-design.md](operations/sym-14-auth-probe-design.md) | SYM-14 — authenticated probe mode design; Secret Manager creds, hybrid same-image two-job pattern; awaits 6 user decisions |
+| [sym-15-deferred-renames.md](operations/sym-15-deferred-renames.md) | SYM-15 — PROG-003 deferred renames (4 'other' bucket DONE 2026-05-05; 13 CLH bucket → SYM-17) |
+| [sym-17-clh-three-layer-investigation.md](operations/sym-17-clh-three-layer-investigation.md) | SYM-17 — CLH course three-layer architecture investigation (hub + applets + linux applets + course modules); blocks rename work pending curriculum direction |
+
 **See also:**
 - [`_tools/NEXUS_DESIGN.md`](../_tools/NEXUS_DESIGN.md) -- Nexus hub-and-spoke QC orchestrator design
 - [`_tools/EDUSCAN_DESIGN.md`](../_tools/EDUSCAN_DESIGN.md) -- EduScan code scanner design
