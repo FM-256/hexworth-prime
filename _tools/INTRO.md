@@ -111,12 +111,15 @@ SKIP_SMOKE=1 SKIP_SMOKE_REASON="why"          # emergency override (audit-logged
 
 **Canonical deploy command** (replaces bare `firebase deploy --only hosting`):
 ```
-./deploy.sh                                   # branch check → Nexus → smoke → firebase deploy --only hosting
+./deploy.sh                                   # branch check → Nexus → smoke → firebase deploy → Confluence inventory regen
 ./deploy.sh --strict                          # Nexus blocks on HIGH too
 ./deploy.sh --force                           # skip Nexus only
 ./deploy.sh --skip-smoke                      # skip smoke only
-./deploy.sh --force --skip-smoke              # skip both (explicit, audit-friendly)
+./deploy.sh --skip-inventory                  # skip Confluence inventory post-deploy hook only
+./deploy.sh --force --skip-smoke              # skip both gates (explicit, audit-friendly)
 ```
+
+The Confluence inventory step is non-blocking by contract — it logs warnings but never fails the deploy. Implementation: `_tools/confluence/push_hub_inventory.sh`. Note: Confluence silently dedups identical content (PUT returns 200 but version stays same); the script treats that as a normal "no semantic change" outcome rather than a warning.
 
 For non-hosting deploys (functions, firestore rules), use the standalone smoke wrapper:
 ```
@@ -136,7 +139,17 @@ Live status:
 gcloud logging read 'resource.type="cloud_run_job" AND resource.labels.job_name="runtime-monitor"' --limit 1 --format='value(timestamp,jsonPayload.allPassed,jsonPayload.passed,jsonPayload.failed)'
 ```
 
-Deploy + scheduler details: `_tools/runtime-monitor/DEPLOY.md`. Tiered alerts (push/email): designed in `_docs/operations/sym-3-tiered-alerts-design.md` (pending build).
+Deploy + scheduler details: `_tools/runtime-monitor/DEPLOY.md`.
+
+**Email alert MVP (shipped 2026-05-05):** Cloud Monitoring log-based metric `runtime_monitor_failure` (counts cycles where `jsonPayload.allPassed=false`) wired to alert policy `runtime-monitor WARN — failures detected in last 30 min`. Threshold: any failure in rolling 30-min window. Notification: email to `f.mora80@gmail.com`. Auto-close: 30 min. Full design (Phase A/B/C) in `_docs/operations/sym-3-tiered-alerts-design.md`; Phases B (Cloud Function watcher + push notifications) and C (PAGE-tier email via SendGrid) deferred.
+
+#### Cost Monitor (shipped 2026-05-05)
+GCP Cloud Billing budget alert at $30/month for the `hexworth-prime` project, attached to the Firebase Payment billing account (`0123C4-A62FA8-F61316`). Three thresholds:
+- 50% ($15) — INFO email (validates the alert pipeline)
+- 100% ($30) — WARNING email (the actual page)
+- 110% ($33) — CRITICAL email (cost has overshot)
+
+Catches cost regressions early without paging on every $5 fluctuation. Current baseline ~$5-15/month for the runtime monitor stack. Setup runbook + per-service breakdown queries: `_docs/operations/sym-13-gcp-cost-monitoring.md`.
 
 #### Safety net architecture (full picture)
 
@@ -145,10 +158,14 @@ Deploy + scheduler details: `_tools/runtime-monitor/DEPLOY.md`. Tiered alerts (p
 single-file lint    cross-file checks   smoke + nexus       runtime monitor
 ~1 sec              ~5 sec              ~60 sec             every 15 min
 local hook (SYM-5)  local script        deploy.sh chain     Cloud Run job
-                                                            ↓
-                                                            tiered alerts (SYM-3)
-                                                            ↓
-                                                            Pulse / push / email
+                                          ↓                   ↓
+                                          confluence sync     log-based metric
+                                                              ↓
+                                                              alert policy (SYM-3)
+                                                              ↓
+                                                              email to operator
+                                                              + GCP cost budget
+                                                              ($30/mo, SYM-13)
 ```
 
 Per-stage validator matrix and override rules: `_docs/operations/safety-net-architecture.md`.
