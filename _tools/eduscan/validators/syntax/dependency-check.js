@@ -97,9 +97,31 @@ class DependencyCheckValidator {
         // Extract all <script> tags from the file for checking
         const scriptTags = this.extractScriptTags(content);
 
+        // Strip false-positive contexts where a call-pattern substring is
+        // documentation/example text, NOT an actual JS invocation:
+        //   - <code>...</code>, <pre>...</pre> (documentation/code samples)
+        //   - HTML attribute values (titles, placeholders, error msgs)
+        //   - JS string literals + JS comments inside inline scripts
+        // The stripped version is used ONLY for call-pattern detection;
+        // script-tag presence is still checked against the original content.
+        const stripPL = (s) => s.replace(/[^\n]/g, ' ');
+        let scanContent = content
+            .replace(/(<(code|pre|textarea)\b[^>]*>)([\s\S]*?)(<\/\2>)/gi,
+                (_f, o, _n, b, c) => o + stripPL(b) + c)
+            .replace(/=(["'])([\s\S]*?)\1/g,
+                (_f, q, v) => '=' + q + stripPL(v) + q)
+            .replace(/<script(?![^>]*\bsrc\b)[^>]*>[\s\S]*?<\/script>/gi,
+                (block) => block
+                    .replace(/"(?:[^"\\\n]|\\[\s\S])*"/g, m => '"' + stripPL(m.slice(1,-1)) + '"')
+                    .replace(/'(?:[^'\\\n]|\\[\s\S])*'/g, m => "'" + stripPL(m.slice(1,-1)) + "'")
+                    .replace(/\/\/[^\n]*/g, m => ' '.repeat(m.length))
+                    .replace(/\/\*[\s\S]*?\*\//g, m => stripPL(m))
+            );
+
         for (const rule of this.rules) {
-            // Step 1: Does the file contain the call pattern?
-            const callMatch = rule.callPattern.exec(content);
+            // Step 1: Does the file contain the call pattern? (use sanitized
+            // content so doc/string false positives don't trigger)
+            const callMatch = rule.callPattern.exec(scanContent);
             if (!callMatch) continue;
 
             // Step 2: Is the call inside a typeof guard? (e.g., `typeof GameTracker !== 'undefined'`)

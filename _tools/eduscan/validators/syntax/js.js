@@ -651,7 +651,24 @@ class JSValidator {
                 }
                 const prevChar = prevIdx >= 0 ? result[prevIdx] : '';
                 // Regex can follow: = ( [ ! & | ? : ; , { } ~ ^ + - * % < > newline or start
-                const regexPrecedes = '=([!&|?:;,{}~^+-*%<>\n'.includes(prevChar) || prevChar === '' || prevChar === '\n';
+                let regexPrecedes = '=([!&|?:;,{}~^+-*%<>\n'.includes(prevChar) || prevChar === '' || prevChar === '\n';
+                // Also: keywords that take an expression (return, typeof, delete, new,
+                // void, throw, else, do, in, of, instanceof, yield, await, case).
+                // Without this, `return /regex/` is misread as division and the
+                // regex's contents (including its parens/brackets) leak into the
+                // bracket-balance counter, producing JS-001 false positives.
+                if (!regexPrecedes && /[a-z]/.test(prevChar)) {
+                    // Walk back to find the preceding word
+                    let wordEnd = prevIdx + 1;
+                    let wordStart = prevIdx;
+                    while (wordStart > 0 && /[a-zA-Z_$0-9]/.test(result[wordStart - 1])) wordStart--;
+                    const word = result.slice(wordStart, wordEnd).join('');
+                    const REGEX_PRECEDING_KEYWORDS = new Set([
+                        'return','typeof','delete','new','void','throw','else','do',
+                        'in','of','instanceof','yield','await','case','if','while','switch'
+                    ]);
+                    if (REGEX_PRECEDING_KEYWORDS.has(word)) regexPrecedes = true;
+                }
                 if (regexPrecedes) {
                     result.push(' '); // opening /
                     i++;
