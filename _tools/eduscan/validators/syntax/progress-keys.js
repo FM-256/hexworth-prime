@@ -209,12 +209,48 @@ class ProgressKeysValidator {
             }
         }
 
+        // Load allowlist for known-intentional pairs (see _loadAllowlist).
+        const allowlist = this._loadAllowlist();
+        let suppressed = 0;
+        let drifted = 0;
+
         // Report collisions
         for (const [key, sites] of callSitesByKey) {
             // Distinct files only (a file with multiple identical calls is fine)
             const uniqueFiles = Array.from(new Set(sites.map(s => s.file)));
             if (uniqueFiles.length < 2) continue;
             const [houseId, moduleId] = key.split('::');
+
+            // Allowlist check: if this (house, moduleId) is allowlisted AND the
+            // exact file set matches, suppress the issue. If the (house,
+            // moduleId) is allowlisted but the file set has DRIFTED (e.g., a
+            // new file accidentally adopted the same key), emit PROG-003-DRIFT
+            // instead — loud signal that the intentional pair has changed.
+            const allowEntry = allowlist.get(key);
+            if (allowEntry) {
+                const actualSorted = uniqueFiles.slice().sort();
+                const expectedSorted = allowEntry.files.slice().sort();
+                if (actualSorted.length === expectedSorted.length &&
+                    actualSorted.every((f, i) => f === expectedSorted[i])) {
+                    suppressed++;
+                    continue;
+                }
+                // Drift: emit a distinct code so it's unambiguous in reports.
+                drifted++;
+                const expectedList = expectedSorted.map(f => `  expected: ${f}`).join('\n');
+                const actualList = actualSorted.map(f => `  actual:   ${f}`).join('\n');
+                issues.push({
+                    code: 'PROG-003-DRIFT',
+                    severity: 'medium',
+                    category: 'progress-keys',
+                    message: `Allowlisted progress-key pair has drifted. The (${houseId}, ${moduleId}) collision was previously approved as intentional, but the file set no longer matches the allowlist entry.\n${expectedList}\n${actualList}\n\nIf the new file set is intentional, update _tools/eduscan/config/prog003-allowlist.json (and document why). If unintentional, fix the new collision via the rename + copyLegacyKey pattern (see _docs/operations/prog003-rename-plan-2026-05-04.md).`,
+                    file: actualSorted[0],
+                    line: sites.find(s => s.file === actualSorted[0]).line,
+                    allowlistReason: allowEntry.reason
+                });
+                continue;
+            }
+
             const severity = uniqueFiles.length >= 5 ? 'critical' : 'medium';
             const sample = uniqueFiles.slice(0, 6).map(f => `  - ${f}`).join('\n');
             const more = uniqueFiles.length > 6 ? `\n  ... (${uniqueFiles.length - 6} more)` : '';
@@ -230,9 +266,58 @@ class ProgressKeysValidator {
         }
 
         if (this.verbose) {
-            console.log(`[PROG-003] Scanned ${htmlFiles.length} files, found ${issues.length} shared-key collisions`);
+            console.log(`[PROG-003] Scanned ${htmlFiles.length} files, found ${issues.length} shared-key collisions (suppressed ${suppressed} via allowlist, ${drifted} drifted)`);
         }
         return { issues };
+    }
+
+    /**
+     * Load the PROG-003 allowlist from
+     * _tools/eduscan/config/prog003-allowlist.json. Returns a Map keyed by
+     * `houseId::moduleId` with values { files[], reason, addedDate }.
+     *
+     * Schema:
+     *   {
+     *     "schema": "hexworth.eduscan.prog003-allowlist/v1",
+     *     "entries": [
+     *       {
+     *         "house": "cloud",
+     *         "module": "cloud-cloud",
+     *         "files": ["houses/cloud/presentations/X.html", "houses/cloud/tools/X.html"],
+     *         "reason": "Same module, two delivery modes — pres + tool",
+     *         "addedDate": "2026-05-05"
+     *       }
+     *     ]
+     *   }
+     *
+     * Failure modes (all silent — return empty allowlist, log if verbose):
+     *   - file missing                → no allowlisting (default)
+     *   - JSON parse error            → no allowlisting (don't break scans)
+     *   - missing required fields     → that entry skipped, others kept
+     */
+    _loadAllowlist() {
+        const map = new Map();
+        const allowlistPath = path.join(__dirname, '..', '..', 'config', 'prog003-allowlist.json');
+        if (!fs.existsSync(allowlistPath)) return map;
+        try {
+            const data = JSON.parse(fs.readFileSync(allowlistPath, 'utf8'));
+            for (const entry of (data.entries || [])) {
+                if (!entry.house || !entry.module || !Array.isArray(entry.files)) continue;
+                map.set(`${entry.house}::${entry.module}`, {
+                    files: entry.files,
+                    reason: entry.reason || '(no reason given)',
+                    addedDate: entry.addedDate || ''
+                });
+            }
+            if (this.verbose) {
+                console.log(`[PROG-003] Loaded ${map.size} allowlist entries from ${allowlistPath}`);
+            }
+        } catch (e) {
+            if (this.verbose) {
+                console.log(`[PROG-003] Allowlist load failed (${e.message}); proceeding without allowlist`);
+            }
+        }
+        return map;
     }
 
     _collectHtmlFiles(root) {
