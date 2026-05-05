@@ -508,8 +508,36 @@ class HeuristicsValidator {
             while ((exprMatch = emptyExprPattern.exec(scriptContent)) !== null) {
                 // Skip if inside a comment
                 const lineStart = scriptContent.lastIndexOf('\n', exprMatch.index) + 1;
-                const lineText = scriptContent.substring(lineStart, scriptContent.indexOf('\n', exprMatch.index) || scriptContent.length);
+                const lineEndIdx = scriptContent.indexOf('\n', exprMatch.index);
+                const lineEnd = lineEndIdx === -1 ? scriptContent.length : lineEndIdx;
+                const lineText = scriptContent.substring(lineStart, lineEnd);
                 if (lineText.trim().startsWith('//') || lineText.trim().startsWith('*')) continue;
+
+                // FALSE-POSITIVE GUARD: a real empty template literal lives inside
+                // a backtick-delimited template string. The `${}` substring also
+                // appears benignly in:
+                //   - regex character classes:  /[.*+?^${}()|[\]\\]/  (escape chars)
+                //   - single/double-quoted strings:  'use ${} interpolation'  (literal text)
+                //   - HTML attribute values rendered in inline scripts
+                //
+                // Discriminator: a TRUE empty template literal must be inside an
+                // unclosed backtick template. Count unescaped backticks BEFORE
+                // the ${} position in the entire script block — if odd, we're
+                // inside a template (real bug). If even (incl. zero), we're
+                // not (false positive — skip).
+                const before = scriptContent.substring(0, exprMatch.index);
+                // Count backticks not preceded by an odd number of backslashes.
+                // Simple heuristic: split on backslash-runs, then count `.
+                let backtickCount = 0;
+                for (let i = 0; i < before.length; i++) {
+                    if (before[i] === '`') {
+                        // count consecutive backslashes immediately before
+                        let bs = 0;
+                        for (let j = i - 1; j >= 0 && before[j] === '\\'; j--) bs++;
+                        if (bs % 2 === 0) backtickCount++;
+                    }
+                }
+                if (backtickCount % 2 === 0) continue;  // not inside template
 
                 const absolutePos = scriptStart + scriptMatch[0].indexOf(scriptContent) + exprMatch.index;
                 const lineNum = this.getLineNumber(content, absolutePos);
