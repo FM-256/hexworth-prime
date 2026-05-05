@@ -64,9 +64,16 @@ Files I'd touch (5 edits total — the 5 non-canonical files):
 
 ## CLH curriculum reorganization mismatch — 16 collisions
 
-The CLH course was reorganized (different topic taught at each CLH-NNN slot) but the OLD applet path naming was preserved. Result: `script/clh/script-clh-NNN-intro.applet.html` teaches one topic, `script/courses/clh/modules/clh-NNN/script-intro.module.html` teaches a different topic, both call complete with the same `script-clh-NNN-intro` key. Students complete the wrong-titled credit silently.
-
-This is a bug, but the fix involves choosing WHICH topic owns each CLH-NNN slot — the applet topic or the module topic? That requires curriculum-level judgment about the canonical CLH-NNN sequence.
+> **STATUS 2026-05-05: investigation moved to SYM-17.** See `sym-17-clh-three-layer-investigation.md` for the full picture. Brief summary below; do NOT execute renames from this section without reading the SYM-17 doc.
+>
+> Initial framing (kept for history): The CLH course was reorganized but the OLD applet path naming was preserved. `script/clh/script-clh-NNN-intro.applet.html` teaches one topic, `script/courses/clh/modules/clh-NNN/script-intro.module.html` teaches a different topic, both call complete with the same `script-clh-NNN-intro` key.
+>
+> What we now know (from SYM-17 investigation):
+> - **The hub's MODULES array is canonical** and matches the OLD applets (layer A), NOT the course modules (layer B). So "module wins" is the WRONG inference.
+> - There is a **third file layer** — `script/applets/linux/script-clh-NNN-<topic>.applet.html` — using uppercase `'CLH-NNN'` keys. Not flagged by PROG-003 (different key format) but part of the architecture.
+> - The hub has a hardcoded **migration shim** (lines 442-468) that assumes `script-clh-NNN-intro` is the source key for hub progress display. Renaming applets away from that pattern breaks hub progress for completing students.
+>
+> Resolution requires curriculum-owner direction, not a code rename. Queued as **SYM-17 in the sprint backlog**.
 
 | CLH | Applet topic | Module topic |
 |---|---|---|
