@@ -1850,6 +1850,32 @@ class HeuristicsValidator {
                     (pctMatch ? '0.' + pctMatch[1] : // normalize 80 -> 0.80
                     (hasVariableThreshold ? 'variable' : 'unknown'));
 
+                // Determine if the threshold is high enough to be effectively a
+                // deliberate-completion act (>= 99% of page scrolled). High-threshold
+                // matches stay flagged for visibility but get demoted from medium → info
+                // since the student-facing bug (premature completion) is gone.
+                // Low/unknown thresholds keep medium severity (the original bug).
+                let parsedThresholdValue = null;
+                if (ratioMatch) {
+                    parsedThresholdValue = parseFloat(ratioMatch[1]);
+                } else if (pctMatch) {
+                    parsedThresholdValue = parseFloat(pctMatch[1]) / 100;
+                } else if (hasVariableThreshold) {
+                    // Try to look up the variable's value in the same block.
+                    // Captures: var/let/const NAME = NUMBER. Conservative — only
+                    // matches if assignment is in the SAME script block.
+                    const varAssignMatch = block.match(
+                        /\b(?:var|let|const)\s+(?:scrollThreshold|scrollTarget|threshold)\s*=\s*([0-9]+(?:\.[0-9]+)?)/
+                    );
+                    if (varAssignMatch) {
+                        const v = parseFloat(varAssignMatch[1]);
+                        // Normalize percent (e.g., 80) to ratio (0.8) for comparison
+                        parsedThresholdValue = v >= 1 ? v / 100 : v;
+                    }
+                }
+                const isHighThreshold = parsedThresholdValue !== null && parsedThresholdValue >= 0.99;
+                const severity = isHighThreshold ? 'info' : 'medium';
+
                 // Find which completion function
                 const comp = completionPatterns.find(p => block.includes(p)) || 'unknown';
                 const compName = comp.replace('(', '');
@@ -1860,16 +1886,22 @@ class HeuristicsValidator {
                     : content.indexOf('addEventListener("scroll"');
                 const line = idx >= 0 ? content.substring(0, idx).split('\n').length : 0;
 
+                const baseMessage = compName + ' fires on scroll' +
+                    (threshold !== 'unknown' ? ' at ' + (parseFloat(threshold) * 100) + '% threshold' : '');
+                const message = isHighThreshold
+                    ? baseMessage + ' (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)'
+                    : baseMessage + ' — student has no deliberate completion action';
+
                 issues.push({
                     code: 'HEUR-018',
-                    severity: 'medium',
+                    severity,
                     category: 'heuristic',
-                    message: compName + ' fires on scroll' +
-                             (threshold !== 'unknown' ? ' at ' + (parseFloat(threshold) * 100) + '% threshold' : '') +
-                             ' — student has no deliberate completion action',
+                    message,
                     file: file.path,
                     line,
-                    fix: 'Replace scroll-based auto-completion with a "Mark Complete" button that the student clicks deliberately after reading all content'
+                    fix: isHighThreshold
+                        ? 'High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.'
+                        : 'Replace scroll-based auto-completion with a "Mark Complete" button that the student clicks deliberately after reading all content'
                 });
 
                 break; // one finding per file is enough
