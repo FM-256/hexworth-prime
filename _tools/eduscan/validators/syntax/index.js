@@ -49,6 +49,7 @@ const TagsValidator = require('./tags');
 const HubRefsValidator = require('./hub-refs');
 const XPAuditValidator = require('./xp-audit');
 const ClientSecretsValidator = require('../security/client-secrets');
+const FirebaseConfigValidator = require('../security/firebase-config');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -171,6 +172,10 @@ class SyntaxValidator {
         });
         this.clientSecretsValidator = new ClientSecretsValidator({
             verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
+        this.firebaseConfigValidator = new FirebaseConfigValidator({
             rootPath: this.rootPath,
             profile: this.profile
         });
@@ -368,6 +373,15 @@ class SyntaxValidator {
             results.summary.clientSecretsErrors += secretsGlobalResults.length;
             if (this.verbose) {
                 console.log(`[SYNTAX] ClientSecrets (global): ${secretsGlobalResults.length} issues`);
+            }
+        }
+
+        // Run Firebase Config validation (CONFIG-001 — cross-file consistency)
+        const firebaseConfigResults = this.firebaseConfigValidator.validateGlobal();
+        if (firebaseConfigResults.length > 0) {
+            results.issues.push(...firebaseConfigResults);
+            if (this.verbose) {
+                console.log(`[SYNTAX] FirebaseConfig: ${firebaseConfigResults.length} issues`);
             }
         }
 
