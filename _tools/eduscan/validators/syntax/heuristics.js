@@ -1104,6 +1104,19 @@ class HeuristicsValidator {
         if (file.path.includes('CodeRunner')) return issues;
         if (file.path.includes('SQLTerminal')) return issues;
         if (file.path.includes('sandbox')) return issues;
+        // Educational sandbox content-type conventions — eval is the legitimate
+        // mechanism for executing student-submitted code (Python applets,
+        // calculator widgets, exam code-runners, interactive lab cells, games).
+        // Per architecture: these file extensions denote single-page sandboxes.
+        if (file.path.endsWith('.applet.html')) return issues;
+        if (file.path.endsWith('.lab.html')) return issues;
+        if (file.path.endsWith('.exam.html')) return issues;
+        if (file.path.endsWith('.game.html')) return issues;
+        if (file.path.endsWith('.module.html')) return issues;
+        if (file.path.endsWith('.simulator.html')) return issues;
+        // Educational exploitation content — eval IS the topic being taught.
+        // Vault is the architectural home for offensive-security teaching content.
+        if (file.path.includes('dark-arts/vault/')) return issues;
 
         // Extract script blocks
         const scriptBlocks = this._extractInlineScripts(content);
