@@ -150,44 +150,26 @@ This is the active work-in-progress at handoff. Started after user revealed the 
 - Before any push to Quiz Solutions Manual in Confluence
 - Before any documentation citing an external authoritative source
 
-**Same shape as Nancy:** sub-agent, has veto power. Verdicts: PASS / WEAK / FAIL / REJECT / CANNOT_AUTO_VERIFY (for 403-blocked sources).
+**Same shape as Nancy:** sub-agent, has veto power. Verdicts: PASS / WEAK / DENY / REJECT / CANNOT_AUTO_VERIFY (for 403-blocked sources).
 
-### Ready-to-invoke prompt (paste verbatim into Karl when invoking)
+### How to invoke Karl
 
-```
-Batch citation audit. The artifact under review is the Confluence page
-"[DRAFT] Shield — FW-W1: Logical Security Quiz" (id 8486914), which contains
-15 cybersecurity quiz questions, each with a sourced answer. The architecture
-standard you enforce: ~/hexworth-shared/KBA/quiz-solutions-manual-architecture.md
-§"Citation Requirements".
+Karl is an SME. Point him at the artifact and let him work. Do NOT pre-stage URLs / quotes / classifications / "areas of concern" — that biases him toward confirming your work instead of independently auditing.
 
-Below are all 15 citations as currently published on the page (Confluence v3).
-For each: the claim being supported, the proposed URL, the verifying quote
-provided, and my source-type classification. Verify each per your mandate:
-fetch the URL, confirm content addresses the claim, confirm quote is verbatim
-or near-verbatim, classify source type.
-
-Return your standard batch response: per-citation review block + summary
-verdict.
-
-[15 citation blocks — see _tools/scripts/karl-fw-w1-prompt.txt for full prompt
-with all Q1-Q15 entries, OR re-derive from the build script
-/tmp/build-fw-w1-logical-confluence.js QUESTIONS array]
-
-For any FAIL or REJECT, propose a replacement URL if you found one. Pay
-extra attention to Q9 (does Azure RBAC page establish "job function" framing?),
-Q5 (does the Zero Trust page actually establish "minimum permissions
-necessary"?), and Q14 (the paraphrase issue I admitted).
-```
-
-**Note for next session:** Karl loads at session start. He'll be in the available agents list. Invoke via:
 ```
 Agent({
-  description: "Karl audit fw-w1-logical citations",
+  description: "Karl audit [artifact name]",
   subagent_type: "karl",
-  prompt: "[paste the prompt above]"
+  prompt: "Audit the citations in [artifact location]. [Access path if needed.]"
 })
 ```
+
+Examples of correct minimal prompts:
+- `"Audit the citations in Confluence page id 8486914 (KBA space, hexworth.atlassian.net). Credentials at ~/.config/confluence/credentials.json."`
+- `"Audit the citations in ~/hexworth-shared/Solutions/Shield-FW/Quiz-W1-Logical_ANSWERS.md."`
+- `"Audit the citations in _docs/operations/<doc>.md."`
+
+Karl reads the artifact himself, identifies each citation, audits independently against his criteria (live + HTML-direct + opens-on-the-answer + content-matches-claim + quote-verbatim + source-type-appropriate), and returns per-citation verdicts. The submitter then fixes any DENY/REJECT and resubmits.
 
 ---
 
