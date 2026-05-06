@@ -32,6 +32,13 @@ const NAV_TIMEOUT_MS = parseInt(process.env.NAV_TIMEOUT_MS || '25000', 10);
 const SETTLE_MS = parseInt(process.env.SETTLE_MS || '2000', 10);
 const PRETTY = process.env.PRETTY === '1';
 
+// ── PROBE MODE ───────────────────────────────────────────────────────
+// 'anonymous' (default) — current production behavior, public probes
+// 'auth'                — SYM-14 auth-mode (skeleton; not yet shipped)
+// Set via PROBE_MODE env var. When PROBE_MODE=auth, run.js loads
+// auth-targets.js + auth-client.js and injects sign-in state per target.
+const PROBE_MODE = process.env.PROBE_MODE || 'anonymous';
+
 // ── TARGETS ──────────────────────────────────────────────────────────
 // Subset of the smoke gate's targets, focused on highest-blast-radius pages.
 // Runtime monitor pings these continuously — keep the list tight for cost +
@@ -119,10 +126,22 @@ function isIgnoredError(text) {
 
 // ── CHECK A SINGLE TARGET ────────────────────────────────────────────
 
-async function checkTarget(browser, target, baseUrl) {
+async function checkTarget(browser, target, baseUrl, authState) {
     const page = await browser.newPage();
     const errors = [];
     const failures = [];
+
+    // SYM-14: if this target requires auth, attach auth state to the page
+    // BEFORE seedLocalStorage runs (so Firebase SDK sees the auth state on
+    // first script execution). Stub call — see auth-client.js for TODOs.
+    if (target.requiresAuth) {
+        if (!authState) {
+            failures.push('AUTH: target requires auth but no authState provided (PROBE_MODE != auth?)');
+        } else {
+            const authClient = require('./auth-client');
+            await authClient.attachAuthToPage(page, authState);  // throws until SYM-14 ships
+        }
+    }
 
     page.on('pageerror', e => {
         const msg = 'pageerror: ' + (e.message || String(e));
@@ -200,14 +219,30 @@ async function main() {
     let targetResults = [];
     let runError = null;
 
+    // SYM-14 mode dispatch — pick target set based on PROBE_MODE.
+    // Anonymous mode unchanged from MVP. Auth mode loads stub modules
+    // (will throw inside signIn() if invoked — see auth-client.js
+    // for TODOs blocking implementation). All errors land in runError.
+    let activeTargets = TARGETS;
+    let authState = null;
+
     try {
+        if (PROBE_MODE === 'auth') {
+            const { AUTH_TARGETS } = require('./auth-targets');
+            const authClient = require('./auth-client');
+            activeTargets = AUTH_TARGETS;
+            authState = await authClient.signIn();  // throws until SYM-14 decisions are made
+        } else if (PROBE_MODE !== 'anonymous') {
+            throw new Error(`Unknown PROBE_MODE: ${PROBE_MODE} (expected 'anonymous' or 'auth')`);
+        }
+
         browser = await puppeteer.launch({
             headless: 'new',
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
-        for (const target of TARGETS) {
-            const result = await checkTarget(browser, target, TARGET_BASE);
+        for (const target of activeTargets) {
+            const result = await checkTarget(browser, target, TARGET_BASE, authState);
             targetResults.push(result);
         }
     } catch (e) {
@@ -223,6 +258,7 @@ async function main() {
 
     const report = {
         schema: 'hexworth.runtime-monitor/v1',
+        probeMode: PROBE_MODE,
         startedAt,
         completedAt,
         targetBase: TARGET_BASE,

@@ -143,3 +143,88 @@ When ready to wire results into Pulse:
    ```
 4. Update `firestore.rules` to allow the runtime monitor to write `_quality_reports/runtime/*`
 5. Pulse already reads `_quality_reports/*` — no UI change needed; it'll pick up the runtime status automatically.
+
+---
+
+## SYM-14 — Auth-mode probe deploy (SKELETON, awaiting decisions)
+
+**Status:** Skeleton landed in this directory:
+- `auth-client.js` (Firebase Auth REST sign-in stub)
+- `auth-targets.js` (A1 dashboard + A3 module write target stubs)
+- `run.js` mode dispatch (PROBE_MODE env var: `anonymous` | `auth`)
+
+The skeleton works end-to-end for anonymous mode (no behavior change). Auth mode fails cleanly with a structured `runError` pointing at the first unmet decision.
+
+### Pre-deploy checklist (when SYM-14 decisions are answered)
+
+Decisions to resolve from `_docs/operations/sym-14-auth-probe-design.md`:
+1. Credential storage approach (Secret Manager recommended)
+2. Cycle frequency (every 30 min recommended)
+3. MFA on test account (disable recommended)
+4. Initial probe scope (A1 + A3 recommended)
+5. Test account email (`runtime-monitor@hexworth.com` proposed)
+6. Rotation cadence (quarterly recommended)
+
+### Build steps (after decisions)
+
+1. **Create test account** in Firebase Auth (decision 5 email).
+2. **Pre-seed Firestore** for the test account: `users/{uid}` with `roles: ['student']`, enrolled in canary class with canary module.
+3. **Store credentials** per decision 1 (Secret Manager path: `projects/hexworth-prime/secrets/runtime-monitor-test-account/versions/latest`).
+4. **Fill TODO markers** in `auth-client.js`:
+   - `loadCredentials()` — implement based on decision 1
+   - `TEST_ACCOUNT_EMAIL` — set per decision 5
+   - `MFA_DISABLED_ON_TEST_ACCOUNT` — set to `true` per decision 3
+   - `signIn()` — uncomment the real Firebase Auth REST call
+   - `attachAuthToPage()` — uncomment the localStorage injection
+5. **Verify A3 canary path** in `auth-targets.js` — confirm the module URL exists and is the right canary.
+6. **Local dry-run:**
+   ```bash
+   PROBE_MODE=auth FIREBASE_API_KEY=<public-key> node _tools/runtime-monitor/run.js
+   # expect: structured JSON with allPassed=true, probeMode='auth'
+   ```
+
+### Deploy commands (after local dry-run is green)
+
+Build the same Docker image — runtime decides mode via env var:
+
+```bash
+# Build once (image already shared with anonymous mode)
+gcloud builds submit --tag gcr.io/hexworth-prime/runtime-monitor _tools/runtime-monitor/
+
+# Deploy auth-mode job (separate from anonymous job for least-privilege creds)
+gcloud run jobs create runtime-monitor-auth \
+  --image=gcr.io/hexworth-prime/runtime-monitor \
+  --region=us-central1 \
+  --task-timeout=300 \
+  --max-retries=0 \
+  --set-env-vars="PROBE_MODE=auth,FIREBASE_API_KEY=<public-key>" \
+  --set-secrets="TEST_ACCOUNT_CREDS=runtime-monitor-test-account:latest"
+
+# Schedule it (decision 2: every 30 min recommended; offset from anon's 15-min cycle)
+gcloud scheduler jobs create http runtime-monitor-auth-trigger \
+  --schedule="*/30 * * * *" \
+  --time-zone="Etc/UTC" \
+  --uri="https://us-central1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/hexworth-prime/jobs/runtime-monitor-auth:run" \
+  --http-method=POST \
+  --oauth-service-account-email="$(gcloud projects describe hexworth-prime --format='value(projectNumber)')-compute@developer.gserviceaccount.com"
+```
+
+### Verify after deploy
+
+```bash
+# Force one auth-mode cycle
+gcloud run jobs execute runtime-monitor-auth --region=us-central1
+
+# Read the result
+gcloud logging read 'resource.type="cloud_run_job" AND resource.labels.job_name="runtime-monitor-auth" AND logName=~"stdout"' --limit=1 --format="value(jsonPayload.allPassed,jsonPayload.passed,jsonPayload.failed,jsonPayload.runError)"
+```
+
+Expected: `True 2 0 ` (both auth targets passing, no runError).
+
+### Alert routing
+
+The existing alert policy `runtime-monitor WARN — failures detected in last 30 min` (SYM-3 MVP) filters by `resource.labels.job_name="runtime-monitor"` only — it will NOT see auth-mode failures. After deploying the auth job, either:
+- Update the existing alert filter to: `resource.labels.job_name=~"runtime-monitor.*"` (matches both jobs)
+- OR create a sibling alert policy specifically for `runtime-monitor-auth`
+
+Recommended: widen the filter (single policy, simpler).
