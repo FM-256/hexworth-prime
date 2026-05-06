@@ -1,8 +1,8 @@
 # Session Handoff — 2026-05-05
 
 > Comprehensive state capture so any future session (whether resumed in 5 minutes or 5 weeks) opens with full context.
-> Master HEAD at handoff: `07feba1a`
-> Session theme: SYM follow-up sprint (validator accuracy → safety net closeout → PROG-003 reductions → SYM-14 design + skeleton → Karl agent created → PD-1 sample begun)
+> **Current state verification:** `git log --oneline -10` and look for the most recent commits with subjects starting `docs(handoff)`, `fix(karl)`, or `docs(nancy-roundtrip)`. The first handoff commit was `389dac44`; subsequent fix-pass commits added Nancy-found gap fixes (HEAD hash unpinning, pre-staging removal, /tmp ephemerality flag, etc.).
+> Session theme: SYM follow-up sprint (validator accuracy → safety net closeout → PROG-003 reductions → SYM-14 design + skeleton → Karl agent created → PD-1 sample begun → Nancy roundtrip on Karl + handoff)
 
 ---
 
@@ -54,11 +54,11 @@ Multiple EduScan validators tightened to suppress false positives without losing
 
 ---
 
-## State snapshot (as of 07feba1a)
+## State snapshot (as of initial handoff write at HEAD `07feba1a` — fix-pass commits since)
 
 | Metric | Value |
 |---|---|
-| Master HEAD | `07feba1a` |
+| Master HEAD at initial handoff | `07feba1a` (fix-pass commits since — current HEAD via `git log --oneline -1`) |
 | Production deploys today | 3 (HEUR-018 fix, G1 renames, Block B renames) — all smoke-green |
 | HEUR-018 medium count | **0** (was 398 at session start) |
 | HEUR-018 info count | 333 (acceptable interim debt — high-threshold scroll completion) |
@@ -66,7 +66,7 @@ Multiple EduScan validators tightened to suppress false positives without losing
 | Total Nexus findings | 12,644 (was 12,833) |
 | EduScan tests | 59/59 |
 | Sprint additions | +1 (SYM-17 — CLH three-layer investigation) |
-| Memory entries created | +4 (no-stopping rule, Confluence dedup, severity demotion pattern, CLH 3-layer + Karl) |
+| Memory entries created | +5 (no-stopping rule, Confluence dedup, severity demotion pattern, CLH 3-layer, Karl citation auditor) |
 | Docs index updates | +16 ops docs registered |
 
 ### Production safety net — verified live end-to-end
@@ -116,26 +116,19 @@ This is the active work-in-progress at handoff. Started after user revealed the 
 |---|---|
 | `~/hexworth-shared/Solutions/Shield-FW/Quiz-W1-Logical_ANSWERS.md` | Markdown sample, 15 questions, NIST/Microsoft Learn/RFC/Wikipedia citations, [DRAFT] header |
 | Confluence page id `8486914` | "[DRAFT] Shield — FW-W1: Logical Security Quiz" at v3 (rich format with rationale + distractor analysis + citation per question). URL: https://hexworth.atlassian.net/wiki/spaces/KBA/pages/8486914 |
-| `/tmp/build-fw-w1-logical-confluence.js` | Builder script with all 15 questions + verified data. Reusable as template for the other 13 STR-40 quizzes. |
-
-### Citation issues already surfaced (mid-audit, not Karl-verified)
-
-| Q | Issue | Proposed fix |
-|---|---|---|
-| Q4 | Original NIST 800-63-3 cited but doc says "authorization is out of scope" | **FIXED in v3** — replaced with Microsoft Learn auth-vs-authz page that defines both terms |
-| Q5 | Microsoft Zero Trust page mentions "least privilege" but doesn't directly define "minimum permissions necessary" | Replace with `https://en.wikipedia.org/wiki/Principle_of_least_privilege` (verified verbatim definition) |
-| Q9 | Microsoft Learn Azure RBAC page is about Azure implementation, doesn't use "job function" framing | Replace with `https://en.wikipedia.org/wiki/Role-based_access_control` Design section ("Within an organization, roles are created for various job functions") |
-| Q14 | Verifying quote was a paraphrase, not actual page text | Replace with verbatim quote from NIST 800-63B §5.1.1.2: "Verifiers SHALL require subscriber-chosen memorized secrets to be at least 8 characters in length. Verifiers SHOULD permit subscriber-chosen memorized secrets at least 64 characters in length." |
-| Q6 | Quote works but a stronger opening sentence available | Optional: replace with "In computing, a stateful firewall is a network-based firewall that individually tracks sessions of network connections traversing it." |
+| `/tmp/build-fw-w1-logical-confluence.js` | **EPHEMERAL — not committed, not in shared folder, will not survive reboot.** Was used to build the Confluence v3 body. Karl can audit the published Confluence page directly without this script; if needed for batch-generating the other 13 quizzes, regenerate from scratch by reading the quiz HTML + writing a similar QUESTIONS array. Treat the existing /tmp file as gone the moment the machine reboots. |
+| `functions/fw-quiz-keys-DRAFT.json` | The seed-from JSON. Q4 of fw-w1-logical was corrected 2026-05-05 (auto-derived 0 → verified 1) with `_q4_correction_note` field added inline. After Karl audits the citations and any apply, the answers_DRAFT array becomes the seed source for `quiz_keys/fw-w1-logical`. |
 
 ### What's needed next
 
-1. **Karl audits all 15 citations** (see Karl section below)
-2. Apply Karl's verdicts (fix any FAIL/REJECT, optionally upgrade WEAK)
-3. Push final v4 of Confluence page + update markdown
+1. **Karl audits the citations on Confluence page id 8486914.** Invocation pattern: see Karl section below — minimal point-at-artifact prompt only. Do NOT pre-stage URLs, quotes, classifications, or "areas of concern" — that bias is exactly what Karl exists to prevent. Let him discover what he discovers.
+2. Apply Karl's verdicts (fix any DENY/REJECT, optionally upgrade WEAK)
+3. Push final Confluence page version + update markdown to match
 4. Operator final approval
-5. Derive Firestore key from verified answer index `[0, 2, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1]` and seed
+5. Derive Firestore key from `functions/fw-quiz-keys-DRAFT.json` `answers_DRAFT` field for `fw-w1-logical` (now corrected for Q4) and seed via the standard quiz-keys deployment
 6. **THEN** scale the same approach to the other 13 STR-40 quizzes (multi-session work)
+
+> **Why no "citation issues already surfaced" table here:** an earlier draft of this handoff included one with Q4/Q5/Q9/Q14 pre-staged findings. Nancy adversarial review caught that pre-staging defeats Karl's design (he should discover issues independently, not confirm a list someone else made). Removed.
 
 ---
 
@@ -184,6 +177,10 @@ All in `~/.claude/projects/-home-eq-ai-content-hexworth-prime/memory/`:
 5. `reference_karl_citation_auditor.md` — Karl exists, when to invoke
 
 All five referenced from MEMORY.md index.
+
+### Sub-directory of note: `_docs/operations/karl-prompts/`
+
+This directory contains a single file `fw-w1-logical-citations.md` whose entire content is a DEPRECATION NOTICE. Background: an earlier draft of the Karl invocation pattern saved a 118-line "paste-this-prompt" file with all 15 citations pre-staged. User correctly identified that as constraining Karl to confirming the primary agent's framing. The file was overwritten with a deprecation notice explaining the right pattern (point at the artifact, no pre-staging). Per "we do not destroy," the file remains as a historical record of the wrong pattern. **Do not interpret the directory's existence as suggesting future Karl audits should have per-artifact pre-staged prompts. They should not.**
 
 ---
 
@@ -259,7 +256,7 @@ Several times today I caught myself wanting to "just ship it." Each time the use
 - Q4 NIST→Microsoft Learn citation fix in fw-w1-logical Confluence v3 — shipped, don't roll back
 - Confluence inventory dedup behavior investigated and fixed in `aab465fe` — bug is solved, don't re-investigate
 - HEUR-018 severity demotion approach (was Nancy-approved, broader regex was rejected) — don't try to broaden detection
-- HUB-001 cleanup (verified non-defect, deferred to SYM-8) — don't try to "fix" the 27 references
+- HUB-001 cleanup (verified non-defect, deferred to SYM-8) — don't try to "fix" the 27 hubs / 503 broken module references (it's NOT 27 individual broken links; it's 27 hubs each with multiple broken `data-module` attrs totaling 503)
 - Validator-accuracy round (false-positive guards already shipped across SEC/QUIZ/HEUR/SEM/NAME) — let any new false positives surface organically before further tightening
 
 ---
@@ -268,11 +265,25 @@ Several times today I caught myself wanting to "just ship it." Each time the use
 
 1. Open MEMORY.md (auto-loaded by system)
 2. Read THIS handoff doc (`_docs/operations/session-handoff-2026-05-05.md`)
-3. Verify state: `git log --oneline -3` should show `07feba1a` HEAD or descendants
-4. **Invoke Karl** on the fw-w1-logical citations using the prompt above
-5. Apply Karl's verdicts: fix any FAIL/REJECT, optionally upgrade WEAK
-6. Push v4 of Confluence page + update markdown to match
-7. Ask user: ready to seed `quiz_keys/fw-w1-logical` to Firestore? Or audit one more sample (e.g., fw-w1-physical) to lock the format before bulk?
+3. Verify state: `git log --oneline -10` — you should see commits with subjects like `docs(handoff)`, `fix(karl)`, and `docs(nancy-roundtrip)` (or similar). The first handoff commit was `389dac44`; if HEAD is at or after that, you're on the right tree. Specific HEAD will differ from the original `07feba1a` snapshot due to fix-pass commits.
+4. **Invoke Karl on the fw-w1-logical Confluence page.** Use this exact minimal prompt (do NOT add to it; do NOT pre-stage citation findings):
+
+   ```
+   Audit the citations on Confluence page id 8486914 (KBA space, hexworth.atlassian.net).
+   Credentials at ~/.config/confluence/credentials.json.
+   ```
+
+   ```
+   Agent({
+     description: "Karl audit fw-w1-logical citations",
+     subagent_type: "karl",
+     prompt: "[the 2-line prompt above, verbatim]"
+   })
+   ```
+
+5. Apply Karl's verdicts: fix any DENY/REJECT, optionally upgrade WEAK. For any CANNOT_VERIFY_BY_DESIGN, write an entry in `~/hexworth-shared/Solutions/_audit/citation-overrides.log.md` per the architecture-doc format.
+6. Push updated Confluence page version + update markdown to match
+7. Ask user: ready to seed `quiz_keys/fw-w1-logical` to Firestore from `functions/fw-quiz-keys-DRAFT.json` `answers_DRAFT` field? Or audit one more sample (e.g., fw-w1-physical) to lock the format before bulk?
 8. After fw-w1-logical is fully shipped: STR-40 batch process for the other 13 quizzes is the natural sequel.
 
 ---
