@@ -336,6 +336,7 @@ All scrapers run on bc1. All output goes to cold storage. The laptop only sees c
 - **Fire and forget.** Long-running tasks get `nohup`, check results later.
 - **Plan before building.** Architectural changes get a green light first.
 - **`_tools/` is gitignored** — files must be `git add -f` to track.
+- **Private/Sensitive Files (gitignored, local-only):** Four directories — `_hex/` (operator vault: CTF flags, secrets), `_planning/` (active design workspace), `_archive/` (deprecated content kept for retrieval), `_spellbook/` (change manifests). Different semantics each. Authoritative policy: [`_docs/architecture/private-directories.md`](../_docs/architecture/private-directories.md).
 - **position:fixed is broken** when `body.style.filter` is set. Use `position: absolute` + scroll offset. EduScan rule HEUR-008 catches this.
 
 ---
