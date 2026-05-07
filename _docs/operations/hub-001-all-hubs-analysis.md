@@ -53,6 +53,33 @@ These need operator-level curriculum review. Each hub has 30+ items. Cannot be r
 
 **Hubs in this class:** `shield/isc2-cc` (33), `shield/security-plus` (64).
 
+## Class E — DEAD REFERENCES TO NONBUILT CONTENT (severity: STUDENT-IMPACT)
+
+**New class added 2026-05-07 after deeper investigation of `forge/intro-computers`.**
+
+The hub references content IDs that have NO matching files on disk and NO catalog entries. Students hitting these card slots see content that was never built. This is qualitatively different from naming/aliasing issues — it's a direct user-facing bug.
+
+**Confirmed for `forge/intro-computers`:** 25 unmatched IDs investigated:
+- 3 have actual files in `presentations/` directory (catalog entries needed)
+- 22 reference nonexistent files (dead card slots)
+
+**Operator-action priority on this hub:** HIGH.
+
+**First-pass auditor at `_tools/audit-hub-deadrefs.js`** runs across all 10 hubs but has documented limitations (cannot follow catalog href→file fully). Reports an UPPER BOUND of ~388 dead refs across all hubs. True count requires catalog-aware audit. The high-confidence Class E case is `forge/intro-computers` (verified by hand). Other hubs flagged at 100% dead are likely overcount — their content lives at descriptive paths (e.g., `wsa/m01-fundamentals/cloud-presentation.module.html`) that the heuristic doesn't reach.
+
+**Resolution options:**
+- E1: Remove the 22 dead references from the hub HTML (truncate hub scope to what exists)
+- E2: Build the 22 missing pieces of content (multi-week curriculum work)
+- Hybrid: keep the 3 working items active, hide the 22 dead ones with a `data-status="planned"` attribute the hub renderer skips
+
+**Recommendation:** E1 (remove dead refs) immediately + E2 if the curriculum genuinely needs the missing pieces.
+
+**Auditing the other hubs for Class E:**
+Run `node` script comparing each hub's `data-module` IDs to actual files on disk. For each hub:
+- count(IDs) − count(files-on-disk) = dead card slots
+
+Hubs likely affected (need verification): all of them, since none of the unmatched-ID samples appeared in the catalog and at least one (intro-computers) is largely dead refs.
+
 ## Class D — `gui-*` content convention (1 hub, 92 IDs)
 
 `web/network-plus` references 92 IDs prefixed `gui-` (suggesting "guided" or "interactive"). The convention isn't documented in catalog. Either:
