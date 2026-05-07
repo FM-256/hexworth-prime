@@ -133,7 +133,7 @@ Per memory `feedback_no_architectural_debt.md` — never accept the debt; find b
 | `shield/security-plus` | Cross-hub Option 1 candidate (+5 clears) | Pair with PFI Option 1 decision; remaining refs need per-ID audit |
 | `shield/isc2-cc` | Per-ID audit | Which ms-sec-{NN} are valid; remove dead pis-{NN} |
 | `divergent/ethics-it` | Class B curriculum review | eth-{NN} vs eth-w{N}-{topic} canonical |
-| `forge/intro-computers` | Class E (mostly dead refs) | Highest student-impact priority — `_docs/operations/sym-8-hub001-fix-proposal.md` |
+| `forge/intro-computers` | **READY (split)** — Unit 1 paste-ready, Unit 2 awaits curriculum decision | See `hub-001-forge-intro-computers-proposal.md` |
 
 ## Recommended sequencing
 
