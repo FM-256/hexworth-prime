@@ -130,7 +130,7 @@ Per memory `feedback_no_architectural_debt.md` — never accept the debt; find b
 | `cloud/modules/wsa` | **READY** — 3-option analysis | Operator picks per `hub-001-wsa-catalog-patch.md`; consider together with server-plus |
 | `web/network-plus` | Cross-hub Option 1 candidate (+18 clears) | Pair with PFI Option 1 decision — same validator change |
 | `matrix/adv-linux` | Cross-hub Option 1 candidate (+14 clears) | Pair with PFI Option 1 decision — same validator change |
-| `shield/security-plus` | Cross-hub Option 1 candidate (+5 clears); remaining 48 of 118 IDs shared with isc2-cc | Pair with PFI Option 1 decision; sp parity audit queued (next firing) |
+| `shield/security-plus` | **READY** — partner doc to isc2-cc | See `hub-001-security-plus-proposal.md` (28 sp-only paste-ready + 19 shared with isc2-cc Unit 1 + 17 dead pis-NN). After both Unit 1's land: 86% of hub clears |
 | `shield/isc2-cc` | **READY (split)** — 3 work units | See `hub-001-isc2-cc-proposal.md` (Unit 1: 22 paste-ready cross-house catalog entries; Unit 2: 11 dead pis-NN need curriculum; Unit 3: sp parity audit) |
 | `divergent/ethics-it` | Class B curriculum review | eth-{NN} vs eth-w{N}-{topic} canonical |
 | `forge/intro-computers` | **READY (split)** — Unit 1 paste-ready, Unit 2 awaits curriculum decision | See `hub-001-forge-intro-computers-proposal.md` |
