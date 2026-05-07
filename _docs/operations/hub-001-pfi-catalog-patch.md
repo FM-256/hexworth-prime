@@ -74,12 +74,23 @@ The 4 op-* refs deserve special attention. They cross hub boundaries (`code/pyth
 
 ### Option 1 — Widen the HUB-001 validator's tolerance algorithm
 
-The validator already does house-prefix tolerance (lines 56-62 of `_tools/eduscan/validators/syntax/hub-refs.js`). Add component-suffix tolerance: try `{house}-{id}-{pres|lab|quiz|classroom|inclass}` resolutions before flagging.
+The validator already does house-prefix tolerance (lines 56-62 of `_tools/eduscan/validators/syntax/hub-refs.js`). Add component-suffix tolerance: try `{house}-{id}-{pres|lab|quiz|classroom|inclass|module|exam|presentation}` resolutions before flagging.
 
-- **Effect**: 33 false positives clear from PFI; the same fix likely clears similar drift in other Class A hubs (`cloud/server-plus`, `cloud/modules/wsa`).
+**This is a cross-hub fix, not just PFI.** Running suffix-tolerance resolution against all 10 HUB-001 hubs:
+
+| Hub | refs | currently resolved | with suffix tolerance | newly cleared |
+|---|---|---|---|---|
+| `code/python-for-it` | 39 | 2 | 33 | **+31** |
+| `web/network-plus` | 115 | 23 | 41 | **+18** |
+| `matrix/adv-linux` | 38 | 4 | 18 | **+14** |
+| `shield/security-plus` | 118 | 54 | 59 | **+5** |
+| Other 6 hubs | — | — | — | +0 |
+| **Total** | | | | **+68 refs across 4 hubs** |
+
+- **Effect**: 68 ref resolutions clear from 4 hubs in one validator change.
 - **Risk**: low. Validator is the only consumer; behavioral change is "fewer false positives," not "fewer real catches."
 - **Touches**: 1 file (`_tools/eduscan/validators/syntax/hub-refs.js`), ~10 lines.
-- **Open question**: does this hide a real architecture-debt smell, or codify a legitimate two-namespace pattern (catalog-id ≠ hub-data-module)?
+- **Open question**: does this hide a real architecture-debt smell, or codify a legitimate two-namespace pattern (catalog-id ≠ hub-data-module)? The fact that 4 different hubs (4 different course teams) independently arrived at the same naming pattern is evidence the two-namespace pattern is intentional.
 
 ### Option 2 — Add 33 short-id catalog aliases
 
