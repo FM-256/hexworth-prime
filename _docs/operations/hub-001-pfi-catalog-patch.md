@@ -122,10 +122,13 @@ The 6 truly missing catalog entries:
 
 1. **`pfi-w4-final-exam`** — straightforward catalog add. File exists, just needs an entry. ~1 line.
 2. **`pfi-setup-guide`** — straightforward catalog add. File at `setup-guide.html`. ~1 line.
-3. **`pfi-op-01..04`** — cross-house refs. Need:
-   - Verification that operator-track missions render correctly when navigated from PFI hub
-   - Decision on whether catalog should have 4 cross-house entries with `house: 'code'` and `href: '../../operator/missions/pfi-op-NN.mission.html'`, OR whether the operator-mission catalog (if any) should own these
-   - Confirmation that the operator track is even part of PFI's intended scope
+3. **`pfi-op-01..04`** — cross-house refs. Verified 2026-05-07:
+   - Files exist at `_app/operator/missions/pfi-op-NN.mission.html` (verified)
+   - Hub anchors use `href="../../../operator/missions/pfi-op-NN.mission.html"` — relative href resolves correctly from `_app/houses/code/python-for-it/index.html` to the actual files
+   - **Navigation works**: students clicking these cards reach the correct content
+   - The HUB-001 finding represents catalog-completeness drift, not student-facing breakage
+   - Decision still needed: should catalog have 4 cross-house entries (with `house: 'code'` and `href: '../../operator/missions/pfi-op-NN.mission.html'`), or should the operator-mission track own its own catalog entries that PFI references?
+   - Operator-scope question: are op-* missions a permanent part of PFI curriculum or a temporary cross-link?
 
 ## What I will not do autonomously
 
