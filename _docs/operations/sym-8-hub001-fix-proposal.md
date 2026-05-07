@@ -3,6 +3,20 @@
 > 27 hubs, 503 broken `data-module` refs total. Each broken ref = a hub card pointing at content with no ContentCatalog metadata = a card that students see but cannot interact with normally (or that silent-fails to render content).
 > Awaiting user direction on fix approach before any platform edits.
 
+## 2026-05-07 status update
+
+Two HIGH-tier hubs now have ready-to-ship artifacts; cross-hub validator-widening evidence has narrowed Strategy 3 substantially:
+
+- **`web/ccna`** — 25/25 file-no-catalog. Paste-and-deploy patch ready: [`hub-001-ccna-catalog-patch.md`](hub-001-ccna-catalog-patch.md) (31 entries). Operator approval pending.
+- **`code/python-for-it`** — naming-convention drift, NOT a catalog gap (catalog already has 33 of 39 items). 4-option analysis: [`hub-001-pfi-catalog-patch.md`](hub-001-pfi-catalog-patch.md). Cross-hub evidence shows Option 1 (validator widening) clears 68 refs across 4 hubs simultaneously.
+- **Catalog-aware auditor**: [`_tools/audit-hub-deadrefs-v2.js`](../../_tools/audit-hub-deadrefs-v2.js) — 4-bucket classification (LIVE / BROKEN / FILE_NO_CATALOG / DEAD) replaces v1 heuristic. Use this for all future per-hub investigation.
+- **Consolidated decision matrix**: [`hub-001-all-hubs-analysis.md`](hub-001-all-hubs-analysis.md) (refreshed with READY/Pending/Cross-hub Option 1 candidate labels).
+
+Strategy 3 (hybrid) is still the recommended structure, but the recommended sequencing has changed:
+1. Operator picks PFI Option 1 vs Option 2 — if Option 1 (validator widening), 4 hubs clear at once with no content edits
+2. Operator approves ccna paste-and-deploy
+3. Remaining hubs work through Strategy 3's per-hub manual fix path
+
 ## Discovery summary
 
 ```
