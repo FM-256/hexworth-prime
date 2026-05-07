@@ -11,17 +11,22 @@
  *   - Idempotent on clientEventId (UUID)
  *
  * Lifecycle:
- *   AnalyticsEvents.init({ tenantId, classId, fbAuth }) once on page load
+ *   AnalyticsEvents.init({ tenantId, classId, callFunction }) once on page load
  *   AnalyticsEvents.emit(type, payload)               anywhere a signal happens
  *   AnalyticsEvents.flush()                            (manual; auto on intervals/pagehide)
  *   AnalyticsEvents.endSession()                       on explicit logout
  *
- * Usage:
+ * Usage (with FirebaseAuth wrapper):
  *   await AnalyticsEvents.init({
  *     tenantId: 'test-x',
  *     classId: 'class-001',
- *     fbAuth: FirebaseAuth,        // for callFunction
+ *     callFunction: (name, data) => FirebaseAuth.callFunction(name, data),
  *   });
+ *
+ * Usage (with raw Firebase functions httpsCallable):
+ *   const callFn = (name, data) => fbFunctions.httpsCallable(functions, name)(data);
+ *   await AnalyticsEvents.init({ tenantId, classId, callFunction: callFn });
+ *
  *   AnalyticsEvents.emit('item.start', { itemId: 'mod-1', itemType: 'module' });
  */
 (function() {
@@ -38,7 +43,7 @@
     const APP_VERSION = '2026-05-07';
 
     // ─── State ──────────────────────────────────────────────────────
-    let _config = null;          // { tenantId, classId, fbAuth, debug }
+    let _config = null;          // { tenantId, classId, callFunction, debug }
     let _session = null;         // { token, sessionId, exp, consentVersion }
     let _flushTimer = null;
     let _heartbeatTimer = null;
@@ -131,7 +136,7 @@
         // Try refresh path if we have a token (even near-expired)
         if (!forceFresh && cached && cached.token) {
             try {
-                const result = await _config.fbAuth.callFunction('refreshSessionToken', { priorToken: cached.token });
+                const result = await _config.callFunction('refreshSessionToken', { priorToken: cached.token });
                 const data = result && result.data ? result.data : result;
                 _session = {
                     token: data.token,
@@ -148,7 +153,7 @@
         }
 
         // Fresh issuance
-        const result = await _config.fbAuth.callFunction('getSessionToken', {
+        const result = await _config.callFunction('getSessionToken', {
             tenantId: _config.tenantId,
             classId: _config.classId,
         });
@@ -215,7 +220,7 @@
             for (let i = 0; i < buf.length; i += MAX_BATCH_SIZE) {
                 const batch = buf.slice(i, i + MAX_BATCH_SIZE);
                 try {
-                    const result = await _config.fbAuth.callFunction('ingestEvents', {
+                    const result = await _config.callFunction('ingestEvents', {
                         sessionToken: _session.token,
                         events: batch,
                     });
@@ -233,7 +238,7 @@
                         try {
                             await _ensureSession(true);
                             // single retry
-                            const retry = await _config.fbAuth.callFunction('ingestEvents', {
+                            const retry = await _config.callFunction('ingestEvents', {
                                 sessionToken: _session.token,
                                 events: batch,
                             });
@@ -311,13 +316,21 @@
 
     async function init(config) {
         if (_initialized) return;
-        if (!config || !config.tenantId || !config.fbAuth) {
-            throw new Error('AnalyticsEvents.init requires { tenantId, fbAuth }');
+        if (!config || !config.tenantId) {
+            throw new Error('AnalyticsEvents.init requires { tenantId, callFunction }');
+        }
+        // Accept either { callFunction } directly or { fbAuth } for legacy compatibility
+        var callFn = config.callFunction;
+        if (!callFn && config.fbAuth && typeof config.fbAuth.callFunction === 'function') {
+            callFn = function(name, data) { return config.fbAuth.callFunction(name, data); };
+        }
+        if (typeof callFn !== 'function') {
+            throw new Error('AnalyticsEvents.init requires callFunction (or fbAuth.callFunction)');
         }
         _config = {
             tenantId: config.tenantId,
             classId: config.classId || '_tenant_',
-            fbAuth: config.fbAuth,
+            callFunction: callFn,
             debug: !!config.debug,
         };
         _initialized = true;
