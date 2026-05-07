@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics v2 — Status — Hexworth Prime</title>
+
+    <!-- Admin guard: hide page until verified -->
+    <style id="admin-guard">body { visibility: hidden; }</style>
+
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="/components/AccountFrame.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 4px; color: #c084fc; }
+        .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 24px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+        }
+        .card {
+            background: #161822;
+            border: 1px solid rgba(168, 85, 247, 0.18);
+            border-radius: 8px;
+            padding: 18px 20px;
+        }
+        .card h2 {
+            font-size: 0.95rem;
+            color: #c084fc;
+            margin-bottom: 12px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.88rem;
+        }
+        .metric:last-child { border-bottom: none; }
+        .metric .label { color: #aaa; }
+        .metric .value { color: #e2e8f0; font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .badge.healthy { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .badge.stale   { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .badge.broken  { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .badge.unknown { background: rgba(160,160,160,0.15); color: #aaa; }
+        .types {
+            display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+        }
+        .types span {
+            background: rgba(168, 85, 247, 0.1);
+            color: #c4b5fd;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .footer-row {
+            margin-top: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #666;
+            font-size: 0.78rem;
+        }
+        .refresh-btn {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-family: inherit;
+        }
+        .refresh-btn:hover { background: rgba(168, 85, 247, 0.25); }
+        a.back { color: #888; text-decoration: none; font-size: 0.85rem; }
+        a.back:hover { color: #c084fc; }
+    </style>
+</head>
+<body>
+    <a class="back" href="console.html">&larr; Back to Admin Console</a>
+    <h1 style="margin-top:8px;">Analytics v2 — Pipeline Status</h1>
+    <div class="subtitle">Self-heal observability surface for the platform owner. Auto-refreshes every 60s.</div>
+
+    <div class="grid">
+        <div class="card" id="card-projector">
+            <h2>Projector Heartbeat</h2>
+            <div class="metric"><span class="label">Status</span><span class="value" id="proj-status"><span class="badge unknown">Loading…</span></span></div>
+            <div class="metric"><span class="label">Last beat</span><span class="value" id="proj-lastbeat">—</span></div>
+            <div class="metric"><span class="label">Age</span><span class="value" id="proj-age">—</span></div>
+            <div class="metric"><span class="label">Schema version</span><span class="value" id="proj-schema">—</span></div>
+            <div class="metric"><span class="label">Phase</span><span class="value" id="proj-phase">—</span></div>
+            <div class="metric"><span class="label">Loaded event types</span><span class="value" id="proj-typecount">—</span></div>
+            <div class="types" id="proj-types"></div>
+        </div>
+
+        <div class="card" id="card-volume">
+            <h2>Event Volume (sample)</h2>
+            <div class="metric"><span class="label">Sessions across platform</span><span class="value" id="vol-sessions">—</span></div>
+            <div class="metric"><span class="label">Events across platform</span><span class="value" id="vol-events">—</span></div>
+            <div class="metric"><span class="label">Item state docs</span><span class="value" id="vol-itemstate">—</span></div>
+            <div class="metric"><span class="label">Note</span><span class="value" style="font-size:0.78rem;color:#777;">collection-group sample, capped at 100</span></div>
+        </div>
+
+        <div class="card" id="card-triage">
+            <h2>Self-Heal Triage</h2>
+            <div class="metric"><span class="label">Open _triage_queue</span><span class="value" id="triage-open">—</span></div>
+            <div class="metric"><span class="label">AV2-HEALTH items</span><span class="value" id="triage-av2">—</span></div>
+            <div class="metric"><span class="label">Sprint-staleness</span><span class="value" id="triage-sprint">—</span></div>
+        </div>
+
+        <div class="card" id="card-cf">
+            <h2>Cloud Functions Wired</h2>
+            <div class="types">
+                <span>getSessionToken</span>
+                <span>refreshSessionToken</span>
+                <span>ingestEvents</span>
+                <span>projectEvent</span>
+                <span>projectorHeartbeatJob</span>
+                <span>analyticsHealthCheck</span>
+            </div>
+            <div style="margin-top:12px;font-size:0.78rem;color:#777;">
+                projectorHeartbeatJob runs every 1 min. analyticsHealthCheck runs every 5 min and writes to /_triage_queue/health_AV2-HEALTH-* on detection.
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-row">
+        <span id="last-refresh">—</span>
+        <button class="refresh-btn" onclick="refreshAll()">Refresh now</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
+        import { getFirestore, doc, getDoc, collectionGroup, collection, query, where, getDocs, getCountFromServer } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+
+        // ── Admin gate ──
+        async function gate() {
+            const u = await FirebaseAuth.waitForAuth();
+            if (!u) { window.location.href = '../dashboard.html'; return false; }
+            const isAdmin = FirebaseAuth.isAdmin && FirebaseAuth.isAdmin();
+            const acc = AccountFrame && AccountFrame.getAccountType && AccountFrame.getAccountType() === 'admin';
+            if (!isAdmin && !acc) { window.location.href = '../dashboard.html'; return false; }
+            const g = document.getElementById('admin-guard'); if (g) g.remove();
+            return true;
+        }
+
+        // ── Firestore init ──
+        let db;
+        async function initDb() {
+            const apps = getApps();
+            if (apps.length === 0) return null;
+            db = getFirestore(apps[0]);
+            return db;
+        }
+
+        // ── Render helpers ──
+        function $(id) { return document.getElementById(id); }
+        function setBadge(id, label, kind) {
+            $(id).innerHTML = `<span class="badge ${kind}">${label}</span>`;
+        }
+        function fmt(n) { return typeof n === 'number' ? n.toLocaleString() : '—'; }
+        function fmtAge(ms) {
+            if (!ms) return '—';
+            const sec = Math.floor(ms / 1000);
+            if (sec < 60) return sec + 's';
+            const min = Math.floor(sec / 60);
+            if (min < 60) return min + 'm ' + (sec % 60) + 's';
+            const h = Math.floor(min / 60);
+            return h + 'h ' + (min % 60) + 'm';
+        }
+
+        async function loadProjector() {
+            try {
+                const ref = doc(db, 'analytics_v2/projectorHeartbeat');
+                const snap = await getDoc(ref);
+                if (!snap.exists()) {
+                    setBadge('proj-status', 'NOT YET WRITTEN', 'broken');
+                    return;
+                }
+                const data = snap.data();
+                const lastBeatMs = data.lastBeatAt && data.lastBeatAt.toMillis ? data.lastBeatAt.toMillis() : 0;
+                const ageMs = Date.now() - lastBeatMs;
+                const STALE_THRESHOLD = 5 * 60 * 1000;
+                if (ageMs < STALE_THRESHOLD) {
+                    setBadge('proj-status', 'HEALTHY', 'healthy');
+                } else if (ageMs < STALE_THRESHOLD * 3) {
+                    setBadge('proj-status', 'STALE', 'stale');
+                } else {
+                    setBadge('proj-status', 'BROKEN', 'broken');
+                }
+                $('proj-lastbeat').textContent = lastBeatMs ? new Date(lastBeatMs).toISOString().replace('T', ' ').slice(0, 19) : '—';
+                $('proj-age').textContent = fmtAge(ageMs);
+                $('proj-schema').textContent = data.schemaVersion || '—';
+                $('proj-phase').textContent = data.phase || '—';
+                $('proj-typecount').textContent = (data.loadedEventTypes || []).length;
+                $('proj-types').innerHTML = (data.loadedEventTypes || [])
+                    .map(t => `<span>${t}</span>`).join('');
+            } catch (e) {
+                setBadge('proj-status', 'READ ERROR', 'broken');
+                console.error('[Analytics v2 Status] projector read error:', e);
+            }
+        }
+
+        async function loadVolumes() {
+            try {
+                const sessionsCG = collectionGroup(db, 'sessions');
+                const eventsCG = collectionGroup(db, 'events');
+                const itemStateCG = collectionGroup(db, 'itemState');
+                const [s, e, i] = await Promise.all([
+                    getCountFromServer(sessionsCG).catch(() => null),
+                    getCountFromServer(eventsCG).catch(() => null),
+                    getCountFromServer(itemStateCG).catch(() => null),
+                ]);
+                $('vol-sessions').textContent = s ? fmt(s.data().count) : 'n/a (index?)';
+                $('vol-events').textContent = e ? fmt(e.data().count) : 'n/a (index?)';
+                $('vol-itemstate').textContent = i ? fmt(i.data().count) : 'n/a (index?)';
+            } catch (err) {
+                console.error('[Analytics v2 Status] volume read error:', err);
+                $('vol-sessions').textContent = 'error';
+                $('vol-events').textContent = 'error';
+                $('vol-itemstate').textContent = 'error';
+            }
+        }
+
+        async function loadTriage() {
+            try {
+                const triageCol = collection(db, '_triage_queue');
+                const openQ = query(triageCol, where('status', '==', 'open'));
+                const av2Q = query(triageCol, where('source', '==', 'analyticsHealthCheck'));
+                const sprintQ = query(triageCol, where('code', 'in', ['SPRINT-STALE', 'SPRINT-STALE-SUMMARY']));
+                const [open, av2, sprint] = await Promise.all([
+                    getDocs(openQ).catch(() => null),
+                    getDocs(av2Q).catch(() => null),
+                    getDocs(sprintQ).catch(() => null),
+                ]);
+                $('triage-open').textContent = open ? open.size : '—';
+                $('triage-av2').textContent = av2 ? av2.size : '—';
+                $('triage-sprint').textContent = sprint ? sprint.size : '—';
+            } catch (e) {
+                console.error('[Analytics v2 Status] triage read error:', e);
+            }
+        }
+
+        window.refreshAll = async function() {
+            $('last-refresh').textContent = 'Refreshing…';
+            await Promise.all([loadProjector(), loadVolumes(), loadTriage()]);
+            $('last-refresh').textContent = 'Last refreshed: ' + new Date().toISOString().replace('T', ' ').slice(0, 19);
+        };
+
+        // ── Boot ──
+        (async () => {
+            const ok = await gate();
+            if (!ok) return;
+            await initDb();
+            if (!db) {
+                setBadge('proj-status', 'FIREBASE INIT FAILED', 'broken');
+                return;
+            }
+            await refreshAll();
+            setInterval(refreshAll, 60 * 1000);
+        })();
+    </script>
+</body>
+</html>
