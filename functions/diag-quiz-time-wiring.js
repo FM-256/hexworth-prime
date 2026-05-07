@@ -32,7 +32,11 @@ async function main() {
                 totalDocs++;
                 const data = pDoc.data();
                 const quizCount = Object.keys(data.quizScores || {}).length;
-                const time = data.totalTimeSpent || 0;
+                // totalSessionMs is the Analytics v2 canonical field (ms);
+                // totalTimeSpent is legacy (seconds, never written in production).
+                const timeMs = data.totalSessionMs || 0;
+                const timeSec = data.totalTimeSpent || 0;
+                const time = timeMs + (timeSec * 1000);  // unified ms view
                 if (quizCount > 0) {
                     docsWithQuizScores++;
                     if (sampleQuiz.length < 5) {
@@ -52,7 +56,9 @@ async function main() {
                             tenant: tenantSlug, classId,
                             uid: pDoc.id,
                             name: data.displayName || data.email,
-                            totalTimeSpent: time
+                            totalSessionMs: timeMs,
+                            totalTimeSpentSec: timeSec,
+                            unifiedMin: Math.round(time / 60000)
                         });
                     }
                 }
@@ -74,15 +80,18 @@ async function main() {
         console.log('  ⚠ ZERO docs have any quiz scores — quiz wiring likely broken');
     }
     console.log();
-    console.log('TIME TRACKING:');
-    console.log('  Docs with totalTimeSpent > 0:    ' + docsWithTime + '/' + totalDocs);
+    console.log('TIME TRACKING (totalSessionMs + legacy totalTimeSpent):');
+    console.log('  Docs with any time > 0:          ' + docsWithTime + '/' + totalDocs);
     if (sampleTime.length > 0) {
         console.log('  Sample (up to 5):');
         sampleTime.forEach(s => {
-            console.log('    ' + s.name + ' (' + s.tenant + '/' + s.classId + '): ' + s.totalTimeSpent + 's');
+            console.log('    ' + s.name + ' (' + s.tenant + '/' + s.classId + '): ' +
+                        s.unifiedMin + ' min  [totalSessionMs=' + s.totalSessionMs +
+                        '  legacy.totalTimeSpent=' + s.totalTimeSpentSec + 's]');
         });
     } else {
-        console.log('  ⚠ ZERO docs have any time logged — time-tracking wiring missing');
+        console.log('  No sessions have ended since the time-tracking fix.');
+        console.log('  Expected: this number grows organically as students end sessions.');
     }
     process.exit(0);
 }
