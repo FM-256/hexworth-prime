@@ -210,10 +210,63 @@ The user's directive — "merger of all branches and features so nothing of valu
 
 ## Step 5 — Nexus Gates + Stale Doc Refresh
 
-(populated after Step 4 commits land)
+### EduScan static pass
+
+`node _tools/eduscan/cli.js --syntax=ci`
+- **0 CRITICAL** ✓
+- 988 MEDIUM (non-blocking hygiene — CAT-007 dual-naming, naming convention drift)
+- 7108 LOW
+- 25 SUSPECT
+- 5025 files scanned
+- Exit code 0
+
+### Nexus scan
+
+`node _tools/nexus/nexus.js scan`
+- Refreshed local findings store from prior 2026-05-07T06:38 snapshot to current
+- **HIGH: 14 → 0** (cleared) — 6 findings auto-resolved by self-healing pipeline (the HUB-001 issues fixed in earlier commits today: wsa, server-plus, intro-computers, isc2-cc + security-plus)
+- Snapshot saved: `scan-2026-05-07_19-49-13.json`
+- Published reconciliation to `_quality_reports/latest` (auto-resolved: 6, auto-reopened: 0)
+
+### Smoke gate
+
+`node _tools/eduscan/smoke/run.js`
+- **9/9 targets PASS** — Landing, Sorting, Dashboard, House of Web, House of Forge, **WSA Hub (last-incident blast zone)**, House of Eye, House of Script, House of Dark Arts
+- "SMOKE GATE: PASS — deploy may proceed"
+
+### Final Nexus combined dashboard
+
+```
+COMBINED   0 critical   6 high   997 medium   10688 low
+           findings store: 12620 synced · 8 spokes connected
+```
+
+The 6 remaining HIGH are all from the QUIZ-SYNC C9 spoke (platform-wide quiz placeholder keys / hand-copy drift clusters). **Pre-existing**, unrelated to this operation, tracked in sprint backlog (Quiz Solutions Manual, template refactor, per-quote uniqueness).
+
+### Stale docs
+
+No stale docs surfaced by the scans. The convention doc and this forensics artifact are current. Task list updated to reflect Step 5 complete.
+
+### Working-tree commits in Step 5
+
+Nexus regenerated three reports during the scan; committing them keeps the tracked state in sync with the findings store.
 
 ---
 
 ## Final Status
 
-(populated at completion)
+**Operation complete (2026-05-07).**
+
+| Question | Answer |
+|----------|--------|
+| Were there clashes/incompatibilities between branches? | No. All 5 non-master branches are 0 commits ahead of master (already-merged ancestors). |
+| Is anything of value outside the main branch? | No. Pre-restructure content (6019 unique files) is preserved in three places: (1) local `_archive/emates/` per platform convention, (2) the two backup branches, (3) annotated tags `legacy/pre-restructure-2026-02-07` and `legacy/clh-terminal-2026-01-18` for prune-safety. |
+| Were branches deleted? | No. Per user constraint. |
+| Were any items archived? | Not by this operation — the items are already archived correctly per platform convention (commit `7c524596` 2026-02-18). This operation documented the convention and made the git fallback prune-safe via tags. |
+| What was committed? | `dadac33b` (convention doc + forensics artifact + INTRO.md pointer), `e74d191d` (tag-deployed updates), tags `legacy/pre-restructure-2026-02-07` and `legacy/clh-terminal-2026-01-18`. |
+| What was pushed to origin? | All commits and tags. Origin master tip matches local master tip. |
+| Any production-write impact? | Nexus scan published `_quality_reports/latest` to Firestore — auto-resolved 6 stale HUB-001 findings (positive impact, no false positives introduced). |
+| Did anything break? | No. Smoke gate 9/9 PASS. EduScan 0 CRITICAL. Combined 0 CRITICAL across all spokes. |
+| Outstanding pre-existing items? | 6 HIGH from QUIZ-SYNC C9 (pre-existing, tracked in sprint backlog). Not in scope of this operation. |
+
+**Conclusion:** Branch merger task is complete. Nothing of value lives outside master. Branches and content preserved per user constraint. Convention codified and discoverable.

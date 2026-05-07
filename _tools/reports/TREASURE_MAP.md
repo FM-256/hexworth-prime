@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-05-05 7:15:28 PM
+                    Scanned: 2026-05-07 3:49:12 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,27 +10,27 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5062 |
+| Files Scanned | 5064 |
 | Directories | 1185 |
-| Content Files | 5062 |
-| Scan Duration | 519ms |
+| Content Files | 5064 |
+| Scan Duration | 506ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
 | presentation | 2296 |
-| html | 1490 |
+| html | 1491 |
 | lab | 587 |
 | quiz | 487 |
-| applet | 202 |
+| applet | 203 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 2996 |
-| Available | 2991 |
+| Total Modules | 3564 |
+| Available | 3519 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 61 |
-| Warning | 2326 |
-| Info | 926 |
-| **Total** | **11704** |
+| Suspect | 25 |
+| Warning | 2367 |
+| Info | 927 |
+| **Total** | **12603** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3560 |
+| Ready | 3561 |
 | Not Ready | 12 |
-| Unknown | 1490 |
+| Unknown | 1491 |
 
 
 ## FILE HIERARCHY
@@ -62,6 +62,7 @@
 📁 _app [root]
 ├── 📄 about.html
 ├── 📁 admin
+│   ├── 📄 analytics-v2-status.html
 │   ├── 📄 audit-tool.html
 │   ├── 📄 console.html
 │   ├── 📄 course-tree.html
@@ -5776,6 +5777,7 @@
 │       └── 📁 cryptography
 │           └── 📍 index.html
 ├── 📄 lobby.html
+├── 📄 login.html
 ├── 📁 oasis
 │   ├── 📄 challenge.html
 │   └── 📍 index.html
@@ -9477,6 +9479,7 @@
 | duckyscript-ide | presentation | ✓ | 2 |
 | dban.tool | applet | ✓ | 1 |
 | subscription | applet | ✓ | 1 |
+| instructor | applet | ✓ | 1 |
 | ws-01 | applet | ✓ | 1 |
 | ws-03 | applet | ✓ | 1 |
 | ws-04 | applet | ✓ | 1 |
@@ -9960,7 +9963,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (61) — heuristic, needs review
+### SUSPECT (25) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -9986,10 +9989,6 @@
   File: `admin/console.html`
   Fix: Remove console.log or replace with proper logging
 
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `admin/console.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
 **[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
   File: `arena/boxes/ops-05-operation-blackwire/gateway.html`
   Fix: Add fallback: (parseInt(value, 10) || 0)
@@ -10001,30 +10000,6 @@
 **[HEUR-001]** Excessive inline scripts: 12 <script> blocks without src (threshold: 8)
   File: `dark-arts/vault/bug-hunting/dojo/blue-belt.html`
   Fix: Consider extracting inline scripts to external .js files
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `dark-arts/vault/bug-hunting/dojo/brown-belt.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `dark-arts/vault/bug-hunting/dojo/brown-belt.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `dark-arts/vault/bug-hunting/dojo/brown-belt.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `dark-arts/vault/bug-hunting/dojo/brown-belt.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `dark-arts/vault/bug-hunting/dojo/coral-belt.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `dark-arts/vault/bug-hunting/dojo/coral-belt.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
 **[HEUR-003]** TODO marker in script: Line 29:  private static final boolean IS_DEBUG = true; // T
   File: `dark-arts/vault/bug-hunting/labs/bh-lab-mobile.html`
@@ -10038,10 +10013,6 @@
   File: `dark-arts/vault/dojo/challenge.html`
   Fix: Add fallback: (parseInt(value, 10) || 0)
 
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `dark-arts/vault/session-hijacking-lab.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
 **[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
   File: `houses/cloud/az-104/labs/az104-ch01-prerequisites.lab.html`
   Fix: Add fallback: (parseInt(value, 10) || 0)
@@ -10054,117 +10025,9 @@
   File: `houses/code/armory/compare.html`
   Fix: Remove console.log or replace with proper logging
 
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/code/labs/code-unit-testing.lab.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/code/labs/code-unit-testing.lab.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/dark-arts/games/dark-network-forensics-lab.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/key/labs/key-hmac.lab.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html`
   Fix: Remove console.log or replace with proper logging
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/applets/python/script-python-chapter4-functions.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/exams/script-python-exam-chapter1.exam.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/exams/script-python-exam-chapter1.exam.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/exams/script-python-exam-chapter1.exam.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/exams/script-python-exam-chapter1.exam.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/exams/script-python-exam-chapter1.exam.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/exams/script-python-exam-chapter1.exam.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/exams/script-python-exam-chapter2.exam.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/exams/script-python-exam-chapter2.exam.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/exams/script-python-exam-chapter2.exam.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/modules/python/script-python-immersive-chapter1.module.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/script/modules/python/script-python-immersive-chapter4.module.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/shield/games/shield-threatdex.applet.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/shield/labs/linux/shield-linux-selinux.lab.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
 
 **[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
   File: `houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html`
@@ -10202,11 +10065,7 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-**[HEUR-015]** eval() usage — code injection risk. Use new Function() or JSON.parse() instead
-  File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
-  Fix: Replace eval() with new Function() for controlled execution or JSON.parse() for data
-
-### WARNING (2326)
+### WARNING (2367)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -19165,6 +19024,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `tenant/instructor.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `wireshark/sections/fundamentals/ws-01-interface-tour.module.html`
   Fix: Add entry to content-registry.js
 
@@ -19209,6 +19072,166 @@
   Fix: Create the file before setting status to 'available', or remove the dead href
 
 **[CAT-004]** Module 'code-pod-crossing' (status: coming-soon) href 'games/pod-crossing.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-01' (status: coming-soon) href 'infosec/pis-01.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-02' (status: coming-soon) href 'infosec/pis-02.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-03' (status: coming-soon) href 'infosec/pis-03.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-04' (status: coming-soon) href 'infosec/pis-04.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-05' (status: coming-soon) href 'infosec/pis-05.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-07' (status: coming-soon) href 'infosec/pis-07.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-08' (status: coming-soon) href 'infosec/pis-08.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-09' (status: coming-soon) href 'infosec/pis-09.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-10' (status: coming-soon) href 'infosec/pis-10.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-12' (status: coming-soon) href 'infosec/pis-12.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-13' (status: coming-soon) href 'infosec/pis-13.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-14' (status: coming-soon) href 'infosec/pis-14.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-15' (status: coming-soon) href 'infosec/pis-15.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-17' (status: coming-soon) href 'infosec/pis-17.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-18' (status: coming-soon) href 'infosec/pis-18.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-19' (status: coming-soon) href 'infosec/pis-19.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'pis-20' (status: coming-soon) href 'infosec/pis-20.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w1-fundamentals-lab' (status: coming-soon) href 'intro-computers/labs/fb-w1-fundamentals.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w1-word-lab' (status: coming-soon) href 'intro-computers/labs/fb-w1-word.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w1-fundamentals-quiz' (status: coming-soon) href 'intro-computers/quizzes/fb-w1-fundamentals.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w1-word-quiz' (status: coming-soon) href 'intro-computers/quizzes/fb-w1-word.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w2-excel-pres' (status: coming-soon) href 'intro-computers/presentations/fb-w2-excel-basics.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w2-word-adv-lab' (status: coming-soon) href 'intro-computers/labs/fb-w2-word-adv.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w2-excel-lab' (status: coming-soon) href 'intro-computers/labs/fb-w2-excel.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w2-word-adv-quiz' (status: coming-soon) href 'intro-computers/quizzes/fb-w2-word-adv.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w2-excel-quiz' (status: coming-soon) href 'intro-computers/quizzes/fb-w2-excel.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-midterm-exam' (status: coming-soon) href 'intro-computers/exams/fb-midterm.exam.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w3-excel-adv-pres' (status: coming-soon) href 'intro-computers/presentations/fb-w3-excel-advanced.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w3-access-pres' (status: coming-soon) href 'intro-computers/presentations/fb-w3-access.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w3-excel-adv-lab' (status: coming-soon) href 'intro-computers/labs/fb-w3-excel-adv.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w3-access-lab' (status: coming-soon) href 'intro-computers/labs/fb-w3-access.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w3-excel-adv-quiz' (status: coming-soon) href 'intro-computers/quizzes/fb-w3-excel-adv.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w3-access-quiz' (status: coming-soon) href 'intro-computers/quizzes/fb-w3-access.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w4-ppt-pres' (status: coming-soon) href 'intro-computers/presentations/fb-w4-powerpoint.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w4-integration-pres' (status: coming-soon) href 'intro-computers/presentations/fb-w4-integration.presentation.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w4-ppt-lab' (status: coming-soon) href 'intro-computers/labs/fb-w4-ppt.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w4-integration-lab' (status: coming-soon) href 'intro-computers/labs/fb-w4-integration.lab.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w4-ppt-quiz' (status: coming-soon) href 'intro-computers/quizzes/fb-w4-ppt.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-w4-integration-quiz' (status: coming-soon) href 'intro-computers/quizzes/fb-w4-integration.quiz.html' does not exist on disk
+  File: `components/ContentCatalog.js`
+  Fix: Create the file before setting status to 'available', or remove the dead href
+
+**[CAT-004]** Module 'fb-final-exam' (status: coming-soon) href 'intro-computers/exams/fb-final.exam.html' does not exist on disk
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
@@ -19512,7 +19535,7 @@
   File: `operator/missions/windows-cmd-02.mission.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (926)
+### INFO (927)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `about.html`
@@ -20283,6 +20306,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `tenant/instructor.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `wireshark/sections/fundamentals/ws-01-interface-tour.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -20746,7 +20773,7 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 2563 of 2996 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3131 of 3564 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
@@ -23082,7 +23109,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (2241)
+### Unregistered Content (2242)
 
 | Path | Type | House |
 |------|------|-------|
@@ -25317,6 +25344,7 @@
 | signal/toolkit/duckyscript-ide.html | presentation | - |
 | signal/toolkit/tools/dban.tool.html | applet | - |
 | subscription.html | applet | - |
+| tenant/instructor.html | applet | - |
 | wireshark/sections/fundamentals/ws-01-interface-tour.module.html | applet | - |
 | wireshark/sections/fundamentals/ws-03-capture-filters.module.html | applet | - |
 | wireshark/sections/fundamentals/ws-04-display-filters.module.html | applet | - |
