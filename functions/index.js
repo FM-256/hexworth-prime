@@ -7428,3 +7428,8 @@ exports.projectorHeartbeatJob = _analyticsV2.projectorHeartbeatJob;
 // Scheduled job; writes _triage_queue items if projector pipeline silent
 const _analyticsV2Health = require('./analytics-v2-health');
 exports.analyticsHealthCheck  = _analyticsV2Health.analyticsHealthCheck;
+
+// ─── Quiz Quality Monitor — Weekly C9 cross-quiz duplicate scan ────
+// Scheduled job; reads quiz_keys/ collection, writes QUIZ-DUP triage items
+const _quizQualityMonitor = require('./quiz-quality-monitor');
+exports.quizQualityMonitor    = _quizQualityMonitor.quizQualityMonitor;
