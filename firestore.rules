@@ -532,7 +532,104 @@ service cloud.firestore {
           request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids
         );
         allow write: if request.auth != null && request.auth.uid == studentUid;
+
+        // ─── Analytics v2 — Event Log Subcollections ──────────────
+        // Architecture: _docs/architecture/student-analytics-v2.md §4.5
+        // Source of truth: Firestore subcollections under progress/{uid}.
+        // ALL writes go via Cloud Functions (Admin SDK bypasses these rules).
+        // Reads are gated per the governance status in the architecture doc.
+
+        // Sessions — server-issued session tokens record the session lifecycle.
+        // Self-readable (student can see their own session); CFs write.
+        match /sessions/{sessionId} {
+          allow read: if request.auth != null && request.auth.uid == studentUid;
+          allow write: if false;
+        }
+
+        // Events — raw event log. NEVER readable from any client (CF-only).
+        // Instructors see projections (itemState, aggregates), not raw events.
+        match /events/{eventId} {
+          allow read: if false;
+          allow write: if false;
+        }
+
+        // IntegrityEvents — capture-only governance.
+        // PI-only read access (platform admin). Even class instructor cannot read raw integrity events.
+        match /integrityEvents/{eventId} {
+          allow read: if isAdmin();
+          allow write: if false;
+        }
+
+        // ItemState — per-item projection cache. Instructor-facing.
+        match /itemState/{itemId} {
+          allow read: if request.auth != null && (
+            request.auth.uid == studentUid ||
+            request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids
+          );
+          allow write: if false;
+        }
+
+        // QuizAttempts — full attempt history. Instructor-facing.
+        match /quizAttempts/{attemptKey} {
+          allow read: if request.auth != null && (
+            request.auth.uid == studentUid ||
+            request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids
+          );
+          allow write: if false;
+        }
+
+        // Mastery — concept mastery rollups (Phase 4). Instructor-facing.
+        match /mastery/{objectiveId} {
+          allow read: if request.auth != null && (
+            request.auth.uid == studentUid ||
+            request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids
+          );
+          allow write: if false;
+        }
       }
+
+      // ─── Analytics v2 — Aggregates ────────────────────────────────
+      // Class-level rollups. Instructor-facing aggregates live at /aggregates/*.
+      // Capture-only / PI-only aggregates live at /aggregates/internal/*.
+      match /aggregates/{aggDoc} {
+        // Instructor-facing aggregates: classStats, itemAnalytics, quizAnalytics, atRisk
+        allow read: if request.auth != null && (
+          request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids ||
+          isAdmin()
+        );
+        allow write: if false;
+      }
+      match /aggregates/internal/{captureOnlyDoc=**} {
+        // Capture-only aggregates: PI ONLY
+        allow read: if isAdmin();
+        allow write: if false;
+      }
+
+      // ─── Analytics v2 — AI Ghost actions (Phase 1 Ghost RFC stub) ─
+      // Pending actions written by the Ghost CF; rendered on student UI / instructor alerts.
+      match /ghostActions/{actionId} {
+        // Student reads their own targeted actions
+        allow read: if request.auth != null && (
+          (resource.data.targetUid == request.auth.uid) ||
+          request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids ||
+          isAdmin()
+        );
+        allow write: if false;  // CFs only
+      }
+    }
+
+    // ─── Analytics v2 — Per-tenant consent records ───────────────────
+    match /tenants/{tenantId}/consent/{version} {
+      allow read: if request.auth != null;
+      allow write: if false;  // CFs only
+    }
+
+    // ─── Analytics v2 — Platform Health Doc ────────────────────────
+    // Projector heartbeat lives at /analytics_v2/projectorHeartbeat.
+    // Instructor UI reads this for staleness detection (arch §7.1).
+    match /analytics_v2/{healthDoc} {
+      allow read: if request.auth != null;  // any signed-in user (instructor UI uses it)
+      allow write: if false;  // CFs only
     }
 
     // ─── Signal C2 — Hardware Command & Control ──────────────────
