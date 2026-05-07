@@ -1222,6 +1222,16 @@ class HeuristicsValidator {
         // Skip index pages that merely reference QuizEngine in links/text
         if (file.path.endsWith('index.html')) return issues;
 
+        // Severity-demotion marker (per feedback_severity_demotion_pattern.md):
+        // a quiz that explicitly declares itself a practice/prep instrument
+        // gets QUIZ-002 demoted from HIGH to MEDIUM. The exposed answers
+        // remain a code-smell (validator still detects), but the operator
+        // has acknowledged this is not a graded surface and an in-page
+        // PRACTICE banner alerts students.
+        const isPracticeMode =
+            /<html[^>]*\bdata-practice-mode\s*=\s*["']true["']/.test(content) ||
+            /<meta\s+name=["']hex-practice-mode["']\s+content=["']true["']/.test(content);
+
         const hasServerGrading = /serverGrading\s*:\s*true/.test(content);
         // Match correct: N where it appears in a question context (near 'options:' or 'question:').
         // Exclude correct: 0 in counter/tracker objects (e.g., { count: 0, correct: 0 }).
@@ -1257,15 +1267,21 @@ class HeuristicsValidator {
                 fix: 'Remove all correct: fields from questions — server-side gradeQuiz CF has the answers in Firestore'
             });
         } else if (!hasServerGrading && hasClientAnswers) {
-            // QUIZ-002: No server grading, client answers exposed
+            // QUIZ-002: No server grading, client answers exposed.
+            // Demoted to MEDIUM if the quiz explicitly declares practice-mode
+            // (via <html data-practice-mode="true"> or hex-practice-mode meta).
             issues.push({
                 code: 'QUIZ-002',
-                severity: 'high',
+                severity: isPracticeMode ? 'medium' : 'high',
                 category: 'quiz',
-                message: 'Quiz has client-side correct: fields without serverGrading — answers visible via View Source (' + questionCount + ' questions)',
+                message: isPracticeMode
+                    ? 'Practice quiz has client-side correct: fields (' + questionCount + ' questions). Practice-mode demotes severity but answers still visible via View Source.'
+                    : 'Quiz has client-side correct: fields without serverGrading — answers visible via View Source (' + questionCount + ' questions)',
                 file: file.path,
                 line: this.getLineNumber(content, content.search(/\bcorrect\s*:\s*\d/)),
-                fix: 'Add serverGrading: true, add houseId, seed answers to Firestore quiz_keys/, then remove correct: fields'
+                fix: isPracticeMode
+                    ? 'Practice mode acknowledged. To clear entirely: convert to serverGrading: true and seed answers to Firestore quiz_keys/.'
+                    : 'Add serverGrading: true, add houseId, seed answers to Firestore quiz_keys/, then remove correct: fields. (Or mark <html data-practice-mode="true"> if this is explicitly a practice instrument.)'
             });
         } else if (!hasServerGrading && !hasClientAnswers) {
             // QUIZ-003: No answers anywhere — quiz is broken
