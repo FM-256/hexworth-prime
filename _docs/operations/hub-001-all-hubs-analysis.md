@@ -1,0 +1,100 @@
+# HUB-001 — Consolidated 10-hub analysis (operator decision artifact)
+
+## Summary
+
+EduScan flags 10 hubs as referencing module IDs that don't exist in `ContentCatalog.js`. **Total: ~383 unmatched IDs across 10 files.**
+
+After investigating each hub's naming pattern + the catalog's actual mapping, the patterns split into three classes that need different fixes. This doc enumerates each hub, identifies the class, and proposes the mechanical fix per class.
+
+| Hub | Unmatched | Pattern | Class | Fix complexity |
+|---|---|---|---|---|
+| `cloud/server-plus` | 21 | `wsa-m{NN}-pres` | A — presentation-only of existing module | Add 21 alias entries OR rename hub IDs |
+| `cloud/modules/wsa` | 22 | `m{NN}`, `capstone`, `gauntlet` (in-tree relative IDs) | A — short names of existing module entries | Same approach |
+| `code/python-for-it` | 37 | `pfi-course-intro`, `pfi-op-{NN}` | B — ContentCatalog has different shape (`pfi-w{N}-{topic}`) | Need cross-walk |
+| `divergent/ethics-it` | 30 | `eth-{NN}` | B — catalog has `eth-w{N}-{topic}` | Need cross-walk |
+| `forge/intro-computers` | 25 | `fb-w{N}-{topic}-{kind}` | A — naming actually matches catalog if `forge-fb-` prefix added | Check prefix |
+| `matrix/adv-linux` | 34 | `ala-l{NN}`, `ala-final` | B — catalog likely has different shape | Need cross-walk |
+| `shield/isc2-cc` | 33 | `ms-sec-{NN}`, `pis-{NN}` | C — mixed; some are MS-SEC items shared with security-plus | Per-id review |
+| `shield/security-plus` | 64 | `ms-sec-{NN}` (heavily) | C — shared MS-SEC namespace; some valid in catalog | Per-id review |
+| `web/ccna` | 25 | `ccna-{NN}` | A — short names; catalog has full descriptive ones | Same approach |
+| `web/network-plus` | 92 | `gui-*` heavily | D — `gui-` prefix suggests "guided/interactive" sub-content | Catalog convention question |
+
+## Class A — short names of existing modules (4 hubs, ~93 IDs)
+
+The hub uses short navigational IDs (`m01`, `ccna-01`, `wsa-m01-pres`) that map deterministically to descriptive catalog entries (`wsa-module01`, etc.).
+
+**Two mechanical options identical to server-plus proposal:**
+- **A1: Add catalog aliases** with `aliasOf` pointing to canonical entry
+- **A2: Rename hub IDs** to match catalog
+
+Recommendation: A1 (add aliases). Matches existing `forge-md101-m*` pattern in catalog. Lower-risk than touching hub HTMLs.
+
+**Hubs in this class:** `cloud/server-plus` (21), `cloud/modules/wsa` (22), `web/ccna` (25), possibly `forge/intro-computers` (25).
+
+## Class B — different shape entirely (3 hubs, ~101 IDs)
+
+The hub uses one taxonomy (e.g., `eth-{NN}` numeric) but the catalog uses another (e.g., `eth-w{N}-{topic-slug}` week-and-topic). This isn't just a naming alias — it's a structural mismatch.
+
+**Resolution requires curriculum decision:**
+- Were the hub IDs created as a simpler navigational scheme that should be backfilled into the catalog?
+- Or are the catalog IDs the canonical curriculum and the hub should be updated to match?
+
+**Hubs in this class:** `code/python-for-it` (37), `divergent/ethics-it` (30), `matrix/adv-linux` (34).
+
+These need operator-level curriculum review. Each hub has 30+ items. Cannot be resolved by mechanical alias.
+
+## Class C — shared cross-track namespace (2 hubs, ~97 IDs)
+
+`ms-sec-{NN}` IDs appear in both `shield/isc2-cc` and `shield/security-plus`. Some are valid catalog entries; some are not. The shared namespace suggests these were imported as a Microsoft Security curriculum and reused.
+
+**Resolution requires:**
+- Audit which ms-sec-{NN} IDs ARE in the catalog vs which aren't
+- For missing ones: are they meant to be created (catalog needs new entries) or are they vestigial references that should be removed from hubs?
+
+**Hubs in this class:** `shield/isc2-cc` (33), `shield/security-plus` (64).
+
+## Class D — `gui-*` content convention (1 hub, 92 IDs)
+
+`web/network-plus` references 92 IDs prefixed `gui-` (suggesting "guided" or "interactive"). The convention isn't documented in catalog. Either:
+- These represent guided-walkthrough content the catalog doesn't describe yet
+- OR the catalog convention should add a `gui-` prefix for interactive-mode counterparts of existing entries
+
+**Hubs in this class:** `web/network-plus` (92). Largest single hub by far.
+
+Per memory `feedback_no_architectural_debt.md` — never accept the debt; find broken architecture, propose only the fix. The fix here is: either build the catalog entries OR remove the dead references from the hub. Not "keep them flagged."
+
+## Decision matrix for operator review
+
+| Hub | Recommended action | Operator decision |
+|---|---|---|
+| `cloud/server-plus` | A1 — 21 aliases | Confirm presentation-only intent (see existing proposal doc) |
+| `cloud/modules/wsa` | A1 — 22 aliases (capstone, gauntlet, m01-m20) | Confirm presentation-only intent |
+| `web/ccna` | A1 — 25 aliases | Confirm full-component vs presentation-only |
+| `forge/intro-computers` | Investigate whether `forge-fb-` prefix produces a clean match | Likely just a prefix gap |
+| `code/python-for-it` | Curriculum review | Backfill catalog OR rename hub IDs |
+| `divergent/ethics-it` | Curriculum review | eth-{NN} vs eth-w{N}-{topic} canonical |
+| `matrix/adv-linux` | Curriculum review | ala-l{NN} vs catalog shape |
+| `shield/isc2-cc` | Per-ID audit | Which ms-sec-{NN} are valid; remove dead pis-{NN} |
+| `shield/security-plus` | Per-ID audit | Same as isc2-cc |
+| `web/network-plus` | Largest scope | Catalog gui-* convention OR remove 92 dead refs |
+
+## Recommended sequencing
+
+1. **Quick wins (Class A — 4 hubs, ~93 IDs):** alias-add per existing MD-101 pattern. ~20 min total once intent confirmed. Eliminates ~25% of HUB-001 findings immediately.
+2. **Class C audit (2 hubs, ~97 IDs):** which `ms-sec-{NN}` are valid. Eliminates HIGH severity on shield hubs.
+3. **Class B curriculum review (3 hubs, ~101 IDs):** schedule a proper review session. These are real curriculum decisions.
+4. **Class D (1 hub, 92 IDs):** depends on what `gui-*` actually represents. Likely needs operator-author input.
+
+## What I will/won't do autonomously
+
+**Will:** apply mechanical alias diffs for any hub the operator approves Class A treatment for. Each approved hub: ~5 min commit-ready diff.
+
+**Won't:** invent catalog entries for unfamiliar IDs (Class B), guess at curriculum decisions, or touch the hub HTMLs without explicit "rename" approval.
+
+## Cross-references
+
+- Server-plus deep-dive: `_docs/operations/hub-001-server-plus-proposal.md`
+- EduScan findings: `_tools/reports/TREASURE_MAP.json` (filter `code: HUB-001`)
+- Triage queue: `_triage_queue` open items
+- Catalog: `_app/components/ContentCatalog.js`
+- Existing alias pattern reference: `forge-md101-m*` entries (search: "LearningPaths alias")
