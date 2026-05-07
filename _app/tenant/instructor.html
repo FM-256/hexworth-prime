@@ -3048,13 +3048,17 @@
         var container = document.createElement('div');
         container.style.cssText = 'max-width:960px;margin:0 auto;color:var(--vc-text);font-family:var(--vc-font);';
 
-        // Header with close button
+        // Header with close + export-raw-data buttons
         var headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
         headerHtml += '<div>';
         headerHtml += '<div style="font-size:1.3rem;font-weight:800;color:var(--vc-primary);">' + name + '</div>';
         headerHtml += '<div style="font-size:0.72rem;color:var(--vc-text-dim);">' + email + '</div>';
         headerHtml += '</div>';
+        headerHtml += '<div style="display:flex;gap:10px;">';
+        var detailUid = student.studentUid || student.uid || '';
+        headerHtml += '<button style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.4);color:#60a5fa;padding:8px 20px;border-radius:6px;cursor:pointer;font-family:var(--vc-font);font-weight:600;" onclick="InstructorApp.exportRawDataForStudent(\'' + detailUid.replace(/'/g, "\\'") + '\')">Export Raw Data (CSV)</button>';
         headerHtml += '<button style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--vc-text);padding:8px 20px;border-radius:6px;cursor:pointer;font-family:var(--vc-font);font-weight:600;" onclick="document.getElementById(\'student-detail-overlay\').remove()">Back to Roster</button>';
+        headerHtml += '</div>';
         headerHtml += '</div>';
 
         var wrap = document.createElement('div');
@@ -3323,6 +3327,122 @@
                 document.getElementById('modal-confirm').removeEventListener('transitionend', restoreBtn);
             }
         });
+    }
+
+    /**
+     * Build long-form CSV rows for a given student set. Used by both
+     * exportRawDataForClass (all students) and exportRawDataForStudent
+     * (single student). Schema is identical between modes — course-based
+     * classes walk chapter.items[]; assignment-based classes fall back
+     * to _assignments[]. One row per student × content-item.
+     *
+     * Columns (14): Student Name | Student Email | Student UID | Status |
+     *   Last Active | Total Time (min) | Chapter # | Chapter Title |
+     *   Item Type | Item ID | Item Title | Completed | Score | Pass (≥70%)
+     */
+    function _buildRawDataRows(students) {
+        var courseMap = getActiveCourseMap();
+        var rows = [['Student Name', 'Student Email', 'Student UID', 'Status', 'Last Active', 'Total Time (min)', 'Chapter #', 'Chapter Title', 'Item Type', 'Item ID', 'Item Title', 'Completed', 'Score', 'Pass (>=70%)']];
+
+        students.forEach(function(student) {
+            var name = student.displayName || '';
+            var email = student.email || '';
+            var uid = student.studentUid || student.uid || '';
+            var status = student.status || 'active';
+            var lastActiveStr = '';
+            if (student.lastActive) {
+                var ts = student.lastActive._seconds ? student.lastActive._seconds * 1000 : new Date(student.lastActive).getTime();
+                if (ts) lastActiveStr = new Date(ts).toISOString().substring(0, 19);
+            }
+            var timeMin = Math.round((student.totalTimeSpent || 0) / 60);
+            var modulesCompleted = student.modulesCompleted || [];
+            var quizScores = student.quizScores || {};
+            var labsCompleted = student.labsCompleted || [];
+            var assignments = student.assignments || {};
+
+            if (courseMap && courseMap.chapters) {
+                courseMap.chapters.forEach(function(ch, chIdx) {
+                    (ch.items || []).forEach(function(item) {
+                        var completed = false, score = '', pass = '';
+                        if (item.type === 'module') {
+                            completed = modulesCompleted.indexOf(item.id) !== -1;
+                        } else if (item.type === 'quiz') {
+                            if (quizScores[item.id] != null) {
+                                completed = true;
+                                score = quizScores[item.id];
+                                pass = (score >= 70) ? 'yes' : 'no';
+                            }
+                        } else if (item.type === 'lab') {
+                            completed = labsCompleted.indexOf(item.id) !== -1;
+                        }
+                        rows.push([
+                            csvEscape(name), csvEscape(email), csvEscape(uid), csvEscape(status),
+                            lastActiveStr, timeMin,
+                            (chIdx + 1), csvEscape(ch.title || ''),
+                            csvEscape(item.type || ''), csvEscape(item.id || ''), csvEscape(item.title || ''),
+                            completed ? 'yes' : 'no', score, pass
+                        ]);
+                    });
+                });
+            } else {
+                // Assignment-based fallback — chapter columns blank
+                _assignments.forEach(function(a) {
+                    var p = assignments[a.assignmentId] || { status: 'not_started' };
+                    var completed = (p.status === 'completed' || p.status === 'graded') ? 'yes' : 'no';
+                    var score = p.score != null ? p.score : '';
+                    var pass = (typeof p.score === 'number') ? ((p.score >= 70) ? 'yes' : 'no') : '';
+                    rows.push([
+                        csvEscape(name), csvEscape(email), csvEscape(uid), csvEscape(status),
+                        lastActiveStr, timeMin,
+                        '', '',  // no chapter info for assignment mode
+                        'assignment', csvEscape(a.contentId || a.assignmentId), csvEscape(a.title || ''),
+                        completed, score, pass
+                    ]);
+                });
+            }
+        });
+
+        return rows;
+    }
+
+    function _downloadRawDataCsv(rows, filenameSuffix) {
+        var csvContent = rows.map(function(r) { return r.join(','); }).join('\n');
+        var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        var classPart = (_activeClass.name || _activeClass.classId).replace(/[^a-z0-9]/gi, '_');
+        var fname = classPart + '_' + filenameSuffix + '_' + isoDate() + '.csv';
+        link.setAttribute('href', url);
+        link.setAttribute('download', fname);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast('Raw data exported: ' + fname, 'success');
+    }
+
+    /**
+     * Per-class raw data export — all students × all content items in long form.
+     * Triggered from the Class Report overlay header.
+     */
+    function exportRawDataForClass() {
+        if (!_activeClass) { toast('Select a class first.', 'info'); return; }
+        if (!_studentData || _studentData.length === 0) { toast('No student data to export.', 'info'); return; }
+        var rows = _buildRawDataRows(_studentData);
+        _downloadRawDataCsv(rows, 'raw_data');
+    }
+
+    /**
+     * Per-student raw data export — one student's full progress in long form.
+     * Triggered from the Student Detail overlay header.
+     */
+    function exportRawDataForStudent(uid) {
+        if (!_activeClass) { toast('Select a class first.', 'info'); return; }
+        var student = (_studentData || []).find(function(s) { return (s.studentUid || s.uid) === uid; });
+        if (!student) { toast('Student not found.', 'info'); return; }
+        var rows = _buildRawDataRows([student]);
+        var safeName = (student.displayName || student.email || uid).replace(/[^a-z0-9]/gi, '_').substring(0, 40);
+        _downloadRawDataCsv(rows, 'raw_' + safeName);
     }
 
     /**
@@ -3774,10 +3894,13 @@
 
         var h = '';
 
-        // Close button
+        // Close button + Raw Data export button
         h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">';
         h += '<div style="font-size:1.4rem;font-weight:800;color:var(--vc-primary);">Class Report</div>';
-        h += '<button style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--vc-text);padding:8px 20px;border-radius:6px;cursor:pointer;font-family:var(--vc-font);font-weight:600;" onclick="this.closest(\'div[style]\').parentElement.remove()">Close Report</button>';
+        h += '<div style="display:flex;gap:10px;">';
+        h += '<button style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.4);color:#60a5fa;padding:8px 20px;border-radius:6px;cursor:pointer;font-family:var(--vc-font);font-weight:600;" onclick="InstructorApp.exportRawDataForClass()">Export Raw Data (CSV)</button>';
+        h += '<button style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--vc-text);padding:8px 20px;border-radius:6px;cursor:pointer;font-family:var(--vc-font);font-weight:600;" onclick="this.closest(\'div[style]\').parentElement.parentElement.remove()">Close Report</button>';
+        h += '</div>';
         h += '</div>';
 
         // ── Header ──
@@ -3940,6 +4063,8 @@
         closeStudentDetail:   closeStudentDetail,
         showClassReport:      showClassReport,
         exportGrades:         exportGrades,
+        exportRawDataForClass:   exportRawDataForClass,
+        exportRawDataForStudent: exportRawDataForStudent,
         refreshData:          refreshData,
         navToDashboard:       navToDashboard,
         signOut:              signOut,
