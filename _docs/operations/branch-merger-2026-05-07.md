@@ -192,7 +192,7 @@ The original Options A/B/C/D were all built on the premise that the orphaned con
 
 1. **Document the convention** — Created [`_docs/architecture/private-directories.md`](../architecture/private-directories.md), the authoritative policy doc covering all four gitignored "Private/Sensitive Files" directories (`_hex/`, `_planning/`, `_archive/`, `_spellbook/`).
 2. **Make convention discoverable** — Added one-line pointer in [`_tools/INTRO.md`](../../_tools/INTRO.md) Conventions section so a future contributor lands on the policy doc from the standard orientation flow.
-3. **Preserve git-history fallback** — Recommended (deferred) tagging the branch tips as `legacy/pre-restructure-2026-02-07` and `legacy/clh-terminal-2026-01-18` so the redundant git copy is prune-safe. Action item, not yet executed; tracked in the policy doc.
+3. **Preserve git-history fallback** — Created annotated tags `legacy/pre-restructure-2026-02-07` (→ `f6221313`) and `legacy/clh-terminal-2026-01-18` (→ `69205b26`) and pushed to origin. The git-history copy of pre-restructure content is now prune-safe; the branches can be deleted in the future without losing retrievability.
 4. **Memory entry** — Recorded the convention in operator memory so future sessions don't re-investigate.
 5. **Branches NOT deleted** — Per user constraint. They remain as belt-and-suspenders backup of `_archive/emates/`.
 6. **No file transfer to master tree** — The content is already preserved at the right location. Adding 170 MB to the tracked tree would duplicate intentionally-untracked content and fight the existing convention.

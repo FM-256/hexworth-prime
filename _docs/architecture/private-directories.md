@@ -101,9 +101,18 @@ The two preservation branches `pre-restructure-backup-branch` and `feature/clh-t
 git checkout pre-restructure-backup-branch -- _app/houses/<house>/applets/<applet>/
 ```
 
-**WARNING — preservation branches are not protected.** As of 2026-05-07, these branches are 1894 and 2108 commits behind master, with no annotated tags. A routine `git push --delete origin <branch>` or remote prune would erase the git-history copy. **The filesystem `_archive/` is the canonical retrieval source.** The branches are belt-and-suspenders only.
+**Preservation status — tags are in place.** As of 2026-05-07, both branch tips are tagged with annotated tags so the git-history copy is prune-safe even if the branches themselves are eventually deleted:
 
-**Recommendation (deferred):** Tag the branch tips as `legacy/pre-restructure-2026-02-07` and `legacy/clh-terminal-2026-01-18` to make the git-history copy prune-safe. This makes the retrieval-fallback story durable. Action item, not yet executed.
+- `legacy/pre-restructure-2026-02-07` → tip `f6221313` of `pre-restructure-backup-branch`
+- `legacy/clh-terminal-2026-01-18` → tip `69205b26` of `origin/feature/clh-terminal`
+
+Tags pushed to origin. **The filesystem `_archive/` is the canonical retrieval source.** The tags + branches are belt-and-suspenders backup.
+
+**Tag-based retrieval recipe:**
+```
+git checkout legacy/pre-restructure-2026-02-07 -- <path/to/file>
+git checkout legacy/clh-terminal-2026-01-18 -- <path/to/file>
+```
 
 **Validator/tooling integration:** The following all explicitly skip `_archive/` paths:
 - `_tools/eduscan/scanner.js:17` — main scanner
