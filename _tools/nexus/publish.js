@@ -76,9 +76,12 @@ async function publishToFirestore(summary) {
     const { Timestamp } = admin.firestore;
 
     // Build the Firestore document
+    // scannedBy honors NEXUS_HOST_LABEL env override (e.g., 'bc1' for cron),
+    // matching publishSpellbook + publishHeartbeat. Default 'CLI' preserved.
+    const scannedBy = process.env.NEXUS_HOST_LABEL || 'CLI';
     const doc = {
         scannedAt: Timestamp.now(),
-        scannedBy: 'CLI',
+        scannedBy,
         duration: summary.duration || 0,
         filesScanned: summary.filesScanned || 0,
         gate: summary.gate || 'PASS',

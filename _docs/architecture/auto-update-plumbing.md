@@ -72,17 +72,37 @@ Hexworth Prime has multiple admin/diagnostic surfaces that must reflect current 
 
 ---
 
-## Phase 2 — Scheduled scan refresh (DEFERRED)
+## Phase 2 — Scheduled scan refresh (LIVE 2026-05-07)
 
-The intent was to add a daily scheduled scan so `_quality_reports/latest` refreshes without operator involvement. Three options were considered:
+Daily scheduled scan from bc1 keeps `_quality_reports/{latest,spellbook,scanHeartbeat}` and `_triage_queue` fresh without operator involvement.
 
-1. **bc1 cron** — uses existing scheduled scraper infrastructure on bc1
-2. **Cloud Run job** — mirrors the runtime monitor pattern
-3. **GitHub Actions** — standard CI cron
+**Deployed:** 2026-05-07. Cron entry added to bc1's crontab. Manual dry runs verified all four Firestore writes succeed.
 
-**Selected:** bc1 cron (lowest infrastructure delta — bc1 already runs 14 scrapers via cron).
+### Cron entry (bc1)
 
-**Deferred** because two prerequisites need verification before deployment:
+```cron
+0 7 * * * cd /home/eq1/hexworth/hexworth-prime && \
+  git checkout HEAD -- _tools/nexus/findings.json _tools/reports/TREASURE_MAP.json _tools/reports/TREASURE_MAP.md 2>/dev/null; \
+  git pull --quiet && \
+  GOOGLE_APPLICATION_CREDENTIALS=/home/eq1/.config/hexworth/sa-nexus-scanner.json \
+  NEXUS_HOST_LABEL=bc1 \
+  node _tools/nexus/nexus.js scan >> /home/eq1/hexworth/logs/nexus.log 2>&1
+```
+
+- Schedule: 07:00 UTC daily (02:00 ET, off-peak between existing scraper jobs at 01:00, 04:00, 06:00 UTC)
+- The `git checkout HEAD --` step discards regenerable tool-output files BEFORE pull (these are auto-rewritten by the very next scan, no information loss). Avoids `git pull` blocking on local diffs from previous scan runs.
+- `GOOGLE_APPLICATION_CREDENTIALS` points at the service-account JSON
+- `NEXUS_HOST_LABEL=bc1` makes `scannedBy: "bc1"` in Firestore writes
+- Log goes to `/home/eq1/hexworth/logs/nexus.log` (existing log dir, alongside scrapers)
+
+### Service account
+
+- Account: `bc1-nexus-scanner@hexworth-prime.iam.gserviceaccount.com`
+- Role: `roles/datastore.user` (Firestore reads/writes for `_quality_reports/*`, `_triage_queue`, `_auto_fix_queue`)
+- Key file: `/home/eq1/.config/hexworth/sa-nexus-scanner.json` (mode 600, dir mode 700)
+- No expiration on the key (suitable for unattended cron use)
+
+### Phase 2 prerequisites (all verified 2026-05-07)
 
 ### Phase 2 prerequisite 1 — `firebase-admin` credentials on bc1
 
@@ -107,20 +127,20 @@ ssh bc1 'ls /path/to/repo/_spellbook/spells/SPELL-*.md 2>/dev/null | wc -l'
 # Expect 83+; if 0, sync via rsync from operator laptop or skip spellbook publish on bc1
 ```
 
-### Phase 2 cron entry (when prereqs verified)
+### Phase 2 monitoring
 
-```cron
-0 7 * * * cd /path/to/hexworth-prime && git pull --quiet && NEXUS_HOST_LABEL=bc1 node _tools/nexus/nexus.js scan >> /var/log/hexworth-nexus.log 2>&1
-```
+The `scanHeartbeat` doc IS the staleness detector. A future small enhancement to the Combined dashboard / nexus status output: if `scanHeartbeat.scannedAt` is older than 36h, render a yellow staleness warning. Without this UI surface, the heartbeat data flows silently. Tracked as a follow-on enhancement.
 
-- 07:00 UTC = 02:00 ET (off-peak)
-- `git pull` ensures the repo is current before scan
-- `NEXUS_HOST_LABEL=bc1` makes `scannedBy: "bc1"` in Firestore (more useful than `os.hostname()`)
-- The empty/0.8x guards in `publishSpellbook()` make this safe-to-fail — if bc1 has a partial `_spellbook/`, the spellbook write is skipped (with a logged reason) but `_quality_reports/latest` still updates
+### What if bc1 cron fails silently?
 
-### Phase 2 monitoring (after deploy)
+Failure modes and their detection paths:
+- **bc1 offline / Tailscale down**: `scanHeartbeat.scannedAt` stops advancing. Detect via the future >36h banner.
+- **`git pull` conflict**: caught by the cron's `git checkout HEAD --` reset step before pull. Tool-output files are regenerable; nothing meaningful lost.
+- **Service account key revoked / expired**: nexus scan exits 1 at publish step. Heartbeat stops advancing.
+- **Bad commit on master breaks adapter**: scan errors during sync; partial publish possible. The `0.8x previousCount` guard in `publishSpellbook` rejects writes with significant count contraction, preserving the prior good state.
+- **Disk full on bc1**: log rotation handled separately (existing log infra); scan itself fails to write the snapshot file.
 
-The `scanHeartbeat` doc IS the staleness detector. A future small enhancement to the Combined dashboard / nexus status output: if `scanHeartbeat.scannedAt` is older than 36h, render a yellow staleness warning. Without this UI surface, the heartbeat data flows silently.
+In all cases, the staleness signal (`scanHeartbeat`) is the primary detection. The empty + contraction guards ensure no destructive writes during partial failures.
 
 ---
 
@@ -151,3 +171,6 @@ This doc is referenced from:
 | 2026-05-07 | Spellbook overlay merges static + Firestore (not pure overlay) | Most enriched fields (severity, house, tags, description) live ONLY in curated `_sbStaticSpells`; the .md files have only ~60-80% of derivable fields |
 | 2026-05-07 | scanHeartbeat is MVP, not optional polish | Without it, silent scheduled-scan failures provide false confidence (Nancy review pause) |
 | 2026-05-07 | bc1 cron deferred until ADC + `_spellbook/` verified | Two unverified prerequisites would cause silent failures |
+| 2026-05-07 | bc1 cron LIVE — service account `bc1-nexus-scanner` created with `roles/datastore.user`, key at `~/.config/hexworth/sa-nexus-scanner.json`, `_spellbook/` rsync'd, cron entry installed at 07:00 UTC daily | All prereqs verified; manual dry run confirmed Firestore writes succeed |
+| 2026-05-07 | Cron uses `git checkout HEAD --` (not `--autostash`) for regenerable tool-output files | autostash hit chicken-and-egg conflict (scan rewrites stashed files, autostash-pop fails). Tool outputs are not user work; `checkout HEAD --` is acceptable per "We Do Not Destroy" rule (rule applies to user work, not regenerable artifacts). |
+| 2026-05-07 | `publishToFirestore` now honors `NEXUS_HOST_LABEL` for consistency with Spellbook + Heartbeat | Without it, `_quality_reports/latest` showed `scannedBy: 'CLI'` even from bc1 cron. |
