@@ -7423,3 +7423,8 @@ exports.refreshSessionToken   = _analyticsV2.refreshSessionToken;
 exports.ingestEvents          = _analyticsV2.ingestEvents;
 exports.projectEvent          = _analyticsV2.projectEvent;
 exports.projectorHeartbeatJob = _analyticsV2.projectorHeartbeatJob;
+
+// ─── Analytics v2 — Self-Heal Health Monitor ──────────────────────
+// Scheduled job; writes _triage_queue items if projector pipeline silent
+const _analyticsV2Health = require('./analytics-v2-health');
+exports.analyticsHealthCheck  = _analyticsV2Health.analyticsHealthCheck;
