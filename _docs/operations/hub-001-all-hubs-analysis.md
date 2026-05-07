@@ -128,7 +128,7 @@ Per memory `feedback_no_architectural_debt.md` — never accept the debt; find b
 | `code/python-for-it` | **READY** — analysis complete | Operator picks Option 1/2/3/4 per `hub-001-pfi-catalog-patch.md` (31 of 39 refs clear via Option 1) |
 | `cloud/server-plus` | Pending | Operator picks A/B/C per `hub-001-server-plus-proposal.md` |
 | `cloud/modules/wsa` | **READY** — 3-option analysis | Operator picks per `hub-001-wsa-catalog-patch.md`; consider together with server-plus |
-| `web/network-plus` | Cross-hub Option 1 candidate (+18 clears) | Pair with PFI Option 1 decision — same validator change |
+| `web/network-plus` | **READY** — paste-and-deploy + cross-hub Option 1 candidate (+18 clears) | See `hub-001-network-plus-catalog-patch.md` (74 entries: 12 modules + 13 pres + 18 labs + 10 quizzes + 1 exam + 1 review + 19 applets). Largest hub. Sequence: PFI Option 1 first, then this patch → 100% live |
 | `matrix/adv-linux` | **READY** — paste-and-deploy + cross-hub Option 1 candidate (+14 clears) | See `hub-001-adv-linux-catalog-patch.md` (20 entries: 12 labs + 5 reviews + 2 exams + 1 pres). Sequence: PFI Option 1 first, then this patch. |
 | `shield/security-plus` | **READY** — partner doc to isc2-cc | See `hub-001-security-plus-proposal.md` (28 sp-only paste-ready + 19 shared with isc2-cc Unit 1 + 17 dead pis-NN). After both Unit 1's land: 86% of hub clears |
 | `shield/isc2-cc` | **READY (split)** — 3 work units | See `hub-001-isc2-cc-proposal.md` (Unit 1: 22 paste-ready cross-house catalog entries; Unit 2: 11 dead pis-NN need curriculum; Unit 3: sp parity audit) |
