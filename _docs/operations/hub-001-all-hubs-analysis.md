@@ -120,18 +120,20 @@ Per memory `feedback_no_architectural_debt.md` — never accept the debt; find b
 
 ## Decision matrix for operator review
 
-| Hub | Recommended action | Operator decision |
+**Updated 2026-05-07 with cross-hub validator-widening evidence.** Suffix tolerance (component-suffix in addition to existing house-prefix) clears 68 refs across 4 hubs from a single 10-line validator change. See `hub-001-pfi-catalog-patch.md` Option 1.
+
+| Hub | Status | Action |
 |---|---|---|
-| `cloud/server-plus` | A1 — 21 aliases | Confirm presentation-only intent (see existing proposal doc) |
-| `cloud/modules/wsa` | A1 — 22 aliases (capstone, gauntlet, m01-m20) | Confirm presentation-only intent |
-| `web/ccna` | A1 — 25 aliases | Confirm full-component vs presentation-only |
-| `forge/intro-computers` | Investigate whether `forge-fb-` prefix produces a clean match | Likely just a prefix gap |
-| `code/python-for-it` | Curriculum review | Backfill catalog OR rename hub IDs |
-| `divergent/ethics-it` | Curriculum review | eth-{NN} vs eth-w{N}-{topic} canonical |
-| `matrix/adv-linux` | Curriculum review | ala-l{NN} vs catalog shape |
+| `web/ccna` | **READY** — paste-and-deploy | Operator approves `hub-001-ccna-catalog-patch.md` (31 entries, 25 modules + 6 labs) |
+| `code/python-for-it` | **READY** — analysis complete | Operator picks Option 1/2/3/4 per `hub-001-pfi-catalog-patch.md` (31 of 39 refs clear via Option 1) |
+| `cloud/server-plus` | Pending | Operator picks A/B/C per `hub-001-server-plus-proposal.md` |
+| `cloud/modules/wsa` | Class A — needs proposal | Same shape as server-plus (likely A1 — 22 aliases) |
+| `web/network-plus` | Cross-hub Option 1 candidate (+18 clears) | Pair with PFI Option 1 decision — same validator change |
+| `matrix/adv-linux` | Cross-hub Option 1 candidate (+14 clears) | Pair with PFI Option 1 decision — same validator change |
+| `shield/security-plus` | Cross-hub Option 1 candidate (+5 clears) | Pair with PFI Option 1 decision; remaining refs need per-ID audit |
 | `shield/isc2-cc` | Per-ID audit | Which ms-sec-{NN} are valid; remove dead pis-{NN} |
-| `shield/security-plus` | Per-ID audit | Same as isc2-cc |
-| `web/network-plus` | Largest scope | Catalog gui-* convention OR remove 92 dead refs |
+| `divergent/ethics-it` | Class B curriculum review | eth-{NN} vs eth-w{N}-{topic} canonical |
+| `forge/intro-computers` | Class E (mostly dead refs) | Highest student-impact priority — `_docs/operations/sym-8-hub001-fix-proposal.md` |
 
 ## Recommended sequencing
 
