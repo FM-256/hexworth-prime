@@ -88,8 +88,32 @@ module.exports = function createQuizSyncAdapter({ name, dataPath, projectRoot })
         }));
     }
 
+    function getStatus() {
+        if (!fs.existsSync(keysPath)) {
+            return { available: false, reason: 'quiz_keys.json not found' };
+        }
+        const clusters = detectClusters();
+        const placeholders = clusters.filter(c => c.isPlaceholder).length;
+        const handCopy = clusters.length - placeholders;
+        return {
+            available: true,
+            name: 'Quiz-Sync (C9)',
+            issueCount: clusters.length,
+            bySeverity: {
+                critical: 0,
+                high: placeholders,
+                medium: handCopy,
+                low: 0,
+                info: 0,
+            },
+            placeholders,
+            handCopy,
+        };
+    }
+
     return {
         name,
+        getStatus,
         commands: {
             '': (args, flags) => {
                 const clusters = detectClusters();
