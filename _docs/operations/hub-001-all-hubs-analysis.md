@@ -65,7 +65,35 @@ The hub references content IDs that have NO matching files on disk and NO catalo
 
 **Operator-action priority on this hub:** HIGH.
 
-**First-pass auditor at `_tools/audit-hub-deadrefs.js`** runs across all 10 hubs but has documented limitations (cannot follow catalog href→file fully). Reports an UPPER BOUND of ~388 dead refs across all hubs. True count requires catalog-aware audit. The high-confidence Class E case is `forge/intro-computers` (verified by hand). Other hubs flagged at 100% dead are likely overcount — their content lives at descriptive paths (e.g., `wsa/m01-fundamentals/cloud-presentation.module.html`) that the heuristic doesn't reach.
+**Catalog-aware auditor v2 at `_tools/audit-hub-deadrefs-v2.js`** — produces trustworthy 4-bucket classification:
+- LIVE = catalog entry exists AND href file exists (good state)
+- BROKEN = catalog has entry, href file missing (catalog drift)
+- FILE_NO_CATALOG = file exists but no catalog entry (catalog gap)
+- DEAD = no catalog entry AND no matching file stem
+
+**Platform totals across 10 HUB-001 hubs (507 references):**
+- 79 LIVE (16%)
+- **0 BROKEN** (no catalog drift! catalog entries always have valid hrefs)
+- **78 FILE_NO_CATALOG** (15% — real content needs catalog entries)
+- **350 DEAD** (69% — needs operator review per ID: alias-to-existing OR true dead-ref)
+
+The DEAD bucket overcounts true Class E by some fraction — many DEAD entries are likely Class A "needs alias to existing catalog entry whose href points to a file with a different stem" (e.g., `wsa-m01-pres` → catalog has `wsa-module01` whose href is `modules/wsa/m01-fundamentals/cloud-presentation.module.html`). The auditor cannot resolve this fuzzy mapping autonomously.
+
+**Per-hub breakdown:**
+| Hub | refs | live | fileNoCatalog | dead |
+|---|---|---|---|---|
+| `web/ccna` | 25 | 0 | **25** | 0 |
+| `forge/intro-computers` | 26 | 0 | 0 | 26 |
+| `code/python-for-it` | 39 | 0 | 0 | 39 |
+| `divergent/ethics-it` | 44 | 14 | 0 | 30 |
+| `matrix/adv-linux` | 38 | 0 | 0 | 38 |
+| `cloud/modules/wsa` | 23 | 0 | 0 | 23 |
+| `cloud/server-plus` | 21 | 0 | 0 | 21 |
+| `shield/isc2-cc` | 58 | 15 | 0 | 43 |
+| `shield/security-plus` | 118 | 33 | 0 | 85 |
+| `web/network-plus` | 115 | 17 | 0 | 98 |
+
+**Easiest win:** `web/ccna` — 25 file_no_catalog entries, all `ccna-01` through `ccna-25` style. Add 25 catalog entries → entire hub goes from 0% live to 100% live in one commit.
 
 **Resolution options:**
 - E1: Remove the 22 dead references from the hub HTML (truncate hub scope to what exists)
