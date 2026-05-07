@@ -1,34 +1,43 @@
 #!/usr/bin/env node
 /**
- * sync-helper.js — Bridget's static companion (v0.5)
+ * sync-helper.js — Bridget's static companion (v1.0 — Confluence-aware)
  *
- * Two-source sync verifier for the platform's quiz infrastructure.
+ * Three-source sync verifier for the platform's quiz infrastructure.
  * Runs mechanical checks across all quizzes in functions/quiz_keys.json
- * comparing HTML option arrays vs Firestore quiz_keys arrays.
+ * comparing HTML option arrays vs Firestore quiz_keys arrays vs Confluence
+ * solution-page Verified Answer Index.
  *
- * v0.5 scope (HTML ↔ Firestore):
+ * v0.5 scope (HTML ↔ Firestore — always on):
  *   C3a — HTML.questions.length matches Firestore.questionCount
  *   C5  — Firestore.answers.length matches Firestore.questionCount
  *   C6  — Firestore.answers values are integers in [0..3] (MC) or
  *         object-wrapped per gradeQuiz contract (MS/ORDER)
  *   Extra — flags placeholder distributions matching project_placeholder_keys_audit
  *
- * Future v1 scope (adds Confluence — needs quizId→pageId registry):
- *   C1  — HTML question text matches Confluence h3 text
- *   C2  — HTML options length == 4
- *   C3  — HTML[options][Firestore.answers[i]] matches Confluence-stated correct
- *   C4  — counts agree across all three sources
+ * v1.0 scope (adds Confluence — gated on --with-confluence flag):
  *   C7  — Confluence "Verified Answer Index" array == Firestore.answers
- *   C8  — architecture rule 6 distribution
+ *         (closes fw-w4-data hand-copy drift bug class)
+ *   C9  — Cross-quiz duplicate answer arrays (bonus — catches the case where
+ *         one quiz's answer array got pasted into another. Triggered without
+ *         --with-confluence; runs whenever registry size >= 2.)
+ *   C0_CONF_NOT_MAPPED — quiz registered but no Confluence page mapped
+ *   C0_CONF_PAGE_MISSING — pageId in registry but page no longer exists
+ *   C0_CONF_NO_VAI — page exists but no Verified Answer Index found
+ *
+ * Quiz→Confluence page mapping lives in _tools/quiz-sync/quiz-pages.json.
+ * Use --discover-confluence to auto-populate by title CQL search.
  *
  * On detected drift, the operator can either fix the local source directly
- * or invoke the Bridget agent for source-of-truth judgment.
+ * or invoke the Bridget agent for source-of-truth judgment per her
+ * timestamp-aware hierarchy.
  *
  * USAGE:
- *   node _tools/quiz-sync/sync-helper.js                # all 449 registered quizzes
+ *   node _tools/quiz-sync/sync-helper.js                # HTML ↔ Firestore (default)
  *   node _tools/quiz-sync/sync-helper.js --quiz <id>    # single quiz
  *   node _tools/quiz-sync/sync-helper.js --json         # machine-readable output
- *   node _tools/quiz-sync/sync-helper.js --skip-firestore  # static-only (no Firestore reads)
+ *   node _tools/quiz-sync/sync-helper.js --skip-firestore  # static-only
+ *   node _tools/quiz-sync/sync-helper.js --with-confluence # full 3-source check
+ *   node _tools/quiz-sync/sync-helper.js --discover-confluence # auto-map quizIds → pageIds
  *
  * EXIT CODES:
  *   0 — all checked quizzes PASS
@@ -42,6 +51,8 @@ const path = require('path');
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const REGISTRY_PATH = path.join(REPO_ROOT, 'functions/quiz_keys.json');
 const APP_ROOT = path.join(REPO_ROOT, '_app');
+const CONF_REGISTRY_PATH = path.join(__dirname, 'quiz-pages.json');
+const CONF_CREDS_PATH = path.join(require('os').homedir(), '.config/confluence/credentials.json');
 
 const args = process.argv.slice(2);
 const SINGLE_QUIZ = (() => {
@@ -50,6 +61,8 @@ const SINGLE_QUIZ = (() => {
 })();
 const JSON_MODE = args.includes('--json');
 const SKIP_FIRESTORE = args.includes('--skip-firestore');
+const WITH_CONFLUENCE = args.includes('--with-confluence');
+const DISCOVER_CONFLUENCE = args.includes('--discover-confluence');
 
 // ─── HTML option-array extraction ─────────────────────────────────────
 
@@ -137,6 +150,117 @@ function distributionAnalysis(answers) {
     const allSame = answers.every(v => v === answers[0]);
     if (allSame && n > 1) return { suspicious: true, reason: `all-${answers[0]} pattern`, counts };
     return { suspicious: false, counts };
+}
+
+// ─── Confluence client (lazy, only when --with-confluence) ────────────
+
+let _confCreds = null;
+let _confRegistry = null;
+
+function loadConfluenceCreds() {
+    if (_confCreds) return _confCreds;
+    try {
+        _confCreds = JSON.parse(fs.readFileSync(CONF_CREDS_PATH, 'utf8'));
+        return _confCreds;
+    } catch (e) {
+        return null;
+    }
+}
+
+function loadConfluenceRegistry() {
+    if (_confRegistry) return _confRegistry;
+    try {
+        _confRegistry = JSON.parse(fs.readFileSync(CONF_REGISTRY_PATH, 'utf8'));
+    } catch (e) {
+        _confRegistry = { _meta: { version: 1 } };
+    }
+    return _confRegistry;
+}
+
+function saveConfluenceRegistry(reg) {
+    reg._meta = reg._meta || { version: 1 };
+    reg._meta.lastUpdated = new Date().toISOString().slice(0, 10);
+    fs.writeFileSync(CONF_REGISTRY_PATH, JSON.stringify(reg, null, 2));
+}
+
+async function confluenceFetch(pathStr) {
+    const creds = loadConfluenceCreds();
+    if (!creds) throw new Error('No Confluence credentials at ' + CONF_CREDS_PATH);
+    const site = creds.site.replace(/\/$/, '');
+    const auth = Buffer.from(`${creds.email}:${creds.token}`).toString('base64');
+    const https = require('https');
+    const url = new URL(site + pathStr);
+    return new Promise((resolve, reject) => {
+        const req = https.request({
+            hostname: url.hostname,
+            port: 443,
+            path: url.pathname + url.search,
+            method: 'GET',
+            headers: { Authorization: 'Basic ' + auth, Accept: 'application/json' },
+        }, (res) => {
+            const chunks = [];
+            res.on('data', c => chunks.push(c));
+            res.on('end', () => {
+                const body = Buffer.concat(chunks).toString('utf8');
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    try { resolve(JSON.parse(body)); }
+                    catch (e) { reject(new Error(`Confluence parse error: ${e.message}`)); }
+                } else {
+                    reject(new Error(`Confluence HTTP ${res.statusCode}: ${body.slice(0, 200)}`));
+                }
+            });
+        });
+        req.on('error', reject);
+        req.setTimeout(30000, () => { req.destroy(new Error('Confluence timeout')); });
+        req.end();
+    });
+}
+
+/**
+ * Extract the Verified Answer Index array from a Confluence page's storage
+ * format. Recognizes the canonical form: `Verified Answer Index (vN)</th>`
+ * followed by the literal array `[0, 0, 2, ...]`. Returns the int array
+ * or null if not found.
+ */
+function extractVerifiedAnswerIndex(storage) {
+    if (!storage) return null;
+    // Locate the Verified Answer Index marker first
+    const marker = /Verified\s+Answer\s+Index/i.exec(storage);
+    if (!marker) return null;
+    // Search forward from marker for first integer-array literal
+    const after = storage.slice(marker.index);
+    const arrPat = /\[\s*(\d+(?:\s*,\s*\d+)+)\s*\]/;
+    const m = arrPat.exec(after);
+    if (!m) return null;
+    const ints = m[1].split(',').map(s => parseInt(s.trim(), 10));
+    return ints.every(n => Number.isInteger(n)) ? ints : null;
+}
+
+async function discoverConfluencePageForQuiz(quizId) {
+    // Try a few title patterns: exact, uppercase, with spaces, with "Quiz Solutions" suffix
+    const candidates = [
+        quizId,
+        quizId.toUpperCase().replace(/-/g, ' '),
+        quizId.replace(/-/g, ' '),
+    ];
+    for (const cand of candidates) {
+        try {
+            const cql = `title ~ "${cand}"`;
+            const resp = await confluenceFetch(`/wiki/rest/api/content/search?cql=${encodeURIComponent(cql)}&limit=5`);
+            if (resp && Array.isArray(resp.results) && resp.results.length > 0) {
+                // Prefer titles containing "Solutions" or matching the quizId loosely
+                const sorted = resp.results.slice().sort((a, b) => {
+                    const aS = /solutions?/i.test(a.title || '') ? 0 : 1;
+                    const bS = /solutions?/i.test(b.title || '') ? 0 : 1;
+                    return aS - bS;
+                });
+                return { pageId: sorted[0].id, title: sorted[0].title };
+            }
+        } catch (e) {
+            // try next candidate
+        }
+    }
+    return null;
 }
 
 // ─── Per-quiz check ────────────────────────────────────────────────────
@@ -246,6 +370,70 @@ async function checkQuiz(quizId, registryEntry, db) {
         }
     }
 
+    // Confluence three-source verification (gated on --with-confluence)
+    if (WITH_CONFLUENCE) {
+        const confReg = loadConfluenceRegistry();
+        const mapping = confReg[quizId];
+        if (!mapping || !mapping.pageId) {
+            result.findings.push({
+                check: 'C0_CONF_NOT_MAPPED',
+                detail: `No quizId→pageId mapping in quiz-pages.json for "${quizId}". Run --discover-confluence to auto-populate.`
+            });
+        } else {
+            try {
+                const pageData = await confluenceFetch(`/wiki/api/v2/pages/${mapping.pageId}?body-format=storage`);
+                const storage = pageData && pageData.body && pageData.body.storage && pageData.body.storage.value;
+                if (!storage) {
+                    result.findings.push({
+                        check: 'C0_CONF_PAGE_MISSING',
+                        detail: `Confluence page ${mapping.pageId} returned no storage body`
+                    });
+                } else {
+                    const vai = extractVerifiedAnswerIndex(storage);
+                    result.confluence = {
+                        pageId: mapping.pageId,
+                        title: mapping.title || pageData.title,
+                        verifiedAnswerIndex: vai,
+                    };
+                    if (!vai) {
+                        result.findings.push({
+                            check: 'C0_CONF_NO_VAI',
+                            detail: `Confluence page exists but no "Verified Answer Index" array found in storage`
+                        });
+                    } else if (Array.isArray(expectedAnswers)) {
+                        // C7: Confluence VAI vs Firestore registry answers
+                        // Only compare for pure-MC quizzes (integer arrays); skip MS/ORDER quizzes
+                        const allInt = expectedAnswers.every(v => Number.isInteger(v));
+                        if (allInt) {
+                            if (vai.length !== expectedAnswers.length) {
+                                result.findings.push({
+                                    check: 'C7_CONF_LENGTH_MISMATCH',
+                                    detail: `Confluence VAI length=${vai.length} but registry answers length=${expectedAnswers.length}`
+                                });
+                            } else {
+                                const diff = [];
+                                for (let i = 0; i < vai.length; i++) {
+                                    if (vai[i] !== expectedAnswers[i]) diff.push(i);
+                                }
+                                if (diff.length > 0) {
+                                    result.findings.push({
+                                        check: 'C7_CONF_VS_REGISTRY_DRIFT',
+                                        detail: `${diff.length} positions differ between Confluence VAI and registry: ${diff.slice(0, 10).join(',')}${diff.length > 10 ? '...' : ''}. Confluence: ${JSON.stringify(vai)}, Registry: ${JSON.stringify(expectedAnswers)}`
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                result.findings.push({
+                    check: 'CONFLUENCE_ERROR',
+                    detail: `Fetch failed for page ${mapping.pageId}: ${e.message}`
+                });
+            }
+        }
+    }
+
     if (result.findings.length > 0) {
         if (result.findings.some(f => f.check.startsWith('BLOCK') || f.check === 'C0_HTML_NOT_FOUND' || f.check === 'C0_FIRESTORE_NOT_FOUND')) {
             result.verdict = 'BLOCK';
@@ -254,6 +442,29 @@ async function checkQuiz(quizId, registryEntry, db) {
         }
     }
     return result;
+}
+
+async function runDiscover(registryEntries) {
+    const reg = loadConfluenceRegistry();
+    let found = 0, skipped = 0, missing = 0;
+    console.log(`Discovering Confluence pages for ${registryEntries.length} quizzes...`);
+    for (const quizId of registryEntries) {
+        if (reg[quizId] && reg[quizId].pageId) { skipped++; continue; }
+        try {
+            const m = await discoverConfluencePageForQuiz(quizId);
+            if (m) {
+                reg[quizId] = m;
+                found++;
+                console.log(`  + ${quizId} → ${m.pageId} (${m.title})`);
+            } else {
+                missing++;
+            }
+        } catch (e) {
+            missing++;
+        }
+    }
+    saveConfluenceRegistry(reg);
+    console.log(`\nDiscover complete. Found: ${found}, already-mapped: ${skipped}, no-match: ${missing}`);
 }
 
 // ─── Main ──────────────────────────────────────────────────────────────
@@ -283,6 +494,12 @@ async function main() {
         process.exit(2);
     }
 
+    // Discovery mode — auto-map quizIds to Confluence pages, then exit
+    if (DISCOVER_CONFLUENCE) {
+        await runDiscover(quizIds);
+        process.exit(0);
+    }
+
     const results = [];
     let counts = { PASS: 0, DRIFT: 0, BLOCK: 0, BLOCK_HTML_NOT_FOUND: 0 };
     for (const quizId of quizIds) {
@@ -293,6 +510,54 @@ async function main() {
             console.log(`[${r.verdict}] ${quizId}`);
             for (const f of r.findings) {
                 console.log(`    ${f.check}: ${f.detail}`);
+            }
+        }
+    }
+
+    // ─── C9: Cross-quiz duplicate detection ───────────────────────────
+    // If two different quizIds in the registry have identical answer arrays
+    // of length >= 8 (min threshold to avoid coincidence on short quizzes),
+    // flag as suspicious. This catches the hand-copy class where one quiz's
+    // answer array gets pasted into another by mistake. Bug class confirmed
+    // 2026-05-07: fw-w4-soho and fw-w4-mobile both shipped with the same
+    // 15-element array, identical on Firestore AND Confluence (drift was
+    // upstream of the per-quiz sync check).
+    if (!SINGLE_QUIZ) {
+        const fingerprints = new Map();  // arrayKey → [quizIds]
+        for (const [qid, entry] of Object.entries(registry)) {
+            if (!Array.isArray(entry.answers)) continue;
+            // Only fingerprint pure-MC (integer) arrays, length >= 8
+            if (!entry.answers.every(v => Number.isInteger(v))) continue;
+            if (entry.answers.length < 8) continue;
+            const key = entry.answers.join(',');
+            if (!fingerprints.has(key)) fingerprints.set(key, []);
+            fingerprints.get(key).push(qid);
+        }
+        const dups = [];
+        for (const [key, qids] of fingerprints) {
+            if (qids.length >= 2) dups.push({ key, qids });
+        }
+        if (dups.length > 0) {
+            counts.DUPLICATE_ANSWER_ARRAYS = dups.length;
+            if (!JSON_MODE) {
+                console.log('');
+                console.log(`─── C9: Cross-Quiz Duplicate Answer Arrays (${dups.length}) ───`);
+                for (const d of dups) {
+                    console.log(`  Same array [${d.key.split(',').slice(0, 8).join(',')}${d.key.split(',').length > 8 ? '...' : ''}] (length ${d.key.split(',').length}) shared by:`);
+                    for (const q of d.qids) console.log(`    - ${q}`);
+                }
+            }
+            // Tag results for those quizzes
+            for (const d of dups) {
+                for (const r of results) {
+                    if (d.qids.includes(r.quizId)) {
+                        r.findings.push({
+                            check: 'C9_CROSS_QUIZ_DUPLICATE',
+                            detail: `Answer array identical to: ${d.qids.filter(q => q !== r.quizId).join(', ')}`
+                        });
+                        if (r.verdict === 'PASS') r.verdict = 'DRIFT';
+                    }
+                }
             }
         }
     }
