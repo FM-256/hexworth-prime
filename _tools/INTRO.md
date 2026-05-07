@@ -337,6 +337,7 @@ All scrapers run on bc1. All output goes to cold storage. The laptop only sees c
 - **Plan before building.** Architectural changes get a green light first.
 - **`_tools/` is gitignored** — files must be `git add -f` to track.
 - **Private/Sensitive Files (gitignored, local-only):** Four directories — `_hex/` (operator vault: CTF flags, secrets), `_planning/` (active design workspace), `_archive/` (deprecated content kept for retrieval), `_spellbook/` (change manifests). Different semantics each. Authoritative policy: [`_docs/architecture/private-directories.md`](../_docs/architecture/private-directories.md).
+- **Auto-update plumbing (admin/diagnostic surfaces):** Spellbook panel, Combined dashboard, analytics-v2 status, etc. read from Firestore docs refreshed by `nexus scan` (CLI) and scheduled CFs. New 2026-05-07: `_quality_reports/spellbook` (live spell overlay) + `_quality_reports/scanHeartbeat` (staleness detector). Authoritative architecture: [`_docs/architecture/auto-update-plumbing.md`](../_docs/architecture/auto-update-plumbing.md).
 - **position:fixed is broken** when `body.style.filter` is set. Use `position: absolute` + scroll offset. EduScan rule HEUR-008 catches this.
 
 ---
