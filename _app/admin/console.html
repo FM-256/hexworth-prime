@@ -2756,6 +2756,17 @@
                     </span>
                 </div>
 
+                <!-- ── Section 0: Scan Heartbeat (staleness detector) ── -->
+                <!-- Reads _quality_reports/scanHeartbeat. Color-coded:
+                     green <12h, yellow 12-36h, red >36h or missing.
+                     Wired to publishHeartbeat() write path 2026-05-07. -->
+                <div class="ac-card" id="qlHeartbeatCard" style="display:none;">
+                    <div class="ac-card-title">Scan Freshness</div>
+                    <div id="qlHeartbeatBanner">
+                        <div class="ac-loading"><div class="ac-spinner"></div>Reading scan heartbeat...</div>
+                    </div>
+                </div>
+
                 <!-- ── Section 1: Pipeline Overview ── -->
                 <!-- Static architecture card + live summary populated by loadQualityData() -->
                 <div class="ac-card">
@@ -8050,6 +8061,10 @@
                 initFirestore();
             }
 
+            // Scan heartbeat (staleness detector) — independent of latest report
+            // so a failed scan still surfaces "last successful run was X hours ago".
+            renderScanHeartbeat();
+
             // Attempt to fetch from Firestore first (requires db + auth)
             if (db && _firestoreModule) {
                 try {
@@ -8133,6 +8148,98 @@
             loadQualityData();
             showToast('Quality data reloaded', 'success');
         };
+
+        // ── renderScanHeartbeat ───────────────────────────────────────
+        // Reads _quality_reports/scanHeartbeat and renders a color-coded
+        // freshness banner. Independent of the latest report so failed
+        // scans surface "X hours since last successful run" rather than
+        // showing stale data without warning.
+        //
+        // Color thresholds (relative to scannedAt):
+        //   green:   <  12h
+        //   yellow:  12 ≤ age < 36h
+        //   red:     ≥ 36h OR doc missing
+        //
+        // Wired 2026-05-07 to the publishHeartbeat() write path.
+        async function renderScanHeartbeat() {
+            const card = document.getElementById('qlHeartbeatCard');
+            const banner = document.getElementById('qlHeartbeatBanner');
+            if (!card || !banner) return;
+            card.style.display = 'block';
+
+            if (!db || !_firestoreModule) {
+                banner.innerHTML = '<div style="color:var(--ac-text-muted);font-size:0.85rem;">Firestore unavailable — heartbeat cannot be read.</div>';
+                return;
+            }
+
+            try {
+                const { doc, getDoc } = _firestoreModule;
+                const snap = await getDoc(doc(db, '_quality_reports', 'scanHeartbeat'));
+                if (!snap.exists()) {
+                    banner.innerHTML = renderHeartbeatStatus({ severity: 'red', label: 'NEVER SCANNED', message: 'No scanHeartbeat doc found. Run nexus scan to seed it.' });
+                    return;
+                }
+                const d = snap.data();
+                const scannedAtMs = d.scannedAt && d.scannedAt.toDate ? d.scannedAt.toDate().getTime() : (typeof d.scannedAt === 'string' ? new Date(d.scannedAt).getTime() : 0);
+                if (!scannedAtMs) {
+                    banner.innerHTML = renderHeartbeatStatus({ severity: 'red', label: 'TIMESTAMP MISSING', message: 'scanHeartbeat exists but scannedAt is absent.' });
+                    return;
+                }
+                const ageMs = Date.now() - scannedAtMs;
+                const ageHours = ageMs / (1000 * 60 * 60);
+                let severity, label;
+                if (ageHours < 12) { severity = 'green'; label = 'FRESH'; }
+                else if (ageHours < 36) { severity = 'yellow'; label = 'AGING'; }
+                else { severity = 'red'; label = 'STALE'; }
+
+                const relative = formatRelativeAge(ageMs);
+                const absolute = new Date(scannedAtMs).toLocaleString();
+                const host = d.scannedBy || d.host || 'unknown';
+                const gateOk = !!d.gatePass;
+                const dur = d.durationMs ? ((d.durationMs / 1000).toFixed(1) + 's') : '?';
+                const total = d.totalFindings || 0;
+
+                banner.innerHTML = renderHeartbeatStatus({
+                    severity, label,
+                    message: 'Last scan ' + relative + ' (' + absolute + ')',
+                    detail: 'Source: <strong>' + escHtml(host) + '</strong> &middot; Gate: ' + (gateOk ? '<span style="color:#22c55e;">PASS</span>' : '<span style="color:#ef4444;">FAIL</span>') + ' &middot; Duration: ' + dur + ' &middot; Findings: ' + total.toLocaleString(),
+                });
+            } catch (e) {
+                banner.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;">Heartbeat read error: ' + escHtml(e.message || String(e)) + '</div>';
+            }
+        }
+
+        // ── renderHeartbeatStatus (helper) ────────────────────────────
+        function renderHeartbeatStatus(opts) {
+            const { severity, label, message, detail } = opts;
+            const colors = {
+                green:  { bg: 'rgba(34,197,94,0.10)',  border: '#22c55e', text: '#22c55e' },
+                yellow: { bg: 'rgba(234,179,8,0.10)',  border: '#eab308', text: '#eab308' },
+                red:    { bg: 'rgba(239,68,68,0.10)',  border: '#ef4444', text: '#ef4444' },
+            };
+            const c = colors[severity] || colors.red;
+            return (
+                '<div style="display:flex;align-items:center;gap:14px;padding:12px 16px;background:' + c.bg + ';border-left:4px solid ' + c.border + ';border-radius:4px;">'
+                + '<div style="font-weight:700;color:' + c.text + ';font-size:0.95rem;letter-spacing:0.5px;">' + escHtml(label) + '</div>'
+                + '<div style="flex:1;font-size:0.9rem;color:var(--ac-text);">'
+                +   '<div>' + escHtml(message || '') + '</div>'
+                +   (detail ? ('<div style="font-size:0.8rem;color:var(--ac-text-muted);margin-top:4px;">' + detail + '</div>') : '')
+                + '</div>'
+                + '</div>'
+            );
+        }
+
+        // ── formatRelativeAge (helper) ────────────────────────────────
+        function formatRelativeAge(ms) {
+            const sec = Math.round(ms / 1000);
+            if (sec < 60) return sec + 's ago';
+            const min = Math.round(sec / 60);
+            if (min < 60) return min + ' minute' + (min === 1 ? '' : 's') + ' ago';
+            const hr = Math.round(min / 60);
+            if (hr < 24) return hr + ' hour' + (hr === 1 ? '' : 's') + ' ago';
+            const day = Math.round(hr / 24);
+            return day + ' day' + (day === 1 ? '' : 's') + ' ago';
+        }
 
         // ── renderQualityPanel ────────────────────────────────────────
         // Orchestrates all four sub-renders for the Quality panel.
