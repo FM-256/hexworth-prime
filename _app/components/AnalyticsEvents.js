@@ -143,6 +143,8 @@
                     sessionId: data.sessionId,
                     exp: data.exp,
                     consentVersion: cached.consentVersion,
+                    // Preserve startedAt across refresh — same logical session continues
+                    startedAt: cached.startedAt || Date.now(),
                 };
                 _writeSession(_session);
                 return _session;
@@ -163,6 +165,7 @@
             sessionId: data.sessionId,
             exp: data.exp,
             consentVersion: data.consentVersion,
+            startedAt: Date.now(),
         };
         _writeSession(_session);
 
@@ -299,10 +302,19 @@
 
     // ─── End session (logout) ──────────────────────────────────────
 
+    let _sessionEndEmitted = false;
+
+    function _computeSessionDurationMs() {
+        if (!_session || !_session.startedAt) return 0;
+        var ms = Date.now() - _session.startedAt;
+        return ms > 0 ? ms : 0;  // server caps; this just sanitizes negative clock skew
+    }
+
     async function endSession(reason) {
-        if (_session && _session.sessionId) {
+        if (_session && _session.sessionId && !_sessionEndEmitted) {
+            _sessionEndEmitted = true;
             emit('nav.session_end', {
-                durationMs: 0,         // unknown at this layer; server can compute from session record
+                durationMs: _computeSessionDurationMs(),
                 exitUrl: location.href,
                 reason: reason || 'explicit_logout',
             });
@@ -310,6 +322,7 @@
         await flush('end_session');
         _clearSession();
         _session = null;
+        _sessionEndEmitted = false;  // reset for next session
     }
 
     // ─── Init ───────────────────────────────────────────────────────
@@ -358,8 +371,10 @@
 
         // Flush on tab close (best effort — survives most cases via localStorage anyway)
         window.addEventListener('pagehide', () => {
+            if (_sessionEndEmitted) return;  // dedup with explicit endSession()
+            _sessionEndEmitted = true;
             emit('nav.session_end', {
-                durationMs: 0,
+                durationMs: _computeSessionDurationMs(),
                 exitUrl: location.href,
                 reason: 'pagehide',
             });

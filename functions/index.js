@@ -3668,6 +3668,7 @@ exports.getStudentProgress = onCall(cfOptions, async (request) => {
                 quizScores: data.quizScores || {},
                 labsCompleted: data.labsCompleted || [],
                 totalTimeSpent: data.totalTimeSpent || 0,
+                totalSessionMs: data.totalSessionMs || 0,  // Analytics v2 — canonical time field (ms)
                 assignments: data.assignments || {}
             });
         });

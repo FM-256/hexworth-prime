@@ -400,7 +400,14 @@ const projectEvent = onDocumentCreated(
             updates.activeSessionCount = FieldValue.increment(1);
         } else if (data.type === 'nav.session_end') {
             updates.activeSessionCount = FieldValue.increment(-1);
-            updates.totalSessionMs = FieldValue.increment(data.payload?.durationMs || 0);
+            // Cap durationMs at 17 minutes (15-min token TTL + 2-min grace).
+            // Defends against client-side localStorage manipulation AND
+            // against legitimate "tab left open all night" sessions that
+            // shouldn't credit hours of "active" time.
+            const SESSION_DURATION_CAP_MS = 17 * 60 * 1000;
+            const rawDuration = Number(data.payload?.durationMs) || 0;
+            const cappedDuration = Math.max(0, Math.min(rawDuration, SESSION_DURATION_CAP_MS));
+            updates.totalSessionMs = FieldValue.increment(cappedDuration);
         } else if (data.type === 'nav.heartbeat') {
             // Heartbeats just touch the summary; no per-item update on heartbeat
             // to keep cost down (heartbeat is the highest-frequency event)
