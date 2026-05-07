@@ -127,7 +127,7 @@ Per memory `feedback_no_architectural_debt.md` — never accept the debt; find b
 | `web/ccna` | **READY** — paste-and-deploy | Operator approves `hub-001-ccna-catalog-patch.md` (31 entries, 25 modules + 6 labs) |
 | `code/python-for-it` | **READY** — analysis complete | Operator picks Option 1/2/3/4 per `hub-001-pfi-catalog-patch.md` (31 of 39 refs clear via Option 1) |
 | `cloud/server-plus` | Pending | Operator picks A/B/C per `hub-001-server-plus-proposal.md` |
-| `cloud/modules/wsa` | Class A — needs proposal | Same shape as server-plus (likely A1 — 22 aliases) |
+| `cloud/modules/wsa` | **READY** — 3-option analysis | Operator picks per `hub-001-wsa-catalog-patch.md`; consider together with server-plus |
 | `web/network-plus` | Cross-hub Option 1 candidate (+18 clears) | Pair with PFI Option 1 decision — same validator change |
 | `matrix/adv-linux` | Cross-hub Option 1 candidate (+14 clears) | Pair with PFI Option 1 decision — same validator change |
 | `shield/security-plus` | Cross-hub Option 1 candidate (+5 clears) | Pair with PFI Option 1 decision; remaining refs need per-ID audit |
