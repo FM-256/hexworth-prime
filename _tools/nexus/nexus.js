@@ -193,7 +193,7 @@ async function cmdScan(args, flags) {
     {
         const duration = Date.now() - scanStart;
         const gateResult = hub.runGate(config, spokes, { strict: false });
-        const { buildSummary, publishToFirestore, publishTriage } = require('./publish');
+        const { buildSummary, publishToFirestore, publishTriage, publishSpellbook, publishHeartbeat } = require('./publish');
         const summary = buildSummary(hub, config, spokes, store, gateResult, duration);
 
         console.log('');
@@ -214,6 +214,35 @@ async function cmdScan(args, flags) {
             }
         } catch (err) {
             console.error(`  ${C.red}Triage publish failed: ${err.message}${C.reset}`);
+        }
+
+        // 2026-05-07 — spellbook overlay + scan heartbeat
+        try {
+            const spellbookSpoke = spokes && spokes.spellbook;
+            if (spellbookSpoke && typeof spellbookSpoke.getSpellsForPublish === 'function') {
+                const spells = spellbookSpoke.getSpellsForPublish();
+                const sb = await publishSpellbook(spells);
+                if (sb.written) {
+                    console.log(`  ${C.green}Spellbook published${C.reset} ${C.dim}→ _quality_reports/spellbook (${sb.count} spells)${C.reset}`);
+                } else {
+                    console.log(`  ${C.yellow}Spellbook skipped${C.reset} ${C.dim}— ${sb.reason}${C.reset}`);
+                }
+            }
+        } catch (err) {
+            console.error(`  ${C.red}Spellbook publish failed: ${err.message}${C.reset}`);
+        }
+
+        try {
+            const sev = (summary && summary.severity) || {};
+            const total = (sev.critical||0) + (sev.high||0) + (sev.medium||0) + (sev.low||0) + (sev.suspect||0) + (sev.warning||0);
+            await publishHeartbeat({
+                gatePass: summary && summary.gate === 'PASS',
+                durationMs: duration,
+                totalFindings: total,
+            });
+            console.log(`  ${C.green}Heartbeat${C.reset} ${C.dim}→ _quality_reports/scanHeartbeat${C.reset}`);
+        } catch (err) {
+            console.error(`  ${C.red}Heartbeat publish failed: ${err.message}${C.reset}`);
         }
     }
 
@@ -791,10 +820,10 @@ async function cmdFull(args, flags) {
     // Publish to Firestore (always — keeps dashboard fresh)
     {
         console.log(`  ${C.cyan}Publishing to Firestore...${C.reset}`);
+        const duration = Date.now() - scanStart;
+        const { buildSummary, publishToFirestore, publishTriage, publishSpellbook, publishHeartbeat } = require('./publish');
+        const summary = buildSummary(hub, config, spokes, store, gateResult, duration);
         try {
-            const duration = Date.now() - scanStart;
-            const { buildSummary, publishToFirestore, publishTriage } = require('./publish');
-            const summary = buildSummary(hub, config, spokes, store, gateResult, duration);
             await publishToFirestore(summary);
             console.log(`  ${C.green}Published${C.reset} ${C.dim}→ _quality_reports/latest${C.reset}`);
 
@@ -807,6 +836,36 @@ async function cmdFull(args, flags) {
         } catch (err) {
             console.error(`  ${C.red}Publish failed: ${err.message}${C.reset}`);
         }
+
+        // 2026-05-07 — spellbook overlay + scan heartbeat
+        try {
+            const spellbookSpoke = spokes && spokes.spellbook;
+            if (spellbookSpoke && typeof spellbookSpoke.getSpellsForPublish === 'function') {
+                const spells = spellbookSpoke.getSpellsForPublish();
+                const sb = await publishSpellbook(spells);
+                if (sb.written) {
+                    console.log(`  ${C.green}Spellbook published${C.reset} ${C.dim}→ _quality_reports/spellbook (${sb.count} spells)${C.reset}`);
+                } else {
+                    console.log(`  ${C.yellow}Spellbook skipped${C.reset} ${C.dim}— ${sb.reason}${C.reset}`);
+                }
+            }
+        } catch (err) {
+            console.error(`  ${C.red}Spellbook publish failed: ${err.message}${C.reset}`);
+        }
+
+        try {
+            const sev = (summary && summary.severity) || {};
+            const total = (sev.critical||0) + (sev.high||0) + (sev.medium||0) + (sev.low||0) + (sev.suspect||0) + (sev.warning||0);
+            await publishHeartbeat({
+                gatePass: summary && summary.gate === 'PASS',
+                durationMs: duration,
+                totalFindings: total,
+            });
+            console.log(`  ${C.green}Heartbeat${C.reset} ${C.dim}→ _quality_reports/scanHeartbeat${C.reset}`);
+        } catch (err) {
+            console.error(`  ${C.red}Heartbeat publish failed: ${err.message}${C.reset}`);
+        }
+
         console.log('');
     }
 

@@ -655,6 +655,95 @@ async function publishTriage() {
     };
 }
 
+/**
+ * Publish spellbook live data to Firestore at _quality_reports/spellbook.
+ * Consumed by _app/admin/console.html loadSpellbook() to overlay live status/title
+ * onto the curated _sbStaticSpells array.
+ *
+ * Guards:
+ *   - Empty array: refuse the write (would silently overwrite good data with empty if
+ *     run from a host with unpopulated _spellbook/spells/, e.g., bc1 without sync).
+ *   - 0.8x previousCount: refuse the write if spell count dropped >20% vs prior doc
+ *     (catches partial-clone failure modes). First-run path: always accept (no prior doc).
+ *
+ * @param {Array} spells — output of spellbookAdapter.getSpellsForPublish()
+ * @returns {Promise<{ written: boolean, skipped: boolean, reason?: string, count: number }>}
+ */
+async function publishSpellbook(spells) {
+    process.env.GOOGLE_CLOUD_PROJECT = 'hexworth-prime';
+    const admin = require(path.join(FUNCTIONS_DIR, 'node_modules/firebase-admin'));
+    if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
+    const db = admin.firestore();
+    const { Timestamp } = admin.firestore;
+    const ref = db.doc('_quality_reports/spellbook');
+
+    if (!Array.isArray(spells) || spells.length === 0) {
+        return {
+            written: false,
+            skipped: true,
+            reason: 'spells empty — refusing to overwrite Firestore (verify _spellbook/spells/ filesystem state)',
+            count: 0,
+        };
+    }
+
+    const existing = await ref.get();
+    if (existing.exists) {
+        const prior = (existing.data().spells || []).length;
+        if (prior > 0 && spells.length < 0.8 * prior) {
+            return {
+                written: false,
+                skipped: true,
+                reason: `count contraction: ${spells.length} new vs ${prior} prior (>20% drop) — refusing write`,
+                count: spells.length,
+                priorCount: prior,
+            };
+        }
+    }
+
+    const os = require('os');
+    const scannedBy = process.env.NEXUS_HOST_LABEL || os.hostname() || 'unknown';
+
+    await ref.set({
+        scannedAt: Timestamp.now(),
+        scannedBy,
+        spells,
+        version: 1,
+    });
+
+    return { written: true, skipped: false, count: spells.length };
+}
+
+/**
+ * Publish a scan heartbeat to Firestore at _quality_reports/scanHeartbeat.
+ * MVP-required (per Nancy review 2026-05-07): without it, silent cron failures
+ * leave _quality_reports/latest as last-good-write with no age signal — false
+ * confidence. Heartbeat is the staleness detector.
+ *
+ * @param {Object} stats — { gatePass, durationMs, totalFindings }
+ */
+async function publishHeartbeat(stats) {
+    process.env.GOOGLE_CLOUD_PROJECT = 'hexworth-prime';
+    const admin = require(path.join(FUNCTIONS_DIR, 'node_modules/firebase-admin'));
+    if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
+    const db = admin.firestore();
+    const { Timestamp } = admin.firestore;
+    const os = require('os');
+
+    const scannedBy = process.env.NEXUS_HOST_LABEL || os.hostname() || 'unknown';
+
+    await db.doc('_quality_reports/scanHeartbeat').set({
+        scannedAt: Timestamp.now(),
+        scannedBy,
+        host: os.hostname(),
+        gatePass: !!(stats && stats.gatePass),
+        durationMs: (stats && stats.durationMs) || 0,
+        totalFindings: (stats && stats.totalFindings) || 0,
+        version: 1,
+    });
+
+    return { written: true, scannedBy };
+}
+
 module.exports = {
     publishToFirestore,
     buildSummary,
@@ -668,4 +757,7 @@ module.exports = {
     reconcileTriageWithScan,
     // QC round 8 — auto-mirror template registry to Firestore
     mirrorTemplateRegistry,
+    // 2026-05-07 — spellbook live data + scan staleness heartbeat
+    publishSpellbook,
+    publishHeartbeat,
 };

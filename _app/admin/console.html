@@ -8664,44 +8664,102 @@
         let _sbSelected = null;   // id of the currently open detail card
 
         // ── loadSpellbook ─────────────────────────────────────────────
-        // Entry point called by switchPanel('spellbook').
-        // Attempts to read live data from sessionStorage; falls back to
-        // the embedded static snapshot.
-        window.loadSpellbook = function() {
+        // Fallback chain (per Nancy review 2026-05-07):
+        //   1. Firestore _quality_reports/spellbook → overlay live status/title onto curated static
+        //   2. Embedded _sbStaticSpells (only if Firestore unavailable / not yet seeded)
+        // sessionStorage 'sb_last_run' tier RETIRED — it was always empty in production
+        // and could shadow fresher Firestore data on repeat page loads.
+        window.loadSpellbook = async function() {
             if (_sbSpells !== null) {
-                // Already loaded this session — just re-render
                 renderSpellbookStats(_sbSpells);
                 filterSpellbook();
                 return;
             }
 
-            // Attempt to read Nexus spellbook data from sessionStorage.
-            // Written by `nexus full --publish` as JSON: { spells: [...], meta: {} }
-            let fromSession = null;
-            try {
-                const raw = sessionStorage.getItem('sb_last_run');
-                if (raw) fromSession = JSON.parse(raw);
-            } catch (e) {
-                // sessionStorage read failed — non-fatal, fall through to static data
-            }
-
-            if (fromSession && Array.isArray(fromSession.spells)) {
-                _sbSpells = fromSession.spells;
-                const ts = fromSession.meta && fromSession.meta.scannedAt
-                    ? new Date(fromSession.meta.scannedAt).toLocaleString()
-                    : 'live';
+            // Render static immediately so the panel is never blank,
+            // then upgrade to Firestore-merged data if available.
+            const renderWith = function(arr, sourceLabel) {
+                _sbSpells = arr;
+                renderSpellbookStats(arr);
+                _sbFiltered = arr.slice();
+                renderSpellLibrary(_sbFiltered);
+                const countEl = document.getElementById('sbFilterCount');
+                if (countEl) countEl.textContent = arr.length + ' of ' + arr.length + ' spells';
                 const note = document.getElementById('sbDataSourceNote');
-                if (note) note.textContent = 'Live data from Nexus — ' + ts;
-            } else {
-                _sbSpells = _sbStaticSpells;
+                if (note) note.textContent = sourceLabel;
+            };
+
+            renderWith(_sbStaticSpells, 'Static snapshot (loading live data…)');
+
+            try {
+                if (typeof db === 'undefined' || !_firestoreModule) {
+                    if (typeof initFirestore === 'function') await initFirestore();
+                }
+                if (typeof db === 'undefined' || !_firestoreModule) {
+                    renderWith(_sbStaticSpells, 'Static snapshot (Firestore unavailable)');
+                    return;
+                }
+                const { doc, getDoc } = _firestoreModule;
+                const snap = await getDoc(doc(db, '_quality_reports', 'spellbook'));
+                if (!snap.exists()) {
+                    renderWith(_sbStaticSpells, 'Static snapshot (no Firestore overlay yet — run `nexus scan`)');
+                    return;
+                }
+                const fsData = snap.data();
+                const liveSpells = Array.isArray(fsData.spells) ? fsData.spells : [];
+
+                // Build overlay map id → { status, title }
+                const overlay = new Map();
+                for (const s of liveSpells) {
+                    if (s && s.id) overlay.set(s.id, s);
+                }
+
+                // Merge: static entries get live status/title overlaid; new entries
+                // (in Firestore but not in static) appear with placeholder enriched fields.
+                const merged = [];
+                const staticIds = new Set();
+                for (const sp of _sbStaticSpells) {
+                    staticIds.add(sp.id);
+                    const live = overlay.get(sp.id);
+                    if (live) {
+                        merged.push(Object.assign({}, sp, {
+                            status: live.status || sp.status,
+                            title: live.title || sp.title,
+                            _live: true,
+                        }));
+                    } else {
+                        merged.push(Object.assign({}, sp, { _live: false }));
+                    }
+                }
+                // Synthesize entries for spells in Firestore but not curated yet
+                for (const live of liveSpells) {
+                    if (staticIds.has(live.id)) continue;
+                    merged.push({
+                        id: live.id,
+                        title: live.title || live.id,
+                        status: live.status || 'UNKNOWN',
+                        severity: live.severity || 'Unknown',
+                        house: live.house || 'unknown',
+                        tags: '',
+                        scribed: live.scribed || '—',
+                        description: '(uncurated — see ' + (live.filename || live.id) + ')',
+                        notes: '',
+                        tethers: 'None',
+                        filename: live.filename || (live.id + '.md'),
+                        _live: true,
+                        _uncurated: true,
+                    });
+                }
+
+                const ts = fsData.scannedAt && fsData.scannedAt.toDate
+                    ? fsData.scannedAt.toDate().toLocaleString()
+                    : (fsData.scannedAt || 'live');
+                const by = fsData.scannedBy ? (' from ' + fsData.scannedBy) : '';
+                renderWith(merged, 'Live data via Firestore' + by + ' — last scan: ' + ts);
+            } catch (e) {
+                console.error('[loadSpellbook] Firestore read failed:', e);
+                renderWith(_sbStaticSpells, 'Static snapshot (Firestore read error: ' + (e.message || e) + ')');
             }
-
-            renderSpellbookStats(_sbSpells);
-            _sbFiltered = _sbSpells.slice();
-            renderSpellLibrary(_sbFiltered);
-
-            const countEl = document.getElementById('sbFilterCount');
-            if (countEl) countEl.textContent = _sbSpells.length + ' of ' + _sbSpells.length + ' spells';
         };
 
         // ── renderSpellbookStats ──────────────────────────────────────

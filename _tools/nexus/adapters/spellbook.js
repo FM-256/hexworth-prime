@@ -63,6 +63,62 @@ module.exports = function createSpellbookAdapter({ name, dataPath, projectRoot }
         return filename.replace('.md', '');
     }
 
+    // parseSpellId: extract canonical SPELL-NNN id matching admin/console.html static array.
+    // Distinct from parseId(): findings store uses full filename-as-id (parseId), but the
+    // spellbook OVERLAY for the panel needs the bare SPELL-NNN form so it can match the
+    // curated `_sbStaticSpells` array entries by id.
+    // Verified 2026-05-07 across all 83 spell files (incl. SPELL-058.md, SPELL-000A-CURRICULUM-REFERENCE.md).
+    function parseSpellId(filename) {
+        const m = filename.match(/^(SPELL-[A-Z0-9]+)(?:-|\.md)/);
+        return m ? m[1] : null;
+    }
+
+    // parseField: extract `**Field:** value` from spell .md body. 60-80% of spells
+    // have these (severity 77%, house 66%, scribed 63%). Returns null if not present.
+    function parseField(content, fieldName) {
+        const re = new RegExp('\\*\\*' + fieldName + ':\\*\\*\\s*([^\\n]+)', 'i');
+        const m = content.match(re);
+        return m ? m[1].trim() : null;
+    }
+
+    // parseSpellTitle: H1 with SPELL-NNN: prefix → strip prefix; H1 with ISSUE-NNN: → use as-is;
+    // generic H1 → use; otherwise filename-derived.
+    function parseSpellTitle(content, filename) {
+        let m = content.match(/^#\s*SPELL-[A-Z0-9]+:\s*(.+)$/m);
+        if (m) return m[1].trim();
+        m = content.match(/^#\s*ISSUE-[A-Z0-9]+:\s*(.+)$/m);
+        if (m) return m[1].trim();
+        m = content.match(/^#\s+(.+)$/m);
+        if (m) return m[1].replace(/^SPELL-[A-Z0-9]+:\s*/i, '').trim();
+        return filename.replace(/^SPELL-[A-Z0-9]+-?/, '').replace(/\.md$/, '').replace(/-/g, ' ');
+    }
+
+    // getSpellsForPublish: enriched spell array shaped for _quality_reports/spellbook
+    // Firestore doc consumed by _app/admin/console.html `loadSpellbook()`.
+    // Distinct from getFindings() which produces Nexus findings format.
+    // Returns null fields where the .md file doesn't carry the metadata so the
+    // panel can fall back to its curated static-array values.
+    function getSpellsForPublish() {
+        const spells = readSpellFiles();
+        const out = [];
+        for (const s of spells) {
+            const id = parseSpellId(s.filename);
+            if (!id) continue;
+            out.push({
+                id,
+                title: parseSpellTitle(s.content, s.filename),
+                status: parseStatus(s.content) || 'UNKNOWN',
+                severity: parseField(s.content, 'Severity'),
+                house: parseField(s.content, 'House'),
+                scribed: parseField(s.content, 'Scribed'),
+                type: parseField(s.content, 'Type'),
+                source: parseField(s.content, 'Source'),
+                filename: s.filename,
+            });
+        }
+        return out;
+    }
+
     function getFindings() {
         const spells = readSpellFiles();
         if (!spells.length) return [];
@@ -123,6 +179,7 @@ module.exports = function createSpellbookAdapter({ name, dataPath, projectRoot }
         name,
         getFindings,
         getStatus,
+        getSpellsForPublish,
         acceptFinding,
     };
 };
