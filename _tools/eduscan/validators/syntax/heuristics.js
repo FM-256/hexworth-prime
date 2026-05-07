@@ -1385,10 +1385,17 @@ class HeuristicsValidator {
         if (!/serverGrading\s*:\s*true/.test(content)) return issues;
         if (file.path.endsWith('index.html')) return issues;
 
+        // Skip templates — they carry placeholder moduleIds intentionally
+        if (file.path.startsWith('templates/') || file.path.includes('/templates/')) return issues;
+
         // Extract moduleId from the quiz config
         const moduleIdMatch = content.match(/moduleId\s*:\s*['"]([^'"]+)['"]/);
         if (!moduleIdMatch) return issues;
         const moduleId = moduleIdMatch[1];
+
+        // Skip placeholder/example moduleIds — these are scaffolding, not deployable quizzes
+        const PLACEHOLDER_IDS = new Set(['house-quiz-id', 'YOUR-QUIZ-ID', 'example-quiz', 'TODO']);
+        if (PLACEHOLDER_IDS.has(moduleId)) return issues;
 
         // Load quiz keys (cached after first load)
         if (!this._quizKeys) {
