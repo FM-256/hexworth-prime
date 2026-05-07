@@ -7413,3 +7413,13 @@ function _staticOnlyGrade(code, tests) {
     }
     return { success: true, results, executionTime: 0, error: null };
 }
+
+// ─── Analytics v2 — Event Log Platform (Phase 1) ───────────────────
+// Architecture: _docs/architecture/student-analytics-v2.md
+// Module: ./analytics-v2.js
+const _analyticsV2 = require('./analytics-v2');
+exports.getSessionToken       = _analyticsV2.getSessionToken;
+exports.refreshSessionToken   = _analyticsV2.refreshSessionToken;
+exports.ingestEvents          = _analyticsV2.ingestEvents;
+exports.projectEvent          = _analyticsV2.projectEvent;
+exports.projectorHeartbeatJob = _analyticsV2.projectorHeartbeatJob;
