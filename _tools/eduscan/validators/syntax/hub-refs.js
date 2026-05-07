@@ -55,10 +55,19 @@ class HubRefsValidator {
                 // Skip template placeholders + obvious non-ids
                 if (id.includes('${') || id === 'X' || id.length < 2) continue;
                 if (catalogIds.has(id)) continue;
-                // Try house-prefixed forms
+                // Try house-prefixed forms + component-suffix tolerance
+                // (PFI Option 1, hub-001-pfi-catalog-patch.md). Catalog uses
+                // `{house}-{id}-{component}` IDs (e.g. `code-pfi-w1-conditionals-pres`)
+                // while hubs use bare `{id}` for progress-tracking. Suffix tolerance
+                // codifies this two-namespace pattern; clears 68 refs across 4 hubs.
+                const COMPONENT_SUFFIXES = ['-pres', '-presentation', '-lab', '-quiz', '-classroom', '-inclass', '-module', '-exam'];
                 let resolved = false;
                 for (const h of houses) {
                     if (catalogIds.has(`${h}-${id}`)) { resolved = true; break; }
+                    for (const sfx of COMPONENT_SUFFIXES) {
+                        if (catalogIds.has(`${h}-${id}${sfx}`)) { resolved = true; break; }
+                    }
+                    if (resolved) break;
                 }
                 if (resolved) continue;
                 broken.push(id);
