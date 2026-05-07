@@ -69,7 +69,7 @@ module.exports = function createQuizSyncAdapter({ name, dataPath, projectRoot })
     function getFindings() {
         const clusters = detectClusters();
         return clusters.map(c => ({
-            id: 'QUIZ-DUP_' + c.qids[0].replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40),
+            id: 'QUIZ-DUP_' + [...c.qids].sort()[0].replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40),
             code: 'QUIZ-DUP',
             severity: c.isPlaceholder ? 'high' : 'medium',
             category: 'quiz',
