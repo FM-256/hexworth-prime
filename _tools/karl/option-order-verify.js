@@ -96,19 +96,46 @@ function extractOptionsCounts(htmlPath) {
     let html;
     try { html = fs.readFileSync(htmlPath, 'utf8'); } catch (e) { return null; }
     const counts = [];
-    // Match each options array. Two formats observed:
-    //   - JS object literal:  options: [...]
-    //   - JSON-style object:  "options": [...]
-    const re = /["']?options["']?\s*:\s*\[([\s\S]*?)\]/g;
+    // Find each `options: [` opener, then scan char-by-char to find the
+    // MATCHING close bracket (skipping `]` inside string literals).
+    //
+    // Naïve `options:\s*\[([\s\S]*?)\]` fails when option strings themselves
+    // contain `]` (e.g., `'[2, 5, 8]'` in a Python-list quiz). The
+    // bracket-counter respects string delimiters (', ", `) and escape
+    // sequences so it cannot be fooled by quoted brackets.
+    const opener = /["']?options["']?\s*:\s*\[/g;
     let m;
-    while ((m = re.exec(html)) !== null) {
-        const body = m[1];
-        // Count quoted string entries; tolerate trailing commas + multiline
-        const stringRe = /(["'`])([^"'`\\]|\\.)*\1/g;
-        let s;
+    while ((m = opener.exec(html)) !== null) {
+        const start = m.index + m[0].length;
+        let i = start;
+        let inQuote = null;       // ', ", or `
+        let escape = false;
+        let depth = 1;
+        while (i < html.length && depth > 0) {
+            const ch = html[i];
+            if (escape) { escape = false; i++; continue; }
+            if (inQuote) {
+                if (ch === '\\') { escape = true; i++; continue; }
+                if (ch === inQuote) { inQuote = null; i++; continue; }
+                i++; continue;
+            }
+            if (ch === '"' || ch === '\'' || ch === '`') { inQuote = ch; i++; continue; }
+            if (ch === '[') { depth++; i++; continue; }
+            if (ch === ']') { depth--; i++; continue; }
+            i++;
+        }
+        const body = html.slice(start, i - 1);
+        // Count strings inside the body using delimiter-aware regexes.
         let n = 0;
-        while ((s = stringRe.exec(body)) !== null) n++;
+        const reDouble = /"(?:[^"\\]|\\.)*"/g;
+        const reSingle = /'(?:[^'\\]|\\.)*'/g;
+        const reBacktick = /`(?:[^`\\$]|\\.|\$(?!\{))*`/g;
+        for (const r of [reDouble, reSingle, reBacktick]) {
+            let s;
+            while ((s = r.exec(body)) !== null) n++;
+        }
         counts.push(n);
+        opener.lastIndex = i;
     }
     return counts;
 }
