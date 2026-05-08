@@ -2659,6 +2659,107 @@ exports.releaseDeadClaims = onSchedule({
     }
 });
 
+// ─── Self-Healing Pipeline: PULSE-2 De-Promotion Detector ─────────────
+// Spec: _docs/features/PULSE_2_DEPROMOTION_DETECTOR.md (Nancy-approved 2026-05-08).
+// Detects a promoted auto-fix rule going bad: ≥3 distinct items with
+// `apply-validate-failed` history entries from agent actors in the last 30 min.
+// On detection: flips per-template flag OFF in _system_config/self_healing,
+// writes a CRITICAL triage item, surfaces to operator via Pulse banner.
+
+const PULSE2_WINDOW_MS = 30 * 60 * 1000;     // 30-minute failure window
+const PULSE2_DISTINCT_THRESHOLD = 3;          // ≥3 distinct failed items
+
+async function disableTemplateAndAlert(rule, itemIds) {
+    // Idempotent: re-read enabledTemplates and only flip if still on.
+    await db.runTransaction(async txn => {
+        const ref = db.doc('_system_config/self_healing');
+        const snap = await txn.get(ref);
+        const cur = (snap.data() || {}).enabledTemplates || [];
+        if (!cur.includes(rule)) return; // already disabled
+        const next = cur.filter(r => r !== rule);
+        txn.set(ref, {
+            enabledTemplates: next,
+            lastAutoDisable: { rule, at: FieldValue.serverTimestamp(), itemIds },
+        }, { merge: true });
+    });
+
+    // Triage item — fingerprint-keyed for dedup, transactional history-append.
+    // Per Nancy review #1: silent un-dismiss is a regression; tag re-open events.
+    const fingerprint = crypto.createHash('sha256').update('AUTO-DEPROMOTE:' + rule).digest('hex').slice(0, 16);
+    const triageRef = db.doc(`_triage_queue/auto-depromote-${fingerprint}`);
+
+    await db.runTransaction(async txn => {
+        const snap = await txn.get(triageRef);
+        const cur = snap.exists ? (snap.data() || {}) : null;
+        const wasDismissed = cur && cur.status === 'dismissed';
+        const hist = (cur && Array.isArray(cur.history)) ? cur.history : [];
+        const newHistEntry = {
+            ts: new Date().toISOString(),
+            actor: 'cf:detectAutoHealingFailureSpike',
+            action: wasDismissed ? 'auto-depromote-reopen' : 'auto-depromote',
+            note: `${itemIds.length} items: ${itemIds.slice(0, 3).join(', ')}${itemIds.length > 3 ? '...' : ''}`,
+        };
+        const update = {
+            title: `Auto-healing rule ${rule} disabled — apply-validate-failed spike`,
+            severity: 'critical',
+            priority: 100,
+            category: 'self-healing',
+            source: 'auto-depromote',
+            rule,
+            message: `Rule ${rule} had ≥${PULSE2_DISTINCT_THRESHOLD} distinct items fail validate() in the last 30 min. Per-template flag automatically flipped OFF. Operator action: investigate template + validator, re-run autofix-dryrun, re-enable in Pulse if fixed. NOTE: re-enabling within 30 min of the spike will trigger immediate re-disable until the failure window ages out.`,
+            recentItems: itemIds,
+            status: 'open',
+            history: hist.concat([newHistEntry]).slice(-20),
+        };
+        if (!cur) {
+            update.createdAt = FieldValue.serverTimestamp();
+        } else if (wasDismissed) {
+            update.reopenedAt = FieldValue.serverTimestamp();
+            update.previousResolution = cur.status;
+        }
+        txn.set(triageRef, update, { merge: true });
+    });
+
+    console.log(`[detectAutoHealingFailureSpike] AUTO-DISABLED rule=${rule} itemIds=${itemIds.length}`);
+}
+
+exports.detectAutoHealingFailureSpike = onSchedule({
+    schedule: 'every 5 minutes',
+    timeZone: 'UTC',
+    region: 'us-central1',
+}, async () => {
+    const cfgSnap = await db.doc('_system_config/self_healing').get();
+    const enabledTemplates = (cfgSnap.data() || {}).enabledTemplates || [];
+    if (enabledTemplates.length === 0) return;
+
+    const cutoff = Date.now() - PULSE2_WINDOW_MS;
+    const queueSnap = await db.collection('_auto_fix_queue').get();
+
+    // Group recent failures by rule, tracking distinct itemIds per rule.
+    const failuresByRule = new Map();
+    queueSnap.forEach(doc => {
+        const d = doc.data() || {};
+        const rule = d.rule;
+        if (!rule || !enabledTemplates.includes(rule)) return;
+        const hist = Array.isArray(d.history) ? d.history : [];
+        for (const h of hist) {
+            if (!String(h.actor || '').startsWith('agent:')) continue;
+            if (h.action !== 'apply-validate-failed') continue;
+            const ts = Date.parse(h.ts || '');
+            if (!ts || ts < cutoff) continue;
+            if (!failuresByRule.has(rule)) failuresByRule.set(rule, new Set());
+            failuresByRule.get(rule).add(doc.id);
+            break; // one match per item is enough
+        }
+    });
+
+    // Auto-disable any rule with ≥3 distinct failed items.
+    for (const [rule, items] of failuresByRule) {
+        if (items.size < PULSE2_DISTINCT_THRESHOLD) continue;
+        await disableTemplateAndAlert(rule, [...items]);
+    }
+});
+
 // ─── Self-Healing Pipeline: Saturation alarm ──────────────────────────
 // Slice 3d. Fires when the triage queue grows faster than humans+agents
 // can drain. Per Nancy round 2: floor (50 items) + percentage (20%/24h)
