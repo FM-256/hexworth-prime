@@ -19,10 +19,22 @@
  *
  * Usage:
  *   cd functions
- *   node seed-placeholder-fix-2026-05-08.js --dry-run   # preview only
- *   node seed-placeholder-fix-2026-05-08.js             # LIVE write
+ *   node seed-placeholder-fix-2026-05-08.js --dry-run                # preview FULL 73 set
+ *   node seed-placeholder-fix-2026-05-08.js --safe-subset --dry-run  # preview 8 verified-safe
+ *   node seed-placeholder-fix-2026-05-08.js --safe-subset            # LIVE 8 verified-safe
+ *   node seed-placeholder-fix-2026-05-08.js                          # LIVE FULL 73
  *
  * Per CLAUDE.md rule 10: explicit user authorization required before live run.
+ *
+ * SAFE-SUBSET (added 2026-05-08 after pv-mp-04 spot-check exposed heuristic-derived
+ * static answers in pc-esp/pv-* series). The 8 safe IDs have manually-verified
+ * static answers per project_placeholder_keys_audit.md memory + Karl QC-46/47:
+ *   - divergent-eth-final / divergent-eth-midterm  (Karl QC-46 confirmed real)
+ *   - ms900-ch02-quiz                              (memory: manually verified)
+ *   - pc-ard-01/03/11/16-quiz                      (memory: manually verified, 4 of 19)
+ *   - shield-pis-final                             (Karl QC-47 verified, Q31/35/38 corrected)
+ * The other 65 STATIC-NEWER IDs (pc-esp + pv-b + pv-e + pv-f + pv-m + pv-mp)
+ * await Karl content-verify pass before they can join the seed.
  */
 
 'use strict';
@@ -36,7 +48,21 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 const DRY_RUN = process.argv.includes('--dry-run');
+const SAFE_SUBSET = process.argv.includes('--safe-subset');
 const STATIC_KEYS_PATH = path.join(__dirname, 'quiz_keys.json');
+
+// Quizzes whose static answers are MANUALLY VERIFIED. Seed-safe.
+// Per project_placeholder_keys_audit.md memory + Karl QC-46/47.
+const SAFE_TO_SEED_IDS = new Set([
+    'divergent-eth-final',
+    'divergent-eth-midterm',
+    'ms900-ch02-quiz',
+    'pc-ard-01-quiz',
+    'pc-ard-03-quiz',
+    'pc-ard-11-quiz',
+    'pc-ard-16-quiz',
+    'shield-pis-final',
+]);
 
 // 72 STATIC-NEWER quiz IDs from Karl audit 2026-05-08.
 // Order preserves the audit table for traceability.
@@ -116,8 +142,14 @@ function isPlaceholder(arr) {
     console.log('PIS-final precheck: PASS (Q31=1, Q35=2, Q38=2 in static)');
     console.log('');
 
-    // Build the full seed list: P0_RESEED_IDS + shield-pis-final
-    const seedList = [...P0_RESEED_IDS, PIS_FINAL_PRECHECK.id];
+    // Build the seed list. Default: full 73. With --safe-subset: only the
+    // 8 IDs whose static answers are manually verified (Karl QC + memory).
+    const fullList = [...P0_RESEED_IDS, PIS_FINAL_PRECHECK.id];
+    const seedList = SAFE_SUBSET
+        ? fullList.filter(id => SAFE_TO_SEED_IDS.has(id))
+        : fullList;
+    console.log('Seed scope: ' + (SAFE_SUBSET ? 'SAFE-SUBSET' : 'FULL') + ' (' + seedList.length + ' / ' + fullList.length + ')');
+    console.log('');
     let written = 0, skipped = 0, errors = 0;
     for (const qid of seedList) {
         const entry = staticKeys[qid];
