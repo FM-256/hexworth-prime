@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "lastUpdated": "2026-05-08T07:17:14.225Z",
+    "lastUpdated": "2026-05-08T07:21:23.726Z",
     "migratedFrom": "SPRINT_BACKLOG.md",
     "migratedAt": "2026-02-21T16:29:10.805Z",
     "archivedCount": 488
@@ -24399,6 +24399,22 @@
       "depends": [],
       "commits": [],
       "notes": "DETECTED 2026-05-08 via OPT-COUNT-MISMATCH scan + manual code review.\n\nFOUR cert-prep quizzes for CompTIA A+ Core 1 are using CLIENT-SIDE grading, violating the platform mandate (memory feedback_cert_hubs_server_graded.md): 'ALL cert hub quizzes MUST use server-side grading — no client-side scoring'.\n\nFiles:\n  - _app/houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-1.quiz.html\n  - _app/houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html\n  - _app/houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html\n  - _app/houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html\n\nEach uses an inline custom quiz engine (not QuizEngine class) with `var passed = pct >= CONFIG.passingScore;` — answers compared CLIENT-SIDE in browser. Students can inspect/modify CONFIG.questions and trivially game the score.\n\nALSO: Static answer keys are misnamed and stale:\n  - HTML moduleId: 'aplus-core1-prep-r1' (and r2/r3/r4)\n  - Static key:    'forge-aplus-core1-prep-r1' (and r2/r3/r4) ← orphan\n  - Static answer count: 4 (per quiz)\n  - HTML question count: 10 (per quiz)\n\nIf converted to server-grading without renaming, lookup misses → 0/10 silent fail.\n\nFIX SCOPE (per-quiz):\n  1. Refactor quiz to use QuizEngine pattern (replace inline rendering)\n  2. Set serverGrading: true, achievement, moduleId, etc.\n  3. Generate correct answer array (10 entries) from current CONFIG.questions correctAnswer fields\n  4. Add static entry under correct key 'aplus-core1-prep-r1' (matches HTML moduleId)\n  5. Reseed Firestore quiz_keys/aplus-core1-prep-r1\n  6. Run verify-quiz-keys.js per ID\n  7. Karl Mode-2 audit on each prep round\n  8. EduScan + smoke gate\n  9. Atomic deploy: ./deploy.sh + reseed in same authorized op\n\nIMPACT: Currently students completing these prep rounds get a client-computed pass/fail with no audit trail and no integrity. Cert prep tracks need server-grading to be exam-quality.\n\nBLOCKING: hex Forge house has active A+ Core 1 cohorts. Refactor must preserve question content and option-order so existing student progress (localStorage CONFIG.storageKey) doesn't reset spuriously.\n\nDEPS: None hard. Soft: aligns with template refactor work in pending task #46 (server-graded pattern demonstrator already exists in templates/quiz-template.html).",
+      "created": "2026-05-08",
+      "updated": "2026-05-08",
+      "completed": null
+    },
+    {
+      "id": "QC-55",
+      "title": "ai-security quiz — silent partial-grading bug (Q16-Q25)",
+      "series": "QC",
+      "status": "backlog",
+      "priority": "high",
+      "houses": [
+        "ai"
+      ],
+      "depends": [],
+      "commits": [],
+      "notes": "DETECTED 2026-05-08 via OPT-COUNT-MISMATCH scan.\n\nFile: _app/houses/ai/quizzes/ai-security.quiz.html\nHTML: 25 questions, moduleId='security', serverGrading:true, all 25 have explanations\nStatic: functions/quiz_keys.json key 'security' has only 15 answers\nFirestore: quiz_keys/security has 15 answers (matches static)\n\nIMPACT: Student answers for Q16-Q25 are graded against undefined indices → silent partial-grading. Best case student gets max 15/25 even with all correct; worst case CF errors and student gets 0.\n\nThe fixNote on the static key reads: 'Count fixed 25 -> 15 to match HTML' — this is INVERTED. The static was trimmed to match a smaller HTML at some past point, but HTML has since grown back to 25. Drift between HTML and static.\n\nFIX SCOPE:\n  1. Karl Mode-2 audit on Q16-Q25 to determine correct option index for each\n     (Karl can use the in-file explanation fields — closed-loop method)\n  2. Spot-check Q1-Q15 too: existing 15 answers may have been truncated in the wrong direction\n  3. Generate 25-element answer array, distribution-balance per Rule 6\n  4. Update functions/quiz_keys.json: `security`.answers → 25 elements\n  5. Update fixNote and remove the misleading prior note\n  6. Reseed Firestore quiz_keys/security (production-write gate)\n  7. verify-quiz-keys.js security\n  8. Karl Mode-2 PASS gate before deploy\n  9. Atomic deploy (reseed already done; just ./deploy.sh — but no HTML changed)\n\nAdditional hygiene: also a confirmed orphan duplicate. The live quiz appears to also use moduleId='web-security-quiz' (15 answers, in static under that name). Decide:\n  - Are 'security' and 'web-security-quiz' two different quizzes? (probably no — same content, two HTMLs?)\n  - Or is one orphan? Check rendering paths.\n  - If duplicate, dedupe to single moduleId before reseed to avoid future drift.\n\nDEPS: None. Soft: aligns with QC-50 PIS distribution rebalance (similar 15-element + Rule 6 work).\n\nKarl-readiness: HIGH — all 25 questions have explanation fields (verified 2026-05-08 grep).",
       "created": "2026-05-08",
       "updated": "2026-05-08",
       "completed": null
