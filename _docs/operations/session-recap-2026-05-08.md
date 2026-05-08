@@ -61,10 +61,15 @@ Reconciliation: `reconciliation-quiz-keys-2026-05-08.txt`.
 | QC-56 | Divergent weekly client-grading (eth-w + cse-w, 6) | high |
 | QC-57 | Platform-wide client-grading — **95 quizzes / 15 tracks** | **critical** |
 | QC-58 | Lab template dual-h1 cleanup (SEM-002, 34 files) | low |
+| QC-59 | **PFI 33/39 hub modules missing from ContentCatalog (active COP1034C)** | **critical** |
 | (Task #75) | Promote PARSE-SUSPECT to EduScan QUIZ-010 | DONE this session |
 | (Task #76) | Sync-helper HTML resolver — 277 false positives | new |
 
 QC-57 is the platform-wide superset; QC-54 and QC-56 are slices. Inventory artifact: `_docs/operations/qc-57-client-grading-inventory.md` (174 lines, 95 quizzes grouped by 15 tracks).
+
+**QC-59 finding (added late session):** Hub-vs-catalog audit ran across 8 house hubs. Python for IT (COP1034C, code house) has **33 of 39 hub modules missing** from ContentCatalog — broken progress tracking, achievements, search, and tenant assignment for 85% of an active live course. Only 6 modules in catalog: pfi-setup-guide, pfi-op-01..04, pfi-w4-final-exam. All Week 1-4 instructional content, sandboxes, quizzes, projects are catalog-orphaned. Worst-affected hub by ~10x vs the next gappiest (PIS at 21/40 prefix-mismatched, separate case in QC-47).
+
+QC-47 PIS gap is a NAMING MISMATCH (catalog uses `shield-pis-w*-` prefix, hub uses bare `pis-w*-`), not missing entries. Direction needs operator decision per `shield-pis-w*-quiz` static-key consistency tradeoff.
 
 ## EduScan / Nexus state
 
