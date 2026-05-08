@@ -2006,6 +2006,24 @@
                     var willEnable = !currentlyEnabled;
                     btn.disabled = true;
                     try {
+                        // PULSE-2 recovery-race guardrail: warn if re-enabling a
+                        // template that was auto-disabled within the last 30 min.
+                        // The 30-min failure window persists in _auto_fix_queue
+                        // history; re-enabling now will likely trigger immediate
+                        // re-disable on the next CF tick. Operator can override.
+                        if (willEnable && _lastHealerState && _lastHealerState.autoDisableRule === rule) {
+                            var ageMs = Date.now() - (_lastHealerState.autoDisableAtMs || 0);
+                            if (_lastHealerState.autoDisableAtMs && ageMs < 30 * 60000) {
+                                var minsAgo = Math.round(ageMs / 60000);
+                                var proceed = confirm(
+                                    'Rule ' + rule + ' was auto-disabled ' + minsAgo + ' minute' + (minsAgo === 1 ? '' : 's') + ' ago.\n\n' +
+                                    'The 30-minute failure window has not aged out. ' +
+                                    'Re-enabling now will likely trigger an immediate re-disable on the next detector tick.\n\n' +
+                                    'Continue anyway? (Override only if the template has been fixed and re-verified.)'
+                                );
+                                if (!proceed) { btn.disabled = false; return; }
+                            }
+                        }
                         await SystemConfigClient.setTemplateEnabled(rule, willEnable);
                     } catch (err) {
                         alert('Template toggle failed: ' + (err.message || err));

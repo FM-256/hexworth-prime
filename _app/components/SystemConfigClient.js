@@ -77,6 +77,10 @@
      * if the doc doesn't exist yet.
      */
     function _shapeState(d) {
+        // PULSE-2: surface lastAutoDisable so Pulse can render the
+        // recovery-race guardrail when an operator toggles a recently-
+        // auto-disabled template back on.
+        var lad = (d.lastAutoDisable && typeof d.lastAutoDisable === 'object') ? d.lastAutoDisable : null;
         return {
             enabled: !!d.enabled,
             enabledBy: d.enabledBy || null,
@@ -87,6 +91,8 @@
             availableTemplates: Array.isArray(d.availableTemplates) ? d.availableTemplates : [],
             availableTemplatesUpdatedAt: tsToIso(d.availableTemplatesUpdatedAt),
             updatedAt: tsToIso(d.updatedAt),
+            autoDisableRule: lad ? (lad.rule || null) : null,
+            autoDisableAtMs: lad ? _tsToMs(lad.at) : null,
         };
     }
 
