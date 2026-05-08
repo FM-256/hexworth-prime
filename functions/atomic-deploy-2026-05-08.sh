@@ -2,9 +2,11 @@
 #
 # atomic-deploy-2026-05-08.sh
 #
-# One-shot orchestrator for the 4 production writes pending user authorization:
+# One-shot orchestrator for the 7 production writes pending user authorization:
 #   1. clh-022 / clh-023 / clh-027 — POC Rule 6 rebalance (Karl ALL-PASS 2026-05-08)
 #   2. security — 25Q Discipline A canonical fix (Karl Mode-2 ALL-PASS 2026-05-08)
+#   3. SAFE-SUBSET (Task #67): ms900-ch02-quiz, pc-ard-01-quiz, shield-pis-final
+#      — already Karl-verified per project_placeholder_keys_audit.md
 #
 # Order chosen to minimize live-broken-window:
 #   - Reseed Firestore FIRST so server-grading uses corrected keys
@@ -54,26 +56,37 @@ echo "──── Step 2a/4: Reseed clh-022 / clh-023 / clh-027 (QC-53 POC) ─
 node seed-clh-poc-rebalance-2026-05-08.js $DRY
 echo
 
-echo "──── Step 2b/4: Reseed security 25Q (QC-55) ─────────────────────────"
+echo "──── Step 2b/5: Reseed security 25Q (QC-55) ─────────────────────────"
 node seed-security-25q-2026-05-08.js $DRY
 echo
 
+echo "──── Step 2c/5: Reseed SAFE-SUBSET 3 quizzes (Task #67) ─────────────"
 if [ -n "$DRY" ]; then
-    echo "──── Step 3/4: SKIPPED (dry-run) ────────────────────────────────────"
+    node seed-placeholder-fix-2026-05-08.js --safe-subset --dry-run
+else
+    node seed-placeholder-fix-2026-05-08.js --safe-subset
+fi
+echo
+
+if [ -n "$DRY" ]; then
+    echo "──── Step 3/5: SKIPPED (dry-run) ────────────────────────────────────"
     echo "    verify-quiz-keys.js skipped — no Firestore changes occurred"
     echo
-    echo "──── Step 4/4: SKIPPED (dry-run) ────────────────────────────────────"
+    echo "──── Step 4/5: SKIPPED (dry-run) ────────────────────────────────────"
+    echo "    Karl re-verify skipped"
+    echo
+    echo "──── Step 5/5: SKIPPED (dry-run) ────────────────────────────────────"
     echo "    ./deploy.sh skipped"
     echo
     echo "Dry-run complete. To execute live: bash atomic-deploy-2026-05-08.sh"
     exit 0
 fi
 
-echo "──── Step 3/4: Verify-quiz-keys post-reseed ─────────────────────────"
-node verify-quiz-keys.js clh-022 clh-023 clh-027 security
+echo "──── Step 3/5: Verify-quiz-keys post-reseed ─────────────────────────"
+node verify-quiz-keys.js clh-022 clh-023 clh-027 security ms900-ch02-quiz pc-ard-01-quiz shield-pis-final
 echo
 
-echo "──── Step 4/4: ./deploy.sh ──────────────────────────────────────────"
+echo "──── Step 4/5: ./deploy.sh ──────────────────────────────────────────"
 cd "$REPO_ROOT"
 ./deploy.sh
 echo
