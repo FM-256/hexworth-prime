@@ -247,6 +247,22 @@
         } catch (e) {
             // heartbeat read failure is non-fatal
         }
+        // PULSE-2: read lastAutoDisable from _system_config/self_healing.
+        // Used by Pulse to surface "Rule X auto-disabled Yh ago" sub-line.
+        var autoDisableRule = null, autoDisableAtMs = null;
+        try {
+            var cfgSnap = await fs.getDoc(fs.doc(db, '_system_config', 'self_healing'));
+            if (cfgSnap.exists()) {
+                var cfg = cfgSnap.data() || {};
+                var lad = cfg.lastAutoDisable;
+                if (lad && typeof lad === 'object') {
+                    autoDisableRule = lad.rule || null;
+                    autoDisableAtMs = _tsToMs(lad.at);
+                }
+            }
+        } catch (e) {
+            // config read failure is non-fatal
+        }
         return {
             queueDepth: depth,
             queueDepthCapped: depthCapped,
@@ -254,6 +270,8 @@
             applyFailLast30min: applyFailLast30,
             lastScanAtMs: lastScanAtMs,
             lastScanGatePass: lastScanGate,
+            autoDisableRule: autoDisableRule,
+            autoDisableAtMs: autoDisableAtMs,
             fetchedAtMs: Date.now()
         };
     }
