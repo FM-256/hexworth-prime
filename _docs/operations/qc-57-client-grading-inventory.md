@@ -6,48 +6,48 @@ Generated 2026-05-08. Total: 95 quizzes.
 
 | File | Pattern | Q# | Title | Answer pattern |
 |------|---------|----|-------|----------------|
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w3-roles.quiz.html` | correct:N | 0 | Week 3 Quiz: Cybersecurity Roles \| Cybersecurity Policy | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w2-human-factor.quiz.html` | correct:N | 0 | Week 2 Quiz: The Human Factor \| The Domino Effect | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w1-security-by-design.quiz.html` | correct:N | 0 | Week 1 Quiz: Security by Design \| The Domino Effect | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-800-53.quiz.html` | correct:N | 0 | Week 4 Quiz: NIST 800-53 \| Cybersecurity Policy | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w2-threats.quiz.html` | correct:N | 0 | Week 2 Quiz: Threat Landscape \| The Domino Effect | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w4-risk-management.quiz.html` | correct:N | 0 | Week 4 Quiz: Risk Management \| Cybersecurity Policy | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w1-workforce.quiz.html` | correct:N | 0 | Week 1 Quiz: Cybersecurity Workforce \| The Domino Effect | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w3-laws.quiz.html` | correct:N | 0 | Week 3 Quiz: Cybersecurity Laws \| Cybersecurity Policy | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w2-programs.quiz.html` | correct:N | 0 | Week 2 Quiz: Security Programs \| The Domino Effect | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w4-sovereignty.quiz.html` | correct:N | 0 | Week 4 Quiz: Digital Sovereignty \| Cybersecurity Policy | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w2-bcp-drp.quiz.html` | correct:N | 0 | Week 2 Quiz: BCP & DRP \| The Domino Effect | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w3-governance.quiz.html` | correct:N | 0 | Week 3 Quiz: Governance Frameworks \| Cybersecurity Policy | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w1-concepts.quiz.html` | correct:N | 0 | Week 1 Quiz: Core Concepts \| The Domino Effect | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-csf.quiz.html` | correct:N | 0 | Week 4 Quiz: NIST CSF \| Cybersecurity Policy | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w1-origins.quiz.html` | correct:N | 0 | Week 1 Quiz: Origins of Cybersecurity \| The Domino Effect | `[]` |
-| `houses/divergent/cybersecurity-policy/quizzes/csp-w3-compliance.quiz.html` | correct:N | 0 | Week 3 Quiz: Compliance Frameworks \| Cybersecurity Policy | `[]` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w3-roles.quiz.html` | q.ans | 15 | Week 3 Quiz: Cybersecurity Roles \| Cybersecurity Policy | `[0,3,2,3,0,2,0,0,1,2]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w2-human-factor.quiz.html` | q.ans | 15 | Week 2 Quiz: The Human Factor \| The Domino Effect | `[2,0,0,0,0,2,3,3,2,2]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w1-security-by-design.quiz.html` | q.ans | 15 | Week 1 Quiz: Security by Design \| The Domino Effect | `[0,0,2,2,3,0,2,3,0,3]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-800-53.quiz.html` | q.ans | 15 | Week 4 Quiz: NIST 800-53 \| Cybersecurity Policy | `[1,2,1,0,0,2,1,3,3,0]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w2-threats.quiz.html` | q.ans | 15 | Week 2 Quiz: Threat Landscape \| The Domino Effect | `[0,0,2,0,0,2,2,3,3,3]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w4-risk-management.quiz.html` | q.ans | 15 | Week 4 Quiz: Risk Management \| Cybersecurity Policy | `[1,2,0,2,1,3,0,2,2,1]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w1-workforce.quiz.html` | q.ans | 15 | Week 1 Quiz: Cybersecurity Workforce \| The Domino Effect | `[0,0,0,2,0,2,2,2,3,3]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w3-laws.quiz.html` | q.ans | 15 | Week 3 Quiz: Cybersecurity Laws \| Cybersecurity Policy | `[2,3,1,3,0,0,1,1,2,1]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w2-programs.quiz.html` | q.ans | 15 | Week 2 Quiz: Security Programs \| The Domino Effect | `[2,0,0,2,2,2,3,0,0,3]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w4-sovereignty.quiz.html` | q.ans | 15 | Week 4 Quiz: Digital Sovereignty \| Cybersecurity Policy | `[0,1,1,3,3,0,1,3,0,1]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w2-bcp-drp.quiz.html` | q.ans | 15 | Week 2 Quiz: BCP & DRP \| The Domino Effect | `[0,0,0,3,0,3,2,3,1,1]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w3-governance.quiz.html` | q.ans | 15 | Week 3 Quiz: Governance Frameworks \| Cybersecurity Policy | `[2,0,0,1,2,3,3,1,1,3]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w1-concepts.quiz.html` | q.ans | 15 | Week 1 Quiz: Core Concepts \| The Domino Effect | `[0,2,0,0,2,3,0,2,3,3]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-csf.quiz.html` | q.ans | 15 | Week 4 Quiz: NIST CSF \| Cybersecurity Policy | `[2,0,2,1,3,0,1,2,1,2]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w1-origins.quiz.html` | q.ans | 15 | Week 1 Quiz: Origins of Cybersecurity \| The Domino Effect | `[0,3,3,3,1,0,2,2,0,1]...` |
+| `houses/divergent/cybersecurity-policy/quizzes/csp-w3-compliance.quiz.html` | q.ans | 15 | Week 3 Quiz: Compliance Frameworks \| Cybersecurity Policy | `[2,1,0,1,0,1,2,3,1,2]...` |
 
 ## web/net-essentials — 8 quizzes
 
 | File | Pattern | Q# | Title | Answer pattern |
 |------|---------|----|-------|----------------|
-| `houses/web/net-essentials/quizzes/cr-w1-access.quiz.html` | correct:N | 0 | Quiz: Media &amp; Access Layer \| Cable Run | `[]` |
-| `houses/web/net-essentials/quizzes/cr-w1-osi.quiz.html` | correct:N | 0 | Quiz: OSI Model &amp; Encapsulation \| Cable Run | `[]` |
-| `houses/web/net-essentials/quizzes/cr-w3-app.quiz.html` | correct:N | 0 | Quiz: Application Protocols \| Cable Run | `[]` |
-| `houses/web/net-essentials/quizzes/cr-w2-network.quiz.html` | correct:N | 0 | Quiz: Network Layer &amp; Routing \| Cable Run | `[]` |
-| `houses/web/net-essentials/quizzes/cr-w3-transport.quiz.html` | correct:N | 0 | Quiz: Transport Layer \| Cable Run | `[]` |
-| `houses/web/net-essentials/quizzes/cr-w4-design.quiz.html` | correct:N | 0 | Quiz: Network Design &amp; Security \| Cable Run | `[]` |
-| `houses/web/net-essentials/quizzes/cr-w2-addressing.quiz.html` | correct:N | 0 | Quiz: IP Addressing &amp; Subnetting \| Cable Run | `[]` |
-| `houses/web/net-essentials/quizzes/cr-w4-troubleshoot.quiz.html` | correct:N | 0 | Quiz: Network Troubleshooting \| Cable Run | `[]` |
+| `houses/web/net-essentials/quizzes/cr-w1-access.quiz.html` | q.ans | 15 | Quiz: Media &amp; Access Layer \| Cable Run | `[0,0,2,0,3,2,1,2,1,2]...` |
+| `houses/web/net-essentials/quizzes/cr-w1-osi.quiz.html` | q.ans | 15 | Quiz: OSI Model &amp; Encapsulation \| Cable Run | `[0,3,2,2,0,0,3,1,2,1]...` |
+| `houses/web/net-essentials/quizzes/cr-w3-app.quiz.html` | q.ans | 15 | Quiz: Application Protocols \| Cable Run | `[0,0,2,0,2,2,3,1,1,1]...` |
+| `houses/web/net-essentials/quizzes/cr-w2-network.quiz.html` | q.ans | 15 | Quiz: Network Layer &amp; Routing \| Cable Run | `[2,0,3,0,3,2,1,0,1,1]...` |
+| `houses/web/net-essentials/quizzes/cr-w3-transport.quiz.html` | q.ans | 15 | Quiz: Transport Layer \| Cable Run | `[2,2,0,3,0,3,0,3,1,1]...` |
+| `houses/web/net-essentials/quizzes/cr-w4-design.quiz.html` | q.ans | 15 | Quiz: Network Design &amp; Security \| Cable Run | `[0,3,2,0,3,0,2,2,3,1]...` |
+| `houses/web/net-essentials/quizzes/cr-w2-addressing.quiz.html` | q.ans | 15 | Quiz: IP Addressing &amp; Subnetting \| Cable Run | `[3,0,2,3,2,2,1,3,0,1]...` |
+| `houses/web/net-essentials/quizzes/cr-w4-troubleshoot.quiz.html` | q.ans | 15 | Quiz: Network Troubleshooting \| Cable Run | `[3,0,2,3,2,2,0,3,0,1]...` |
 
 ## web/intro-networks — 8 quizzes
 
 | File | Pattern | Q# | Title | Answer pattern |
 |------|---------|----|-------|----------------|
-| `houses/web/intro-networks/quizzes/fl-w1-ports.quiz.html` | correct:N | 0 | Quiz: Ports &amp; Protocols \| First Link | `[]` |
-| `houses/web/intro-networks/quizzes/fl-w2-wireless.quiz.html` | correct:N | 0 | Quiz: Wireless Networking \| First Link | `[]` |
-| `houses/web/intro-networks/quizzes/fl-w1-hardware.quiz.html` | correct:N | 0 | Quiz: Network Hardware \| First Link | `[]` |
-| `houses/web/intro-networks/quizzes/fl-w4-tools.quiz.html` | correct:N | 0 | Quiz: Network Troubleshooting Tools \| First Link | `[]` |
-| `houses/web/intro-networks/quizzes/fl-w4-connections.quiz.html` | correct:N | 0 | Quiz: Network Connections \| First Link | `[]` |
-| `houses/web/intro-networks/quizzes/fl-w3-services.quiz.html` | correct:N | 0 | Quiz: Network Services \| First Link | `[]` |
-| `houses/web/intro-networks/quizzes/fl-w2-soho.quiz.html` | correct:N | 0 | Quiz: SOHO Networking \| First Link | `[]` |
-| `houses/web/intro-networks/quizzes/fl-w3-config.quiz.html` | correct:N | 0 | Quiz: IP Addressing &amp; Configuration \| First Link | `[]` |
+| `houses/web/intro-networks/quizzes/fl-w1-ports.quiz.html` | q.ans | 15 | Quiz: Ports &amp; Protocols \| First Link | `[0,1,2,3,0,1,2,3,0,1]...` |
+| `houses/web/intro-networks/quizzes/fl-w2-wireless.quiz.html` | q.ans | 15 | Quiz: Wireless Networking \| First Link | `[0,1,2,0,2,3,1,2,0,2]...` |
+| `houses/web/intro-networks/quizzes/fl-w1-hardware.quiz.html` | q.ans | 15 | Quiz: Network Hardware \| First Link | `[1,2,0,3,0,1,2,3,0,1]...` |
+| `houses/web/intro-networks/quizzes/fl-w4-tools.quiz.html` | q.ans | 15 | Quiz: Network Troubleshooting Tools \| First Link | `[0,1,2,1,0,1,2,0,0,1]...` |
+| `houses/web/intro-networks/quizzes/fl-w4-connections.quiz.html` | q.ans | 15 | Quiz: Network Connections \| First Link | `[0,1,2,1,0,2,2,1,0,1]...` |
+| `houses/web/intro-networks/quizzes/fl-w3-services.quiz.html` | q.ans | 15 | Quiz: Network Services \| First Link | `[0,1,2,3,0,1,2,1,0,1]...` |
+| `houses/web/intro-networks/quizzes/fl-w2-soho.quiz.html` | q.ans | 15 | Quiz: SOHO Networking \| First Link | `[0,1,1,3,0,1,2,1,0,1]...` |
+| `houses/web/intro-networks/quizzes/fl-w3-config.quiz.html` | q.ans | 15 | Quiz: IP Addressing &amp; Configuration \| First Link | `[0,1,2,0,1,2,0,1,0,1]...` |
 
 ## cloud/cloud-essentials — 8 quizzes
 
@@ -79,14 +79,14 @@ Generated 2026-05-08. Total: 95 quizzes.
 
 | File | Pattern | Q# | Title | Answer pattern |
 |------|---------|----|-------|----------------|
-| `houses/forge/hardware-support/quizzes/bm-w2-storage.quiz.html` | correct:N | 0 | Quiz: Storage Devices \| Bare Metal | `[]` |
-| `houses/forge/hardware-support/quizzes/bm-w1-mobo.quiz.html` | correct:N | 0 | Quiz: Motherboards and CPUs \| Bare Metal | `[]` |
-| `houses/forge/hardware-support/quizzes/bm-w4-troubleshoot.quiz.html` | correct:N | 0 | Quiz: Hardware Troubleshooting \| Bare Metal | `[]` |
-| `houses/forge/hardware-support/quizzes/bm-w3-custom.quiz.html` | correct:N | 0 | Quiz: Custom PC Builds \| Bare Metal | `[]` |
-| `houses/forge/hardware-support/quizzes/bm-w4-printers.quiz.html` | correct:N | 0 | Quiz: Printers and Multifunction Devices \| Bare Metal | `[]` |
-| `houses/forge/hardware-support/quizzes/bm-w3-power.quiz.html` | correct:N | 0 | Quiz: Power Supplies \| Bare Metal | `[]` |
-| `houses/forge/hardware-support/quizzes/bm-w2-ram.quiz.html` | correct:N | 0 | Quiz: RAM and Expansion Cards \| Bare Metal | `[]` |
-| `houses/forge/hardware-support/quizzes/bm-w1-cables.quiz.html` | correct:N | 0 | Quiz: Cables and Connectors \| Bare Metal | `[]` |
+| `houses/forge/hardware-support/quizzes/bm-w2-storage.quiz.html` | q.ans | 15 | Quiz: Storage Devices \| Bare Metal | `[3,2,2,1,2,2,1,1,1,0]...` |
+| `houses/forge/hardware-support/quizzes/bm-w1-mobo.quiz.html` | q.ans | 15 | Quiz: Motherboards and CPUs \| Bare Metal | `[3,2,2,1,2,2,1,1,1,0]...` |
+| `houses/forge/hardware-support/quizzes/bm-w4-troubleshoot.quiz.html` | q.ans | 15 | Quiz: Hardware Troubleshooting \| Bare Metal | `[3,2,2,1,2,2,1,1,1,0]...` |
+| `houses/forge/hardware-support/quizzes/bm-w3-custom.quiz.html` | q.ans | 15 | Quiz: Custom PC Builds \| Bare Metal | `[3,2,2,1,2,2,1,1,1,0]...` |
+| `houses/forge/hardware-support/quizzes/bm-w4-printers.quiz.html` | q.ans | 15 | Quiz: Printers and Multifunction Devices \| Bare Metal | `[3,2,2,1,2,2,1,1,1,0]...` |
+| `houses/forge/hardware-support/quizzes/bm-w3-power.quiz.html` | q.ans | 15 | Quiz: Power Supplies \| Bare Metal | `[3,2,2,1,2,2,1,1,1,0]...` |
+| `houses/forge/hardware-support/quizzes/bm-w2-ram.quiz.html` | q.ans | 15 | Quiz: RAM and Expansion Cards \| Bare Metal | `[3,2,2,1,2,2,1,1,1,0]...` |
+| `houses/forge/hardware-support/quizzes/bm-w1-cables.quiz.html` | q.ans | 15 | Quiz: Cables and Connectors \| Bare Metal | `[3,2,2,1,2,2,1,1,1,0]...` |
 
 ## code/python-programming — 8 quizzes
 
@@ -136,17 +136,17 @@ Generated 2026-05-08. Total: 95 quizzes.
 
 | File | Pattern | Q# | Title | Answer pattern |
 |------|---------|----|-------|----------------|
-| `houses/shield/infosec/quizzes/pis-w4.quiz.html` | correct:N | 0 | Week 4: Auth + Governance + IR \| Principles of Information  | `[]` |
-| `houses/shield/infosec/quizzes/pis-w2.quiz.html` | correct:N | 0 | Week 2: Attacks + Cryptography \| Principles of Information  | `[]` |
-| `houses/shield/infosec/quizzes/pis-w1.quiz.html` | correct:N | 0 | Week 1: Security Fundamentals + Threats \| Principles of Inf | `[]` |
-| `houses/shield/infosec/quizzes/pis-w3.quiz.html` | correct:N | 0 | Week 3: Network Defense + PKI \| Principles of Information S | `[]` |
+| `houses/shield/infosec/quizzes/pis-w4.quiz.html` | q.ans | 15 | Week 4: Auth + Governance + IR \| Principles of Information  | `[0,0,2,3,2,3,1,0,3,2]...` |
+| `houses/shield/infosec/quizzes/pis-w2.quiz.html` | q.ans | 15 | Week 2: Attacks + Cryptography \| Principles of Information  | `[0,0,2,3,2,3,1,0,3,2]...` |
+| `houses/shield/infosec/quizzes/pis-w1.quiz.html` | q.ans | 15 | Week 1: Security Fundamentals + Threats \| Principles of Inf | `[0,0,2,3,2,3,1,0,3,2]...` |
+| `houses/shield/infosec/quizzes/pis-w3.quiz.html` | q.ans | 15 | Week 3: Network Defense + PKI \| Principles of Information S | `[0,0,2,3,2,3,1,0,3,2]...` |
 
 ## divergent/cybersecurity-ethics — 4 quizzes
 
 | File | Pattern | Q# | Title | Answer pattern |
 |------|---------|----|-------|----------------|
 | `houses/divergent/cybersecurity-ethics/quizzes/cse-w2.quiz.html` | q.ans | 10 | Week 2 Quiz: CIS2253 | `[1,1,0,1,2,0,1,3,1,2]` |
-| `houses/divergent/cybersecurity-ethics/quizzes/cse-w1.quiz.html` | correct:N | 0 | Week 1 Quiz: Cyberethics &amp; Security Professional Foundat | `[]` |
+| `houses/divergent/cybersecurity-ethics/quizzes/cse-w1.quiz.html` | q.ans | 10 | Week 1 Quiz: Cyberethics &amp; Security Professional Foundat | `[3,2,1,1,3,1,2,1,1,2]` |
 | `houses/divergent/cybersecurity-ethics/quizzes/cse-w4.quiz.html` | q.ans | 10 | Week 4 Quiz: CIS2253 | `[1,1,1,0,1,1,1,1,1,1]` |
 | `houses/divergent/cybersecurity-ethics/quizzes/cse-w3.quiz.html` | q.ans | 10 | Week 3 Quiz: CIS2253 | `[2,1,3,2,1,1,2,1,1,1]` |
 
@@ -162,9 +162,9 @@ Generated 2026-05-08. Total: 95 quizzes.
 
 | File | Pattern | Q# | Title | Answer pattern |
 |------|---------|----|-------|----------------|
-| `houses/code/python-for-it/quizzes/pfi-w1-quiz.quiz.html` | correct:N | 0 | Quiz 1: Data Types, Operators &amp; Control Flow \| Python f | `[]` |
-| `houses/code/python-for-it/quizzes/pfi-w2-quiz.quiz.html` | correct:N | 0 | Quiz 2: Strings, Files &amp; Data Structures \| Python for I | `[]` |
-| `houses/code/python-for-it/quizzes/pfi-w3-quiz.quiz.html` | correct:N | 0 | Quiz 3: Functions, Graphics &amp; OOP \| Python for IT | `[]` |
+| `houses/code/python-for-it/quizzes/pfi-w1-quiz.quiz.html` | q.ans | 15 | Quiz 1: Data Types, Operators &amp; Control Flow \| Python f | `[1,2,2,0,3,0,3,3,0,1]...` |
+| `houses/code/python-for-it/quizzes/pfi-w2-quiz.quiz.html` | q.ans | 15 | Quiz 2: Strings, Files &amp; Data Structures \| Python for I | `[0,1,2,3,3,0,0,3,0,1]...` |
+| `houses/code/python-for-it/quizzes/pfi-w3-quiz.quiz.html` | q.ans | 15 | Quiz 3: Functions, Graphics &amp; OOP \| Python for IT | `[1,0,1,0,1,1,0,2,3,3]...` |
 
 ## web/network-plus — 1 quizzes
 
