@@ -102,21 +102,47 @@ async function disableTemplateAndAlert(rule, itemIds) {
         }, { merge: true });
     });
 
-    // Write triage item — CRITICAL severity, deduplicated by fingerprint
+    // Write triage item — CRITICAL severity, deduplicated by fingerprint.
+    // Per Nancy review #1: merge:true silently un-dismisses on persisting failure.
+    // We DO want re-open behavior (failure persists = needs operator attention)
+    // but the operator must have visible signal of the re-open. Strategy:
+    //   1. Read current doc state (existed? dismissed? when was last reopen?)
+    //   2. Append a history entry on every fire
+    //   3. Set reopenedAt timestamp on re-open events
+    //   4. Use status: 'open' but never via blind merge
     const fingerprint = sha256('AUTO-DEPROMOTE:' + rule);
-    await db.doc(`_triage_queue/auto-depromote-${fingerprint}`).set({
-        title: `Auto-healing rule ${rule} disabled — apply-validate-failed spike`,
-        severity: 'critical',
-        priority: 100,
-        category: 'self-healing',
-        source: 'auto-depromote',
-        rule,
-        message: `Rule ${rule} had ≥3 distinct items fail validate() in the last 30 min. Per-template flag automatically flipped OFF. Master toggle remains ON. Operator action: investigate template + validator, re-run autofix-dryrun, re-enable in Pulse if fixed.`,
-        recentItems: itemIds,
-        status: 'open',
-        createdAt: FieldValue.serverTimestamp(),
-        history: [{ ts: new Date().toISOString(), actor: 'cf:detectAutoHealingFailureSpike', action: 'auto-depromote' }],
-    }, { merge: true });
+    const triageRef = db.doc(`_triage_queue/auto-depromote-${fingerprint}`);
+    await db.runTransaction(async txn => {
+        const snap = await txn.get(triageRef);
+        const wasDismissed = snap.exists && (snap.data() || {}).status === 'dismissed';
+        const cur = snap.exists ? (snap.data() || {}) : null;
+        const hist = (cur && Array.isArray(cur.history)) ? cur.history : [];
+        const newHistEntry = {
+            ts: new Date().toISOString(),
+            actor: 'cf:detectAutoHealingFailureSpike',
+            action: wasDismissed ? 'auto-depromote-reopen' : 'auto-depromote',
+            note: `${itemIds.length} items: ${itemIds.slice(0, 3).join(', ')}${itemIds.length > 3 ? '...' : ''}`,
+        };
+        const update = {
+            title: `Auto-healing rule ${rule} disabled — apply-validate-failed spike`,
+            severity: 'critical',
+            priority: 100,
+            category: 'self-healing',
+            source: 'auto-depromote',
+            rule,
+            message: `Rule ${rule} had ≥3 distinct items fail validate() in the last 30 min. Per-template flag automatically flipped OFF. Operator action: investigate template + validator, re-run autofix-dryrun, re-enable in Pulse if fixed. NOTE: re-enabling within 30 min of the spike will trigger immediate re-disable until the failure window ages out.`,
+            recentItems: itemIds,
+            status: 'open',
+            history: hist.concat([newHistEntry]).slice(-20),
+        };
+        if (!cur) {
+            update.createdAt = FieldValue.serverTimestamp();
+        } else if (wasDismissed) {
+            update.reopenedAt = FieldValue.serverTimestamp();
+            update.previousResolution = cur.status;
+        }
+        txn.set(triageRef, update, { merge: true });
+    });
 }
 ```
 
@@ -129,16 +155,29 @@ The existing `renderHealerActivity` state machine includes `APPLY-ERROR-SPIKE`. 
 
 This is a one-line addition to the existing `getHealerActivity()` helper plus a render branch.
 
+### Recovery-race UI guardrail
+
+Per Nancy review #2: re-enabling a template via Pulse while the 30-minute failure window is still active will result in an immediate re-disable on the next CF tick. The Pulse template-toggle handler must surface this:
+
+- When operator clicks "Enable" on a template that's listed in `_system_config/self_healing.lastAutoDisable.rule` AND `lastAutoDisable.at` is < 30 minutes ago: render a confirmation modal:
+  > **Rule was auto-disabled <X> minutes ago.** The 30-minute failure window has not aged out. Re-enabling now will likely trigger an immediate re-disable on the next detector tick. Continue anyway?
+- Operator can override (e.g., they've shipped a template fix and verified). The override is logged in the triage item history.
+
+Alternative considered + rejected: a `reEnabledAfterAutoDisable` grace-period flag that suppresses detection for N minutes. Rejected because it adds state machine complexity AND the grace period itself becomes a correctness gap (template is detected-broken but still active during grace). The UI warning approach keeps the detection simple and puts the override in the operator's hands.
+
 ## Failure modes considered
 
 | Failure | Mitigation |
 |---|---|
 | CF runs while operator is mid-edit of `enabledTemplates` | Transaction re-reads on commit; idempotent re-runs at 5-min cadence |
 | 3 failures within 30 min cross multiple operator-driven retries (false positive) | Tracking distinct `itemIds`, not raw history count |
-| Triage item duplication on consecutive CF fires | Fingerprint-keyed doc id; merge:true on subsequent writes |
+| Triage item duplication on consecutive CF fires | Fingerprint-keyed doc id; transactional history-append + reopenedAt on dismissed→open |
+| Operator dismisses item, failures persist, item silently re-opens | Per Nancy #1: history entry tagged `auto-depromote-reopen` + `reopenedAt` timestamp + `previousResolution` field; banner surfaces "re-opened from dismissed" state |
 | Triage queue 50-cap saturation | The auto-depromote item is severity:critical priority:100 — gets ranked first, won't be displaced |
 | CF itself fails (timeout, billing) | The 5-min cadence retries; PULSE-1 banner separately surfaces stale-CF signal via heartbeat |
 | All template fails, master toggle stays on, no-op disable cascades | Loop: every 5 min, scan finds same 3-failure window if it persists, but disableTemplateAndAlert is idempotent |
+| Operator re-enables within 30-min window → immediate re-disable | Per Nancy #2: Pulse template-toggle handler renders confirmation modal warning of the active failure window; operator override logged |
+| Master toggle flipped OFF while auto-depromote item is open | Item remains open until manually resolved; CF detection short-circuits when rule no longer in `enabledTemplates` so no spurious updates |
 
 ## Testing strategy
 
@@ -152,7 +191,7 @@ This is a one-line addition to the existing `getHealerActivity()` helper plus a 
 1. **30-minute window**: too long? too short? CAT-002 typical apply rate is unknown; if it processes 100/day that's ~4/hr, so 3 in 30 min is 6× normal failure rate — feels right. But if rate is higher, this is too tight.
 2. **`itemIds` distinct check**: prevents single-item retry from triggering, but what if 3 items all touch the same broken `apply()` code path? That's actually exactly what we want to catch. OK as is?
 3. **Auto-disable scope**: PULSE-2 only flips the per-template flag. Should it also append the rule to a `disabledByDetector` allowlist that requires explicit operator clear before re-enabling, to prevent accidental re-enable? Current proposal doesn't.
-4. **CF cost**: 5-min cadence scanning up to 100 queue docs each = ~28k Firestore reads/day. At current scale (queue ~0), this is rounding error. At saturation (queue=50), still under $0.10/month. Acceptable.
+4. **CF cost** (corrected per Nancy #5): 5-min cadence × 288 fires/day. At triage-queue limit (50 items) = 14,400 doc reads/day. At hard scan ceiling (100 items, never reached today) = 28,800 reads/day. Each doc read evaluates up to 20 history entries (slice cap), so ~288k history evaluations/day at saturation. Within free-tier. Acceptable.
 
 ## Effort estimate
 
@@ -160,11 +199,15 @@ This is a one-line addition to the existing `getHealerActivity()` helper plus a 
 
 ## Implementation order
 
-1. Nancy review on this design doc → resolve open questions
-2. Implement `detectAutoHealingFailureSpike` CF + `disableTemplateAndAlert` helper
-3. Extend `getHealerActivity()` to read `lastAutoDisable` + render
-4. Synthetic queue test
+Updated post-Nancy review (TDD, swap impl + test order):
+
+1. Nancy review on this design doc → resolved 2026-05-08 (APPROVED-WITH-CHANGES, both blocking concerns folded into spec)
+2. Synthetic test fixtures — generate `_auto_fix_queue` documents with deliberate failure patterns (3-distinct-itemIds-in-30min, 3-same-itemId, 2-failures-then-success, etc.) against a Firestore emulator
+3. Implement `detectAutoHealingFailureSpike` CF + `disableTemplateAndAlert` helper against the fixtures
+4. Extend `getHealerActivity()` to read `lastAutoDisable` + render; add Pulse template-toggle warning modal for the recovery race
 5. Live deploy + monitor
+
+Per Nancy: "Synthetic emulator fixtures can be written before the CF code exists — the `_auto_fix_queue` document shape is already stable. TDD is viable here."
 
 ## References
 
