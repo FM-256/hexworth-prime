@@ -64,6 +64,7 @@ For multiple-choice quizzes (any quiz where every question has 4+ options of equ
 **Documented intentional exceptions**:
 - `quiz_keys/fw-final` (40 Q): `[0,1,2,3,0,1,2,3,...]` cycling — DELIBERATELY perfect 10/10/10/10 distribution per Rule 6 rebalance
 - `quiz_keys/fl-final` (40 Q): same pattern, same justification
+- `quiz_keys/az900-ch03-quiz` (15 Q): `[0,1,2,3,0,1,2,3,0,1,2,3,0,1,2]` cycling — verified 2026-05-08 by spot-check on Q1-Q4: explanations align with options[i%4]. Author wrote questions ordered to balance distribution. Content-correct, not placeholder.
 - These cycling patterns appear superficially as placeholders (and trip placeholder-detection tooling) but are DELIBERATE and content-verified. Project memory `project_placeholder_keys_audit.md` allowlists them.
 
 **Validator**: EduScan `QUIZ-008` at `_tools/eduscan/validators/syntax/heuristics.js:1700-1735`. Severity: medium.
