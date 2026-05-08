@@ -57,14 +57,19 @@ const STATIC_KEYS_PATH = path.join(__dirname, 'quiz_keys.json');
 // options[0]=correct convention; their static was heuristic-wrong; static
 // has been corrected to all-zeros (matching Firestore canonical) — no seed
 // needed because Firestore is already correct.
+// SAFE-TO-SEED scope after Nancy review 2026-05-08:
+// - removed pc-ard-03/11/16 (only memory-cited, no Karl Mode-2 audit; Nancy
+//   flagged this as inconsistent confidence vs. self-applied Q6 standard)
+// - removed security (live ID is web-security-quiz which is already correct;
+//   security key is orphan)
+// - kept pc-ard-01 (spot-check verified Q1-3 of question content)
+// - kept ms900-ch02 (spot-check verified Q1 = Entra ID at index 1)
+// - kept shield-pis-final (Karl QC-47 Mode-2 verified, Q31/35/38 corrected)
+// 3 IDs total. Conservative scope — better to under-seed than wrong-seed.
 const SAFE_TO_SEED_IDS = new Set([
-    'ms900-ch02-quiz',     // verified Q1 (Entra ID = option 1 = static value)
-    'pc-ard-01-quiz',      // verified Q1-3 (matches static [1,0,2,...])
-    'pc-ard-03-quiz',      // memory: manually verified
-    'pc-ard-11-quiz',      // memory: manually verified
-    'pc-ard-16-quiz',      // memory: manually verified
-    'shield-pis-final',    // Karl QC-47 verified, Q31/35/38 corrected
-    'security',            // Karl QC-48 corrected array; count fixed 25->15
+    'ms900-ch02-quiz',     // spot-check verified Q1 (Entra ID = option 1)
+    'pc-ard-01-quiz',      // spot-check verified Q1-3 (Arduino, ATmega328P, setup/loop)
+    'shield-pis-final',    // Karl QC-47 Mode-2 verified, Q31/35/38 corrected
 ]);
 
 // 72 STATIC-NEWER quiz IDs from Karl audit 2026-05-08.
@@ -101,12 +106,12 @@ const PIS_FINAL_PRECHECK = {
 };
 
 // Additional fixes discovered post-original-drift-audit (Karl QC-48 etc.).
-// These IDs were NOT in P0_RESEED_IDS but Karl's content-aware audit found
-// them needing correction. Each entry must already be corrected in static.
-const EXTRA_FIXES = [
-    'security',  // Karl QC-48: count 25->15, options[0]=correct convention
-                 // violated by author error; corrected array seeded
-];
+// REMOVED 2026-05-08: 'security' — Nancy concern follow-up exposed that the
+// live quiz HTML uses moduleId='web-security-quiz', not 'security'. The
+// 'security' Firestore doc is an orphan placeholder; the actual student-
+// facing 'web-security-quiz' Firestore doc is ALREADY CORRECT (exact match
+// to Karl's corrected array). No seed needed.
+const EXTRA_FIXES = [];
 
 function isPlaceholder(arr) {
     if (!Array.isArray(arr) || arr.length === 0) return false;
