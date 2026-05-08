@@ -2,11 +2,18 @@
 #
 # atomic-deploy-2026-05-08.sh
 #
-# One-shot orchestrator for the 7 production writes pending user authorization:
-#   1. clh-022 / clh-023 / clh-027 — POC Rule 6 rebalance (Karl ALL-PASS 2026-05-08)
-#   2. security — 25Q Discipline A canonical fix (Karl Mode-2 ALL-PASS 2026-05-08)
-#   3. SAFE-SUBSET (Task #67): ms900-ch02-quiz, pc-ard-01-quiz, shield-pis-final
-#      — already Karl-verified per project_placeholder_keys_audit.md
+# One-shot orchestrator for production writes pending user authorization.
+# Live-state verified 2026-05-08 via verify-quiz-keys + direct Firestore read.
+#
+#   1. clh-022 / clh-023 / clh-027 — REQUIRED. Firestore at OLD `[1,1,1,1,1]`,
+#      master HTML now at rebalanced positions. Hosting deploy alone would
+#      break grading until reseed catches up.
+#   2. security — OPTIONAL (idempotent no-op). Live Firestore already at
+#      canonical 25-zeros Discipline A state; static caught up today
+#      (commit eb9f4718). Seed writes the same values — harmless but
+#      unnecessary.
+#   3. SAFE-SUBSET (Task #67): ms900-ch02-quiz, pc-ard-01-quiz,
+#      shield-pis-final — Karl-verified per project_placeholder_keys_audit.md
 #
 # Order chosen to minimize live-broken-window:
 #   - Reseed Firestore FIRST so server-grading uses corrected keys
