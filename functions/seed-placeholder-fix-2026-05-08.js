@@ -64,6 +64,7 @@ const SAFE_TO_SEED_IDS = new Set([
     'pc-ard-11-quiz',      // memory: manually verified
     'pc-ard-16-quiz',      // memory: manually verified
     'shield-pis-final',    // Karl QC-47 verified, Q31/35/38 corrected
+    'security',            // Karl QC-48 corrected array; count fixed 25->15
 ]);
 
 // 72 STATIC-NEWER quiz IDs from Karl audit 2026-05-08.
@@ -98,6 +99,14 @@ const PIS_FINAL_PRECHECK = {
     id: 'shield-pis-final',
     expectedAt: { 30: 1, 34: 2, 37: 2 }, // 0-indexed Q31/Q35/Q38
 };
+
+// Additional fixes discovered post-original-drift-audit (Karl QC-48 etc.).
+// These IDs were NOT in P0_RESEED_IDS but Karl's content-aware audit found
+// them needing correction. Each entry must already be corrected in static.
+const EXTRA_FIXES = [
+    'security',  // Karl QC-48: count 25->15, options[0]=correct convention
+                 // violated by author error; corrected array seeded
+];
 
 function isPlaceholder(arr) {
     if (!Array.isArray(arr) || arr.length === 0) return false;
@@ -144,9 +153,10 @@ function isPlaceholder(arr) {
     console.log('PIS-final precheck: PASS (Q31=1, Q35=2, Q38=2 in static)');
     console.log('');
 
-    // Build the seed list. Default: full 73. With --safe-subset: only the
-    // 8 IDs whose static answers are manually verified (Karl QC + memory).
-    const fullList = [...P0_RESEED_IDS, PIS_FINAL_PRECHECK.id];
+    // Build the seed list. Default: full 74 (72 + pis-final + security).
+    // With --safe-subset: only the 7 IDs whose static answers are manually
+    // verified (Karl QC + memory + spot-check).
+    const fullList = [...P0_RESEED_IDS, PIS_FINAL_PRECHECK.id, ...EXTRA_FIXES];
     const seedList = SAFE_SUBSET
         ? fullList.filter(id => SAFE_TO_SEED_IDS.has(id))
         : fullList;
