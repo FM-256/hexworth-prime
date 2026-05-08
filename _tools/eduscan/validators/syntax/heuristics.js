@@ -144,6 +144,7 @@ class HeuristicsValidator {
         issues.push(...this.checkQuizKeyDrift(file));
         issues.push(...this.checkAnswerDistribution(file));
         issues.push(...this.checkBrokenQuizCorrect(file));
+        issues.push(...this.checkQuizParseable(file));
         issues.push(...this.checkLazyLoadedComponents(file));
         issues.push(...this.checkScrollTriggeredCompletion(file));
         issues.push(...this.checkTenantConfigFields(file));
@@ -1765,6 +1766,51 @@ class HeuristicsValidator {
             });
         }
 
+        return issues;
+    }
+
+    /**
+     * QUIZ-010: Quiz HTML has unparseable JavaScript in the questions block
+     *
+     * Detects QuizEngine-style quiz HTMLs whose `questions: [ ... ]` array
+     * cannot be parsed as JavaScript by `new Function`. Almost always caused
+     * by over-escaped apostrophes (`\\'` instead of `\'`) inside single-quoted
+     * strings, which silently turns the rest of the questions block into
+     * dangling identifiers/tokens.
+     *
+     * Failure mode: the quiz fails to load entirely — students see a blank
+     * or broken page with no obvious error. This is a UNLOADABLE quiz =
+     * total feature failure, hence severity HIGH.
+     *
+     * Examples caught: 6 Network+ quizzes 2026-05-08, 3 pv-e quizzes earlier.
+     */
+    checkQuizParseable(file) {
+        const issues = [];
+        if (!file.path.endsWith('.quiz.html')) return issues;
+        const content = file.content;
+        const qIdx = content.indexOf('questions:');
+        if (qIdx < 0) return issues;
+        const startBracket = content.indexOf('[', qIdx);
+        if (startBracket < 0) return issues;
+        let depth = 0, end = -1;
+        for (let i = startBracket; i < content.length; i++) {
+            if (content[i] === '[') depth++;
+            else if (content[i] === ']') { depth--; if (depth === 0) { end = i; break; } }
+        }
+        if (end < 0) return issues;
+        const block = content.substring(startBracket, end + 1);
+        try {
+            new Function(`return ${block};`);
+        } catch (e) {
+            issues.push({
+                code: 'QUIZ-010',
+                severity: 'high',
+                category: 'quiz',
+                message: `Quiz JS unparseable — questions block fails to load (${e.message.slice(0, 80)}). Quiz is UNLOADABLE for students.`,
+                file: file.path,
+                fix: 'Inspect the questions array for over-escaped apostrophes (`\\\\\'` → `\\\'`) or other JS syntax errors. Verify with: `new Function(questionsBlock)` in node REPL.'
+            });
+        }
         return issues;
     }
 
