@@ -123,3 +123,74 @@ bash functions/atomic-deploy-2026-05-08.sh --dry
 ```
 
 All should report PASS / DRY RUN clean.
+
+---
+
+## Marathon ticks 2-7 — HEUR-025 platform-wide write-key fix (later same day)
+
+After the atomic-deploy + Q36 reseed shipped, marathon mode continued. Surfaced a new platform-wide bug class via the EduScan HEUR-025 validator (Module completion ID mismatch) that had been silently catching 177 findings but never triaged because TREASURE_MAP.json was stale (Apr 13).
+
+### Net result (14 commits cumulative this session, all hosting-deploy gated)
+
+```
+b21c91c3 sprints(sym-17): Nancy verification — CLH write-pattern drift extends to recent files
+89b428bb sprints(hub-002): Nancy reversed Strategy 2 FP determination
+01f07f37 sprints(qc-62): m10 dual-target operator decision
+42288419 sprints(hub-002): Strategy 2 deep triage — 97/97 are runtime FPs (later reversed)
+e364f51c triage(heur-025): Strategy 2 breakdown — 27 FP / 53 real / 17 ambiguous
+d7ffb7a1 sprints(hub-002): superseded — HEUR-025 already existed
+721c9fb4 fix(heur-025): bulk normalize 78 write-keys across 6 hubs (Strategy 1)
+07533fc2 sprints(hub-002): propose preventative validator
+6474259f fix(shield-presentations): 2 more write-key bugs
+f414d0b6 sprints(pulse-1): flip backlog -> in-review
+60dfce09 sprints(qc-46): note 9 eth-w* write-key sub-fix shipped
+5efdc9e7 fix(ethics-it-presentations): normalize 9 write-keys to long form (QC-46 sub)
+c4d5bd5e fix(pis-presentations): QC-61 Phase 1 — normalize 7 PIS write-keys
+e7c5760c fix(catalog): QC-47 — strip shield- prefix from 21 PIS w*-* IDs
+```
+
+### Student-facing impact (post-deploy)
+
+~117 module/hub bindings + 21 catalog metadata IDs fixed across 8+ active courses:
+- **PIS (shield/infosec)** — 21 catalog renames + 7 write-keys
+- **Ethics in IT (divergent)** — 9 write-keys
+- **Network+ (web/network-plus)** — 53 write-keys (presentations, modules, labs, tools, quizzes)
+- **Server+ (cloud/server-plus)** — 19 write-keys (WSA modules)
+- **Security+ (shield/security-plus)** — 3 write-keys
+- **ISC2-CC (shield/isc2-cc)** — 2 write-keys
+- **Python for IT (code/python-for-it)** — 1 write-key
+- **CMMC compliance** — 1 write-key
+- **Plus**: shield/intro-security + shield/incubator + shield/applets
+
+### What HEUR-025 caught and how
+
+Validator already existed at `_tools/eduscan/validators/syntax/heuristics.js:2371`. Strategy 1 (data-module + href pairs in hub HTML) is high-precision: 80 findings, 78 fixed via bulk script with 7 safety checks (Nancy-reviewed). Strategy 2 (loose JS `id:` array match) is empirically noisy: 97 findings against hubs with bespoke completion-tracking — but **not 100% FPs** (Nancy verification gates revealed CLH ongoing write-pattern drift + python-engineering XP-path consumption).
+
+### Deferred (operator action / multi-tick)
+
+| Item | Sprint | Blocking |
+|------|--------|----------|
+| Hosting deploy of 14 commits | (none) | `./deploy.sh` authorization on master |
+| m10 Group Policy dual-target architectural call | QC-62 | options A/B/C/D documented, operator pick |
+| QC-61 Phase 2 cloud-side migration (Firestore profile rewrite) | QC-61 | production-write authorization + Nancy review on chosen approach |
+| CLH module template fix (write canonical clh-NNN keys) | SYM-17 Block 0 | curriculum-owner sign-off |
+| HEUR-025 Strategy 2 noise-vs-real-bug split | (informal) | needs validator refinement design call (Nancy + decision-protocol) |
+| python-engineering ModuleProgress / PYEProgress dual-write architectural call | (informal) | XP-path or ModuleProgress redundancy decision |
+
+### Memory + sprint-state updates (this marathon)
+
+- Reference memory saved: `reference_firestore_sync_migration_pingpong.md` — never add `migrateLegacyKey` blocks in hub bootstraps when cloud has the old keys (cloud-sync ping-pong)
+- New sprint: QC-61 (PIS presentation progress-key mismatch — Phase 1 shipped)
+- New sprint: QC-62 (m10 Group Policy dual-target — operator decision pending)
+- HUB-002 sprint: superseded (HEUR-025 already exists; the gap was triage)
+- PULSE-1 sprint: flipped backlog → in-review (built + deploy-gated)
+- SYM-17 sprint: Nancy-verified ongoing CLH write-pattern drift — Block 0 stub recommendation added
+- QC-46 sprint: noted 9 eth-w* write-key sub-fix shipped
+- QC-47 sprint: noted 21-prefix-strip shipped + Bridget Q36 + Nancy caveat tracked as QC-61
+- QC-54 sprint: reclassified as design-blocked (multi-modal gradeQuiz CF needed)
+
+### Triage artifacts
+
+- `_tools/reports/heur-025-2026-05-08.json` — full 177-finding inventory
+- `_tools/reports/heur-025-strategy2-triage-2026-05-08.json` — Strategy 2 classification by hub JS-array
+- `_tools/reports/heur-025-fix-strategy1.js` — bulk-fix script (committed for audit trail)
