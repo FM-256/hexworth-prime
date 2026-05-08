@@ -51,17 +51,19 @@ const DRY_RUN = process.argv.includes('--dry-run');
 const SAFE_SUBSET = process.argv.includes('--safe-subset');
 const STATIC_KEYS_PATH = path.join(__dirname, 'quiz_keys.json');
 
-// Quizzes whose static answers are MANUALLY VERIFIED. Seed-safe.
-// Per project_placeholder_keys_audit.md memory + Karl QC-46/47.
+// Quizzes whose static answers are MANUALLY VERIFIED to match the original-
+// position-index convention (NOT options[0]=correct). Seed-safe.
+// REMOVED 2026-05-08: divergent-eth-final, divergent-eth-midterm — those use
+// options[0]=correct convention; their static was heuristic-wrong; static
+// has been corrected to all-zeros (matching Firestore canonical) — no seed
+// needed because Firestore is already correct.
 const SAFE_TO_SEED_IDS = new Set([
-    'divergent-eth-final',
-    'divergent-eth-midterm',
-    'ms900-ch02-quiz',
-    'pc-ard-01-quiz',
-    'pc-ard-03-quiz',
-    'pc-ard-11-quiz',
-    'pc-ard-16-quiz',
-    'shield-pis-final',
+    'ms900-ch02-quiz',     // verified Q1 (Entra ID = option 1 = static value)
+    'pc-ard-01-quiz',      // verified Q1-3 (matches static [1,0,2,...])
+    'pc-ard-03-quiz',      // memory: manually verified
+    'pc-ard-11-quiz',      // memory: manually verified
+    'pc-ard-16-quiz',      // memory: manually verified
+    'shield-pis-final',    // Karl QC-47 verified, Q31/35/38 corrected
 ]);
 
 // 72 STATIC-NEWER quiz IDs from Karl audit 2026-05-08.
