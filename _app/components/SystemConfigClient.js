@@ -196,11 +196,74 @@
         return true;
     }
 
+    // Read-only snapshot of healer activity from existing data sources:
+    //   - _auto_fix_queue: depth (capped at limit) + most-recent agent:* history
+    //   - _quality_reports/scanHeartbeat: last scan recency
+    // Per Nancy review (PULSE-1, 2026-05-08): no new Firestore docs, no new CFs.
+    // History entries use `ts` (ISO string), per writers in autofix-cli.js +
+    // publish.js + TriageQueueClient.js.
+    var QUEUE_READ_LIMIT = 100;
+    function _tsToMs(ts) {
+        if (!ts) return null;
+        if (typeof ts.toMillis === 'function') return ts.toMillis();
+        if (typeof ts === 'string') { var t = Date.parse(ts); return isNaN(t) ? null : t; }
+        if (ts._seconds || ts.seconds) return (ts._seconds || ts.seconds) * 1000;
+        return null;
+    }
+
+    async function getHealerActivity() {
+        var db = await ensureFirestore();
+        var fs = _firestoreModule;
+        var thirtyMinAgo = Date.now() - 30 * 60 * 1000;
+        var depth = 0, depthCapped = false, lastAgentAt = null, applyFailLast30 = 0;
+        try {
+            var qSnap = await fs.getDocs(fs.query(fs.collection(db, '_auto_fix_queue'), fs.limit(QUEUE_READ_LIMIT)));
+            depth = qSnap.size;
+            depthCapped = (depth >= QUEUE_READ_LIMIT);
+            qSnap.forEach(function (doc) {
+                var d = doc.data() || {};
+                var hist = Array.isArray(d.history) ? d.history : [];
+                hist.forEach(function (h) {
+                    var actor = h.actor || '';
+                    if (actor.indexOf('agent:') !== 0) return;
+                    var ms = _tsToMs(h.ts);
+                    if (!ms) return;
+                    if (!lastAgentAt || ms > lastAgentAt) lastAgentAt = ms;
+                    var action = h.action || '';
+                    if (ms > thirtyMinAgo && action.indexOf('apply-validate-failed') === 0) applyFailLast30++;
+                });
+            });
+        } catch (e) {
+            // queue read failure is non-fatal — surface as null fields
+        }
+        var lastScanAtMs = null, lastScanGate = null;
+        try {
+            var hbSnap = await fs.getDoc(fs.doc(db, '_quality_reports', 'scanHeartbeat'));
+            if (hbSnap.exists()) {
+                var hb = hbSnap.data() || {};
+                lastScanAtMs = _tsToMs(hb.scannedAt);
+                lastScanGate = (typeof hb.gatePass === 'boolean') ? hb.gatePass : null;
+            }
+        } catch (e) {
+            // heartbeat read failure is non-fatal
+        }
+        return {
+            queueDepth: depth,
+            queueDepthCapped: depthCapped,
+            lastAgentApplyAtMs: lastAgentAt,
+            applyFailLast30min: applyFailLast30,
+            lastScanAtMs: lastScanAtMs,
+            lastScanGatePass: lastScanGate,
+            fetchedAtMs: Date.now()
+        };
+    }
+
     global.SystemConfigClient = {
         init: init,
         getSelfHealingState: getSelfHealingState,
         subscribeSelfHealingState: subscribeSelfHealingState,
         setEnabled: setEnabled,
         setTemplateEnabled: setTemplateEnabled,
+        getHealerActivity: getHealerActivity,
     };
 })(window);

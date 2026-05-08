@@ -606,6 +606,7 @@
             </details>
 
             <div class="system-status-line" id="systemStatusLine">Checking system state…</div>
+            <div class="system-status-line" id="healerActivityLine" style="margin-top:6px;font-size:0.7rem;">Loading healer activity…</div>
             <div id="systemTemplateList">
                 <div class="template-row" style="color:var(--text-muted);justify-content:center;">No fix templates registered yet</div>
             </div>
@@ -1834,6 +1835,8 @@
         var _systemTogglePending = false;
 
         function renderSystemState(state) {
+            // Cache toggle state for renderHealerActivity (avoids DOM-class race)
+            _lastHealerState = state || { enabled: false };
             var toggle = document.getElementById('systemToggle');
             var label = document.getElementById('systemToggleLabel');
             var statusLine = document.getElementById('systemStatusLine');
@@ -1894,6 +1897,60 @@
             container.innerHTML = html;
         }
 
+        // ── Healer activity line (PULSE-1, 2026-05-08) ──
+        // Derives ACTIVE / QUEUE-WAITING / IDLE-FRESH / IDLE-STALE / PAUSED /
+        // APPLY-ERROR-SPIKE from existing data: _auto_fix_queue depth +
+        // history[] agent:* entries (ts/action) and _quality_reports/scanHeartbeat.
+        // No new Firestore docs. Toggle state is read from the latest
+        // SystemConfigClient state snapshot, NOT from DOM class (avoids race
+        // before renderSystemState applies the class on first load).
+        var _healerActivityTimer = null;
+        var _lastHealerState = { enabled: false };
+        function fmtMsAgo(ms) {
+            if (ms === null || ms === undefined) return '—';
+            if (ms < 60000) return Math.max(0, Math.round(ms / 1000)) + 's';
+            if (ms < 3600000) return Math.round(ms / 60000) + 'm';
+            if (ms < 86400000) return Math.round(ms / 3600000) + 'h';
+            return Math.round(ms / 86400000) + 'd';
+        }
+        function renderHealerActivity(act) {
+            var line = document.getElementById('healerActivityLine');
+            if (!line) return;
+            var enabled = !!_lastHealerState.enabled;
+            var now = Date.now();
+            var lastApplyAgo = act.lastAgentApplyAtMs ? (now - act.lastAgentApplyAtMs) : null;
+            var lastScanAgo = act.lastScanAtMs ? (now - act.lastScanAtMs) : null;
+            // Precedence: APPLY-ERROR-SPIKE wins even when PAUSED so an
+            // operator who flipped the toggle off in response to a spike
+            // still sees the unresolved error condition.
+            var state, color;
+            if (act.applyFailLast30min >= 3) { state = 'APPLY-ERROR-SPIKE'; color = 'var(--pulse-red)'; }
+            else if (!enabled) { state = 'PAUSED'; color = 'var(--text-muted)'; }
+            else if (lastApplyAgo !== null && lastApplyAgo < 2 * 60000) { state = 'ACTIVE'; color = 'var(--pulse-green)'; }
+            else if (act.queueDepth > 0) { state = 'QUEUE-WAITING'; color = 'var(--pulse-yellow)'; }
+            else if (lastScanAgo !== null && lastScanAgo < 3600000) { state = 'IDLE-FRESH'; color = 'var(--pulse-cyan)'; }
+            else if (lastScanAgo !== null) { state = 'IDLE-STALE'; color = 'var(--pulse-yellow)'; }
+            else { state = 'UNKNOWN'; color = 'var(--text-muted)'; }
+            var parts = [];
+            parts.push('<strong style="color:' + color + ';">' + state + '</strong>');
+            parts.push('queue <strong>' + act.queueDepth + (act.queueDepthCapped ? '+' : '') + '</strong>');
+            parts.push('last apply ' + (lastApplyAgo !== null ? fmtMsAgo(lastApplyAgo) + ' ago' : 'never'));
+            parts.push('last scan ' + (lastScanAgo !== null ? fmtMsAgo(lastScanAgo) + ' ago' : '—'));
+            if (act.applyFailLast30min > 0) parts.push('<span style="color:var(--pulse-red);">' + act.applyFailLast30min + ' validate-fail/30m</span>');
+            line.innerHTML = parts.join(' · ');
+        }
+        async function refreshHealerActivity() {
+            if (!window.SystemConfigClient || typeof SystemConfigClient.getHealerActivity !== 'function') return;
+            try {
+                var act = await SystemConfigClient.getHealerActivity();
+                renderHealerActivity(act);
+            } catch (err) {
+                console.error('[Pulse] healer activity fetch failed:', err);
+                var line = document.getElementById('healerActivityLine');
+                if (line) line.innerHTML = '<span style="color:var(--pulse-red);">activity unavailable — see console</span>';
+            }
+        }
+
         async function bindSystemToggle() {
             var toggle = document.getElementById('systemToggle');
             if (!toggle) return;
@@ -1902,6 +1959,9 @@
                     console.error('[Pulse] system state subscription error:', err);
                     document.getElementById('systemStatusLine').innerHTML = '<span style="color:var(--pulse-red);">subscription error — see console</span>';
                 });
+                refreshHealerActivity();
+                if (_healerActivityTimer) clearInterval(_healerActivityTimer);
+                _healerActivityTimer = setInterval(refreshHealerActivity, 30000);
             } catch (err) {
                 console.error('[Pulse] bindSystemToggle init failed:', err);
                 document.getElementById('systemStatusLine').innerHTML = '<span style="color:var(--pulse-red);">unavailable — ' + escHtml(err.message || 'unknown') + '</span>';
