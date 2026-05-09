@@ -2,14 +2,20 @@
 
 **Status:** Operator review pending on 8 prioritized decisions
 **Scope:** Single-day autonomous platform-improvement work
-**Commits:** 28 day + 7 evening tick = 35 total. Evening tick deliveries:
+**Commits:** 28 day + 10 evening tick = 38 total. Evening tick deliveries:
 1. `2b5d44b8` — nexus isClosed reconciliation (status='completed' from Stragglers honored)
 2. `2afd2a63` — PATH-003 FP fix (249 of 253 false positives eliminated)
 3. `01516e94` — cyberops div-mismatch root-cause + fix recipe (6 files documented)
 4. `373481b7` — projects double-skeleton finding (12 files identified, 2 surgery options)
 5. `cb048622` — projects family expansion (10 -3 delta + 2 -8 delta = full 12 confirmed)
-6. **`0a862c8d`** — dark-arts code-block fix (3 files, 22 invalid `</code-block>` tokens replaced; REAL FIX shipped)
+6. **`0a862c8d`** — dark-arts code-block fix (3 files, 22 invalid `</code-block>` tokens; REAL FIX)
 7. `214afcdd` — cyberops doc update with Nancy DOM-extent analysis (PAUSE held)
+8. `63f45bb0` — handoff doc update with full evening commit list
+9. **`52bb8b64`** — `</td>` -> `</div>` typo fix (2 card-label divs in eth-w2-privacy + forge-md101-m03)
+10. **`734e2535`** — 4 div-imbalance fixes (forge mobile-devices `</ul>` -> `</div>`, script-linux-file-ops orphan delete, key-attack and web-subnetting `</code>` -> `</div>`)
+
+**Net div-mismatch reduction:** 27 broken files → 18 broken files (9 fixed this tick, 27 token swaps total).
+Remaining 18 = 6 cyberops applets (Nancy PAUSE on DOM-extent) + 12 projects/* double-skeleton (content-surgery operator decision needed).
 
 This doc consolidates the day's work into one operator-actionable summary. Each prioritized decision links to the underlying detail doc and indicates the gating relationship (what unblocks what).
 
