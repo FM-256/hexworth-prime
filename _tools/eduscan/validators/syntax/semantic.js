@@ -141,6 +141,11 @@ class SemanticValidator {
                     message: `Heading hierarchy skip: h${lastLevel} → h${level} (missing ${skipped.join(', ')})`,
                     file: file.path,
                     line,
+                    // Byte offset distinguishes multiple skip violations on the
+                    // same line (minified HTML can have multiple <hN> per line).
+                    // Without this, the eduscan-adapter id-suffix collapses such
+                    // findings to a single dedupKey and N-1 are silently dropped.
+                    offset: match.index,
                     fix: `Add an h${lastLevel + 1} heading before this h${level}, or change this to h${lastLevel + 1}`
                 });
             }

@@ -71,6 +71,11 @@ module.exports = function createEduScanAdapter({ name, dataPath, projectRoot }) 
                 idSuffix = issue.moduleId + '_' + issue.pathId;
             } else if (issue.moduleId) {
                 idSuffix = issue.moduleId;
+            } else if (issue.line && issue.offset != null) {
+                // Byte offset distinguishes multiple findings at same line
+                // (e.g., SEM-001 in minified HTML where multiple <hN> tags
+                // share a line and produce separate skip violations).
+                idSuffix = 'L' + issue.line + '_O' + issue.offset;
             } else if (issue.line) {
                 idSuffix = 'L' + issue.line;
             } else if (issue.pathId) {
