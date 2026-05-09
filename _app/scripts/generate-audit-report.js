@@ -720,13 +720,53 @@ function main() {
 
     const timestampedPath = path.join(reportDir, `audit-report-${dateStr}.html`);
     const latestPath = path.join(reportDir, 'audit-report-latest.html');
+    const jsonLatestPath = path.join(reportDir, 'audit-latest.json');
 
     fs.writeFileSync(timestampedPath, html);
     fs.writeFileSync(latestPath, html);
 
+    // Tier 1 structured emit for nexus audit-spoke adapter (2026-05-09).
+    // Without this, the adapter falls back to Tier 2 HTML regex which
+    // misparses summary-card values as category names (AUDIT-08 phantom).
+    const jsonPayload = {
+        scannedAt: new Date().toISOString(),
+        houses: results.length,
+        passing: results.filter(r => r.status === 'PASS').length,
+        findings: [],
+    };
+    for (const r of results) {
+        const issueCount = r.issues.orphanedFiles.length + r.issues.brokenLinks.length +
+            r.issues.missingCategory.length + r.issues.invalidCategory.length +
+            r.issues.missingStatus.length + r.issues.invalidStatus.length +
+            r.issues.missingHref.length;
+        if (issueCount === 0) continue;
+        // Severity always 'low' — audit-script findings overlap with EduScan/Nexus
+        // and are hygiene/tracking signal, not deploy-gate signal. PULSE gate is
+        // critical+high; staying off it avoids re-flagging issues already caught
+        // by primary validators. Promote case-by-case if a class proves unique.
+        jsonPayload.findings.push({
+            code: 'AUDIT-' + r.house.toUpperCase().slice(0, 12),
+            severity: 'low',
+            message: r.house + ': ' + issueCount + ' issues (' +
+                'orphans=' + r.issues.orphanedFiles.length +
+                ', brokenLinks=' + r.issues.brokenLinks.length +
+                ', missingCat=' + r.issues.missingCategory.length +
+                ', invalidCat=' + r.issues.invalidCategory.length +
+                ', missingStatus=' + r.issues.missingStatus.length +
+                ', invalidStatus=' + r.issues.invalidStatus.length +
+                ', missingHref=' + r.issues.missingHref.length +
+                ')',
+            file: '_app/houses/' + r.house + '/',
+            category: r.house,
+            timestamp: new Date().toISOString(),
+        });
+    }
+    fs.writeFileSync(jsonLatestPath, JSON.stringify(jsonPayload, null, 2));
+
     console.log(`\n<img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Report generated:`);
     console.log(`   ${timestampedPath}`);
     console.log(`   ${latestPath}`);
+    console.log(`   ${jsonLatestPath} (${jsonPayload.findings.length} findings for nexus)`);
 
     // Summary
     const totalIssues = results.reduce((sum, r) => {
