@@ -89,7 +89,7 @@ module.exports = function createQuizKeyCallsiteAdapter({ name, dataPath, project
         'shield-pis-w-quiz': { track: 'B-delete',   reason: 'STR-40 marathon (2026-05-06) seeded these for a server-grade migration that never landed; HTML calls pis-w[1-4]-quiz via client-graded ModuleProgress.completeQuiz.' },
         'pis-NN':            { track: 'A-delete',   reason: 'Post-deprecation phantom (PIS chapter pages migrated to presentations/labs/exams + pis-r1..r5 review structure; bare pis-NN-* IDs unreachable).' },
         'aplus-core1':       { track: 'A-delete',   reason: 'Post-rename phantom (hub uses forge-aplus-core1-chNN prefix; bare aplus-core1-chNN/lab-* IDs unreachable).' },
-        'wsa-mNN':           { track: 'B-pending',  reason: 'Three attempted ID schemes for WSA modules (m01 / wsa-module01 / wsa-mNN). WSA hub currently uses bare data-module="m01". Decision pending: WSA owner must specify intended grading model.' },
+        'wsa-mNN':           { track: 'A-delete',   reason: 'Post-misalignment phantom (tick 30 confirmed). WSA modules call ModuleProgress.complete() with IDs like wsa-m01-pres, cloud-wsa-m01-guilab — never bare wsa-m01. Hub MODULES uses bare m01 form. The wsa-mNN quiz_keys form matches no callsite anywhere in _app/. Modules are client-graded so quiz_keys entries were never needed.' },
         'ala-NN':            { track: 'A-delete',   reason: 'Post-deprecation phantom (ala-NN chapter files only exist in _archive/; current course uses ala-l* lab IDs).' },
         'other':             { track: 'unknown',    reason: 'Uncategorized. Manual investigation needed — grep _app for any callsite, then check git log for rename history.' },
     };
