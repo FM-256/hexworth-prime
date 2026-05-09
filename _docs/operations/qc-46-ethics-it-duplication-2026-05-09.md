@@ -89,6 +89,29 @@ _app/houses/divergent/ethics-it/presentations/eth-w1-ethics-overview.presentatio
 
 **Catalog:** `_app/components/ContentCatalog.js` — both naming patterns registered.
 
+## Update — Third layer of duplication discovered (CAT-007)
+
+Running `ContentCatalogValidator.validate()` against the current code surfaces **15 CAT-007 findings** on Ethics in IT: each `eth-NN-*` presentation has TWO catalog entries pointing to the same file path:
+
+1. Hand-curated (e.g., `eth-01` with title "ETH-01: Overview of Ethics", category "eth")
+2. Auto-generated `divergent-eth-NN-*-pres` (e.g., `divergent-eth-01-overview-pres`, category "general", title appended with " | Ethics in IT | The Factionless")
+
+So Ethics in IT actually has THREE structures, not two:
+1. Old `eth-NN-*` files + 15 hand-curated catalog entries
+2. New `eth-wN-*` files + 11 hand-curated catalog entries
+3. Auto-generated `divergent-eth-NN-*-pres` entries (15) pointing to old-structure files
+
+**Catalog total:** 26 file paths, 41 catalog entries, 15 duplicate registrations.
+
+This is the same pattern as QC-90 (Catalog dual-registration cleanup — 251 clusters platform-wide). Ethics in IT contributes ~15 of those clusters.
+
+**Implication for cleanup options:**
+- Option α (delete old structure) → also delete the 15 auto-generated `divergent-eth-NN-*-pres` entries that reference now-deleted files. Would otherwise become REG-ORPHAN-001 findings.
+- Option β (delete new structure) → can leave old structure + auto-generated as-is, but the 15 CAT-007 dup-registration findings persist.
+- Option γ (hide old) → 15 CAT-007 findings persist.
+
+**Recommendation update:** Option α (delete old) becomes more attractive — single commit removes all three layers cleanly: 15 old files + 15 hand-curated old catalog entries + 15 auto-generated dup catalog entries.
+
 ## Out of scope for this audit
 
 This document does not address:
@@ -96,6 +119,7 @@ This document does not address:
 - Ethics in IT review pages (eth-r1, eth-r2, eth-r3) — separate sub-task
 - Quiz citation audit (QC-46 Karl audit completed Task #63)
 - Hub-vs-catalog mismatch (QC-46 HUB-001 completed Task #64)
+- Bridget three-way sync on Ethics quizzes (in flight as of this writing)
 
 ## Status
 
