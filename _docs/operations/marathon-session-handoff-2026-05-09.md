@@ -2,7 +2,14 @@
 
 **Status:** Operator review pending on 8 prioritized decisions
 **Scope:** Single-day autonomous platform-improvement work
-**Commits:** 28 across this session
+**Commits:** 28 day + 7 evening tick = 35 total. Evening tick deliveries:
+1. `2b5d44b8` — nexus isClosed reconciliation (status='completed' from Stragglers honored)
+2. `2afd2a63` — PATH-003 FP fix (249 of 253 false positives eliminated)
+3. `01516e94` — cyberops div-mismatch root-cause + fix recipe (6 files documented)
+4. `373481b7` — projects double-skeleton finding (12 files identified, 2 surgery options)
+5. `cb048622` — projects family expansion (10 -3 delta + 2 -8 delta = full 12 confirmed)
+6. **`0a862c8d`** — dark-arts code-block fix (3 files, 22 invalid `</code-block>` tokens replaced; REAL FIX shipped)
+7. `214afcdd` — cyberops doc update with Nancy DOM-extent analysis (PAUSE held)
 
 This doc consolidates the day's work into one operator-actionable summary. Each prioritized decision links to the underlying detail doc and indicates the gating relationship (what unblocks what).
 
