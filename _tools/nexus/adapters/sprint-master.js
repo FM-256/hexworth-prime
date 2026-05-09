@@ -30,11 +30,19 @@ module.exports = function createSprintAdapter({ name, dataPath, projectRoot }) {
         }
     }
 
+    // Stragglers commit ac664e03 introduced status='completed' as a one-time
+    // convention for STR-N items. Treat 'completed' identically to 'done' for
+    // dependency-resolution. (Helper kept inline since this file doesn't
+    // import from sprint.js.)
+    function isClosed(s) {
+        return s.status === 'done' || s.status === 'completed';
+    }
+
     function isBlocked(sprint, allSprints) {
         if (!sprint.depends || sprint.depends.length === 0) return false;
         return sprint.depends.some(depId => {
             const dep = allSprints.find(s => s.id === depId);
-            return !dep || dep.status !== 'done';
+            return !dep || !isClosed(dep);
         });
     }
 
