@@ -17,11 +17,6 @@ class HTMLValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.profile = options.profile || 'ci'; // ci, strict, inventory
-
-        // HTML validator is under repair - downgrade to non-blocking in CI
-        // This prevents false positives from blocking deploys while we stabilize
-        // TODO: Remove this flag once HTML detection is reliable
-        this.stabilizing = true;
     }
 
     // Template placeholder patterns - skip validation for these
@@ -249,8 +244,7 @@ class HTMLValidator {
                     const line = this.getLineNumber(content, lastMatch.index);
                     issues.push({
                         code: 'HTML-001',
-                        // Downgrade to HIGH while validator is stabilizing (prevents CI block)
-                        severity: this.stabilizing ? 'high' : 'critical',
+                        severity: 'critical',
                         category: 'syntax',
                         message: `Unclosed <${tagName}> tag - this will break page functionality`,
                         file: file.path,
