@@ -18,6 +18,7 @@
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const D = require('./placeholder-detector');
 
 const MIN_LENGTH_FOR_DUP_CHECK = 8;
 
@@ -44,23 +45,11 @@ const quizQualityMonitor = onSchedule(
         for (const [key, qids] of fingerprints) {
             if (qids.length >= 2) {
                 const arr = key.split(',').map(s => parseInt(s, 10));
-                const allSame = arr.every(v => v === arr[0]);
-                const isCycle = (() => {
-                    if (arr.length < 8) return false;
-                    for (let p = 2; p <= 4; p++) {
-                        let cyc = true;
-                        for (let i = p; i < arr.length; i++) {
-                            if (arr[i] !== arr[i % p]) { cyc = false; break; }
-                        }
-                        if (cyc) return true;
-                    }
-                    return false;
-                })();
                 dups.push({
                     key,
                     qids,
                     arrayLength: arr.length,
-                    isPlaceholder: allSame || isCycle,
+                    isPlaceholder: D.isPlaceholder(arr),
                 });
             }
         }
@@ -73,6 +62,11 @@ const quizQualityMonitor = onSchedule(
         // same cluster keeps the same triage doc across runs regardless of
         // Firestore iteration order. Without this, anchor churn causes
         // unnecessary auto-resolve + recreate cycles.
+        //
+        // Severity-change audit (Nancy 2026-05-09): pre-read each existing
+        // doc and capture previousSeverity + severityChangedAt when the
+        // computed severity differs. Without this, merge:true silently
+        // promotes severity (e.g. medium→high) without operator visibility.
         for (const c of dups) {
             const anchor = [...c.qids].sort()[0];
             const docId = 'quiz_dup_' + anchor.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
@@ -81,7 +75,12 @@ const quizQualityMonitor = onSchedule(
             const msg = (c.isPlaceholder ? '[PLACEHOLDER] ' : '[HAND-COPY DRIFT] ') +
                 c.qids.length + ' quizzes share identical ' + c.arrayLength + '-element answer array: ' +
                 c.qids.slice(0, 5).join(', ') + (c.qids.length > 5 ? ', ...' : '');
-            await triageCol.doc(docId).set({
+
+            const docRef = triageCol.doc(docId);
+            const existingSnap = await docRef.get();
+            const existing = existingSnap.exists ? existingSnap.data() : null;
+
+            const writeData = {
                 code: 'QUIZ-DUP',
                 severity: sev,
                 source: 'quizQualityMonitor',
@@ -94,7 +93,14 @@ const quizQualityMonitor = onSchedule(
                 quizIds: c.qids,
                 arrayLength: c.arrayLength,
                 isPlaceholder: c.isPlaceholder,
-            }, { merge: true });
+            };
+
+            if (existing && existing.severity && existing.severity !== sev) {
+                writeData.previousSeverity = existing.severity;
+                writeData.severityChangedAt = FieldValue.serverTimestamp();
+            }
+
+            await docRef.set(writeData, { merge: true });
         }
 
         // Auto-resolve prior open quiz_dup_* items that are no longer detected

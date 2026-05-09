@@ -113,15 +113,12 @@ const PIS_FINAL_PRECHECK = {
 // to Karl's corrected array). No seed needed.
 const EXTRA_FIXES = [];
 
+// Detector consolidated into ./placeholder-detector (2026-05-09).
+// Returns category string when placeholder (for logging) or false when real,
+// matching the original Boolean-coercible contract used at line 178/180.
+const D = require('./placeholder-detector');
 function isPlaceholder(arr) {
-    if (!Array.isArray(arr) || arr.length === 0) return false;
-    if (arr.every(v => v === 0)) return 'all-zeros';
-    let cycling = true;
-    for (let i = 0; i < arr.length; i++) {
-        if (arr[i] !== (i % 4)) { cycling = false; break; }
-    }
-    if (cycling) return 'cycling';
-    return false;
+    return D.isPlaceholder(arr) ? D.classify(arr) : false;
 }
 
 (async () => {

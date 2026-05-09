@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+const D = require('./placeholder-detector');
 
 admin.initializeApp({ projectId: 'hexworth-prime' });
 const db = admin.firestore();
@@ -9,54 +10,19 @@ const db = admin.firestore();
 const staticPath = '/home/eq/ai-content/hexworth-prime/functions/quiz_keys.json';
 const staticRaw = JSON.parse(fs.readFileSync(staticPath, 'utf8'));
 
-// Helper: detect placeholder pattern
-// All-zeros: [0,0,0,...]
-// Classic cycling [0,1,2,3,0,1,2,3,...]: each index i => i % 4 (any length >= 4)
-// Period cycling [a,b,c,d] repeating: any rotation/permutation, length >= 8 for confidence
-//
-// Combined detector (revised 2026-05-08 tick 31): naive `(i % 4)` only caught the
-// canonical [0,1,2,3] pattern. Tick 31 spot-check found ms900-ch01-quiz had
-// [1,2,0,3,...] in Firestore (rotated cycling) — still a placeholder, but missed.
-// Period-N detector catches any [a,b,c,...] repeating pattern. Min-length-8
-// avoids false-positives on short keys; classic detector retained at length>=4
-// to preserve catches like clh-022 [0,1,2,3,0] (length 5).
-//
-// Ground truth verified 2026-05-08: 5 ambiguous entries flagged by period-N
-// detector form 2 shared-array clusters (clh-015 + cert share an array;
-// threat-hunting + wsa-m15 share another) with identical updatedAt timestamps
-// and updatedBy=unset. Bulk-seeded placeholders, not legit periodic keys.
-function isAllZeros(arr) {
-  return arr.every(v => v === 0);
-}
-
-function isClassicCycling(arr) {
-  if (arr.length < 4) return false;
-  return arr.every((v, i) => v === i % 4);
-}
-
-function isPeriodCycling(arr) {
-  if (arr.length < 8) return false;
-  for (let p = 2; p <= 6; p++) {
-    if (arr.length < p * 2) continue;
-    const period = arr.slice(0, p);
-    if (arr.every((v, i) => v === period[i % p])) return true;
-  }
-  return false;
-}
-
-function isCycling(arr) {
-  return isClassicCycling(arr) || isPeriodCycling(arr);
-}
-
+// Detector consolidated into ./placeholder-detector (2026-05-09).
+// Categories collapse to: REAL, CYCLING (any of CLASSIC/PERIOD/NEAR), ALL-ZEROS,
+// ALL-SAME, EMPTY. Use D.classify for full granularity.
 function isPlaceholder(arr) {
-  return isAllZeros(arr) || isCycling(arr);
+  return D.isPlaceholder(arr);
 }
 
 function classifyStatic(arr) {
-  if (!arr || arr.length === 0) return 'EMPTY';
-  if (isAllZeros(arr)) return 'ALL-ZEROS';
-  if (isCycling(arr)) return 'CYCLING';
-  return 'REAL';
+  const c = D.classify(arr);
+  if (c === 'EMPTY') return 'EMPTY';
+  if (c === 'ALL-ZEROS') return 'ALL-ZEROS';
+  if (c === 'REAL') return 'REAL';
+  return 'CYCLING';
 }
 
 async function main() {
