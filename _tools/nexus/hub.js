@@ -130,7 +130,25 @@ function saveFindings(store) {
 }
 
 function dedupKey(finding) {
-    return `${finding.source}::${finding.code}::${finding.file || ''}`;
+    // id-prefixed key when adapter emits finding.id (e.g., quiz-sync's
+    // per-cluster id, quiz-key-callsite's per-category id). Per-id
+    // findings get distinct dedupKeys so each gets its own timestamp
+    // refresh; without this, N findings sharing source+code+file collapse
+    // to a single key and N-1 carry stale timestamps.
+    //
+    // Backward-compat: adapters without id (eduscan, sprint, spellbook,
+    // hexcontent, deploy-check, audit) get key unchanged — bare
+    // source::code::file. Their existing dedup behavior is preserved
+    // exactly. Migration of existing findings.json is no-op for those.
+    //
+    // EduScan's 2,624 pre-existing collisions (LP-007 1,356x, LP-006 466x,
+    // etc.) are an adapter-side issue (each finding represents a different
+    // module/path within the same file but isn't distinguished by id) —
+    // NOT addressed by this change. Tracked separately as Phase 4B
+    // follow-up: eduscan adapter should emit per-finding id (e.g.,
+    // line-number or module-id) to enable independent tracking.
+    const idPrefix = finding.id ? `${finding.id}::` : '';
+    return `${idPrefix}${finding.source}::${finding.code}::${finding.file || ''}`;
 }
 
 function syncFromSpoke(adapter, store, options) {
