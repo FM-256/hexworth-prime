@@ -17,15 +17,20 @@
 **Net div-mismatch reduction:** 27 broken files → 18 broken files (9 fixed this tick, 27 token swaps total).
 Remaining 18 = 6 cyberops applets (Nancy PAUSE on DOM-extent) + 12 projects/* double-skeleton (content-surgery operator decision needed).
 
-**Late tick — pis-w1 InlineQuizShuffler wire-in (commit `d3402a0c`):**
-PIS Phase 2 wire-in applied to pis-w1.quiz.html ONLY (Nancy v3 incremental rollout). 3 inserts:
-1. `<script src="../../../../components/InlineQuizShuffler.js"></script>` after FirebaseAuth.js
-2. `InlineQuizShuffler.shuffleQuiz(questions);` after questions array
-3. `InlineQuizShuffler.shuffleQuiz(questions);` inside restartQuiz() — fresh shuffle on retry
+**Late tick — PIS InlineQuizShuffler wire-in COMPLETE (commits `d3402a0c` + `3409d532`):**
 
-5-round Nancy review chain — all concerns addressed: fisher-yates verified unbiased, idx binding verified post-shuffle, restart button verified results-only (resultsCard gated), Firestore-key trap explicitly documented in HTML comment. Empirical Node test confirmed all 15 q.ans values point to correct option text post-shuffle.
+All 4 PIS quizzes (pis-w1/w2/w3/w4) now wire `InlineQuizShuffler.shuffleQuiz(questions)` per Nancy-approved 3-insert pattern (script tag + init shuffle + restart-time shuffle). Cluster cheatability fully addressed.
 
-**Pending after pis-w1 deploy verification:** replicate to pis-w2/w3/w4 (3 follow-up commits, 9 inserts).
+5-round Nancy review on pis-w1 → PROCEED with Firestore-key trap documented + restart button gating verified + fisher-yates correctness verified. Local Puppeteer verification on each file produced randomized ans patterns with 0 JS errors:
+
+| File | Verified ans pattern post-shuffle (sample) |
+|---|---|
+| pis-w1 | `[3,3,2,1,3,2,2,1,0,3,2,3,3,0,2]` (vs original `[0,0,2,3,2,3,1,0,3,2,1,3,1,0,1]`) |
+| pis-w2 | `[2,0,3,2,0,3,2,2,2,3,2,3,2,1,2]` |
+| pis-w3 | `[1,3,0,3,2,1,0,0,1,1,0,2,3,0,2]` |
+| pis-w4 | `[2,3,2,3,0,2,1,1,3,2,1,0,2,0,2]` |
+
+All 4 patterns differ from original AND from each other → confirms Math.random reseeds per page load.
 **Confirmed safe to skip:** fw-w2-wireless / fw-w3-os-security / fw-w3-workstation / fw-w4-mobile / fw-w4-soho — all use serverGrading + QuizEngine which has built-in Fisher-Yates per QuizEngine.js:138-148.
 
 **Orphan quiz_keys investigation (#85/#87):**
