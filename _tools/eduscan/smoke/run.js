@@ -108,6 +108,28 @@ const TARGETS = [
             { type: 'selector-count', selector: '.module-card', min: 1,
               note: 'House page should render at least one module card' }
         ]
+    },
+    // QC-46 sub-task 7 + QC-47 (Ethics in IT + PIS hub coverage). Both
+    // hubs have 41-45 static data-module nodes — min: 30 catches partial-
+    // render regressions (ZION pattern) with headroom for legitimate
+    // catalog fluctuation.
+    {
+        name: 'Ethics in IT Hub (CIS4253)',
+        url: '/houses/divergent/ethics-it/index.html',
+        seedLocalStorage: { hexworth_house: 'divergent' },
+        assertions: [
+            { type: 'selector-count', selector: '[data-module]', min: 30,
+              note: 'Ethics IT hub should render 45+ static data-module nodes (presentations + labs + quizzes + reviews)' }
+        ]
+    },
+    {
+        name: 'PIS Hub (CIS2350C)',
+        url: '/houses/shield/infosec/index.html',
+        seedLocalStorage: { hexworth_house: 'shield' },
+        assertions: [
+            { type: 'selector-count', selector: '[data-module]', min: 30,
+              note: 'PIS hub should render 41+ static data-module nodes (17 presentations + 4 quizzes + 12 labs + reviews)' }
+        ]
     }
 ];
 
