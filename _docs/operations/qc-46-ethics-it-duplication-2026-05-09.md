@@ -121,6 +121,37 @@ This document does not address:
 - Hub-vs-catalog mismatch (QC-46 HUB-001 completed Task #64)
 - Bridget three-way sync on Ethics quizzes (in flight as of this writing)
 
+## Bridget three-way sync result (2026-05-09 in-flight, completed)
+
+Sub-task (3) from QC-46 scope. Verdict: **3 quizzes / 0 drift / 0 blockers** — but with significant architectural findings:
+
+**Ethics quizzes are 100% client-graded:**
+- `eth-w1-quiz`, `eth-w2-quiz`, `eth-w3-quiz` use `ModuleProgress.completeQuiz('divergent', '<id>', score)` with score computed entirely client-side (`pct >= 70`)
+- No `serverGrading`/`gradeQuiz`/`moduleId` markers in any of the 3 HTML files
+- **Zero `eth-w*` entries in `functions/quiz_keys.json`** (verified by grep)
+- The 15 `eth-NN-quiz` entries that DO exist in quiz_keys are confirmed orphans from commit `ec3056f0` (2026-04-28 embedded-quiz removal) — separate workstream
+- `~/hexworth-shared/Solutions/Ethics in IT/` is empty — no Confluence-side answer keys exist
+- 12 of 18 Bridget checks resolve to NOT_APPLICABLE (architecturally — only 1 of 3 sources exists); 6 extended HTML-self-consistency checks PASS
+- Answer indices extracted: w1 = `[3,2,0,2,1,0,0,1,0,1,3,3,2,3,1]`, w2 = `[2,3,0,3,2,0,3,0,3,1,2,1,2,1,0]`, w3 = `[1,1,0,3,1,2,0,3,2,3]`
+- Internal HTML self-consistency: PASS (TOTAL/header/question count agree)
+- Hub wire-up: confirmed at `_app/houses/divergent/ethics-it/index.html:1227`
+
+**Implication:** Ethics in IT contributes 3 quizzes to QC-57's 95-quiz client-grading scope. Students can View Source to see answers. There's no Firestore key to seed — any migration to server-grading needs keys created from scratch using Bridget's extracted arrays as the starting point.
+
+**Bridget's R1-R3 recommendations (operator-pending):**
+- **R1** — Decide architecture intent: (a) commit to client-graded with explicit marker, or (b) plan migration to server-graded (requires authoring quiz_keys + Confluence docs)
+- **R2** — Tooling: mark eth-w[123]-quiz in `_tools/quiz-sync/quiz-pages.json` as `architecture: client-graded, sources: 1` so future Bridget runs classify out-of-scope (but requires sync-helper.js change to honor the new field)
+- **R3** — If Confluence solutions are eventually authored: write from HTML (current canonical source); Karl QC-46 reports are a 90% starting point with per-Q correct-option text
+
+Full Bridget report: `~/hexworth-shared/Solutions/_audit/bridget-ethics-it-2026-05-09.md`
+
 ## Status
 
 Documenting only. No file deletions, no catalog changes, no hub edits made by this audit. Operator decides which option to execute.
+
+**QC-46 sub-task progress (this document):**
+- [x] (3) Bridget three-way sync — complete (0 drift, 3 architectural findings)
+- [x] (5) Presentation duplication audit — three-layer finding documented
+- [ ] (6) Lab walkthrough completion gating — content judgment required
+- [ ] (7) EduScan smoke gate on hub — Ethics not in `_tools/eduscan/smoke/run.js` targets list (would require code change + Nancy review to add)
+- [ ] Confluence summary deliverable — pending operator decisions on (5)-(7) above
