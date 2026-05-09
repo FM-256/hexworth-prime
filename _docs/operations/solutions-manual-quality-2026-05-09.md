@@ -62,6 +62,20 @@ Three clusters identified by `grep -c "Source URL:|https?://|Tier:" *_ANSWERS.md
 
 **Verdict:** All 23 docs are not auditable in current form. Karl rotation must skip these until citation-rebuild sprint runs. Listed explicitly in Karl rotation plan below.
 
+### Pattern E — Microsoft Learn doc-restructure (NEW 2026-05-09)
+
+Karl's MD-101 m04 + m05 audits surface a Microsoft-doc-restructure pattern: cited URLs at `learn.microsoft.com/en-us/mem/intune/` and `learn.microsoft.com/en-us/windows/...` resolve (200) but **redirect to consolidated overview pages** that no longer contain the specific deprecated-article content. Examples (m05):
+- Q2: `hello-why-pin-is-better-than-password` → redirects to `hello-for-business/` overview. The "PIN is more secure because device-bound + TPM-backed" framing was deprecated/merged. The claim is no longer supported on the redirected page.
+- Q3, Q14: `passwordless-strategy` → redirects to wrong-scoped overview pages.
+- Q12: TPM Fundamentals page cited for a Device Health Attestation claim — pages exist but are different topics.
+
+Karl m04 verdict: 8 PASS / 7 WEAK / 0 DENY (anchor-absent + repeated-overview-URL).
+Karl m05 verdict: 5 PASS / 6 WEAK / 3 DENY / 1 REJECT (Pattern E acute).
+
+**Verdict on the pattern:** Vendor doc restructures are unavoidable; cited URLs need periodic re-verification, AND citations should land on anchor-specific URLs not generic overview pages whenever possible. Karl's WEAK verdict captures this "URL works but doesn't open on the supporting content."
+
+**Remediation:** For each affected citation, find the new canonical URL with anchor; if no replacement exists, switch to a different Primary/Vendor source that DOES contain the specific claim.
+
 ## Pattern frequency across audited quizzes
 
 | Pattern | Affected so far | Severity | Remediation |
@@ -70,6 +84,7 @@ Three clusters identified by `grep -c "Source URL:|https?://|Tier:" *_ANSWERS.md
 | B — NIST PDF landing | 3 quizzes (~16 citations) | High — wrong anchor + sometimes wrong doc | URL pattern + `#page=N` swap |
 | C — Wrong-vendor-page | 1 quiz (7 citations) | Medium — page exists but content mismatch | Per-question source verification |
 | D — No-citations (Eye + MD-100 + PFI) | 23 docs (~311 quiz Qs + ~143 review Qs) | Medium — not auditable | Rebuild solutions doc structure |
+| E — MS Learn restructure | 2 MD-101 modules (m04 + m05; ~13 WEAKs + 4 DENY/REJECT total) | Medium — URL works but content mismatch | Find new anchor URL or alt source |
 | Hand-copy cluster | 9 quizzes (135 questions) | **CRITICAL** — wrong keys serving | Per-question Mode-2 re-key |
 
 ## Quizzes Karl-cleared so far (PASS or near-PASS)
@@ -104,6 +119,14 @@ Mode-2 cycle dispatch order (pis-w1-quiz audit currently running):
 Each Mode-2 run takes ~3-5 min and produces a proposed corrected answer array + per-Q verifying source. Operator reviews each before seed.
 
 After cluster cleared, return to Mode-1 (citation audit) on remaining citation-bearing solutions docs (i.e., excluding the 23 Pattern D docs above).
+
+### Today's Mode-1 Karl results (2026-05-09)
+
+| Doc | Verdict | Pattern | Notes |
+|---|---|---|---|
+| `forge-md101-module-04` (Application Mgmt) | 8 PASS / 7 WEAK / 0 DENY | E (anchor-absent, repeated overview URL) | All Vendor Official Microsoft Learn — fixable by adding section anchors |
+| `MD-100 Quiz-M01` | BLOCK (Pattern D) | D | No citations at all — pre-citation-rebuild |
+| `forge-md101-module-05` (Auth & Compliance) | 5 PASS / 6 WEAK / 3 DENY / 1 REJECT | E acute | MS Learn doc restructure killed dedicated PIN/passwordless articles; TPM page miscited for DHA |
 
 ## Architecture refs
 
