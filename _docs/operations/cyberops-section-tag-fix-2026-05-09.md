@@ -47,9 +47,17 @@ This:
 
 ## Why I did NOT apply this fix autonomously
 
-The CLAUDE.md "Precision Over Speed" rule and the html-div-mismatch finding doc both call out that div-tag changes need visual verification before deploy. The fix is mechanically certain (stack-parser-confirmed 24/24 orphans, all at section boundaries), but a class of pages I cannot screenshot is exactly the case where over-confidence has previously broken production.
+The CLAUDE.md "Precision Over Speed" rule and the html-div-mismatch finding doc both call out that div-tag changes need visual verification before deploy. The fix is mechanically certain (stack-parser-confirmed 24/24 orphans), but a class of pages I cannot screenshot is exactly the case where over-confidence has previously broken production.
 
-**Operator action:** verify ONE applet visually pre-fix, apply the change, verify visually post-fix. If layout improves or stays identical, apply to remaining 5.
+**Nancy follow-up review (2026-05-09 evening tick):** flagged a DOM-extent concern that warrants attention. Currently:
+- `<section id="techniques">` opens at L51 and never closes before `<section id="indicators">` opens at L102.
+- HTML5 parsing rules: a new `<section>` does NOT auto-close a prior open `<section>`; they nest.
+- Therefore the current DOM has section 1 containing sections 2/3/4 (nested chain), not 4 sibling sections.
+- The proposed fix (replace orphan `</div>` with `</section>`) would close section 2 at L147, section 3 at L205, section 4 at L221, and section 1 at L227. That makes sections 2/3/4 **direct children of section 1**, not siblings.
+
+**Visual impact:** likely zero — Hexworth CSS is class-based (`.co-tab-content`), and `document.querySelectorAll('.co-tab-content')` returns the same 4 elements in either tree shape. But CSS using `:scope`, `.section1 > .child`, or `[id="indicators"] *` selectors would differ. None observed in current codebase but operator should spot-check.
+
+**Operator action:** verify ONE applet visually pre-fix; apply the change; verify visually post-fix. The dark-arts presentation fix (commit `0a862c8d`, evening tick) was a similar pattern that shipped successfully, so this fix is likely also safe — but the section-nesting DOM shape change means it deserves a screenshot before applying to all 6.
 
 ## Proposed validator forward-prevention
 
