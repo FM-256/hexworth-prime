@@ -396,7 +396,8 @@ const BriefingPage = (function () {
     }
 
     // ── Build the DOM ──
-    function _buildOverlay(config, onLaunch) {
+    function _buildOverlay(config, onLaunch, options) {
+        var isForced = !!(options && options.force);
         var accent = config.accent || '#3498db';
         var difficulty = config.difficulty || 'Intermediate';
         var diffCol = _diffColor(difficulty);
@@ -519,10 +520,15 @@ const BriefingPage = (function () {
         html += '</div>';
         html += '</div>';
 
-        // Actions
+        // Actions — forced re-opens render a close-only button so a mid-lab
+        // re-summon can't silently silence all future briefings via misclick.
         html += '<div class="bp-actions">';
-        html += '<button class="bp-launch-btn" style="background: ' + accent + ';">Launch Mission</button>';
-        html += '<button class="bp-skip-link">Skip briefing next time</button>';
+        html += '<button class="bp-launch-btn" style="background: ' + accent + ';">' + (isForced ? 'Resume Mission' : 'Launch Mission') + '</button>';
+        if (isForced) {
+            html += '<button class="bp-skip-link bp-close-only">Close</button>';
+        } else {
+            html += '<button class="bp-skip-link">Skip briefing next time</button>';
+        }
         html += '</div>';
 
         // Create overlay
@@ -559,11 +565,13 @@ const BriefingPage = (function () {
             });
         }
 
-        // Skip briefing
+        // Skip / Close button
         var skipBtn = inner.querySelector('.bp-skip-link');
         if (skipBtn) {
             skipBtn.addEventListener('click', function () {
-                try { localStorage.setItem(STORAGE_KEY, 'true'); } catch (e) { /* quota */ }
+                if (!isForced) {
+                    try { localStorage.setItem(STORAGE_KEY, 'true'); } catch (e) { /* quota */ }
+                }
                 _dismiss(overlay, onLaunch);
             });
         }
@@ -591,19 +599,28 @@ const BriefingPage = (function () {
          * Show the briefing page overlay.
          * @param {Object}   config   - Box config object
          * @param {Function} callback - Called when student launches (or skips)
+         * @param {Object}   [options]
+         * @param {boolean}  [options.force] - Bypass skip-preference and render
+         *   a Close button instead of "Skip next time". Use this for mid-lab
+         *   re-summon (e.g., from a desktop briefing icon) so a re-open can't
+         *   silently set the global skip flag.
          */
-        show: function (config, callback) {
-            // Check skip preference
-            try {
-                if (localStorage.getItem(STORAGE_KEY) === 'true') {
-                    if (typeof callback === 'function') callback();
-                    return;
-                }
-            } catch (e) { /* private browsing */ }
+        show: function (config, callback, options) {
+            var isForced = !!(options && options.force);
+
+            // Check skip preference (force bypasses)
+            if (!isForced) {
+                try {
+                    if (localStorage.getItem(STORAGE_KEY) === 'true') {
+                        if (typeof callback === 'function') callback();
+                        return;
+                    }
+                } catch (e) { /* private browsing */ }
+            }
 
             _injectStyles();
 
-            var overlay = _buildOverlay(config, callback);
+            var overlay = _buildOverlay(config, callback, options);
             document.body.appendChild(overlay);
         }
     };
