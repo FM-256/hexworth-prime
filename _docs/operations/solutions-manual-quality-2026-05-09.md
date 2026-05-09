@@ -59,9 +59,9 @@ Author identified the right vendor (Microsoft Learn) but cited a sibling page th
 
 ### Pattern D — No citation structure (artifact never extended)
 
-**Expanded scope discovered 2026-05-09 — three clusters, 23 docs, ~311 quiz/exam questions plus ~143 review-game questions (~454 total citation-bearing items).** Karl confirmed the pattern empirically on `forge-md100-module-02` (M02 Auth & Authentication) AND on `MD-100 Quiz-M01` today: artifact contains zero `Source URL:`, zero `Tier:` lines, no embedded hyperlinks. Architecture standard requires per-question source URL + verifying quote, none of which exist in these docs.
+**Expanded scope discovered 2026-05-09 — four clusters, 28 docs, ~311 quiz/exam questions + ~75 Ethics IT + ~143 review-game questions (~529 total citation-bearing items).** Karl confirmed the pattern empirically on `forge-md100-module-02` AND `MD-100 Quiz-M01` AND on all 5 Ethics IT quizzes/exams (`karl-qc46-eth-*.md`, 2026-05-08): artifact contains zero `Source URL:`, zero `Tier:` lines, no embedded hyperlinks (some have `exp:` inline explanation text, but that's not Solutions Manual citation format).
 
-Three clusters identified by `grep -c "Source URL:|https?://|Tier:" *_ANSWERS.md` returning 0 across:
+Four clusters identified by `grep -c "Source URL:|https?://|Tier:" *_ANSWERS.md` returning 0 across:
 
 | Cluster | Docs | Questions | Notes |
 |---------|------|-----------|-------|
@@ -69,8 +69,9 @@ Three clusters identified by `grep -c "Source URL:|https?://|Tier:" *_ANSWERS.md
 | MD-100 quizzes | 11 (`Quiz-M01` through `Quiz-M11`) | 166 (15-16 each) | Discovered 2026-05-09 |
 | MD-100 reviews | 3 (`Comprehensive-Review`, `Midterm-Review`, `Final-Review`) | 51-61 each (jeopardy format, not 15-Q quiz) | Discovered 2026-05-09 |
 | PFI (Python for IT) | 4 (`W1-Quiz`, `W2-Quiz`, `W3-Quiz`, `W4-Final-Exam`) | 70 (15+15+15+25) | Discovered 2026-05-09 |
+| Ethics in IT | 5 (`eth-final`, `eth-midterm`, `eth-w1`, `eth-w2`, `eth-w3`) | ~75 (15+15+15+15+15) | Karl QC-46 (2026-05-08); Solutions/Ethics in IT/ folder is empty |
 
-**Verdict:** All 23 docs are not auditable in current form. Karl rotation must skip these until citation-rebuild sprint runs. Listed explicitly in Karl rotation plan below.
+**Verdict:** All 28 docs are not auditable in current form. Karl rotation must skip these until citation-rebuild sprint runs. Listed explicitly in Karl rotation plan below.
 
 ### Pattern E — Microsoft Learn doc-restructure (NEW 2026-05-09)
 
@@ -93,7 +94,7 @@ Karl m05 verdict: 5 PASS / 6 WEAK / 3 DENY / 1 REJECT (Pattern E acute).
 | A — CompTIA marketing | 2 quizzes (~22 citations) | High — students see useless source | Per-question Primary swap |
 | B — NIST PDF landing | 3 quizzes (~16 citations) | High — wrong anchor + sometimes wrong doc | URL pattern + `#page=N` swap |
 | C — Wrong-vendor-page | 1 quiz (7 citations) | Medium — page exists but content mismatch | Per-question source verification |
-| D — No-citations (Eye + MD-100 + PFI) | 23 docs (~311 quiz Qs + ~143 review Qs) | Medium — not auditable | Rebuild solutions doc structure |
+| D — No-citations (Eye + MD-100 + PFI + Ethics IT) | 28 docs (~386 quiz Qs + ~143 review Qs) | Medium — not auditable | Rebuild solutions doc structure |
 | E — MS Learn restructure | 2 MD-101 modules (m04 + m05; ~13 WEAKs + 4 DENY/REJECT total) | Medium — URL works but content mismatch | Find new anchor URL or alt source |
 | Hand-copy cluster | 9 quizzes (135 questions) | **CRITICAL** — wrong keys serving | Per-question Mode-2 re-key |
 
@@ -120,6 +121,7 @@ Net Karl-PASS quizzes today: ~7-8. Net Karl-investigated: ~14. Net BLOCK or BLOC
 - MD-100 quizzes: `Quiz-M01` through `Quiz-M11`
 - MD-100 reviews: `Comprehensive-Review`, `Midterm-Review`, `Final-Review`
 - PFI: `W1-Quiz`, `W2-Quiz`, `W3-Quiz`, `W4-Final-Exam`
+- Ethics in IT: `eth-final`, `eth-midterm`, `eth-w1`, `eth-w2`, `eth-w3` (5 docs, Solutions/Ethics in IT/ empty)
 
 Mode-2 cycle dispatch order (pis-w1-quiz audit currently running):
 1. ✅ pis-w1-quiz (in flight)
