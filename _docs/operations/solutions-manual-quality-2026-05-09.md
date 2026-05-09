@@ -47,11 +47,20 @@ Author identified the right vendor (Microsoft Learn) but cited a sibling page th
 
 **Verdict on the pattern:** Authors approximated "this looks like a Microsoft Learn topic match" rather than verifying the specific claim text appeared on the page. More insidious than Pattern A/B because pages are real and live — students clicking get a real-looking page that doesn't actually answer the question.
 
-### Pattern D — Eye house structural gap
+### Pattern D — No citation structure (artifact never extended)
 
-Karl meta-finding (during MD-100 audit attempt): all 5 Eye house solutions docs (`eye-soc`, `eye-siem`, `eye-correlation`, `eye-hunting`, `eye-traffic`) are answer-key-only. No citation structure at all. Not auditable in current form. Architecture standard requires per-question source URL + verifying quote.
+**Expanded scope discovered 2026-05-09 — three clusters, 23 docs, ~311 quiz/exam questions plus ~143 review-game questions (~454 total citation-bearing items).** Karl confirmed the pattern empirically on `forge-md100-module-02` (M02 Auth & Authentication) AND on `MD-100 Quiz-M01` today: artifact contains zero `Source URL:`, zero `Tier:` lines, no embedded hyperlinks. Architecture standard requires per-question source URL + verifying quote, none of which exist in these docs.
 
-**Verdict:** Eye house solutions need rebuild from scratch with citation structure before Karl audit cycles can run them.
+Three clusters identified by `grep -c "Source URL:|https?://|Tier:" *_ANSWERS.md` returning 0 across:
+
+| Cluster | Docs | Questions | Notes |
+|---------|------|-----------|-------|
+| Eye house | 5 (`eye-soc`, `eye-siem`, `eye-correlation`, `eye-hunting`, `eye-traffic`) | ~75 | Already known |
+| MD-100 quizzes | 11 (`Quiz-M01` through `Quiz-M11`) | 166 (15-16 each) | Discovered 2026-05-09 |
+| MD-100 reviews | 3 (`Comprehensive-Review`, `Midterm-Review`, `Final-Review`) | 51-61 each (jeopardy format, not 15-Q quiz) | Discovered 2026-05-09 |
+| PFI (Python for IT) | 4 (`W1-Quiz`, `W2-Quiz`, `W3-Quiz`, `W4-Final-Exam`) | 70 (15+15+15+25) | Discovered 2026-05-09 |
+
+**Verdict:** All 23 docs are not auditable in current form. Karl rotation must skip these until citation-rebuild sprint runs. Listed explicitly in Karl rotation plan below.
 
 ## Pattern frequency across audited quizzes
 
@@ -60,7 +69,7 @@ Karl meta-finding (during MD-100 audit attempt): all 5 Eye house solutions docs 
 | A — CompTIA marketing | 2 quizzes (~22 citations) | High — students see useless source | Per-question Primary swap |
 | B — NIST PDF landing | 3 quizzes (~16 citations) | High — wrong anchor + sometimes wrong doc | URL pattern + `#page=N` swap |
 | C — Wrong-vendor-page | 1 quiz (7 citations) | Medium — page exists but content mismatch | Per-question source verification |
-| D — Eye house no-citations | 5 quizzes (~75 questions) | Medium — not auditable | Rebuild solutions doc structure |
+| D — No-citations (Eye + MD-100 + PFI) | 23 docs (~311 quiz Qs + ~143 review Qs) | Medium — not auditable | Rebuild solutions doc structure |
 | Hand-copy cluster | 9 quizzes (135 questions) | **CRITICAL** — wrong keys serving | Per-question Mode-2 re-key |
 
 ## Quizzes Karl-cleared so far (PASS or near-PASS)
@@ -75,11 +84,17 @@ Net Karl-PASS quizzes today: ~7-8. Net Karl-investigated: ~14. Net BLOCK or BLOC
 
 2. **Architecture rule update.** Make Pattern A (CompTIA marketing) and Pattern B (NIST PDF landing) automated DENY in Karl's tier classification — already done in the audit prompt template, should be made a hard validator rule.
 
-3. **Eye house solutions rebuild.** 5 quizzes × ~15 questions = ~75 citation-bearing rationales to author. Estimate as a separate sprint item.
+3. **Pattern D citation rebuild — 23 docs.** Sprint scope expanded from "Eye house only" to three clusters totaling ~454 citation-bearing items. Estimate as a separate sprint with three sub-batches (Eye 5, MD-100 14, PFI 4). Karl rotation must skip these until rebuild ships.
 
-4. **Solutions manual coverage report.** Current state: ~14 of 70+ quizzes audited. The ~56 remaining quizzes (Task #10) are unknown-quality — historical pattern frequency suggests ~30-40% are likely to fail similar pattern checks.
+4. **Solutions manual coverage report.** Current state: ~14 of 70+ quizzes audited. The ~56 remaining quizzes (Task #10) are unknown-quality — historical pattern frequency suggests ~30-40% are likely to fail similar pattern checks. Of those 56, the 23 Pattern D docs above are pre-classified as BLOCK-citation-rebuild.
 
 ## Karl rotation plan (in flight)
+
+**Skip list — DO NOT dispatch Karl on these until citation-rebuild sprint runs (otherwise Karl returns BLOCK with no actionable work):**
+- Eye house: `eye-soc`, `eye-siem`, `eye-correlation`, `eye-hunting`, `eye-traffic`
+- MD-100 quizzes: `Quiz-M01` through `Quiz-M11`
+- MD-100 reviews: `Comprehensive-Review`, `Midterm-Review`, `Final-Review`
+- PFI: `W1-Quiz`, `W2-Quiz`, `W3-Quiz`, `W4-Final-Exam`
 
 Mode-2 cycle dispatch order (pis-w1-quiz audit currently running):
 1. ✅ pis-w1-quiz (in flight)
@@ -88,7 +103,7 @@ Mode-2 cycle dispatch order (pis-w1-quiz audit currently running):
 
 Each Mode-2 run takes ~3-5 min and produces a proposed corrected answer array + per-Q verifying source. Operator reviews each before seed.
 
-After cluster cleared, return to Mode-1 (citation audit) on remaining ~56 unaudited solutions docs.
+After cluster cleared, return to Mode-1 (citation audit) on remaining citation-bearing solutions docs (i.e., excluding the 23 Pattern D docs above).
 
 ## Architecture refs
 
