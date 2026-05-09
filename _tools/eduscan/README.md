@@ -586,6 +586,43 @@ See `_docs/features/INCUBATION_HUBS.md` for the incubation hub design + graduati
 
 ---
 
+## Quiz Key Audits (XREF-002 family)
+
+> Standalone read-only auditors for `functions/quiz_keys.json` ↔ HTML callsite consistency. Complements the in-pipeline QUIZ-006/007 validators.
+
+### XREF-002 — Quiz Key Callsite Audit
+
+```bash
+node _tools/eduscan/quiz-key-callsite-audit.js
+#    → _tools/reports/QUIZ_KEY_CALLSITE_AUDIT.json
+```
+
+For every entry in `quiz_keys.json`, scans `_app/**/*.html` for any literal-string match. Entries with zero matches are reported as **orphans** (post-deprecation phantom keys — registered for grading but no surface uses them).
+
+Bidirectional negative lookarounds prevent prefix collision (e.g., `eth-01-quiz` vs `eth-01-quiz-summary`). Per-ID self-validation gate: 15 known orphans must appear in any successful run; any miss aborts. Conservative — counts comments, dead-array literals, and prose mentions as "live."
+
+### XREF-002 v2 — Strict Orphan Audit
+
+```bash
+node _tools/eduscan/quiz-key-strict-orphan-audit.js
+#    → _tools/reports/QUIZ_KEY_STRICT_ORPHAN_AUDIT.json
+```
+
+Stricter version: requires the ID to appear in a recognized **grading-callsite shape** (8 patterns: `gradeQuiz()`, `quizId`, `QUIZ_ID`, `moduleId`, `completeQuiz()`, `data-module`, `data-quiz-id`). If no shape matches, the ID is a **candidate orphan** even if XREF-002 marked it LIVE.
+
+O(files) mega-regex scan — 613ms on the 5,025-HTML corpus. Surfaces the false-LIVE class XREF-002 misses: comment-only references, dead catalog-registration arrays (e.g., `CORE1_REGISTRATIONS`), prose mentions of single-word IDs.
+
+Cross-references the XREF-002 report; the difference (XREF-002 LIVE but no shape match) is the "candidate orphan" set requiring upstream cleanup before the candidate becomes a true orphan deletable via the cleanup script.
+
+### Workflow
+
+1. **Detect:** Run `quiz-key-callsite-audit.js` → known orphans.
+2. **Refine:** Run `quiz-key-strict-orphan-audit.js` → additional candidates (require upstream literal cleanup first).
+3. **Audit doc:** Document findings in `~/hexworth-shared/Solutions/_audit/orphan-quiz-keys-finding-<DATE>.md`.
+4. **Cleanup script:** Use `functions/cleanup-orphan-keys-<DATE>.js` for deletion (Nancy-reviewed, per-ID re-verification grep, atomic backup, hard `--confirm-orphan-deletion-<DATE>` flag).
+
+---
+
 ## Auto-Fix Tools
 
 ### Fix Broken LearningPaths References
