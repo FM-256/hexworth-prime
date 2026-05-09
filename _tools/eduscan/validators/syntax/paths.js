@@ -1282,6 +1282,14 @@ class PathValidator {
                 return true;
             }
         }
+        // Trailing separator (-, _, =, ?) strongly indicates JS string
+        // concatenation captured mid-construction by the regex extractor —
+        // e.g., '/assets/images/icons/icon-' + cfg.actionIcon. The static
+        // prefix is a real path stem; the runtime path is dynamic.
+        // Resolves the PATH-003 FP class for inline JS innerHTML strings.
+        if (/[-_=?]$/.test(pathStr)) {
+            return true;
+        }
         return false;
     }
 
