@@ -4,15 +4,25 @@
 
 This memo synthesizes 14 Karl citation audits + 1 Bridget structural audit run during the 2026-05-09 marathon session. Karl audited Confluence solution pages against per-question claims and tier-classification rules; Bridget audited the 9-quiz answer-array cluster at the question-text level.
 
-## Headline finding (CRITICAL — student-facing)
+## Headline finding (HIGH — cheatability, not wrong-grading)
 
-**9 production quizzes share the identical answer array `[0,0,2,3,2,3,1,0,3,2,1,3,1,0,1]` despite covering 6+ disjoint subject domains.** Bridget's question-text audit determined this is HAND-COPY-DRIFT, not coincidence. Math: independent-authoring 9-way coincidence on 4-option/15-question space ≈ 10⁻⁹ per pair, vanishingly small.
+**9 production quizzes share the identical answer array `[0,0,2,3,2,3,1,0,3,2,1,3,1,0,1]` despite covering 6+ disjoint subject domains.**
+
+**Updated interpretation 2026-05-09 (Karl Mode-2 + Bridget cross-verification):**
+
+The original interpretation was HAND-COPY-DRIFT (8 of 9 graded against wrong keys). Karl Mode-2 audits on all 9 quizzes returned SHIP-no-change — independently-verified answers IDENTICAL to the cluster array. Bridget PIS audit (2026-05-09) confirmed: HTML option order was authored AROUND a fixed answer-position pattern. Each chosen option is semantically correct for its question.
+
+So the bug is NOT wrong-grading — every quiz IS graded against semantically-correct answers. The bug IS **structural cheatability**: students who memorize the W1 pattern get 100% on the other 8 quizzes without reading questions. Probability of independent authorship producing this alignment ≈ 1/4^45 ≈ zero.
 
 Affected (all production today): `shield-pis-w1-quiz`, `shield-pis-w2-quiz`, `shield-pis-w3-quiz`, `shield-pis-w4-quiz`, `fw-w2-wireless`, `fw-w3-os-security`, `fw-w3-workstation`, `fw-w4-mobile`, `fw-w4-soho`.
 
-Implication: **8 of 9 quizzes are grading students against wrong answer keys.** Source-of-truth quiz unknown without per-question fact-check. Karl Mode-2 audit cycle initiated; pis-w1-quiz first run in flight.
+**Severity reclassification: CRITICAL → HIGH.** Students still grade correctly; threat is to assessment integrity, not individual scores.
 
-Operator decision required: quarantine these 9 keys (sentinel value blocks grading) vs leave running while Karl re-keys (~9 audit runs to clear).
+**Operator decision required (one of):**
+1. **Per-quiz option shuffle** — re-author each quiz's option ORDER to break the pattern. Each option's correctness stays the same; only the index changes. Requires paired HTML.opts re-ordering + Firestore.answers update + Confluence regen.
+2. **Runtime Fisher-Yates shuffle** — quiz engine shuffles options on render; HTML opts stay as-is, but engine tracks index mapping per render. Single-engine code change, no per-quiz authoring.
+
+Recommend Option 2 — single engine change protects against this entire class of bug (any future cluster), avoids 9 quizzes' worth of re-authoring, and doesn't require Firestore reseeds.
 
 ## Karl audit results — failure pattern catalog
 
