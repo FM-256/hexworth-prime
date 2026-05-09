@@ -277,5 +277,6 @@ These items have no agent-autonomous resolution path:
 ## Last updated
 
 2026-05-09 — initial document. Phase 0 (this plan exists) complete.
+2026-05-09 (tick 37) — Phase 1B Action 2 prep: `functions/seed-p0-batch-2026-05-08.js` (untracked) expanded 68 → 81 IDs. Drift-gate detector broadened to include period-N + near-cycling so rotated Firestore placeholders aren't misclassified as "real". Dry-run 81/81 OK. Operator action remaining: Karl-confidence on 8 flagged entries (7 all-1s + 1 near-all-zeros pc-ard-15) before live run.
 
 When updating: add a one-line entry below noting which phase advanced and what the new snapshot numbers are.
