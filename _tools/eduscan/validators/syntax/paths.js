@@ -240,9 +240,17 @@ class PathValidator {
         /\+\s*['"`]/,       // String concatenation
         /\$\{/,             // Template literal
         /\[.*?\]/,          // Bracket notation
-        /\bwindow\./,       // Window reference
-        /\bdocument\./,     // Document reference
-        /\blocation\./      // Location reference
+        // JS object references (window.foo, document.querySelector, location.href).
+        // The negative lookahead exempts known asset extensions to avoid FPs on
+        // literal filenames where "document" or "window" is the stem and the
+        // following "." is the extension separator (e.g., icon-document.webp,
+        // icon-window.webp). Word boundary `\b` matches across hyphens, which
+        // is why the bare patterns previously fired on those filenames.
+        // Suffix `[a-zA-Z_$]` requires a JS identifier character (incl. $) so
+        // jQuery/Vue-style refs like window.$store are still caught.
+        /\bwindow\.(?!(?:webp|png|jpg|jpeg|gif|svg|ico|bmp|html|htm|css|js|json|md|txt|pdf|zip|mp4|mp3|wav)\b)[a-zA-Z_$]/,
+        /\bdocument\.(?!(?:webp|png|jpg|jpeg|gif|svg|ico|bmp|html|htm|css|js|json|md|txt|pdf|zip|mp4|mp3|wav)\b)[a-zA-Z_$]/,
+        /\blocation\.(?!(?:webp|png|jpg|jpeg|gif|svg|ico|bmp|html|htm|css|js|json|md|txt|pdf|zip|mp4|mp3|wav)\b)[a-zA-Z_$]/
     ];
 
     /**
