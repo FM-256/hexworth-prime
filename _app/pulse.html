@@ -81,12 +81,15 @@
 
         /* ── Health Score ── */
         .health-hero {
-            display: flex; align-items: center; gap: 40px;
+            display: flex; align-items: center; gap: 24px;
             padding: 30px; background: var(--bg-card); border: 1px solid var(--border);
             border-radius: 12px; grid-column: 1 / -1;
         }
         .health-ring {
             width: 140px; height: 140px; position: relative; flex-shrink: 0;
+        }
+        .health-ring--secondary {
+            width: 110px; height: 110px;
         }
         .health-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
         .health-ring-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 8; }
@@ -95,10 +98,12 @@
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             font-size: 2.2rem; font-weight: 700; font-family: 'Courier New', monospace;
         }
+        .health-ring--secondary .health-score-text { font-size: 1.7rem; }
         .health-score-label {
             position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
             font-size: 0.55rem; color: var(--text-muted); letter-spacing: 0.15em; text-transform: uppercase;
         }
+        .health-ring--secondary .health-score-label { bottom: 14px; }
         .health-details { flex: 1; }
         .health-details h2 { font-size: 1.3rem; margin-bottom: 6px; }
         .health-details p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; }
@@ -385,6 +390,16 @@
                 <div class="health-score-text" id="healthScore">--</div>
                 <div class="health-score-label">Health</div>
             </div>
+            <div class="health-ring health-ring--secondary" title="Hygiene Score: includes medium + low + warning + suspect counts that the gate metric ignores.">
+                <svg viewBox="0 0 140 140">
+                    <circle class="health-ring-bg" cx="70" cy="70" r="58"></circle>
+                    <circle class="health-ring-fill" cx="70" cy="70" r="58"
+                        stroke-dasharray="364.4" stroke-dashoffset="364.4"
+                        id="hygieneRing"></circle>
+                </svg>
+                <div class="health-score-text" id="hygieneScore">--</div>
+                <div class="health-score-label">Hygiene</div>
+            </div>
             <div class="health-details">
                 <h1>Platform Health</h1>
                 <p id="healthSummary">Loading platform health data...</p>
@@ -393,6 +408,8 @@
                     <div class="health-metric"><strong id="metricModules">--</strong>Modules registered</div>
                     <div class="health-metric"><strong id="metricKeys">--</strong>Quiz keys</div>
                     <div class="health-metric"><strong id="metricGate">--</strong>Gate status</div>
+                    <div class="health-metric"><strong id="metricMedium">--</strong>Medium findings</div>
+                    <div class="health-metric"><strong id="metricLow">--</strong>Low + Warning + Suspect</div>
                     <div class="health-metric"><strong id="metricLastScan">--</strong>Last scan</div>
                 </div>
             </div>
@@ -2191,6 +2208,29 @@
             document.getElementById('healthScore').textContent = score;
             document.getElementById('healthScore').style.color = color;
 
+            // ── Hygiene Score ── (companion to PULSE; covers severities the gate ignores)
+            // Formula: log10-bucketed deductions for medium and (low + warning + suspect).
+            // Calibration: 0+0 = 100, 100+1000 = 46, 1000+10000 = ~25.
+            // Same color thresholds as PULSE.
+            var med = (s.severity && s.severity.medium) || 0;
+            var low = (s.severity && s.severity.low) || 0;
+            var warn = (s.severity && s.severity.warning) || 0;
+            var susp = (s.severity && s.severity.suspect) || 0;
+            var lowTier = low + warn + susp;
+            var hygiene = 100;
+            hygiene -= Math.min(50, Math.log10(med + 1) * 15);
+            hygiene -= Math.min(30, Math.log10(lowTier + 1) * 8);
+            hygiene = Math.max(0, Math.min(100, Math.round(hygiene)));
+            var hygColor = hygiene >= 80 ? 'var(--pulse-green)' : hygiene >= 50 ? 'var(--pulse-yellow)' : 'var(--pulse-red)';
+            var hygRing = document.getElementById('hygieneRing');
+            hygRing.style.strokeDasharray = circumference;
+            hygRing.style.strokeDashoffset = circumference - (hygiene / 100) * circumference;
+            hygRing.style.stroke = hygColor;
+            document.getElementById('hygieneScore').textContent = hygiene;
+            document.getElementById('hygieneScore').style.color = hygColor;
+            document.getElementById('metricMedium').textContent = fmtInt(med);
+            document.getElementById('metricLow').textContent = fmtInt(lowTier);
+
             var summaryText;
             if (crit > 0) {
                 summaryText = crit + ' critical finding' + (crit > 1 ? 's' : '') + ' require immediate attention.';
@@ -2257,11 +2297,22 @@
             document.getElementById('healthSummary').textContent = 'Live data unavailable: ' + reason
                 + '. Run "nexus full --publish" from the build machine to refresh.';
 
+            // Hygiene ring full reset (matching healthRing fallback behavior).
+            // Stroke + dashoffset + textContent + color all reset symmetrically.
+            var hygRing = document.getElementById('hygieneRing');
+            hygRing.style.strokeDasharray = circumference;
+            hygRing.style.strokeDashoffset = circumference;
+            hygRing.style.stroke = 'var(--pulse-yellow)';
+            document.getElementById('hygieneScore').textContent = '--';
+            document.getElementById('hygieneScore').style.color = 'var(--pulse-yellow)';
+
             document.getElementById('metricFiles').textContent = '--';
             document.getElementById('metricModules').textContent = '--';
             document.getElementById('metricKeys').textContent = '--';
             document.getElementById('metricGate').textContent = 'STALE';
             document.getElementById('metricGate').style.color = 'var(--pulse-yellow)';
+            document.getElementById('metricMedium').textContent = '--';
+            document.getElementById('metricLow').textContent = '--';
             document.getElementById('metricLastScan').textContent = 'unknown';
 
             ['scanCritical', 'scanHigh', 'scanMedium', 'scanLow', 'scanAutofix'].forEach(function (id) {
