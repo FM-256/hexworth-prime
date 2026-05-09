@@ -10,15 +10,42 @@ const staticPath = '/home/eq/ai-content/hexworth-prime/functions/quiz_keys.json'
 const staticRaw = JSON.parse(fs.readFileSync(staticPath, 'utf8'));
 
 // Helper: detect placeholder pattern
-// All-zeros: [0,0,0,...] 
-// Cycling [0,1,2,3,0,1,2,3,...]: each index i => i % 4
+// All-zeros: [0,0,0,...]
+// Classic cycling [0,1,2,3,0,1,2,3,...]: each index i => i % 4 (any length >= 4)
+// Period cycling [a,b,c,d] repeating: any rotation/permutation, length >= 8 for confidence
+//
+// Combined detector (revised 2026-05-08 tick 31): naive `(i % 4)` only caught the
+// canonical [0,1,2,3] pattern. Tick 31 spot-check found ms900-ch01-quiz had
+// [1,2,0,3,...] in Firestore (rotated cycling) — still a placeholder, but missed.
+// Period-N detector catches any [a,b,c,...] repeating pattern. Min-length-8
+// avoids false-positives on short keys; classic detector retained at length>=4
+// to preserve catches like clh-022 [0,1,2,3,0] (length 5).
+//
+// Ground truth verified 2026-05-08: 5 ambiguous entries flagged by period-N
+// detector form 2 shared-array clusters (clh-015 + cert share an array;
+// threat-hunting + wsa-m15 share another) with identical updatedAt timestamps
+// and updatedBy=unset. Bulk-seeded placeholders, not legit periodic keys.
 function isAllZeros(arr) {
   return arr.every(v => v === 0);
 }
 
-function isCycling(arr) {
+function isClassicCycling(arr) {
   if (arr.length < 4) return false;
   return arr.every((v, i) => v === i % 4);
+}
+
+function isPeriodCycling(arr) {
+  if (arr.length < 8) return false;
+  for (let p = 2; p <= 6; p++) {
+    if (arr.length < p * 2) continue;
+    const period = arr.slice(0, p);
+    if (arr.every((v, i) => v === period[i % p])) return true;
+  }
+  return false;
+}
+
+function isCycling(arr) {
+  return isClassicCycling(arr) || isPeriodCycling(arr);
 }
 
 function isPlaceholder(arr) {

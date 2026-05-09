@@ -42,13 +42,12 @@ const DIFFERENT_IDS = [
 ];
 const LENGTH_MISMATCH_IDS = ['az104-ch06-quiz'];
 
-// Placeholder shape detectors
+// Placeholder shape detectors (refined tick 31 — period-N rotation aware)
 function isStrictCycling(answers) {
     if (!Array.isArray(answers)) return false;
-    return answers.every((v, i) => v === (i % 4));
+    return answers.length >= 4 && answers.every((v, i) => v === (i % 4));
 }
 function isNearCycling(answers) {
-    // Near-cycling: matches strict cycling for first N-2 indices, last 1-2 may drift
     if (!Array.isArray(answers) || answers.length < 5) return false;
     const head = answers.slice(0, answers.length - 2);
     return head.every((v, i) => v === (i % 4));
@@ -57,8 +56,20 @@ function isAllSame(answers) {
     if (!Array.isArray(answers) || answers.length === 0) return false;
     return answers.every(v => v === answers[0]);
 }
+// Period-N cycling for any rotation [a,b,c,...] repeating. Length>=8 confidence
+// threshold avoids short-array false positives. Catches ms900-ch01/ch03 hidden
+// P0 student-impact bugs where Firestore had [1,2,0,3,...] and [2,0,1,3,...].
+function isPeriodCycling(answers) {
+    if (!Array.isArray(answers) || answers.length < 8) return false;
+    for (let p = 2; p <= 6; p++) {
+        if (answers.length < p * 2) continue;
+        const period = answers.slice(0, p);
+        if (answers.every((v, i) => v === period[i % p])) return true;
+    }
+    return false;
+}
 function isPlaceholderShape(answers) {
-    return isStrictCycling(answers) || isNearCycling(answers) || isAllSame(answers);
+    return isStrictCycling(answers) || isNearCycling(answers) || isAllSame(answers) || isPeriodCycling(answers);
 }
 
 if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
