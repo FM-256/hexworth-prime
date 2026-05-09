@@ -28,7 +28,7 @@ const F15Config = {
         {
             id: 'recon',
             name: 'Reconnaissance',
-            icon: '<img src="/assets/images/icons/icon-search.webp" alt="" width="20" height="20" style="display:inline-block;vertical-align:middle;">',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" width="20" height="20" style="display:inline-block;vertical-align:middle;">',
             description: 'Examine the DataVault Corp web application. Find the JSONP endpoint. Identify that it returns Content-Type: application/javascript with authenticated user data.',
             requiredFlags: [],
             mitre: ['T1592.002', 'T1590.006'],

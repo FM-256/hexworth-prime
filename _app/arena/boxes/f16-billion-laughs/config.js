@@ -27,7 +27,7 @@ const F16Config = {
         {
             id: 'recon',
             name: 'Reconnaissance',
-            icon: '<img src="/assets/images/icons/icon-search.webp" alt="" width="20" height="20" style="display:inline-block;vertical-align:middle;">',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" width="20" height="20" style="display:inline-block;vertical-align:middle;">',
             description: 'Map the SecureDoc application. Find all XML intake points: the config upload API, the SAML SSO endpoint, and the report template system. Identify parser configurations.',
             requiredFlags: [],
             mitre: ['T1046', 'T1590.006'],

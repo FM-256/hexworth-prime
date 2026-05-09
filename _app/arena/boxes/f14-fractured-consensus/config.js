@@ -26,7 +26,7 @@ const F14Config = {
         {
             id: 'recon',
             name: 'Network Reconnaissance',
-            icon: '/assets/images/icons/icon-search.webp',
+            icon: '/assets/images/icons/icon-magnifier.webp',
             description: 'Map the distributed consensus network. Identify all 7 validator nodes, their roles, and communication patterns.',
             requiredFlags: [],
             mitre: ['T1046', 'T1018'],
