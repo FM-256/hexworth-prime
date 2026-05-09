@@ -17,6 +17,25 @@
 **Net div-mismatch reduction:** 27 broken files → 18 broken files (9 fixed this tick, 27 token swaps total).
 Remaining 18 = 6 cyberops applets (Nancy PAUSE on DOM-extent) + 12 projects/* double-skeleton (content-surgery operator decision needed).
 
+**Late tick — pis-w1 InlineQuizShuffler wire-in (commit `d3402a0c`):**
+PIS Phase 2 wire-in applied to pis-w1.quiz.html ONLY (Nancy v3 incremental rollout). 3 inserts:
+1. `<script src="../../../../components/InlineQuizShuffler.js"></script>` after FirebaseAuth.js
+2. `InlineQuizShuffler.shuffleQuiz(questions);` after questions array
+3. `InlineQuizShuffler.shuffleQuiz(questions);` inside restartQuiz() — fresh shuffle on retry
+
+5-round Nancy review chain — all concerns addressed: fisher-yates verified unbiased, idx binding verified post-shuffle, restart button verified results-only (resultsCard gated), Firestore-key trap explicitly documented in HTML comment. Empirical Node test confirmed all 15 q.ans values point to correct option text post-shuffle.
+
+**Pending after pis-w1 deploy verification:** replicate to pis-w2/w3/w4 (3 follow-up commits, 9 inserts).
+**Confirmed safe to skip:** fw-w2-wireless / fw-w3-os-security / fw-w3-workstation / fw-w4-mobile / fw-w4-soho — all use serverGrading + QuizEngine which has built-in Fisher-Yates per QuizEngine.js:138-148.
+
+**Orphan quiz_keys investigation (#85/#87):**
+QUIZ_KEY_CALLSITE_AUDIT.json identifies 88 XREF-002 orphans (no HTML grading callsite). QUIZ_KEY_STRICT_ORPHAN_AUDIT narrows to 7 strict-candidate orphans:
+- `aplus-core1-ch01`, `aplus-core1-ch12`
+- `forge-aplus-core1-prep-r1` through `r4`
+- `subnetting`
+
+Operator-pending: deletion of these 7 Firestore keys requires production write authorization. The other 81 are likely false-positive callsite-detection (post-deprecation but referenced via aliases or non-standard patterns). PIS quizzes (shield-pis-w1/2/3/4-quiz) appear in the 88-orphan list because they're client-graded (no `gradeQuiz()` callsite); they are NOT true orphans, just outside XREF-002's grading-callsite scope.
+
 This doc consolidates the day's work into one operator-actionable summary. Each prioritized decision links to the underlying detail doc and indicates the gating relationship (what unblocks what).
 
 ## Headline numbers
