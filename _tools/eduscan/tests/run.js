@@ -746,6 +746,73 @@ console.log('');
     }
 }
 
+// InlineQuizShuffler: regression coverage for the Fisher-Yates anti-cheat
+// component shipped 2026-05-09 for client-graded inline-pattern quizzes
+// (4 PIS weekly quizzes affected by the cluster cheatability bug).
+{
+    const InlineQuizShuffler = require(path.join(EDUSCAN_DIR, '../../_app/components/InlineQuizShuffler'));
+
+    let subPassed = 0, subFailed = 0;
+
+    // T1: shuffleQuestion preserves correctness
+    {
+        const q = { q: 't', opts: ['A', 'B', 'C', 'D'], ans: 2 };
+        const correct = q.opts[q.ans];
+        InlineQuizShuffler.shuffleQuestion(q);
+        if (q.opts[q.ans] === correct) subPassed++; else subFailed++;
+    }
+    // T2: throws on non-integer ans
+    try {
+        InlineQuizShuffler.shuffleQuestion({ opts: ['A','B','C','D'], ans: 'C' });
+        subFailed++;
+    } catch (e) { subPassed++; }
+    // T3: throws on out-of-range ans
+    try {
+        InlineQuizShuffler.shuffleQuestion({ opts: ['A','B','C','D'], ans: 7 });
+        subFailed++;
+    } catch (e) { subPassed++; }
+    // T4: length-1 opts unchanged
+    {
+        const q = { opts: ['only'], ans: 0 };
+        InlineQuizShuffler.shuffleQuestion(q);
+        if (q.opts[0] === 'only' && q.ans === 0) subPassed++; else subFailed++;
+    }
+    // T5: shuffleQuiz preserves correctness across multiple questions.
+    // Note: shuffleQuiz runs a serverGrading sniff test on document HTML;
+    // in this Node test harness root.document is undefined, so the guard
+    // is bypassed (which is the intended fallback for non-browser callers).
+    {
+        const questions = [
+            { q: 'Q1', opts: ['a','b','c','d'], ans: 0 },
+            { q: 'Q2', opts: ['a','b','c','d'], ans: 1 },
+            { q: 'Q3', opts: ['a','b','c','d'], ans: 2 }
+        ];
+        const correctTexts = questions.map(q => q.opts[q.ans]);
+        InlineQuizShuffler.shuffleQuiz(questions);
+        const stillCorrect = questions.every((q, i) => q.opts[q.ans] === correctTexts[i]);
+        if (stillCorrect) subPassed++; else subFailed++;
+    }
+    // T6: distribution uniformity (1000 trials, each of 4 positions ≥ 200 < 300)
+    {
+        const counts = [0, 0, 0, 0];
+        for (let i = 0; i < 1000; i++) {
+            const q = { opts: ['a','b','c','d'], ans: 0 };
+            InlineQuizShuffler.shuffleQuestion(q);
+            counts[q.ans]++;
+        }
+        const uniform = counts.every(c => c > 200 && c < 300);
+        if (uniform) subPassed++; else subFailed++;
+    }
+
+    if (subFailed === 0) {
+        console.log(`  ✓ InlineQuizShuffler — all ${subPassed} unit tests pass (correctness, type guards, range guards, uniform distribution)`);
+        passed++;
+    } else {
+        console.log(`  ✗ InlineQuizShuffler — ${subFailed}/${subPassed + subFailed} unit tests failed`);
+        failed++;
+    }
+}
+
 console.log('');
 console.log(`Results: ${passed}/${passed + failed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
