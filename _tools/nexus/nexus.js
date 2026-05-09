@@ -1154,6 +1154,10 @@ switch (command) {
     case 'qs':
         cmdSpoke('quiz-sync', positional, flags);
         break;
+    case 'quiz-key-callsite':
+    case 'qkc':
+        cmdSpoke('quiz-key-callsite', positional, flags);
+        break;
     case 'dead-code':
         cmdSpoke('dead-code', positional, flags);
         break;

@@ -150,12 +150,17 @@ function main() {
         fix: `Investigate: was the quiz removed/never-built? If yes, schedule deletion (Firestore doc + static entry) under Nancy + operator review. If no, locate missing HTML grading callsite.`,
     }));
 
-    // --- Self-validation gate (Nancy concern #2: per-ID, not count) ---
-    // KNOWN_ORPHANS must each appear in the result. Failure here means the
-    // regex/scope is broken; do not write a corrupt report.
-    const missingFromOrphans = KNOWN_ORPHANS.filter(id => !orphans.includes(id));
+    // --- Self-validation gate ---
+    // For each KNOWN_ORPHAN still in the input registry, require it to be
+    // classified as orphan. Once Track A cleanup removes an ID from
+    // quiz_keys.json, that ID drops out of validation (not in input → not
+    // checked). This avoids the time-bomb where partial cleanup would
+    // silently break the tool. Pre-cleanup: validates regex against all 15.
+    // Post-full-cleanup: validates nothing (correct end-state).
+    const stillInInput = KNOWN_ORPHANS.filter(id => Object.prototype.hasOwnProperty.call(keys, id));
+    const missingFromOrphans = stillInInput.filter(id => !orphans.includes(id));
     if (missingFromOrphans.length > 0) {
-        console.error('SELF-VALIDATION FAILURE: known orphans missing from result:');
+        console.error('SELF-VALIDATION FAILURE: known orphans still in quiz_keys.json but not classified as orphan:');
         for (const id of missingFromOrphans) {
             console.error('  ' + id + ' counted ' + counts[id] + ' times (expected 0)');
         }
