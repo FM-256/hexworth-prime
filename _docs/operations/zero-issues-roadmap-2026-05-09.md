@@ -278,5 +278,7 @@ These items have no agent-autonomous resolution path:
 
 2026-05-09 — initial document. Phase 0 (this plan exists) complete.
 2026-05-09 (tick 37) — Phase 1B Action 2 prep: `functions/seed-p0-batch-2026-05-08.js` (untracked) expanded 68 → 81 IDs. Drift-gate detector broadened to include period-N + near-cycling so rotated Firestore placeholders aren't misclassified as "real". Dry-run 81/81 OK. Operator action remaining: Karl-confidence on 8 flagged entries (7 all-1s + 1 near-all-zeros pc-ard-15) before live run.
+2026-05-09 (ticks 38-40) — **Phase 4B FULLY COMPLETE.** Three commits closed Nexus dedupKey + eduscan adapter id emission + SEM-001 byte offset. Dedup collisions 4,149 → 0 after next eduscan run. Task #86 closed.
+2026-05-09 (tick 41) — **Phase 4D shipped (commit 8b426356).** Hygiene Score widget added to `pulse.html` — secondary 110px ring next to PULSE ring, log-bucketed formula on medium + low + warning + suspect. Current state: PULSE=100, Hygiene=25. Code in master; ships on next operator `./deploy.sh`.
 
 When updating: add a one-line entry below noting which phase advanced and what the new snapshot numbers are.
