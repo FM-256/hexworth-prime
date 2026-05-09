@@ -70,6 +70,11 @@ class HTMLValidator {
         // Strip HTML comments to avoid false positives from commented-out code
         content = this.stripComments(content);
 
+        // Strip <script>/<style> blocks before tag-balance checks. Inline JS
+        // template literals (e.g. `const html = \`<div>...\`;`) inflate FP
+        // rate ~5x without this. Applies to both CI and strict paths.
+        content = this.stripScriptBlocks(content);
+
         const issues = [];
 
         // CI mode: only critical checks
@@ -111,9 +116,38 @@ class HTMLValidator {
     }
 
     /**
+     * Strip <script> and <style> blocks from content for tag-balance validation.
+     * Inline scripts often contain JS template literals with HTML markup
+     * (e.g. `const html = \`<div>${x}</div>\`;`). Without stripping, those
+     * div tags get counted by the stack-based parser, causing massive FPs.
+     *
+     * Order matters: <script src="..."></script> first, because the URL
+     * contains `//` which a JS-comment stripper would misread, eating
+     * the closing tag. Empirical: full-corpus FP rate drops from ~80%
+     * to ~0% with this strip in place (543 findings → 98 actual).
+     *
+     * Replace with equivalent-length spaces to preserve line numbers.
+     */
+    stripScriptBlocks(content) {
+        // External scripts: <script src="..."></script>
+        content = content.replace(/<script\b[^>]*\bsrc\s*=\s*['"][^'"]*['"][^>]*>\s*<\/script>/gi,
+            match => ' '.repeat(match.length));
+        // Inline scripts: <script>...</script>
+        content = content.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,
+            match => ' '.repeat(match.length));
+        // Inline styles: <style>...</style>
+        content = content.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,
+            match => ' '.repeat(match.length));
+        return content;
+    }
+
+    /**
      * CI Mode: Only check critical issues that would definitely break the page
      * - Unclosed script tags
      * - Unclosed attribute quotes (in critical attributes)
+     * - Structural tag balance (div/form/table) at MEDIUM severity
+     *   (medium so PULSE critical+high gate stays clean while findings
+     *   surface in hygiene queue + operator triage)
      */
     checkCriticalIssues(file, content) {
         const issues = [];
@@ -123,6 +157,18 @@ class HTMLValidator {
 
         // Check for unclosed quotes in attributes
         issues.push(...this.checkUnclosedAttributeQuotes(file, content));
+
+        // Structural-only div-balance check at medium severity. Reuses the
+        // strict-mode stack-machine via opts. Fixes the bug class that broke
+        // the admin console (CLAUDE.md feedback rule "Precision Over Speed").
+        // 26 known files surface from initial corpus run.
+        issues.push(...this.checkUnclosedTags(file, content, {
+            structuralOnly: true,
+            severityOverride: 'medium',
+            orphanCode: 'HTML-011',
+            unclosedCode: 'HTML-012',
+            fixSuffix: 'See _docs/operations/html-div-mismatch-finding-2026-05-09.md for backlog audit context.'
+        }));
 
         return issues;
     }
@@ -237,13 +283,29 @@ class HTMLValidator {
     }
 
     /**
-     * Check for unclosed or improperly nested tags (strict mode)
+     * Check for unclosed or improperly nested tags.
+     *
+     * Strict mode: full check, emits HTML-003/004/005 at computed severity.
+     * CI structural-only mode (opts.structuralOnly): tracks ONLY structuralTags
+     *   (div/form/table/tbody/thead/tfoot), emits HTML-011/012 at medium.
+     *
+     * @param {object} file
+     * @param {string} content
+     * @param {object} [opts]
+     * @param {boolean} [opts.structuralOnly] only track structural tags
+     * @param {string}  [opts.severityOverride] override emitted severity
+     * @param {string}  [opts.orphanCode] override HTML-003 (default)
+     * @param {string}  [opts.unclosedCode] override HTML-005 (default)
+     * @param {string}  [opts.fixSuffix] appended to fix message (e.g. audit doc link)
      */
-    checkUnclosedTags(file, content) {
+    checkUnclosedTags(file, content, opts = {}) {
         const issues = [];
+        const structuralOnly = opts.structuralOnly === true;
 
-        // All tags that require closing
-        const requireClose = [...this.criticalTags, ...this.structuralTags, ...this.standardTags];
+        // Tags that require closing (filtered when structuralOnly)
+        const requireClose = structuralOnly
+            ? [...this.structuralTags]
+            : [...this.criticalTags, ...this.structuralTags, ...this.standardTags];
 
         // Build a simple stack-based check
         const tagStack = [];
@@ -274,23 +336,26 @@ class HTMLValidator {
                     const lastOpen = tagStack.findLastIndex(t => t.name === tagName);
                     if (lastOpen === -1) {
                         // Closing tag without opening - only report for structural+ tags
-                        if (this.criticalTags.includes(tagName) || this.structuralTags.includes(tagName)) {
+                        const reportable = structuralOnly
+                            ? this.structuralTags.includes(tagName)
+                            : (this.criticalTags.includes(tagName) || this.structuralTags.includes(tagName));
+                        if (reportable) {
                             const line = this.getLineNumber(content, match.index);
+                            const baseFix = `Remove orphaned </${tagName}> or add opening <${tagName}>`;
                             issues.push({
-                                code: 'HTML-003',
-                                severity: getSeverity(tagName),
+                                code: opts.orphanCode || 'HTML-003',
+                                severity: opts.severityOverride || getSeverity(tagName),
                                 category: 'syntax',
                                 message: `Closing tag </${tagName}> without matching opening tag`,
                                 file: file.path,
                                 line,
-                                fix: `Remove orphaned </${tagName}> or add opening <${tagName}>`
+                                fix: opts.fixSuffix ? baseFix + '. ' + opts.fixSuffix : baseFix
                             });
                         }
                     } else {
-                        // Check for improperly nested tags (only in strict mode)
-                        if (this.profile === 'strict') {
+                        // Check for improperly nested tags (only in strict mode, never structural-only)
+                        if (this.profile === 'strict' && !structuralOnly) {
                             const skipped = tagStack.slice(lastOpen + 1);
-                            // Only report significant nesting errors
                             const significantSkipped = skipped.filter(t =>
                                 this.criticalTags.includes(t.name) || this.structuralTags.includes(t.name)
                             );
@@ -325,19 +390,20 @@ class HTMLValidator {
 
         // Check for unclosed tags at end
         for (const tag of tagStack) {
-            const severity = this.criticalTags.includes(tag.name) ? 'critical' :
+            const computed = this.criticalTags.includes(tag.name) ? 'critical' :
                            this.structuralTags.includes(tag.name) ? 'high' : 'low';
 
             // Only report critical and structural tags (high+ severity)
-            if (severity !== 'low') {
+            if (computed !== 'low') {
+                const baseFix = `Add closing </${tag.name}> tag`;
                 issues.push({
-                    code: 'HTML-005',
-                    severity,
+                    code: opts.unclosedCode || 'HTML-005',
+                    severity: opts.severityOverride || computed,
                     category: 'syntax',
                     message: `Unclosed <${tag.name}> tag`,
                     file: file.path,
                     line: tag.line,
-                    fix: `Add closing </${tag.name}> tag`
+                    fix: opts.fixSuffix ? baseFix + '. ' + opts.fixSuffix : baseFix
                 });
             }
         }
