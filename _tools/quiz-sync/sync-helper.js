@@ -146,6 +146,16 @@ const QUIZ_ID_ALIASES = {
     'cyberops-week5': 'houses/eye/applets/cyberops/week5/eye-evaluation.applet.html',
     'cyberops-week6': 'houses/eye/applets/cyberops/week6/eye-evaluation.applet.html',
     'cyberops-week7': 'houses/eye/applets/cyberops/week7/eye-evaluation.applet.html',
+    // Additions tick 44 — single-quiz residuals (each ground-truth verified)
+    'ccna-domain456-quiz':         'houses/web/ccna/quizzes/ccna-domain4-5-6.quiz.html',
+    'log-correlation':             'houses/eye/quizzes/eye-correlation.quiz.html',
+    'network-traffic':             'houses/eye/quizzes/eye-traffic.quiz.html',
+    'soc-operations':              'houses/eye/quizzes/eye-soc.quiz.html',
+    'clh-001-legacy':              'houses/script/clh/script-clh-001.quiz.html',
+    'clh-003-legacy':              'houses/script/clh/script-clh-003.quiz.html',
+    'do-26-fundamentals':          'houses/code/devops/sections/assessments/do-26-fundamentals-quiz.html',
+    'dark-arts-bh-quiz-xml-bombs': 'dark-arts/vault/bug-hunting/quizzes/bh-quiz-xml-bombs.html',
+    'dark-arts-bh-quiz-xssi':      'dark-arts/vault/bug-hunting/quizzes/bh-quiz-xssi.html',
 };
 
 let _htmlIndex = null;
