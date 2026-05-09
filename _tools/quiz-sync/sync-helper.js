@@ -96,6 +96,58 @@ const LEGACY_BARE_HTML_IDS = new Set([
     'ehe-week09-quiz', 'ehe-week10-quiz', 'ehe-final-exam',
 ]);
 
+// Hardcoded quiz_keys-ID → file-path aliases for content where the standard
+// basename + transform pipeline cannot recover the mapping. Each entry is
+// ground-truth verified: actual file exists AND contains a real quiz callsite
+// (moduleId / QUIZ_ID literal). Future renames or new entries require explicit
+// code change + Nancy review (no heuristic auto-extension).
+//
+// Categories (added tick 43):
+//  - core2-* (12): forge A+ Core 2 chapters at houses/forge/applets/comptia-aplus/core-2/quizzes/forge-chNN.quiz.html
+//                  (each file's moduleId line confirms 'core2-chNN')
+//  - cse-* (11):   split between cloud and shield houses
+//                  bare cse-NN → cloud-cse-NN (e.g. cse-06 → cloud-cse-06.quiz.html)
+//                  cse-NN-suffix → shield-cse-NN (e.g. cse-06-monitoring → shield-cse-06.quiz.html)
+//                  These are SEPARATE Firestore docs with separate answer keys; the bare and
+//                  suffix forms are NOT aliases of each other (verified tick 43 Firestore reads).
+//  - cyberops-* (7): eye CyberOps applets at houses/eye/applets/cyberops/weekN/eye-evaluation.applet.html
+//                    (each file has distinct const QUIZ_ID = 'cyberops-weekN')
+const QUIZ_ID_ALIASES = {
+    // core2-ch13..ch24 (12 entries)
+    'core2-ch13': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch13.quiz.html',
+    'core2-ch14': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch14.quiz.html',
+    'core2-ch15': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch15.quiz.html',
+    'core2-ch16': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch16.quiz.html',
+    'core2-ch17': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch17.quiz.html',
+    'core2-ch18': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch18.quiz.html',
+    'core2-ch19': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch19.quiz.html',
+    'core2-ch20': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch20.quiz.html',
+    'core2-ch21': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch21.quiz.html',
+    'core2-ch22': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch22.quiz.html',
+    'core2-ch23': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch23.quiz.html',
+    'core2-ch24': 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch24.quiz.html',
+    // cse-* (11 entries: cloud-housed + shield-housed)
+    'cse-01-fundamentals':  'houses/cloud/quizzes/cloud-cse-01.quiz.html',
+    'cse-02-iam':           'houses/cloud/quizzes/cloud-cse-02.quiz.html',
+    'cse-03-encryption':    'houses/cloud/quizzes/cloud-cse-03.quiz.html',
+    'cse-04-network':       'houses/cloud/quizzes/cloud-cse-04.quiz.html',
+    'cse-05-appsec':        'houses/cloud/quizzes/cloud-cse-05.quiz.html',
+    'cse-06':               'houses/cloud/quizzes/cloud-cse-06.quiz.html',
+    'cse-06-monitoring':    'houses/shield/quizzes/shield-cse-06.quiz.html',
+    'cse-07':               'houses/cloud/quizzes/cloud-cse-07.quiz.html',
+    'cse-07-risk':          'houses/shield/quizzes/shield-cse-07.quiz.html',
+    'cse-08':               'houses/cloud/quizzes/cloud-cse-08.quiz.html',
+    'cse-08-compliance':    'houses/shield/quizzes/shield-cse-08.quiz.html',
+    // cyberops-week1..week7 (7 entries)
+    'cyberops-week1': 'houses/eye/applets/cyberops/week1/eye-evaluation.applet.html',
+    'cyberops-week2': 'houses/eye/applets/cyberops/week2/eye-evaluation.applet.html',
+    'cyberops-week3': 'houses/eye/applets/cyberops/week3/eye-evaluation.applet.html',
+    'cyberops-week4': 'houses/eye/applets/cyberops/week4/eye-evaluation.applet.html',
+    'cyberops-week5': 'houses/eye/applets/cyberops/week5/eye-evaluation.applet.html',
+    'cyberops-week6': 'houses/eye/applets/cyberops/week6/eye-evaluation.applet.html',
+    'cyberops-week7': 'houses/eye/applets/cyberops/week7/eye-evaluation.applet.html',
+};
+
 let _htmlIndex = null;
 function buildHtmlIndex() {
     if (_htmlIndex) return _htmlIndex;
@@ -191,6 +243,13 @@ function findHtmlForQuiz(quizId) {
     if (byDirName.has(quizId)) return byDirName.get(quizId);
     for (const t of tries) {
         if (t && byDirName.has(t)) return byDirName.get(t);
+    }
+    // Final fallback: hardcoded QUIZ_ID_ALIASES for content where no derivable
+    // mapping exists. Each entry is ground-truth verified (file exists + contains
+    // real quiz callsite). Existence check guards against stale aliases.
+    if (Object.prototype.hasOwnProperty.call(QUIZ_ID_ALIASES, quizId)) {
+        const aliasPath = path.join(APP_ROOT, QUIZ_ID_ALIASES[quizId]);
+        if (fs.existsSync(aliasPath)) return aliasPath;
     }
     return null;
 }
