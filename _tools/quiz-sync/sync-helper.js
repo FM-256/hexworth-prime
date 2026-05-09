@@ -86,6 +86,11 @@ function buildHtmlIndex() {
     if (_htmlIndex) return _htmlIndex;
     const byBasename = new Map();
     const byDirName = new Map();
+    // transformBuf: stripped-key → Set<fullpaths>. Post-walk we add only
+    // single-source entries (paths.size === 1) to byBasename. Collisions
+    // (multiple files transform to same key) are skipped, leaving the
+    // resolver to return null rather than guess.
+    const transformBuf = new Map();
     const stack = [APP_ROOT];
     while (stack.length) {
         const dir = stack.pop();
@@ -99,15 +104,27 @@ function buildHtmlIndex() {
             } else if (ent.isFile()) {
                 const m = ent.name.match(/^(.+)\.(quiz|exam)\.html$/);
                 if (m) {
-                    byBasename.set(m[1], full);
-                    // Also index by parent dir name for courses with generic filenames
-                    // inside per-quiz directories (e.g., script/courses/clh/modules/clh-001/script-quiz.quiz.html
-                    // where quiz ID matches parent dir name). Only set if not
-                    // already present (basename match wins on collision). Hyphen
-                    // filter rejects generic container dirs (quizzes/, labs/,
-                    // exams/, modules/, presentations/) that would false-resolve
-                    // when a quiz ID happens to share that name (e.g., the quiz
-                    // ID literally named "quizzes" in quiz_keys.json).
+                    const basename = m[1];
+                    byBasename.set(basename, full);
+                    // Bidirectional transform candidates buffered for post-walk
+                    // collision check. Single-source transforms get added to
+                    // byBasename; multi-source collisions are skipped (Nancy
+                    // tick 35: cse-06/07/08 shield vs cloud, aplus-core2 dual
+                    // forge locations — different content per ID, walk order
+                    // would arbitrarily pick one).
+                    const HOUSE_PREFIX = /^(shield|web|forge|matrix|cloud|code|eye|script|key|signal|divergent|dark-arts|ai)-/;
+                    const stripped = basename.replace(HOUSE_PREFIX, '');
+                    if (stripped !== basename) {
+                        if (!transformBuf.has(stripped)) transformBuf.set(stripped, new Set());
+                        transformBuf.get(stripped).add(full);
+                    }
+                    const strippedNoQuiz = stripped.replace(/-quiz$/, '');
+                    if (strippedNoQuiz !== stripped) {
+                        if (!transformBuf.has(strippedNoQuiz)) transformBuf.set(strippedNoQuiz, new Set());
+                        transformBuf.get(strippedNoQuiz).add(full);
+                    }
+                    // Parent dir name index (clh-NNN/script-quiz.quiz.html style).
+                    // Hyphen filter rejects generic dirs (quizzes/, labs/, etc.).
                     const parentDirName = path.basename(dir);
                     if (parentDirName.includes('-') && !byDirName.has(parentDirName)) {
                         byDirName.set(parentDirName, full);
@@ -115,6 +132,17 @@ function buildHtmlIndex() {
                 }
             }
         }
+    }
+    // Post-walk: promote single-source transforms to byBasename. Skip
+    // multi-source collisions — leaving them out means the resolver returns
+    // null for those quiz IDs rather than guessing the wrong file. Canonical
+    // basename entries are NEVER overwritten (byBasename.has check).
+    for (const [key, paths] of transformBuf) {
+        if (byBasename.has(key)) continue;
+        if (paths.size === 1) {
+            byBasename.set(key, [...paths][0]);
+        }
+        // else: collision — leave key absent from byBasename.
     }
     _htmlIndex = { byBasename, byDirName };
     return _htmlIndex;
