@@ -36,7 +36,12 @@ Result: **2 `</head>` + 2 `<body>` opens** in every file. Each file also has 3 u
 | `_app/projects/starter-github-profile.html` | Starter track |
 | `_app/projects/starter-portfolio-site.html` | Starter track |
 
-Two more files in the same directory have **delta=-8** (cloud-s3-static-site.html, darkarts-kali-setup.html) and may share a similar but more severe pattern. They were excluded from the count-of-10 only because their delta is different.
+**UPDATE — full family is 12 files.** Two more files in the same directory have **delta=-8**:
+
+- `_app/projects/cloud-s3-static-site.html`
+- `_app/projects/darkarts-kali-setup.html`
+
+Both confirmed via grep to have the IDENTICAL stray `</head>` at L654 and `<body>` at L655. They have 8 unclosed divs instead of 3 because they include additional content sections (cf-page, cf-paper, cf-evidence-board, cf-evidence-card x2). Same root cause — same fix pattern. Operator handling: same surgery as the 10 -3 files, just with 5 more divs to track.
 
 ## Root cause hypothesis
 
@@ -69,9 +74,8 @@ These pages are linked from the projects landing page and student-facing.
 ## Out of scope
 
 - The 6 cyberops applets (separate doc: `cyberops-section-tag-fix-2026-05-09.md`)
-- The 2 -8 delta files (cloud-s3-static-site, darkarts-kali-setup) — deserve their own investigation
-- The 2 -9/-12 delta dark-arts presentations
-- The 7 single-line -1 delta files
+- The 2 -9/-12 delta dark-arts presentations (separate pattern — unclosed `<div class="slide">` and `<div class="code-block">` mid-presentation; not the case-file double-skeleton family)
+- The 7 single-line -1 delta files (each a separate small content error)
 
 ## Detection script (reusable)
 
