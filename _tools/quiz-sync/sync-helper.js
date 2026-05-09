@@ -174,6 +174,13 @@ const QUIZ_ID_ALIASES = {
     'do-26-fundamentals':          'houses/code/devops/sections/assessments/do-26-fundamentals-quiz.html',
     'dark-arts-bh-quiz-xml-bombs': 'dark-arts/vault/bug-hunting/quizzes/bh-quiz-xml-bombs.html',
     'dark-arts-bh-quiz-xssi':      'dark-arts/vault/bug-hunting/quizzes/bh-quiz-xssi.html',
+    // Additions tick 45 — name-divergent residuals + applet variants (ground-truth verified 2026-05-09)
+    'aplus-core2':                  'houses/forge/quizzes/forge-aplus-core2.quiz.html',
+    'aplus-core2-applet':           'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-aplus-core2.quiz.html',
+    'aplus-core2-ch19-22':          'houses/forge/quizzes/forge-aplus-core2-ch19-22.quiz.html',
+    'aplus-core2-ch19-22-applet':   'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-aplus-core2-ch19-22.quiz.html',
+    'siem-fundamentals':            'houses/eye/quizzes/eye-siem.quiz.html',
+    'threat-hunting':               'houses/eye/quizzes/eye-hunting.quiz.html',
 };
 
 let _htmlIndex = null;
