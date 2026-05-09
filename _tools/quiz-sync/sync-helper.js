@@ -75,12 +75,17 @@ const QUESTION_BLOCK_PAT = new RegExp(
 
 const OPTION_STRING_PAT = /"((?:[^"\\]|\\.)*)"/g;
 
-// One-time deep walk under _app/ to map basename → fullpath for all
-// {quizId}.quiz.html and {quizId}.exam.html files. Built lazily on first call.
+// One-time deep walk under _app/. Builds two indexes:
+//   byBasename: {quizId}.quiz.html or {quizId}.exam.html → fullpath
+//   byDirName:  parent directory containing a *.quiz.html or *.exam.html → fullpath
+// byBasename is canonical; byDirName is fallback for courses that use generic
+// filenames inside per-quiz directories (e.g., script/courses/clh/modules/clh-001/script-quiz.quiz.html
+// where the quiz ID matches the parent directory name). Built lazily on first call.
 let _htmlIndex = null;
 function buildHtmlIndex() {
     if (_htmlIndex) return _htmlIndex;
-    _htmlIndex = new Map();
+    const byBasename = new Map();
+    const byDirName = new Map();
     const stack = [APP_ROOT];
     while (stack.length) {
         const dir = stack.pop();
@@ -93,16 +98,31 @@ function buildHtmlIndex() {
                 stack.push(full);
             } else if (ent.isFile()) {
                 const m = ent.name.match(/^(.+)\.(quiz|exam)\.html$/);
-                if (m) _htmlIndex.set(m[1], full);
+                if (m) {
+                    byBasename.set(m[1], full);
+                    // Also index by parent dir name for courses with generic filenames
+                    // inside per-quiz directories (e.g., script/courses/clh/modules/clh-001/script-quiz.quiz.html
+                    // where quiz ID matches parent dir name). Only set if not
+                    // already present (basename match wins on collision). Hyphen
+                    // filter rejects generic container dirs (quizzes/, labs/,
+                    // exams/, modules/, presentations/) that would false-resolve
+                    // when a quiz ID happens to share that name (e.g., the quiz
+                    // ID literally named "quizzes" in quiz_keys.json).
+                    const parentDirName = path.basename(dir);
+                    if (parentDirName.includes('-') && !byDirName.has(parentDirName)) {
+                        byDirName.set(parentDirName, full);
+                    }
+                }
             }
         }
     }
+    _htmlIndex = { byBasename, byDirName };
     return _htmlIndex;
 }
 
 function findHtmlForQuiz(quizId) {
-    const idx = buildHtmlIndex();
-    if (idx.has(quizId)) return idx.get(quizId);
+    const { byBasename, byDirName } = buildHtmlIndex();
+    if (byBasename.has(quizId)) return byBasename.get(quizId);
     // Common transformations: strip -quiz suffix; strip house prefix
     const tries = [
         quizId.replace(/-quiz$/, ''),
@@ -110,7 +130,14 @@ function findHtmlForQuiz(quizId) {
         quizId.replace(/^(shield|web|forge|matrix|cloud|code|eye|script|key|signal|divergent|dark-arts|ai)-/, '').replace(/-quiz$/, ''),
     ];
     for (const t of tries) {
-        if (t && idx.has(t)) return idx.get(t);
+        if (t && byBasename.has(t)) return byBasename.get(t);
+    }
+    // Fallback: parent-directory-name index (clh-NNN/script-quiz.quiz.html style).
+    // Basename match was preferred above; only consult dir-name if all basename
+    // attempts failed. Tick 34: catches ~52 of the prior 277 HTML-not-found FPs.
+    if (byDirName.has(quizId)) return byDirName.get(quizId);
+    for (const t of tries) {
+        if (t && byDirName.has(t)) return byDirName.get(t);
     }
     return null;
 }
