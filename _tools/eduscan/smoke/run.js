@@ -130,6 +130,28 @@ const TARGETS = [
             { type: 'selector-count', selector: '[data-module]', min: 30,
               note: 'PIS hub should render 41+ static data-module nodes (17 presentations + 4 quizzes + 12 labs + reviews)' }
         ]
+    },
+    // Active-course coverage extension (2026-05-09): two largest active-course
+    // hubs not yet smoke-gated. Same min: 30 threshold per Nancy precedent —
+    // catches catastrophic partial-render uniformly across courses regardless
+    // of the hub's full node count (PFI: 40, Network+: 115).
+    {
+        name: 'Python for IT Hub (COP1034C)',
+        url: '/houses/code/python-for-it/index.html',
+        seedLocalStorage: { hexworth_house: 'code' },
+        assertions: [
+            { type: 'selector-count', selector: '[data-module]', min: 30,
+              note: 'PFI hub should render 40+ static data-module nodes (W1-W4 presentations + labs + quizzes + final exam)' }
+        ]
+    },
+    {
+        name: 'Network+ Hub (N10-009)',
+        url: '/houses/web/network-plus/index.html',
+        seedLocalStorage: { hexworth_house: 'web' },
+        assertions: [
+            { type: 'selector-count', selector: '[data-module]', min: 50,
+              note: 'Network+ hub should render 115+ static data-module nodes (largest active course hub on the platform)' }
+        ]
     }
 ];
 
