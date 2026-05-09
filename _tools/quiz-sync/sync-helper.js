@@ -81,6 +81,21 @@ const OPTION_STRING_PAT = /"((?:[^"\\]|\\.)*)"/g;
 // byBasename is canonical; byDirName is fallback for courses that use generic
 // filenames inside per-quiz directories (e.g., script/courses/clh/modules/clh-001/script-quiz.quiz.html
 // where the quiz ID matches the parent directory name). Built lazily on first call.
+//
+// Legacy bare-html allowlist: the ehe (Ethical Hacking) course saved its quizzes
+// as plain *.html instead of the platform-standard *.quiz.html. Hub at
+// dark-arts/vault/ehe/index.html references them with .html in href values, so
+// renaming would break URLs. Surgical allowlist accepts these specific basenames
+// without opening the resolver to indexing arbitrary .html files (a parent-dir
+// filter would silently index 19 unrelated files in dark-arts/vault/wifi-arsenal,
+// dark-arts/vault/bug-hunting, code/modules/python-hub — latent traps for any
+// future quiz_keys ID matching their basenames).
+const LEGACY_BARE_HTML_IDS = new Set([
+    'ehe-week01-quiz', 'ehe-week02-quiz', 'ehe-week03-quiz', 'ehe-week04-quiz',
+    'ehe-week05-quiz', 'ehe-week06-quiz', 'ehe-week07-quiz', 'ehe-week08-quiz',
+    'ehe-week09-quiz', 'ehe-week10-quiz', 'ehe-final-exam',
+]);
+
 let _htmlIndex = null;
 function buildHtmlIndex() {
     if (_htmlIndex) return _htmlIndex;
@@ -102,9 +117,19 @@ function buildHtmlIndex() {
                 if (ent.name.startsWith('_archive') || ent.name.startsWith('_source')) continue;
                 stack.push(full);
             } else if (ent.isFile()) {
+                let basename = null;
                 const m = ent.name.match(/^(.+)\.(quiz|exam)\.html$/);
                 if (m) {
-                    const basename = m[1];
+                    basename = m[1];
+                } else if (/\.html$/.test(ent.name) && ent.name !== 'index.html') {
+                    // Legacy bare-html: only when basename appears in the explicit
+                    // allowlist. Future additions require a code change + review.
+                    const candidate = ent.name.replace(/\.html$/, '');
+                    if (LEGACY_BARE_HTML_IDS.has(candidate)) {
+                        basename = candidate;
+                    }
+                }
+                if (basename) {
                     byBasename.set(basename, full);
                     // Bidirectional transform candidates buffered for post-walk
                     // collision check. Single-source transforms get added to
