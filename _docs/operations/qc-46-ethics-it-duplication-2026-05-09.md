@@ -152,6 +152,25 @@ Documenting only. No file deletions, no catalog changes, no hub edits made by th
 **QC-46 sub-task progress (this document):**
 - [x] (3) Bridget three-way sync — complete (0 drift, 3 architectural findings)
 - [x] (5) Presentation duplication audit — three-layer finding documented
-- [ ] (6) Lab walkthrough completion gating — content judgment required
-- [ ] (7) EduScan smoke gate on hub — Ethics not in `_tools/eduscan/smoke/run.js` targets list (would require code change + Nancy review to add)
-- [ ] Confluence summary deliverable — pending operator decisions on (5)-(7) above
+- [x] (6) Lab walkthrough completion gating — AUDITED: all 10 labs use EDTEngine submission gating (not scroll-trigger). Pattern is architecturally sound — completion requires deliberate student action (evidence tagging + stakeholder selection + code ranking) before submission. ModuleProgress.complete fires only after `submitEDTLab` Cloud Function accepts payload. No HEUR-018 scroll-trigger vulnerability.
+- [x] (7) EduScan smoke gate on hub — COMPLETE (commit b6672d33: added Ethics IT Hub + PIS Hub to smoke targets, min: 30 [data-module] threshold)
+- [ ] Confluence summary deliverable — pending operator decisions on cleanup option (α/β/γ for presentation duplication)
+
+## Sub-task 6 audit detail
+
+All 10 Ethics IT labs (`eth-l01-vw-emissions` through `eth-l10-the-code`) follow identical architecture:
+
+```
+labs/eth-lNN-<topic>/
+  ├── index.html  (minimal launcher, calls EDTEngine.init)
+  └── config.js   (lab-specific configuration)
+```
+
+The lab's `index.html` does NOT call `ModuleProgress.complete` directly. The `config.js` files (~270-314 lines each) define lab content. The completion logic lives in `_app/arena/engine/EDTEngine.js:1283` — fires `ModuleProgress.complete('divergent', _config.id, ...)` only AFTER:
+1. Student tags evidence with explanations
+2. Student selects stakeholders (depth × count + nonObvious bonus)
+3. Student ranks code conflicts
+4. Student submits via `submitEDTLab` Cloud Function (or DEV fallback in non-prod)
+5. Submission accepted
+
+Auto-scores computed on submission (evidence, stakeholder, codeConflict ratios). Code conflict carries 60% auto-score + 40% instructor spot-check. No completion is registered without a submission. **No HEUR-018 vulnerability** (no scroll listener auto-fires `complete`).
