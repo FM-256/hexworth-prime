@@ -127,6 +127,9 @@ After cluster cleared, return to Mode-1 (citation audit) on remaining citation-b
 | `forge-md101-module-04` (Application Mgmt) | 8 PASS / 7 WEAK / 0 DENY | E (anchor-absent, repeated overview URL) | All Vendor Official Microsoft Learn — fixable by adding section anchors |
 | `MD-100 Quiz-M01` | BLOCK (Pattern D) | D | No citations at all — pre-citation-rebuild |
 | `forge-md101-module-05` (Auth & Compliance) | 5 PASS / 6 WEAK / 3 DENY / 1 REJECT | E acute | MS Learn doc restructure killed dedicated PIN/passwordless articles; TPM page miscited for DHA |
+| `forge-md101-module-06` (Managing Security) | 2 PASS / 9 WEAK / 4 DENY / 1 REJECT | E very acute + Q8 content contradiction | 4 dead URLs (HTTP 404, MS restructure: endpoint-security-overview, device-management-azure-portal, advanced-hunting-overview, tvm-dashboard-insights). Q8 REJECT: rationale states "Silent = Allow overrides" but source lists them as DISTINCT WIP modes. |
+
+**Pattern E recurrence rate (3 of 3 MD-101 modules audited today):** Microsoft Learn doc-restructure has heavily impacted the entire MD-101 series. Operator-pending: 8 DENY + 2 REJECT issues across m04/m05/m06 need source replacement OR rationale correction before next audit cycle. Recommend pausing further MD-101 Karl audits until URL-replacement pass runs (or accept WEAK-heavy verdicts).
 
 ## Architecture refs
 
