@@ -63,6 +63,24 @@ const JSON_MODE = args.includes('--json');
 const SKIP_FIRESTORE = args.includes('--skip-firestore');
 const WITH_CONFLUENCE = args.includes('--with-confluence');
 const DISCOVER_CONFLUENCE = args.includes('--discover-confluence');
+const SKIP_KNOWN_ORPHANS = args.includes('--skip-known-orphans');
+
+// Load XREF-002 orphan list (graceful: missing report → empty set, no error).
+// 2026-05-09: 84 of 99 BLOCK_HTML_NOT_FOUND findings here ARE orphans that
+// XREF-002 (_tools/eduscan/quiz-key-callsite-audit.js) already classifies.
+// Filtering removes redundant noise without losing the 15 genuine
+// resolution failures (regex-callsite class — aplus-core1-chNN etc).
+const KNOWN_ORPHANS = (() => {
+    if (!SKIP_KNOWN_ORPHANS) return new Set();
+    const reportPath = path.join(__dirname, '../reports/QUIZ_KEY_CALLSITE_AUDIT.json');
+    try {
+        const r = JSON.parse(require('fs').readFileSync(reportPath, 'utf8'));
+        return new Set(r.orphanIds || []);
+    } catch (e) {
+        console.error('[--skip-known-orphans] WARN: ' + reportPath + ' not found. Run XREF-002 first: node _tools/eduscan/quiz-key-callsite-audit.js. Falling back to no-skip.');
+        return new Set();
+    }
+})();
 
 // ─── HTML option-array extraction ─────────────────────────────────────
 
@@ -430,6 +448,14 @@ async function checkQuiz(quizId, registryEntry, db) {
     // Find HTML
     const htmlPath = findHtmlForQuiz(quizId);
     if (!htmlPath) {
+        // Per --skip-known-orphans: if XREF-002 has classified this ID as orphan,
+        // skip rather than block. The orphan IS the bug; sync-helper redundantly
+        // reporting it pollutes the operator triage queue.
+        if (KNOWN_ORPHANS.has(quizId)) {
+            result.verdict = 'SKIP_KNOWN_ORPHAN';
+            result.findings.push({ check: 'C0_KNOWN_ORPHAN', detail: `XREF-002 classified ${quizId} as orphan; skipped per --skip-known-orphans flag.` });
+            return result;
+        }
         result.findings.push({ check: 'C0_HTML_NOT_FOUND', detail: `No HTML file matches ${quizId}` });
         result.verdict = 'BLOCK_HTML_NOT_FOUND';
         return result;
