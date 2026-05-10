@@ -404,13 +404,13 @@ const ALAL07Config = {
             const cmd = args[0] || '';
             const rest = args.slice(1);
             if (cmd === 'systemctl') {
-                return engine.commands['systemctl'].call(engine.commands, rest, term, engine);
+                return term.config.commands['systemctl'].call(term.config.commands, rest, term, engine);
             }
             if (cmd === 'named-checkconf') {
-                return engine.commands['named-checkconf'].call(engine.commands, rest, term, engine);
+                return term.config.commands['named-checkconf'].call(term.config.commands, rest, term, engine);
             }
             if (cmd === 'named-checkzone') {
-                return engine.commands['named-checkzone'].call(engine.commands, rest, term, engine);
+                return term.config.commands['named-checkzone'].call(term.config.commands, rest, term, engine);
             }
             if (cmd === 'rndc') {
                 const sub = rest[0] || '';

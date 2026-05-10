@@ -555,11 +555,11 @@ ${engine.config._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run ev
         },
 
         'nano': function(args, term, engine) {
-            return engine.commands['vi'](args, term, engine);
+            return term.config.commands['vi'](args, term, engine);
         },
 
         'vim': function(args, term, engine) {
-            return engine.commands['vi'](args, term, engine);
+            return term.config.commands['vi'](args, term, engine);
         },
 
         // rm -- remove rogue script (alternate fix for CPU issue)

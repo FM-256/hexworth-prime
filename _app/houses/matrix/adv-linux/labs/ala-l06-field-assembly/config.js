@@ -325,7 +325,7 @@ const ALAL06Config = {
             const rest = args.slice(1);
 
             if (cmd === 'dpkg') {
-                return engine.commands['dpkg'].call(engine.commands, rest, term, engine);
+                return term.config.commands['dpkg'].call(term.config.commands, rest, term, engine);
             }
 
             if (cmd === 'checkinstall') {

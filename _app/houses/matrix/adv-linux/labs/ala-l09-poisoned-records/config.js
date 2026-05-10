@@ -449,8 +449,8 @@ const ALAL09Config = {
 
         // Run verification scripts
         'bash': function(args, term, engine) {
-            return engine.commands['/opt/verify/check-restoration.sh']
-                ? engine.commands['/opt/verify/check-restoration.sh'](args, term, engine)
+            return term.config.commands['/opt/verify/check-restoration.sh']
+                ? term.config.commands['/opt/verify/check-restoration.sh'](args, term, engine)
                 : null;
         },
 
@@ -535,11 +535,11 @@ const ALAL09Config = {
         },
 
         'nano': function(args, term, engine) {
-            return engine.commands['vi'](args, term, engine);
+            return term.config.commands['vi'](args, term, engine);
         },
 
         'vim': function(args, term, engine) {
-            return engine.commands['vi'](args, term, engine);
+            return term.config.commands['vi'](args, term, engine);
         },
 
         // grep -- search log files

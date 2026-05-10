@@ -456,11 +456,11 @@ const ALAL12Config = {
         },
 
         'vim': function(args, term, engine) {
-            return engine.commands['vi'](args, term, engine);
+            return term.config.commands['vi'](args, term, engine);
         },
 
         'nano': function(args, term, engine) {
-            return engine.commands['vi'](args, term, engine);
+            return term.config.commands['vi'](args, term, engine);
         },
 
         // sed -- inline edits for sshd_config, named.conf, netplan

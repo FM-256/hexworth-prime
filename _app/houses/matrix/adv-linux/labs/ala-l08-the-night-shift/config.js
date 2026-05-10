@@ -473,7 +473,7 @@ const ALAL08Config = {
         // bash/sh -- run scripts directly
         'bash': function(args, term, engine) {
             const script = args.find(a => a.endsWith('.sh') || a.startsWith('/opt')) || '';
-            return engine.commands['_runScript'] ? engine.commands['_runScript'].call(engine.commands, [script], term, engine) : `bash: ${script}: executed`;
+            return term.config.commands['_runScript'] ? term.config.commands['_runScript'].call(term.config.commands, [script], term, engine) : `bash: ${script}: executed`;
         },
 
         // Direct script execution via path
