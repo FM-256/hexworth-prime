@@ -87,6 +87,22 @@ function isPlaceholder(arr, opts) {
     return c !== 'EMPTY' && c !== 'REAL';
 }
 
+/**
+ * Stable fingerprint of an answer array for the QUIZ-011 Karl-PASS allowlist.
+ *
+ * Hashes the array in insertion order (semantic answer-position order).
+ * Numbers serialize stably under JSON.stringify, so this is byte-deterministic.
+ * Both the validator (suppression check) and the allowlist-add CLI (entry
+ * generation) MUST use this single function to avoid hash mismatch.
+ *
+ * @param {number[]} arr - quiz_keys.json[id].answers value (array of integers)
+ * @returns {string} sha1 hex digest of `JSON.stringify(arr)`
+ */
+function getAnswerHash(arr) {
+    if (!Array.isArray(arr)) throw new Error('getAnswerHash: arr must be an array');
+    return require('crypto').createHash('sha1').update(JSON.stringify(arr)).digest('hex');
+}
+
 module.exports = {
     isAllSame,
     isClassicCycling,
@@ -95,4 +111,5 @@ module.exports = {
     isExactPlaceholder,
     classify,
     isPlaceholder,
+    getAnswerHash,
 };

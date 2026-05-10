@@ -73,6 +73,11 @@ class HeuristicsValidator {
         // scroll+complete+threshold colocation is coincidental, not a real
         // scroll-completion gate.
         this.heur018Allowlist = this.loadHeur018Allowlist();
+        // Load per-rule allowlist for QUIZ-011 Karl-PASS suppression. Quiz IDs
+        // whose CLASSIC-CYCLING answer array has been verbatim-verified
+        // against Confluence Solutions Manual are suppressed; hash drift
+        // re-fires as QUIZ-011B (stale-allowlist).
+        this.quiz011Allowlist = this.loadQuiz011Allowlist();
     }
 
     /**
@@ -105,6 +110,28 @@ class HeuristicsValidator {
             return new Set(files);
         } catch (err) {
             return new Set();
+        }
+    }
+
+    /**
+     * Load QUIZ-011 Karl-PASS allowlist (per-rule, by quiz ID + answer hash).
+     * Returns a Map<id, entry> where entry.answerHash is matched against the
+     * current static array's hash at check time. Hash mismatch fires
+     * QUIZ-011B (stale-allowlist) instead of suppressing.
+     * @returns {Map<string, {answerHash:string, verifiedAt:string, karlAuditPath:string, confluencePage:string}>}
+     */
+    loadQuiz011Allowlist() {
+        const allowlistPath = path.resolve(__dirname, '../../config/quiz-011-allowlist.json');
+        try {
+            const raw = fs.readFileSync(allowlistPath, 'utf8');
+            const data = JSON.parse(raw);
+            const map = new Map();
+            for (const entry of (data.entries || [])) {
+                map.set(entry.id, entry);
+            }
+            return map;
+        } catch (err) {
+            return new Map();
         }
     }
 
@@ -1799,6 +1826,28 @@ class HeuristicsValidator {
 
         const cls = PlaceholderDetector.classify(mcAnswers);
         if (cls !== 'CLASSIC-CYCLING') return issues;
+
+        // Karl-PASS allowlist check: if this quiz ID has been verbatim-verified
+        // against the Confluence Solutions Manual AND the static answer array
+        // has not drifted since the audit, suppress the finding. Drift fires
+        // QUIZ-011B (stale-allowlist — re-audit needed).
+        const allowEntry = this.quiz011Allowlist.get(keyId);
+        if (allowEntry && PlaceholderDetector.getAnswerHash) {
+            const currentHash = PlaceholderDetector.getAnswerHash(key.answers);
+            if (currentHash === allowEntry.answerHash) {
+                return issues; // suppressed — Karl Mode-2 PASS still valid
+            }
+            issues.push({
+                code: 'QUIZ-011B',
+                severity: 'high',
+                category: 'quiz',
+                message: `Answer key for "${keyId}" was Karl-PASS allowlisted at ${allowEntry.verifiedAt} but the static array has changed since (hash drift). Re-audit required.`,
+                file: file.path,
+                line: 1,
+                fix: `Re-run Karl Mode-2 on "${keyId}" against ${allowEntry.karlAuditPath} (Confluence ${allowEntry.confluencePage}). On PASS, update _tools/eduscan/config/quiz-011-allowlist.json with the new answerHash.`,
+            });
+            return issues;
+        }
 
         issues.push({
             code: 'QUIZ-011',
