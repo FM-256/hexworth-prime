@@ -17,6 +17,14 @@
 **Net div-mismatch reduction:** 27 broken files → 18 broken files (9 fixed this tick, 27 token swaps total).
 Remaining 18 = 6 cyberops applets (Nancy PAUSE on DOM-extent) + 12 projects/* double-skeleton (content-surgery operator decision needed).
 
+**PIS lab briefing re-summon — L02-L12 rollout COMPLETE (commit `24ae99d0`):**
+
+Pilot L01 was shipped 2026-05-09 (commit `542f900b`) but operator-deferred for L02-L12 pending visual verification. Rollout delivered this tick: all 11 remaining labs (L02-L12) now have the same briefing-icon + onAppLaunch handler as L01. Coverage: 1/12 → 12/12.
+
+Per-file `node --check` clean post-edit. Runtime canary on L02 (full Puppeteer flow): 5 desktop icons rendered including Briefing, double-click re-opens overlay with correct lore text ("human vectors" / "social engineering"), Close button shown (force=true bypassed skip-storage), 0 JS errors. Spot-check on L05/L08/L12: identical pass.
+
+Pattern source: BoxEngine.js:1110-1115 method-call hook + BriefingPage.js:608 (config, callback, options) signature. Both verified in source.
+
 **Late tick — PIS InlineQuizShuffler wire-in COMPLETE (commits `d3402a0c` + `3409d532`):**
 
 All 4 PIS quizzes (pis-w1/w2/w3/w4) now wire `InlineQuizShuffler.shuffleQuiz(questions)` per Nancy-approved 3-insert pattern (script tag + init shuffle + restart-time shuffle). Cluster cheatability fully addressed.
