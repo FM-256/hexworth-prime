@@ -277,3 +277,25 @@ _tools/sprint-master/sprints.json        (1098 closures + sub-task notes)
 ## Session-end status
 
 No agents in flight. All deliverables committed. Backlog signal-to-noise dramatically improved. 8 prioritized decisions documented for operator review.
+
+## Continuation tick — PROG-003 + HEUR-024 (post-resume)
+
+After session resume, two more autonomous deliverables landed:
+
+### PROG-003 Shared Progress Key Reconciliation (commit `0bf65031`)
+- All 67 findings classified; all in **ACTIVE-DUAL** routing state (both routes referenced from catalog/registry/hub).
+- Severity escalated medium→**P1** per Nancy: every finding represents active XP suppression on real students. `ModuleProgress.isFirstCompletion` checks bare `moduleId` (no house-scope) at lines 376 and 530.
+- 4 structural buckets: 13 CLH applet/module + 30 Network+ presentations + 9 labs + 10 NE modules + 3 tools + 1 quiz + 1 dark-arts.
+- Doc: `_docs/operations/prog-003-shared-progress-key-reconciliation-2026-05-09.md`
+- Reusable tool: `_tools/eduscan/prog003-classifier.js` (catalog-routing-aware; verifies LIVE vs ZOMBIE per finding).
+- Operator action plan: 4-phase sequencing (catalog dedup → key rename → student-data migration → file deletion).
+
+### HEUR-024 FP exclusion (commit `b11bcaba`)
+- Validator scope adjustment: 72 of 75 findings were FPs in operator mission files. Engine-rendered nav (`OperatorEngine.js:1015`) injects the home anchor at runtime; static-HTML scan can't see it.
+- Added FP guard for `<script src="OperatorEngine.js">` (127 mission files match; 0 non-mission files match — clean signal).
+- 3 remaining findings are REAL bugs: `pfi-w4-gui-inclass.lab`, `owasp-top10-lab`, `privilege-escalation-lab` — all use `returnUrl` option or `window.location.href`, which `detectNavLinks` can't pick up.
+- Doc: `_docs/operations/heur-024-fp-exclusion-2026-05-09.md`
+
+## Continuation status
+
+Net commits this tick: `0bf65031` (PROG-003 reconciliation) + `b11bcaba` (HEUR-024 FP exclusion). Master ahead of origin by 63 commits. Production deploy gate still not invoked (no user authorization mid-tick). Findings pipeline expected to drop ~72 on next `nexus full` (HEUR-024 exclusion). PROG-003 67 remain — they're real bugs awaiting operator action plan.
