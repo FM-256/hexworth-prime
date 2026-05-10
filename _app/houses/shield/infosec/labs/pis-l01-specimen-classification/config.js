@@ -48,7 +48,24 @@ const PISL01Config = {
     lore: {
         intro: 'Six specimens arrived via the overnight transfer from Field Station 7. All are unclassified -- the field team did not have time to profile them before evacuation. Behavior telemetry was captured automatically and is waiting in the intake queue. You have 30 minutes before these specimens are moved to BSL-2 storage. Classification must be filed before transfer or they default to UNKNOWN and the entire bay goes on lockdown.',
         scenario: 'Each specimen has a behavior log. Read it carefully. Every specimen maps exactly to one malware family in the standard taxonomy: virus, worm, trojan, ransomware, rootkit, or RAT. Your job is to examine the behavior, determine the type, and file the containment report. Misclassification triggers a containment alert -- the system will tell you when you are wrong.',
-        outro: 'All six specimens have been correctly classified and containment reports filed. BSL-2 transfer cleared. Good work, analyst. The taxonomy assignment ensures the right isolation protocols are applied. A misclassified specimen means the wrong countermeasures -- and something gets out.'
+        outro: 'All six specimens have been correctly classified and containment reports filed. BSL-2 transfer cleared. Good work, analyst. The taxonomy assignment ensures the right isolation protocols are applied. A misclassified specimen means the wrong countermeasures -- and something gets out.',
+
+        goals: [
+            'Distinguish the six classic malware families -- virus, worm, trojan, ransomware, rootkit, RAT -- from behavior telemetry alone',
+            'Apply the trojan-vs-RAT discrimination: automated payload (trojan) vs live interactive remote control (RAT)',
+            'Apply the virus-vs-worm discrimination: requires host-file execution (virus) vs autonomous network propagation (worm)',
+            'Use a reference taxonomy (/etc/containment/taxonomy.db) to map observed indicators to family definitions',
+            'File correct classifications under a 30-minute clock -- three flags unlock as paired classifications complete'
+        ],
+
+        toolkit: [
+            { name: 'intake',   purpose: 'List the six specimens pending classification',                                            sample: 'intake' },
+            { name: 'examine',  purpose: "Read a specimen's behavior report -- file artifacts, network artifacts, analyst notes",   sample: 'examine SPX-001' },
+            { name: 'cat',      purpose: 'Read the taxonomy reference -- definitions and key indicators per family',                 sample: 'cat /etc/containment/taxonomy.db' },
+            { name: 'classify', purpose: 'File a containment classification -- flags unlock as pairs are completed',                 sample: 'classify SPX-001 RAT' },
+            { name: 'report',   purpose: 'Show classification progress across all six specimens',                                    sample: 'report' },
+            { name: 'help',     purpose: 'Command reference',                                                                        sample: 'help' }
+        ]
     },
 
     // ═══════════════════════════════════════════════════════

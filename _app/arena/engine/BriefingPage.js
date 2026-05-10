@@ -231,6 +231,84 @@ const BriefingPage = (function () {
     border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* ── Lab Goals list ── */
+.bp-goals-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.bp-goal-item {
+    position: relative;
+    padding: 0.5rem 0 0.5rem 1.2rem;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: #9a9aae;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.bp-goal-item:last-child {
+    border-bottom: none;
+}
+
+.bp-goal-item::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: #6a6a7a;
+}
+
+/* ── Rich toolkit list ── */
+.bp-toolkit-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.bp-toolkit-item {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.bp-toolkit-item:last-child {
+    border-bottom: none;
+}
+
+.bp-tk-name {
+    margin-bottom: 0.2rem;
+}
+
+.bp-tk-name code {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 2px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    color: #b0b0c4;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    letter-spacing: 0.03em;
+}
+
+.bp-tk-purpose {
+    color: #9a9aae;
+    font-size: 0.8rem;
+    margin: 0.2rem 0 0.3rem;
+}
+
+.bp-tk-sample code {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    border-radius: 2px;
+    font-size: 0.74rem;
+    color: #7a8aae;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px dashed rgba(255, 255, 255, 0.06);
+    font-family: 'Courier New', monospace;
+}
+
 /* ── First Time collapsible ── */
 .bp-collapsible-header {
     display: flex;
@@ -459,6 +537,20 @@ const BriefingPage = (function () {
         html += '<p class="bp-briefing-text">' + _esc(introText) + '</p>';
         html += '</div>';
 
+        // Lab Goals — plain-English skill bullets (optional; sits between
+        // narrative scenario and cert-mapped objectives so practical "what
+        // you'll do" reads first, cert mapping reads as reference)
+        if (config.lore && Array.isArray(config.lore.goals) && config.lore.goals.length > 0) {
+            html += '<div class="bp-section">';
+            html += '<div class="bp-section-label">Lab Goals</div>';
+            html += '<ul class="bp-goals-list">';
+            for (var g = 0; g < config.lore.goals.length; g++) {
+                html += '<li class="bp-goal-item">' + _esc(config.lore.goals[g]) + '</li>';
+            }
+            html += '</ul>';
+            html += '</div>';
+        }
+
         // Learning Objectives
         if (objectives.length > 0) {
             html += '<div class="bp-section">';
@@ -487,8 +579,27 @@ const BriefingPage = (function () {
             html += '</div>';
         }
 
-        // Toolkit
-        if (commands.length > 0) {
+        // Toolkit — rich variant (name + purpose + sample) when lore.toolkit
+        // is authored; falls back to bare command-tag cloud for legacy labs.
+        if (config.lore && Array.isArray(config.lore.toolkit) && config.lore.toolkit.length > 0) {
+            html += '<div class="bp-section">';
+            html += '<div class="bp-section-label">Your Toolkit</div>';
+            html += '<ul class="bp-toolkit-list">';
+            for (var t = 0; t < config.lore.toolkit.length; t++) {
+                var tk = config.lore.toolkit[t] || {};
+                html += '<li class="bp-toolkit-item">';
+                html += '<div class="bp-tk-name"><code>' + _esc(tk.name || '') + '</code></div>';
+                if (tk.purpose) {
+                    html += '<div class="bp-tk-purpose">' + _esc(tk.purpose) + '</div>';
+                }
+                if (tk.sample) {
+                    html += '<div class="bp-tk-sample"><code>' + _esc(tk.sample) + '</code></div>';
+                }
+                html += '</li>';
+            }
+            html += '</ul>';
+            html += '</div>';
+        } else if (commands.length > 0) {
             html += '<div class="bp-section">';
             html += '<div class="bp-section-label">Your Toolkit</div>';
             html += '<div class="bp-tag-list">';
