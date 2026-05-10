@@ -42,6 +42,9 @@ For each `{question, opts, explanation}` triple in the quiz HTML:
 - Fails when explanation paraphrases the option using different vocabulary
 - Overcounts when an option uses generic words ("system", "user") that appear in any explanation
 - Substring `includes()` doesn't handle word-boundary cases (e.g., "changes" vs "Change")
+- **Cannot disambiguate when explanation describes MULTIPLE options.** Spot-check on fw-w3-workstation Q4: question is "Whitelisting differs from blacklisting in that whitelisting:" — explanation describes BOTH concepts. Options 0 and 3 both have tokens in the explanation (option 0 describes blacklisting, option 3 describes whitelisting). Heuristic picked option 0; static key (3) is correct. **The inference for Q4 was a false positive.**
+
+**Reliability assessment after spot-check:** Q4 mismatch verified to be heuristic error, not real mismatch. Static key was right, inference was wrong. This means the 10 "candidate mismatches" likely include several heuristic false positives. Karl Mode-2 verification is non-negotiable — the inference is a STARTING POINT for human/agent review, not a reliable correctness signal.
 
 ## Candidate corrections (the 10 mismatches)
 
