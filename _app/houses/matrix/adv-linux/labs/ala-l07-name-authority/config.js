@@ -254,7 +254,7 @@ const ALAL07Config = {
                     return `write: named.conf.options must include listen-on and allow-query directives.`;
                 }
                 engine.config._state.optionsConfigured = hasListen && hasAllowQuery;
-                engine.filesystem['/'].children.etc.children.bind.children['named.conf.options'].content = content + '\n';
+                term.fs['/'].children.etc.children.bind.children['named.conf.options'].content = content + '\n';
                 return `Written: /etc/bind/named.conf.options`;
             }
 
@@ -266,7 +266,7 @@ const ALAL07Config = {
                 engine.config._state.forwardZoneDeclared = hasForward;
                 engine.config._state.reverseZoneDeclared = hasReverse;
                 engine.config._state.allowTransfer = hasTransfer;
-                engine.filesystem['/'].children.etc.children.bind.children['named.conf.local'].content = content + '\n';
+                term.fs['/'].children.etc.children.bind.children['named.conf.local'].content = content + '\n';
                 return `Written: /etc/bind/named.conf.local`;
             }
 
@@ -286,7 +286,7 @@ const ALAL07Config = {
                 }
 
                 engine.config._state.forwardZoneFile = true;
-                engine.filesystem['/'].children.etc.children.bind.children.zones.children['db.sector7.matrix.net'] = {
+                term.fs['/'].children.etc.children.bind.children.zones.children['db.sector7.matrix.net'] = {
                     type: 'file',
                     content: content + '\n'
                 };
@@ -307,7 +307,7 @@ const ALAL07Config = {
                 }
 
                 engine.config._state.reverseZoneFile = true;
-                engine.filesystem['/'].children.etc.children.bind.children.zones.children['db.10.0.1'] = {
+                term.fs['/'].children.etc.children.bind.children.zones.children['db.10.0.1'] = {
                     type: 'file',
                     content: content + '\n'
                 };

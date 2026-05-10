@@ -193,7 +193,7 @@ const PISL04Config = {
 
         // logs -- display the access log
         'logs': function(args, term, engine) {
-            const logContent = engine.filesystem['/'].children.var.children.log.children['containment-web'].children['access.log'].content;
+            const logContent = term.fs['/'].children.var.children.log.children['containment-web'].children['access.log'].content;
             return 'CONTAINMENT-WEB ACCESS LOG -- 2026-04-09\n' + '='.repeat(60) + '\n' + logContent + '\nEntries: 9 total | Sessions: a1b2c3, x9y8z7, p4q5r6\nUse: analyze <log-number> for decoded entry analysis\nUse: trace <session-id> to follow a session\n\nLog entries numbered LOG-001 through LOG-009 (left to right order)';
         },
 

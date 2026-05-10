@@ -270,7 +270,7 @@ const PISL01Config = {
             }
 
             // Read behavior log from filesystem
-            const logPath = engine.filesystem['/'].children.var.children.intake.children[id].children['behavior.log'];
+            const logPath = term.fs['/'].children.var.children.intake.children[id].children['behavior.log'];
             return logPath.content;
         },
 

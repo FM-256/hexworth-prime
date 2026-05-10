@@ -363,13 +363,13 @@ const ALAL08Config = {
             const date = new Date().toISOString().slice(0, 10);
             const backupPath = dst || `/var/backups/${cellKey}/${date}`;
 
-            if (!engine.filesystem['/'].children.var.children.backups.children[cellKey]) {
-                engine.filesystem['/'].children.var.children.backups.children[cellKey] = {
+            if (!term.fs['/'].children.var.children.backups.children[cellKey]) {
+                term.fs['/'].children.var.children.backups.children[cellKey] = {
                     type: 'dir',
                     children: {}
                 };
             }
-            engine.filesystem['/'].children.var.children.backups.children[cellKey].children[date] = {
+            term.fs['/'].children.var.children.backups.children[cellKey].children[date] = {
                 type: 'dir',
                 children: {
                     'etc': { type: 'dir', children: {} },
@@ -407,7 +407,7 @@ const ALAL08Config = {
                 if (!hasMv) return `write: rotate-logs.sh must move archives to /var/log/archive/.`;
 
                 engine.config._state.rotateScriptWritten = true;
-                engine.filesystem['/'].children.opt.children['cell-services'].children.scripts.children['rotate-logs.sh'] = {
+                term.fs['/'].children.opt.children['cell-services'].children.scripts.children['rotate-logs.sh'] = {
                     type: 'file',
                     content: content
                 };
@@ -423,7 +423,7 @@ const ALAL08Config = {
                 if (!hasLinkDest) return `write: backup.sh must use --link-dest for incremental backups.`;
 
                 engine.config._state.backupScriptWritten = true;
-                engine.filesystem['/'].children.opt.children['cell-services'].children.scripts.children['backup.sh'] = {
+                term.fs['/'].children.opt.children['cell-services'].children.scripts.children['backup.sh'] = {
                     type: 'file',
                     content: content
                 };
@@ -449,7 +449,7 @@ const ALAL08Config = {
                 }
 
                 engine.config._state.healthScriptWritten = true;
-                engine.filesystem['/'].children.opt.children['cell-services'].children.scripts.children['health-check.sh'] = {
+                term.fs['/'].children.opt.children['cell-services'].children.scripts.children['health-check.sh'] = {
                     type: 'file',
                     content: content
                 };
@@ -499,13 +499,13 @@ const ALAL08Config = {
             const date = new Date().toISOString().slice(0, 10);
             // Create backup directories for all three cells
             ['cell-14', 'cell-27', 'cell-33'].forEach(cellKey => {
-                if (!engine.filesystem['/'].children.var.children.backups.children[cellKey]) {
-                    engine.filesystem['/'].children.var.children.backups.children[cellKey] = {
+                if (!term.fs['/'].children.var.children.backups.children[cellKey]) {
+                    term.fs['/'].children.var.children.backups.children[cellKey] = {
                         type: 'dir',
                         children: {}
                     };
                 }
-                engine.filesystem['/'].children.var.children.backups.children[cellKey].children[date] = {
+                term.fs['/'].children.var.children.backups.children[cellKey].children[date] = {
                     type: 'dir',
                     children: { 'etc': { type: 'dir', children: {} }, 'home': { type: 'dir', children: {} } }
                 };
@@ -540,7 +540,7 @@ const ALAL08Config = {
             const reportContent = lines.join('\n') + '\n';
 
             // Write health report to filesystem
-            engine.filesystem['/'].children.var.children.log.children[`health-${date}.txt`] = {
+            term.fs['/'].children.var.children.log.children[`health-${date}.txt`] = {
                 type: 'file',
                 content: reportContent
             };

@@ -504,7 +504,7 @@ const ALAL03Config = {
             }
 
             if (target === '/opt/cell-services/.health/grid-health' || target === '/usr/local/bin/grid-health') {
-                return engine.filesystem['/'].children.opt.children['cell-services'].children['.health'].children['grid-health'].content;
+                return term.fs['/'].children.opt.children['cell-services'].children['.health'].children['grid-health'].content;
             }
 
             if (target === '/opt/cell-services/.health/.pid') {
@@ -512,15 +512,15 @@ const ALAL03Config = {
             }
 
             if (target === '/tmp/.exfil/.2026-04-10-14-23.dat' || target === '/tmp/.exfil/.2026-04-10-12-53.dat') {
-                return engine.filesystem['/'].children.tmp.children['.exfil'].children['.2026-04-10-14-23.dat'].content;
+                return term.fs['/'].children.tmp.children['.exfil'].children['.2026-04-10-14-23.dat'].content;
             }
 
             if (target === '/var/spool/cron/crontabs/svc-grid') {
-                return engine.filesystem['/'].children.var.children.spool.children.cron.children.crontabs.children['svc-grid'].content;
+                return term.fs['/'].children.var.children.spool.children.cron.children.crontabs.children['svc-grid'].content;
             }
 
             if (target === '/home/operator/notes.txt' || target === '~/notes.txt' || target === 'notes.txt') {
-                return engine.filesystem['/'].children.home.children.operator.children['notes.txt'].content;
+                return term.fs['/'].children.home.children.operator.children['notes.txt'].content;
             }
 
             // Delegate to BoxEngine filesystem walker

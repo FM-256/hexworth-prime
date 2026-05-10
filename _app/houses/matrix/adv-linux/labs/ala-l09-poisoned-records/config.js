@@ -363,7 +363,7 @@ const ALAL09Config = {
             if (isBakToZone) {
                 engine.config._zoneRestored = true;
                 // Update the live zone file content to the clean version
-                engine.filesystem['/'].children.etc.children.bind.children.zones.children['db.sector7.matrix.net'].content =
+                term.fs['/'].children.etc.children.bind.children.zones.children['db.sector7.matrix.net'].content =
                     '; sector7.matrix.net zone file -- RESTORED FROM BACKUP\n; Serial: 2026041003 (incremented for reload)\n$ORIGIN sector7.matrix.net.\n$TTL 300\n@   IN SOA  ns1.sector7.matrix.net. admin.sector7.matrix.net. (\n                2026041003  ; serial -- incremented after restore\n                3600        ; refresh\n                900         ; retry\n                604800      ; expire\n                300 )       ; minimum TTL\n\n@           IN NS   ns1.sector7.matrix.net.\nns1         IN A    10.0.1.1\n\n; Cell infrastructure\ncell-071    IN A    10.0.1.71\ncell-072    IN A    10.0.1.72\ncell-073    IN A    10.0.1.73\ncell-080    IN A    10.0.1.80\n\n; RESTORED CORRECT RECORDS\ngrid-api    IN A    10.0.1.71\ncell-088    IN A    10.0.1.88\nupdate-mirror IN A  10.0.1.200\n\n; Services\nmail        IN A    10.0.1.10\nmonitor     IN A    10.0.1.5\ngrid-log    IN A    10.0.1.50\n';
                 return '';
             }

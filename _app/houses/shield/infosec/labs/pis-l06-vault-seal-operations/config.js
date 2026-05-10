@@ -252,7 +252,7 @@ const PISL06Config = {
                 engine.config._state.specimenEncrypted = true;
 
                 // Add encrypted file to filesystem
-                engine.filesystem['/'].children.vault.children['specimen-7719.dat.enc'] = {
+                term.fs['/'].children.vault.children['specimen-7719.dat.enc'] = {
                     type: 'file',
                     content: '[AES-256-CBC ENCRYPTED -- vault-aes-key.bin]\n[Binary ciphertext representation]\n5f3c9a2e1b8d7f6a5e4d3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1\n0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9\n[256 bytes -- AES-256-CBC with PBKDF2 key derivation]\n'
                 };
@@ -299,7 +299,7 @@ const PISL06Config = {
                 engine.config._state.commsDecrypted = true;
 
                 // Add decrypted file to filesystem
-                engine.filesystem['/'].children.vault.children['intercepted-comms.dec'] = {
+                term.fs['/'].children.vault.children['intercepted-comms.dec'] = {
                     type: 'file',
                     content: '--- DECRYPTED INTELLIGENCE -- ASSET SIGMA ---\nTimestamp: 2026-04-09T01:28:00Z\nClassification: SECRET//NOFORN\n\nTARGET ACTOR UPDATE:\nHave confirmed the threat actor behind OUTBREAK-7719 is APT-33 variant.\nThey are targeting three financial sector facilities this week.\nKnown C2 infrastructure:\n  Primary: 45.142.212.100 (Netherlands VPS)\n  Fallback: 185.220.101.47 (TOR exit)\n  New: 91.108.4.123 (Germany VPS -- not in current feeds)\n\nRecommend: add 91.108.4.123 to all firewall blocklists immediately.\n\nNext contact: 2026-04-12T02:00Z\n-- SIGMA\n--- END INTELLIGENCE ---\n'
                 };

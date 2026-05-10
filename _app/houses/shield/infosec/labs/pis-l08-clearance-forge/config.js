@@ -211,7 +211,7 @@ const PISL08Config = {
             engine.config._state.caSubject = { cn, country, org };
 
             // Create CA files in filesystem
-            const caDir = engine.filesystem['/'].children.etc.children.pki.children.ca.children;
+            const caDir = term.fs['/'].children.etc.children.pki.children.ca.children;
             caDir['root-ca.crt'] = {
                 type: 'file',
                 content: `Certificate:\n  Subject: CN=${cn}, C=${country}, O=${org}\n  Issuer:  CN=${cn}, C=${country}, O=${org} [SELF-SIGNED]\n  Serial:  0\n  Valid:   2026-04-09 to 2036-04-09 (10-year root)\n  Key:     RSA-4096\n  Usage:   Certificate Sign, CRL Sign\n  Fingerprint (SHA-256):\n    A3:F7:2B:9E:14:C6:8D:05:7A:F1:3C:BE:92:45:D8:61\n    :19:7C:E0:AB:F4:28:6D:93:5E:17:B2:84:03:CF:9A:12\n\n-----BEGIN CERTIFICATE-----\n[RSA-4096 self-signed root CA certificate -- Hexworth Containment PKI]\n-----END CERTIFICATE-----\n`
@@ -322,7 +322,7 @@ const PISL08Config = {
             engine.config._state.crlConfigured = true;
 
             // Create CRL file in filesystem
-            const caDir = engine.filesystem['/'].children.etc.children.pki.children.ca.children;
+            const caDir = term.fs['/'].children.etc.children.pki.children.ca.children;
             caDir['crl.pem'] = {
                 type: 'file',
                 content: `-----BEGIN X509 CRL-----\nHexworth Containment Root CA -- Certificate Revocation List\nIssuer: CN=${engine.config._state.caSubject.cn}\nThis Update: 2026-04-09T04:00:00Z\nNext Update: 2026-04-16T04:00:00Z\nRevoked Certificates: none (freshly generated)\n-----END X509 CRL-----\n`
@@ -378,7 +378,7 @@ const PISL08Config = {
             cert.revokedReason = reason;
 
             // Update the CRL file
-            const caDir = engine.filesystem['/'].children.etc.children.pki.children.ca.children;
+            const caDir = term.fs['/'].children.etc.children.pki.children.ca.children;
             if (caDir['crl.pem']) {
                 caDir['crl.pem'].content = `-----BEGIN X509 CRL-----\nHexworth Containment Root CA -- Certificate Revocation List\nIssuer: CN=${engine.config._state.caSubject.cn}\nThis Update: 2026-04-09T04:15:00Z\nNext Update: 2026-04-16T04:15:00Z\nRevoked Certificates:\n  Serial: ${serial}\n  CN: ${serverCn}\n  Revocation Date: 2026-04-09T04:15:00Z\n  Reason: ${reason}\n-----END X509 CRL-----\n`;
             }

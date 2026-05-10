@@ -610,7 +610,7 @@ const ALAL01Config = {
             if (rFlag && target.includes('ops.log')) {
                 // Simulate vim swap recovery -- creates ops.log.recovered
                 engine.config._logRecovered = true;
-                engine.filesystem['/'].children.var.children.log.children['cell-ops'].children['ops.log.recovered'] = {
+                term.fs['/'].children.var.children.log.children['cell-ops'].children['ops.log.recovered'] = {
                     type: 'file',
                     content: '{"timestamp":"2026-04-10T13:45:00","service":"grid-monitor","status":"MONITOR_OK","nodes":4}\n{"timestamp":"2026-04-10T14:15:00","service":"grid-monitor","status":"MONITOR_OK","nodes":4}\n{"timestamp":"2026-04-10T14:31:44","service":"grid-sync","status":"SYNC_OK","nodes":4,"latency_ms":12}\n'
                 };

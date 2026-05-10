@@ -342,7 +342,7 @@ const ALAL06Config = {
                     (rest.find(a => a.startsWith('--pkgversion=')) || '').split('=')[1] || '2.1.0';
 
                 engine.config._state.installed = true;
-                engine.filesystem['/'].children.usr.children.local.children.bin.children['gridmon'] = {
+                term.fs['/'].children.usr.children.local.children.bin.children['gridmon'] = {
                     type: 'file',
                     content: '#!/bin/bash\n# gridmon 2.1.0 -- Grid Network Monitor\n# Built from source on cell-034\n'
                 };
@@ -378,7 +378,7 @@ const ALAL06Config = {
                 engine.config._state.sourceExtracted = true;
                 // Create the extracted source directory in the filesystem
                 const cwd = engine.getCurrentDir ? engine.getCurrentDir() : '/home/operator';
-                engine.filesystem['/'].children.home.children.operator.children['gridmon-2.1.0'] = {
+                term.fs['/'].children.home.children.operator.children['gridmon-2.1.0'] = {
                     type: 'dir',
                     children: {
                         'configure': { type: 'file', content: '#!/bin/bash\n# gridmon configure script\necho "checking for libpcap... yes"\necho "checking for libssl... yes"\necho "configure: creating ./Makefile"\n' },
@@ -458,7 +458,7 @@ const ALAL06Config = {
                 }
 
                 engine.config._state.capturePcapCreated = true;
-                engine.filesystem['/'].children.tmp.children['capture.pcap'] = {
+                term.fs['/'].children.tmp.children['capture.pcap'] = {
                     type: 'file',
                     content: '[pcap binary]\nFRAME 1: 2026-04-10T08:15:00.000Z UDP 10.0.1.99:9001 -> 10.0.1.34:9001\nPAYLOAD: SECTOR7_SIG:a9f3e7c2b1d4\n'
                 };

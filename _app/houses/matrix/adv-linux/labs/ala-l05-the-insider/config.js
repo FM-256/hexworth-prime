@@ -267,7 +267,7 @@ const ALAL05Config = {
 
             // grep against auth.log -- most common investigation command
             if (fileArg && fileArg.includes('auth.log') || fileArg === '/var/log/auth.log') {
-                const log = engine.filesystem['/'].children.var.children.log.children['auth.log'].content;
+                const log = term.fs['/'].children.var.children.log.children['auth.log'].content;
                 const lines = log.split('\n').filter(l => l.length > 0);
                 const matches = lines.filter(l => {
                     if (iFlag) return l.toLowerCase().includes(pattern.toLowerCase());
@@ -280,7 +280,7 @@ const ALAL05Config = {
 
             // grep against authorized_keys -- for persistence check
             if (fileArg && fileArg.includes('authorized_keys')) {
-                const content = engine.filesystem['/'].children.home.children.operator.children['.ssh'].children['authorized_keys'].content;
+                const content = term.fs['/'].children.home.children.operator.children['.ssh'].children['authorized_keys'].content;
                 const lines = content.split('\n').filter(l => l.length > 0);
                 const matches = lines.filter(l => iFlag ? l.toLowerCase().includes(pattern.toLowerCase()) : l.includes(pattern));
                 return matches.join('\n');
@@ -288,7 +288,7 @@ const ALAL05Config = {
 
             // grep against sshd_config
             if (fileArg && fileArg.includes('sshd_config')) {
-                const content = engine.filesystem['/'].children.etc.children.ssh.children['sshd_config'].content;
+                const content = term.fs['/'].children.etc.children.ssh.children['sshd_config'].content;
                 const lines = content.split('\n').filter(l => l.length > 0);
                 const matches = lines.filter(l => iFlag ? l.toLowerCase().includes(pattern.toLowerCase()) : l.includes(pattern));
                 return matches.join('\n');
@@ -296,7 +296,7 @@ const ALAL05Config = {
 
             // grep against pam.d/sshd
             if (fileArg && (fileArg.includes('pam.d/sshd') || fileArg === '/etc/pam.d/sshd')) {
-                const content = engine.filesystem['/'].children.etc.children['pam.d'].children['sshd'].content;
+                const content = term.fs['/'].children.etc.children['pam.d'].children['sshd'].content;
                 const lines = content.split('\n').filter(l => l.length > 0);
                 const matches = lines.filter(l => iFlag ? l.toLowerCase().includes(pattern.toLowerCase()) : l.includes(pattern));
                 return matches.join('\n');
@@ -324,7 +324,7 @@ const ALAL05Config = {
             const rest = args.slice(1);
 
             if (cmd === 'cat' && rest.includes('/etc/shadow')) {
-                return engine.filesystem['/'].children.etc.children['shadow'].content;
+                return term.fs['/'].children.etc.children['shadow'].content;
             }
 
             if (cmd === 'apt' || cmd === 'apt-get') {
@@ -369,7 +369,7 @@ const ALAL05Config = {
             if (hasFlags) {
                 // Mark TOTP as configured and write the secret to the user directory
                 engine.config._state.totpConfigured = true;
-                engine.filesystem['/'].children.home.children.operator.children['.google_authenticator'] = {
+                term.fs['/'].children.home.children.operator.children['.google_authenticator'] = {
                     type: 'file',
                     content: 'JBSWY3DPEHPK3PXP\n\" RATE_LIMIT 3 30\n\" WINDOW_SIZE 17\n\" TOTP_AUTH\n18173513\n69416278\n31730827\n11042096\n52049834\n'
                 };
@@ -391,8 +391,8 @@ const ALAL05Config = {
                     return `write: append the line: auth required pam_google_authenticator.so\nto /etc/pam.d/sshd`;
                 }
                 engine.config._state.pamUpdated = true;
-                engine.filesystem['/'].children.etc.children['pam.d'].children['sshd'].content =
-                    engine.filesystem['/'].children.etc.children['pam.d'].children['sshd'].content +
+                term.fs['/'].children.etc.children['pam.d'].children['sshd'].content =
+                    term.fs['/'].children.etc.children['pam.d'].children['sshd'].content +
                     'auth required pam_google_authenticator.so\n';
                 return `Written: /etc/pam.d/sshd`;
             }
@@ -403,13 +403,13 @@ const ALAL05Config = {
                 const hasNoPass = content.includes('PasswordAuthentication no');
                 if (hasKbd || hasNoPass) {
                     if (hasKbd) {
-                        engine.filesystem['/'].children.etc.children.ssh.children['sshd_config'].content =
-                            engine.filesystem['/'].children.etc.children.ssh.children['sshd_config'].content
+                        term.fs['/'].children.etc.children.ssh.children['sshd_config'].content =
+                            term.fs['/'].children.etc.children.ssh.children['sshd_config'].content
                                 .replace('KbdInteractiveAuthentication no', 'KbdInteractiveAuthentication yes');
                     }
                     if (hasNoPass) {
-                        engine.filesystem['/'].children.etc.children.ssh.children['sshd_config'].content =
-                            engine.filesystem['/'].children.etc.children.ssh.children['sshd_config'].content
+                        term.fs['/'].children.etc.children.ssh.children['sshd_config'].content =
+                            term.fs['/'].children.etc.children.ssh.children['sshd_config'].content
                                 .replace('PasswordAuthentication yes', 'PasswordAuthentication no');
                     }
                     engine.config._state.sshdUpdated = true;
@@ -422,7 +422,7 @@ const ALAL05Config = {
             if (file === '/home/operator/.ssh/authorized_keys') {
                 if (content.includes('ssh-ed25519') && !content.includes('intruder')) {
                     engine.config._state.rogueKeyRemoved = true;
-                    engine.filesystem['/'].children.home.children.operator.children['.ssh'].children['authorized_keys'].content =
+                    term.fs['/'].children.home.children.operator.children['.ssh'].children['authorized_keys'].content =
                         'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOperatorKeyCell016GridAccess operator@grid-command\n';
                     return `Written: /home/operator/.ssh/authorized_keys`;
                 }
