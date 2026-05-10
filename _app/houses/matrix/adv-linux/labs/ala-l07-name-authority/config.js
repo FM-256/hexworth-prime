@@ -253,7 +253,7 @@ const ALAL07Config = {
                 if (!hasListen && !hasAllowQuery) {
                     return `write: named.conf.options must include listen-on and allow-query directives.`;
                 }
-                engine._state.optionsConfigured = hasListen && hasAllowQuery;
+                engine.config._state.optionsConfigured = hasListen && hasAllowQuery;
                 engine.filesystem['/'].children.etc.children.bind.children['named.conf.options'].content = content + '\n';
                 return `Written: /etc/bind/named.conf.options`;
             }
@@ -263,9 +263,9 @@ const ALAL07Config = {
                 const hasForward = content.includes('sector7.matrix.net');
                 const hasReverse = content.includes('1.0.10.in-addr.arpa');
                 const hasTransfer = content.includes('allow-transfer') && content.includes('10.0.1.2');
-                engine._state.forwardZoneDeclared = hasForward;
-                engine._state.reverseZoneDeclared = hasReverse;
-                engine._state.allowTransfer = hasTransfer;
+                engine.config._state.forwardZoneDeclared = hasForward;
+                engine.config._state.reverseZoneDeclared = hasReverse;
+                engine.config._state.allowTransfer = hasTransfer;
                 engine.filesystem['/'].children.etc.children.bind.children['named.conf.local'].content = content + '\n';
                 return `Written: /etc/bind/named.conf.local`;
             }
@@ -285,7 +285,7 @@ const ALAL07Config = {
                     return `write: missing A records for: ${missing.join(', ')}`;
                 }
 
-                engine._state.forwardZoneFile = true;
+                engine.config._state.forwardZoneFile = true;
                 engine.filesystem['/'].children.etc.children.bind.children.zones.children['db.sector7.matrix.net'] = {
                     type: 'file',
                     content: content + '\n'
@@ -306,7 +306,7 @@ const ALAL07Config = {
                     return `write: missing PTR records for last octets: ${missing.join(', ')}`;
                 }
 
-                engine._state.reverseZoneFile = true;
+                engine.config._state.reverseZoneFile = true;
                 engine.filesystem['/'].children.etc.children.bind.children.zones.children['db.10.0.1'] = {
                     type: 'file',
                     content: content + '\n'
@@ -319,10 +319,10 @@ const ALAL07Config = {
 
         // named-checkconf -- validate named.conf syntax
         'named-checkconf': function(args, term, engine) {
-            if (!engine._state.optionsConfigured) {
+            if (!engine.config._state.optionsConfigured) {
                 return `/etc/bind/named.conf.options:5: error near 'TODO': unexpected token\nneed to complete listen-on and allow-query in named.conf.options`;
             }
-            if (!engine._state.forwardZoneDeclared || !engine._state.reverseZoneDeclared) {
+            if (!engine.config._state.forwardZoneDeclared || !engine.config._state.reverseZoneDeclared) {
                 return `/etc/bind/named.conf.local: no zone declarations found\nAdd forward zone (sector7.matrix.net) and reverse zone (1.0.10.in-addr.arpa)`;
             }
             return '';  // Empty output means success (matches real named-checkconf behavior)
@@ -334,14 +334,14 @@ const ALAL07Config = {
             const file = args.find(a => a.includes('/')) || '';
 
             if (zone.includes('sector7.matrix.net') || file.includes('db.sector7.matrix.net')) {
-                if (!engine._state.forwardZoneFile) {
+                if (!engine.config._state.forwardZoneFile) {
                     return `zone sector7.matrix.net/IN: loading from master file /etc/bind/zones/db.sector7.matrix.net failed: file not found`;
                 }
                 return `zone sector7.matrix.net/IN: loaded serial 2026041001\nOK`;
             }
 
             if (zone.includes('1.0.10.in-addr.arpa') || file.includes('db.10.0.1')) {
-                if (!engine._state.reverseZoneFile) {
+                if (!engine.config._state.reverseZoneFile) {
                     return `zone 1.0.10.in-addr.arpa/IN: loading from master file /etc/bind/zones/db.10.0.1 failed: file not found`;
                 }
                 return `zone 1.0.10.in-addr.arpa/IN: loaded serial 2026041001\nOK`;
@@ -358,7 +358,7 @@ const ALAL07Config = {
 
             if (sub === 'status') {
                 if (unit === 'named' || unit === 'bind9') {
-                    if (engine._state.namedRunning) {
+                    if (engine.config._state.namedRunning) {
                         return `\u25CF named.service - BIND Domain Name Server\n     Loaded: loaded (/lib/systemd/system/named.service; enabled)\n     Active: active (running) since Thu 2026-04-10 09:15:01 UTC; 0min ago\n   Main PID: 1337 (named)\n\nApr 10 09:15:01 cell-ns1 named[1337]: starting BIND 9.18.12\nApr 10 09:15:01 cell-ns1 named[1337]: loading configuration from '/etc/bind/named.conf'\nApr 10 09:15:01 cell-ns1 named[1337]: zone sector7.matrix.net/IN: loaded serial 2026041001\nApr 10 09:15:01 cell-ns1 named[1337]: zone 1.0.10.in-addr.arpa/IN: loaded serial 2026041001\nApr 10 09:15:01 cell-ns1 named[1337]: running`;
                     }
                     return `\u25CF named.service - BIND Domain Name Server\n     Loaded: loaded (/lib/systemd/system/named.service; enabled)\n     Active: inactive (dead) since Thu 2026-04-10 02:00:00 UTC; 7h 15min ago\n\n*** named is not running -- Sector 7 DNS is down ***\n*** Run: systemctl start named ***`;
@@ -367,23 +367,23 @@ const ALAL07Config = {
 
             if (sub === 'start' || sub === 'restart') {
                 if (unit === 'named' || unit === 'bind9') {
-                    if (!engine._state.optionsConfigured) {
+                    if (!engine.config._state.optionsConfigured) {
                         return `Job for named.service failed.\nError: /etc/bind/named.conf.options: invalid configuration.\nFix: complete listen-on and allow-query in named.conf.options`;
                     }
-                    if (!engine._state.forwardZoneDeclared || !engine._state.reverseZoneDeclared) {
+                    if (!engine.config._state.forwardZoneDeclared || !engine.config._state.reverseZoneDeclared) {
                         return `Job for named.service failed.\nError: zone declarations missing in named.conf.local.\nAdd both forward (sector7.matrix.net) and reverse (1.0.10.in-addr.arpa) zones.`;
                     }
-                    if (!engine._state.forwardZoneFile || !engine._state.reverseZoneFile) {
-                        return `Job for named.service failed.\nError: zone file missing.\n${!engine._state.forwardZoneFile ? '/etc/bind/zones/db.sector7.matrix.net: file not found\n' : ''}${!engine._state.reverseZoneFile ? '/etc/bind/zones/db.10.0.1: file not found\n' : ''}Create zone files before starting named.`;
+                    if (!engine.config._state.forwardZoneFile || !engine.config._state.reverseZoneFile) {
+                        return `Job for named.service failed.\nError: zone file missing.\n${!engine.config._state.forwardZoneFile ? '/etc/bind/zones/db.sector7.matrix.net: file not found\n' : ''}${!engine.config._state.reverseZoneFile ? '/etc/bind/zones/db.10.0.1: file not found\n' : ''}Create zone files before starting named.`;
                     }
-                    engine._state.namedRunning = true;
+                    engine.config._state.namedRunning = true;
                     return '';
                 }
             }
 
             if (sub === 'reload') {
                 if (unit === 'named' || unit === 'bind9') {
-                    if (engine._state.namedRunning) {
+                    if (engine.config._state.namedRunning) {
                         return '';
                     }
                     return `named is not running. Use systemctl start named first.`;
@@ -392,7 +392,7 @@ const ALAL07Config = {
 
             if (sub === 'is-active') {
                 if (unit === 'named' || unit === 'bind9') {
-                    return engine._state.namedRunning ? 'active' : 'inactive';
+                    return engine.config._state.namedRunning ? 'active' : 'inactive';
                 }
             }
 
@@ -415,11 +415,11 @@ const ALAL07Config = {
             if (cmd === 'rndc') {
                 const sub = rest[0] || '';
                 if (sub === 'reload') {
-                    if (!engine._state.namedRunning) return `rndc: connect: connection refused\nnamed is not running.`;
+                    if (!engine.config._state.namedRunning) return `rndc: connect: connection refused\nnamed is not running.`;
                     return ``;
                 }
                 if (sub === 'status') {
-                    if (!engine._state.namedRunning) return `rndc: connect: connection refused`;
+                    if (!engine.config._state.namedRunning) return `rndc: connect: connection refused`;
                     return `version: BIND 9.18.12 (Extended Support Version)\ncpus found: 2\nworker threads: 2\nnumber of zones: 4\ndebug level: 0\nxfers running: 0\nxfers deferred: 0\nsoa queries in progress: 0\nquery logging is OFF\nrecursion available: NO\nserver is up and running`;
                 }
                 return `Usage: rndc [reload|status|flush]`;
@@ -429,7 +429,7 @@ const ALAL07Config = {
 
         // dig -- DNS query tool
         'dig': function(args, term, engine) {
-            if (!engine._state.namedRunning) {
+            if (!engine.config._state.namedRunning) {
                 return `;; connection timed out; no servers could be reached\nnamed is not running on 10.0.1.1.`;
             }
 
@@ -441,7 +441,7 @@ const ALAL07Config = {
 
             // Reverse lookup: dig -x <ip>
             if (xFlag) {
-                if (!engine._state.reverseZoneFile) {
+                if (!engine.config._state.reverseZoneFile) {
                     return `;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN\n;; ANSWER SECTION: (empty)\nReverse zone not configured.`;
                 }
                 const ip = args.find(a => a.match(/^\d+\.\d+\.\d+\.\d+$/)) || '';
@@ -463,10 +463,10 @@ const ALAL07Config = {
 
             // AXFR zone transfer
             if (axfr) {
-                if (!engine._state.forwardZoneFile) {
+                if (!engine.config._state.forwardZoneFile) {
                     return `;; Transfer failed.\nzone sector7.matrix.net not configured.`;
                 }
-                if (!engine._state.allowTransfer) {
+                if (!engine.config._state.allowTransfer) {
                     return `;; Transfer failed. Reason: REFUSED\nAdd allow-transfer { 10.0.1.2; }; to the zone declaration in named.conf.local.`;
                 }
                 return `; <<>> DiG 9.18.12 <<>> AXFR sector7.matrix.net @${ns}\n;; ANSWER SECTION:\nsector7.matrix.net.              300  IN  SOA    cell-ns1.sector7.matrix.net. admin.sector7.matrix.net. 2026041001 3600 900 604800 300\nsector7.matrix.net.              300  IN  NS     cell-ns1.sector7.matrix.net.\nsector7.matrix.net.              300  IN  NS     cell-ns2.sector7.matrix.net.\ncell-071.sector7.matrix.net.     300  IN  A      10.0.1.71\ncell-088.sector7.matrix.net.     300  IN  A      10.0.1.88\ncell-034.sector7.matrix.net.     300  IN  A      10.0.1.34\ncell-016.sector7.matrix.net.     300  IN  A      10.0.1.16\ncell-049.sector7.matrix.net.     300  IN  A      10.0.1.49\ngrid-api.sector7.matrix.net.     300  IN  CNAME  cell-071.sector7.matrix.net.\ngrid-mail.sector7.matrix.net.    300  IN  A      10.0.1.10\nsector7.matrix.net.              300  IN  MX  10 grid-mail.sector7.matrix.net.\nsector7.matrix.net.              300  IN  SOA    cell-ns1.sector7.matrix.net. admin.sector7.matrix.net. 2026041001 3600 900 604800 300\n\n;; Query time: 2 msec\n;; SERVER: ${ns}#53(${ns})\n;; XFR size: 12 records`;
@@ -476,7 +476,7 @@ const ALAL07Config = {
             const queryType = ['A', 'AAAA', 'MX', 'NS', 'CNAME', 'PTR', 'SOA', 'TXT'].find(t => args.includes(t)) || 'A';
             const hostname = args.find(a => !a.startsWith('-') && !a.startsWith('@') && !['A', 'AAAA', 'MX', 'NS', 'CNAME', 'PTR', 'SOA', 'TXT', 'AXFR'].includes(a)) || '';
 
-            if (!engine._state.forwardZoneFile) {
+            if (!engine.config._state.forwardZoneFile) {
                 return `;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL\n;; ANSWER SECTION: (empty)\nForward zone not configured.`;
             }
 
@@ -510,7 +510,7 @@ const ALAL07Config = {
 
         // nslookup -- alternative DNS query tool
         'nslookup': function(args, term, engine) {
-            if (!engine._state.namedRunning) {
+            if (!engine.config._state.namedRunning) {
                 return `;; connection timed out; no servers could be reached`;
             }
             const host = args[0] || '';
@@ -525,7 +525,7 @@ const ALAL07Config = {
                 'cell-049.sector7.matrix.net': '10.0.1.49',
                 'grid-mail.sector7.matrix.net': '10.0.1.10'
             };
-            if (engine._state.forwardZoneFile && aRecords[host]) {
+            if (engine.config._state.forwardZoneFile && aRecords[host]) {
                 return `Server:   ${server}\nAddress:  ${server}#53\n\nName:   ${host}\nAddress: ${aRecords[host]}`;
             }
             return `Server:   ${server}\nAddress:  ${server}#53\n\n** server can\'t find ${host}: NXDOMAIN`;
@@ -533,10 +533,10 @@ const ALAL07Config = {
 
         // /opt/verify/check-forward.sh -- awards Flag 1
         '/opt/verify/check-forward.sh': function(args, term, engine) {
-            if (!engine._state.namedRunning) {
+            if (!engine.config._state.namedRunning) {
                 return `[FAIL] named is not running. Start with: systemctl start named`;
             }
-            if (!engine._state.forwardZoneFile) {
+            if (!engine.config._state.forwardZoneFile) {
                 return `[FAIL] Forward zone file not found.\nCreate: /etc/bind/zones/db.sector7.matrix.net`;
             }
             const hosts = ['cell-071', 'cell-088', 'cell-034', 'cell-016', 'cell-049', 'grid-api', 'grid-mail'];
@@ -548,10 +548,10 @@ const ALAL07Config = {
 
         // /opt/verify/check-reverse.sh -- awards Flag 2
         '/opt/verify/check-reverse.sh': function(args, term, engine) {
-            if (!engine._state.namedRunning) {
+            if (!engine.config._state.namedRunning) {
                 return `[FAIL] named is not running.`;
             }
-            if (!engine._state.reverseZoneFile) {
+            if (!engine.config._state.reverseZoneFile) {
                 return `[FAIL] Reverse zone file not found.\nCreate: /etc/bind/zones/db.10.0.1`;
             }
             const pairs = [
@@ -569,13 +569,13 @@ const ALAL07Config = {
 
         // /opt/verify/check-transfer.sh -- awards Flag 3
         '/opt/verify/check-transfer.sh': function(args, term, engine) {
-            if (!engine._state.namedRunning) {
+            if (!engine.config._state.namedRunning) {
                 return `[FAIL] named is not running.`;
             }
-            if (!engine._state.forwardZoneFile) {
+            if (!engine.config._state.forwardZoneFile) {
                 return `[FAIL] Forward zone not configured.`;
             }
-            if (!engine._state.allowTransfer) {
+            if (!engine.config._state.allowTransfer) {
                 return `[FAIL] AXFR transfer REFUSED.\nAdd to zone declaration in named.conf.local:\n  allow-transfer { 10.0.1.2; };`;
             }
             engine.awardFlag('flag3');

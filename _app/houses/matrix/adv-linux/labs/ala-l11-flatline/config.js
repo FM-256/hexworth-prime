@@ -296,18 +296,18 @@ const ALAL11Config = {
         'top': function(args, term, engine) {
             const bFlag = args.includes('-b') || args.includes('-bn1') || args.includes('-n');
 
-            const gridIndexLine = engine._cronFixed
+            const gridIndexLine = engine.config._cronFixed
                 ? ''
                 : '\n 9001 root      20   0 2147m 2.0g   0.4 S 100.1  25.3   4:12.77 find\n 9002 root      20   0   12m  4.2m  1.1 S  98.4   0.1   4:12.12 sha256sum';
 
-            const cacheMemPct = engine._memoryFixed ? '3.2' : '26.2';
-            const cacheRSS    = engine._memoryFixed ? '268m' : '2.1g';
+            const cacheMemPct = engine.config._memoryFixed ? '3.2' : '26.2';
+            const cacheRSS    = engine.config._memoryFixed ? '268m' : '2.1g';
 
-            return `top - ${new Date().toTimeString().slice(0, 8)} up 9 days,  4:01,  1 user,  load average: ${engine._cronFixed ? '0.12, 0.15, 0.14' : '4.21, 3.88, 3.72'}
-Tasks: 142 total,   ${engine._cronFixed ? '1' : '3'} running, 141 sleeping,   0 stopped,   0 zombie
-%Cpu(s): ${engine._cronFixed ? '2.1' : '99.8'} us,  0.1 sy,  0.0 ni, ${engine._cronFixed ? '97.7' : '0.0'} id,  0.1 wa
-MiB Mem :  8192.0 total,  ${engine._memoryFixed ? '5840.0' : '3940.2'} free,  ${engine._memoryFixed ? '1820.0' : '3891.4'} used,   400.0 buff/cache
-MiB Swap:  2048.0 total,  ${engine._memoryFixed ? '2048.0' : '1024.3'} free,  ${engine._memoryFixed ? '0.0' : '1023.7'} used.   900.0 avail Mem
+            return `top - ${new Date().toTimeString().slice(0, 8)} up 9 days,  4:01,  1 user,  load average: ${engine.config._cronFixed ? '0.12, 0.15, 0.14' : '4.21, 3.88, 3.72'}
+Tasks: 142 total,   ${engine.config._cronFixed ? '1' : '3'} running, 141 sleeping,   0 stopped,   0 zombie
+%Cpu(s): ${engine.config._cronFixed ? '2.1' : '99.8'} us,  0.1 sy,  0.0 ni, ${engine.config._cronFixed ? '97.7' : '0.0'} id,  0.1 wa
+MiB Mem :  8192.0 total,  ${engine.config._memoryFixed ? '5840.0' : '3940.2'} free,  ${engine.config._memoryFixed ? '1820.0' : '3891.4'} used,   400.0 buff/cache
+MiB Swap:  2048.0 total,  ${engine.config._memoryFixed ? '2048.0' : '1024.3'} free,  ${engine.config._memoryFixed ? '0.0' : '1023.7'} used.   900.0 avail Mem
 
   PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND${gridIndexLine}
  8801 svc-cache 20   0  4295m ${cacheRSS}   0.4 S   1.2  ${cacheMemPct}   0:31.02 cell-cache
@@ -315,7 +315,7 @@ MiB Swap:  2048.0 total,  ${engine._memoryFixed ? '2048.0' : '1024.3'} free,  ${
   433 systemd-n 20   0   22m   8.1m   6.0 S   0.0   0.1   0:00.88 systemd-networkd
     1 root      20   0  170m  13.1m  10.0 S   0.0   0.2   0:01.12 systemd
 
-${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 minutes via cron as root'}`;
+${engine.config._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 minutes via cron as root'}`;
         },
 
         // ps -- process list
@@ -325,14 +325,14 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
             const grep = args.join(' ').includes('grep');
 
             if (sortMem) {
-                const cacheRSS = engine._memoryFixed ? '274632' : '2202624';
-                const cpuPct   = engine._memoryFixed ? '1.2' : '1.4';
-                return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nsvc-cache ${' '.repeat(4)}8801 ${cpuPct}  ${engine._memoryFixed ? ' 3.2' : '26.2'} 4398156 ${cacheRSS} ?     Ssl  09:00   0:31 /opt/cell-services/cell-cache\nsvc-stream  901  0.2   1.4  412284  117400 ?     Ssl  09:00   0:12 /opt/cell-services/cell-stream\nnamed       998  0.2   0.6  270336   49308 ?     Ssl  00:00   1:02 /usr/sbin/named\noperator   7412  0.0   0.1   15892    5488 pts/0 Ss   09:00   0:00 bash`;
+                const cacheRSS = engine.config._memoryFixed ? '274632' : '2202624';
+                const cpuPct   = engine.config._memoryFixed ? '1.2' : '1.4';
+                return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nsvc-cache ${' '.repeat(4)}8801 ${cpuPct}  ${engine.config._memoryFixed ? ' 3.2' : '26.2'} 4398156 ${cacheRSS} ?     Ssl  09:00   0:31 /opt/cell-services/cell-cache\nsvc-stream  901  0.2   1.4  412284  117400 ?     Ssl  09:00   0:12 /opt/cell-services/cell-stream\nnamed       998  0.2   0.6  270336   49308 ?     Ssl  00:00   1:02 /usr/sbin/named\noperator   7412  0.0   0.1   15892    5488 pts/0 Ss   09:00   0:00 bash`;
             }
 
             if (aux) {
-                const gridLine = engine._cronFixed ? '' : '\nroot        9001 99.8  0.0   4756    876 ?     R    09:12   4:12 find / -type f\nroot        9002 98.2  0.0   8192   1024 ?     R    09:12   4:12 sha256sum';
-                return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nroot          1  0.0  0.1  170288  13312 ?     Ss   Apr01   0:01 /sbin/init\nsvc-cache  8801  1.2  ${engine._memoryFixed ? ' 3.2' : '26.2'} 4398156 ${engine._memoryFixed ? '274632' : '2202624'} ?  Ssl  09:00   0:31 /opt/cell-services/cell-cache\nsvc-stream  901  0.2  1.4  412284  117400 ?     Ssl  09:00   0:12 /opt/cell-services/cell-stream${gridLine}\noperator   7412  0.0  0.0   15892   5488 pts/0 Ss   09:00   0:00 bash`;
+                const gridLine = engine.config._cronFixed ? '' : '\nroot        9001 99.8  0.0   4756    876 ?     R    09:12   4:12 find / -type f\nroot        9002 98.2  0.0   8192   1024 ?     R    09:12   4:12 sha256sum';
+                return `USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nroot          1  0.0  0.1  170288  13312 ?     Ss   Apr01   0:01 /sbin/init\nsvc-cache  8801  1.2  ${engine.config._memoryFixed ? ' 3.2' : '26.2'} 4398156 ${engine.config._memoryFixed ? '274632' : '2202624'} ?  Ssl  09:00   0:31 /opt/cell-services/cell-cache\nsvc-stream  901  0.2  1.4  412284  117400 ?     Ssl  09:00   0:12 /opt/cell-services/cell-stream${gridLine}\noperator   7412  0.0  0.0   15892   5488 pts/0 Ss   09:00   0:00 bash`;
             }
 
             return 'Usage: ps aux [--sort=-%mem]\nExample: ps aux --sort=-%mem | head -5';
@@ -341,7 +341,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
         // free -- memory usage
         'free': function(args, term, engine) {
             const h = args.includes('-h') || args.includes('-m');
-            if (engine._memoryFixed) {
+            if (engine.config._memoryFixed) {
                 return h
                     ? '              total        used        free      shared  buff/cache   available\nMem:           8.0G        1.8G        5.7G        100M        400M        5.9G\nSwap:          2.0G          0B        2.0G'
                     : '              total        used        free      shared  buff/cache   available\nMem:        8388608     3891404     3940224      102400      409600     6029204\nSwap:       2097152     1047552     1049600';
@@ -354,15 +354,15 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
         // df -- disk usage
         'df': function(args, term, engine) {
             const h = args.includes('-h');
-            const diskPct = engine._diskFixed ? '71%' : '94%';
-            const diskFree = engine._diskFixed ? '33G' : '7.3G';
-            const diskUsed = engine._diskFixed ? '80G' : '106G';
+            const diskPct = engine.config._diskFixed ? '71%' : '94%';
+            const diskFree = engine.config._diskFixed ? '33G' : '7.3G';
+            const diskUsed = engine.config._diskFixed ? '80G' : '106G';
 
             if (h) {
-                return `Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1        128G   14G  108G  12% /\ntmpfs            4.0G     0  4.0G   0% /dev/shm\n/dev/sda2        128G  ${diskUsed}   ${diskFree}  ${diskPct} /var\n\n${engine._diskFixed ? '' : 'ALERT: /var at 94% -- write failures imminent for services logging to /var/log/'}`;
+                return `Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1        128G   14G  108G  12% /\ntmpfs            4.0G     0  4.0G   0% /dev/shm\n/dev/sda2        128G  ${diskUsed}   ${diskFree}  ${diskPct} /var\n\n${engine.config._diskFixed ? '' : 'ALERT: /var at 94% -- write failures imminent for services logging to /var/log/'}`;
             }
 
-            return `Filesystem     1K-blocks     Used Available Use% Mounted on\n/dev/sda1      134217728 14680064 111935488  12% /\ntmpfs            4194304        0   4194304   0% /dev/shm\n/dev/sda2      134217728 ${engine._diskFixed ? '83886080 38993920' : '111149056  7847680'}  ${diskPct} /var`;
+            return `Filesystem     1K-blocks     Used Available Use% Mounted on\n/dev/sda1      134217728 14680064 111935488  12% /\ntmpfs            4194304        0   4194304   0% /dev/shm\n/dev/sda2      134217728 ${engine.config._diskFixed ? '83886080 38993920' : '111149056  7847680'}  ${diskPct} /var`;
         },
 
         // du -- disk usage by directory
@@ -372,8 +372,8 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
             const h = args.includes('-h') || s;
 
             if (target.includes('cell-stream')) {
-                const size = engine._diskFixed ? '892M' : '4.2G';
-                return h ? `${size}\t${target}` : `${engine._diskFixed ? '913408' : '4404224'}\t${target}`;
+                const size = engine.config._diskFixed ? '892M' : '4.2G';
+                return h ? `${size}\t${target}` : `${engine.config._diskFixed ? '913408' : '4404224'}\t${target}`;
             }
 
             if (target.includes('/var/log')) {
@@ -384,7 +384,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
 
             if (target === '/var' || target === '/var/') {
                 return h
-                    ? `4.2G\t/var/log/cell-stream\n400M\t/var/cache\n48M\t/var/log/cell-ops\n${engine._diskFixed ? '109G' : '106G'}\t/var total`
+                    ? `4.2G\t/var/log/cell-stream\n400M\t/var/cache\n48M\t/var/log/cell-ops\n${engine.config._diskFixed ? '109G' : '106G'}\t/var total`
                     : '';
             }
 
@@ -400,7 +400,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
 
             if (lFlag) {
                 if (user === 'root' || args.includes('root')) {
-                    if (engine._cronFixed) {
+                    if (engine.config._cronFixed) {
                         return '# DO NOT EDIT THIS FILE\n17 *    * * *   root    cd / && run-parts --report /etc/cron.hourly\n25 6    * * *   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; }\n47 6    * * 7   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.weekly; }\n52 6    1 * *   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.monthly; }\n# grid-index entry removed by operator';
                     }
                     return '# DO NOT EDIT THIS FILE -- install proper package or use -e flag\n# (crontab installed on Fri Apr  5 11:32:22 2026)\n# m h  dom mon dow   command\n17 *    * * *   root    cd / && run-parts --report /etc/cron.hourly\n25 6    * * *   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; }\n47 6    * * 7   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.weekly; }\n52 6    1 * *   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.monthly; }\n*/4 * * * * root /opt/cell-services/grid-index.sh';
@@ -410,7 +410,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
 
             if (eFlag) {
                 // Simulate editing and removing the rogue entry
-                engine._cronFixed = true;
+                engine.config._cronFixed = true;
                 // Update filesystem representation
                 engine.filesystem['/'].children.var.children.spool.children.cron.children.crontabs.children.root.content =
                     '# DO NOT EDIT THIS FILE\n17 *    * * *   root    cd / && run-parts --report /etc/cron.hourly\n25 6    * * *   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; }\n47 6    * * 7   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.weekly; }\n52 6    1 * *   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.monthly; }\n# grid-index entry removed by operator\n';
@@ -427,10 +427,10 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
 
             if (sub === 'status') {
                 if (unit === 'cell-cache') {
-                    const memNote = engine._memoryFixed
+                    const memNote = engine.config._memoryFixed
                         ? 'Memory: 244.0M (limit: 256.0M, available: 12.0M)'
                         : 'Memory: 2.1G (limit: n/a)';
-                    return `\u25CF cell-cache.service - Cell Cache Service\n     Loaded: loaded (/etc/systemd/system/cell-cache.service; enabled)\n     Active: active (running) since Thu 2026-04-10 09:00:01 UTC\n   Main PID: 8801 (cell-cache)\n    ${memNote}\n\n${engine._memoryFixed ? '' : 'WARNING: No MemoryMax configured -- service will consume all available memory\n'}Apr 10 09:00:01 cell-flatline systemd[1]: Started Cell Cache Service.`;
+                    return `\u25CF cell-cache.service - Cell Cache Service\n     Loaded: loaded (/etc/systemd/system/cell-cache.service; enabled)\n     Active: active (running) since Thu 2026-04-10 09:00:01 UTC\n   Main PID: 8801 (cell-cache)\n    ${memNote}\n\n${engine.config._memoryFixed ? '' : 'WARNING: No MemoryMax configured -- service will consume all available memory\n'}Apr 10 09:00:01 cell-flatline systemd[1]: Started Cell Cache Service.`;
                 }
 
                 if (unit === 'cell-stream') {
@@ -438,7 +438,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
                 }
 
                 if (unit === 'cron') {
-                    return `\u25CF cron.service - Regular background program processing daemon\n     Loaded: loaded (/lib/systemd/system/cron.service; enabled)\n     Active: active (running)\n   Main PID: 345 (cron)\n\n${engine._cronFixed ? '' : 'RECENT EXECUTIONS:\nApr 10 09:00:01 cell-flatline CRON[8801]: (root) CMD (/opt/cell-services/grid-index.sh)\nApr 10 09:04:01 cell-flatline CRON[8901]: (root) CMD (/opt/cell-services/grid-index.sh)'}`;
+                    return `\u25CF cron.service - Regular background program processing daemon\n     Loaded: loaded (/lib/systemd/system/cron.service; enabled)\n     Active: active (running)\n   Main PID: 345 (cron)\n\n${engine.config._cronFixed ? '' : 'RECENT EXECUTIONS:\nApr 10 09:00:01 cell-flatline CRON[8801]: (root) CMD (/opt/cell-services/grid-index.sh)\nApr 10 09:04:01 cell-flatline CRON[8901]: (root) CMD (/opt/cell-services/grid-index.sh)'}`;
                 }
 
                 return `Unit ${unit || '[none]'} not found.\nKnown services: cell-cache, cell-stream, cron`;
@@ -458,7 +458,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
             // systemctl edit -- simulate adding MemoryMax override
             if (sub === 'edit') {
                 if (unit === 'cell-cache') {
-                    engine._memoryFixed = true;
+                    engine.config._memoryFixed = true;
                     // Update the unit file to reflect the override
                     engine.filesystem['/'].children.etc.children.systemd.children.system.children['cell-cache.service'].content =
                         '[Unit]\nDescription=Cell Cache Service\nAfter=network.target\n\n[Service]\nType=simple\nUser=svc-cache\nExecStart=/opt/cell-services/cell-cache\nRestart=on-failure\nRestartSec=10\nMemoryMax=256M\n\n[Install]\nWantedBy=multi-user.target\n';
@@ -473,7 +473,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
 
             if (sub === 'restart') {
                 if (unit === 'cell-cache') {
-                    if (engine._memoryFixed) {
+                    if (engine.config._memoryFixed) {
                         return 'cell-cache.service restarted with MemoryMax=256M active.';
                     }
                     return 'cell-cache.service restarted (warning: no MemoryMax set -- memory leak will continue)';
@@ -489,8 +489,8 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
             }
 
             if (sub === 'list-units') {
-                const cpuNote = engine._cronFixed ? '' : ' [!] grid-index.sh consuming 100% CPU via cron';
-                const memNote = engine._memoryFixed ? '' : ' [!] cell-cache has no MemoryMax -- 2.1 GB consumed';
+                const cpuNote = engine.config._cronFixed ? '' : ' [!] grid-index.sh consuming 100% CPU via cron';
+                const memNote = engine.config._memoryFixed ? '' : ' [!] cell-cache has no MemoryMax -- 2.1 GB consumed';
                 return `UNIT                              LOAD     ACTIVE     SUB      DESCRIPTION\n  cell-cache.service              loaded   active     running  Cell Cache Service${memNote}\n  cell-stream.service             loaded   active     running  Cell Stream Data Service\n  cron.service                    loaded   active     running  Regular background program processing daemon${cpuNote}\n  ssh.service                     loaded   active     running  OpenBSD Secure Shell server\n  systemd-networkd.service        loaded   active     running  Network Configuration\n\n5 loaded units listed.`;
             }
 
@@ -503,14 +503,14 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
             const config = args.find(a => !a.startsWith('-') && a !== 'logrotate') || '';
 
             if (config.includes('cell-stream') || config === '/etc/logrotate.conf') {
-                if (!engine._logrotateConfigWritten) {
+                if (!engine.config._logrotateConfigWritten) {
                     if (config.includes('cell-stream')) {
                         return 'error: /etc/logrotate.d/cell-stream: No such file or directory\nWrite a logrotate config first: /etc/logrotate.d/cell-stream';
                     }
                     return 'logrotate: no config for cell-stream found. Write /etc/logrotate.d/cell-stream first.';
                 }
                 if (force) {
-                    engine._diskFixed = true;
+                    engine.config._diskFixed = true;
                     return 'rotating log /var/log/cell-stream/stream.log: OK\ncompressing /var/log/cell-stream/stream.log.1: OK\n\n/var/log/cell-stream/stream.log rotated. Old log compressed to stream.log.1.gz\nDisk usage on /var reduced from 94% to 71%.';
                 }
                 return 'logrotate: use -f to force rotation: logrotate -f /etc/logrotate.d/cell-stream';
@@ -524,12 +524,12 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (target.includes('/etc/logrotate.d/cell-stream')) {
-                engine._logrotateConfigWritten = true;
+                engine.config._logrotateConfigWritten = true;
                 return '(config written to /etc/logrotate.d/cell-stream)';
             }
 
             if (target.includes('cell-cache') && (target.includes('override') || target.includes('systemd'))) {
-                engine._memoryFixed = true;
+                engine.config._memoryFixed = true;
                 return '(override written)';
             }
 
@@ -540,15 +540,15 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
         'vi': function(args, term, engine) {
             const target = args.find(a => !a.startsWith('-')) || '';
             if (target.includes('/etc/logrotate.d/cell-stream')) {
-                engine._logrotateConfigWritten = true;
+                engine.config._logrotateConfigWritten = true;
                 return '[VI simulation] /etc/logrotate.d/cell-stream saved.\nRun: sudo logrotate -f /etc/logrotate.d/cell-stream to force rotation.';
             }
             if (target.includes('cell-cache.service') || target.includes('/etc/systemd')) {
-                engine._memoryFixed = true;
+                engine.config._memoryFixed = true;
                 return '[VI simulation] Unit file saved with MemoryMax=256M.\nRun: systemctl daemon-reload && systemctl restart cell-cache.service';
             }
             if (target.includes('/var/spool/cron/crontabs/root') || target.includes('crontab')) {
-                engine._cronFixed = true;
+                engine.config._cronFixed = true;
                 return '[VI simulation] Crontab saved. Rogue */4 entry removed.';
             }
             return '[VI simulation] Cannot open interactive editor in this terminal.\nUse the dedicated command for this task.';
@@ -566,7 +566,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
         'rm': function(args, term, engine) {
             const target = args.find(a => !a.startsWith('-')) || '';
             if (target.includes('grid-index.sh')) {
-                engine._cronFixed = true;
+                engine.config._cronFixed = true;
                 delete engine.filesystem['/'].children.opt.children['cell-services'].children['grid-index.sh'];
                 return '';
             }
@@ -577,7 +577,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
         'cat': function(args, term, engine) {
             const target = args.find(a => !a.startsWith('-')) || '';
             if (target.includes('/var/spool/cron/crontabs/root')) {
-                return engine._cronFixed
+                return engine.config._cronFixed
                     ? '# crontab without rogue entry\n17 *    * * *   root    cd / && run-parts --report /etc/cron.hourly\n25 6    * * *   root    test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; }\n'
                     : engine.filesystem['/'].children.var.children.spool.children.cron.children.crontabs.children.root.content;
             }
@@ -590,13 +590,13 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
             const target  = args.filter(a => !a.startsWith('-'))[1] || '';
 
             if (pattern.includes('MemoryMax') && target.includes('cell-cache')) {
-                return engine._memoryFixed
+                return engine.config._memoryFixed
                     ? 'MemoryMax=256M'
                     : '[no MemoryMax found in cell-cache.service -- this is the problem]';
             }
 
             if (pattern.includes('grid-index') && target.includes('crontab')) {
-                return engine._cronFixed
+                return engine.config._cronFixed
                     ? '[entry removed]'
                     : '*/4 * * * * root /opt/cell-services/grid-index.sh';
             }
@@ -606,7 +606,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
 
         // Verification scripts
         '/opt/verify/check-cpu.sh': function(args, term, engine) {
-            if (!engine._cronFixed) {
+            if (!engine.config._cronFixed) {
                 return 'FAIL: Rogue cron entry still active.\n  */4 * * * * root /opt/cell-services/grid-index.sh\n\nFix: sudo crontab -u root -e  (remove the */4 grid-index.sh line)\n  OR: sudo rm /opt/cell-services/grid-index.sh';
             }
             engine.awardFlag('flag1');
@@ -614,7 +614,7 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
         },
 
         '/opt/verify/check-memory.sh': function(args, term, engine) {
-            if (!engine._memoryFixed) {
+            if (!engine.config._memoryFixed) {
                 return 'FAIL: cell-cache.service has no MemoryMax configured.\n  systemctl cat cell-cache.service | grep MemoryMax  -- returns nothing\n\nFix: sudo systemctl edit cell-cache.service\n  Add under [Service]:\n  MemoryMax=256M\nThen: sudo systemctl daemon-reload && sudo systemctl restart cell-cache.service';
             }
             engine.awardFlag('flag2');
@@ -622,9 +622,9 @@ ${engine._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run every 4 m
         },
 
         '/opt/verify/check-disk.sh': function(args, term, engine) {
-            if (!engine._diskFixed) {
+            if (!engine.config._diskFixed) {
                 const steps = [];
-                if (!engine._logrotateConfigWritten) {
+                if (!engine.config._logrotateConfigWritten) {
                     steps.push('  1. Write /etc/logrotate.d/cell-stream config (daily, rotate 7, compress)');
                 }
                 steps.push('  2. sudo logrotate -f /etc/logrotate.d/cell-stream');

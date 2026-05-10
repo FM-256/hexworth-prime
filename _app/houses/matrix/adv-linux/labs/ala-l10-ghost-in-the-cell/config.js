@@ -478,15 +478,15 @@ SUMMARY: 14 entries modified since baseline (Thu Apr 07 06:00:00 2026)
 
             for (const p of paths) {
                 if (p.includes('grid-backup') && !p.includes('originals')) {
-                    if (!engine._foundBackdoor) { engine._foundBackdoor = true; anyNew = true; }
+                    if (!engine.config._foundBackdoor) { engine.config._foundBackdoor = true; anyNew = true; }
                     results.push('[FLAG 1] CONFIRMED: /usr/local/bin/grid-backup -- backdoored binary (+847 bytes, exfil_sensitive() function added)');
                     engine.awardFlag('flag1');
                 } else if (p.includes('sshd_config')) {
-                    if (!engine._foundSshdConfig) { engine._foundSshdConfig = true; anyNew = true; }
+                    if (!engine.config._foundSshdConfig) { engine.config._foundSshdConfig = true; anyNew = true; }
                     results.push('[FLAG 2] CONFIRMED: /etc/ssh/sshd_config -- PermitRootLogin changed from no to yes');
                     engine.awardFlag('flag2');
                 } else if (p.includes('payload') || p.includes('.hidden-cache')) {
-                    if (!engine._foundPayload) { engine._foundPayload = true; anyNew = true; }
+                    if (!engine.config._foundPayload) { engine.config._foundPayload = true; anyNew = true; }
                     results.push('[FLAG 3] CONFIRMED: /home/operator/.hidden-cache/payload.tar.gz -- staged data (shadow + authorized_keys)');
                     engine.awardFlag('flag3');
                 } else {

@@ -48,7 +48,24 @@ const PISL05Config = {
     lore: {
         intro: 'Eight devices are sitting in the pre-deployment bay. Each one is going to a field team that operates outside the facility perimeter -- meaning if a device is compromised in the field, there is no containment barrier between it and the facility network when it reconnects. Every device must meet containment standards before it leaves. Fail the wrong ones and they get through. Miss a failure and a compromised device goes to the field.',
         scenario: 'Containment Standard CS-12 requires all field devices to meet four criteria: (1) full-disk encryption enabled, (2) enrolled in MDM, (3) OS patches current within 30 days, (4) no unnecessary open ports. Three of the eight devices have one or more violations. Audit each one, fail the three non-compliant devices, and document the specific remediation required.',
-        outro: 'Audit complete. Three non-compliant devices flagged and held. Five devices cleared for field deployment. Remediation orders filed. No unencrypted or unpatched device leaves the facility today.'
+        outro: 'Audit complete. Three non-compliant devices flagged and held. Five devices cleared for field deployment. Remediation orders filed. No unencrypted or unpatched device leaves the facility today.',
+
+        goals: [
+            "Apply Containment Standard CS-12: full-disk encryption, MDM enrollment, OS patches within 30 days, no unnecessary open ports",
+            "Audit 8 devices against the four criteria and flag the 3 non-compliant",
+            "Distinguish severity tiers -- a missing MDM enrollment is not the same as an open port: each has its own remediation path",
+            "Document remediations specifically enough that a field engineer can act without re-auditing",
+            "Practice the false-positive cost: failing the wrong device delays deployment; passing the wrong one ships a vulnerability"
+        ],
+
+        toolkit: [
+            { name: "inventory", purpose: "List the 8 devices in the pre-deployment bay with summary status", sample: "inventory" },
+            { name: "audit", purpose: "Run the full CS-12 audit against a specific device", sample: "audit DEV-03" },
+            { name: "fail", purpose: "Mark a device as non-compliant", sample: "fail DEV-03" },
+            { name: "remediate", purpose: "File the specific remediation action required for a failed device", sample: "remediate DEV-03 enable-fde" },
+            { name: "submit", purpose: "Submit final audit decision once all 8 devices are reviewed", sample: "submit" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -228,8 +245,8 @@ const PISL05Config = {
 
         // inventory -- list all 8 devices with pass/fail status
         'inventory': function(args, term, engine) {
-            const devices = engine._devices;
-            const failed = engine._failed;
+            const devices = engine.config._devices;
+            const failed = engine.config._failed;
 
             let lines = [
                 'PRE-DEPLOYMENT DEVICE INVENTORY -- Batch 09',
@@ -256,13 +273,13 @@ const PISL05Config = {
             const id = (args[0] || '').toUpperCase();
             if (!id) return 'Usage: audit <device-id>\nExample: audit DEV-001';
 
-            const dev = engine._devices[id];
+            const dev = engine.config._devices[id];
             if (!dev) {
                 return `Error: Device ${id} not found.\nValid IDs: DEV-001 through DEV-008`;
             }
 
-            const flagStatus = engine._failed[id]
-                ? `\n[FLAGGED: ${engine._failed[id].toUpperCase()}]`
+            const flagStatus = engine.config._failed[id]
+                ? `\n[FLAGGED: ${engine.config._failed[id].toUpperCase()}]`
                 : '';
 
             return `DEVICE AUDIT REPORT -- ${id}\n${'='.repeat(45)}\nDevice:      ${dev.name}\nAssigned To: ${dev.assignedTo}\n\nENCRYPTION   ${dev.encryption}\nMDM          ${dev.mdm}\nPATCHES      ${dev.patches}\nOPEN PORTS   ${dev.ports}\n\nCS-12 Check:\n  Encryption:  ${dev.encryption.includes('ENABLED') ? 'PASS' : 'FAIL -- disk encryption required'}\n  MDM:         ${dev.mdm.includes('Enrolled') ? 'PASS' : 'FAIL -- MDM enrollment required'}\n  Patch (30d): ${((function(p) { var m = p.match(/(\d{4}-\d{2}-\d{2})/); if (!m) return 'UNKNOWN'; return new Date(m[1]) >= new Date('2026-03-10') ? 'PASS' : 'FAIL -- last patch more than 30 days old'; })(dev.patches))}\n  Ports:       ${((function(p) { var bad = ['3389','23','5900','21','80','8080']; for (var i=0;i<bad.length;i++) { if (p.includes(bad[i])) return 'FAIL -- unauthorized port: '+bad[i]+'/tcp'; } return 'PASS'; })(dev.ports))}\n${flagStatus}`;
@@ -296,15 +313,15 @@ const PISL05Config = {
                 return 'Usage: fail <device-id> <reason>\nReasons: no-encryption, no-mdm, unpatched, open-ports\nExample: fail DEV-003 no-encryption';
             }
 
-            if (!engine._devices[id]) {
+            if (!engine.config._devices[id]) {
                 return `Error: Device ${id} not found. Valid IDs: DEV-001 through DEV-008`;
             }
 
-            if (!engine._validFailReasons.includes(reason)) {
+            if (!engine.config._validFailReasons.includes(reason)) {
                 return `Error: "${reason}" is not a valid failure reason.\nValid reasons: no-encryption, no-mdm, unpatched, open-ports`;
             }
 
-            const correct = engine._failAnswers[id];
+            const correct = engine.config._failAnswers[id];
 
             // Check: is this device supposed to fail at all?
             if (!correct) {
@@ -316,8 +333,8 @@ const PISL05Config = {
                 return `AUDIT DISPUTE: ${id}\nDevice ${id} does have a CS-12 violation, but the reason "${reason}" is incorrect.\nRun: audit ${id} and review each criterion carefully.`;
             }
 
-            engine._failed[id] = reason;
-            return `Device ${id} FLAGGED: ${reason.toUpperCase()}\nDevice held from deployment pending remediation.\nRemaining flags needed: ${3 - Object.keys(engine._failed).length}`;
+            engine.config._failed[id] = reason;
+            return `Device ${id} FLAGGED: ${reason.toUpperCase()}\nDevice held from deployment pending remediation.\nRemaining flags needed: ${3 - Object.keys(engine.config._failed).length}`;
         },
 
         // remediate <device-id> <action> -- document remediation steps
@@ -329,41 +346,41 @@ const PISL05Config = {
                 return 'Usage: remediate <device-id> <action>\nActions: enable-bitlocker, enable-luks, enroll-mdm, apply-patches, close-ports\nExample: remediate DEV-003 enable-bitlocker';
             }
 
-            if (!engine._devices[id]) {
+            if (!engine.config._devices[id]) {
                 return `Error: Device ${id} not found.`;
             }
 
-            if (!engine._failed[id]) {
+            if (!engine.config._failed[id]) {
                 return `Error: ${id} has not been flagged yet.\nRun: fail ${id} <reason> first.`;
             }
 
-            if (!engine._validRemediations.includes(action)) {
+            if (!engine.config._validRemediations.includes(action)) {
                 return `Error: "${action}" is not a valid remediation action.\nValid actions: enable-bitlocker, enable-luks, enroll-mdm, apply-patches, close-ports`;
             }
 
-            const correctAction = engine._remediationAnswers[id];
+            const correctAction = engine.config._remediationAnswers[id];
             if (action !== correctAction) {
-                return `Remediation mismatch: ${id}\nAction "${action}" does not address the reported violation.\nFailure reason: ${engine._failed[id]}\nChoose the remediation that directly fixes that violation.`;
+                return `Remediation mismatch: ${id}\nAction "${action}" does not address the reported violation.\nFailure reason: ${engine.config._failed[id]}\nChoose the remediation that directly fixes that violation.`;
             }
 
-            engine._remediated[id] = action;
+            engine.config._remediated[id] = action;
 
-            const remCount = Object.keys(engine._remediated).length;
+            const remCount = Object.keys(engine.config._remediated).length;
             return `Remediation filed: ${id} -- ${action.toUpperCase()}\nRemediations filed: ${remCount}/3`;
         },
 
         // submit -- check if all 3 failures identified and remediated
         'submit': function(args, term, engine) {
-            const failCount = Object.keys(engine._failed).length;
-            const remCount = Object.keys(engine._remediated).length;
+            const failCount = Object.keys(engine.config._failed).length;
+            const remCount = Object.keys(engine.config._remediated).length;
 
             if (failCount < 3) {
                 return `Audit incomplete: ${failCount}/3 non-compliant devices identified.\nRun: audit on all devices, then flag violations with: fail <id> <reason>`;
             }
 
             // Flag 1: All 3 non-compliant devices correctly flagged
-            if (!engine._flag1Awarded) {
-                engine._flag1Awarded = true;
+            if (!engine.config._flag1Awarded) {
+                engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
             }
 
@@ -372,8 +389,8 @@ const PISL05Config = {
             }
 
             // Flag 2: All 3 remediations correctly filed
-            if (!engine._flag2Awarded) {
-                engine._flag2Awarded = true;
+            if (!engine.config._flag2Awarded) {
+                engine.config._flag2Awarded = true;
                 engine.awardFlag('flag2');
             }
 

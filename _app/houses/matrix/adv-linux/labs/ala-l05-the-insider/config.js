@@ -331,7 +331,7 @@ const ALAL05Config = {
                 const sub = rest[0] || '';
                 const pkg = rest[1] || '';
                 if (sub === 'install' && pkg === 'libpam-google-authenticator') {
-                    engine._state.pamPackageInstalled = true;
+                    engine.config._state.pamPackageInstalled = true;
                     return `Reading package lists... Done\nBuilding dependency tree... Done\nThe following NEW packages will be installed:\n  libpam-google-authenticator\n0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.\nNeed to get 48.2 kB of archives.\nGet:1 http://archive.ubuntu.com/ubuntu jammy/universe amd64 libpam-google-authenticator amd64 20191231-2 [48.2 kB]\nFetched 48.2 kB in 0s (312 kB/s)\nSelecting previously unselected package libpam-google-authenticator.\nPreparing to unpack .../libpam-google-authenticator_20191231-2_amd64.deb ...\nUnpacking libpam-google-authenticator (20191231-2) ...\nSetting up libpam-google-authenticator (20191231-2) ...\nProcessing triggers for man-db (2.10.2-1) ...\n`;
                 }
                 return `sudo apt: unrecognized package or subcommand`;
@@ -341,10 +341,10 @@ const ALAL05Config = {
                 const sub = rest[0] || '';
                 const unit = (rest[1] || '').replace(/\.service$/, '');
                 if ((sub === 'reload' || sub === 'restart') && (unit === 'sshd' || unit === 'ssh')) {
-                    if (!engine._state.pamUpdated || !engine._state.sshdUpdated) {
+                    if (!engine.config._state.pamUpdated || !engine.config._state.sshdUpdated) {
                         return `Warning: Reloading sshd -- config changes may not be complete.\nJob for ssh.service done.`;
                     }
-                    engine._state.sshdReloaded = true;
+                    engine.config._state.sshdReloaded = true;
                     return ``;
                 }
                 if (sub === 'status' && (unit === 'sshd' || unit === 'ssh')) {
@@ -362,13 +362,13 @@ const ALAL05Config = {
 
         // google-authenticator -- TOTP setup simulation
         'google-authenticator': function(args, term, engine) {
-            if (!engine._state.pamPackageInstalled) {
+            if (!engine.config._state.pamPackageInstalled) {
                 return `bash: google-authenticator: command not found\nInstall with: sudo apt install libpam-google-authenticator`;
             }
             const hasFlags = args.includes('-t') || args.includes('-d') || args.includes('-f');
             if (hasFlags) {
                 // Mark TOTP as configured and write the secret to the user directory
-                engine._state.totpConfigured = true;
+                engine.config._state.totpConfigured = true;
                 engine.filesystem['/'].children.home.children.operator.children['.google_authenticator'] = {
                     type: 'file',
                     content: 'JBSWY3DPEHPK3PXP\n\" RATE_LIMIT 3 30\n\" WINDOW_SIZE 17\n\" TOTP_AUTH\n18173513\n69416278\n31730827\n11042096\n52049834\n'
@@ -390,7 +390,7 @@ const ALAL05Config = {
                 if (!content.includes('pam_google_authenticator.so')) {
                     return `write: append the line: auth required pam_google_authenticator.so\nto /etc/pam.d/sshd`;
                 }
-                engine._state.pamUpdated = true;
+                engine.config._state.pamUpdated = true;
                 engine.filesystem['/'].children.etc.children['pam.d'].children['sshd'].content =
                     engine.filesystem['/'].children.etc.children['pam.d'].children['sshd'].content +
                     'auth required pam_google_authenticator.so\n';
@@ -412,7 +412,7 @@ const ALAL05Config = {
                             engine.filesystem['/'].children.etc.children.ssh.children['sshd_config'].content
                                 .replace('PasswordAuthentication yes', 'PasswordAuthentication no');
                     }
-                    engine._state.sshdUpdated = true;
+                    engine.config._state.sshdUpdated = true;
                     return `Written: /etc/ssh/sshd_config`;
                 }
                 return `write: specify one or both of:\n  KbdInteractiveAuthentication yes\n  PasswordAuthentication no`;
@@ -421,7 +421,7 @@ const ALAL05Config = {
             // Remove rogue key from authorized_keys
             if (file === '/home/operator/.ssh/authorized_keys') {
                 if (content.includes('ssh-ed25519') && !content.includes('intruder')) {
-                    engine._state.rogueKeyRemoved = true;
+                    engine.config._state.rogueKeyRemoved = true;
                     engine.filesystem['/'].children.home.children.operator.children['.ssh'].children['authorized_keys'].content =
                         'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOperatorKeyCell016GridAccess operator@grid-command\n';
                     return `Written: /home/operator/.ssh/authorized_keys`;
@@ -434,9 +434,9 @@ const ALAL05Config = {
 
         // /opt/verify/test-2fa.sh -- awards Flag 1 when 2FA config is complete
         '/opt/verify/test-2fa.sh': function(args, term, engine) {
-            const pamOK = engine._state.pamUpdated;
-            const sshdOK = engine._state.sshdUpdated;
-            const reloaded = engine._state.sshdReloaded;
+            const pamOK = engine.config._state.pamUpdated;
+            const sshdOK = engine.config._state.sshdUpdated;
+            const reloaded = engine.config._state.sshdReloaded;
 
             if (!pamOK) {
                 return `[FAIL] pam_google_authenticator.so not found in /etc/pam.d/sshd\nAdd: auth required pam_google_authenticator.so`;
@@ -480,7 +480,7 @@ const ALAL05Config = {
             const hasMethod = input.includes('password');
 
             if (hasIP && hasMethod) {
-                engine._state.breachAnswered = true;
+                engine.config._state.breachAnswered = true;
                 engine.awardFlag('flag2');
                 return `[CORRECT] Entry vector: 203.0.113.77 via password authentication.\nFLAG: FLAG{breach_vector_identified_password_from_203_0_113_77}`;
             }
@@ -527,7 +527,7 @@ const ALAL05Config = {
             const path = args.find(a => !a.startsWith('-')) || '.';
 
             if (path.includes('.ssh') || path === '/home/operator/.ssh') {
-                const keys = engine._state.rogueKeyRemoved
+                const keys = engine.config._state.rogueKeyRemoved
                     ? (longFlag ? '-rw------- 1 operator operator  72 Apr 10 09:00 authorized_keys' : 'authorized_keys')
                     : (longFlag ? '-rw------- 1 operator operator 143 Apr 10 03:45 authorized_keys' : 'authorized_keys');
                 const kh = longFlag ? '-rw-r--r-- 1 operator operator  62 Apr 10 06:01 known_hosts' : 'known_hosts';

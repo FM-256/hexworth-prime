@@ -314,6 +314,16 @@ class SyntaxValidator {
             }
         }
 
+        // Run CTF config-state misaccess validation (global, scans labs/<*>/config.js)
+        const ctfMisaccessResults = this.heuristicsValidator.validateCTFConfigMisaccess();
+        if (ctfMisaccessResults.length > 0) {
+            results.issues.push(...ctfMisaccessResults);
+            results.summary.heuristicErrors += ctfMisaccessResults.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] CTFConfigMisaccess: ${ctfMisaccessResults.length} issues`);
+            }
+        }
+
         // Run CSP validation (global, cross-references firebase.json)
         const cspResults = this.cspValidator.validate();
         if (cspResults.issues.length > 0) {

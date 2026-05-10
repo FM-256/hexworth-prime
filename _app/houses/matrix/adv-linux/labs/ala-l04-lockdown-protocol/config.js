@@ -220,7 +220,7 @@ const ALAL04Config = {
 
         // iptables -- the primary command for this lab
         'iptables': function(args, term, engine) {
-            const fw = engine._fw;
+            const fw = engine.config._fw;
 
             // iptables -L [-n] [-v] -- list rules
             if (args.includes('-L') || args.includes('--list')) {
@@ -347,7 +347,7 @@ const ALAL04Config = {
             if (target === 'LOG') {
                 fw.logRule = true;
                 // Append to firewall log
-                engine._firewallLogHasEntries = true;
+                engine.config._firewallLogHasEntries = true;
                 engine.filesystem['/'].children.var.children.log.children['cell-firewall.log'].content +=
                     `Apr 10 11:25:33 cell-088 kernel: [CELL-PERIMETER: ] IN=eth0 OUT= SRC=10.0.3.44 DST=10.0.0.88 PROTO=UDP DPT=161 LEN=78\n` +
                     `Apr 10 11:25:41 cell-088 kernel: [CELL-PERIMETER: ] IN=eth0 OUT= SRC=45.76.99.12 DST=10.0.0.88 PROTO=TCP SPT=62441 DPT=80 FLAGS:S\n`;
@@ -367,7 +367,7 @@ const ALAL04Config = {
 
         // iptables-save -- write rules to file
         'iptables-save': function(args, term, engine) {
-            const fw = engine._fw;
+            const fw = engine.config._fw;
             const outputArg = args.indexOf('>');
             // Shell redirection is handled as part of the raw command -- check args for path pattern
             const outputFile = args.find(a => a.includes('/etc/iptables') || a.includes('rules.v4')) || '';
@@ -388,20 +388,20 @@ const ALAL04Config = {
         // bash/sh -- run the verify scripts
         'bash': function(args, term, engine) {
             const script = args[0] || '';
-            return engine._runVerifyScript(script, engine);
+            return engine.config._runVerifyScript(script, engine);
         },
 
         'sh': function(args, term, engine) {
             const script = args[0] || '';
-            return engine._runVerifyScript(script, engine);
+            return engine.config._runVerifyScript(script, engine);
         },
 
         './test-legitimate.sh': function(args, term, engine) {
-            return engine._runVerifyScript('./test-legitimate.sh', engine);
+            return engine.config._runVerifyScript('./test-legitimate.sh', engine);
         },
 
         './simulate-attacks.sh': function(args, term, engine) {
-            return engine._runVerifyScript('./simulate-attacks.sh', engine);
+            return engine.config._runVerifyScript('./simulate-attacks.sh', engine);
         },
 
         // iptables-restore -- restore rules from file
@@ -428,7 +428,7 @@ const ALAL04Config = {
     // ═══════════════════════════════════════════════════════
 
     _runVerifyScript: function(script, engine) {
-        const fw = engine._fw;
+        const fw = engine.config._fw;
         const scriptName = script.replace(/^.*\//, '');
 
         if (scriptName === 'simulate-attacks.sh') {
@@ -497,7 +497,7 @@ const ALAL04Config = {
             results.push(apiOk ? '  PASS: Grid API' : '  FAIL: Grid API -- add iptables -A INPUT -p tcp --dport 8443 -j ACCEPT');
 
             const allPass = sshOk && dnsOk && httpsOk && apiOk;
-            const logPresent = fw.logRule && engine._firewallLogHasEntries;
+            const logPresent = fw.logRule && engine.config._firewallLogHasEntries;
 
             results.push('');
             results.push('Checking firewall log entries...');

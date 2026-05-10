@@ -49,7 +49,27 @@ const PISL11Config = {
     lore: {
         intro: 'At 04:23 UTC, motion sensors and network anomaly detection simultaneously flagged activity from Lab 3 that violates containment protocols. The automated containment doors failed to close -- a maintenance window was open. Pathogen SPX-4471 (Advanced Persistent Ransomware variant) has propagated beyond Lab 3 into the adjacent corridor network segments. You are the IR lead. You have been woken up. This is not a drill.',
         scenario: 'Follow the NIST incident response lifecycle: Preparation (done -- IR tools are loaded), Detection and Analysis (run status), Containment (isolate affected systems), Eradication (eradicate), Recovery (recover), and Lessons Learned (root-cause). Evidence must be preserved before eradication -- forensic images and chain of custody must be filed. Do not skip steps. The order matters for both legal defensibility and operational integrity.',
-        outro: 'Incident response complete. SPX-4471 contained, eradicated, and systems recovered. Forensic evidence preserved with documented chain of custody. Root cause identified: maintenance window left network isolation inactive during vulnerability window. Post-incident review scheduled. This is the NIST IR lifecycle in practice. Every step -- especially evidence preservation before eradication -- matters for both security and legal accountability.'
+        outro: 'Incident response complete. SPX-4471 contained, eradicated, and systems recovered. Forensic evidence preserved with documented chain of custody. Root cause identified: maintenance window left network isolation inactive during vulnerability window. Post-incident review scheduled. This is the NIST IR lifecycle in practice. Every step -- especially evidence preservation before eradication -- matters for both security and legal accountability.',
+
+        goals: [
+            "Execute the NIST 800-61 incident response lifecycle in order: Detection → Containment → Eradication → Recovery → Lessons Learned",
+            "Preserve forensic evidence (disk images + chain of custody) BEFORE eradication -- skip this and the case is unprosecutable",
+            "Isolate affected systems quickly enough to halt propagation but completely enough that nothing slips through",
+            "Apply the discipline that order matters: eradicating before imaging destroys evidence; recovering before eradication reinfects",
+            "Document a root-cause analysis that explains how the maintenance-window failure produced the breach -- not just what was breached"
+        ],
+
+        toolkit: [
+            { name: "status", purpose: "Show current incident state: affected systems, propagation status, IR phase", sample: "status" },
+            { name: "isolate", purpose: "Network-isolate one or more affected systems (cuts pathogen spread)", sample: "isolate sys-018" },
+            { name: "image", purpose: "Capture forensic disk image of an isolated system (must precede eradication)", sample: "image sys-018" },
+            { name: "chain-of-custody", purpose: "Record chain-of-custody entry for an evidence artifact", sample: "chain-of-custody sys-018-image-01" },
+            { name: "timeline", purpose: "Build the incident timeline -- when each event occurred + which sensor saw it", sample: "timeline" },
+            { name: "eradicate", purpose: "Remove the pathogen from a system -- only after imaging is complete", sample: "eradicate sys-018" },
+            { name: "recover", purpose: "Restore eradicated systems to operational state (clean rebuild)", sample: "recover sys-018" },
+            { name: "root-cause", purpose: "File the root-cause analysis explaining how the breach occurred", sample: "root-cause" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -155,18 +175,18 @@ const PISL11Config = {
 
         // status -- assess current breach scope
         'status': function(args, term, engine) {
-            engine._state.statusRun = true;
+            engine.config._state.statusRun = true;
 
-            const isolated   = Object.keys(engine._state.isolatedSystems).length;
-            const imaged     = Object.keys(engine._state.imagedSystems).length;
-            const totalAffected = engine._affectedSystems.length;
+            const isolated   = Object.keys(engine.config._state.isolatedSystems).length;
+            const imaged     = Object.keys(engine.config._state.imagedSystems).length;
+            const totalAffected = engine.config._affectedSystems.length;
 
             return `BREACH STATUS -- INCIDENT BREACH-2026-0409\n${'='.repeat(60)}\nTime: 2026-04-09T04:23:00Z (first detection)\nCurrent time: 2026-04-09T04:31:00Z (8 minutes elapsed)\n\nSYSTEMS STATUS:\n  CONFIRMED INFECTED (Lab 3 origin):\n    lab3-ws-01 through lab3-ws-14   [14 workstations] INFECTED\n    lab3-srv-01                      [file server]     INFECTED\n  \n  BREACH POINT (corridor network):\n    corridor-relay-01                [network relay]   INFECTED\n  \n  SECONDARY SPREAD (confirmed via network capture):\n    lab2-ws-03 (10.0.2.13)          INFECTED (SMB at 04:21Z)\n    lab4-ws-09 (10.0.4.19)          INFECTED (SMB at 04:22Z)\n\n  TOTAL AFFECTED: 18 systems\n  CONTAINED: ${isolated}/18\n  IMAGED:    ${imaged}/18\n\nPATHOGEN ACTIVITY:\n  Active C2 beaconing: corridor-relay-01 --> 91.108.4.123:443\n  SMB propagation: STOPPED on isolated systems, ACTIVE on uncontained\n  Encryption: Ongoing on uncontained systems\n\nFILE ENCRYPTION STATUS:\n  lab3-ws-01 through lab3-ws-14: 100% files encrypted (.hexlocked)\n  lab3-srv-01: 78% encrypted (in progress)\n  lab2-ws-03: 12% encrypted (recently infected)\n  lab4-ws-09: 3% encrypted (recently infected)\n  corridor-relay-01: OS files intact (relay, not workstation target)\n\nNEXT STEP: Isolate all affected systems.\nCommand: isolate <system-id>\nSee ~/notes.txt for the full system list.`;
         },
 
         // isolate <system> -- network-isolate a compromised system
         'isolate': function(args, term, engine) {
-            if (!engine._state.statusRun) {
+            if (!engine.config._state.statusRun) {
                 return 'Error: Run "status" first to assess the breach scope before isolating systems.';
             }
 
@@ -176,28 +196,28 @@ const PISL11Config = {
                 return 'Usage: isolate <system-id>\nExample: isolate lab3-ws-01\nSee ~/notes.txt for full list of affected systems.';
             }
 
-            if (!engine._affectedSystems.includes(system)) {
+            if (!engine.config._affectedSystems.includes(system)) {
                 // Accept lab3-ws-all as shorthand
                 if (system === 'lab3-all') {
-                    const lab3Systems = engine._affectedSystems.filter(s => s.startsWith('lab3'));
-                    lab3Systems.forEach(s => { engine._state.isolatedSystems[s] = true; });
-                    const count = Object.keys(engine._state.isolatedSystems).length;
+                    const lab3Systems = engine.config._affectedSystems.filter(s => s.startsWith('lab3'));
+                    lab3Systems.forEach(s => { engine.config._state.isolatedSystems[s] = true; });
+                    const count = Object.keys(engine.config._state.isolatedSystems).length;
                     return `BULK ISOLATION: All Lab 3 systems\n  Isolated: ${lab3Systems.join(', ')}\n  Network disconnected: VLAN isolated, physical port disabled\n  Total isolated: ${count}/18`;
                 }
                 return `Error: "${system}" is not in the affected systems list.\nRun "status" for the full list.`;
             }
 
-            if (engine._state.isolatedSystems[system]) {
+            if (engine.config._state.isolatedSystems[system]) {
                 return `${system} is already isolated.`;
             }
 
-            engine._state.isolatedSystems[system] = true;
-            const count = Object.keys(engine._state.isolatedSystems).length;
+            engine.config._state.isolatedSystems[system] = true;
+            const count = Object.keys(engine.config._state.isolatedSystems).length;
 
             let output = `SYSTEM ISOLATED: ${system}\n  Network: DISCONNECTED (VLAN quarantine applied)\n  Physical port: DISABLED on CORE-SW-01\n  SMB propagation from this host: STOPPED\n  C2 communication: SEVERED\n\nIsolated: ${count}/18 affected systems`;
 
-            if (count >= 18 && !engine._flag1Awarded) {
-                engine._flag1Awarded = true;
+            if (count >= 18 && !engine.config._flag1Awarded) {
+                engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
                 output += '\n\n[CONTAINMENT MILESTONE] All 18 affected systems isolated. Breach contained. Flag unlocked.\nNext: image all affected systems for forensic analysis BEFORE eradication.';
             }
@@ -207,8 +227,8 @@ const PISL11Config = {
 
         // image <system> -- take forensic disk image
         'image': function(args, term, engine) {
-            if (Object.keys(engine._state.isolatedSystems).length < 18) {
-                return `Error: Cannot image systems that have not been isolated.\nIsolate all affected systems first.\nIsolated: ${Object.keys(engine._state.isolatedSystems).length}/18\nUse: isolate <system-id>`;
+            if (Object.keys(engine.config._state.isolatedSystems).length < 18) {
+                return `Error: Cannot image systems that have not been isolated.\nIsolate all affected systems first.\nIsolated: ${Object.keys(engine.config._state.isolatedSystems).length}/18\nUse: isolate <system-id>`;
             }
 
             const system = args[0];
@@ -217,16 +237,16 @@ const PISL11Config = {
                 return 'Usage: image <system-id>\nExample: image lab3-srv-01\nA forensic image captures the full disk state for analysis.\nMust be done before eradication.';
             }
 
-            if (!engine._affectedSystems.includes(system)) {
+            if (!engine.config._affectedSystems.includes(system)) {
                 return `Error: "${system}" is not in the affected systems list.`;
             }
 
-            if (engine._state.imagedSystems[system]) {
+            if (engine.config._state.imagedSystems[system]) {
                 return `${system} has already been imaged.\nImage file: /forensics/images/${system}.img`;
             }
 
-            engine._state.imagedSystems[system] = true;
-            const count = Object.keys(engine._state.imagedSystems).length;
+            engine.config._state.imagedSystems[system] = true;
+            const count = Object.keys(engine.config._state.imagedSystems).length;
             const sizeMB = system.includes('srv') ? 204800 : (system.includes('relay') ? 51200 : 102400);
 
             return `FORENSIC IMAGE: ${system}\n  Tool:      dc3dd (forensic imaging)\n  Source:    /dev/sda (${system})\n  Dest:      /forensics/images/${system}.img\n  Size:      ${(sizeMB/1024).toFixed(0)} GB\n  Hash:      SHA-256 computed and stored\n  Imaging... [========================================] 100%\n  Verification: Image hash matches source hash -- VERIFIED\n  Status:    COMPLETE\n\nImages captured: ${count}/18\nNext: file chain of custody for each imaged system with: chain-of-custody <system>`;
@@ -240,26 +260,26 @@ const PISL11Config = {
                 return 'Usage: chain-of-custody <system-id>\nExample: chain-of-custody lab3-srv-01\nThis documents who collected the evidence and when,\nestablishing legal defensibility for forensic analysis.';
             }
 
-            if (!engine._affectedSystems.includes(system)) {
+            if (!engine.config._affectedSystems.includes(system)) {
                 return `Error: "${system}" is not in the affected systems list.`;
             }
 
-            if (!engine._state.imagedSystems[system]) {
+            if (!engine.config._state.imagedSystems[system]) {
                 return `Error: ${system} has not been imaged yet.\nImage first: image ${system}`;
             }
 
-            if (engine._state.custodyFiled[system]) {
+            if (engine.config._state.custodyFiled[system]) {
                 return `Chain of custody already filed for ${system}.`;
             }
 
-            engine._state.custodyFiled[system] = true;
-            const custodySize = Object.keys(engine._state.custodyFiled).length;
+            engine.config._state.custodyFiled[system] = true;
+            const custodySize = Object.keys(engine.config._state.custodyFiled).length;
 
             let output = `CHAIN OF CUSTODY FILED: ${system}\n${'─'.repeat(50)}\n  Evidence ID:     EVID-2026-0409-${String(custodySize).padStart(3,'0')}\n  Item:            Forensic disk image of ${system}\n  Image file:      /forensics/images/${system}.img\n  Hash (SHA-256):  Recorded and sealed\n  Collected by:    ir-lead (you)\n  Collection time: 2026-04-09T04:45:00Z\n  Collection site: Hexworth Containment IR Suite\n  Custody log:     Updated in incident tracking system\n  Sealed by:       Director witness (DR-2026-0409-001)\n\nCustody filed: ${custodySize}`;
 
             // Flag 2: all systems imaged AND all custody filed
-            if (custodySize >= 18 && !engine._flag2Awarded) {
-                engine._flag2Awarded = true;
+            if (custodySize >= 18 && !engine.config._flag2Awarded) {
+                engine.config._flag2Awarded = true;
                 engine.awardFlag('flag2');
                 output += '\n\n[EVIDENCE MILESTONE] All affected systems imaged with chain of custody documented. Flag unlocked.\nEvidence is legally preserved. Proceed with: eradicate';
             }
@@ -274,58 +294,58 @@ const PISL11Config = {
 
         // eradicate -- remove the pathogen from all isolated systems
         'eradicate': function(args, term, engine) {
-            if (Object.keys(engine._state.isolatedSystems).length < 18) {
-                return `Error: Cannot eradicate before all systems are isolated.\nIsolated: ${Object.keys(engine._state.isolatedSystems).length}/18\nIsolate remaining systems first.`;
+            if (Object.keys(engine.config._state.isolatedSystems).length < 18) {
+                return `Error: Cannot eradicate before all systems are isolated.\nIsolated: ${Object.keys(engine.config._state.isolatedSystems).length}/18\nIsolate remaining systems first.`;
             }
 
-            if (Object.keys(engine._state.imagedSystems).length < 18) {
-                return `Error: EVIDENCE PRESERVATION REQUIRED before eradication.\nImaged: ${Object.keys(engine._state.imagedSystems).length}/18\n\nEradication destroys forensic evidence. Image all systems first.\nUse: image <system-id>`;
+            if (Object.keys(engine.config._state.imagedSystems).length < 18) {
+                return `Error: EVIDENCE PRESERVATION REQUIRED before eradication.\nImaged: ${Object.keys(engine.config._state.imagedSystems).length}/18\n\nEradication destroys forensic evidence. Image all systems first.\nUse: image <system-id>`;
             }
 
-            if (Object.keys(engine._state.custodyFiled).length < 18) {
-                return `Error: Chain of custody not complete for all imaged systems.\nCustody filed: ${Object.keys(engine._state.custodyFiled).length}/18\nFile custody with: chain-of-custody <system-id>`;
+            if (Object.keys(engine.config._state.custodyFiled).length < 18) {
+                return `Error: Chain of custody not complete for all imaged systems.\nCustody filed: ${Object.keys(engine.config._state.custodyFiled).length}/18\nFile custody with: chain-of-custody <system-id>`;
             }
 
-            if (engine._state.eradicated) {
+            if (engine.config._state.eradicated) {
                 return 'Eradication already complete.';
             }
 
-            engine._state.eradicated = true;
+            engine.config._state.eradicated = true;
 
             return `ERADICATION IN PROGRESS -- BREACH-2026-0409\n${'='.repeat(60)}\n\nAll forensic images verified. Chain of custody complete.\nProceeding with eradication...\n\nWiping 18 infected systems from golden image:\n  lab3-ws-01 through lab3-ws-14... [WIPED AND REIMAGED]\n  lab3-srv-01...                   [WIPED AND REIMAGED]\n  corridor-relay-01...             [WIPED AND REIMAGED]\n  lab2-ws-03...                    [WIPED AND REIMAGED]\n  lab4-ws-09...                    [WIPED AND REIMAGED]\n\nGolden image: hexworth-ws-2026-03-15.img (last known good)\nHash verification: All 18 reimages match golden image SHA-256\n\nPathogen SPX-4471:\n  All instances: REMOVED\n  C2 channel: SEVERED (null route applied to 91.108.4.123)\n  Encryption keys: Not recoverable (attacker controlled)\n  Affected files: To be restored from backup in recovery phase\n\nERADICATION COMPLETE\n  All 18 systems wiped and rebuilt from golden image.\n  SPX-4471 is no longer present on any facility system.\n  Network isolation remains active pending validation.\n\nNext step: recover -- restore operational data from clean backup.`;
         },
 
         // recover -- restore operations from clean backups
         'recover': function(args, term, engine) {
-            if (!engine._state.eradicated) {
+            if (!engine.config._state.eradicated) {
                 return 'Error: Cannot recover before eradication is complete.\nRun: eradicate';
             }
 
-            if (engine._state.recovered) {
+            if (engine.config._state.recovered) {
                 return 'Recovery already complete.';
             }
 
-            engine._state.recovered = true;
+            engine.config._state.recovered = true;
 
             return `RECOVERY IN PROGRESS -- BREACH-2026-0409\n${'='.repeat(60)}\n\nRestoring data from last clean backup (2026-04-09T00:00:00Z):\n\n  lab3-srv-01 data share:     [RESTORED from backup -- 847 GB]\n  lab3-ws user profiles:      [RESTORED -- 14 workstations]\n  lab2-ws-03 user data:       [RESTORED]\n  lab4-ws-09 user data:       [RESTORED]\n\nBackup integrity check:\n  Backup hash matches pre-breach reference: VERIFIED\n  Backup age: 4 hours 23 minutes (within 8-hour RTO target)\n  Recovery Point Objective (RPO): 4.4 hours of data at risk\n\nFiles not recoverable (encrypted before backup cutoff):\n  lab3-ws-01: 312 files modified between 03:58Z and 04:00Z backup\n  These represent approximately 0.2% of Lab 3 working data.\n  Request submitted to Director for manual reconstruction review.\n\nPost-recovery validation:\n  System integrity checks: PASSED (18/18 systems)\n  Network connectivity: RESTORED (VLAN isolation removed post-validation)\n  Pathogen indicators: NONE DETECTED (IDS/AV clean scan)\n  C2 blocking: ACTIVE (91.108.4.123 on permanent blocklist)\n\nOPERATIONS STATUS: RESTORED\n  Labs 1, 2, 4, 5, 6: FULLY OPERATIONAL\n  Lab 3: OPERATIONAL (rebuilt from golden image + backup)\n\nNext step: root-cause -- document what happened and why.`;
         },
 
         // root-cause -- determine and document root cause
         'root-cause': function(args, term, engine) {
-            if (!engine._state.recovered) {
+            if (!engine.config._state.recovered) {
                 return 'Error: Complete recovery before filing root cause analysis.\nRun: recover';
             }
 
-            if (engine._state.rootCauseAnalyzed) {
+            if (engine.config._state.rootCauseAnalyzed) {
                 return 'Root cause analysis already filed.';
             }
 
-            engine._state.rootCauseAnalyzed = true;
+            engine.config._state.rootCauseAnalyzed = true;
 
             let output = `ROOT CAUSE ANALYSIS -- BREACH-2026-0409\n${'='.repeat(60)}\n\nINCIDENT SUMMARY:\n  Pathogen: SPX-4471 (Advanced Persistent Ransomware)\n  Duration: 04:23Z to 04:31Z (8-minute active IR window)\n  Impact:   18 systems infected, ~0.2% of Lab 3 data unrecoverable\n  Systems:  Fully restored from backup + golden image\n\nROOT CAUSE:\n  PRIMARY: Scheduled maintenance window left VLAN isolation inactive.\n    At 04:00Z, the network operations team disabled VLAN boundaries\n    between Lab 3 and corridor segments for a scheduled switch upgrade.\n    The maintenance window was not communicated to the security team.\n    The isolation should have been restored at 04:15Z but the window\n    was extended by 15 minutes -- the exact window the pathogen exploited.\n\n  CONTRIBUTING FACTOR 1: Uncontained initial access.\n    The analyst-07 credential compromise (detected via ALT-023 at 23:14Z)\n    was not acted on quickly enough. Those credentials were the origin\n    of the lateral movement chain that ultimately deployed SPX-4471.\n\n  CONTRIBUTING FACTOR 2: No maintenance-aware security controls.\n    The facility had no procedure for security-team notification before\n    network isolation changes. Maintenance windows should require\n    security sign-off when they affect containment infrastructure.\n\nATTACK CHAIN (reconstructed):\n  1. Credential compromise (analyst-07) via phishing (prior to detection window)\n  2. Data exfiltration from specimen-db-01 (04-08 23:14Z)\n  3. C2 implant on lab2-ws-04 (04-08 18:00Z -- earlier than exfil)\n  4. Credential theft (admin-svc) from lab2-ws-04 LSASS (04-09 02:31Z)\n  5. Lateral movement to lab1-ws-02 and other systems (02:33Z)\n  6. Ransomware deployed to Lab 3 via admin-svc (03:58Z)\n  7. SMB propagation within Lab 3 (04:12Z)\n  8. Breach to corridor network via maintenance window (04:19Z)\n  9. Secondary spread to lab2-ws-03 and lab4-ws-09 (04:21-22Z)\n\nRECOMMENDATIONS:\n  [R-001] Implement change management process requiring security\n          sign-off for any modification to containment network boundaries.\n  [R-002] Automate SIEM-to-IR escalation for CRITICAL alerts within 15 minutes.\n          The ALT-023 alert (04-08 23:14Z) should have triggered immediate\n          credential suspension. 5-hour delay allowed the attack to escalate.\n  [R-003] Deploy privileged access workstations for admin-svc usage.\n          Credential theft from LSASS should not be possible on analyst workstations.\n  [R-004] Add MFA to admin-svc service account for interactive logon.\n  [R-005] Implement network deception (honeypots) in lab segments to detect\n          lateral movement faster.\n\nFINAL DETERMINATION:\n  This was a preventable breach. The root cause is process failure\n  (no security coordination for maintenance windows), not a zero-day\n  or undetectable attack. The attack chain had visible signals at each\n  step that were not acted on quickly enough.\n`;
 
-            if (!engine._flag3Awarded) {
-                engine._flag3Awarded = true;
+            if (!engine.config._flag3Awarded) {
+                engine.config._flag3Awarded = true;
                 engine.awardFlag('flag3');
                 output += '\n[ROOT CAUSE MILESTONE] Incident response complete with documented root cause analysis. Flag unlocked.';
             }

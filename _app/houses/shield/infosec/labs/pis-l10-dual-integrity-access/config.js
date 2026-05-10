@@ -49,7 +49,24 @@ const PISL10Config = {
     lore: {
         intro: 'The facility\'s identity and access management system was wiped during the recent security incident. The clearance gate database is empty. Every door in the facility is currently open to anyone with a network connection. Before the morning shift begins, you need to rebuild the entire IAM system from scratch: LDAP directory, MFA enrollment, and role-based access control for all four biosafety levels. BSL-4 has a special requirement: two-person integrity. No analyst can enter alone.',
         scenario: 'Build in three phases. First: configure the LDAP directory with the correct organizational unit structure (BSL-1 through BSL-4 clearance groups, plus admin). Second: enroll all 12 facility personnel in MFA using TOTP. Third: implement RBAC policies -- each BSL level has specific permissions, and BSL-4 requires the dual-integrity flag. Test each phase before moving to the next.',
-        outro: 'IAM system fully operational. LDAP directory configured with correct OU hierarchy. All 12 personnel enrolled in MFA. RBAC policies in place for BSL-1 through BSL-4. Dual-integrity gate enforced at BSL-4 -- access attempt from single analyst correctly rejected. Hexworth Containment clearance gates are now active and enforcing minimum clearance protocol.'
+        outro: 'IAM system fully operational. LDAP directory configured with correct OU hierarchy. All 12 personnel enrolled in MFA. RBAC policies in place for BSL-1 through BSL-4. Dual-integrity gate enforced at BSL-4 -- access attempt from single analyst correctly rejected. Hexworth Containment clearance gates are now active and enforcing minimum clearance protocol.',
+
+        goals: [
+            "Build an LDAP directory with the correct OU structure mapping BSL clearance levels to access groups",
+            "Enroll all 12 facility personnel in TOTP-based multi-factor authentication",
+            "Implement RBAC policies that grant least-privilege access tied to BSL level and job role",
+            "Enforce two-person integrity at BSL-4: no single analyst can enter alone, regardless of clearance",
+            "Practice phased build-and-verify: each phase (LDAP → MFA → RBAC) tested before the next layer is added"
+        ],
+
+        toolkit: [
+            { name: "ldap-admin", purpose: "Configure LDAP directory: OUs, users, group memberships", sample: "ldap-admin add-ou bsl-4" },
+            { name: "mfa-enroll", purpose: "Enroll a user in TOTP MFA -- generates secret + QR code", sample: "mfa-enroll dr-mira" },
+            { name: "rbac-policy", purpose: "Define a role-based access policy mapping BSL levels to permissions", sample: "rbac-policy add bsl-4 enter --require-dual" },
+            { name: "access-test", purpose: "Simulate a user attempting access -- verifies LDAP + MFA + RBAC together", sample: "access-test dr-mira bsl-4" },
+            { name: "verify-dual-integrity", purpose: "Confirm BSL-4 enforces two-person integrity (single-user attempts denied)", sample: "verify-dual-integrity" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -164,10 +181,10 @@ const PISL10Config = {
 
             // -- status --
             if (sub === 'status' || !sub) {
-                const ouCount   = Object.keys(engine._state.ldapOUs).length;
-                const userCount = Object.keys(engine._state.ldapUsers).length;
-                const ouList    = Object.keys(engine._state.ldapOUs);
-                return `LDAP DIRECTORY STATUS -- dc=hexworth,dc=internal\n${'='.repeat(50)}\nOUs configured: ${ouCount}/5\nUsers added:    ${userCount}/12\nRequired OUs:   ${engine._requiredOUs.join(', ')}\n\nCurrent OUs: ${ouCount > 0 ? ouList.join(', ') : '(none)'}\nUsers placed: ${userCount > 0 ? Object.keys(engine._state.ldapUsers).join(', ') : '(none)'}\n\nUse: ldap-admin create-ou <ou-name>\nUse: ldap-admin add-user <username> <ou-name>\nSee ~/notes.txt for required structure.`;
+                const ouCount   = Object.keys(engine.config._state.ldapOUs).length;
+                const userCount = Object.keys(engine.config._state.ldapUsers).length;
+                const ouList    = Object.keys(engine.config._state.ldapOUs);
+                return `LDAP DIRECTORY STATUS -- dc=hexworth,dc=internal\n${'='.repeat(50)}\nOUs configured: ${ouCount}/5\nUsers added:    ${userCount}/12\nRequired OUs:   ${engine.config._requiredOUs.join(', ')}\n\nCurrent OUs: ${ouCount > 0 ? ouList.join(', ') : '(none)'}\nUsers placed: ${userCount > 0 ? Object.keys(engine.config._state.ldapUsers).join(', ') : '(none)'}\n\nUse: ldap-admin create-ou <ou-name>\nUse: ldap-admin add-user <username> <ou-name>\nSee ~/notes.txt for required structure.`;
             }
 
             // -- create-ou --
@@ -175,23 +192,23 @@ const PISL10Config = {
                 const ouName = args[1];
                 if (!ouName) return 'Usage: ldap-admin create-ou <ou-name>\nExample: ldap-admin create-ou bsl1-analysts';
 
-                if (!engine._requiredOUs.includes(ouName)) {
-                    return `Error: "${ouName}" is not a required OU.\nRequired OUs: ${engine._requiredOUs.join(', ')}`;
+                if (!engine.config._requiredOUs.includes(ouName)) {
+                    return `Error: "${ouName}" is not a required OU.\nRequired OUs: ${engine.config._requiredOUs.join(', ')}`;
                 }
 
-                if (engine._state.ldapOUs[ouName]) {
+                if (engine.config._state.ldapOUs[ouName]) {
                     return `Error: OU "${ouName}" already exists.`;
                 }
 
-                engine._state.ldapOUs[ouName] = true;
-                const count = Object.keys(engine._state.ldapOUs).length;
+                engine.config._state.ldapOUs[ouName] = true;
+                const count = Object.keys(engine.config._state.ldapOUs).length;
                 let output = `OU created: ou=${ouName},dc=hexworth,dc=internal\nOUs configured: ${count}/5`;
 
                 // Check flag1 condition
-                const allOUsCreated = engine._requiredOUs.every(ou => engine._state.ldapOUs[ou]);
-                const allUsersPlaced = Object.keys(engine._state.ldapUsers).length >= 12;
-                if (allOUsCreated && allUsersPlaced && !engine._flag1Awarded) {
-                    engine._flag1Awarded = true;
+                const allOUsCreated = engine.config._requiredOUs.every(ou => engine.config._state.ldapOUs[ou]);
+                const allUsersPlaced = Object.keys(engine.config._state.ldapUsers).length >= 12;
+                if (allOUsCreated && allUsersPlaced && !engine.config._flag1Awarded) {
+                    engine.config._flag1Awarded = true;
                     engine.awardFlag('flag1');
                     output += '\n\n[IAM MILESTONE] LDAP directory configured with correct OU structure and all personnel. Flag unlocked.';
                 }
@@ -208,21 +225,21 @@ const PISL10Config = {
                     return 'Usage: ldap-admin add-user <username> <ou-name>\nExample: ldap-admin add-user analyst-01 bsl1-analysts\nSee ~/personnel.txt for the full personnel list.';
                 }
 
-                if (!engine._allPersonnel.includes(username)) {
+                if (!engine.config._allPersonnel.includes(username)) {
                     return `Error: "${username}" is not in the facility personnel registry.\nSee ~/personnel.txt for valid usernames.`;
                 }
 
-                if (!engine._state.ldapOUs[ouName]) {
+                if (!engine.config._state.ldapOUs[ouName]) {
                     return `Error: OU "${ouName}" does not exist.\nCreate it first: ldap-admin create-ou ${ouName}`;
                 }
 
-                const correctOU = engine._personnelMap[username];
+                const correctOU = engine.config._personnelMap[username];
                 if (ouName !== correctOU) {
                     return `Error: ${username} does not belong in "${ouName}".\nCheck ~/notes.txt for the correct OU assignments.\nHint: BSL-1 analysts go in bsl1-analysts, etc.`;
                 }
 
-                if (engine._state.ldapUsers[username]) {
-                    return `Error: ${username} is already in the directory (ou=${engine._state.ldapUsers[username].ou}).`;
+                if (engine.config._state.ldapUsers[username]) {
+                    return `Error: ${username} is already in the directory (ou=${engine.config._state.ldapUsers[username].ou}).`;
                 }
 
                 // Derive clearance level from OU name
@@ -230,14 +247,14 @@ const PISL10Config = {
                     'bsl1-analysts': 1, 'bsl2-analysts': 2,
                     'bsl3-analysts': 3, 'bsl4-analysts': 4, 'admins': 4
                 };
-                engine._state.ldapUsers[username] = { ou: ouName, clearance: clearanceMap[ouName] || 1 };
+                engine.config._state.ldapUsers[username] = { ou: ouName, clearance: clearanceMap[ouName] || 1 };
 
-                const userCount = Object.keys(engine._state.ldapUsers).length;
+                const userCount = Object.keys(engine.config._state.ldapUsers).length;
                 let output = `User added: cn=${username},ou=${ouName},dc=hexworth,dc=internal\nUsers in directory: ${userCount}/12`;
 
-                const allOUsCreated = engine._requiredOUs.every(ou => engine._state.ldapOUs[ou]);
-                if (allOUsCreated && userCount >= 12 && !engine._flag1Awarded) {
-                    engine._flag1Awarded = true;
+                const allOUsCreated = engine.config._requiredOUs.every(ou => engine.config._state.ldapOUs[ou]);
+                if (allOUsCreated && userCount >= 12 && !engine.config._flag1Awarded) {
+                    engine.config._flag1Awarded = true;
                     engine.awardFlag('flag1');
                     output += '\n\n[IAM MILESTONE] LDAP directory configured with correct OU structure and all 12 personnel. Flag unlocked.';
                 }
@@ -258,18 +275,18 @@ const PISL10Config = {
 
             if (target === '--all') {
                 // Enroll everyone
-                const notYetEnrolled = engine._allPersonnel.filter(u => !engine._state.mfaEnrolled[u]);
+                const notYetEnrolled = engine.config._allPersonnel.filter(u => !engine.config._state.mfaEnrolled[u]);
                 if (notYetEnrolled.length === 0) {
                     return 'All 12 personnel are already enrolled in MFA.';
                 }
 
-                notYetEnrolled.forEach(u => { engine._state.mfaEnrolled[u] = true; });
-                const enrolledCount = Object.keys(engine._state.mfaEnrolled).length;
+                notYetEnrolled.forEach(u => { engine.config._state.mfaEnrolled[u] = true; });
+                const enrolledCount = Object.keys(engine.config._state.mfaEnrolled).length;
 
                 let output = `BULK MFA ENROLLMENT COMPLETE\n${'='.repeat(45)}\nEnrolled: ${notYetEnrolled.join(', ')}\n\nTotal enrolled: ${enrolledCount}/12\nMFA type: TOTP (Time-based One-Time Password, RFC 6238)\nTokens sent to registered devices via secure channel.\n`;
 
-                if (enrolledCount >= 12 && !engine._flag2Awarded) {
-                    engine._flag2Awarded = true;
+                if (enrolledCount >= 12 && !engine.config._flag2Awarded) {
+                    engine.config._flag2Awarded = true;
                     engine.awardFlag('flag2');
                     output += '\n[MFA MILESTONE] All 12 personnel enrolled in TOTP MFA. Flag unlocked.';
                 }
@@ -277,21 +294,21 @@ const PISL10Config = {
                 return output;
             }
 
-            if (!engine._allPersonnel.includes(target)) {
+            if (!engine.config._allPersonnel.includes(target)) {
                 return `Error: "${target}" not in personnel registry.\nSee ~/personnel.txt for valid usernames.\nOr use: mfa-enroll --all`;
             }
 
-            if (engine._state.mfaEnrolled[target]) {
-                return `${target} is already enrolled in MFA.\nEnrolled: ${Object.keys(engine._state.mfaEnrolled).length}/12`;
+            if (engine.config._state.mfaEnrolled[target]) {
+                return `${target} is already enrolled in MFA.\nEnrolled: ${Object.keys(engine.config._state.mfaEnrolled).length}/12`;
             }
 
-            engine._state.mfaEnrolled[target] = true;
-            const enrolledCount = Object.keys(engine._state.mfaEnrolled).length;
+            engine.config._state.mfaEnrolled[target] = true;
+            const enrolledCount = Object.keys(engine.config._state.mfaEnrolled).length;
 
             let output = `MFA ENROLLMENT: ${target}\n  Method:  TOTP (Google Authenticator compatible)\n  Secret:  [32-char base32 -- sent to registered device]\n  QR code: Provisioned to ${target}@hexworth.internal\n  Backup codes: 8 codes generated, sealed in Director safe\n\nEnrolled: ${enrolledCount}/12`;
 
-            if (enrolledCount >= 12 && !engine._flag2Awarded) {
-                engine._flag2Awarded = true;
+            if (enrolledCount >= 12 && !engine.config._flag2Awarded) {
+                engine.config._flag2Awarded = true;
                 engine.awardFlag('flag2');
                 output += '\n\n[MFA MILESTONE] All 12 personnel enrolled in TOTP MFA. Flag unlocked.';
             }
@@ -320,21 +337,21 @@ const PISL10Config = {
                 return `Error: "${permissions}" is not a valid permission set.\nValid: ${validPerms.join(', ')}`;
             }
 
-            engine._state.rbacPolicies[role] = { permissions, dualIntegrity: dualFlag };
+            engine.config._state.rbacPolicies[role] = { permissions, dualIntegrity: dualFlag };
 
-            const policyCount = Object.keys(engine._state.rbacPolicies).length;
+            const policyCount = Object.keys(engine.config._state.rbacPolicies).length;
 
             let output = `RBAC POLICY CREATED: ${role}\n  Permissions: ${permissions}\n  Dual-integrity required: ${dualFlag ? 'YES (two-person authentication)' : 'NO'}\n  Assigned to: ou=${role.replace('-role', '-analysts')},dc=hexworth,dc=internal\n\nActive policies: ${policyCount}/5`;
 
             // Check flag3: all 5 policies created, bsl4 has dual-integrity
-            const allPoliciesSet = validRoles.every(r => engine._state.rbacPolicies[r]);
-            const bsl4HasDualIntegrity = engine._state.rbacPolicies['bsl4-role'] &&
-                                         engine._state.rbacPolicies['bsl4-role'].dualIntegrity;
+            const allPoliciesSet = validRoles.every(r => engine.config._state.rbacPolicies[r]);
+            const bsl4HasDualIntegrity = engine.config._state.rbacPolicies['bsl4-role'] &&
+                                         engine.config._state.rbacPolicies['bsl4-role'].dualIntegrity;
 
-            if (allPoliciesSet && bsl4HasDualIntegrity && !engine._flag3Awarded) {
+            if (allPoliciesSet && bsl4HasDualIntegrity && !engine.config._flag3Awarded) {
                 // Also require LDAP and MFA to be done
-                if (engine._flag1Awarded && engine._flag2Awarded) {
-                    engine._flag3Awarded = true;
+                if (engine.config._flag1Awarded && engine.config._flag2Awarded) {
+                    engine.config._flag3Awarded = true;
                     engine.awardFlag('flag3');
                     output += '\n\n[ACCESS CONTROL MILESTONE] All RBAC policies active. BSL-4 dual-integrity enforced. Flag unlocked.\nRun verify-dual-integrity to test the two-person gate.';
                 } else {
@@ -354,22 +371,22 @@ const PISL10Config = {
                 return 'Usage: access-test <username> <resource>\nResources: lab1, lab2, lab3, lab4, lab4-vault, admin-console\nExample: access-test analyst-04 lab2';
             }
 
-            if (!engine._allPersonnel.includes(username)) {
+            if (!engine.config._allPersonnel.includes(username)) {
                 return `Error: "${username}" not in personnel registry.`;
             }
 
-            const userEntry = engine._state.ldapUsers[username];
+            const userEntry = engine.config._state.ldapUsers[username];
             if (!userEntry) {
                 return `Error: ${username} not in LDAP directory.\nAdd with: ldap-admin add-user ${username} <ou-name>`;
             }
 
-            if (!engine._state.mfaEnrolled[username]) {
+            if (!engine.config._state.mfaEnrolled[username]) {
                 return `Error: ${username} not enrolled in MFA.\nEnroll with: mfa-enroll ${username}`;
             }
 
             const clearance = userEntry.clearance;
             const roleKey   = userEntry.ou === 'admins' ? 'admin-role' : `bsl${clearance}-role`;
-            const policy    = engine._state.rbacPolicies[roleKey];
+            const policy    = engine.config._state.rbacPolicies[roleKey];
 
             if (!policy) {
                 return `No RBAC policy defined for ${roleKey}.\nCreate with: rbac-policy ${roleKey} <permissions>`;
@@ -402,7 +419,7 @@ const PISL10Config = {
 
         // verify-dual-integrity -- test that BSL-4 requires two-person authentication
         'verify-dual-integrity': function(args, term, engine) {
-            const bsl4Policy = engine._state.rbacPolicies['bsl4-role'];
+            const bsl4Policy = engine.config._state.rbacPolicies['bsl4-role'];
 
             if (!bsl4Policy) {
                 return 'Error: No RBAC policy for bsl4-role.\nCreate with: rbac-policy bsl4-role full-access --dual-integrity';
@@ -412,14 +429,14 @@ const PISL10Config = {
                 return 'DUAL-INTEGRITY VERIFICATION -- FAILED\n\nThe bsl4-role policy does not have --dual-integrity enabled.\nBSL-4 access MUST require two-person authentication per containment directive.\n\nRe-create the policy:\n  rbac-policy bsl4-role full-access --dual-integrity';
             }
 
-            if (!engine._flag1Awarded || !engine._flag2Awarded) {
+            if (!engine.config._flag1Awarded || !engine.config._flag2Awarded) {
                 return 'DUAL-INTEGRITY VERIFICATION -- BLOCKED\nComplete LDAP directory setup and MFA enrollment before testing access controls.';
             }
 
             let output = `DUAL-INTEGRITY ACCESS TEST -- BSL-4 PATHOGEN VAULT\n${'='.repeat(60)}\n\nTest 1: Single analyst access attempt\n  Initiator: analyst-10 (Dr. Samuel Osei, BSL-4)\n  Resource:  lab4-vault\n  MFA token: VALID\n  Clearance: BSL-4\n\n  Checking dual-integrity requirement...\n  Policy: bsl4-role requires two authenticated users simultaneously\n  Second authenticator: NONE PRESENT\n\n  RESULT: ACCESS DENIED\n  "BSL-4 access requires two authorized personnel.\n   Initiating dual-integrity challenge. Please have a second\n   BSL-4 analyst authenticate within 60 seconds."\n\nTest 2: Two-person simultaneous authentication\n  Analyst 1: analyst-10 (Dr. Samuel Osei, BSL-4)    MFA: VALID\n  Analyst 2: analyst-11 (Dr. Elena Vasquez, BSL-4)   MFA: VALID\n  Both present: YES\n  Time window: 12 seconds (within 60s requirement)\n\n  Checking dual-integrity requirement...\n  Two authenticated BSL-4 analysts confirmed simultaneously.\n\n  RESULT: ACCESS GRANTED\n  "Dual-integrity satisfied. Both analysts authenticated.\n   BSL-4 vault access logged: INC-2026-0409-ACCESS-001\n   Session time limit: 30 minutes. Alert if either analyst leaves."\n\nTest 3: Unauthorized clearance attempt\n  Analyst:  analyst-07 (BSL-3, with analyst-08 BSL-3)\n  Resource: lab4-vault\n  Both present: YES but BSL-3 clearance\n\n  RESULT: ACCESS DENIED\n  "Dual-integrity satisfied but clearance insufficient.\n   BSL-4 vault requires BSL-4 clearance regardless of headcount."\n\nDUAL-INTEGRITY SUMMARY:\n  Single BSL-4 user:         DENIED (correct behavior)\n  Two BSL-4 users together:  GRANTED (correct behavior)\n  Two BSL-3 users together:  DENIED (correct behavior)\n  Policy is working as intended.\n`;
 
-            if (!engine._flag3Awarded) {
-                engine._flag3Awarded = true;
+            if (!engine.config._flag3Awarded) {
+                engine.config._flag3Awarded = true;
                 engine.awardFlag('flag3');
                 output += '\n[ACCESS CONTROL MILESTONE] RBAC policies with dual-integrity for BSL-4 verified. Flag unlocked.';
             }

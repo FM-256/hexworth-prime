@@ -218,8 +218,8 @@ const ALAL02Config = {
             const action = args[2] || '';
 
             if (sub === 'link' && obj === 'show') {
-                const mtuEth1 = engine._netState.mtu.eth1;
-                return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu ${engine._netState.mtu.eth0} qdisc fq_codel state UP\n    link/ether 52:54:00:ab:22:01 brd ff:ff:ff:ff:ff:ff\n3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu ${mtuEth1} qdisc fq_codel state UP\n    link/ether 52:54:00:ab:22:02 brd ff:ff:ff:ff:ff:ff`;
+                const mtuEth1 = engine.config._netState.mtu.eth1;
+                return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu ${engine.config._netState.mtu.eth0} qdisc fq_codel state UP\n    link/ether 52:54:00:ab:22:01 brd ff:ff:ff:ff:ff:ff\n3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu ${mtuEth1} qdisc fq_codel state UP\n    link/ether 52:54:00:ab:22:02 brd ff:ff:ff:ff:ff:ff`;
             }
 
             if (sub === 'link' && obj === 'set') {
@@ -228,7 +228,7 @@ const ALAL02Config = {
                 if (mtuFlag >= 0) {
                     const newMtu = parseInt(args[mtuFlag + 1]);
                     if (iface === 'eth1' && !isNaN(newMtu)) {
-                        engine._netState.mtu.eth1 = newMtu;
+                        engine.config._netState.mtu.eth1 = newMtu;
                         return '';
                     }
                 }
@@ -236,14 +236,14 @@ const ALAL02Config = {
             }
 
             if (sub === 'addr' || sub === 'address') {
-                return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536\n    inet 127.0.0.1/8 scope host lo\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu ${engine._netState.mtu.eth0}\n    inet 10.0.0.49/24 brd 10.0.0.255 scope global eth0\n3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu ${engine._netState.mtu.eth1}\n    inet 10.0.1.49/24 brd 10.0.1.255 scope global eth1`;
+                return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536\n    inet 127.0.0.1/8 scope host lo\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu ${engine.config._netState.mtu.eth0}\n    inet 10.0.0.49/24 brd 10.0.0.255 scope global eth0\n3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu ${engine.config._netState.mtu.eth1}\n    inet 10.0.1.49/24 brd 10.0.1.255 scope global eth1`;
             }
 
             if (sub === 'route') {
                 const routeAction = obj;
 
                 if (routeAction === 'show' || routeAction === '') {
-                    const routes = engine._netState.routes;
+                    const routes = engine.config._netState.routes;
                     let lines = [];
                     for (const [net, r] of Object.entries(routes)) {
                         if (net === 'default') {
@@ -266,31 +266,31 @@ const ALAL02Config = {
                     if (!net || !gw) return 'Usage: ip route add <network/prefix> via <gateway>';
 
                     // Validate -- gateway must be reachable from existing routes
-                    if (gw.startsWith('10.0.1.') && engine._netState.routes['10.0.1.0/24']) {
-                        engine._netState.routes[net] = { via: gw, dev: dev, src: '10.0.1.49' };
+                    if (gw.startsWith('10.0.1.') && engine.config._netState.routes['10.0.1.0/24']) {
+                        engine.config._netState.routes[net] = { via: gw, dev: dev, src: '10.0.1.49' };
                         return '';
                     }
-                    if (gw.startsWith('172.16.') && engine._netState.routes['172.16.0.0/16']) {
-                        engine._netState.routes[net] = { via: gw, dev: dev, src: '10.0.1.49' };
+                    if (gw.startsWith('172.16.') && engine.config._netState.routes['172.16.0.0/16']) {
+                        engine.config._netState.routes[net] = { via: gw, dev: dev, src: '10.0.1.49' };
                         return '';
                     }
                     if (gw.startsWith('10.0.2.')) {
                         return `RTNETLINK answers: Network is unreachable\nNo route to ${gw} -- you need a path to 10.0.2.x first.`;
                     }
-                    if (gw.startsWith('172.16.') && !engine._netState.routes['172.16.0.0/16']) {
+                    if (gw.startsWith('172.16.') && !engine.config._netState.routes['172.16.0.0/16']) {
                         // Adding the Charlie route for the first time
-                        engine._netState.routes[net] = { via: gw, dev: dev, src: '10.0.1.49' };
+                        engine.config._netState.routes[net] = { via: gw, dev: dev, src: '10.0.1.49' };
                         return '';
                     }
 
-                    engine._netState.routes[net] = { via: gw, dev: dev, src: '10.0.1.49' };
+                    engine.config._netState.routes[net] = { via: gw, dev: dev, src: '10.0.1.49' };
                     return '';
                 }
 
                 if (routeAction === 'del' || routeAction === 'delete') {
                     const net = args[3] || '';
-                    if (engine._netState.routes[net]) {
-                        delete engine._netState.routes[net];
+                    if (engine.config._netState.routes[net]) {
+                        delete engine.config._netState.routes[net];
                         return '';
                     }
                     return `RTNETLINK answers: No such process`;
@@ -315,9 +315,9 @@ const ALAL02Config = {
             const hasRoute = (ip) => {
                 if (ip.startsWith('10.0.1.') || ip === '10.0.1.1' || ip === 'alpha-gateway') return true;
                 if ((ip.startsWith('10.0.2.') || ip === '10.0.2.1' || ip === 'bravo-gateway') &&
-                    engine._netState.routes['10.0.2.0/24']) return true;
+                    engine.config._netState.routes['10.0.2.0/24']) return true;
                 if ((ip.startsWith('172.16.') || ip === 'charlie-gateway') &&
-                    engine._netState.routes['172.16.0.0/16']) return true;
+                    engine.config._netState.routes['172.16.0.0/16']) return true;
                 return false;
             };
 
@@ -338,7 +338,7 @@ const ALAL02Config = {
 
             // MTU check for charlie path (172.16.x.x) -- path supports max 1450
             if (resolvedTarget.startsWith('172.16.')) {
-                const effectiveMtu = engine._netState.mtu.eth1;
+                const effectiveMtu = engine.config._netState.mtu.eth1;
                 // Total packet size including IP+ICMP headers: pktSize + 28
                 const totalPktSize = pktSize + 28;
                 // Path MTU is 1450 regardless of interface MTU -- simulates tunnel constraint
@@ -367,25 +367,25 @@ const ALAL02Config = {
         'bash': function(args, term, engine) {
             const script = args[0] || '';
             // Delegate to the script runner below
-            return engine._runScript(script, args.slice(1), term, engine);
+            return engine.config._runScript(script, args.slice(1), term, engine);
         },
 
         // Direct script execution: ./check-alpha.sh etc.
         './check-alpha.sh': function(args, term, engine) {
-            return engine._runCheckScript('alpha', term, engine);
+            return engine.config._runCheckScript('alpha', term, engine);
         },
 
         './check-bravo.sh': function(args, term, engine) {
-            return engine._runCheckScript('bravo', term, engine);
+            return engine.config._runCheckScript('bravo', term, engine);
         },
 
         './check-charlie.sh': function(args, term, engine) {
-            return engine._runCheckScript('charlie', term, engine);
+            return engine.config._runCheckScript('charlie', term, engine);
         },
 
         'sh': function(args, term, engine) {
             const script = args[0] || '';
-            return engine._runScript(script, args.slice(1), term, engine);
+            return engine.config._runScript(script, args.slice(1), term, engine);
         }
     },
 
@@ -395,9 +395,9 @@ const ALAL02Config = {
 
     _runScript: function(script, args, term, engine) {
         const scriptName = script.replace(/^.*\//, '');
-        if (scriptName === 'check-alpha.sh') return engine._runCheckScript('alpha', term, engine);
-        if (scriptName === 'check-bravo.sh') return engine._runCheckScript('bravo', term, engine);
-        if (scriptName === 'check-charlie.sh') return engine._runCheckScript('charlie', term, engine);
+        if (scriptName === 'check-alpha.sh') return engine.config._runCheckScript('alpha', term, engine);
+        if (scriptName === 'check-bravo.sh') return engine.config._runCheckScript('bravo', term, engine);
+        if (scriptName === 'check-charlie.sh') return engine.config._runCheckScript('charlie', term, engine);
         return `bash: ${script}: No such file or directory`;
     },
 
@@ -409,7 +409,7 @@ const ALAL02Config = {
         }
 
         if (node === 'bravo') {
-            if (!engine._netState.routes['10.0.2.0/24']) {
+            if (!engine.config._netState.routes['10.0.2.0/24']) {
                 return `Testing Bravo gateway (10.0.2.1)...\nFrom 10.0.1.49 icmp_seq=1 Destination Net Unreachable\n\nBravo handshake: FAILED\nNo route to 10.0.2.0/24. Add it:\n  sudo ip route add 10.0.2.0/24 via 10.0.1.1`;
             }
             engine.awardFlag('flag2');
@@ -417,11 +417,11 @@ const ALAL02Config = {
         }
 
         if (node === 'charlie') {
-            if (!engine._netState.routes['172.16.0.0/16']) {
+            if (!engine.config._netState.routes['172.16.0.0/16']) {
                 return `Testing Charlie gateway (172.16.0.1)...\nFrom 10.0.1.49 icmp_seq=1 Destination Net Unreachable\n\nCharlie handshake: FAILED\nNo route to 172.16.0.0/16. Add it:\n  sudo ip route add 172.16.0.0/16 via 172.16.0.1`;
             }
-            if (engine._netState.mtu.eth1 > 1450) {
-                return `Testing Charlie gateway (172.16.0.1)...\n64 bytes from 172.16.0.1: icmp_seq=1 ttl=62 time=4.2 ms\nSending 1450-byte payload to 172.16.0.100...\nFrom 172.16.0.1 icmp_seq=1 Frag needed and DF set (mtu = 1450)\n\nCharlie handshake: FAILED\nMTU mismatch detected. Path MTU is 1450 but eth1 is set to ${engine._netState.mtu.eth1}.\nFix: sudo ip link set eth1 mtu 1450\nThen re-run this script.`;
+            if (engine.config._netState.mtu.eth1 > 1450) {
+                return `Testing Charlie gateway (172.16.0.1)...\n64 bytes from 172.16.0.1: icmp_seq=1 ttl=62 time=4.2 ms\nSending 1450-byte payload to 172.16.0.100...\nFrom 172.16.0.1 icmp_seq=1 Frag needed and DF set (mtu = 1450)\n\nCharlie handshake: FAILED\nMTU mismatch detected. Path MTU is 1450 but eth1 is set to ${engine.config._netState.mtu.eth1}.\nFix: sudo ip link set eth1 mtu 1450\nThen re-run this script.`;
             }
             engine.awardFlag('flag3');
             return `Testing Charlie gateway (172.16.0.1)...\n64 bytes from 172.16.0.1: icmp_seq=1 ttl=62 time=4.2 ms\n64 bytes from 172.16.0.1: icmp_seq=2 ttl=62 time=4.1 ms\nSending 1450-byte payload to 172.16.0.100...\n64 bytes from 172.16.0.100: icmp_seq=1 ttl=62 time=4.3 ms\n64 bytes from 172.16.0.100: icmp_seq=2 ttl=62 time=4.2 ms\nCharlie handshake: VERIFIED\n[GRID COMMAND] FLAG 3 awarded -- Charlie confirmed. Outer grid connected.`;

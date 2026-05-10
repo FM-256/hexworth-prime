@@ -49,7 +49,22 @@ const PISL06Config = {
     lore: {
         intro: 'Three operations are pending in the vault operations queue. First: a classified specimen profile must be encrypted before it can be transmitted to BSL-4 storage -- AES-256 is required. Second: a communication intercepted from a threat actor was encrypted with our RSA public key by a source asset -- decrypt it to read the intelligence. Third: the morning specimen manifest integrity check failed on one file -- find the tampered record using SHA-256 hashes.',
         scenario: 'Vault seal operations require precise cryptographic procedures. Wrong algorithm, wrong key, wrong operation -- the vault rejects it. The simulated openssl, gpg, sha256sum, and md5sum commands behave like their real counterparts. Study the vault key store for the correct keys and algorithms. The integrity check has reference hashes on file -- compare them against the actual files.',
-        outro: 'All three vault operations complete. Specimen profile sealed in AES-256 vault. Intercepted communication decrypted -- intelligence forwarded to Field Command. Tampered specimen manifest identified and flagged for forensic review. Vault operations log updated.'
+        outro: 'All three vault operations complete. Specimen profile sealed in AES-256 vault. Intercepted communication decrypted -- intelligence forwarded to Field Command. Tampered specimen manifest identified and flagged for forensic review. Vault operations log updated.',
+
+        goals: [
+            "Apply AES-256-CBC for symmetric encryption of classified specimen data",
+            "Use RSA private-key decryption to read intercepted communications encrypted under the public key",
+            "Detect file tampering via SHA-256 hash comparison against the reference manifest",
+            "Build muscle memory for openssl + gpg invocation patterns in real cryptographic operations",
+            "Recognize that algorithm choice is not optional -- the vault rejects wrong-cipher operations, just like real systems"
+        ],
+
+        toolkit: [
+            { name: "openssl", purpose: "Symmetric and asymmetric crypto operations: enc, dgst, rsa decrypt, etc.", sample: "openssl enc -aes-256-cbc -in specimen-7719.dat -out specimen-7719.enc" },
+            { name: "gpg", purpose: "GnuPG operations: encrypt, decrypt, verify with the vault keyring", sample: "gpg --decrypt intercepted-comms.enc" },
+            { name: "verify-integrity", purpose: "Run SHA-256 hash check against the reference manifest to find tampered files", sample: "verify-integrity manifest.sha256" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -234,7 +249,7 @@ const PISL06Config = {
                 }
 
                 // Successful encryption
-                engine._state.specimenEncrypted = true;
+                engine.config._state.specimenEncrypted = true;
 
                 // Add encrypted file to filesystem
                 engine.filesystem['/'].children.vault.children['specimen-7719.dat.enc'] = {
@@ -244,8 +259,8 @@ const PISL06Config = {
 
                 let output = 'openssl enc -aes-256-cbc\n\nEncrypting: /vault/specimen-7719.dat\nAlgorithm:  AES-256-CBC\nKey:        vault-aes-key.bin (256-bit symmetric)\nOutput:     /vault/specimen-7719.dat.enc\n\nKey derivation: PBKDF2-SHA256, 10000 iterations\nIV: randomly generated and prepended to ciphertext\n\nDone. Encrypted file written: /vault/specimen-7719.dat.enc\n\nSECURITY NOTE: AES-256-CBC is symmetric encryption.\n  Same key encrypts and decrypts. Key must be securely\n  transmitted to BSL-4 via separate channel.\n';
 
-                if (!engine._flag1Awarded) {
-                    engine._flag1Awarded = true;
+                if (!engine.config._flag1Awarded) {
+                    engine.config._flag1Awarded = true;
                     engine.awardFlag('flag1');
                     output += '\n[VAULT MILESTONE] Specimen encrypted with AES-256. Flag unlocked.';
                 }
@@ -281,7 +296,7 @@ const PISL06Config = {
                 }
 
                 // Successful decryption
-                engine._state.commsDecrypted = true;
+                engine.config._state.commsDecrypted = true;
 
                 // Add decrypted file to filesystem
                 engine.filesystem['/'].children.vault.children['intercepted-comms.dec'] = {
@@ -291,8 +306,8 @@ const PISL06Config = {
 
                 let output = 'openssl rsautl -decrypt\n\nDecrypting: /vault/intercepted-comms.enc\nKey:        vault-rsa-private.pem (RSA-2048)\nOutput:     /vault/intercepted-comms.dec\n\nDecryption successful.\n\nSECURITY NOTE: RSA is asymmetric encryption.\n  Public key (published): anyone can encrypt a message for us\n  Private key (secret): only we can decrypt\n  This is why ASSET SIGMA could encrypt for us without a shared secret.\n  RSA is too slow for large data -- used for key exchange and small payloads.\n\nDecrypted file written: /vault/intercepted-comms.dec\nUse: cat /vault/intercepted-comms.dec to read the intelligence.\n';
 
-                if (!engine._flag2Awarded) {
-                    engine._flag2Awarded = true;
+                if (!engine.config._flag2Awarded) {
+                    engine.config._flag2Awarded = true;
                     engine.awardFlag('flag2');
                     output += '\n[VAULT MILESTONE] Intercepted communication decrypted. Flag unlocked.';
                 }
@@ -378,20 +393,20 @@ const PISL06Config = {
         // verify-integrity -- automated manifest integrity check (requires flag1 + flag2 first)
         'verify-integrity': function(args, term, engine) {
             // Gate: must complete encryption and decryption before integrity check
-            if (!engine._state.specimenEncrypted) {
+            if (!engine.config._state.specimenEncrypted) {
                 return 'VAULT ERROR: Operation 1 (AES-256 encryption) must be completed before running integrity checks.\nEncrypt /vault/specimen-7719.dat first.';
             }
-            if (!engine._state.commsDecrypted) {
+            if (!engine.config._state.commsDecrypted) {
                 return 'VAULT ERROR: Operation 2 (RSA decryption) must be completed before running integrity checks.\nDecrypt /vault/intercepted-comms.enc first.';
             }
 
-            engine._state.integrityVerified = true;
-            engine._state.tamperedFileIdentified = 'specimen-7718-profile.txt';
+            engine.config._state.integrityVerified = true;
+            engine.config._state.tamperedFileIdentified = 'specimen-7718-profile.txt';
 
             let output = 'MANIFEST INTEGRITY CHECK -- VAULT OPERATIONS\n' + '='.repeat(50) + '\nRunning SHA-256 verification against manifest-hashes.txt...\n\nChecking 5 files:\n  specimen-catalog.db          [SHA-256] OK\n  clearance-matrix.csv         [SHA-256] OK\n  transfer-log.json            [SHA-256] OK\n  specimen-7718-profile.txt    [SHA-256] MISMATCH -- TAMPERED\n  incident-report-0408.pdf     [SHA-256] OK\n\nRESULT: 1 FILE FAILED INTEGRITY CHECK\n\nTampered file: /vault/manifest/specimen-7718-profile.txt\n\nEvidence:\n  Reference hash:  DAMAGED_HASH_PLACEHOLDER_WILL_NOT_MATCH\n  Computed hash:   f1d2e3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2\n  Hash mismatch: file has been modified since reference was generated\n\nContent analysis of tampered file:\n  Transfer destination changed: BSL-4 --> BSL-1 (downgrade)\n  Authorization codes modified\n  Clearance level downgraded\n\nThis is a high-severity finding. SPX-7718 is a BSL-4 specimen.\nIf transferred to BSL-1 per the tampered record, it would escape\nhigh-containment protocols.\n\nFILE QUARANTINED. Original record being restored from backup.\nIncident logged: INC-2026-0409-INTEGRITY-001\n';
 
-            if (!engine._flag3Awarded) {
-                engine._flag3Awarded = true;
+            if (!engine.config._flag3Awarded) {
+                engine.config._flag3Awarded = true;
                 engine.awardFlag('flag3');
                 output += '\n[VAULT MILESTONE] Tampered file identified via hash comparison. Flag unlocked.';
             }

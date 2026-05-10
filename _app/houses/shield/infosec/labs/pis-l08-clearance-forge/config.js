@@ -49,7 +49,27 @@ const PISL08Config = {
     lore: {
         intro: 'The facility\'s old clearance credential infrastructure was compromised in last week\'s breach. The root CA is untrusted and all certificates have been revoked. You have been tasked with building a new PKI from the ground up. Four servers need clearance certificates before they can resume operations: the specimen database, the containment control system, the inter-lab relay, and the analyst workstation pool. You have 40 minutes before the morning shift arrives.',
         scenario: 'Build the PKI in sequence: initialize the root CA first (ca-init), then issue certificates to each server (cert-issue). Once all four are issued, configure the Certificate Revocation List and OCSP responder (crl-generate). After validation is live, one certificate will be flagged as compromised -- revoke it (cert-revoke) and verify it fails validation (cert-verify). The openssl commands simulate their real-world counterparts.',
-        outro: 'PKI build complete. Root CA established with secure key material. Four clearance certificates issued and validated. CRL and OCSP responder online. Compromised certificate revoked and verified as untrusted. The facility can now authenticate servers using cryptographically signed clearance credentials. This is the infrastructure that underpins TLS, code signing, and every certificate you see in a browser.'
+        outro: 'PKI build complete. Root CA established with secure key material. Four clearance certificates issued and validated. CRL and OCSP responder online. Compromised certificate revoked and verified as untrusted. The facility can now authenticate servers using cryptographically signed clearance credentials. This is the infrastructure that underpins TLS, code signing, and every certificate you see in a browser.',
+
+        goals: [
+            "Build a working PKI from scratch: initialize the root CA, issue server certificates, configure revocation infrastructure",
+            "Apply the correct sequencing: CA before certs, certs before CRL, CRL before revocation tests",
+            "Use Certificate Revocation Lists (CRL) and OCSP responders so a revoked cert actually fails validation",
+            "Revoke a compromised certificate and verify it fails validation -- not just \"issued a revoke command\"",
+            "Practice the discipline that PKI is unforgiving: one missed step (no CRL, no OCSP, wrong serial) leaves a compromised cert silently trusted"
+        ],
+
+        toolkit: [
+            { name: "ca-init", purpose: "Initialize the root Certificate Authority -- generates root key + self-signed cert", sample: "ca-init hexworth-root-ca" },
+            { name: "cert-issue", purpose: "Issue a server clearance certificate signed by the root CA", sample: "cert-issue specimen-db.hexworth.local" },
+            { name: "cert-list", purpose: "List all certificates issued by the CA with serial numbers and status", sample: "cert-list" },
+            { name: "crl-generate", purpose: "Generate the Certificate Revocation List + configure OCSP responder", sample: "crl-generate" },
+            { name: "cert-revoke", purpose: "Revoke a compromised certificate (adds to CRL)", sample: "cert-revoke serial-04" },
+            { name: "cert-verify", purpose: "Verify a certificate against the CRL/OCSP -- valid or revoked?", sample: "cert-verify serial-04" },
+            { name: "ca-status", purpose: "Show CA health, issued cert count, CRL status", sample: "ca-status" },
+            { name: "openssl", purpose: "Lower-level openssl commands for direct cert inspection", sample: "openssl x509 -in cert.pem -text -noout" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -170,7 +190,7 @@ const PISL08Config = {
 
         // ca-init -- initialize root certificate authority
         'ca-init': function(args, term, engine) {
-            if (engine._state.caInitialized) {
+            if (engine.config._state.caInitialized) {
                 return 'Error: Root CA already initialized.\nUse ca-status to view current configuration.';
             }
 
@@ -187,8 +207,8 @@ const PISL08Config = {
                 return 'Usage: ca-init --cn "<common-name>" --country <CC> --org "<organization>"\nExample: ca-init --cn "Hexworth Containment Root CA" --country US --org "Hexworth Containment"';
             }
 
-            engine._state.caInitialized = true;
-            engine._state.caSubject = { cn, country, org };
+            engine.config._state.caInitialized = true;
+            engine.config._state.caSubject = { cn, country, org };
 
             // Create CA files in filesystem
             const caDir = engine.filesystem['/'].children.etc.children.pki.children.ca.children;
@@ -208,7 +228,7 @@ const PISL08Config = {
 
         // cert-issue -- issue a certificate to a server
         'cert-issue': function(args, term, engine) {
-            if (!engine._state.caInitialized) {
+            if (!engine.config._state.caInitialized) {
                 return 'Error: Root CA not initialized.\nRun ca-init first.';
             }
 
@@ -222,7 +242,7 @@ const PISL08Config = {
                 return 'Usage: cert-issue --server <server-cn> --ca root-ca\nExample: cert-issue --server specimen-db-01.hexworth.internal --ca root-ca\n\nServers requiring certificates:\n  specimen-db-01.hexworth.internal\n  containment-ctrl-01.hexworth.internal\n  relay-01.hexworth.internal\n  ws-pool-01.hexworth.internal';
             }
 
-            if (!engine._requiredServers.includes(server)) {
+            if (!engine.config._requiredServers.includes(server)) {
                 return `Error: "${server}" is not in the facility server registry.\nValid servers:\n  specimen-db-01.hexworth.internal\n  containment-ctrl-01.hexworth.internal\n  relay-01.hexworth.internal\n  ws-pool-01.hexworth.internal`;
             }
 
@@ -230,13 +250,13 @@ const PISL08Config = {
                 return 'Error: CA must be "root-ca".\nUsage: cert-issue --server <cn> --ca root-ca';
             }
 
-            if (engine._state.issuedCerts[server]) {
-                const existing = engine._state.issuedCerts[server];
+            if (engine.config._state.issuedCerts[server]) {
+                const existing = engine.config._state.issuedCerts[server];
                 return `Error: Certificate already issued to ${server}.\n  Serial: ${existing.serial}\n  Issued: ${existing.issued}\nUse cert-list to see all issued certificates.`;
             }
 
-            const serial = engine._state.certSerial++;
-            engine._state.issuedCerts[server] = {
+            const serial = engine.config._state.certSerial++;
+            engine.config._state.issuedCerts[server] = {
                 serial,
                 issued: '2026-04-09',
                 revoked: false,
@@ -244,17 +264,17 @@ const PISL08Config = {
             };
 
             // Mark the relay cert serial for later revocation reference
-            if (server === engine._state.compromisedServer) {
-                engine._state.revokedSerial = serial;
+            if (server === engine.config._state.compromisedServer) {
+                engine.config._state.revokedSerial = serial;
             }
 
-            const issuedCount = Object.keys(engine._state.issuedCerts).length;
+            const issuedCount = Object.keys(engine.config._state.issuedCerts).length;
 
-            let output = `CERTIFICATE ISSUED\n${'='.repeat(50)}\n\n  Subject: CN=${server}\n  Issuer:  CN=${engine._state.caSubject.cn}\n  Serial:  ${serial}\n  Issued:  2026-04-09\n  Expires: 2027-04-09 (1-year server cert)\n  Key:     RSA-2048\n  SANs:    ${server}\n  Usage:   Digital Signature, Key Encipherment\n           TLS Web Server Authentication\n\nCertificate saved: /etc/pki/ca/certs/${server}.crt\nCertificates issued: ${issuedCount}/4`;
+            let output = `CERTIFICATE ISSUED\n${'='.repeat(50)}\n\n  Subject: CN=${server}\n  Issuer:  CN=${engine.config._state.caSubject.cn}\n  Serial:  ${serial}\n  Issued:  2026-04-09\n  Expires: 2027-04-09 (1-year server cert)\n  Key:     RSA-2048\n  SANs:    ${server}\n  Usage:   Digital Signature, Key Encipherment\n           TLS Web Server Authentication\n\nCertificate saved: /etc/pki/ca/certs/${server}.crt\nCertificates issued: ${issuedCount}/4`;
 
             // Flag 1: all 4 certs issued
-            if (issuedCount >= 4 && !engine._flag1Awarded) {
-                engine._flag1Awarded = true;
+            if (issuedCount >= 4 && !engine.config._flag1Awarded) {
+                engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
                 output += '\n\n[PKI MILESTONE] Root CA created and all 4 server certificates issued. Flag unlocked.\nNext: run crl-generate to configure certificate validation.';
             }
@@ -269,8 +289,8 @@ const PISL08Config = {
                 '='.repeat(50)
             ];
 
-            for (const server of engine._requiredServers) {
-                const cert = engine._state.issuedCerts[server];
+            for (const server of engine.config._requiredServers) {
+                const cert = engine.config._state.issuedCerts[server];
                 if (!cert) {
                     lines.push(`  ${server.padEnd(45)} [NO CERTIFICATE]`);
                 } else if (cert.revoked) {
@@ -281,37 +301,37 @@ const PISL08Config = {
             }
 
             lines.push('');
-            lines.push(`CA Status: ${engine._state.caInitialized ? 'INITIALIZED' : 'NOT INITIALIZED'}`);
-            lines.push(`CRL/OCSP:  ${engine._state.crlConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}`);
-            lines.push(`Issued:    ${Object.keys(engine._state.issuedCerts).length}/4`);
+            lines.push(`CA Status: ${engine.config._state.caInitialized ? 'INITIALIZED' : 'NOT INITIALIZED'}`);
+            lines.push(`CRL/OCSP:  ${engine.config._state.crlConfigured ? 'CONFIGURED' : 'NOT CONFIGURED'}`);
+            lines.push(`Issued:    ${Object.keys(engine.config._state.issuedCerts).length}/4`);
 
             return lines.join('\n');
         },
 
         // crl-generate -- configure CRL and OCSP for certificate validation
         'crl-generate': function(args, term, engine) {
-            if (!engine._state.caInitialized) {
+            if (!engine.config._state.caInitialized) {
                 return 'Error: Root CA not initialized. Run ca-init first.';
             }
 
-            const issuedCount = Object.keys(engine._state.issuedCerts).length;
+            const issuedCount = Object.keys(engine.config._state.issuedCerts).length;
             if (issuedCount < 4) {
                 return `Error: Not all server certificates have been issued.\nIssued: ${issuedCount}/4\nIssue all certificates before configuring CRL/OCSP.\nUse: cert-issue --server <server-cn> --ca root-ca`;
             }
 
-            engine._state.crlConfigured = true;
+            engine.config._state.crlConfigured = true;
 
             // Create CRL file in filesystem
             const caDir = engine.filesystem['/'].children.etc.children.pki.children.ca.children;
             caDir['crl.pem'] = {
                 type: 'file',
-                content: `-----BEGIN X509 CRL-----\nHexworth Containment Root CA -- Certificate Revocation List\nIssuer: CN=${engine._state.caSubject.cn}\nThis Update: 2026-04-09T04:00:00Z\nNext Update: 2026-04-16T04:00:00Z\nRevoked Certificates: none (freshly generated)\n-----END X509 CRL-----\n`
+                content: `-----BEGIN X509 CRL-----\nHexworth Containment Root CA -- Certificate Revocation List\nIssuer: CN=${engine.config._state.caSubject.cn}\nThis Update: 2026-04-09T04:00:00Z\nNext Update: 2026-04-16T04:00:00Z\nRevoked Certificates: none (freshly generated)\n-----END X509 CRL-----\n`
             };
 
-            let output = `CERTIFICATE VALIDATION CONFIGURED\n${'='.repeat(50)}\n\nCRL (Certificate Revocation List):\n  File:       /etc/pki/ca/crl.pem\n  Issuer:     ${engine._state.caSubject.cn}\n  This update: 2026-04-09T04:00:00Z\n  Next update: 2026-04-16T04:00:00Z\n  Entries:    0 (no revocations yet)\n  Published:  http://crl.hexworth.internal/root-ca.crl\n\nOCSP Responder:\n  Status:     ONLINE\n  URL:        http://ocsp.hexworth.internal:2560\n  Algorithm:  SHA-1 (OCSP standard)\n  Signing:    Root CA key (HSM)\n\nAll 4 server certificates are now VALID per CRL and OCSP.\n\n*** SECURITY ALERT ***\nIntelligence indicates relay-01.hexworth.internal (serial ${engine._state.revokedSerial}) may be compromised.\nKey material on that server may have been accessed by unauthorized personnel.\nConsider revoking: cert-revoke --serial ${engine._state.revokedSerial} --reason keyCompromise\n`;
+            let output = `CERTIFICATE VALIDATION CONFIGURED\n${'='.repeat(50)}\n\nCRL (Certificate Revocation List):\n  File:       /etc/pki/ca/crl.pem\n  Issuer:     ${engine.config._state.caSubject.cn}\n  This update: 2026-04-09T04:00:00Z\n  Next update: 2026-04-16T04:00:00Z\n  Entries:    0 (no revocations yet)\n  Published:  http://crl.hexworth.internal/root-ca.crl\n\nOCSP Responder:\n  Status:     ONLINE\n  URL:        http://ocsp.hexworth.internal:2560\n  Algorithm:  SHA-1 (OCSP standard)\n  Signing:    Root CA key (HSM)\n\nAll 4 server certificates are now VALID per CRL and OCSP.\n\n*** SECURITY ALERT ***\nIntelligence indicates relay-01.hexworth.internal (serial ${engine.config._state.revokedSerial}) may be compromised.\nKey material on that server may have been accessed by unauthorized personnel.\nConsider revoking: cert-revoke --serial ${engine.config._state.revokedSerial} --reason keyCompromise\n`;
 
-            if (!engine._flag2Awarded) {
-                engine._flag2Awarded = true;
+            if (!engine.config._flag2Awarded) {
+                engine.config._flag2Awarded = true;
                 engine.awardFlag('flag2');
                 output += '\n[PKI MILESTONE] CRL and OCSP responder configured. Certificate validation is live. Flag unlocked.';
             }
@@ -321,7 +341,7 @@ const PISL08Config = {
 
         // cert-revoke -- revoke a certificate by serial number
         'cert-revoke': function(args, term, engine) {
-            if (!engine._state.crlConfigured) {
+            if (!engine.config._state.crlConfigured) {
                 return 'Error: CRL not configured. Run crl-generate first.';
             }
 
@@ -334,7 +354,7 @@ const PISL08Config = {
             const validReasons = ['keyCompromise', 'caCompromise', 'affiliationChanged', 'superseded', 'cessationOfOperation'];
 
             if (!serial || !reason) {
-                return `Usage: cert-revoke --serial <serial> --reason <reason>\nReasons: ${validReasons.join(', ')}\n\nSuspected compromised serial: ${engine._state.revokedSerial} (relay-01.hexworth.internal)`;
+                return `Usage: cert-revoke --serial <serial> --reason <reason>\nReasons: ${validReasons.join(', ')}\n\nSuspected compromised serial: ${engine.config._state.revokedSerial} (relay-01.hexworth.internal)`;
             }
 
             if (!validReasons.includes(reason)) {
@@ -342,9 +362,9 @@ const PISL08Config = {
             }
 
             // Find the cert with this serial
-            const entry = Object.entries(engine._state.issuedCerts).find(([, c]) => c.serial === serial);
+            const entry = Object.entries(engine.config._state.issuedCerts).find(([, c]) => c.serial === serial);
             if (!entry) {
-                const issuedSerials = Object.values(engine._state.issuedCerts).map(c => c.serial).join(', ');
+                const issuedSerials = Object.values(engine.config._state.issuedCerts).map(c => c.serial).join(', ');
                 return `Error: Serial ${serial} not found in certificate database.\nIssued serials: ${issuedSerials}`;
             }
 
@@ -360,7 +380,7 @@ const PISL08Config = {
             // Update the CRL file
             const caDir = engine.filesystem['/'].children.etc.children.pki.children.ca.children;
             if (caDir['crl.pem']) {
-                caDir['crl.pem'].content = `-----BEGIN X509 CRL-----\nHexworth Containment Root CA -- Certificate Revocation List\nIssuer: CN=${engine._state.caSubject.cn}\nThis Update: 2026-04-09T04:15:00Z\nNext Update: 2026-04-16T04:15:00Z\nRevoked Certificates:\n  Serial: ${serial}\n  CN: ${serverCn}\n  Revocation Date: 2026-04-09T04:15:00Z\n  Reason: ${reason}\n-----END X509 CRL-----\n`;
+                caDir['crl.pem'].content = `-----BEGIN X509 CRL-----\nHexworth Containment Root CA -- Certificate Revocation List\nIssuer: CN=${engine.config._state.caSubject.cn}\nThis Update: 2026-04-09T04:15:00Z\nNext Update: 2026-04-16T04:15:00Z\nRevoked Certificates:\n  Serial: ${serial}\n  CN: ${serverCn}\n  Revocation Date: 2026-04-09T04:15:00Z\n  Reason: ${reason}\n-----END X509 CRL-----\n`;
             }
 
             return `CERTIFICATE REVOKED\n${'='.repeat(50)}\n\n  Server:  ${serverCn}\n  Serial:  ${serial}\n  Reason:  ${reason}\n  Revoked: 2026-04-09T04:15:00Z\n\nCRL updated: /etc/pki/ca/crl.pem\nOCSP responder updated: ocsp.hexworth.internal:2560 now returns REVOKED for serial ${serial}\n\nAny TLS connection to ${serverCn} will now be rejected by clients\nthat check CRL or OCSP before completing the handshake.\n\nNext: verify with cert-verify --server ${serverCn}`;
@@ -368,7 +388,7 @@ const PISL08Config = {
 
         // cert-verify -- verify a certificate's current status
         'cert-verify': function(args, term, engine) {
-            if (!engine._state.crlConfigured) {
+            if (!engine.config._state.crlConfigured) {
                 return 'Error: CRL not configured. CRL must be active before verification.\nRun crl-generate first.';
             }
 
@@ -379,11 +399,11 @@ const PISL08Config = {
                 return 'Usage: cert-verify --server <server-cn>\nExample: cert-verify --server relay-01.hexworth.internal';
             }
 
-            if (!engine._requiredServers.includes(server)) {
+            if (!engine.config._requiredServers.includes(server)) {
                 return `Error: "${server}" is not in the facility server registry.`;
             }
 
-            const cert = engine._state.issuedCerts[server];
+            const cert = engine.config._state.issuedCerts[server];
             if (!cert) {
                 return `Error: No certificate found for ${server}.\nIssue one with: cert-issue --server ${server} --ca root-ca`;
             }
@@ -391,8 +411,8 @@ const PISL08Config = {
             if (cert.revoked) {
                 let output = `CERTIFICATE VERIFICATION -- FAILED\n${'='.repeat(50)}\n\nServer:       ${server}\nSerial:       ${cert.serial}\nIssued:       ${cert.issued}\nStatus:       REVOKED\nRevocation:   ${cert.revokedReason}\n\nCRL check:    REVOKED (found in /etc/pki/ca/crl.pem)\nOCSP check:   REVOKED (ocsp.hexworth.internal returns: revoked)\n\nThis certificate is not trusted.\nAny client validating against this CA will reject the connection.\n`;
 
-                if (!engine._flag3Awarded) {
-                    engine._flag3Awarded = true;
+                if (!engine.config._flag3Awarded) {
+                    engine.config._flag3Awarded = true;
                     engine.awardFlag('flag3');
                     output += '\n[PKI MILESTONE] Compromised certificate revoked and verified as untrusted. Flag unlocked.';
                 }
@@ -405,14 +425,14 @@ const PISL08Config = {
 
         // ca-status -- show CA configuration and statistics
         'ca-status': function(args, term, engine) {
-            if (!engine._state.caInitialized) {
+            if (!engine.config._state.caInitialized) {
                 return 'Root CA: NOT INITIALIZED\nRun: ca-init --cn "..." --country US --org "..."';
             }
 
-            const issued  = Object.keys(engine._state.issuedCerts).length;
-            const revoked = Object.values(engine._state.issuedCerts).filter(c => c.revoked).length;
+            const issued  = Object.keys(engine.config._state.issuedCerts).length;
+            const revoked = Object.values(engine.config._state.issuedCerts).filter(c => c.revoked).length;
 
-            return `ROOT CA STATUS -- HEXWORTH CONTAINMENT\n${'='.repeat(50)}\n\nCA Subject:\n  CN: ${engine._state.caSubject.cn}\n  C:  ${engine._state.caSubject.country}\n  O:  ${engine._state.caSubject.org}\n\nCA Statistics:\n  Certificates issued:  ${issued}/4\n  Certificates revoked: ${revoked}\n  CRL configured:       ${engine._state.crlConfigured ? 'YES' : 'NO'}\n  OCSP responder:       ${engine._state.crlConfigured ? 'ONLINE' : 'NOT STARTED'}\n\nSee ~/notes.txt for the build sequence.`;
+            return `ROOT CA STATUS -- HEXWORTH CONTAINMENT\n${'='.repeat(50)}\n\nCA Subject:\n  CN: ${engine.config._state.caSubject.cn}\n  C:  ${engine.config._state.caSubject.country}\n  O:  ${engine.config._state.caSubject.org}\n\nCA Statistics:\n  Certificates issued:  ${issued}/4\n  Certificates revoked: ${revoked}\n  CRL configured:       ${engine.config._state.crlConfigured ? 'YES' : 'NO'}\n  OCSP responder:       ${engine.config._state.crlConfigured ? 'ONLINE' : 'NOT STARTED'}\n\nSee ~/notes.txt for the build sequence.`;
         },
 
         // openssl -- simulate openssl verification commands
@@ -431,17 +451,17 @@ const PISL08Config = {
                     return 'Usage: openssl verify --crl /etc/pki/ca/crl.pem <certfile>\nExample: openssl verify --crl /etc/pki/ca/crl.pem relay-01.hexworth.internal.crt';
                 }
 
-                if (!engine._state.crlConfigured) {
+                if (!engine.config._state.crlConfigured) {
                     return 'Error: CRL not available. Run crl-generate first.';
                 }
 
                 // Determine which server cert is being checked
-                const matchedServer = engine._requiredServers.find(s => certArg && certArg.includes(s.split('.')[0]));
+                const matchedServer = engine.config._requiredServers.find(s => certArg && certArg.includes(s.split('.')[0]));
                 if (!matchedServer) {
                     return `openssl: cannot find certificate for "${certArg}"\nValid cert names: specimen-db-01.crt, containment-ctrl-01.crt, relay-01.crt, ws-pool-01.crt`;
                 }
 
-                const cert = engine._state.issuedCerts[matchedServer];
+                const cert = engine.config._state.issuedCerts[matchedServer];
                 if (!cert) {
                     return `openssl: no certificate on file for ${matchedServer}`;
                 }
@@ -461,17 +481,17 @@ const PISL08Config = {
                     return 'Usage: openssl x509 -in <certfile> -text';
                 }
 
-                const matchedServer = engine._requiredServers.find(s => certFile && certFile.includes(s.split('.')[0]));
+                const matchedServer = engine.config._requiredServers.find(s => certFile && certFile.includes(s.split('.')[0]));
                 if (!matchedServer) {
                     return `openssl: cannot open certificate file ${certFile}`;
                 }
 
-                const cert = engine._state.issuedCerts[matchedServer];
+                const cert = engine.config._state.issuedCerts[matchedServer];
                 if (!cert) {
                     return `openssl: ${certFile} not found in database`;
                 }
 
-                return `Certificate:\n  Data:\n    Serial Number: ${cert.serial}\n    Subject: CN=${matchedServer}\n    Issuer:  CN=${engine._state.caSubject ? engine._state.caSubject.cn : 'Root CA'}\n    Validity:\n      Not Before: Apr  9 04:00:00 2026 GMT\n      Not After:  Apr  9 04:00:00 2027 GMT\n    Key Algorithm: rsaEncryption (2048 bit)\n    Status: ${cert.revoked ? 'REVOKED (' + cert.revokedReason + ')' : 'VALID'}`;
+                return `Certificate:\n  Data:\n    Serial Number: ${cert.serial}\n    Subject: CN=${matchedServer}\n    Issuer:  CN=${engine.config._state.caSubject ? engine.config._state.caSubject.cn : 'Root CA'}\n    Validity:\n      Not Before: Apr  9 04:00:00 2026 GMT\n      Not After:  Apr  9 04:00:00 2027 GMT\n    Key Algorithm: rsaEncryption (2048 bit)\n    Status: ${cert.revoked ? 'REVOKED (' + cert.revokedReason + ')' : 'VALID'}`;
             }
 
             return `openssl: unknown subcommand "${sub}"`;

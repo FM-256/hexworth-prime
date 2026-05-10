@@ -318,8 +318,8 @@ const ALAL01Config = {
             const action = args[2] || '';
 
             if (sub === 'link' && obj === 'show') {
-                const eth1State = engine._serviceState.networking === 'active' ? 'UP' : 'DOWN';
-                const eth1Flags = engine._serviceState.networking === 'active'
+                const eth1State = engine.config._serviceState.networking === 'active' ? 'UP' : 'DOWN';
+                const eth1Flags = engine.config._serviceState.networking === 'active'
                     ? 'BROADCAST,MULTICAST,UP,LOWER_UP'
                     : 'BROADCAST,MULTICAST';
                 return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT\n    link/ether 52:54:00:ab:11:01 brd ff:ff:ff:ff:ff:ff\n3: eth1: <${eth1Flags}> mtu 1500 qdisc fq_codel state ${eth1State} mode DEFAULT\n    link/ether 52:54:00:ab:11:02 brd ff:ff:ff:ff:ff:ff`;
@@ -329,14 +329,14 @@ const ALAL01Config = {
                 const iface = action;
                 const updown = args[3] || '';
                 if (iface === 'eth1' && updown === 'up') {
-                    engine._serviceState.networking = 'active';
+                    engine.config._serviceState.networking = 'active';
                     return '';
                 }
                 return `RTNETLINK answers: Operation not permitted`;
             }
 
             if (sub === 'addr' || (sub === 'address' && !obj)) {
-                const eth1Line = engine._serviceState.networking === 'active'
+                const eth1Line = engine.config._serviceState.networking === 'active'
                     ? '3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP\n    inet 10.0.1.71/24 brd 10.0.1.255 scope global eth1\n       valid_lft forever preferred_lft forever'
                     : '3: eth1: <BROADCAST,MULTICAST> mtu 1500 qdisc fq_codel state DOWN\n    (no inet address assigned)';
                 return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536\n    inet 127.0.0.1/8 scope host lo\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP\n    inet 10.0.0.71/24 brd 10.0.0.255 scope global eth0\n       valid_lft forever preferred_lft forever\n${eth1Line}`;
@@ -344,14 +344,14 @@ const ALAL01Config = {
 
             if (sub === 'route' && (obj === 'show' || obj === '')) {
                 const routes = 'default via 10.0.0.1 dev eth0 proto dhcp src 10.0.0.71 metric 100\n10.0.0.0/24 dev eth0 proto kernel scope link src 10.0.0.71';
-                if (engine._serviceState.networking === 'active') {
+                if (engine.config._serviceState.networking === 'active') {
                     return routes + '\n10.0.1.0/24 dev eth1 proto kernel scope link src 10.0.1.71';
                 }
                 return routes;
             }
 
             if (sub === 'neigh' && obj === 'show') {
-                if (engine._serviceState.networking !== 'active') {
+                if (engine.config._serviceState.networking !== 'active') {
                     return '10.0.0.1 dev eth0 lladdr 52:54:00:ab:00:01 REACHABLE';
                 }
                 return '10.0.0.1 dev eth0 lladdr 52:54:00:ab:00:01 REACHABLE\n10.0.1.1 dev eth1 lladdr 52:54:00:ab:01:01 REACHABLE\n10.0.1.2 dev eth1 lladdr 52:54:00:ab:01:02 STALE\n10.0.1.3 dev eth1 lladdr 52:54:00:ab:01:03 REACHABLE\n10.0.1.4 dev eth1 lladdr 52:54:00:ab:01:04 REACHABLE';
@@ -379,12 +379,12 @@ const ALAL01Config = {
             if (sub === 'status') {
                 if (!unit) {
                     // Brief system overview
-                    const degraded = Object.values(engine._serviceState).filter(s => s !== 'active').length;
+                    const degraded = Object.values(engine.config._serviceState).filter(s => s !== 'active').length;
                     return `cell-071\n    State: ${degraded > 0 ? 'degraded' : 'running'}\n     Jobs: 0 queued\n   Failed: ${degraded} units\n  Since: Thu 2026-04-10 14:33:12 UTC; 2h 1min ago\n\nRun: systemctl status <service-name> for details`;
                 }
 
                 if (resolvedUnit === 'networking' || resolvedUnit === 'systemd-networkd') {
-                    const st = engine._serviceState.networking;
+                    const st = engine.config._serviceState.networking;
                     if (st === 'active') {
                         return `\u25CF systemd-networkd.service - Network Configuration\n     Loaded: loaded (/lib/systemd/system/systemd-networkd.service; enabled)\n     Active: active (running) since Thu 2026-04-10 16:35:01 UTC; 0min ago\n   Main PID: 433 (systemd-networkd)\n\nApr 10 16:35:01 cell-071 systemd-networkd[433]: eth1: Gained carrier\nApr 10 16:35:01 cell-071 systemd-networkd[433]: eth1: Configured with address 10.0.1.71/24`;
                     }
@@ -392,7 +392,7 @@ const ALAL01Config = {
                 }
 
                 if (resolvedUnit === 'sshd') {
-                    const st = engine._serviceState.sshd;
+                    const st = engine.config._serviceState.sshd;
                     if (st === 'active') {
                         return `\u25CF ssh.service - OpenBSD Secure Shell server\n     Loaded: loaded (/lib/systemd/system/ssh.service; enabled)\n     Active: active (running) since Thu 2026-04-10 16:35:05 UTC; 0min ago\n   Main PID: 9001 (sshd)\n\nApr 10 16:35:05 cell-071 systemd[1]: Started OpenBSD Secure Shell server.`;
                     }
@@ -400,7 +400,7 @@ const ALAL01Config = {
                 }
 
                 if (resolvedUnit === 'cron') {
-                    const st = engine._serviceState.cron;
+                    const st = engine.config._serviceState.cron;
                     if (st === 'active') {
                         return `\u25CF cron.service - Regular background program processing daemon\n     Loaded: loaded (/lib/systemd/system/cron.service; enabled)\n     Active: active (running) since Thu 2026-04-10 16:35:07 UTC; 0min ago\n   Main PID: 9010 (cron)\n\nApr 10 16:35:07 cell-071 systemd[1]: Started cron.`;
                     }
@@ -408,7 +408,7 @@ const ALAL01Config = {
                 }
 
                 if (resolvedUnit === 'grid-sync') {
-                    const st = engine._serviceState['grid-sync'];
+                    const st = engine.config._serviceState['grid-sync'];
                     if (st === 'active') {
                         return `\u25CF grid-sync.service - Grid Synchronization Service\n     Loaded: loaded (/etc/systemd/system/grid-sync.service; enabled)\n     Active: active (running) since Thu 2026-04-10 16:35:10 UTC; 0min ago\n   Main PID: 9020 (grid-sync.sh)\n\nApr 10 16:35:10 cell-071 systemd[1]: Started Grid Synchronization Service.\nApr 10 16:35:10 cell-071 grid-sync.sh[9020]: grid-sync: starting, target=10.0.1.1`;
                     }
@@ -416,7 +416,7 @@ const ALAL01Config = {
                 }
 
                 if (resolvedUnit === 'grid-monitor') {
-                    const st = engine._serviceState['grid-monitor'];
+                    const st = engine.config._serviceState['grid-monitor'];
                     if (st === 'active') {
                         return `\u25CF grid-monitor.service - Grid Monitor Service\n     Loaded: loaded (/etc/systemd/system/grid-monitor.service; enabled)\n     Active: active (running) since Thu 2026-04-10 16:35:12 UTC; 0min ago\n   Main PID: 9030 (grid-monitor.sh)\n\nApr 10 16:35:12 cell-071 systemd[1]: Started Grid Monitor Service.\nApr 10 16:35:12 cell-071 grid-monitor.sh[9030]: grid-monitor: starting`;
                     }
@@ -424,7 +424,7 @@ const ALAL01Config = {
                 }
 
                 if (resolvedUnit === 'network-online') {
-                    return `\u25CF network-online.target - Network is Online\n     Loaded: loaded (/lib/systemd/system/network-online.target; static)\n     Active: ${engine._serviceState.networking === 'active' ? 'active' : 'inactive (dead)'}\n\n${engine._serviceState.networking !== 'active' ? 'Waiting for: systemd-networkd-wait-online.service\nRequired by: grid-sync.service' : 'All network interfaces configured.'}`;
+                    return `\u25CF network-online.target - Network is Online\n     Loaded: loaded (/lib/systemd/system/network-online.target; static)\n     Active: ${engine.config._serviceState.networking === 'active' ? 'active' : 'inactive (dead)'}\n\n${engine.config._serviceState.networking !== 'active' ? 'Waiting for: systemd-networkd-wait-online.service\nRequired by: grid-sync.service' : 'All network interfaces configured.'}`;
                 }
 
                 return `Unit ${rawUnit || unit} not found.\nRun: systemctl list-units for active units.`;
@@ -434,46 +434,46 @@ const ALAL01Config = {
                 // Enforce dependency ordering -- provide informative errors when deps not met
 
                 if (resolvedUnit === 'networking' || resolvedUnit === 'systemd-networkd') {
-                    if (engine._serviceState.networking !== 'active') {
+                    if (engine.config._serviceState.networking !== 'active') {
                         return `Job for systemd-networkd.service failed.\neth1 interface is DOWN. Run: sudo ip link set eth1 up`;
                     }
-                    engine._serviceState.networking = 'active';
+                    engine.config._serviceState.networking = 'active';
                     return '';
                 }
 
                 if (resolvedUnit === 'sshd') {
-                    if (engine._serviceState.networking !== 'active') {
+                    if (engine.config._serviceState.networking !== 'active') {
                         return `Job for ssh.service failed because the control process exited with error code.\nError: Cannot bind to port 22 -- eth1 is DOWN.\nFix networking first.`;
                     }
-                    engine._serviceState.sshd = 'active';
+                    engine.config._serviceState.sshd = 'active';
                     return '';
                 }
 
                 if (resolvedUnit === 'cron') {
-                    if (engine._serviceState.sshd !== 'active') {
+                    if (engine.config._serviceState.sshd !== 'active') {
                         return `Job for cron.service failed.\nmulti-user.target is degraded -- sshd must be running first.`;
                     }
-                    engine._serviceState.cron = 'active';
+                    engine.config._serviceState.cron = 'active';
                     return '';
                 }
 
                 if (resolvedUnit === 'grid-sync') {
-                    if (engine._serviceState.networking !== 'active') {
+                    if (engine.config._serviceState.networking !== 'active') {
                         return `Job for grid-sync.service failed because a dependency job failed.\nDependency: network-online.target is not satisfied.\nBring eth1 UP first: sudo ip link set eth1 up`;
                     }
-                    engine._serviceState['grid-sync'] = 'active';
+                    engine.config._serviceState['grid-sync'] = 'active';
                     return '';
                 }
 
                 if (resolvedUnit === 'grid-monitor') {
-                    if (engine._serviceState['grid-sync'] !== 'active') {
+                    if (engine.config._serviceState['grid-sync'] !== 'active') {
                         return `Job for grid-monitor.service failed because a dependency job failed.\nDependency: grid-sync.service is not running.`;
                     }
-                    engine._serviceState['grid-monitor'] = 'active';
+                    engine.config._serviceState['grid-monitor'] = 'active';
 
                     // Check if all 5 services are now active -- auto-award FLAG 1
                     const allActive = ['networking', 'sshd', 'cron', 'grid-sync', 'grid-monitor']
-                        .every(s => engine._serviceState[s] === 'active');
+                        .every(s => engine.config._serviceState[s] === 'active');
                     if (allActive) {
                         engine.awardFlag('flag1');
                     }
@@ -489,13 +489,13 @@ const ALAL01Config = {
 
             if (sub === 'is-active') {
                 const stateMap = {
-                    networking: engine._serviceState.networking,
-                    'systemd-networkd': engine._serviceState.networking,
-                    sshd: engine._serviceState.sshd,
-                    ssh: engine._serviceState.sshd,
-                    cron: engine._serviceState.cron,
-                    'grid-sync': engine._serviceState['grid-sync'],
-                    'grid-monitor': engine._serviceState['grid-monitor']
+                    networking: engine.config._serviceState.networking,
+                    'systemd-networkd': engine.config._serviceState.networking,
+                    sshd: engine.config._serviceState.sshd,
+                    ssh: engine.config._serviceState.sshd,
+                    cron: engine.config._serviceState.cron,
+                    'grid-sync': engine.config._serviceState['grid-sync'],
+                    'grid-monitor': engine.config._serviceState['grid-monitor']
                 };
                 const s = stateMap[resolvedUnit];
                 if (s === 'active') return 'active';
@@ -504,7 +504,7 @@ const ALAL01Config = {
             }
 
             if (sub === 'list-units') {
-                const svc = engine._serviceState;
+                const svc = engine.config._serviceState;
                 const fmt = (name, st) => {
                     const loaded = 'loaded';
                     const active = st === 'active' ? 'active' : (st === 'failed' ? 'failed' : 'inactive');
@@ -528,7 +528,7 @@ const ALAL01Config = {
         // netplan apply
         'netplan': function(args, term, engine) {
             if (args[0] === 'apply') {
-                if (engine._serviceState.networking !== 'active') {
+                if (engine.config._serviceState.networking !== 'active') {
                     return `** (generate): WARNING **: eth1 state is DOWN -- bringing up via configuration\n(applied)\neth1 configured with 10.0.1.71/24`;
                 }
                 return `(nothing changed)`;
@@ -543,14 +543,14 @@ const ALAL01Config = {
             const n = args.indexOf('-n') >= 0 ? parseInt(args[args.indexOf('-n') + 1]) : 20;
 
             if (unit === 'grid-sync') {
-                if (engine._serviceState['grid-sync'] === 'active') {
+                if (engine.config._serviceState['grid-sync'] === 'active') {
                     return `-- Journal begins at Thu 2026-04-10 14:31:44 UTC --\nApr 10 16:35:10 cell-071 systemd[1]: Started Grid Synchronization Service.\nApr 10 16:35:10 cell-071 grid-sync.sh[9020]: grid-sync: starting, target=10.0.1.1\nApr 10 16:35:40 cell-071 grid-sync.sh[9020]: {"timestamp":"2026-04-10T16:35:40","service":"grid-sync","status":"SYNC_OK"}`;
                 }
                 return `-- Journal begins at Thu 2026-04-10 14:31:44 UTC --\nApr 10 14:31:46 cell-071 systemd[1]: grid-sync.service: Dependency failed.\nApr 10 14:31:46 cell-071 systemd[1]: Dependency failed for Grid Synchronization Service.\nApr 10 14:31:46 cell-071 systemd[1]: grid-sync.service: Job grid-sync.service/start failed with result 'dependency'.\n\nThe unit requires network-online.target which is not active because eth1 is DOWN.`;
             }
 
             if (unit === 'grid-monitor') {
-                if (engine._serviceState['grid-monitor'] === 'active') {
+                if (engine.config._serviceState['grid-monitor'] === 'active') {
                     return `-- Journal begins at Thu 2026-04-10 14:31:44 UTC --\nApr 10 16:35:12 cell-071 systemd[1]: Started Grid Monitor Service.\nApr 10 16:35:12 cell-071 grid-monitor.sh[9030]: grid-monitor: starting\nApr 10 16:37:42 cell-071 grid-monitor.sh[9030]: {"service":"grid-monitor","status":"MONITOR_OK","nodes":4}`;
                 }
                 return `-- Journal begins at Thu 2026-04-10 14:31:44 UTC --\nApr 10 14:31:46 cell-071 systemd[1]: grid-monitor.service: Dependency failed.\nApr 10 14:31:46 cell-071 systemd[1]: Dependency failed for Grid Monitor Service.\nApr 10 14:31:46 cell-071 systemd[1]: grid-monitor.service: Requires=grid-sync.service but grid-sync.service failed.`;
@@ -576,7 +576,7 @@ const ALAL01Config = {
             }
 
             if (target === '10.0.1.1') {
-                if (engine._serviceState.networking === 'active') {
+                if (engine.config._serviceState.networking === 'active') {
                     return `PING 10.0.1.1 (10.0.1.1) 56(84) bytes of data.\n64 bytes from 10.0.1.1: icmp_seq=1 ttl=64 time=1.2 ms\n64 bytes from 10.0.1.1: icmp_seq=2 ttl=64 time=1.1 ms\n\n--- 10.0.1.1 ping statistics ---\n2 packets transmitted, 2 received, 0% packet loss`;
                 }
                 return `PING 10.0.1.1 (10.0.1.1) 56(84) bytes of data.\nFrom 10.0.0.71 icmp_seq=1 Destination Host Unreachable\n\n--- 10.0.1.1 ping statistics ---\n1 packets transmitted, 0 received, +1 errors, 100% packet loss\n\neth1 is DOWN -- grid network unreachable`;
@@ -609,7 +609,7 @@ const ALAL01Config = {
 
             if (rFlag && target.includes('ops.log')) {
                 // Simulate vim swap recovery -- creates ops.log.recovered
-                engine._logRecovered = true;
+                engine.config._logRecovered = true;
                 engine.filesystem['/'].children.var.children.log.children['cell-ops'].children['ops.log.recovered'] = {
                     type: 'file',
                     content: '{"timestamp":"2026-04-10T13:45:00","service":"grid-monitor","status":"MONITOR_OK","nodes":4}\n{"timestamp":"2026-04-10T14:15:00","service":"grid-monitor","status":"MONITOR_OK","nodes":4}\n{"timestamp":"2026-04-10T14:31:44","service":"grid-sync","status":"SYNC_OK","nodes":4,"latency_ms":12}\n'
@@ -632,11 +632,11 @@ const ALAL01Config = {
                     longFlag ? '-rw-r--r-- 1 svc-monitor svc-monitor  291 Apr 09 23:59 ops.log.1' : 'ops.log.1',
                     longFlag ? '-rw------- 1 svc-monitor svc-monitor 4096 Apr 10 14:31 .ops.log.swp' : '.ops.log.swp'
                 ];
-                if (engine._logRecovered) {
+                if (engine.config._logRecovered) {
                     files.push(longFlag ? '-rw-r--r-- 1 operator   operator    288 Apr 10 16:35 ops.log.recovered' : 'ops.log.recovered');
                 }
                 if (longFlag) {
-                    return `total ${16 + (engine._logRecovered ? 4 : 0)}\ndrwxr-xr-x 2 svc-monitor svc-monitor 4096 Apr 10 16:35 .\ndrwxr-xr-x 8 root        root        4096 Apr 10 14:31 ..\n${files.join('\n')}`;
+                    return `total ${16 + (engine.config._logRecovered ? 4 : 0)}\ndrwxr-xr-x 2 svc-monitor svc-monitor 4096 Apr 10 16:35 .\ndrwxr-xr-x 8 root        root        4096 Apr 10 14:31 ..\n${files.join('\n')}`;
                 }
                 return files.join('  ');
             }

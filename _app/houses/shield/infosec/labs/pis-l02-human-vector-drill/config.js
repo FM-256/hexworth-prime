@@ -47,7 +47,24 @@ const PISL02Config = {
     lore: {
         intro: 'Human vectors are the most dangerous exposure point in the facility. A state-sponsored threat actor has been running targeted social engineering campaigns against Hexworth Containment personnel for the past 72 hours. Intelligence confirmed four attempts have reached analyst inboxes this shift. Your task: review all ten messages, identify the four malicious ones, and correctly classify each technique. This data feeds the facility-wide countermeasure briefing at 1800.',
         scenario: 'Ten messages arrived across different channels today. Some are routine facility communications. Four are social engineering attempts -- each using a different technique: phishing, vishing, pretexting, or baiting. The distinction matters because the countermeasure for each is different. Read carefully. Threat actors are skilled at mimicry.',
-        outro: 'All four social engineering attempts identified and classified. Incident report filed. The countermeasure briefing can now proceed with accurate technique attribution. Personnel have been notified and access credentials rotated where indicated.'
+        outro: 'All four social engineering attempts identified and classified. Incident report filed. The countermeasure briefing can now proceed with accurate technique attribution. Personnel have been notified and access credentials rotated where indicated.',
+
+        goals: [
+            "Spot social-engineering attempts hidden among legitimate facility communications",
+            "Distinguish the four classic SE techniques: phishing (email lure), vishing (voice), pretexting (false identity), baiting (physical or digital lure)",
+            "Match each technique to its countermeasure -- the response for phishing is not the response for vishing",
+            "Tag, classify, and submit findings to feed the facility-wide countermeasure briefing",
+            "Build pattern-recognition for state-sponsored mimicry under inbox volume"
+        ],
+
+        toolkit: [
+            { name: "inbox", purpose: "List the ten messages awaiting analyst review", sample: "inbox" },
+            { name: "read", purpose: "Open a single message and inspect its full content + headers", sample: "read MSG-04" },
+            { name: "flag", purpose: "Mark a message as a suspected social-engineering attempt", sample: "flag MSG-04" },
+            { name: "unflag", purpose: "Reverse a flag if you misclassified", sample: "unflag MSG-04" },
+            { name: "submit", purpose: "File the flagged-message + technique-classification report once review is complete", sample: "submit MSG-04 phishing" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -198,8 +215,8 @@ const PISL02Config = {
 
         // inbox -- list all 10 messages with flagging status
         'inbox': function(args, term, engine) {
-            const msgs = engine._messages;
-            const flagged = engine._flagged;
+            const msgs = engine.config._messages;
+            const flagged = engine.config._flagged;
 
             let lines = [
                 'ANALYST INBOX -- Communications Analysis Terminal',
@@ -228,13 +245,13 @@ const PISL02Config = {
             const id = (args[0] || '').toUpperCase();
             if (!id) return 'Usage: read <message-id>\nExample: read MSG-01';
 
-            const msg = engine._messages[id];
+            const msg = engine.config._messages[id];
             if (!msg) {
                 return `Error: Message ${id} not found.\nValid IDs: MSG-01 through MSG-10`;
             }
 
-            const flagStatus = engine._flagged[id]
-                ? `\n[THIS MESSAGE IS FLAGGED AS: ${engine._flagged[id].toUpperCase()}]`
+            const flagStatus = engine.config._flagged[id]
+                ? `\n[THIS MESSAGE IS FLAGGED AS: ${engine.config._flagged[id].toUpperCase()}]`
                 : '';
 
             return `${'='.repeat(55)}\n${msg.content}${'='.repeat(55)}${flagStatus}`;
@@ -249,18 +266,18 @@ const PISL02Config = {
                 return 'Usage: flag <message-id> <technique>\nTechniques: phishing, vishing, pretexting, baiting\nExample: flag MSG-02 phishing';
             }
 
-            if (!engine._messages[id]) {
+            if (!engine.config._messages[id]) {
                 return `Error: Message ${id} not found. Valid IDs: MSG-01 through MSG-10`;
             }
 
-            if (!engine._validTypes.includes(technique)) {
+            if (!engine.config._validTypes.includes(technique)) {
                 return `Error: "${technique}" is not a valid technique.\nValid types: phishing, vishing, pretexting, baiting`;
             }
 
             // Store the flag
-            engine._flagged[id] = technique;
+            engine.config._flagged[id] = technique;
 
-            return `Flagged: ${id} as ${technique.toUpperCase()}\nUse "submit" when you have identified all 4 attempts.\nCurrently flagged: ${Object.keys(engine._flagged).length}/4`;
+            return `Flagged: ${id} as ${technique.toUpperCase()}\nUse "submit" when you have identified all 4 attempts.\nCurrently flagged: ${Object.keys(engine.config._flagged).length}/4`;
         },
 
         // unflag <msg-id> -- remove a flag
@@ -268,22 +285,22 @@ const PISL02Config = {
             const id = (args[0] || '').toUpperCase();
             if (!id) return 'Usage: unflag <message-id>';
 
-            if (!engine._messages[id]) {
+            if (!engine.config._messages[id]) {
                 return `Error: Message ${id} not found.`;
             }
 
-            if (!engine._flagged[id]) {
+            if (!engine.config._flagged[id]) {
                 return `${id} is not currently flagged.`;
             }
 
-            delete engine._flagged[id];
+            delete engine.config._flagged[id];
             return `Flag removed from ${id}.`;
         },
 
         // submit -- evaluate all flags and award flags if criteria met
         'submit': function(args, term, engine) {
-            const flagged = engine._flagged;
-            const answers = engine._answers;
+            const flagged = engine.config._flagged;
+            const answers = engine.config._answers;
             const flagCount = Object.keys(flagged).length;
 
             if (flagCount < 4) {
@@ -315,8 +332,8 @@ const PISL02Config = {
             }
 
             // Flag 1: All 4 correct IDs identified
-            if (!engine._flag1Awarded) {
-                engine._flag1Awarded = true;
+            if (!engine.config._flag1Awarded) {
+                engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
             }
 
@@ -333,8 +350,8 @@ const PISL02Config = {
             }
 
             // Flag 2: All techniques correct
-            if (!engine._flag2Awarded) {
-                engine._flag2Awarded = true;
+            if (!engine.config._flag2Awarded) {
+                engine.config._flag2Awarded = true;
                 engine.awardFlag('flag2');
             }
 

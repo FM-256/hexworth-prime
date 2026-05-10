@@ -265,8 +265,8 @@ const ALAL08Config = {
             if (!hostArg) return `Usage: ssh [user@]host [command]`;
 
             // Check if this is a known cell
-            const cellKey = Object.keys(engine._remoteCells).find(k => {
-                const c = engine._remoteCells[k];
+            const cellKey = Object.keys(engine.config._remoteCells).find(k => {
+                const c = engine.config._remoteCells[k];
                 return host === k || host === c.ip;
             });
 
@@ -274,7 +274,7 @@ const ALAL08Config = {
                 return `ssh: connect to host ${host} port 22: Connection refused`;
             }
 
-            const cell = engine._remoteCells[cellKey];
+            const cell = engine.config._remoteCells[cellKey];
             if (!cell.reachable) {
                 return `ssh: connect to host ${host} port 22: No route to host`;
             }
@@ -346,14 +346,14 @@ const ALAL08Config = {
             // Extract cell from source
             const cellMatch = src.match(/operator@(cell-\d+|10\.0\.1\.\d+):/);
             const cellKey = cellMatch
-                ? Object.keys(engine._remoteCells).find(k => cellMatch[1] === k || engine._remoteCells[k].ip === cellMatch[1])
+                ? Object.keys(engine.config._remoteCells).find(k => cellMatch[1] === k || engine.config._remoteCells[k].ip === cellMatch[1])
                 : null;
 
             if (!cellKey) {
                 return `rsync: [receiver] change_dir "/home/operator" failed: No such file or directory (2)`;
             }
 
-            const cell = engine._remoteCells[cellKey];
+            const cell = engine.config._remoteCells[cellKey];
 
             if (!cell.reachable) {
                 return `rsync: [sender] io timeout after 20 seconds -- exiting\nrsync error: failed to connect`;
@@ -377,7 +377,7 @@ const ALAL08Config = {
                 }
             };
 
-            engine._state.backupScriptRan = true;
+            engine.config._state.backupScriptRan = true;
 
             // linkDest = fewer bytes on second run
             const isIncremental = linkDest.length > 0;
@@ -406,7 +406,7 @@ const ALAL08Config = {
                 if (!hasGzip) return `write: rotate-logs.sh must compress logs with gzip or bzip2.`;
                 if (!hasMv) return `write: rotate-logs.sh must move archives to /var/log/archive/.`;
 
-                engine._state.rotateScriptWritten = true;
+                engine.config._state.rotateScriptWritten = true;
                 engine.filesystem['/'].children.opt.children['cell-services'].children.scripts.children['rotate-logs.sh'] = {
                     type: 'file',
                     content: content
@@ -422,7 +422,7 @@ const ALAL08Config = {
                 if (!hasRsync) return `write: backup.sh must use rsync.`;
                 if (!hasLinkDest) return `write: backup.sh must use --link-dest for incremental backups.`;
 
-                engine._state.backupScriptWritten = true;
+                engine.config._state.backupScriptWritten = true;
                 engine.filesystem['/'].children.opt.children['cell-services'].children.scripts.children['backup.sh'] = {
                     type: 'file',
                     content: content
@@ -448,7 +448,7 @@ const ALAL08Config = {
                     return `write: health-check.sh missing required elements:\n${missing.map(m => '  - ' + m).join('\n')}`;
                 }
 
-                engine._state.healthScriptWritten = true;
+                engine.config._state.healthScriptWritten = true;
                 engine.filesystem['/'].children.opt.children['cell-services'].children.scripts.children['health-check.sh'] = {
                     type: 'file',
                     content: content
@@ -478,22 +478,22 @@ const ALAL08Config = {
 
         // Direct script execution via path
         '/opt/cell-services/scripts/rotate-logs.sh': function(args, term, engine) {
-            if (!engine._state.rotateScriptWritten) {
+            if (!engine.config._state.rotateScriptWritten) {
                 return `bash: /opt/cell-services/scripts/rotate-logs.sh: No such file or directory`;
             }
             // Simulate log rotation on all three cells
             const date = new Date().toISOString().slice(0, 10);
-            Object.keys(engine._remoteCells).forEach(cellKey => {
-                const cell = engine._remoteCells[cellKey];
+            Object.keys(engine.config._remoteCells).forEach(cellKey => {
+                const cell = engine.config._remoteCells[cellKey];
                 cell._archiveName = `ops-${date}.log.gz`;
                 cell._logRotated = true;
             });
-            engine._state.rotateScriptRan = true;
+            engine.config._state.rotateScriptRan = true;
             return `[rotate-logs] cell-14: rotating ops.log -> /var/log/archive/ops-${date}.log.gz ... done\n[rotate-logs] cell-27: rotating ops.log -> /var/log/archive/ops-${date}.log.gz ... done\n[rotate-logs] cell-33: rotating ops.log -> /var/log/archive/ops-${date}.log.gz ... done\n[rotate-logs] complete.`;
         },
 
         '/opt/cell-services/scripts/backup.sh': function(args, term, engine) {
-            if (!engine._state.backupScriptWritten) {
+            if (!engine.config._state.backupScriptWritten) {
                 return `bash: /opt/cell-services/scripts/backup.sh: No such file or directory`;
             }
             const date = new Date().toISOString().slice(0, 10);
@@ -510,17 +510,17 @@ const ALAL08Config = {
                     children: { 'etc': { type: 'dir', children: {} }, 'home': { type: 'dir', children: {} } }
                 };
             });
-            engine._state.backupScriptRan = true;
+            engine.config._state.backupScriptRan = true;
             return `[backup] cell-14: sent 28,744 bytes -> /var/backups/cell-14/${date}/\n[backup] cell-27: sent 31,012 bytes -> /var/backups/cell-27/${date}/\n[backup] cell-33: sent 29,887 bytes -> /var/backups/cell-33/${date}/\n[backup] complete.`;
         },
 
         '/opt/cell-services/scripts/health-check.sh': function(args, term, engine) {
-            if (!engine._state.healthScriptWritten) {
+            if (!engine.config._state.healthScriptWritten) {
                 return `bash: /opt/cell-services/scripts/health-check.sh: No such file or directory`;
             }
             const date = new Date().toISOString().slice(0, 10);
             const reportPath = `/var/log/health-${date}.txt`;
-            const cells = engine._remoteCells;
+            const cells = engine.config._remoteCells;
             const lines = [
                 `Health Check Report -- ${date}`,
                 '-------------------------------------------'
@@ -545,13 +545,13 @@ const ALAL08Config = {
                 content: reportContent
             };
 
-            engine._state.healthScriptRan = true;
+            engine.config._state.healthScriptRan = true;
             return reportContent;
         },
 
         // /opt/verify scripts
         '/opt/verify/check-rotation.sh': function(args, term, engine) {
-            if (!engine._state.rotateScriptRan) {
+            if (!engine.config._state.rotateScriptRan) {
                 return `[FAIL] No archive files found on any cell.\nRun /opt/cell-services/scripts/rotate-logs.sh first.`;
             }
             engine.awardFlag('flag1');
@@ -559,7 +559,7 @@ const ALAL08Config = {
         },
 
         '/opt/verify/check-backup.sh': function(args, term, engine) {
-            if (!engine._state.backupScriptRan) {
+            if (!engine.config._state.backupScriptRan) {
                 return `[FAIL] /var/backups/cell-14/ is empty or does not exist.\nRun /opt/cell-services/scripts/backup.sh first.`;
             }
             engine.awardFlag('flag2');
@@ -567,13 +567,13 @@ const ALAL08Config = {
         },
 
         '/opt/verify/check-health.sh': function(args, term, engine) {
-            if (!engine._state.healthScriptWritten) {
+            if (!engine.config._state.healthScriptWritten) {
                 return `[FAIL] /opt/cell-services/scripts/health-check.sh not found.`;
             }
-            if (!engine._state.healthScriptRan) {
+            if (!engine.config._state.healthScriptRan) {
                 return `[FAIL] No health report found in /var/log/.\nRun the health-check.sh script first to generate a report.`;
             }
-            if (!engine._state.cronConfigured) {
+            if (!engine.config._state.cronConfigured) {
                 return `[FAIL] health-check.sh not found in crontab.\nAdd via: crontab -e\nRequired entry: 0 5 * * * /opt/cell-services/scripts/health-check.sh >> /var/log/health-$(date +\\%F).txt 2>&1`;
             }
             engine.awardFlag('flag3');
@@ -587,7 +587,7 @@ const ALAL08Config = {
             const rFlag = args.includes('-r');
 
             if (lFlag) {
-                if (engine._state.cronConfigured) {
+                if (engine.config._state.cronConfigured) {
                     return `# Night shift automation -- cell-night-ops\n0 5 * * * /opt/cell-services/scripts/rotate-logs.sh >> /var/log/rotate-$(date +\\%F).log 2>&1\n0 5 * * * /opt/cell-services/scripts/backup.sh >> /var/log/backup-$(date +\\%F).log 2>&1\n0 5 * * * /opt/cell-services/scripts/health-check.sh >> /var/log/health-$(date +\\%F).txt 2>&1\n`;
                 }
                 return `no crontab for operator`;
@@ -598,7 +598,7 @@ const ALAL08Config = {
             }
 
             if (rFlag) {
-                engine._state.cronConfigured = false;
+                engine.config._state.cronConfigured = false;
                 return '';
             }
 
@@ -622,14 +622,14 @@ const ALAL08Config = {
             }
 
             // Track which scripts have been scheduled
-            if (!engine._state._cronScripts) engine._state._cronScripts = {};
-            if (entry.includes('rotate-logs')) engine._state._cronScripts.rotate = true;
-            if (entry.includes('backup')) engine._state._cronScripts.backup = true;
-            if (entry.includes('health-check')) engine._state._cronScripts.health = true;
+            if (!engine.config._state._cronScripts) engine.config._state._cronScripts = {};
+            if (entry.includes('rotate-logs')) engine.config._state._cronScripts.rotate = true;
+            if (entry.includes('backup')) engine.config._state._cronScripts.backup = true;
+            if (entry.includes('health-check')) engine.config._state._cronScripts.health = true;
 
             // Only mark cron as fully configured when ALL three are scheduled
-            const s = engine._state._cronScripts;
-            engine._state.cronConfigured = !!(s.rotate && s.backup && s.health);
+            const s = engine.config._state._cronScripts;
+            engine.config._state.cronConfigured = !!(s.rotate && s.backup && s.health);
 
             const scheduled = [s.rotate && 'rotate-logs', s.backup && 'backup', s.health && 'health-check'].filter(Boolean);
             return `Crontab entry added: ${entry}\nScheduled scripts: ${scheduled.join(', ')} (${scheduled.length}/3)`;
@@ -644,7 +644,7 @@ const ALAL08Config = {
                 return `PING ${target} (${target}) 56(84) bytes of data.\n64 bytes from ${target}: icmp_seq=1 ttl=64 time=0.031 ms\n\n--- ${target} ping statistics ---\n1 packets transmitted, 1 received, 0% packet loss`;
             }
 
-            const cellEntry = Object.values(engine._remoteCells).find(c => c.ip === target);
+            const cellEntry = Object.values(engine.config._remoteCells).find(c => c.ip === target);
             if (cellEntry && cellEntry.reachable) {
                 return `PING ${target} (${target}) 56(84) bytes of data.\n64 bytes from ${target}: icmp_seq=1 ttl=64 time=0.8 ms\n\n--- ${target} ping statistics ---\n1 packets transmitted, 1 received, 0% packet loss`;
             }

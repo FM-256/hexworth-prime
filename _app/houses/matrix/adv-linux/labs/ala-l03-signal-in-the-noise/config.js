@@ -310,7 +310,7 @@ const ALAL03Config = {
 
         // ps -- show running processes; rogue process always appears while running
         'ps': function(args, term, engine) {
-            const rp = engine._rogueProcess;
+            const rp = engine.config._rogueProcess;
             const wideFormat = args.includes('aux') || args.includes('-aux') || args.includes('ax') || args.some(a => a.includes('a'));
 
             if (!wideFormat && args.length === 0) {
@@ -336,7 +336,7 @@ const ALAL03Config = {
 
         // ss -- socket statistics; shows active outbound connection from rogue PID
         'ss': function(args, term, engine) {
-            const rp = engine._rogueProcess;
+            const rp = engine.config._rogueProcess;
             const hasP = args.some(a => a.includes('p'));
 
             if (args.length === 0 || args.includes('-h')) {
@@ -361,7 +361,7 @@ const ALAL03Config = {
 
         // netstat -- alternative to ss; shows same outbound connection
         'netstat': function(args, term, engine) {
-            const rp = engine._rogueProcess;
+            const rp = engine.config._rogueProcess;
 
             if (!rp.running) {
                 return 'Active Internet connections (w/o servers)\nProto Recv-Q Send-Q Local Address       Foreign Address     State\ntcp        0      0 cell-023:ssh        10.0.0.1:44501      ESTABLISHED';
@@ -416,7 +416,7 @@ const ALAL03Config = {
             const procExeMatch = pathArg.match(/^\/proc\/(\d+)\/exe$/);
             if (procExeMatch) {
                 const pid = parseInt(procExeMatch[1]);
-                if (pid === engine._rogueProcess.pid) {
+                if (pid === engine.config._rogueProcess.pid) {
                     return `lrwxrwxrwx 1 svc-grid svc-grid 0 Apr 10 09:00 /proc/${pid}/exe -> /opt/cell-services/.health/grid-health`;
                 }
                 return `ls: cannot access '/proc/${pid}/exe': No such file or directory`;
@@ -497,7 +497,7 @@ const ALAL03Config = {
             const procExeMatch = target.match(/^\/proc\/(\d+)\/exe$/);
             if (procExeMatch) {
                 const pid = parseInt(procExeMatch[1]);
-                if (pid === engine._rogueProcess.pid) {
+                if (pid === engine.config._rogueProcess.pid) {
                     return `cat: /proc/${pid}/exe: Permission denied\nTip: ls -la /proc/${pid}/exe will resolve the symlink target.`;
                 }
                 return `cat: /proc/${pid}/exe: No such file or directory`;
@@ -508,7 +508,7 @@ const ALAL03Config = {
             }
 
             if (target === '/opt/cell-services/.health/.pid') {
-                return engine._rogueProcess.running ? String(engine._rogueProcess.pid) + '\n' : '';
+                return engine.config._rogueProcess.running ? String(engine.config._rogueProcess.pid) + '\n' : '';
             }
 
             if (target === '/tmp/.exfil/.2026-04-10-14-23.dat' || target === '/tmp/.exfil/.2026-04-10-12-53.dat') {
@@ -529,7 +529,7 @@ const ALAL03Config = {
 
         // kill -- terminate the rogue process; awards flag1
         'kill': function(args, term, engine) {
-            const rp = engine._rogueProcess;
+            const rp = engine.config._rogueProcess;
             const pidArg = args.find(a => /^\d+$/.test(a));
 
             if (!pidArg) return 'Usage: kill [-9] <PID>';
@@ -541,8 +541,8 @@ const ALAL03Config = {
                     return `bash: kill: (${pid}) - No such process`;
                 }
                 rp.running = false;
-                if (!engine._flag1Awarded) {
-                    engine._flag1Awarded = true;
+                if (!engine.config._flag1Awarded) {
+                    engine.config._flag1Awarded = true;
                     engine.awardFlag('flag1');
                 }
                 return '';
@@ -595,14 +595,14 @@ const ALAL03Config = {
                 return 'Usage: submit <answer>\nExamples:\n  submit 4821\n  submit /opt/cell-services/.health/grid-health /home/operator/notes.txt';
             }
 
-            const rp = engine._rogueProcess;
+            const rp = engine.config._rogueProcess;
             const input = args.join(' ').trim();
 
             // Flag 1: correct PID
-            if (!engine._flag1Awarded) {
+            if (!engine.config._flag1Awarded) {
                 const pidMatch = args.some(a => parseInt(a) === rp.pid);
                 if (pidMatch) {
-                    engine._flag1Awarded = true;
+                    engine.config._flag1Awarded = true;
                     engine.awardFlag('flag1');
                     return `Correct. PID ${rp.pid} confirmed as the rogue process (grid-health, running as svc-grid).\nFlag 1 awarded.`;
                 }
@@ -613,8 +613,8 @@ const ALAL03Config = {
             const hasDataSource = input.includes('/home/operator/notes.txt');
 
             if (hasBinaryPath && hasDataSource) {
-                if (!engine._flag2Awarded) {
-                    engine._flag2Awarded = true;
+                if (!engine.config._flag2Awarded) {
+                    engine.config._flag2Awarded = true;
                     engine.awardFlag('flag2');
                 }
                 return 'Correct. Binary: /opt/cell-services/.health/grid-health -- Data source: /home/operator/notes.txt\nFlag 2 awarded.';

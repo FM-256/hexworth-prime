@@ -257,7 +257,7 @@ const ALAL06Config = {
                 const checksumFile = target;
                 if (checksumFile.includes('gridmon-2.1.0.tar.gz.sha256') ||
                     checksumFile === '/opt/archive/gridmon-2.1.0.tar.gz.sha256') {
-                    engine._state.checksumVerified = true;
+                    engine.config._state.checksumVerified = true;
                     return `gridmon-2.1.0.tar.gz: OK`;
                 }
                 return `sha256sum: ${checksumFile}: No such file or directory`;
@@ -280,7 +280,7 @@ const ALAL06Config = {
             if (lFlag) {
                 const pkgArg = args.find(a => !a.startsWith('-') && !a.endsWith('.deb')) || '';
                 if (pkgArg === 'gridmon' || pkgArg === 'gridmon*') {
-                    if (engine._state.installed) {
+                    if (engine.config._state.installed) {
                         return `Desired=Unknown/Install/Remove/Purge/Hold\n| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend\n|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)\n||/ Name         Version Architecture Description\n+++-============-============-============-==========================================\nii  gridmon      2.1.0        amd64        Grid Network Monitor -- field build`;
                     }
                     return `dpkg-query: no packages found matching gridmon`;
@@ -303,10 +303,10 @@ const ALAL06Config = {
                 });
 
                 if (hasPcap && hasSsl) {
-                    engine._state.depsInstalled = true;
+                    engine.config._state.depsInstalled = true;
                 }
                 if (hasCheckinstall) {
-                    engine._state.checkinstallInstalled = true;
+                    engine.config._state.checkinstallInstalled = true;
                 }
 
                 return output.join('\n');
@@ -329,10 +329,10 @@ const ALAL06Config = {
             }
 
             if (cmd === 'checkinstall') {
-                if (!engine._state.built) {
+                if (!engine.config._state.built) {
                     return `checkinstall: error: no Makefile found or make not run yet.\nRun make in the source directory first.`;
                 }
-                if (!engine._state.checkinstallInstalled) {
+                if (!engine.config._state.checkinstallInstalled) {
                     return `sudo: checkinstall: command not found\nInstall with: sudo dpkg -i /opt/archive/packages/checkinstall_1.6.2-4_amd64.deb`;
                 }
 
@@ -341,7 +341,7 @@ const ALAL06Config = {
                 const pkgver = rest.find((a, i) => rest[i - 1] === '--pkgversion') ||
                     (rest.find(a => a.startsWith('--pkgversion=')) || '').split('=')[1] || '2.1.0';
 
-                engine._state.installed = true;
+                engine.config._state.installed = true;
                 engine.filesystem['/'].children.usr.children.local.children.bin.children['gridmon'] = {
                     type: 'file',
                     content: '#!/bin/bash\n# gridmon 2.1.0 -- Grid Network Monitor\n# Built from source on cell-034\n'
@@ -350,10 +350,10 @@ const ALAL06Config = {
             }
 
             if (cmd === 'make') {
-                if (!engine._state.configured) {
+                if (!engine.config._state.configured) {
                     return `make: *** No targets specified and no makefile found. Stop.\nRun ./configure first.`;
                 }
-                engine._state.built = true;
+                engine.config._state.built = true;
                 return `make[1]: Entering directory '/home/operator/gridmon-2.1.0'\nCC src/capture.c\nCC src/filter.c\nCC src/output.c\nCC src/main.c\nLINK gridmon\nmake[1]: Leaving directory '/home/operator/gridmon-2.1.0'\n`;
             }
 
@@ -372,10 +372,10 @@ const ALAL06Config = {
             }
 
             if (xFlag && file.includes('gridmon-2.1.0.tar.gz')) {
-                if (!engine._state.checksumVerified) {
+                if (!engine.config._state.checksumVerified) {
                     return `Warning: checksum not verified. Run sha256sum -c /opt/archive/gridmon-2.1.0.tar.gz.sha256 first.\ngridmon-2.1.0/\ngridmon-2.1.0/configure\ngridmon-2.1.0/src/main.c\n[extracted -- but verify the checksum before proceeding]`;
                 }
-                engine._state.sourceExtracted = true;
+                engine.config._state.sourceExtracted = true;
                 // Create the extracted source directory in the filesystem
                 const cwd = engine.getCurrentDir ? engine.getCurrentDir() : '/home/operator';
                 engine.filesystem['/'].children.home.children.operator.children['gridmon-2.1.0'] = {
@@ -408,10 +408,10 @@ const ALAL06Config = {
 
         // ./configure -- runs build configuration for gridmon
         './configure': function(args, term, engine) {
-            if (!engine._state.sourceExtracted) {
+            if (!engine.config._state.sourceExtracted) {
                 return `bash: ./configure: No such file or directory\nExtract the source first: tar -xzf /opt/archive/gridmon-2.1.0.tar.gz`;
             }
-            if (!engine._state.depsInstalled) {
+            if (!engine.config._state.depsInstalled) {
                 return `checking for libpcap... no\nconfigure: error: libpcap is required but not found.\nInstall: sudo dpkg -i /opt/archive/deps/libpcap-dev_1.10.1-4_amd64.deb /opt/archive/deps/libpcap0.8-dev_1.10.1-4_amd64.deb /opt/archive/deps/libssl-dev_3.0.2-0ubuntu1.13_amd64.deb`;
             }
             const hasPrefix = args.some(a => a.startsWith('--prefix'));
@@ -419,17 +419,17 @@ const ALAL06Config = {
             if (!hasPrefix || !hasGridCapture) {
                 return `Note: Recommended flags: --prefix=/usr/local --enable-grid-capture\nchecking build system type... x86_64-pc-linux-gnu\nchecking for libpcap... yes\nchecking for libssl... yes\nconfigure: warning: --enable-grid-capture not set. UDP port 9001 capture support disabled.\nconfigure: creating ./Makefile\n`;
             }
-            engine._state.configured = true;
+            engine.config._state.configured = true;
             return `checking build system type... x86_64-pc-linux-gnu\nchecking host system type... x86_64-pc-linux-gnu\nchecking for gcc... gcc\nchecking for libpcap... yes (1.10.1)\nchecking for libssl... yes (3.0.2)\nchecking for grid-capture support... enabled\nconfigure: creating ./Makefile\nconfigure: creating config.h\nConfiguration complete. Run: make -j$(nproc)\n`;
         },
 
         // make -- compile gridmon
         'make': function(args, term, engine) {
-            if (!engine._state.configured) {
+            if (!engine.config._state.configured) {
                 return `make: *** No targets specified and no makefile found. Stop.\nRun ./configure --prefix=/usr/local --enable-grid-capture first.`;
             }
-            if (!engine._state.built) {
-                engine._state.built = true;
+            if (!engine.config._state.built) {
+                engine.config._state.built = true;
                 return `make[1]: Entering directory '/home/operator/gridmon-2.1.0'\nCC src/capture.c\nCC src/filter.c\nCC src/output.c\nCC src/main.c\nLINK gridmon\nmake[1]: Leaving directory '/home/operator/gridmon-2.1.0'\n`;
             }
             return `make: Nothing to be done for 'all'.`;
@@ -437,7 +437,7 @@ const ALAL06Config = {
 
         // gridmon -- run the compiled tool
         'gridmon': function(args, term, engine) {
-            if (!engine._state.installed) {
+            if (!engine.config._state.installed) {
                 return `bash: gridmon: command not found\nInstall with: sudo checkinstall --pkgname=gridmon --pkgversion=2.1.0 --backup=no --fstrans=no make install`;
             }
 
@@ -457,7 +457,7 @@ const ALAL06Config = {
                     return `gridmon: capturing on ${iface}\nNo filter set for UDP 9001 -- sector signature may not be captured.\nRun: gridmon --capture --interface eth0 --filter "udp port 9001" --output /tmp/capture.pcap`;
                 }
 
-                engine._state.capturePcapCreated = true;
+                engine.config._state.capturePcapCreated = true;
                 engine.filesystem['/'].children.tmp.children['capture.pcap'] = {
                     type: 'file',
                     content: '[pcap binary]\nFRAME 1: 2026-04-10T08:15:00.000Z UDP 10.0.1.99:9001 -> 10.0.1.34:9001\nPAYLOAD: SECTOR7_SIG:a9f3e7c2b1d4\n'
@@ -470,7 +470,7 @@ const ALAL06Config = {
 
         // /opt/verify/test-install.sh -- awards Flag 1
         '/opt/verify/test-install.sh': function(args, term, engine) {
-            if (!engine._state.installed) {
+            if (!engine.config._state.installed) {
                 return `[FAIL] /usr/local/bin/gridmon not found. Did you run checkinstall?\n[FAIL] dpkg has no record of gridmon.`;
             }
             engine.awardFlag('flag1');
@@ -479,7 +479,7 @@ const ALAL06Config = {
 
         // /opt/verify/run-capture.sh -- awards Flag 2
         '/opt/verify/run-capture.sh': function(args, term, engine) {
-            if (!engine._state.capturePcapCreated) {
+            if (!engine.config._state.capturePcapCreated) {
                 return `[FAIL] /tmp/capture.pcap not found.\nRun: gridmon --capture --interface eth0 --filter 'udp port 9001' --output /tmp/capture.pcap`;
             }
             engine.awardFlag('flag2');

@@ -268,7 +268,7 @@ const ALAL09Config = {
             );
 
             if (isZoneVsBak) {
-                if (engine._zoneRestored) {
+                if (engine.config._zoneRestored) {
                     return 'Files are identical. Zone has been restored.';
                 }
                 return '5c5\n<                 2026041001  ; serial\n---\n>                 2026041002  ; serial -- was 2026041001 before attack\n27c27\n< grid-api    IN A    10.0.1.71\n---\n> grid-api    IN A    203.0.113.99\n28c28\n< cell-088    IN A    10.0.1.88\n---\n> cell-088    IN A    203.0.113.100\n29c29\n< update-mirror IN A  10.0.1.200\n---\n> update-mirror IN A  203.0.113.101\n\n3 differences found. Lines 27-29 contain the poisoned A records.';
@@ -313,13 +313,13 @@ const ALAL09Config = {
                 'cell-080.sector7.matrix.net':     '10.0.1.80'
             };
 
-            const resolvedMap = engine._zoneRestored ? correctMap : Object.assign({}, correctMap, poisonedMap);
+            const resolvedMap = engine.config._zoneRestored ? correctMap : Object.assign({}, correctMap, poisonedMap);
             const ip = resolvedMap[host];
 
             if (!host) return 'Usage: dig [@server] <name> [type]\nExample: dig @localhost grid-api.sector7.matrix.net';
 
             if (ip) {
-                const status = engine._zoneRestored ? 'NOERROR (restored)' : 'NOERROR';
+                const status = engine.config._zoneRestored ? 'NOERROR (restored)' : 'NOERROR';
                 return `; <<>> DiG 9.18.1-1ubuntu1 <<>> @${server} ${host}\n; (1 server found)\n;; QUESTION SECTION:\n;${host}.  IN A\n\n;; ANSWER SECTION:\n${host}. 300 IN A ${ip}\n\n;; Query time: 1 msec\n;; SERVER: ${server === 'localhost' ? '127.0.0.1' : server}#53\n;; WHEN: Thu Apr 10 08:44:01 UTC 2026\n;; MSG SIZE rcvd: 56\n;; STATUS: ${status}`;
             }
 
@@ -336,7 +336,7 @@ const ALAL09Config = {
             }
 
             if (file.includes('db.sector7.matrix.net') && !file.includes('.bak') && !file.includes('.pre')) {
-                if (engine._zoneRestored) {
+                if (engine.config._zoneRestored) {
                     return `zone ${zone}/IN: loaded serial 2026041003\nOK`;
                 }
                 return `zone ${zone}/IN: loaded serial 2026041002\nOK (zone is syntactically valid but contains poisoned records)`;
@@ -361,7 +361,7 @@ const ALAL09Config = {
             );
 
             if (isBakToZone) {
-                engine._zoneRestored = true;
+                engine.config._zoneRestored = true;
                 // Update the live zone file content to the clean version
                 engine.filesystem['/'].children.etc.children.bind.children.zones.children['db.sector7.matrix.net'].content =
                     '; sector7.matrix.net zone file -- RESTORED FROM BACKUP\n; Serial: 2026041003 (incremented for reload)\n$ORIGIN sector7.matrix.net.\n$TTL 300\n@   IN SOA  ns1.sector7.matrix.net. admin.sector7.matrix.net. (\n                2026041003  ; serial -- incremented after restore\n                3600        ; refresh\n                900         ; retry\n                604800      ; expire\n                300 )       ; minimum TTL\n\n@           IN NS   ns1.sector7.matrix.net.\nns1         IN A    10.0.1.1\n\n; Cell infrastructure\ncell-071    IN A    10.0.1.71\ncell-072    IN A    10.0.1.72\ncell-073    IN A    10.0.1.73\ncell-080    IN A    10.0.1.80\n\n; RESTORED CORRECT RECORDS\ngrid-api    IN A    10.0.1.71\ncell-088    IN A    10.0.1.88\nupdate-mirror IN A  10.0.1.200\n\n; Services\nmail        IN A    10.0.1.10\nmonitor     IN A    10.0.1.5\ngrid-log    IN A    10.0.1.50\n';
@@ -380,7 +380,7 @@ const ALAL09Config = {
             }
 
             if (sub === 'reload') {
-                if (!engine._zoneRestored) {
+                if (!engine.config._zoneRestored) {
                     return 'zone reload failed: zone sector7.matrix.net/IN -- check zone file syntax (named-checkzone)\nOr: rndc reload sector7.matrix.net to reload single zone after restore';
                 }
                 return 'zone reload up-to-date: sector7.matrix.net';
@@ -403,7 +403,7 @@ const ALAL09Config = {
             }
 
             if (sub === 'reload' && (unit === 'named' || unit === 'bind9')) {
-                if (!engine._zoneRestored) {
+                if (!engine.config._zoneRestored) {
                     return 'named.service: reload signaled (zone data not yet restored)';
                 }
                 return 'named.service: reload complete -- zone sector7.matrix.net loaded with serial 2026041003';
@@ -418,12 +418,12 @@ const ALAL09Config = {
             const target = args.find(a => a.includes('/etc/bind')) || '';
 
             if (mode === '640' && target.includes('/etc/bind/zones')) {
-                engine._zonePerms640 = true;
+                engine.config._zonePerms640 = true;
                 return '';
             }
 
             if (mode === '750' && target.includes('/etc/bind/zones')) {
-                engine._zonePerms640 = true;
+                engine.config._zonePerms640 = true;
                 return '';
             }
 
@@ -443,7 +443,7 @@ const ALAL09Config = {
         // tsig-keygen -- generate TSIG key for zone transfers
         'tsig-keygen': function(args, term, engine) {
             const keyname = args[0] || 'sector7-xfer';
-            engine._tsigConfigured = true;
+            engine.config._tsigConfigured = true;
             return `key "${keyname}" {\n    algorithm hmac-sha256;\n    secret "R2xpZFN5bmMvVFNJR0tleUhleFdvcnRoUHJpbWU=";\n};\n\n// To use this key:\n// 1. sudo tee /etc/bind/tsig-${keyname}.key (paste the above)\n// 2. Add to named.conf: include "/etc/bind/tsig-${keyname}.key";\n// 3. Add to zone: allow-transfer { key ${keyname}; };`;
         },
 
@@ -455,7 +455,7 @@ const ALAL09Config = {
         },
 
         '/opt/verify/check-restoration.sh': function(args, term, engine) {
-            if (!engine._zoneRestored) {
+            if (!engine.config._zoneRestored) {
                 return 'FAIL: Zone not restored.\n  grid-api.sector7.matrix.net   => 203.0.113.99  (POISONED -- expected 10.0.1.71)\n  cell-088.sector7.matrix.net   => 203.0.113.100 (POISONED -- expected 10.0.1.88)\n  update-mirror.sector7.matrix.net => 203.0.113.101 (POISONED -- expected 10.0.1.200)\n\nRestore from backup:\n  sudo cp /etc/bind/zones/db.sector7.matrix.net.bak /etc/bind/zones/db.sector7.matrix.net\n  sudo named-checkzone sector7.matrix.net /etc/bind/zones/db.sector7.matrix.net\n  sudo rndc reload sector7.matrix.net';
             }
             engine.awardFlag('flag1');
@@ -464,9 +464,9 @@ const ALAL09Config = {
 
         '/opt/verify/check-hardening.sh': function(args, term, engine) {
             const checks = [
-                { label: 'allow-update { none; }; in zone declaration', pass: engine._allowUpdateNone },
-                { label: 'Zone files owned bind:bind mode 640',          pass: engine._zonePerms640   },
-                { label: 'TSIG key configured for zone transfers',        pass: engine._tsigConfigured }
+                { label: 'allow-update { none; }; in zone declaration', pass: engine.config._allowUpdateNone },
+                { label: 'Zone files owned bind:bind mode 640',          pass: engine.config._zonePerms640   },
+                { label: 'TSIG key configured for zone transfers',        pass: engine.config._tsigConfigured }
             ];
             const failed = checks.filter(c => !c.pass);
 
@@ -484,12 +484,12 @@ const ALAL09Config = {
         'tee': function(args, term, engine) {
             const target = args.find(a => !a.startsWith('-')) || '';
             if (target.includes('tsig') && target.includes('.key')) {
-                engine._tsigConfigured = true;
+                engine.config._tsigConfigured = true;
                 return '(written to ' + target + ')';
             }
             // Detect allow-update { none; } being piped to named.conf.local
             if (target.includes('named.conf.local') || target.includes('named.conf')) {
-                engine._allowUpdateNone = true;
+                engine.config._allowUpdateNone = true;
                 return '(written to ' + target + ')';
             }
             return '(written to ' + (target || 'stdout') + ')';
@@ -500,7 +500,7 @@ const ALAL09Config = {
             // Detect if user is constructing allow-update { none; }; content
             const joined = args.join(' ');
             if (joined.includes('allow-update') && joined.includes('none')) {
-                engine._allowUpdateNone = true;
+                engine.config._allowUpdateNone = true;
             }
             return joined.replace(/^["']|["']$/g, '');
         },
@@ -511,7 +511,7 @@ const ALAL09Config = {
 
             // Detect if operator is trying to detect allow-update in named.conf.local
             if (target.includes('named.conf.local')) {
-                if (engine._allowUpdateNone) {
+                if (engine.config._allowUpdateNone) {
                     return '// sector7.matrix.net zone declaration\nzone "sector7.matrix.net" {\n    type master;\n    file "/etc/bind/zones/db.sector7.matrix.net";\n    allow-update { none; };\n};\n';
                 }
                 // Return the filesystem content via default null fallthrough
@@ -524,11 +524,11 @@ const ALAL09Config = {
         'vi': function(args, term, engine) {
             const target = args.find(a => !a.startsWith('-')) || '';
             if (target.includes('named.conf.local')) {
-                engine._allowUpdateNone = true;
+                engine.config._allowUpdateNone = true;
                 return '[VI simulation] named.conf.local saved with allow-update { none; }; in zone declaration.';
             }
             if (target.includes('tsig') || target.includes('named.conf')) {
-                engine._tsigConfigured = true;
+                engine.config._tsigConfigured = true;
                 return '[VI simulation] File saved.';
             }
             return '[VI simulation] Cannot open interactive editor in this terminal.';

@@ -48,7 +48,24 @@ const PISL03Config = {
     lore: {
         intro: 'Field teams have detected a new pathogen spreading through financial sector networks. Preliminary telemetry suggests it is exploiting a recently patched vulnerability in a common enterprise software stack. The pathogen has not been seen at Hexworth facilities yet, but we have three clients in the target sector. Intelligence division needs a complete threat profile in the next 45 minutes. Query the tools, build the profile, and recommend containment.',
         scenario: 'The target pathogen is tracked internally as OUTBREAK-7719. It exploits CVE-2024-3094 (XZ Utils backdoor) and uses MITRE ATT&CK techniques for persistence and lateral movement. Your workstation has access to simulated versions of the CVE database, MITRE ATT&CK lookup, and live threat feeds. Run the queries, synthesize the data, build the profile, then issue the containment recommendation.',
-        outro: 'Threat profile complete. ATT&CK technique chain mapped. Containment recommendation issued. Intelligence division has everything needed for the client briefing. Three facilities are being patched now based on your recommendation.'
+        outro: 'Threat profile complete. ATT&CK technique chain mapped. Containment recommendation issued. Intelligence division has everything needed for the client briefing. Three facilities are being patched now based on your recommendation.',
+
+        goals: [
+            "Build a complete threat profile by joining data from three intelligence sources: CVE database, MITRE ATT&CK, and live threat feeds",
+            "Query specific CVEs and map them to ATT&CK technique IDs (e.g., T1059 for command-and-scripting)",
+            "Synthesize multi-source intel into a containment recommendation that targets the actual TTPs in use",
+            "Practice the analyst workflow: query → correlate → recommend, under a 45-minute clock",
+            "Recognize that \"patched\" does not mean \"safe\" -- threat actors weaponize disclosed CVEs faster than orgs deploy patches"
+        ],
+
+        toolkit: [
+            { name: "cve-search", purpose: "Look up CVE detail: severity, affected products, exploitation status", sample: "cve-search CVE-2024-3094" },
+            { name: "mitre-lookup", purpose: "Look up MITRE ATT&CK technique: tactic, mitigations, detection", sample: "mitre-lookup T1059" },
+            { name: "threat-feed", purpose: "Pull active threat feed entries for a campaign or actor", sample: "threat-feed OUTBREAK-7719" },
+            { name: "profile", purpose: "Build/view the threat profile being assembled from queries above", sample: "profile build" },
+            { name: "recommend", purpose: "Issue the containment recommendation derived from the assembled profile", sample: "recommend OUTBREAK-7719" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -148,10 +165,10 @@ const PISL03Config = {
 
             // Respond to any query that would find CVE-2024-3094
             if (query.includes('cve-2024-3094') || query.includes('xz') || query.includes('liblzma') || query.includes('xz-utils')) {
-                engine._profileData.cveId = 'CVE-2024-3094';
-                engine._profileData.cvssScore = '10.0';
-                engine._profileData.attackVector = 'Network';
-                engine._profileData.affectedSystems = 'XZ Utils 5.6.0-5.6.1 (liblzma), systemd-integrated Linux systems';
+                engine.config._profileData.cveId = 'CVE-2024-3094';
+                engine.config._profileData.cvssScore = '10.0';
+                engine.config._profileData.attackVector = 'Network';
+                engine.config._profileData.affectedSystems = 'XZ Utils 5.6.0-5.6.1 (liblzma), systemd-integrated Linux systems';
 
                 return 'CVE DATABASE QUERY RESULT\n' + '='.repeat(50) + '\nCVE ID:      CVE-2024-3094\nPublished:   2024-03-29\nModified:    2024-04-05\nCVSS Score:  10.0 (CRITICAL)\nCVSS Vector: AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H\n\nDescription:\n  A supply chain compromise was discovered in XZ Utils (liblzma)\n  versions 5.6.0 and 5.6.1. A malicious maintainer inserted a backdoor\n  into the build system that modified the RSA key decryption function\n  in liblzma. On systems where systemd uses sshd via systemd-notify,\n  this allows an unauthenticated remote attacker to execute arbitrary\n  code with root privileges.\n\nAffected Systems:\n  - XZ Utils 5.6.0, 5.6.1\n  - Any Linux distribution shipping these versions with systemd-linked sshd\n  - Notably: Fedora 40 beta, Debian unstable/testing (at time of discovery)\n\nAttack Vector:      Network\nAuthentication:     None required\nImpact:             Full system compromise\n\nReferences:\n  NVD: https://nvd.nist.gov/vuln/detail/CVE-2024-3094\n  OSS-Security: https://www.openwall.com/lists/oss-security/2024/03/29/4\n\n[Profile updated: CVE-2024-3094 recorded]';
             }
@@ -209,23 +226,23 @@ const PISL03Config = {
             }
 
             // Record this technique in the profile
-            if (!engine._profileData.techniques.includes(techId)) {
-                engine._profileData.techniques.push(techId);
+            if (!engine.config._profileData.techniques.includes(techId)) {
+                engine.config._profileData.techniques.push(techId);
             }
 
-            return `MITRE ATT&CK ENTERPRISE v15\n${'='.repeat(50)}\nTechnique ID:  ${techId}\nName:          ${tech.name}\nTactic:        ${tech.tactic}\n\nDescription:\n  ${tech.description}\n\nDetection:\n  ${tech.detection}\n\nMitigation:\n  ${tech.mitigation}\n\n[Profile updated: ${techId} recorded (${engine._profileData.techniques.length} technique(s) total)]`;
+            return `MITRE ATT&CK ENTERPRISE v15\n${'='.repeat(50)}\nTechnique ID:  ${techId}\nName:          ${tech.name}\nTactic:        ${tech.tactic}\n\nDescription:\n  ${tech.description}\n\nDetection:\n  ${tech.detection}\n\nMitigation:\n  ${tech.mitigation}\n\n[Profile updated: ${techId} recorded (${engine.config._profileData.techniques.length} technique(s) total)]`;
         },
 
         // threat-feed -- pull live threat intelligence
         'threat-feed': function(args, term, engine) {
-            engine._profileData.threatFeedPulled = true;
+            engine.config._profileData.threatFeedPulled = true;
 
             return 'THREAT INTELLIGENCE FEED -- HEXWORTH CONTAINMENT\n' + '='.repeat(55) + '\nFeed broker: Active (3 sources)\nLast sync: 2026-04-09T14:30:00Z\n\n[ISAC-FIN] Financial Sector ISAC -- CRITICAL ALERT\n  OUTBREAK-7719 confirmed in 3 financial sector networks\n  Initial vector: CVE-2024-3094 (XZ Utils backdoor)\n  Lateral movement via SSH observed post-exploitation\n  IOCs:\n    IP addresses: 185.220.101.47, 91.108.4.123, 45.142.212.100\n    File hashes:\n      /usr/lib/x86_64-linux-gnu/liblzma.so.5.6.1\n      SHA256: 9bd18329e4bc099f87c5ab92827a13b...  (MALICIOUS)\n      SHA256: a6c0e0dde71d9ba02c8a0d29d4b47a...  (MALICIOUS)\n    Process: sshd spawning /bin/bash as root (anomalous)\n\n[CISA-ADVISORY] CISA Emergency Directive\n  All federal agencies: patch or remove XZ Utils 5.6.0/5.6.1 immediately\n  Downgrade to 5.4.x or upgrade to 5.6.2+ (backdoor removed)\n  Audit all Linux systems for affected library version\n\n[CERT-HEXWORTH] Internal threat feed\n  No Hexworth systems confirmed affected\n  3 client facilities in financial sector -- patch status: UNKNOWN\n  Recommend immediate vulnerability sweep and patch deployment\n';
         },
 
         // profile -- display accumulated threat profile
         'profile': function(args, term, engine) {
-            const p = engine._profileData;
+            const p = engine.config._profileData;
             const lines = [
                 'THREAT PROFILE -- OUTBREAK-7719',
                 '='.repeat(50)
@@ -258,7 +275,7 @@ const PISL03Config = {
 
         // recommend -- file containment recommendation (awards flag1 + possibly flag2)
         'recommend': function(args, term, engine) {
-            const p = engine._profileData;
+            const p = engine.config._profileData;
 
             if (!p.cveId) {
                 return 'Recommendation blocked: CVE data missing.\nRun: cve-search CVE-2024-3094';
@@ -275,16 +292,16 @@ const PISL03Config = {
             p.recommendationFiled = true;
 
             // Award Flag 1: threat profile complete
-            if (!engine._flag1Awarded) {
-                engine._flag1Awarded = true;
+            if (!engine.config._flag1Awarded) {
+                engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
             }
 
             const techList = p.techniques.join(', ');
 
             // Award Flag 2: containment recommendation filed with ATT&CK mappings
-            if (!engine._flag2Awarded) {
-                engine._flag2Awarded = true;
+            if (!engine.config._flag2Awarded) {
+                engine.config._flag2Awarded = true;
                 engine.awardFlag('flag2');
             }
 

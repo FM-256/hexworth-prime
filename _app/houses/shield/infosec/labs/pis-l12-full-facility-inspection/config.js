@@ -49,7 +49,28 @@ const PISL12Config = {
     lore: {
         intro: 'You are the lead external auditor from the Regulatory Compliance Office. Hexworth Containment is due for its annual BSL-4 security audit. Accreditation requires a passing certification or the facility must suspend BSL-4 operations until remediation is complete. The facility director has provided read-only access to all systems. You have 45 minutes to inspect four domains: network architecture, access controls, cryptography, and IR readiness. Document every finding. Then make the call.',
         scenario: 'Run each audit command to inspect its domain. Each audit reveals a mix of compliant items and findings. Use "finding <area> <issue>" to formally document each non-compliant item you discover. At the end, review your findings and make the certification decision with either "certify" (all critical findings resolved or no blocking findings) or "fail-facility" (critical findings remain). This is a judgment call based on evidence -- not a trick.',
-        outro: 'Audit complete. This capstone integrates every domain from the course: network segmentation (Week 3), PKI and certificates (Week 3), authentication and access control (Week 4), incident response readiness (Week 4), and security governance (Week 4). A real security audit is exactly this -- systematic inspection across all controls, documented findings, and a defensible certification decision.'
+        outro: 'Audit complete. This capstone integrates every domain from the course: network segmentation (Week 3), PKI and certificates (Week 3), authentication and access control (Week 4), incident response readiness (Week 4), and security governance (Week 4). A real security audit is exactly this -- systematic inspection across all controls, documented findings, and a defensible certification decision.',
+
+        goals: [
+            "Inspect five audit domains (network, access, crypto, IR, policy) and document every non-compliant finding",
+            "Apply the auditor mindset: read-only access, evidence-based judgment, no shortcuts",
+            "Distinguish critical findings (block certification) from observations (note but proceed)",
+            "Synthesize all five domains into a single defensible certification decision -- pass or fail",
+            "Practice that the decision is yours: there is no \"right answer\" pre-baked, only the evidence you documented and how you weighed it"
+        ],
+
+        toolkit: [
+            { name: "audit-network", purpose: "Inspect network architecture: segmentation, firewall posture, monitoring coverage", sample: "audit-network" },
+            { name: "audit-access", purpose: "Inspect IAM: directory structure, MFA, RBAC, dual-integrity at BSL-4", sample: "audit-access" },
+            { name: "audit-crypto", purpose: "Inspect cryptographic controls: PKI health, key management, algorithm choice", sample: "audit-crypto" },
+            { name: "audit-ir", purpose: "Inspect IR readiness: runbooks, tooling, evidence-handling procedures", sample: "audit-ir" },
+            { name: "audit-policy", purpose: "Inspect policy & governance: compliance docs, exception logs, training records", sample: "audit-policy" },
+            { name: "finding", purpose: "Formally document a non-compliant item discovered during audit", sample: "finding network missing-east-west-segmentation" },
+            { name: "findings", purpose: "List all findings filed so far across every audit domain", sample: "findings" },
+            { name: "certify", purpose: "Issue the formal certification decision -- facility passes", sample: "certify" },
+            { name: "fail-facility", purpose: "Issue the formal fail decision -- facility cannot recertify until remediation", sample: "fail-facility" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -169,32 +190,32 @@ const PISL12Config = {
 
         // audit-network -- run network architecture audit
         'audit-network': function(args, term, engine) {
-            engine._state.auditsDone['network'] = true;
-            return engine._auditResults.network;
+            engine.config._state.auditsDone['network'] = true;
+            return engine.config._auditResults.network;
         },
 
         // audit-access -- run access control audit
         'audit-access': function(args, term, engine) {
-            engine._state.auditsDone['access'] = true;
-            return engine._auditResults.access;
+            engine.config._state.auditsDone['access'] = true;
+            return engine.config._auditResults.access;
         },
 
         // audit-crypto -- run cryptography audit
         'audit-crypto': function(args, term, engine) {
-            engine._state.auditsDone['crypto'] = true;
-            return engine._auditResults.crypto;
+            engine.config._state.auditsDone['crypto'] = true;
+            return engine.config._auditResults.crypto;
         },
 
         // audit-ir -- run incident response readiness audit
         'audit-ir': function(args, term, engine) {
-            engine._state.auditsDone['ir'] = true;
-            return engine._auditResults.ir;
+            engine.config._state.auditsDone['ir'] = true;
+            return engine.config._auditResults.ir;
         },
 
         // audit-policy -- run security policy compliance audit
         'audit-policy': function(args, term, engine) {
-            engine._state.auditsDone['policy'] = true;
-            return engine._auditResults.policy;
+            engine.config._state.auditsDone['policy'] = true;
+            return engine.config._auditResults.policy;
         },
 
         // finding <area> <issue> -- document a finding
@@ -212,7 +233,7 @@ const PISL12Config = {
                 return `Error: "${area}" is not a valid audit area.\nValid areas: ${validAreas.join(', ')}`;
             }
 
-            if (!engine._state.auditsDone[area]) {
+            if (!engine.config._state.auditsDone[area]) {
                 return `Error: You have not run audit-${area} yet.\nRun the audit first before documenting findings.`;
             }
 
@@ -227,32 +248,32 @@ const PISL12Config = {
             else if (highKeywords.some(k => issueLower.includes(k))) severity = 'high';
             else if (mediumKeywords.some(k => issueLower.includes(k))) severity = 'medium';
 
-            const findingId = `F-${area.toUpperCase().substring(0,3)}-${String(engine._state.findings.length + 1).padStart(3,'0')}`;
+            const findingId = `F-${area.toUpperCase().substring(0,3)}-${String(engine.config._state.findings.length + 1).padStart(3,'0')}`;
 
-            engine._state.findings.push({
+            engine.config._state.findings.push({
                 id: findingId,
                 area,
                 issue,
                 severity,
-                time: '2026-04-09T08:' + String(Math.floor(engine._state.findings.length * 3 + 15)).padStart(2,'0') + ':00Z'
+                time: '2026-04-09T08:' + String(Math.floor(engine.config._state.findings.length * 3 + 15)).padStart(2,'0') + ':00Z'
             });
 
-            let output = `FINDING DOCUMENTED\n  ID:       ${findingId}\n  Area:     ${area}\n  Issue:    ${issue}\n  Severity: ${severity.toUpperCase()}\n  Status:   Open\n\nTotal findings: ${engine._state.findings.length}`;
+            let output = `FINDING DOCUMENTED\n  ID:       ${findingId}\n  Area:     ${area}\n  Issue:    ${issue}\n  Severity: ${severity.toUpperCase()}\n  Status:   Open\n\nTotal findings: ${engine.config._state.findings.length}`;
 
             // Flag 1 trigger: ran all 5 audits
-            if (Object.keys(engine._state.auditsDone).length >= 5 && !engine._flag1Awarded) {
-                engine._flag1Awarded = true;
+            if (Object.keys(engine.config._state.auditsDone).length >= 5 && !engine.config._flag1Awarded) {
+                engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
                 output += '\n\n[AUDIT MILESTONE] Network architecture audit complete across all domains. Flag unlocked.';
             }
 
             // Check flag2: completed all audits AND documented the 3 critical findings
-            const hasCriticalNetwork = engine._state.findings.some(f => f.area === 'network' && f.severity === 'critical');
-            const hasCriticalAccess  = engine._state.findings.some(f => f.area === 'access'  && f.severity === 'critical');
-            const hasCriticalCrypto  = engine._state.findings.some(f => f.area === 'crypto'  && f.severity === 'critical');
+            const hasCriticalNetwork = engine.config._state.findings.some(f => f.area === 'network' && f.severity === 'critical');
+            const hasCriticalAccess  = engine.config._state.findings.some(f => f.area === 'access'  && f.severity === 'critical');
+            const hasCriticalCrypto  = engine.config._state.findings.some(f => f.area === 'crypto'  && f.severity === 'critical');
 
-            if (hasCriticalNetwork && hasCriticalAccess && hasCriticalCrypto && Object.keys(engine._state.auditsDone).length >= 5 && !engine._flag2Awarded) {
-                engine._flag2Awarded = true;
+            if (hasCriticalNetwork && hasCriticalAccess && hasCriticalCrypto && Object.keys(engine.config._state.auditsDone).length >= 5 && !engine.config._flag2Awarded) {
+                engine.config._flag2Awarded = true;
                 engine.awardFlag('flag2');
                 output += '\n\n[AUDIT MILESTONE] All 5 audit domains inspected with critical findings documented. Flag unlocked.\nReview findings: run "findings", then make your certification decision.';
             }
@@ -262,25 +283,25 @@ const PISL12Config = {
 
         // findings -- review all documented findings
         'findings': function(args, term, engine) {
-            if (engine._state.findings.length === 0) {
+            if (engine.config._state.findings.length === 0) {
                 return 'No findings documented yet.\nRun audit commands and document findings with: finding <area> <issue>';
             }
 
-            const criticalCount = engine._state.findings.filter(f => f.severity === 'critical').length;
-            const highCount     = engine._state.findings.filter(f => f.severity === 'high').length;
-            const mediumCount   = engine._state.findings.filter(f => f.severity === 'medium').length;
-            const lowCount      = engine._state.findings.filter(f => f.severity === 'low').length;
+            const criticalCount = engine.config._state.findings.filter(f => f.severity === 'critical').length;
+            const highCount     = engine.config._state.findings.filter(f => f.severity === 'high').length;
+            const mediumCount   = engine.config._state.findings.filter(f => f.severity === 'medium').length;
+            const lowCount      = engine.config._state.findings.filter(f => f.severity === 'low').length;
 
             let lines = [
                 'AUDIT FINDINGS SUMMARY',
                 '='.repeat(60),
-                `Total: ${engine._state.findings.length} findings (${criticalCount} CRITICAL, ${highCount} HIGH, ${mediumCount} MEDIUM, ${lowCount} LOW)`,
+                `Total: ${engine.config._state.findings.length} findings (${criticalCount} CRITICAL, ${highCount} HIGH, ${mediumCount} MEDIUM, ${lowCount} LOW)`,
                 '',
                 'ID          AREA     SEVERITY   ISSUE',
                 '─'.repeat(70)
             ];
 
-            for (const f of engine._state.findings) {
+            for (const f of engine.config._state.findings) {
                 lines.push(`  ${f.id.padEnd(12)} ${f.area.padEnd(9)} ${f.severity.toUpperCase().padEnd(11)} ${f.issue}`);
             }
 
@@ -294,8 +315,8 @@ const PISL12Config = {
             let output = lines.join('\n');
 
             // Flag 3: all 5 audits done and findings reviewed
-            if (Object.keys(engine._state.auditsDone).length >= 5 && engine._flag2Awarded && !engine._flag3Awarded) {
-                engine._flag3Awarded = true;
+            if (Object.keys(engine.config._state.auditsDone).length >= 5 && engine.config._flag2Awarded && !engine.config._flag3Awarded) {
+                engine.config._flag3Awarded = true;
                 engine.awardFlag('flag3');
                 output += '\n\n[AUDIT MILESTONE] All audit domains inspected and findings reviewed. Flag unlocked.\nMake your certification decision: certify or fail-facility';
             }
@@ -305,29 +326,29 @@ const PISL12Config = {
 
         // certify -- issue passing certification (requires all audits done, critical findings present = wrong call)
         'certify': function(args, term, engine) {
-            const domainsInspected = Object.keys(engine._state.auditsDone).length;
+            const domainsInspected = Object.keys(engine.config._state.auditsDone).length;
             if (domainsInspected < 5) {
                 return `Cannot certify: only ${domainsInspected}/5 audit domains have been inspected.\nRun all 5 audit commands first.`;
             }
 
-            if (engine._state.certificationDecision) {
-                return `Certification decision already filed: ${engine._state.certificationDecision.toUpperCase()}`;
+            if (engine.config._state.certificationDecision) {
+                return `Certification decision already filed: ${engine.config._state.certificationDecision.toUpperCase()}`;
             }
 
-            const criticalCount = engine._state.findings.filter(f => f.severity === 'critical').length;
+            const criticalCount = engine.config._state.findings.filter(f => f.severity === 'critical').length;
 
             // Certifying with documented critical findings is wrong -- the facility should fail
             if (criticalCount >= 3) {
-                engine._state.certificationDecision = 'fail';
+                engine.config._state.certificationDecision = 'fail';
 
                 let output = `CERTIFICATION DECISION: FAIL\n${'='.repeat(60)}\n\nYou attempted to CERTIFY the facility despite ${criticalCount} documented critical findings.\n\nCritical findings prevent certification:\n`;
-                engine._state.findings.filter(f => f.severity === 'critical').forEach(f => {
+                engine.config._state.findings.filter(f => f.severity === 'critical').forEach(f => {
                     output += `  [CRITICAL] ${f.id} -- ${f.area}: ${f.issue}\n`;
                 });
                 output += `\nA certifying auditor who issues a PASS with unresolved critical findings\nis in violation of audit standards and potentially liable for negligence.\n\nCorrect decision: FAIL -- require remediation before re-audit.\n\nResult recorded: FACILITY FAILED -- Re-audit required after remediation.\n`;
 
-                if (!engine._flag4Awarded) {
-                    engine._flag4Awarded = true;
+                if (!engine.config._flag4Awarded) {
+                    engine.config._flag4Awarded = true;
                     engine.awardFlag('flag4');
                     output += '\n[CAPSTONE MILESTONE] Certification decision made based on documented evidence. Flag unlocked.\n(Note: the correct decision was fail-facility -- critical findings cannot be waived.)';
                 }
@@ -336,12 +357,12 @@ const PISL12Config = {
             }
 
             // Certifying with no critical findings is correct
-            engine._state.certificationDecision = 'pass';
+            engine.config._state.certificationDecision = 'pass';
 
-            let output = `CERTIFICATION DECISION: PASS\n${'='.repeat(60)}\n\nHexworth Containment is CERTIFIED for BSL-4 operations.\n\nAudit domains inspected: ${domainsInspected}/5\nCritical findings: ${criticalCount}\nHigh findings:     ${engine._state.findings.filter(f => f.severity === 'high').length}\nMedium findings:   ${engine._state.findings.filter(f => f.severity === 'medium').length}\nLow findings:      ${engine._state.findings.filter(f => f.severity === 'low').length}\n\nCERTIFICATION CONDITIONS:\n  High and medium findings must be remediated per schedule.\n  Follow-up review: 90 days.\n  Re-audit: 12 months.\n\nCertificate issued: HEXWORTH-CERT-2026-001\nValid through: 2027-04-09\nIssued by: External Auditor (you)\nIssued to: Hexworth Containment Facility\n`;
+            let output = `CERTIFICATION DECISION: PASS\n${'='.repeat(60)}\n\nHexworth Containment is CERTIFIED for BSL-4 operations.\n\nAudit domains inspected: ${domainsInspected}/5\nCritical findings: ${criticalCount}\nHigh findings:     ${engine.config._state.findings.filter(f => f.severity === 'high').length}\nMedium findings:   ${engine.config._state.findings.filter(f => f.severity === 'medium').length}\nLow findings:      ${engine.config._state.findings.filter(f => f.severity === 'low').length}\n\nCERTIFICATION CONDITIONS:\n  High and medium findings must be remediated per schedule.\n  Follow-up review: 90 days.\n  Re-audit: 12 months.\n\nCertificate issued: HEXWORTH-CERT-2026-001\nValid through: 2027-04-09\nIssued by: External Auditor (you)\nIssued to: Hexworth Containment Facility\n`;
 
-            if (!engine._flag4Awarded) {
-                engine._flag4Awarded = true;
+            if (!engine.config._flag4Awarded) {
+                engine.config._flag4Awarded = true;
                 engine.awardFlag('flag4');
                 output += '\n[CAPSTONE MILESTONE] Facility certified based on complete audit evidence. Flag unlocked.';
             }
@@ -351,22 +372,22 @@ const PISL12Config = {
 
         // fail-facility -- issue failing audit result
         'fail-facility': function(args, term, engine) {
-            const domainsInspected = Object.keys(engine._state.auditsDone).length;
+            const domainsInspected = Object.keys(engine.config._state.auditsDone).length;
             if (domainsInspected < 5) {
                 return `Cannot issue final decision: only ${domainsInspected}/5 audit domains have been inspected.\nRun all 5 audit commands first.`;
             }
 
-            if (engine._state.certificationDecision) {
-                return `Certification decision already filed: ${engine._state.certificationDecision.toUpperCase()}`;
+            if (engine.config._state.certificationDecision) {
+                return `Certification decision already filed: ${engine.config._state.certificationDecision.toUpperCase()}`;
             }
 
-            const criticalCount = engine._state.findings.filter(f => f.severity === 'critical').length;
+            const criticalCount = engine.config._state.findings.filter(f => f.severity === 'critical').length;
 
-            engine._state.certificationDecision = 'fail';
+            engine.config._state.certificationDecision = 'fail';
 
-            let output = `CERTIFICATION DECISION: FAIL\n${'='.repeat(60)}\n\nHexworth Containment FAILS BSL-4 security audit.\n\nAudit domains inspected: ${domainsInspected}/5\nCritical findings: ${criticalCount}\nHigh findings:     ${engine._state.findings.filter(f => f.severity === 'high').length}\nMedium findings:   ${engine._state.findings.filter(f => f.severity === 'medium').length}\n\nFINDINGS REQUIRING IMMEDIATE REMEDIATION:\n`;
+            let output = `CERTIFICATION DECISION: FAIL\n${'='.repeat(60)}\n\nHexworth Containment FAILS BSL-4 security audit.\n\nAudit domains inspected: ${domainsInspected}/5\nCritical findings: ${criticalCount}\nHigh findings:     ${engine.config._state.findings.filter(f => f.severity === 'high').length}\nMedium findings:   ${engine.config._state.findings.filter(f => f.severity === 'medium').length}\n\nFINDINGS REQUIRING IMMEDIATE REMEDIATION:\n`;
 
-            const criticals = engine._state.findings.filter(f => f.severity === 'critical');
+            const criticals = engine.config._state.findings.filter(f => f.severity === 'critical');
             if (criticals.length > 0) {
                 criticals.forEach(f => {
                     output += `  [CRITICAL] ${f.id} -- ${f.area.toUpperCase()}: ${f.issue}\n`;
@@ -377,8 +398,8 @@ const PISL12Config = {
 
             output += `\nFACILITY STATUS: BSL-4 operations SUSPENDED pending remediation\nRe-audit eligibility: After all critical findings are closed\nRemediation deadline: 30 days (or BSL-4 operations remain suspended)\n\nFailing the facility is the correct call when critical findings exist.\n`;
 
-            if (!engine._flag4Awarded) {
-                engine._flag4Awarded = true;
+            if (!engine.config._flag4Awarded) {
+                engine.config._flag4Awarded = true;
                 engine.awardFlag('flag4');
                 output += '\n[CAPSTONE MILESTONE] Certification decision based on documented evidence. Flag unlocked.\n' + (criticalCount >= 3 ? '(Correct call: failing a facility with critical unresolved findings is the right decision.)' : '(Note: failing without critical findings would need justification -- verify your finding list.)');
             }

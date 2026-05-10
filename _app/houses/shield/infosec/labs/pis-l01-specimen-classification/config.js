@@ -251,7 +251,7 @@ const PISL01Config = {
 
         // intake -- list all specimens with current classification status
         'intake': function(args, term, engine) {
-            const c = engine._classifications;
+            const c = engine.config._classifications;
             const fmt = (id) => {
                 const status = c[id] ? `[CLASSIFIED: ${c[id].toUpperCase()}]` : '[UNCLASSIFIED]';
                 return `  ${id}  ${status}`;
@@ -288,40 +288,40 @@ const PISL01Config = {
                 return `Error: Specimen ${id} not found in intake queue.`;
             }
 
-            if (!engine._validTypes.includes(type)) {
+            if (!engine.config._validTypes.includes(type)) {
                 return `Error: "${type}" is not a recognized pathogen type.\nValid types: virus, worm, trojan, ransomware, rootkit, RAT`;
             }
 
-            const correct = engine._answers[id];
+            const correct = engine.config._answers[id];
             if (type !== correct) {
                 return `CLASSIFICATION REJECTED -- ${id}\nSubmitted: ${type.toUpperCase()}\nStatus: MISMATCH -- behavior indicators do not support this classification.\nReview the behavior log: examine ${id}\nHint: pay attention to propagation method, persistence mechanism, and network behavior.`;
             }
 
             // Correct classification
-            engine._classifications[id] = type;
+            engine.config._classifications[id] = type;
 
             let output = `CLASSIFICATION ACCEPTED -- ${id}\nType: ${type.toUpperCase()}\nStatus: FILED -- containment protocol assigned\n`;
 
             // Check flag conditions after classification
-            const filed = Object.values(engine._classifications).filter(v => v !== null).length;
+            const filed = Object.values(engine.config._classifications).filter(v => v !== null).length;
 
             // Flag 1: SPX-001 and SPX-002 both correctly classified
-            if (engine._classifications['SPX-001'] && engine._classifications['SPX-002'] && !engine._flag1Awarded) {
-                engine._flag1Awarded = true;
+            if (engine.config._classifications['SPX-001'] && engine.config._classifications['SPX-002'] && !engine.config._flag1Awarded) {
+                engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
                 output += '\n[CONTAINMENT MILESTONE] Specimens 1 and 2 classified. Flag unlocked.';
             }
 
             // Flag 2: SPX-003 and SPX-004 both correctly classified
-            if (engine._classifications['SPX-003'] && engine._classifications['SPX-004'] && !engine._flag2Awarded) {
-                engine._flag2Awarded = true;
+            if (engine.config._classifications['SPX-003'] && engine.config._classifications['SPX-004'] && !engine.config._flag2Awarded) {
+                engine.config._flag2Awarded = true;
                 engine.awardFlag('flag2');
                 output += '\n[CONTAINMENT MILESTONE] Specimens 3 and 4 classified. Flag unlocked.';
             }
 
             // Flag 3: SPX-005 and SPX-006 both correctly classified
-            if (engine._classifications['SPX-005'] && engine._classifications['SPX-006'] && !engine._flag3Awarded) {
-                engine._flag3Awarded = true;
+            if (engine.config._classifications['SPX-005'] && engine.config._classifications['SPX-006'] && !engine.config._flag3Awarded) {
+                engine.config._flag3Awarded = true;
                 engine.awardFlag('flag3');
                 output += '\n[CONTAINMENT MILESTONE] Specimens 5 and 6 classified. Full intake clearance granted.';
             }
@@ -331,7 +331,7 @@ const PISL01Config = {
 
         // report -- display current classification progress
         'report': function(args, term, engine) {
-            const c = engine._classifications;
+            const c = engine.config._classifications;
             const total = Object.keys(c).length;
             const done = Object.values(c).filter(v => v !== null).length;
 

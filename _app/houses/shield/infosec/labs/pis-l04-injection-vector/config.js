@@ -48,7 +48,25 @@ const PISL04Config = {
     lore: {
         intro: 'The containment database -- which tracks specimen locations, clearance levels, and transfer authorizations -- was accessed by an unauthorized party at 03:17 this morning. The attacker exfiltrated specimen catalog data and clearance codes. The web interface logs everything. You have the raw access logs. Your job: identify the attack type, trace the exfiltration session, and patch the vulnerability so it cannot happen again.',
         scenario: 'Hexworth runs a Python/Flask web interface that queries the containment database. The interface accepts user input for specimen search. The developer did not use parameterized queries. The attacker found the injection point and used it to dump the entire specimen catalog and clearance access table. Three session IDs are in the log. Only one belongs to the attacker. Find it, trace it, patch it.',
-        outro: 'Attack type confirmed: SQL injection via unparameterized query. Exfiltration session traced. Vulnerable endpoint patched with parameterized queries. The containment database is back to read-write mode. Incident logged.'
+        outro: 'Attack type confirmed: SQL injection via unparameterized query. Exfiltration session traced. Vulnerable endpoint patched with parameterized queries. The containment database is back to read-write mode. Incident logged.',
+
+        goals: [
+            "Read web-server access logs and isolate the attack signature among legitimate traffic",
+            "Identify SQL injection from the URL/query patterns the attacker used (UNION, OR 1=1, comment-truncation)",
+            "Trace a single session-ID through the log to reconstruct the full exfiltration timeline and data scope",
+            "Apply the canonical SQLi remediation: replace string concatenation with parameterized queries",
+            "Verify the patch -- a fix that compiles is not a fix that holds"
+        ],
+
+        toolkit: [
+            { name: "logs", purpose: "View the raw web access log spanning the incident window", sample: "logs" },
+            { name: "analyze", purpose: "Run pattern analysis on log entries to surface anomalies", sample: "analyze 03:17" },
+            { name: "trace", purpose: "Follow a session ID across the log to reconstruct an attacker workflow", sample: "trace x9y8z7" },
+            { name: "identify", purpose: "File the attack-type identification (SQL injection, XSS, path traversal, etc.)", sample: "identify sql-injection" },
+            { name: "patch", purpose: "Apply a code patch to the vulnerable endpoint", sample: "patch parameterized" },
+            { name: "verify", purpose: "Re-test the patched endpoint with the original attacker payload", sample: "verify" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -210,7 +228,7 @@ const PISL04Config = {
             if (!sessionId) return 'Usage: trace <session-id>\nSession IDs in log: a1b2c3, x9y8z7, p4q5r6';
 
             // Gate: must identify the attack type before tracing sessions
-            if (!engine._state.attackTypeIdentified && sessionId === 'x9y8z7') {
+            if (!engine.config._state.attackTypeIdentified && sessionId === 'x9y8z7') {
                 return 'ANALYSIS ERROR: Identify the attack type first using the "identify" command.\nYou need to understand WHAT happened before you trace HOW it happened.';
             }
 
@@ -219,12 +237,12 @@ const PISL04Config = {
             }
 
             if (sessionId === 'x9y8z7') {
-                engine._state.sessionTraced = true;
+                engine.config._state.sessionTraced = true;
 
                 let output = 'SESSION TRACE: x9y8z7\n' + '='.repeat(40) + '\nSource: 185.220.101.47 (EXTERNAL -- TOR exit node)\nAgent: python-requests/2.31.0 (automated tool)\nRequests: 4\n  03:17:04 GET /search?q=\'             500 ERROR  -- probe\n  03:17:11 GET /search?q=\' OR \'1\'=\'1  200 4821b  -- full table read\n  03:17:19 GET /search?q=UNION specimens 200 84291b -- catalog dump\n  03:17:28 GET /search?q=UNION access  200 12048b -- credential dump\n\nEXFIL SUMMARY:\n  Data exfiltrated in this session:\n  1. Full specimen catalog (specimen IDs, locations, clearance levels)\n  2. Complete access_table (usernames, password hashes, clearance codes)\n  Total exfiltrated: ~100KB\n  Method: UNION-based SQL injection\n  Duration: 24 seconds\n\nVerdict: ATTACKER SESSION -- CONFIRMED EXFILTRATION\n  External IP. Automated tool. Injection payloads. Anomalous response sizes.\n';
 
-                if (!engine._flag2Awarded) {
-                    engine._flag2Awarded = true;
+                if (!engine.config._flag2Awarded) {
+                    engine.config._flag2Awarded = true;
                     engine.awardFlag('flag2');
                     output += '\n[MILESTONE] Exfiltration session traced. Flag unlocked.';
                 }
@@ -248,12 +266,12 @@ const PISL04Config = {
                 return `Attack type "${attackType}" does not match the log evidence.\n\nLook at LOG-004 through LOG-007:\n  - Single quote caused a 500 error (broke SQL syntax)\n  - OR \'1\'=\'1 returned the full table\n  - UNION SELECT statements exfiltrated data from other tables\nThese are all indicators of one specific attack type.\nReview: analyze LOG-005 for the decoded payloads.`;
             }
 
-            engine._state.attackTypeIdentified = true;
+            engine.config._state.attackTypeIdentified = true;
 
             let output = 'ATTACK TYPE CONFIRMED: SQL INJECTION\n' + '='.repeat(45) + '\nClassification: SQL Injection -- UNION-based, classic string concatenation vulnerability\n\nEvidence summary:\n  LOG-004: Single-quote probe caused HTTP 500 (SQL syntax error)\n  LOG-005: OR 1=1 payload returned all rows (authentication bypass pattern)\n  LOG-006: UNION SELECT dumped entire specimens table (84KB response)\n  LOG-007: UNION SELECT dumped access_table (credentials + clearance codes)\n\nRoot cause: app.py concatenates user input directly into SQL string\n  Vulnerable: sql = "SELECT ... WHERE specimen_id = \'" + query + "\'"\n  Fix: parameterized queries (the "?" placeholder pattern)\n\n';
 
-            if (!engine._flag1Awarded) {
-                engine._flag1Awarded = true;
+            if (!engine.config._flag1Awarded) {
+                engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
                 output += '[MILESTONE] Attack type identified. Flag unlocked.\n';
             }
@@ -267,21 +285,21 @@ const PISL04Config = {
             const patchType = (args[0] || '').toLowerCase();
             if (!patchType) return 'Usage: patch <patch-type>\nOptions: parameterized-queries, input-sanitization, waf-rule, rate-limiting';
 
-            if (!engine._state.attackTypeIdentified) {
+            if (!engine.config._state.attackTypeIdentified) {
                 return 'Patch blocked: attack type not yet confirmed.\nRun: identify sql-injection first.';
             }
 
-            if (!engine._state.sessionTraced) {
+            if (!engine.config._state.sessionTraced) {
                 return 'Patch blocked: exfiltration session not yet traced.\nRun: trace x9y8z7 to document the exfil path before patching.';
             }
 
             if (patchType === 'parameterized-queries') {
-                engine._state.patched = true;
+                engine.config._state.patched = true;
 
                 let output = 'PATCH APPLIED: PARAMETERIZED QUERIES\n' + '='.repeat(45) + '\nDeploying app_patched.py to production...\n\nChange made:\n  Before (VULNERABLE):\n    sql = "SELECT ... WHERE specimen_id = \'" + query + "\'"\n    cursor.execute(sql)\n\n  After (PATCHED):\n    sql = "SELECT ... WHERE specimen_id = ?"\n    cursor.execute(sql, (query,))\n\nWhy this works:\n  The sqlite3 driver handles the "?" placeholder internally.\n  User input is NEVER embedded in the SQL string.\n  Even if the attacker sends \' OR \'1\'=\'1, the driver treats\n  the entire input as a literal string value, not SQL syntax.\n  Injection is structurally impossible with parameterized queries.\n\nService restarted. containment.db back to read-write mode.\n\n';
 
-                if (!engine._flag3Awarded) {
-                    engine._flag3Awarded = true;
+                if (!engine.config._flag3Awarded) {
+                    engine.config._flag3Awarded = true;
                     engine.awardFlag('flag3');
                     output += '[MILESTONE] Vulnerability patched. Flag unlocked.\n';
                 }
@@ -308,7 +326,7 @@ const PISL04Config = {
 
         // verify -- confirm patch is effective
         'verify': function(args, term, engine) {
-            if (!engine._state.patched) {
+            if (!engine.config._state.patched) {
                 return 'Nothing to verify. No patch has been applied yet.\nRun: patch parameterized-queries';
             }
 

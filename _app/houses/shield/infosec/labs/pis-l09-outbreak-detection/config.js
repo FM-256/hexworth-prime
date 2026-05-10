@@ -49,7 +49,24 @@ const PISL09Config = {
     lore: {
         intro: 'It is 06:00. You are the morning analyst. The overnight SIEM queue has 227 unacknowledged alerts. Standard facility traffic generates about 200 false positives per day from routine scans, test traffic, and misconfigured sensors. Buried in the noise are three real incidents that occurred last night. If you do not identify and report them before the morning briefing at 08:00, response will be delayed by 24 hours -- and in containment operations, 24 hours is too long.',
         scenario: 'Use the siem command to see all alerts. Use alert <id> to read full details. Use correlate to link related alerts. Use classify to mark each real incident with its severity and type. Use report to file the formal incident report once all three are identified. Not every alert that looks interesting is real -- read the full details carefully. Focus on indicators: C2 beaconing, data exfiltration volume, unauthorized access patterns, not just anomaly scores.',
-        outro: 'All three real incidents identified and reported. The morning briefing will now include the correct threat picture. SOC team dispatched. This is the daily reality of SIEM work: most signals are noise. The analyst who can triage accurately -- separating real threats from misconfigured sensors and false positives -- is the most valuable person in the SOC. Speed matters, but a wrong classification is worse than a late one.'
+        outro: 'All three real incidents identified and reported. The morning briefing will now include the correct threat picture. SOC team dispatched. This is the daily reality of SIEM work: most signals are noise. The analyst who can triage accurately -- separating real threats from misconfigured sensors and false positives -- is the most valuable person in the SOC. Speed matters, but a wrong classification is worse than a late one.',
+
+        goals: [
+            "Triage 227 SIEM alerts and find the 3 real incidents buried in ~200 false positives",
+            "Read full alert detail -- anomaly score alone is not signal; specific indicators (C2 beacon, exfil volume, unauth access) are",
+            "Use correlation to link alerts that describe the same incident from different sensors",
+            "Classify each real incident with correct severity and incident type (ransomware, exfil, credential abuse, etc.)",
+            "File a formal incident report that downstream responders can act on without re-triaging the whole queue"
+        ],
+
+        toolkit: [
+            { name: "siem", purpose: "Show the SIEM alert queue with summary status (new / acknowledged / classified)", sample: "siem" },
+            { name: "alert", purpose: "Open a specific alert and read its full detail (timestamps, IOCs, raw event)", sample: "alert ALR-1138" },
+            { name: "correlate", purpose: "Group alerts that appear to describe the same incident", sample: "correlate ALR-1138 ALR-1142" },
+            { name: "classify", purpose: "Mark an alert (or correlated cluster) as a real incident with severity + type", sample: "classify ALR-1138 high ransomware" },
+            { name: "report", purpose: "File the formal incident report covering all classified incidents", sample: "report" },
+            { name: "help", purpose: "Command reference", sample: "help" }
+        ]
     },
 
     // =========================================================
@@ -328,8 +345,8 @@ LOW       ALT-099  2026-04-08 22:00  lab3-ws-09              15    AV update tra
 ... 216 more LOW/MEDIUM alerts (routine scanners, NTP, AV updates, lab equipment)
 
 ${'─'.repeat(95)}
-Classified by you: ${Object.keys(engine._state.classifications).length}/3 real incidents identified
-Correlations made: ${engine._state.correlations.length}
+Classified by you: ${Object.keys(engine.config._state.classifications).length}/3 real incidents identified
+Correlations made: ${engine.config._state.correlations.length}
 
 Use "alert <id>" to read full details.
 Use "correlate <id1> <id2>" to link related alerts.
@@ -344,7 +361,7 @@ Use "classify <id> <severity> <type>" to classify an incident.`;
             // Pad the id if needed (alt-23 -> ALT-023)
             const normalizedId = id.replace(/^ALT-(\d+)$/, (m, n) => 'ALT-' + n.padStart(3, '0'));
 
-            const alertData = engine._alerts[normalizedId];
+            const alertData = engine.config._alerts[normalizedId];
             if (!alertData) {
                 // Generate a generic low-priority FP for unknown IDs in range
                 const num = parseInt(normalizedId.replace('ALT-', ''));
@@ -368,14 +385,14 @@ Use "classify <id> <severity> <type>" to classify an incident.`;
 
             if (id1 === id2) return 'Error: Cannot correlate an alert with itself.';
 
-            const alreadyLinked = engine._state.correlations.some(pair =>
+            const alreadyLinked = engine.config._state.correlations.some(pair =>
                 (pair[0] === id1 && pair[1] === id2) || (pair[0] === id2 && pair[1] === id1)
             );
             if (alreadyLinked) {
                 return `Alerts ${id1} and ${id2} are already correlated.`;
             }
 
-            engine._state.correlations.push([id1, id2]);
+            engine.config._state.correlations.push([id1, id2]);
 
             // Provide meaningful context for the key real correlations
             if ((id1 === 'ALT-071' && id2 === 'ALT-158') || (id1 === 'ALT-158' && id2 === 'ALT-071')) {
@@ -386,7 +403,7 @@ Use "classify <id> <severity> <type>" to classify an incident.`;
                 return `CORRELATION ESTABLISHED: ${id1} <--> ${id2}\n\nPossible connection:\n  ALT-071 (C2 beacon) and ALT-023 (data exfil) share the same threat actor\n  infrastructure in the TI feed. However, they originated from different\n  source systems -- lab2-ws-04 vs specimen-db-01. May be same campaign,\n  different initial access vectors. Both involve APT-33 TOR infrastructure.`;
             }
 
-            return `CORRELATION ESTABLISHED: ${id1} <--> ${id2}\n\nAlerts linked in incident tracking system.\nCorrelations are used to build the incident timeline.\nTotal correlations: ${engine._state.correlations.length}`;
+            return `CORRELATION ESTABLISHED: ${id1} <--> ${id2}\n\nAlerts linked in incident tracking system.\nCorrelations are used to build the incident timeline.\nTotal correlations: ${engine.config._state.correlations.length}`;
         },
 
         // classify <id> <severity> <type> -- classify an alert as a real incident
@@ -410,14 +427,14 @@ Use "classify <id> <severity> <type>" to classify an incident.`;
                 return `Error: "${type}" is not a valid incident type.\nValid: ${validTypes.join(', ')}`;
             }
 
-            const real = engine._realIncidents[id];
+            const real = engine.config._realIncidents[id];
 
             if (!real) {
                 // Not a real incident -- provide feedback if they classified a known FP
                 const knownFps = ['ALT-001', 'ALT-002', 'ALT-045', 'ALT-099', 'ALT-112'];
                 if (knownFps.includes(id)) {
                     if (type === 'false-positive') {
-                        engine._state.classifications[id] = { severity, type, correct: true };
+                        engine.config._state.classifications[id] = { severity, type, correct: true };
                         return `CLASSIFICATION ACCEPTED -- ${id}\nType: false-positive\nThis alert is a false positive. Good call. It is not one of the 3 real incidents.\nContinue searching -- 3 real incidents are in the queue.`;
                     }
                     return `CLASSIFICATION SUBMITTED -- ${id}\nNote: Review the full alert details again. This alert has documented benign context\n(scheduled automation). Consider: classify ${id} low false-positive`;
@@ -448,13 +465,13 @@ Use "classify <id> <severity> <type>" to classify an incident.`;
                 return feedback;
             }
 
-            engine._state.classifications[id] = { severity, type, correct: true };
-            const correctCount = Object.values(engine._state.classifications).filter(c => c.correct).length;
+            engine.config._state.classifications[id] = { severity, type, correct: true };
+            const correctCount = Object.values(engine.config._state.classifications).filter(c => c.correct).length;
 
             let output = `CLASSIFICATION CONFIRMED -- ${id}\n  Severity: ${severity.toUpperCase()}\n  Type:     ${type}\n  Status:   Confirmed real incident -- logged in ITS\n\nReal incidents identified: ${correctCount}/3`;
 
-            if (correctCount >= 3 && !engine._flag1Awarded) {
-                engine._flag1Awarded = true;
+            if (correctCount >= 3 && !engine.config._flag1Awarded) {
+                engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
                 output += '\n\n[DETECTION MILESTONE] All 3 real incidents identified. Flag unlocked.\nNext: file the formal incident report with the "report" command.';
             }
@@ -464,19 +481,19 @@ Use "classify <id> <severity> <type>" to classify an incident.`;
 
         // report -- file the formal incident report
         'report': function(args, term, engine) {
-            const correctClassifications = Object.entries(engine._state.classifications).filter(([, c]) => c.correct);
+            const correctClassifications = Object.entries(engine.config._state.classifications).filter(([, c]) => c.correct);
 
             if (correctClassifications.length < 3) {
                 return `INCIDENT REPORT -- BLOCKED\nCannot file report until all 3 real incidents are correctly classified.\nCurrent: ${correctClassifications.length}/3 identified.\nUse classify <id> <severity> <type> for each real incident.`;
             }
 
-            if (engine._state.reportFiled) {
+            if (engine.config._state.reportFiled) {
                 return 'Incident report already filed. Check your flags panel.';
             }
 
-            engine._state.reportFiled = true;
+            engine.config._state.reportFiled = true;
 
-            const classifications = engine._state.classifications;
+            const classifications = engine.config._state.classifications;
             const c023 = classifications['ALT-023'];
             const c071 = classifications['ALT-071'];
             const c158 = classifications['ALT-158'];
@@ -530,8 +547,8 @@ STATUS: Report transmitted to Director, Incident Response Team, and
 ${'─'.repeat(60)}
 `;
 
-            if (!engine._flag2Awarded) {
-                engine._flag2Awarded = true;
+            if (!engine.config._flag2Awarded) {
+                engine.config._flag2Awarded = true;
                 engine.awardFlag('flag2');
                 output += '\n[REPORT MILESTONE] Accurate incident report filed with correct severity and classification. Flag unlocked.';
             }

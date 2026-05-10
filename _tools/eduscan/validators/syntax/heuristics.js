@@ -3090,6 +3090,325 @@ class HeuristicsValidator {
     /**
      * Get line number from character position
      */
+    /**
+     * HEUR-CTF-CFG-MISACCESS — CTF lab config-state misaccess.
+     *
+     * Detects command handlers in lab config.js files that reference
+     * `engine._X` where `_X` is a top-level config field. BoxEngine
+     * stores `this.config = config` and never copies config keys onto
+     * the engine instance, so `engine._X` is undefined and the command
+     * silently throws.
+     *
+     * Algorithm:
+     *   1. Build the BoxEngine instance-field allowlist DYNAMICALLY by
+     *      scanning BoxEngine.js for `this._X = ` assignments. These are
+     *      legitimate engine fields (e.g. _coOpMode, _devToolsOpen).
+     *   2. For every _app/houses/<\!*>/labs/<\!*>/config.js, use a brace-
+     *      depth line scanner to collect top-level keys starting with `_`.
+     *      Strip `//` comments per line first so banner comments don't leak.
+     *   3. Within the `commands: {` block, find every `engine\._X` reference.
+     *      If `_X` is in the lab's state-field set AND not in the BoxEngine
+     *      allowlist, fire HIGH severity.
+     *
+     * Discovery: 2026-05-09. Doc: ctf-config-misaccess-bug-2026-05-09.md.
+     *
+     * @returns {Array} Issues found
+     */
+    validateCTFConfigMisaccess() {
+        const issues = [];
+
+        // ── Step 1: build BoxEngine instance-field allowlist dynamically ──
+        const boxEnginePath = path.resolve(this.rootPath, 'arena/engine/BoxEngine.js');
+        const allowlist = new Set();
+        try {
+            const beContent = fs.readFileSync(boxEnginePath, 'utf8');
+            const assignPattern = /\bthis\._([a-zA-Z][\w]*)\s*=/g;
+            let m;
+            while ((m = assignPattern.exec(beContent)) !== null) {
+                allowlist.add(m[1]);
+            }
+        } catch (err) {
+            // If BoxEngine.js is unreadable, skip the validator entirely
+            // rather than firing false positives.
+            if (this.verbose) {
+                console.log('[HEUR-CTF-CFG-MISACCESS] BoxEngine.js unreadable — validator disabled this run');
+            }
+            return issues;
+        }
+
+        // ── Step 2: walk lab config.js files ──
+        const housesDir = path.resolve(this.rootPath, 'houses');
+        const labConfigs = [];
+        try {
+            const houses = fs.readdirSync(housesDir);
+            for (const house of houses) {
+                const houseDir = path.join(housesDir, house);
+                if (!fs.statSync(houseDir).isDirectory()) continue;
+                this._collectLabConfigs(houseDir, labConfigs);
+            }
+        } catch (err) {
+            return issues;
+        }
+
+        for (const filePath of labConfigs) {
+            let content;
+            try {
+                content = fs.readFileSync(filePath, 'utf8');
+            } catch (err) { continue; }
+
+            // Only scan files that have a commands block — skip configs without
+            // command surface (e.g., mission boxes that use phases instead).
+            if (!/\bcommands\s*:\s*\{/.test(content)) continue;
+
+            const stateFields = this._collectTopLevelStateFields(content);
+            if (stateFields.size === 0) continue;
+
+            // Build the code skeleton ONCE — strings + comments removed,
+            // byte alignment preserved — used for both the commands-block
+            // bounds and the engine._X scan inside it.
+            const skel = this._codeSkeleton(content);
+
+            const cmdStart = skel.search(/\bcommands\s*:\s*\{/);
+            if (cmdStart < 0) continue;
+            const cmdBlockEnd = this._findMatchingBrace(skel, cmdStart);
+            if (cmdBlockEnd < 0) continue;
+            const cmdBody = skel.substring(cmdStart, cmdBlockEnd);
+            const cmdBodyOffset = cmdStart;
+
+            const ePattern = /\bengine\._([a-zA-Z][\w]*)/g;
+            let match;
+            const seen = new Set(); // de-dupe per (line, key)
+            while ((match = ePattern.exec(cmdBody)) !== null) {
+                const key = match[1];
+                if (!stateFields.has(key)) continue;        // not a config-level field
+                if (allowlist.has(key)) continue;            // legitimate engine field
+                const absPos = cmdBodyOffset + match.index;
+                const line = this.getLineNumber(content, absPos);
+                const dedupKey = line + ':' + key;
+                if (seen.has(dedupKey)) continue;
+                seen.add(dedupKey);
+
+                const relPath = filePath.replace(/^.*?\/_app\//, '_app/').replace(/^.*?_app\//, '_app/');
+                issues.push({
+                    code: 'HEUR-CTF-CFG-MISACCESS',
+                    severity: 'high',
+                    category: 'ctf-engine',
+                    message: `Reference engine._${key} should be engine.config._${key} — config-level state lives at engine.config, not on the engine instance. _${key} is defined at top-level of this config.`,
+                    file: relPath.replace(/^_app\//, ''),
+                    line,
+                    fix: `Change engine._${key} to engine.config._${key} in this command body. See _docs/operations/ctf-config-misaccess-bug-2026-05-09.md.`
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * Recursive walker — collects every config.js under any */labs/* path.
+     * Helper for validateCTFConfigMisaccess.
+     */
+    _collectLabConfigs(dir, out) {
+        let entries;
+        try {
+            entries = fs.readdirSync(dir, { withFileTypes: true });
+        } catch (err) { return; }
+        for (const ent of entries) {
+            const full = path.join(dir, ent.name);
+            if (ent.isDirectory()) {
+                this._collectLabConfigs(full, out);
+            } else if (ent.isFile() && ent.name === 'config.js' && /\/labs\//.test(full)) {
+                out.push(full);
+            }
+        }
+    }
+
+    /**
+     * Build a "code skeleton" of the source: strings, template literals,
+     * comments, and regex literals are replaced with spaces (preserving byte
+     * alignment) so that subsequent regex/scan ops see only the structural
+     * code.
+     *
+     * Single-pass state machine. Handles:
+     *   - `'Foo // Bar'` — `//` inside string is NOT a comment
+     *   - `/^["']|["']$/g` — quote chars inside regex char-class are NOT
+     *     string starts (real-world bug: ala-l09 regex confused tracker)
+     *   - Template literal `${ ... }` interpolations (depth-tracked)
+     *
+     * Regex-literal heuristic: a `/` is the start of a regex (vs division)
+     * when the previous non-whitespace token-end is one of the "regex-allowed"
+     * prefix tokens (=, (, ,, ;, :, !, &, |, ?, {, }, [, return, typeof, etc).
+     */
+    _codeSkeleton(content) {
+        const out = content.split('');
+        const len = content.length;
+        const regexPrev = new Set(['=', '(', ',', ';', ':', '!', '&', '|', '?', '{', '}', '[', '+', '-', '*', '%', '<', '>', '^', '~']);
+        const regexPrevWords = new Set(['return', 'typeof', 'in', 'instanceof', 'new', 'delete', 'void', 'throw', 'yield', 'await', 'do', 'else', 'case']);
+
+        let i = 0;
+        while (i < len) {
+            const ch = content[i];
+            const next = content[i + 1];
+
+            // Block comment
+            if (ch === '/' && next === '*') {
+                const end = content.indexOf('*/', i + 2);
+                const stop = end < 0 ? len : end + 2;
+                for (let k = i; k < stop; k++) if (content[k] !== '\n') out[k] = ' ';
+                i = stop; continue;
+            }
+            // Line comment
+            if (ch === '/' && next === '/') {
+                let k = i;
+                while (k < len && content[k] !== '\n') { out[k] = ' '; k++; }
+                i = k; continue;
+            }
+
+            // Regex literal vs division: peek backwards
+            if (ch === '/') {
+                let p = i - 1;
+                while (p >= 0 && /\s/.test(content[p])) p--;
+                let isRegex = false;
+                if (p < 0) isRegex = true;
+                else {
+                    const prevCh = content[p];
+                    if (regexPrev.has(prevCh)) isRegex = true;
+                    else if (/[a-zA-Z_$]/.test(prevCh)) {
+                        // Read the preceding identifier; if it's a keyword that
+                        // can precede a regex (e.g. `return /foo/`), treat as regex
+                        let q = p;
+                        while (q >= 0 && /[\w$]/.test(content[q])) q--;
+                        const word = content.substring(q + 1, p + 1);
+                        if (regexPrevWords.has(word)) isRegex = true;
+                    }
+                }
+                if (isRegex) {
+                    // Scan forward for matching `/`, respecting char-class `[...]`
+                    let k = i + 1;
+                    let inClass = false;
+                    while (k < len) {
+                        const cc = content[k];
+                        if (cc === '\\') { k += 2; continue; }
+                        if (cc === '\n') break; // unterminated regex — bail
+                        if (inClass) {
+                            if (cc === ']') inClass = false;
+                        } else {
+                            if (cc === '[') inClass = true;
+                            else if (cc === '/') { k++; break; }
+                        }
+                        k++;
+                    }
+                    // Skip flags after closing `/`
+                    while (k < len && /[gimsuy]/.test(content[k])) k++;
+                    for (let m = i + 1; m < k - 1; m++) if (content[m] !== '\n') out[m] = ' ';
+                    i = k; continue;
+                }
+                // Division — leave as-is, advance one char
+                i++; continue;
+            }
+
+            // String literals
+            if (ch === "'" || ch === '"' || ch === '`') {
+                const quote = ch;
+                let k = i + 1;
+                while (k < len) {
+                    if (content[k] === '\\') { k += 2; continue; }
+                    if (content[k] === quote) { k++; break; }
+                    if (quote === '`' && content[k] === '$' && content[k + 1] === '{') {
+                        let depth = 1;
+                        let m = k + 2;
+                        while (m < len && depth > 0) {
+                            if (content[m] === '{') depth++;
+                            else if (content[m] === '}') depth--;
+                            m++;
+                        }
+                        k = m; continue;
+                    }
+                    k++;
+                }
+                for (let m = i + 1; m < k - 1; m++) if (content[m] !== '\n') out[m] = ' ';
+                i = k; continue;
+            }
+            i++;
+        }
+        return out.join('');
+    }
+
+    /**
+     * Min-indent line scanner — collects top-level keys starting with `_` in
+     * the lab's main config object.
+     *
+     * Operates on the code skeleton (strings/comments/regex stripped to
+     * spaces) so `// comment _fakeKey:` and `'_string _content:'` patterns
+     * are eliminated. Then per-line regex matches `^(\s+)_(\w+)\s*:`. The
+     * MINIMUM indent across all matches is the top-level indent — keep only
+     * keys at that depth, skip nested ones.
+     *
+     * Robust to: arbitrarily deep nesting, regex literals, multi-line strings,
+     * line comments containing fake keys, block comments, mixed indent.
+     *
+     * Returns a Set<string> of field names without the leading underscore.
+     */
+    _collectTopLevelStateFields(content) {
+        const skel = this._codeSkeleton(content);
+        const lines = skel.split('\n');
+        const candidates = []; // { ident, indent, line }
+        const lineRe = /^(\s+)_([a-zA-Z]\w*)\s*:/;
+        for (let li = 0; li < lines.length; li++) {
+            const m = lineRe.exec(lines[li]);
+            if (m) candidates.push({ ident: m[2], indent: m[1].length, line: li + 1 });
+        }
+        if (candidates.length === 0) return new Set();
+        const minIndent = Math.min(...candidates.map(c => c.indent));
+        const fields = new Set();
+        for (const c of candidates) {
+            if (c.indent === minIndent) fields.add(c.ident);
+        }
+        return fields;
+    }
+
+    /**
+     * Find the index of the closing `}` that matches the opening `{` at or
+     * after `fromIdx`. Tracks string state to avoid being fooled by braces
+     * inside string literals or template literals. Returns -1 if unmatched.
+     */
+    _findMatchingBrace(content, fromIdx) {
+        let i = content.indexOf('{', fromIdx);
+        if (i < 0) return -1;
+        let depth = 0;
+        let inSingle = false, inDouble = false, inBacktick = false, inLineComment = false;
+        const len = content.length;
+        while (i < len) {
+            const ch = content[i];
+            const next = content[i + 1];
+
+            if (inLineComment) {
+                if (ch === '\n') inLineComment = false;
+                i++; continue;
+            }
+            if (!inSingle && !inDouble && !inBacktick && ch === '/' && next === '/') {
+                inLineComment = true; i += 2; continue;
+            }
+            if (!inSingle && !inDouble && !inBacktick && ch === '/' && next === '*') {
+                const end = content.indexOf('*/', i + 2);
+                i = end < 0 ? len : end + 2;
+                continue;
+            }
+            if (!inDouble && !inBacktick && ch === "'" && content[i - 1] !== '\\') { inSingle = !inSingle; i++; continue; }
+            if (!inSingle && !inBacktick && ch === '"' && content[i - 1] !== '\\') { inDouble = !inDouble; i++; continue; }
+            if (!inSingle && !inDouble && ch === '`' && content[i - 1] !== '\\') { inBacktick = !inBacktick; i++; continue; }
+            if (inSingle || inDouble || inBacktick) { i++; continue; }
+
+            if (ch === '{') depth++;
+            else if (ch === '}') {
+                depth--;
+                if (depth === 0) return i + 1;
+            }
+            i++;
+        }
+        return -1;
+    }
+
     getLineNumber(content, position) {
         return content.substring(0, position).split('\n').length;
     }
