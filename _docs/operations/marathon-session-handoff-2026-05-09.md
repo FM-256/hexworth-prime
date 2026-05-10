@@ -31,7 +31,10 @@ All 4 PIS quizzes (pis-w1/w2/w3/w4) now wire `InlineQuizShuffler.shuffleQuiz(que
 | pis-w4 | `[2,3,2,3,0,2,1,1,3,2,1,0,2,0,2]` |
 
 All 4 patterns differ from original AND from each other → confirms Math.random reseeds per page load.
-**Confirmed safe to skip:** fw-w2-wireless / fw-w3-os-security / fw-w3-workstation / fw-w4-mobile / fw-w4-soho — all use serverGrading + QuizEngine which has built-in Fisher-Yates per QuizEngine.js:138-148.
+
+**REVISED finding from `nexus full` quiz-sync C9 spoke this tick:** The original "fw-w* quizzes are safe because QuizEngine shuffles" assessment was incomplete. Static `quiz_keys.json` confirms ALL NINE quizzes (4 PIS + 5 fw-w*) currently have the IDENTICAL answer array `[0,0,2,3,2,3,1,0,3,2,1,3,1,0,1]` in `functions/quiz_keys.json`. For server-graded quizzes, the answer KEY is what determines correctness — Fisher-Yates only randomizes which option is *visible* at which position. Since 5 fw-w* quizzes share the same key, a student who selects original-position-pattern `[0,0,2,3,...]` scores 100% on ALL FIVE regardless of question content. This matches MEMORY entry #98 ("9-quiz hand-copy cluster — 8 of 9 keys wrong"). Tracked as task #83 (P0 reseed batch — Nancy-blocked, requires per-quiz answer extraction from Confluence solutions).
+
+The InlineQuizShuffler wire-in defends the 4 PIS quizzes (client-graded, no Firestore lookup at score time). The 5 fw-w* quizzes need server-side fix via correct per-quiz Firestore keys — not autonomous.
 
 **Orphan quiz_keys investigation (#85/#87):**
 QUIZ_KEY_CALLSITE_AUDIT.json identifies 88 XREF-002 orphans (no HTML grading callsite). QUIZ_KEY_STRICT_ORPHAN_AUDIT narrows to 7 strict-candidate orphans:
