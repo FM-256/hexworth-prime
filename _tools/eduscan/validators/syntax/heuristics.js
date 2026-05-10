@@ -2422,6 +2422,15 @@ class HeuristicsValidator {
         //    Use file.path which the orchestrator passes as relative-to-root.
         const relativePath = file.path.replace(/^.*?\/_app\//, '').replace(/^_app\//, '');
         if (!relativePath.includes('/')) return issues;
+        // 3. Operator missions render the home anchor at runtime via
+        //    OperatorEngine (`backLink.href = '../index.html'` at
+        //    `_app/operator/engine/OperatorEngine.js:1015`). The static HTML
+        //    has no anchor, but the runtime DOM does — and detectNavLinks()
+        //    in ModuleProgress runs after engine init, so the overlay's
+        //    Course Home button DOES appear. 127 mission files load
+        //    OperatorEngine.js; zero non-mission files do, so this is a
+        //    clean signal.
+        if (/<script\s+[^>]*src="[^"]*OperatorEngine\.js"/i.test(content)) return issues;
 
         // Check for any <a> tag with href containing index.html
         const hasIndexLink = /href="[^"]*index\.html"/i.test(content);
