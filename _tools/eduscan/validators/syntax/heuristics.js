@@ -30,6 +30,7 @@
  * - QUIZ-006: Custom inline quiz calls gradeQuiz Cloud Function but has no matching key in quiz_keys.json — server grading will return "Quiz key not found"
  * - QUIZ-007: quiz_keys.json questionCount field disagrees with actual question count in HTML — keys are stale or drifted after question add/remove
  * - QUIZ-008: Answer key has skewed distribution — one index exceeds 35% in 10+ question quiz or >2 of same index in 5-question quiz. Students can pattern-exploit without reading questions.
+ * - QUIZ-011: Answer key matches CLASSIC-CYCLING placeholder pattern (i%4 cycle [0,1,2,3,0,1,2,3,...]). Bypasses QUIZ-008's skew threshold because distribution is perfectly even (~25% per index). Complements QUIZ-008 with zero double-fire — fires only on CLASSIC-CYCLING; ALL-ZEROS/ALL-SAME/PERIOD-CYCLING are caught by QUIZ-008 already.
  * - HEUR-017: Dynamic lazy-loading of platform component via createElement('script') (should be static <script src>; lazy loads bypass dependency checks and cause race conditions)
  * - HEUR-018: Scroll-triggered auto-completion — fires ModuleProgress.complete() inside a scroll listener (student has no deliberate action; should use a "Mark Complete" button instead)
  * - HEUR-019: Tenant config missing required fields — dashboard file lacks slug, branding, licensing, or adminUids references
@@ -47,6 +48,17 @@
 
 const fs = require('fs');
 const path = require('path');
+
+// QUIZ-011 placeholder-detector load. Try/catch so a missing/broken
+// detector module disables QUIZ-011 cleanly without breaking the rest
+// of heuristics.js. console.warn so the failure is visible in stdout.
+let PlaceholderDetector;
+try {
+    PlaceholderDetector = require('../../../../functions/placeholder-detector');
+} catch (e) {
+    console.warn('[heuristics] QUIZ-011 disabled: failed to load placeholder-detector module:', e.message);
+    PlaceholderDetector = null;
+}
 
 class HeuristicsValidator {
     constructor(options = {}) {
@@ -143,6 +155,7 @@ class HeuristicsValidator {
         issues.push(...this.checkCustomQuizMissingKey(file));
         issues.push(...this.checkQuizKeyDrift(file));
         issues.push(...this.checkAnswerDistribution(file));
+        issues.push(...this.checkAnswerPlaceholder(file));
         issues.push(...this.checkBrokenQuizCorrect(file));
         issues.push(...this.checkQuizParseable(file));
         issues.push(...this.checkLazyLoadedComponents(file));
@@ -1731,6 +1744,71 @@ class HeuristicsValidator {
                 fix: `Reorder options in quiz HTML so correct answers are evenly distributed across indices 0-3, then update quiz_keys.json to match`
             });
         }
+
+        return issues;
+    }
+
+    /**
+     * QUIZ-011: Answer key matches CLASSIC-CYCLING placeholder pattern
+     *
+     * Detects answer arrays that exactly match the i%4 pattern
+     * ([0,1,2,3,0,1,2,3,...]). These bypass QUIZ-008 (skew detection)
+     * because their distribution is perfectly even (~25% per index).
+     *
+     * Complements QUIZ-008 — fires ONLY on CLASSIC-CYCLING. Other
+     * placeholder shapes (ALL-ZEROS, ALL-SAME, PERIOD-CYCLING with
+     * dominant value) trigger QUIZ-008's >35% skew threshold and are
+     * not duplicated here.
+     *
+     * Scope is intentionally narrow: zero double-fire with QUIZ-008.
+     * Triage gate (high) escalates these into the sprint queue, while
+     * QUIZ-008's medium fires stay in the hygiene queue.
+     *
+     * Skipped if PlaceholderDetector module is unavailable.
+     */
+    checkAnswerPlaceholder(file) {
+        const issues = [];
+        if (!PlaceholderDetector) return issues;
+        if (file.path.endsWith('index.html')) return issues;
+
+        // Reuse the cache populated by checkAnswerDistribution
+        if (!this._quizKeys) {
+            try {
+                const keysPath = require('path').resolve(__dirname, '../../../../functions/quiz_keys.json');
+                this._quizKeys = JSON.parse(require('fs').readFileSync(keysPath, 'utf8'));
+            } catch (e) {
+                this._quizKeys = {};
+            }
+        }
+
+        const content = file.content;
+        let keyId = null;
+        const qeMatch = content.match(/moduleId\s*:\s*['"]([^'"]+)['"]/);
+        if (qeMatch) keyId = qeMatch[1];
+        if (!keyId) {
+            const qidMatch = content.match(/QUIZ_ID\s*=\s*['"]([^'"]+)['"]/);
+            if (qidMatch) keyId = qidMatch[1];
+        }
+        if (!keyId) return issues;
+
+        const key = this._quizKeys[keyId];
+        if (!key || !Array.isArray(key.answers)) return issues;
+
+        const mcAnswers = key.answers.filter(a => typeof a === 'number');
+        if (mcAnswers.length < 4) return issues;
+
+        const cls = PlaceholderDetector.classify(mcAnswers);
+        if (cls !== 'CLASSIC-CYCLING') return issues;
+
+        issues.push({
+            code: 'QUIZ-011',
+            severity: 'high',
+            category: 'quiz',
+            message: `Answer key for "${keyId}" matches CLASSIC-CYCLING placeholder pattern: ${JSON.stringify(mcAnswers).slice(0, 80)}. Students get incorrect grading.`,
+            file: file.path,
+            line: 1,
+            fix: `Replace placeholder answers in functions/quiz_keys.json with real answers from the quiz HTML or solutions doc. Karl Mode-2 verify before reseeding to Firestore.`,
+        });
 
         return issues;
     }
