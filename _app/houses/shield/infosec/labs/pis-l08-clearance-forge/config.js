@@ -69,11 +69,22 @@ const PISL08Config = {
 
     desktop: {
         icons: [
+            { id: 'briefing', label: 'Briefing',    icon: '\uD83D\uDCCB',    app: 'briefing' },
             { id: 'terminal', label: 'Terminal',    icon: '\uD83D\uDDA5\uFE0F', app: 'terminal' },
             { id: 'notes',    label: 'Notes',       icon: '\uD83D\uDCDD',    app: 'notes'    },
             { id: 'hints',    label: 'Hints',       icon: '\uD83D\uDCA1',    app: 'hints'    },
             { id: 'flags',    label: 'Submit Flag', icon: '\uD83D\uDEA9',    app: 'flags'    }
         ]
+    },
+
+    // Custom desktop-icon dispatch \u2014 invoked by BoxEngine's `default:` extension
+    // hook (BoxEngine.js:1110-1115) for any icon whose `app` is not built-in.
+    onAppLaunch: function(iconDef, engine) {
+        if (iconDef && iconDef.app === 'briefing') {
+            // Re-summon \u2014 bypass skip-next-time storage; lab is already running
+            // so the launch callback is a no-op.
+            BriefingPage.show(this, function() {}, { force: true });
+        }
     },
 
     // =========================================================
