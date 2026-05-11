@@ -233,6 +233,17 @@
             sortOrder: 130
         },
         {
+            id: 'domino-effect',
+            category: 'course',
+            catalogCode: 'CIS2208',
+            label: 'The Domino Effect',
+            sublabel: 'CIS2208',
+            icon: '/assets/images/icons/icon-chain.webp',
+            hubHref: '/houses/divergent/domino-effect/index.html',
+            tenantAssignable: true,
+            sortOrder: 135
+        },
+        {
             id: 'infosec',
             category: 'course',
             catalogCode: 'CIS2350C',
