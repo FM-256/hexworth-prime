@@ -239,7 +239,9 @@
             label: 'The Domino Effect',
             sublabel: 'CIS2208',
             icon: '/assets/images/icons/icon-chain.webp',
-            hubHref: '/houses/divergent/domino-effect/index.html',
+            // Course content lives under the legacy folder slug 'cybersecurity-policy'
+            // even though the course was rebranded "The Domino Effect" (CIS2208).
+            hubHref: '/houses/divergent/cybersecurity-policy/index.html',
             tenantAssignable: true,
             sortOrder: 135
         },
