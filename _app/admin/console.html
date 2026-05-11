@@ -6430,6 +6430,46 @@
             showToast('Added ' + (name || email || uid), 'success');
         };
 
+        // Smart "Add" — type email/callsign in the search box, click Add, and the
+        // matching user is added directly. No need to click Search first and then
+        // hunt for the per-result Add button. Falls back to the fuzzy-results UI
+        // when the query is ambiguous (multiple matches, no exact email).
+        window._addInstructorDirect = async function() {
+            const queryRaw = document.getElementById('tenantAdminSearch').value.trim();
+            if (!queryRaw || queryRaw.length < 2) {
+                showToast('Type an email or callsign first.', 'warning');
+                return;
+            }
+            const query = queryRaw.toLowerCase();
+            try {
+                const result = await FirebaseAuth.callFunction('searchUsers', { query: queryRaw });
+                const users = (result.data || result).users || [];
+
+                if (users.length === 0) {
+                    showToast('No user found with "' + queryRaw + '". Check the spelling or try Search.', 'error');
+                    document.getElementById('tenantAdminSearchResults').innerHTML =
+                        '<div style="font-size:0.8rem;color:var(--ac-text-muted);padding:8px;">No matches.</div>';
+                    return;
+                }
+
+                // Exact-email match wins; otherwise auto-add if there is only one result.
+                const exact = users.find(u => (u.email || '').toLowerCase() === query);
+                const pick = exact || (users.length === 1 ? users[0] : null);
+
+                if (pick) {
+                    _addTenantAdmin(pick.uid, pick.displayName || pick.callsign || '', pick.email || '');
+                    // _addTenantAdmin already shows a toast + clears the search input.
+                    return;
+                }
+
+                // Ambiguous — fall back to fuzzy-results list so the admin can pick.
+                showToast(users.length + ' matches — pick one below.', 'info');
+                _searchTenantAdmin();
+            } catch (e) {
+                showToast('Add failed: ' + (e.message || 'unknown error'), 'error');
+            }
+        };
+
         window._searchTenantAdmin = async function() {
             const query = document.getElementById('tenantAdminSearch').value.trim();
             if (!query || query.length < 2) { showToast('Enter at least 2 characters.', 'warning'); return; }
@@ -7086,14 +7126,23 @@
             searchInput.type = 'text';
             searchInput.className = 'ac-search-input';
             searchInput.id = 'tenantAdminSearch';
-            searchInput.placeholder = 'Search by email, callsign, or name...';
+            searchInput.placeholder = 'Search by email, callsign, UID, or name...';
             searchInput.style.cssText = 'flex:1;margin-bottom:0;';
-            searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') _searchTenantAdmin(); });
+            searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); _addInstructorDirect(); } });
+            // Primary action: type email and click Add. Auto-resolves to UID and adds.
+            const addBtn = document.createElement('button');
+            addBtn.className = 'ac-btn ac-btn-primary ac-btn-sm';
+            addBtn.textContent = 'Add';
+            addBtn.title = 'Add the user with this email/callsign as an instructor';
+            addBtn.addEventListener('click', _addInstructorDirect);
+            // Secondary action: fuzzy search (shows all matches with per-result Add).
             const searchBtn = document.createElement('button');
             searchBtn.className = 'ac-btn ac-btn-ghost ac-btn-sm';
             searchBtn.textContent = 'Search';
+            searchBtn.title = 'Show all matches for fuzzy lookup';
             searchBtn.addEventListener('click', _searchTenantAdmin);
             searchRow.appendChild(searchInput);
+            searchRow.appendChild(addBtn);
             searchRow.appendChild(searchBtn);
             adminGroup.appendChild(searchRow);
 
