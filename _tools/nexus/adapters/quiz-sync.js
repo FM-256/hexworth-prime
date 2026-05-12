@@ -35,6 +35,19 @@ module.exports = function createQuizSyncAdapter({ name, dataPath, projectRoot })
         const fp = new Map();
         for (const [qid, entry] of Object.entries(keys)) {
             if (!entry || !Array.isArray(entry.answers)) continue;
+            // Skip entries documented as orphans (no live UI callsite). Keeps
+            // historical Karl-verified fossils (e.g., `security`) out of the
+            // cluster detector — their content correctness is moot because
+            // gradeQuiz is never called against them. orphanNote field
+            // documents the lineage for future audits.
+            if (entry.orphan === true) continue;
+            // Skip entries verified as Discipline A architecture (correct answer
+            // authored at options[0], shuffle at render). Their all-zeros key is
+            // correct BY DESIGN, not a placeholder bug. Cross-quiz clustering on
+            // identical [0,0,...] arrays is a structural false positive in this
+            // architecture. Karl QC-48 audit artifacts in ~/hexworth-shared/
+            // Solutions/_audit/karl-qc48-*.md document each verified quiz.
+            if (entry.disciplineA === true) continue;
             if (!entry.answers.every(v => Number.isInteger(v))) continue;
             if (entry.answers.length < MIN_LEN) continue;
             const k = entry.answers.join(',');
