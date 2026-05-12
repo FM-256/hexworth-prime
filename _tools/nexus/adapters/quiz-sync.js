@@ -53,6 +53,12 @@ module.exports = function createQuizSyncAdapter({ name, dataPath, projectRoot })
             if (entry.disciplineA === true) continue;
             if (entry.disciplineB === true) continue;
             if (entry.disciplineCycle4 === true) continue;
+            // Skip entries that are explicit aliases of another canonical quiz_keys
+            // entry (same underlying content, multiple IDs registered). The
+            // canonical entry remains in the cluster detector; alias entries are
+            // suppressed because their identical-array status is correct by
+            // construction. Tracks the dual-registration backlog (Task #90).
+            if (entry.aliasOf) continue;
             if (!entry.answers.every(v => Number.isInteger(v))) continue;
             if (entry.answers.length < MIN_LEN) continue;
             const k = entry.answers.join(',');
