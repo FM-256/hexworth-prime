@@ -1597,6 +1597,22 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     const passingScore = keyData.passingScore || 70;
     const passed = percentage >= passingScore;
 
+    // ── Conditional correct-answer reveal ──
+    // Students who PASS get the full review (correct answer per question),
+    // enabling a meaningful post-exam review. Students who fail receive only
+    // right/wrong markers per question — preserving test integrity for
+    // retakers who must restudy rather than memorize the key.
+    if (passed) {
+        for (let i = 0; i < total; i++) {
+            let expected = answerKey[i];
+            if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
+                if (expected.ms) expected = expected.ms;
+                else if (expected.order) expected = expected.order;
+            }
+            results[i].correctAnswer = expected;
+        }
+    }
+
     // Log the attempt to Firestore for analytics
     const uid = request.auth.uid;
     try {

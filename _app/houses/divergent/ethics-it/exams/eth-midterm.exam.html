@@ -361,6 +361,47 @@
   }
 
   footer a:hover { text-decoration: underline; }
+
+  /* ── Review Answers view ── */
+  .exam-result-btns {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    margin-top: 1.2rem;
+  }
+  .exam-result-btns .btn-continue { margin: 0; }
+  .review-q {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 1rem;
+    text-align: left;
+  }
+  .review-q-num {
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em;
+    color: var(--text-muted); margin-bottom: 0.4rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .review-mark { font-size: 0.68rem; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.12em; }
+  .review-mark.right { background: rgba(34, 197, 94, 0.18); color: #6ee7b7; }
+  .review-mark.wrong { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+  .review-q-text { font-size: 0.95rem; color: var(--text); margin-bottom: 0.7rem; line-height: 1.5; }
+  .review-opts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0.7rem; }
+  .review-opt {
+    padding: 8px 12px; background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;
+    font-size: 0.86rem; color: var(--text);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .review-opt.correct { background: rgba(34, 197, 94, 0.10); border-color: rgba(34, 197, 94, 0.45); }
+  .review-opt.incorrect { background: rgba(239, 68, 68, 0.10); border-color: rgba(239, 68, 68, 0.45); }
+  .option-letter {
+    display: inline-block; min-width: 22px; padding: 1px 6px;
+    background: rgba(255, 255, 255, 0.06); border-radius: 3px;
+    font-weight: 700; font-size: 0.78rem; color: var(--text-muted);
+  }
+  .review-tag { font-size: 0.7rem; padding: 2px 7px; border-radius: 3px; font-style: italic; margin-left: auto; }
+  .review-tag.right-tag { background: rgba(34, 197, 94, 0.20); color: #6ee7b7; }
+  .review-tag.wrong-tag { background: rgba(239, 68, 68, 0.20); color: #fca5a5; }
 </style>
 </head>
 <body>
@@ -562,6 +603,8 @@ async function submitExam() {
   });
 
   let score = 0, percent = 0, passed = false;
+  let resultsData = [];  // per-question { correct, correctAnswer? } from server — stashed for Review Answers
+  const studentPicks = { ...answerMap };  // stash a copy keyed by original-index for Review Answers
 
   try {
     if (typeof FirebaseAuth !== 'undefined') {
@@ -572,11 +615,12 @@ async function submitExam() {
       score = response.data.score;
       percent = response.data.percentage;
       passed = response.data.passed;
+      resultsData = response.data.results || [];
 
       // Highlight correct and incorrect selections based on server results
       shuffledData.forEach((item, i) => {
         const origIdx = examData.indexOf(item);
-        const result = response.data.results[origIdx];
+        const result = resultsData[origIdx];
         const selected = document.querySelector(`input[name="q${i}"]:checked`);
         if (selected && result) {
           selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
@@ -595,7 +639,7 @@ async function submitExam() {
   }
 
   const resultDiv = document.getElementById("result");
-  resultDiv.innerHTML = `
+  const scoreHtml = `
     <h2>${passed ? 'Midterm Passed' : 'Keep Studying'}</h2>
     <div class="score-circle ${passed ? 'pass' : 'fail'}">
       <span class="score-percent">${percent}%</span>
@@ -606,26 +650,93 @@ async function submitExam() {
         ? 'You have passed the Ethics in IT Midterm. You demonstrated command of ethical frameworks, professional conduct, privacy, expression, and intellectual property across Chapters 1-6.'
         : `You need 70% (18/25) to pass. You scored ${score}/25. Review your Week 1 and Week 2 materials and try again.`}
     </div>
-    ${passed ? `
-      <div class="unlock-badge">
-        <h3>Midterm Complete</h3>
-        <p>Week 3 content is now unlocked. Continue with the software ethics and societal impact modules.</p>
-        <a href="../index.html" class="btn-continue">Continue to Week 3 &#8594;</a>
-      </div>
-    ` : `
-      <div style="margin-top: 20px;">
-        <a href="../quizzes/eth-w1.quiz.html" class="btn-continue" style="margin-right: 10px;">Review Week 1 Quiz</a>
-        <a href="../quizzes/eth-w2.quiz.html" class="btn-continue">Review Week 2 Quiz</a>
-      </div>
-    `}
+    <div class="exam-result-btns">
+      <button type="button" class="btn-continue" onclick="showReviewAnswers()">Review Answers</button>
+      <a href="../index.html" class="btn-continue btn-hub">Return to Hub</a>
+    </div>
   `;
+  resultDiv.innerHTML = scoreHtml;
   resultDiv.classList.add('visible');
 
-  // Record completion via ModuleProgress on pass
+  // Stash everything Review Answers + backToScore need at script scope.
+  window._examReview = { resultsData, studentPicks, passed, scoreHtml };
+
+  // Record completion via ModuleProgress on pass.
+  // Use returnToDashboard:false so the student stays on the result page and
+  // can click [Review Answers] or [Return to Hub] themselves — previous
+  // behavior auto-navigated to ../index.html after Firestore sync, yanking
+  // the student off the result they just earned.
   if (passed && typeof ModuleProgress !== 'undefined') {
-    ModuleProgress.complete('divergent', 'eth-midterm', { returnUrl: '../index.html' });
+    try {
+      ModuleProgress.complete('divergent', 'eth-midterm', { returnToDashboard: false, type: 'exam' });
+    } catch (e) {
+      console.warn('[eth-midterm] ModuleProgress.complete failed:', e);
+    }
   }
 
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+/** Render per-question Review Answers using the server's resultsData.
+    correctAnswer is only present in results[i] when the student passed
+    (server gates the reveal to preserve test integrity for retakers). */
+function showReviewAnswers() {
+  const state = window._examReview;
+  if (!state || !state.resultsData) return;
+
+  const resultDiv = document.getElementById('result');
+  const letters = ['A', 'B', 'C', 'D', 'E'];
+  let html = '<h2>Review Your Answers</h2>';
+
+  if (!state.passed) {
+    html += '<p style="font-size: 0.86rem; color: var(--text-muted); font-style: italic; margin-bottom: 1rem; text-align: center;">' +
+      'You will see which questions you got right or wrong, but correct answers stay hidden until you pass — so re-study, then retake.' +
+      '</p>';
+  }
+
+  for (let origIdx = 0; origIdx < examData.length; origIdx++) {
+    const q = examData[origIdx];
+    const result = state.resultsData[origIdx] || {};
+    const picked = state.studentPicks[String(origIdx)];
+    const correctAnswer = (typeof result.correctAnswer === 'number') ? result.correctAnswer : null;
+    const isRight = !!result.correct;
+
+    html += '<div class="review-q">';
+    html += '<div class="review-q-num">Q' + (origIdx + 1) + ' ' +
+      (isRight ? '<span class="review-mark right">CORRECT</span>' : '<span class="review-mark wrong">INCORRECT</span>') +
+      '</div>';
+    html += '<div class="review-q-text">' + q.q + '</div>';
+    html += '<div class="review-opts">';
+    for (let j = 0; j < q.a.length; j++) {
+      let cls = 'review-opt';
+      if (correctAnswer !== null && j === correctAnswer) cls += ' correct';
+      if (j === picked && j !== correctAnswer) cls += ' incorrect';
+      html += '<div class="' + cls + '">';
+      html += '<span class="option-letter">' + letters[j] + '</span> ' + q.a[j];
+      if (j === picked && correctAnswer !== null && j === correctAnswer) html += ' <span class="review-tag right-tag">your answer • correct</span>';
+      else if (j === picked) html += ' <span class="review-tag wrong-tag">your answer</span>';
+      else if (correctAnswer !== null && j === correctAnswer) html += ' <span class="review-tag right-tag">correct answer</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+  }
+
+  html += '<div class="exam-result-btns">' +
+    '<button type="button" class="btn-continue" onclick="backToScore()">Back to Score</button>' +
+    '<a href="../index.html" class="btn-continue btn-hub">Return to Hub</a>' +
+    '</div>';
+
+  resultDiv.innerHTML = html;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/** Return from review view to the score summary using the stashed scoreHtml. */
+function backToScore() {
+  const state = window._examReview;
+  if (!state || !state.scoreHtml) { location.reload(); return; }
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = state.scoreHtml;
   window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 }
 </script>
