@@ -44,6 +44,8 @@
  * - HEUR-027: Content link escapes to platform root — any file inside houses/ has an href that resolves above the house directory to the main platform dashboard (tenant isolation breach — students escape course context)
  * - HEUR-028: ModuleProgress.complete() signature mismatch — call does not follow the (houseId, moduleId, options) pattern; first arg is not a recognized house ID, or second arg appears to be a score/number instead of a module ID string
  * - HEUR-029: Looks-clickable but isn't — non-anchor element styled as clickable (role="link"/"button", cursor:pointer + tabindex, onkeydown navigation, or href on non-anchor) with no onclick attribute AND no class/id wired up via JS addEventListener('click') or .onclick assignment; mouse clicks silently fail
+ * - HEUR-COMPLETE-QUIZ-PCT: ModuleProgress.completeQuiz() called with raw `score` count instead of `pct` percentage. The function internally evaluates `score >= passingScore` so a 12/15 score (80%) is checked as `12 >= 70 = false` and completion never persists. Fires when (a) file computes `var pct = Math.round(...)`, AND (b) 3rd arg of completeQuiz is a bare identifier that is NOT pct/percent/percentage/integer-literal/Math.round expression. HIGH (completion silently fails).
+ * - HEUR-RESULT-BUTTON-STANDARD: Quiz results-card uses pre-standard buttons — `<button onclick="restartQuiz()">Try Again</button>` or `<a class="btn-hub">Back to <Course> Hub</a>`. New standard is `[Review Answers]` (calls showReviewAnswers()) + `[Return to Hub]`. Mixed state (Review Answers present alongside old buttons) also flags. MEDIUM (UX drift, no grading bug).
  */
 
 const fs = require('fs');
@@ -198,6 +200,8 @@ class HeuristicsValidator {
         issues.push(...this.checkContentLinkEscapesToPlatformRoot(file));
         issues.push(...this.checkModuleProgressSignature(file));
         issues.push(...this.checkLooksClickableButIsnt(file));
+        issues.push(...this.checkCompleteQuizPctArg(file));
+        issues.push(...this.checkResultButtonStandard(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -3407,6 +3411,193 @@ class HeuristicsValidator {
             i++;
         }
         return -1;
+    }
+
+    /**
+     * HEUR-COMPLETE-QUIZ-PCT: ModuleProgress.completeQuiz() raw-score bug.
+     *
+     * The bug: client-graded quizzes compute both `score` (raw correct count,
+     * e.g. 12) and `pct` (percentage, e.g. 80), then pass `score` as the 3rd
+     * arg to completeQuiz(). Inside completeQuiz, the check
+     *     if (score >= passingScore) { mark complete }
+     * evaluates `12 >= 70 = false`, so completion is never persisted —
+     * student passes the visible quiz but progress silently doesn't save.
+     *
+     * Detection (file-scoped, conservative — minimizes false positives):
+     *   1) File contains a `var pct = Math.round(...)` (or `let pct`/`const pct`)
+     *      expression — i.e. the file computes a percentage variable.
+     *   2) File contains a `ModuleProgress.completeQuiz(house, id, X)` call
+     *      where X is NOT one of: `pct`, `percent`, `percentage`, an integer
+     *      literal >= 70, or an expression containing `Math.round(`.
+     *
+     * If both hold, fire HIGH. The (1) precondition is the critical false-positive
+     * guard: a quiz that already passes the bare percentage as an inline expression
+     * (or as a constant, or via a different variable name like `percentScore`)
+     * doesn't compute a `pct` var, so won't get flagged.
+     *
+     * @param {Object} file - { path, content }
+     * @returns {Array} Issues found
+     */
+    checkCompleteQuizPctArg(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only quiz HTML — narrows scope and excludes hub/index pages.
+        if (!file.path.endsWith('.html')) return issues;
+        if (!/\.quiz\.html$/.test(file.path) && !/\.exam\.html$/.test(file.path)) return issues;
+
+        // Must call ModuleProgress.completeQuiz at all.
+        if (!content.includes('ModuleProgress.completeQuiz')) return issues;
+
+        // Precondition: file declares a `pct` variable as a percentage.
+        // Conservative — only var/let/const pct = Math.round(...) qualifies.
+        const pctVarPattern = /\b(?:var|let|const)\s+pct\s*=\s*Math\.round\s*\(/;
+        if (!pctVarPattern.test(content)) return issues;
+
+        // Walk every completeQuiz(...) call and inspect the 3rd arg.
+        const callPattern = /ModuleProgress\.completeQuiz\s*\(([^)]*(?:\([^)]*\)[^)]*)*)\)/g;
+        let match;
+        while ((match = callPattern.exec(content)) !== null) {
+            const argsStr = match[1];
+            const line = this.getLineNumber(content, match.index);
+
+            // Skip lines that are commented or in alert strings.
+            const lineStart = content.lastIndexOf('\n', match.index) + 1;
+            const lineEnd = content.indexOf('\n', match.index);
+            const lineText = content.substring(lineStart, lineEnd === -1 ? content.length : lineEnd);
+            const trimmed = lineText.trim();
+            if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
+
+            // Split args with the existing brace/paren/quote-aware helper.
+            const args = this._splitArgs(argsStr);
+            if (args.length < 3) continue; // 2-arg form is a different code path
+
+            const thirdArg = args[2].trim();
+
+            // Whitelist of acceptable 3rd-arg shapes — all of these mean
+            // a percentage is already being passed.
+            const okIdentifiers = /^(pct|percent|percentage)$/;
+            if (okIdentifiers.test(thirdArg)) continue;
+            if (/^Math\.round\s*\(/.test(thirdArg)) continue;
+
+            // Integer literal >= 70 is a hardcoded passing percentage — likely
+            // a test stub or intentional hard-pass. Accept as not-the-bug.
+            const intLitMatch = thirdArg.match(/^(\d+)$/);
+            if (intLitMatch) {
+                const n = parseInt(intLitMatch[1], 10);
+                if (n >= 70) continue;
+            }
+
+            // Anything else (a bare identifier like `score`, or `numCorrect`,
+            // or `result`) is the bug. Surface the offending arg text.
+            issues.push({
+                code: 'HEUR-COMPLETE-QUIZ-PCT',
+                severity: 'high',
+                category: 'completion-tracking',
+                message: `ModuleProgress.completeQuiz() 3rd arg is "${thirdArg}" but file computes a "pct" percentage variable. completeQuiz expects a PERCENTAGE; passing a raw score makes the internal "score >= passingScore" check (e.g., 12 >= 70) fail and completion never persists.`,
+                file: file.path,
+                line,
+                fix: `Change the 3rd arg to "pct" (the percentage you already computed). Example: ModuleProgress.completeQuiz('<house>', '<id>', pct, { returnToDashboard: false })`
+            });
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-RESULT-BUTTON-STANDARD: Pre-standard quiz result buttons.
+     *
+     * The new quiz result-card standard is:
+     *   - A `[Review Answers]` button wired to showReviewAnswers()
+     *   - A `[Return to Hub]` link in .results-btns
+     *   - A sibling `#reviewCard` div + backToScore() function for the
+     *     per-question Review Answers view.
+     *
+     * The pre-standard pattern used a `[Try Again]` button calling
+     * restartQuiz() and a `Back to <Course> Hub` link. This rule flags both
+     * shapes so the migration sweep finishes consistently.
+     *
+     * MIXED-STATE NOTE: a results-card that already has "Review Answers"
+     * text but still retains either old button still flags — it indicates
+     * an incomplete migration, not a clean state.
+     *
+     * @param {Object} file - { path, content }
+     * @returns {Array} Issues found
+     */
+    checkResultButtonStandard(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only quiz HTML — exam HTMLs follow a similar pattern but we limit
+        // scope per spec to .quiz.html files.
+        if (!file.path.endsWith('.html')) return issues;
+        if (!/\.quiz\.html$/.test(file.path) && !/\.exam\.html$/.test(file.path)) return issues;
+
+        // Must contain a .results-card block to be relevant.
+        if (!content.includes('results-card')) return issues;
+
+        // Find every <div ... class="results-card" ...> opening tag (single or
+        // double-quoted), then walk forward with a depth counter to find its
+        // matching </div>. Nested divs (.score-big, .results-btns, etc.) are
+        // common inside .results-card and a non-greedy regex would close on the
+        // first inner </div>, missing the buttons entirely.
+        const openPattern = /<div([^>]*class=(?:"[^"]*\bresults-card\b[^"]*"|'[^']*\bresults-card\b[^']*')[^>]*)>/g;
+        let openMatch;
+        while ((openMatch = openPattern.exec(content)) !== null) {
+            const headerAttrs = openMatch[1];
+            const cardLine = this.getLineNumber(content, openMatch.index);
+
+            // Skip the reviewCard sibling — it's the per-question review view
+            // and is allowed to have a "Back to Score" button by design.
+            if (/id=(?:"reviewCard"|'reviewCard')/.test(headerAttrs)) continue;
+
+            // Walk forward tracking <div> depth to find the matching </div>.
+            const start = openMatch.index + openMatch[0].length;
+            const divTag = /<\/?div\b[^>]*>/g;
+            divTag.lastIndex = start;
+            let depth = 1;
+            let endIdx = -1;
+            let tagMatch;
+            while ((tagMatch = divTag.exec(content)) !== null) {
+                if (tagMatch[0].startsWith('</')) {
+                    depth--;
+                    if (depth === 0) { endIdx = tagMatch.index; break; }
+                } else {
+                    depth++;
+                }
+            }
+            if (endIdx === -1) continue; // unbalanced — skip rather than mis-flag
+            const inner = content.substring(start, endIdx);
+
+            // Old-pattern: <button onclick="restartQuiz()">Try Again</button>
+            const tryAgainPattern = /<button[^>]*onclick="restartQuiz\(\)"[^>]*>\s*Try Again\s*<\/button>/i;
+            const hasTryAgain = tryAgainPattern.test(inner);
+
+            // Old-pattern: <a class="btn-hub">Back to <something> Hub</a>
+            const backToHubPattern = /<a[^>]*class="[^"]*\bbtn-hub\b[^"]*"[^>]*>\s*Back to\s+[^<]*\bHub\s*<\/a>/i;
+            const hasBackToHub = backToHubPattern.test(inner);
+
+            if (!hasTryAgain && !hasBackToHub) continue;
+
+            // Detect mixed state — already has Review Answers text but still
+            // carries an old button. That's a partial migration; still flag.
+            const hasReviewAnswers = /Review Answers/.test(inner);
+            const issueParts = [];
+            if (hasTryAgain) issueParts.push('"Try Again" button (calls restartQuiz())');
+            if (hasBackToHub) issueParts.push('"Back to ... Hub" link');
+
+            issues.push({
+                code: 'HEUR-RESULT-BUTTON-STANDARD',
+                severity: 'medium',
+                category: 'ux-drift',
+                message: `Quiz .results-card uses pre-standard buttons: ${issueParts.join(' + ')}.${hasReviewAnswers ? ' Also contains "Review Answers" — mixed-state, incomplete migration.' : ''} Standard is [Review Answers] (showReviewAnswers()) + [Return to Hub].`,
+                file: file.path,
+                line: cardLine,
+                fix: 'Replace with: <button class="btn-retry" onclick="showReviewAnswers()">Review Answers</button> and <a href="../index.html" class="btn-hub">Return to Hub</a>. Add a sibling #reviewCard div + showReviewAnswers()/backToScore() functions. Exemplar: _app/houses/divergent/ethics-it/quizzes/eth-w1.quiz.html lines 439-456.'
+            });
+        }
+
+        return issues;
     }
 
     getLineNumber(content, position) {
