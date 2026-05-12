@@ -90,7 +90,24 @@
         .btn-hub { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4) !important; color: var(--success); }
         .btn-hub:hover { background: var(--success); color: #fff; }
 
-        @media (max-width: 640px) {
+        /* ── Review Answers view ── */
+        .review-q { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 1rem 1.1rem; margin-bottom: 1rem; text-align: left; }
+        .review-q-num { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; color: var(--text-muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 8px; }
+        .review-mark { font-size: 0.68rem; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.12em; }
+        .review-mark.right { background: rgba(34, 197, 94, 0.18); color: #6ee7b7; }
+        .review-mark.wrong { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+        .review-q-text { font-size: 0.95rem; color: var(--text); margin-bottom: 0.7rem; line-height: 1.5; }
+        .review-opts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0.7rem; }
+        .review-opt { padding: 8px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; font-size: 0.86rem; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .review-opt.correct { background: rgba(34, 197, 94, 0.10); border-color: rgba(34, 197, 94, 0.45); }
+        .review-opt.incorrect { background: rgba(239, 68, 68, 0.10); border-color: rgba(239, 68, 68, 0.45); }
+        .review-tag { font-size: 0.7rem; padding: 2px 7px; border-radius: 3px; font-style: italic; margin-left: auto; }
+        .review-tag.right-tag { background: rgba(34, 197, 94, 0.20); color: #6ee7b7; }
+        .review-tag.wrong-tag { background: rgba(239, 68, 68, 0.20); color: #fca5a5; }
+        .review-exp { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; padding: 8px 12px; background: rgba(0, 255, 255, 0.04); border-left: 2px solid var(--cyan); border-radius: 0 6px 6px 0; }
+        .review-exp strong { color: var(--cyan); }
+
+                @media (max-width: 640px) {
             .quiz-container { padding: 1rem; }
             .question-card { padding: 1.25rem; }
             .quiz-header h1 { font-size: 1.3rem; }
@@ -136,8 +153,17 @@
             <div class="score-big" id="finalScore"></div>
             <p class="score-msg" id="scoreMsg"></p>
             <div class="results-btns">
-                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
-                <a href="../index.html" class="btn-hub">Back to Course Hub</a>
+                <button class="btn-retry" onclick="showReviewAnswers()">Review Answers</button>
+                <a href="../index.html" class="btn-hub">Return to Hub</a>
+            </div>
+        </div>
+
+        <div class="results-card" id="reviewCard" style="display:none;">
+            <h2>Review Your Answers</h2>
+            <div id="reviewBody"></div>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="backToScore()">Back to Score</button>
+                <a href="../index.html" class="btn-hub">Return to Hub</a>
             </div>
         </div>
     </div>
@@ -319,6 +345,7 @@
         var score = 0;
         var answered = false;
         var TOTAL = questions.length;
+        var userAnswers = [];  // index of option picked by user, per question
 
         function loadQuestion() {
             var q = questions[current];
@@ -344,6 +371,7 @@
         function selectAnswer(idx) {
             if (answered) return;
             answered = true;
+            userAnswers[current] = idx;  // remember pick for the Review Answers view
 
             var q = questions[current];
             var opts = document.querySelectorAll('.option');
@@ -403,9 +431,58 @@
             document.getElementById('scoreMsg').textContent = msg;
 
             if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
-                ModuleProgress.completeQuiz('divergent', 'csp-w2-programs-quiz', score);
+                // Record completion only on passing (70%). completeQuiz expects PERCENTAGE, not raw count.
+                try {
+                    ModuleProgress.completeQuiz('divergent', 'csp-w2-programs-quiz', pct, { returnToDashboard: false });
+                } catch (e) {
+                    console.warn('[csp-w2-programs-quiz] ModuleProgress.completeQuiz failed:', e);
+                }
             }
         }
+
+        /** Render the per-question Review Answers view. */
+        function showReviewAnswers() {
+            document.getElementById('resultsCard').style.display = 'none';
+            var reviewCard = document.getElementById('reviewCard');
+            reviewCard.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            var letters = ['A', 'B', 'C', 'D'];
+            var html = '';
+            for (var i = 0; i < questions.length; i++) {
+                var q = questions[i];
+                var picked = userAnswers[i];
+                var correct = q.ans;
+                var isRight = picked === correct;
+
+                html += '<div class="review-q">';
+                html += '<div class="review-q-num">Q' + (i + 1) + ' ' + (isRight ? '<span class="review-mark right">CORRECT</span>' : '<span class="review-mark wrong">INCORRECT</span>') + '</div>';
+                html += '<div class="review-q-text">' + q.q + '</div>';
+                html += '<div class="review-opts">';
+                for (var j = 0; j < q.opts.length; j++) {
+                    var cls = 'review-opt';
+                    if (j === correct) cls += ' correct';
+                    if (j === picked && picked !== correct) cls += ' incorrect';
+                    html += '<div class="' + cls + '">';
+                    html += '<span class="option-letter">' + letters[j] + '</span> ';
+                    html += q.opts[j];
+                    if (j === picked && j === correct) html += ' <span class="review-tag right-tag">your answer &bull; correct</span>';
+                    else if (j === picked) html += ' <span class="review-tag wrong-tag">your answer</span>';
+                    else if (j === correct) html += ' <span class="review-tag right-tag">correct answer</span>';
+                    html += '</div>';
+                }
+                html += '</div>';
+                html += '<div class="review-exp"><strong>Why:</strong> ' + q.exp + '</div>';
+                html += '</div>';
+            }
+            document.getElementById('reviewBody').innerHTML = html;
+        }
+
+        function backToScore() {
+            document.getElementById('reviewCard').style.display = 'none';
+            document.getElementById('resultsCard').style.display = 'block';
+        }
+
 
         function restartQuiz() {
             current = 0;
