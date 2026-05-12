@@ -1343,7 +1343,7 @@ const FirestoreManager = (function() {
 
             // 4. Local → Cloud: union local completedModules/labsCompleted arrays with cloud
             // Filter garbage: only accept IDs with a known house prefix and a non-empty key
-            const _validHouses = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'linux', 'arena'];
+            const _validHouses = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'linux', 'arena', 'divergent', 'matrix'];
             const _isValidId = (id) => {
                 if (!id || typeof id !== 'string') return false;
                 if (id.startsWith('dark-arts-') && id.length > 10) return true;
