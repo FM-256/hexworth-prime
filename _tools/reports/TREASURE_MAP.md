@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-05-08 11:39:15 PM
+                    Scanned: 2026-05-12 5:52:07 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,16 +10,16 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5064 |
+| Files Scanned | 5066 |
 | Directories | 1185 |
-| Content Files | 5064 |
-| Scan Duration | 1575ms |
+| Content Files | 5066 |
+| Scan Duration | 3118ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2296 |
+| presentation | 2298 |
 | html | 1491 |
 | lab | 587 |
 | quiz | 487 |
@@ -29,10 +29,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 3565 |
-| Available | 3520 |
+| Total Modules | 3599 |
+| Available | 3554 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 0 |
+| Undeclared Files (CAT-002) | 1 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -42,15 +42,15 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 25 |
-| Warning | 2367 |
-| Info | 927 |
-| **Total** | **12603** |
+| Warning | 2294 |
+| Info | 681 |
+| **Total** | **12521** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3561 |
+| Ready | 3563 |
 | Not Ready | 12 |
 | Unknown | 1491 |
 
@@ -2812,6 +2812,7 @@
 │   │   │   │   ├── 📊 eth-13-it-organizations.presentation.html
 │   │   │   │   ├── 📊 eth-14-codes-of-ethics.presentation.html
 │   │   │   │   ├── 📊 eth-15-final-assessment.presentation.html
+│   │   │   │   ├── 📊 eth-frameworks-characters.presentation.html
 │   │   │   │   ├── 📊 eth-w1-cybersecurity-ethics.presentation.html
 │   │   │   │   ├── 📊 eth-w1-ethics-overview.presentation.html
 │   │   │   │   ├── 📊 eth-w1-it-professionals.presentation.html
@@ -4958,6 +4959,7 @@
 │   │   │   ├── 📄 pis-r5.html
 │   │   │   ├── 📁 presentations [presentations]
 │   │   │   │   ├── 📊 pis-w1-cia-triad.presentation.html
+│   │   │   │   ├── 📊 pis-w1-lecture.presentation.html
 │   │   │   │   ├── 📊 pis-w1-malware.presentation.html
 │   │   │   │   ├── 📊 pis-w1-security-controls.presentation.html
 │   │   │   │   ├── 📊 pis-w1-social-engineering.presentation.html
@@ -7555,6 +7557,7 @@
 | eth-13-it-organizations.presentation | presentation | ✓ | 0 |
 | eth-14-codes-of-ethics.presentation | presentation | ✓ | 0 |
 | eth-15-final-assessment.presentation | presentation | ✓ | 0 |
+| eth-frameworks-characters.presentation | presentation | ✓ | 0 |
 | eth-w1-cybersecurity-ethics.presentation | presentation | ✓ | 0 |
 | eth-w1-ethics-overview.presentation | presentation | ✓ | 0 |
 | eth-w1-it-professionals.presentation | presentation | ✓ | 0 |
@@ -8970,6 +8973,7 @@
 | pis-r4 | presentation | ✓ | 0 |
 | pis-r5 | presentation | ✓ | 0 |
 | pis-w1-cia-triad.presentation | presentation | ✓ | 0 |
+| pis-w1-lecture.presentation | presentation | ✓ | 0 |
 | pis-w1-malware.presentation | presentation | ✓ | 0 |
 | pis-w1-security-controls.presentation | presentation | ✓ | 0 |
 | pis-w1-social-engineering.presentation | presentation | ✓ | 0 |
@@ -10065,7 +10069,7 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (2367)
+### WARNING (2294)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -14644,6 +14648,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-frameworks-characters.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/divergent/ethics-it/presentations/eth-w1-cybersecurity-ethics.presentation.html`
   Fix: Add entry to content-registry.js
 
@@ -16913,6 +16921,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/presentations/pis-w1-cia-triad.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w1-lecture.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -19235,307 +19247,7 @@
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `dark-arts/vault/owasp-top10-lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `dark-arts/vault/privilege-escalation-lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/code/python-for-it/labs/pfi-w4-gui-inclass.lab.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/crypto-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/crypto-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/firewall-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/firewall-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/forensics-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/forensics-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/forensics-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/incident-response-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/incident-response-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/incident-response-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/linux-fs-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/linux-fs-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/linux-fs-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/log-analysis-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/log-analysis-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/pfi-op-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/pfi-op-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/pfi-op-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/pfi-op-04.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-04.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-05.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-06.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-07.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-08.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-09.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-10.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-11.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-12.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-13.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-14.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-15.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-16.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-17.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-18.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-19.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-20.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-21.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-22.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-23.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-24.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-25.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-26.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-27.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-28.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-29.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-30.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-31.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-32.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-33.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-34.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-35.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-36.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-37.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-38.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-39.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-40.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-41.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-42.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-43.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-44.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-45.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-46.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-47.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-48.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-49.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/python-50.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/recon-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/recon-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/recon-03.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/windows-cmd-01.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `operator/missions/windows-cmd-02.mission.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-### INFO (927)
+### INFO (681)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `about.html`
@@ -20773,553 +20485,9 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 3132 of 3565 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3166 of 3599 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `career/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `career/resume-builder.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/labs/bh-lab-report.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-exploit.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-exploit.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-hunting.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-ai-hunting.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-api-security.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-auth-access.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-blockchain.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-blockchain.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-case-studies.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-cloud.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-fundamentals.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-hunting-grounds.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-hunting-grounds.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-injection.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-mobile.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-network.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon-adv.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon-adv.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon-tools.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-recon.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-reporting.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-source-review.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-supply-chain.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-vuln-reporting.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-web-vulns.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/modules/bh-mod-xml-bombs.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/tools/bh-tool-ai.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/labs/ehe-lab-pentest-report.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/labs/ehe-lab-pentest-report.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/labs/ehe-lab-virus-creation.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/labs/ehe-lab-virus-creation.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `dark-arts/vault/ehe/modules/ehe-04-password-cracking.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/modules/ehe-05-social-engineering.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/modules/ehe-05-social-engineering.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/modules/ehe-06-network-attacks.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/modules/ehe-07-web-app-attacks.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/modules/ehe-07-web-app-attacks.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ehe/modules/ehe-12-pentest-fundamentals.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/footprinting-lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/desktop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/laptop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/laptop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/laptop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/laptop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/laptop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/laptop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8/laptop.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-8.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-9.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-9.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-9.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-9.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/gates/gate-9.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/ids-evasion-lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/incident-response.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `dark-arts/vault/modules/incident-response.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/sandbox-setup.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/modules/static-analysis.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/social-engineering-advanced.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/steganography-lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/steganography-lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-cracking.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-defense.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-eviltwin.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-rita.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-setup.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-setup.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dark-arts/vault/wifi-arsenal/modules/wifi-mod-setup.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dashboard.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dashboard.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `dashboard.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `funding/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `funding/proposal-guide.html`
-  Fix: Manual review required - path is constructed dynamically
 
 **[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
   File: `houses/ai/cortex/adversarial/cx-adv-01.html`
@@ -21813,98 +20981,6 @@
   File: `houses/ai/cortex/unsupervised/cx-uns-10.html`
   Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
 
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/ai/games/ai-triage-trainer.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/ai/hubs/ai-automation-hub.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/ai/hubs/ai-automation-hub.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/ai/hubs/ai-automation-hub.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/ai/hubs/ai-automation-hub.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/ai/hubs/ai-automation-hub.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/ai/labs/ai-agent-workflow.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/ai/labs/ai-agent-workflow.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/ai/modules/ai-agent-components.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-guilab.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-guilab.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-guilab.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-guilab.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-guilab.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-guilab.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/ms-102/labs/ms102-ch06-sharepoint.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/ms-102/labs/ms102-ch07-teams.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/ms-900/labs/ms900-ch03-pricing-support.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/presentations/cloud-aws-fundamentals.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/presentations/cloud-cloud.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/tools/cloud-ch03-support-plans.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/tools/cloud-ch09-database-services.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/cloud/tools/cloud-ch12-use-cases.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
 **[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
   File: `houses/code/algorithm-chamber/complexity/ac-bigo-01.html`
   Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
@@ -22224,10 +21300,6 @@
 **[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
   File: `houses/code/algorithm-chamber/strings/ac-str-10.html`
   Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/code/applets/code-pipeline-builder.applet.html`
-  Fix: Manual review required - path is constructed dynamically
 
 **[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
   File: `houses/code/armory/assembly/arm-asm-01-intro.module.html`
@@ -22749,367 +21821,23 @@
   File: `houses/code/armory/swift-kotlin/arm-sk-10-security.module.html`
   Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
 
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/code/games/code-dont-deploy-on-friday.html`
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
+  File: `houses/shield/sc-200/labs/sc200-ch08-sentinel-response.lab.html`
   Fix: Manual review required - path is constructed dynamically
 
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/code/presentations/code-automation.presentation.html`
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
+  File: `houses/shield/sc-900/labs/sc900-ch03-security-solutions.lab.html`
   Fix: Manual review required - path is constructed dynamically
 
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-document.webp
-  File: `houses/divergent/cybersecurity-ethics/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/eye/applets/cyberops/eye-content-filtering.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/eye/applets/cyberops/eye-content-filtering.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/eye/applets/cyberops/eye-data-types-output.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/eye/applets/cyberops/labs/eye-lab-2-2-5-becoming-defender.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/eye/applets/cyberops/labs/eye-lab-3-0-3-running-processes.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/eye/applets/cyberops/labs/eye-lab-3-3-10-user-accounts.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/eye/presentations/eye-soc-operations.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/eye/tools/eye-siem.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-rescue.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/domains/operating-systems/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-change-management.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/applets/forge-admin-tools.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/applets/forge-windows-edition-selector.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/forge-windows-edition-selector.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/labs/forge-windows-editions.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/labs/forge-md100-m02-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/labs/forge-md100-m02-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/labs/forge-md100-m02-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/labs/forge-md100-m03-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/labs/forge-md100-m04-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/labs/forge-md100-m07-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/labs/forge-md100-m07-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/labs/forge-md100-m07-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/md-100/labs/forge-md100-m09-sim.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/reviews/forge-backup-or-bust.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/tools/forge-admin-tools.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/forge/tools/forge-windows-edition-selector.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/forge/tools/forge-windows-edition-selector.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/key/labs/key-crypto-stego.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/key/presentations/key-cryptography-fundamentals.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/key/tools/key-cert.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/applets/python/script-python-chapter7-file-handling.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/applets/script-automation-intro.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/applets/script-automation-intro.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/applets/script-automation-intro.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/applets/script-automation-intro.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/applets/script-log-analysis.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/applets/script-reporting-automation.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/applets/script-reporting-automation.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/labs/script-linux-bash.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/modules/linux-mastery/script-lm-24-chown.module.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/presentations/python/script-python-chapter2.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/presentations/python/script-python-chapter7.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/presentations/script-automation.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/script/presentations/script-macos-linux-basics.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/applets/crypto/shield-checksum-verifier.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/applets/fundamentals/shield-asset-classification-wizard.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/applets/governance/shield-cism-management-dashboard.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/shield/applets/operations/shield-cfr-310-incident-response.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/applets/operations/shield-pentest-plus-toolkit.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/applets/operations/shield-pentest-plus-toolkit.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/applets/operations/shield-pentest-plus-toolkit.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/applets/threats/shield-malware-types.applet.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/cyber-framework/presentations/shield-cf-mm03-legislation.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
-  File: `houses/shield/isc2-cc/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
-  File: `houses/shield/isc2-cc/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
-  File: `houses/shield/isc2-cc/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
-  File: `houses/shield/isc2-cc/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/labs/shield-gpg-encryption.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/labs/shield-gpg-encryption.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/labs/shield-hash.lab.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/presentations/shield-social-engineering.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
-  File: `houses/shield/security-plus/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
-  File: `houses/shield/security-plus/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
-  File: `houses/shield/security-plus/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
-  File: `houses/shield/security-plus/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: ../../../assets/images/icons/icon-window.webp
-  File: `houses/shield/security-plus/index.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/tools/shield-bia.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/shield/tools/shield-bia.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/web/network-plus/tools/qos.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/web/presentations/web-ntp.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-window.webp
-  File: `houses/web/presentations/web-ntp.presentation.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `houses/web/tools/web-qos.tool.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `path-view.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `terminal.html`
-  Fix: Manual review required - path is constructed dynamically
-
-**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-document.webp
-  File: `terminal.html`
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
+  File: `houses/shield/sc-900/labs/sc900-ch04-compliance.lab.html`
   Fix: Manual review required - path is constructed dynamically
 
 
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (2242)
+### Unregistered Content (2244)
 
 | Path | Type | House |
 |------|------|-------|
@@ -24250,6 +22978,7 @@
 | houses/divergent/ethics-it/presentations/eth-13-it-organizations.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-14-codes-of-ethics.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-15-final-assessment.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-frameworks-characters.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w1-cybersecurity-ethics.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w1-ethics-overview.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w1-it-professionals.presentation.html | presentation | divergent |
@@ -24818,6 +23547,7 @@
 | houses/shield/infosec/pis-r4.html | presentation | shield |
 | houses/shield/infosec/pis-r5.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w1-cia-triad.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w1-lecture.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w1-malware.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w1-security-controls.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w1-social-engineering.presentation.html | presentation | shield |
