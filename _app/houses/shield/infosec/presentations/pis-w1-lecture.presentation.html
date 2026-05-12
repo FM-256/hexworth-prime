@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 1 Lecture Companion | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 16px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 28px 36px 78px; overflow: hidden;
+            animation: slideIn 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(28px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .slide-inner { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 18px; }
+
+        /* progress + nav */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+            transition: width 0.45s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+            background: rgba(2, 8, 20, 0.95); border-top: 1px solid rgba(59, 130, 246, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 9px 24px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.84rem; padding: 9px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.84rem; min-width: 100px; text-align: center; }
+
+        #complete-btn { display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35); }
+
+        /* typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; opacity: 0.8; }
+        .slide-title { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; text-align: center; line-height: 1.18; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+        .slide-title .accent-gold { color: #eab308; }
+        .slide-title .accent-red { color: #ef4444; }
+        .slide-subtitle { font-size: 1.05rem; color: #94a3b8; text-align: center; max-width: 880px; margin: 0 auto; }
+
+        /* hero title slide */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 3rem; font-weight: 900; color: #f1f5f9; line-height: 1.12; letter-spacing: -0.01em; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-hero .lead { font-size: 1.2rem; color: #94a3b8; max-width: 720px; }
+        .title-meta-row { display: flex; gap: 32px; justify-content: center; margin-top: 12px; font-size: 0.85rem; color: #64748b; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* cards */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .card-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 16px 18px; border-left: 3px solid #3b82f6;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        .slide.active .card:nth-child(1) { animation-delay: 0.18s; }
+        .slide.active .card:nth-child(2) { animation-delay: 0.32s; }
+        .slide.active .card:nth-child(3) { animation-delay: 0.46s; }
+        .slide.active .card:nth-child(4) { animation-delay: 0.60s; }
+        .slide.active .card:nth-child(5) { animation-delay: 0.74s; }
+        .slide.active .card:nth-child(6) { animation-delay: 0.88s; }
+
+        .card .card-label { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.9rem; color: #94a3b8; line-height: 1.5; }
+        .card.c-blue  { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.04); }
+        .card.c-red   { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.04); }
+        .card.c-gold  { border-left-color: #eab308; background: rgba(234, 179, 8, 0.04); }
+        .card.c-cyan  { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.04); }
+        .card.c-green { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.04); }
+        .card.c-purple { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.04); }
+        .card.c-pink  { border-left-color: #ec4899; background: rgba(236, 72, 153, 0.04); }
+
+        /* big-stat hero cards */
+        .stat-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(6, 182, 212, 0.04));
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 14px; padding: 22px 24px; text-align: center;
+            opacity: 0; animation: cardIn 0.6s ease-out forwards;
+        }
+        .stat-card .stat-icon { width: 52px; height: 52px; margin: 0 auto 10px; display: block; opacity: 0.95; }
+        .stat-card .stat-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #3b82f6; margin-bottom: 6px; }
+        .stat-card .stat-title { font-size: 1.4rem; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
+        .stat-card .stat-text  { font-size: 0.92rem; color: #cbd5e1; line-height: 1.55; }
+
+        /* callouts */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 12px 18px;
+            font-size: 0.95rem; color: #bfdbfe; font-style: italic; line-height: 1.55;
+        }
+        .box { border-radius: 8px; padding: 14px 18px; font-size: 0.92rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.75; }
+
+        /* lecture-specific: agenda items */
+        .agenda-row {
+            display: grid; grid-template-columns: 60px 1fr auto; gap: 18px;
+            align-items: center; padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            border-left: 3px solid #3b82f6;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        .agenda-num { font-size: 1.8rem; font-weight: 800; color: #3b82f6; text-align: center; opacity: 0.7; }
+        .agenda-text { display: flex; flex-direction: column; gap: 2px; }
+        .agenda-text .agenda-title { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+        .agenda-text .agenda-sub   { font-size: 0.85rem; color: #94a3b8; }
+        .agenda-time { font-size: 0.78rem; font-weight: 700; color: #64748b; letter-spacing: 0.08em; }
+        .slide.active .agenda-row:nth-child(1) { animation-delay: 0.20s; }
+        .slide.active .agenda-row:nth-child(2) { animation-delay: 0.36s; }
+        .slide.active .agenda-row:nth-child(3) { animation-delay: 0.52s; }
+        .slide.active .agenda-row:nth-child(4) { animation-delay: 0.68s; }
+        .slide.active .agenda-row:nth-child(5) { animation-delay: 0.84s; }
+
+        /* diagrams */
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 6px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.5; r: 4; } 50% { opacity: 1; r: 6; } }
+        @keyframes pulseGlow { 0%, 100% { filter: drop-shadow(0 0 4px currentColor); } 50% { filter: drop-shadow(0 0 14px currentColor); } }
+        @keyframes flowRight { 0% { transform: translateX(-6px); opacity: 0.3; } 50% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(6px); opacity: 0.3; } }
+        @keyframes signalSend { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes triangleSpin { 0%, 100% { transform: rotate(0deg); } 33% { transform: rotate(2deg); } 66% { transform: rotate(-2deg); } }
+        @keyframes expandOut { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes orbitGlow { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        /* icon helpers */
+        .icon-img { width: 1.2em; height: 1.2em; vertical-align: middle; display: inline-block; object-fit: contain; }
+        .icon-card { width: 44px; height: 44px; object-fit: contain; opacity: 0.92; }
+
+        /* threat-actor avatar grid */
+        .actor-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+        .actor {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 14px 12px; text-align: center; border-top: 3px solid #3b82f6;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        .actor .actor-icon { width: 44px; height: 44px; margin: 0 auto 8px; display: block; opacity: 0.9; filter: drop-shadow(0 0 8px currentColor); }
+        .actor .actor-name { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .actor .actor-motive { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        .actor.c-cyan   { border-top-color: #06b6d4; color: #06b6d4; }
+        .actor.c-purple { border-top-color: #a855f7; color: #a855f7; }
+        .actor.c-red    { border-top-color: #ef4444; color: #ef4444; }
+        .actor.c-gold   { border-top-color: #eab308; color: #eab308; }
+        .actor.c-pink   { border-top-color: #ec4899; color: #ec4899; }
+        .slide.active .actor:nth-child(1) { animation-delay: 0.20s; }
+        .slide.active .actor:nth-child(2) { animation-delay: 0.34s; }
+        .slide.active .actor:nth-child(3) { animation-delay: 0.48s; }
+        .slide.active .actor:nth-child(4) { animation-delay: 0.62s; }
+        .slide.active .actor:nth-child(5) { animation-delay: 0.76s; }
+
+        /* recap fact rows */
+        .summary-facts { display: flex; flex-direction: column; gap: 8px; }
+        .fact-row { display: flex; gap: 14px; align-items: baseline; font-size: 0.95rem; opacity: 0; animation: cardIn 0.45s ease-out forwards; }
+        .fact-num  { font-size: 0.85rem; font-weight: 800; color: #3b82f6; min-width: 26px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.55; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #3b82f6; background: rgba(59, 130, 246, 0.08); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; }
+        .slide.active .fact-row:nth-child(1) { animation-delay: 0.16s; }
+        .slide.active .fact-row:nth-child(2) { animation-delay: 0.28s; }
+        .slide.active .fact-row:nth-child(3) { animation-delay: 0.40s; }
+        .slide.active .fact-row:nth-child(4) { animation-delay: 0.52s; }
+        .slide.active .fact-row:nth-child(5) { animation-delay: 0.64s; }
+        .slide.active .fact-row:nth-child(6) { animation-delay: 0.76s; }
+        .slide.active .fact-row:nth-child(7) { animation-delay: 0.88s; }
+
+        /* concentric defense-in-depth diagram */
+        .layers { position: relative; width: 320px; height: 320px; margin: 0 auto; }
+        .layer-ring {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            border-radius: 50%; border: 2px solid; transform-origin: center;
+            opacity: 0; animation: expandOut 0.6s ease-out forwards;
+        }
+        .layer-ring.l1 { width: 60px;  height: 60px;  border-color: #3b82f6; color: #3b82f6; animation-delay: 0.2s; }
+        .layer-ring.l2 { width: 130px; height: 130px; border-color: #06b6d4; color: #06b6d4; animation-delay: 0.35s; }
+        .layer-ring.l3 { width: 200px; height: 200px; border-color: #22c55e; color: #22c55e; animation-delay: 0.50s; }
+        .layer-ring.l4 { width: 270px; height: 270px; border-color: #eab308; color: #eab308; animation-delay: 0.65s; }
+        .layer-ring.l5 { width: 320px; height: 320px; border-color: #ef4444; color: #ef4444; animation-delay: 0.80s; }
+        .layer-label {
+            position: absolute; left: 50%; transform: translateX(-50%);
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.1em; opacity: 0; animation: cardIn 0.4s ease-out forwards;
+        }
+        .layer-label.l1 { top: 44%; color: #3b82f6; animation-delay: 0.55s; }
+        .layer-label.l2 { top: 31%; color: #06b6d4; animation-delay: 0.7s; }
+        .layer-label.l3 { top: 19%; color: #22c55e; animation-delay: 0.85s; }
+        .layer-label.l4 { top: 7%;  color: #eab308; animation-delay: 1.0s; }
+        .layer-label.l5 { top: -3%; color: #ef4444; animation-delay: 1.15s; }
+
+        /* CIA Triad triangle */
+        .triad-wrap { display: flex; justify-content: center; padding: 8px 0; }
+        .triad svg { max-width: 100%; height: auto; }
+
+        /* 3×3 controls matrix */
+        .control-matrix {
+            display: grid; grid-template-columns: 110px repeat(3, 1fr); gap: 8px;
+            font-size: 0.85rem;
+        }
+        .control-matrix .header { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; padding: 8px 0; }
+        .control-matrix .row-label { font-size: 0.85rem; font-weight: 700; color: #cbd5e1; padding: 12px 8px; align-self: center; }
+        .control-matrix .cell {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid;
+            opacity: 0; animation: cardIn 0.4s ease-out forwards;
+        }
+        .control-matrix .cell .cell-label { font-size: 0.85rem; font-weight: 700; color: #f1f5f9; margin-bottom: 3px; }
+        .control-matrix .cell .cell-text  { font-size: 0.78rem; color: #94a3b8; line-height: 1.45; }
+        .control-matrix .cell.c-blue  { border-left-color: #3b82f6; }
+        .control-matrix .cell.c-cyan  { border-left-color: #06b6d4; }
+        .control-matrix .cell.c-green { border-left-color: #22c55e; }
+        .control-matrix .cell.c-gold  { border-left-color: #eab308; }
+        .control-matrix .cell.c-red   { border-left-color: #ef4444; }
+        .control-matrix .cell.c-purple { border-left-color: #a855f7; }
+        .control-matrix .cell.c-pink  { border-left-color: #ec4899; }
+        .control-matrix .cell.c-orange { border-left-color: #f97316; }
+        .control-matrix .cell.c-teal  { border-left-color: #14b8a6; }
+        .slide.active .control-matrix .cell:nth-child(6)  { animation-delay: 0.2s; }
+        .slide.active .control-matrix .cell:nth-child(7)  { animation-delay: 0.3s; }
+        .slide.active .control-matrix .cell:nth-child(8)  { animation-delay: 0.4s; }
+        .slide.active .control-matrix .cell:nth-child(10) { animation-delay: 0.5s; }
+        .slide.active .control-matrix .cell:nth-child(11) { animation-delay: 0.6s; }
+        .slide.active .control-matrix .cell:nth-child(12) { animation-delay: 0.7s; }
+        .slide.active .control-matrix .cell:nth-child(14) { animation-delay: 0.8s; }
+        .slide.active .control-matrix .cell:nth-child(15) { animation-delay: 0.9s; }
+        .slide.active .control-matrix .cell:nth-child(16) { animation-delay: 1.0s; }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 12px; } .slide-title { font-size: 1.7rem; } .title-hero .big-title { font-size: 2.2rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-2, .card-grid-4, .card-grid-5 { grid-template-columns: 1fr; } .actor-grid { grid-template-columns: repeat(2, 1fr); } .slide-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Week 1 Lecture Companion | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:4%"></div>
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Lecture Companion &nbsp;|&nbsp; Week 1 of 8 &nbsp;|&nbsp; CompTIA SY0-701</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Foundations of<br>
+                <span class="accent">Information Security</span>
+            </div>
+            <div class="lead">
+                A high-level dig through Week 1: why security exists, the CIA triad, threats, malware, social engineering, and the controls that hold the line.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>25 Slides</span>
+            <span>~50 min</span>
+            <span>5 sub-topics</span>
+            <span>Lecture pace</span>
+        </div>
+        <div class="scenario-strip" style="margin-top:14px;">
+            This deck is the instructor companion. The 5 textbook decks (CIA Triad, Threat Actors, Malware, Social Engineering, Security Controls) hold the drilldown. This deck holds the throughline.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 2 — THE WEEK AHEAD ============ -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 25 &nbsp;|&nbsp; The Week Ahead</div>
+        <div class="slide-title">Five Sub-Topics, <span class="accent">One Foundation</span></div>
+        <div class="slide-subtitle">Every advanced topic in this course traces back to the five ideas we will cover today.</div>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin-top:6px;">
+            <div class="agenda-row">
+                <div class="agenda-num">1</div>
+                <div class="agenda-text">
+                    <div class="agenda-title">The CIA Triad &amp; Core Concepts</div>
+                    <div class="agenda-sub">Confidentiality, Integrity, Availability. The lens every security decision passes through.</div>
+                </div>
+                <div class="agenda-time">~10 min</div>
+            </div>
+            <div class="agenda-row">
+                <div class="agenda-num">2</div>
+                <div class="agenda-text">
+                    <div class="agenda-title">Threat Actors &amp; Attack Surfaces</div>
+                    <div class="agenda-sub">Who attacks, why they attack, and where attacks land.</div>
+                </div>
+                <div class="agenda-time">~8 min</div>
+            </div>
+            <div class="agenda-row">
+                <div class="agenda-num">3</div>
+                <div class="agenda-text">
+                    <div class="agenda-title">Malware Family Tree</div>
+                    <div class="agenda-sub">Virus, worm, trojan, ransomware, rootkit, and the modern variants.</div>
+                </div>
+                <div class="agenda-time">~10 min</div>
+            </div>
+            <div class="agenda-row">
+                <div class="agenda-num">4</div>
+                <div class="agenda-text">
+                    <div class="agenda-title">Social Engineering &mdash; The Human Vector</div>
+                    <div class="agenda-sub">Phishing, vishing, pretexting, baiting. The wall that can't be patched.</div>
+                </div>
+                <div class="agenda-time">~10 min</div>
+            </div>
+            <div class="agenda-row">
+                <div class="agenda-num">5</div>
+                <div class="agenda-text">
+                    <div class="agenda-title">Security Controls &amp; Defense in Depth</div>
+                    <div class="agenda-sub">How we push back. Layered, classified, and always imperfect.</div>
+                </div>
+                <div class="agenda-time">~10 min</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3 — WHY SECURITY EXISTS ============ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 25</div>
+        <div class="slide-title">Why <span class="accent">Security</span> Exists</div>
+        <div class="slide-subtitle">Every control traces back to one cause: information has value, and adversaries want it.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 130" width="720" height="130" xmlns="http://www.w3.org/2000/svg">
+                <!-- Data -->
+                <rect x="20" y="38" width="160" height="54" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="2"/>
+                <text x="100" y="62" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="13" font-weight="700">DATA VALUE</text>
+                <text x="100" y="80" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">PII · Money · IP · Access</text>
+                <!-- arrow 1 -->
+                <line x1="180" y1="65" x2="270" y2="65" stroke="#60a5fa" stroke-width="2" stroke-dasharray="6 3" style="animation: signalSend 1.4s linear infinite"/>
+                <polygon points="270,65 260,60 260,70" fill="#60a5fa"/>
+                <!-- Adversary -->
+                <rect x="280" y="38" width="160" height="54" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="2"/>
+                <text x="360" y="62" text-anchor="middle" fill="#fee2e2" font-family="Segoe UI" font-size="13" font-weight="700">ADVERSARY</text>
+                <text x="360" y="80" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="10">Motive · Opportunity · Skill</text>
+                <!-- arrow 2 -->
+                <line x1="440" y1="65" x2="530" y2="65" stroke="#60a5fa" stroke-width="2" stroke-dasharray="6 3" style="animation: signalSend 1.4s linear infinite 0.4s"/>
+                <polygon points="530,65 520,60 520,70" fill="#60a5fa"/>
+                <!-- Controls -->
+                <rect x="540" y="38" width="160" height="54" rx="8" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="2"/>
+                <text x="620" y="62" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="13" font-weight="700">SECURITY CONTROLS</text>
+                <text x="620" y="80" text-anchor="middle" fill="#fde68a" font-family="Segoe UI" font-size="10">Tech · Admin · Physical</text>
+                <!-- pulse markers -->
+                <circle cx="225" cy="65" r="5" fill="#60a5fa" style="animation: pulse 2s ease-in-out infinite"/>
+                <circle cx="485" cy="65" r="5" fill="#60a5fa" style="animation: pulse 2s ease-in-out infinite 0.7s"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Data Has Intrinsic Value</div>
+                <div class="card-desc">Patient records, credentials, IP, and access rights all trade on secondary markets. The value drives the attack.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Systems Are Always Targeted</div>
+                <div class="card-desc">Automated scanning never stops. Every network-exposed system is being probed right now. The question is whether your defenses hold.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Perfect Security Is Impossible</div>
+                <div class="card-desc">Security is risk management, not risk elimination. The job is balancing protection, friction, and cost &mdash; under audit.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 4 — CIA TRIAD ============ -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 25 &nbsp;|&nbsp; Topic 1: CIA Triad</div>
+        <div class="slide-title">The <span class="accent">CIA Triad</span></div>
+        <div class="slide-subtitle">Three pillars. Every security control maps to at least one of them. Every attack violates at least one.</div>
+
+        <div class="triad-wrap">
+            <div class="triad">
+                <svg viewBox="0 0 480 280" width="480" height="280" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="triFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#3b82f6; stop-opacity:0.18"/>
+                            <stop offset="100%" style="stop-color:#06b6d4; stop-opacity:0.08"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Triangle -->
+                    <polygon points="240,20 80,250 400,250" fill="url(#triFill)" stroke="#3b82f6" stroke-width="3" style="animation: triangleSpin 8s ease-in-out infinite;"/>
+                    <!-- Vertices with labels -->
+                    <circle cx="240" cy="20" r="8" fill="#3b82f6" style="animation: pulse 2.4s ease-in-out infinite, orbitGlow 2.4s ease-in-out infinite;"/>
+                    <text x="240" y="9" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="15" font-weight="800">CONFIDENTIALITY</text>
+                    <text x="240" y="55" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="11">Encryption · Access control</text>
+
+                    <circle cx="80" cy="250" r="8" fill="#22c55e" style="animation: pulse 2.4s ease-in-out infinite 0.8s, orbitGlow 2.4s ease-in-out infinite 0.8s;"/>
+                    <text x="80" y="272" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="15" font-weight="800">INTEGRITY</text>
+                    <text x="80" y="232" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="11">Hashes · Signatures</text>
+
+                    <circle cx="400" cy="250" r="8" fill="#06b6d4" style="animation: pulse 2.4s ease-in-out infinite 1.6s, orbitGlow 2.4s ease-in-out infinite 1.6s;"/>
+                    <text x="400" y="272" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="15" font-weight="800">AVAILABILITY</text>
+                    <text x="400" y="232" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="11">Redundancy · DR</text>
+                </svg>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="text-align:center; font-size:1rem;">
+            <strong>Anchor question for every decision:</strong> Which pillar(s) does this control protect &mdash; or which does this attack violate?
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 5 — CIA: CONFIDENTIALITY ============ -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 25</div>
+        <div class="slide-title"><span class="accent">Confidentiality</span></div>
+        <div class="slide-subtitle">Information is only accessible to those authorized to access it.</div>
+
+        <div class="card-grid-2">
+            <div class="stat-card" style="text-align:left;">
+                <div class="stat-label">When it works</div>
+                <div class="stat-title" style="font-size:1.15rem;">Quiet defense</div>
+                <div class="stat-text">Encryption protects data at rest and in transit. Access control lists restrict who can read what. Need-to-know minimizes the blast radius of any single account compromise.</div>
+            </div>
+            <div class="stat-card" style="text-align:left; background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(236,72,153,0.04)); border-color: rgba(239,68,68,0.25);">
+                <div class="stat-label" style="color:#ef4444;">When it fails</div>
+                <div class="stat-title" style="font-size:1.15rem;">Disclosure</div>
+                <div class="stat-text">Data breaches. Stolen credentials. Eavesdropping on unencrypted traffic. Insider exfiltration. Each is a confidentiality violation regardless of whether the data was modified.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Real-world anchor</div>
+            <strong>2017 Equifax breach.</strong> 147 million credit records exposed. No data was altered. No service was knocked offline. The integrity and availability pillars stood. Confidentiality alone failed &mdash; and that was enough to be one of the largest breaches in history.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 6 — CIA: INTEGRITY ============ -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 25</div>
+        <div class="slide-title"><span class="accent-cyan">Integrity</span></div>
+        <div class="slide-subtitle">Information has not been modified without authorization &mdash; and you can prove it.</div>
+
+        <div class="card-grid-2">
+            <div class="stat-card" style="text-align:left;">
+                <div class="stat-label" style="color:#06b6d4;">When it works</div>
+                <div class="stat-title" style="font-size:1.15rem;">Verifiable trust</div>
+                <div class="stat-text">Cryptographic hashes prove a file hasn't changed. Digital signatures prove who created it. Database transactions enforce ACID consistency. Configuration management baselines detect drift.</div>
+            </div>
+            <div class="stat-card" style="text-align:left; background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(236,72,153,0.04)); border-color: rgba(239,68,68,0.25);">
+                <div class="stat-label" style="color:#ef4444;">When it fails</div>
+                <div class="stat-title" style="font-size:1.15rem;">Tampering</div>
+                <div class="stat-text">Modified financial records. Forged log entries to hide an attack. Ransomware that corrupts files. Man-in-the-middle that rewrites traffic. Integrity violations are often more dangerous than confidentiality breaches because they poison decisions.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Real-world anchor</div>
+            <strong>2020 SolarWinds supply chain attack.</strong> Attackers tampered with the legitimate Orion software update, embedding a backdoor. Customers downloading signed updates trusted the signature &mdash; but the build pipeline itself was compromised. Integrity failed at a layer most defenders had never thought to check.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 7 — CIA: AVAILABILITY ============ -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 25</div>
+        <div class="slide-title"><span class="accent-gold">Availability</span></div>
+        <div class="slide-subtitle">Systems and data are reachable when needed by authorized users.</div>
+
+        <div class="card-grid-2">
+            <div class="stat-card" style="text-align:left;">
+                <div class="stat-label" style="color:#eab308;">When it works</div>
+                <div class="stat-title" style="font-size:1.15rem;">Resilience</div>
+                <div class="stat-text">Redundant systems. Load balancing. Disaster recovery sites. Backups tested by restore drills. Capacity planned for surge. SLAs measured and reported.</div>
+            </div>
+            <div class="stat-card" style="text-align:left; background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(236,72,153,0.04)); border-color: rgba(239,68,68,0.25);">
+                <div class="stat-label" style="color:#ef4444;">When it fails</div>
+                <div class="stat-title" style="font-size:1.15rem;">Outage</div>
+                <div class="stat-text">DDoS floods. Ransomware encrypts critical files. Hardware fails. Misconfigured DNS. A natural disaster takes the data center offline. The data is intact and confidential &mdash; but it might as well not exist if nobody can reach it.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Real-world anchor</div>
+            <strong>2021 Colonial Pipeline ransomware.</strong> The pipeline operator preemptively shut down operations to prevent ransomware from spreading to operational systems. East Coast fuel supply was disrupted for days. No data was technically lost; availability simply collapsed &mdash; and a healthcare-style life-safety availability problem emerged in critical infrastructure.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 8 — VULNERABILITY vs THREAT vs RISK ============ -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 25</div>
+        <div class="slide-title">Vulnerability &middot; <span class="accent">Threat</span> &middot; <span class="accent-gold">Risk</span></div>
+        <div class="slide-subtitle">Three words. Most people use them interchangeably. They are not the same.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label" style="color:#cffafe;">VULNERABILITY</div>
+                <div class="card-desc">A <em>weakness</em> in the system. An unpatched OS. A missing input validator. A default password. Vulnerabilities exist whether or not anyone exploits them.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label" style="color:#fecaca;">THREAT</div>
+                <div class="card-desc">Anything with the <em>potential</em> to exploit a vulnerability. A hostile actor. A natural disaster. A bug under active exploitation in the wild.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label" style="color:#fde68a;">RISK</div>
+                <div class="card-desc">The <em>probability</em> that a threat exploits a vulnerability multiplied by the <em>impact</em>. Risk is what we measure. Risk is what we manage.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="text-align:center; font-size:1rem;">
+            <strong>RISK = THREAT &times; VULNERABILITY &times; IMPACT</strong> &nbsp;&mdash;&nbsp; remove any one factor, and risk goes to zero. That's the whole security playbook.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 9 — AAA TRIAD ============ -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 25</div>
+        <div class="slide-title">The Other Triad: <span class="accent">AAA</span></div>
+        <div class="slide-subtitle">Authentication, Authorization, Accounting. CIA describes what we protect. AAA describes how we control access.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Authentication</div>
+                <div class="card-desc"><strong>Who are you?</strong> Verifying identity. Something you know (password), have (token), or are (biometric). Multi-factor combines two or more.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Authorization</div>
+                <div class="card-desc"><strong>What can you do?</strong> Determining permissions for an already-authenticated identity. RBAC, ABAC, MAC, DAC are the major models.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Accounting</div>
+                <div class="card-desc"><strong>What did you do?</strong> Logging actions for audit and forensics. Without accounting, breach detection and post-incident review are impossible.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Authentication answers <em>who</em>. Authorization answers <em>what</em>. Accounting answers <em>when and how</em>. Miss any one and you have either an open door, a confused permission system, or no way to know what happened.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10 — TOPIC 2: THREAT ACTORS ============ -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 25 &nbsp;|&nbsp; Topic 2: Threat Actors</div>
+        <div class="slide-title">The <span class="accent-red">Threat Actor</span> Taxonomy</div>
+        <div class="slide-subtitle">Five distinct profiles. Each has different motivations, resources, and patience.</div>
+
+        <div class="actor-grid">
+            <div class="actor c-cyan">
+                <img src="/assets/images/icons/icon-user.webp" alt="" class="actor-icon">
+                <div class="actor-name">Script Kiddie</div>
+                <div class="actor-motive">Curiosity, status. Borrowed tools. Low skill. High noise.</div>
+            </div>
+            <div class="actor c-purple">
+                <img src="/assets/images/icons/icon-megaphone.webp" alt="" class="actor-icon">
+                <div class="actor-name">Hacktivist</div>
+                <div class="actor-motive">Ideology. Politics. Defacement and disclosure for cause.</div>
+            </div>
+            <div class="actor c-red">
+                <img src="/assets/images/icons/icon-money.webp" alt="" class="actor-icon">
+                <div class="actor-name">Cybercriminal</div>
+                <div class="actor-motive">Money. Organized. Ransomware, fraud, identity theft.</div>
+            </div>
+            <div class="actor c-gold">
+                <img src="/assets/images/icons/icon-key.webp" alt="" class="actor-icon">
+                <div class="actor-name">Insider</div>
+                <div class="actor-motive">Access already granted. Disgruntled, negligent, or coerced.</div>
+            </div>
+            <div class="actor c-pink">
+                <img src="/assets/images/icons/icon-shield.webp" alt="" class="actor-icon">
+                <div class="actor-name">Nation-State</div>
+                <div class="actor-motive">Espionage, sabotage. Unlimited resources. Years of patience.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The defender's burden</div>
+            Each profile demands a different defense posture. A control set tuned for script kiddies will not stop a nation-state. A control set tuned for nation-states is unaffordable for most organizations. Know who you are most likely to face.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 11 — APT SPOTLIGHT ============ -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 25</div>
+        <div class="slide-title">Advanced Persistent Threat &mdash; <span class="accent-red">APT</span></div>
+        <div class="slide-subtitle">The most dangerous adversary class. Three words. Each matters.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Advanced</div>
+                <div class="card-desc">Custom tooling. Zero-day exploits. Multi-stage payloads. Operational tradecraft refined over years.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Persistent</div>
+                <div class="card-desc">Stays hidden for months or years. Establishes redundant footholds. Survives detection of any single tool or account.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Threat</div>
+                <div class="card-desc">Deliberate intent. Specific targets. Strategic objectives that align with state-level interests.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Recognition pattern</div>
+            <strong>2010 Stuxnet.</strong> Nation-state malware that crossed an air gap, targeted specific Siemens PLCs running Iranian centrifuges, and physically destroyed the equipment by manipulating rotation speeds while feeding the operators normal-looking telemetry. Designed by a state. Operated for years before detection. That's APT.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 12 — ATTACK SURFACE ============ -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 25</div>
+        <div class="slide-title">The <span class="accent">Attack Surface</span></div>
+        <div class="slide-subtitle">Every point where an adversary could enter, extract, or disrupt. Reducing it is the defender's permanent project.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 780 220" width="780" height="220" xmlns="http://www.w3.org/2000/svg">
+                <!-- Org core -->
+                <rect x="320" y="80" width="140" height="60" rx="10" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="2"/>
+                <text x="390" y="105" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="13" font-weight="700">YOUR ORG</text>
+                <text x="390" y="125" text-anchor="middle" fill="#86efac" font-family="Segoe UI" font-size="10">Data · Systems · People</text>
+
+                <!-- Surfaces around it -->
+                <g style="animation: orbitGlow 3s ease-in-out infinite;">
+                    <rect x="40" y="20" width="140" height="38" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="110" y="44" text-anchor="middle" fill="#fee2e2" font-family="Segoe UI" font-size="11" font-weight="700">Internet-Exposed Services</text>
+                </g>
+                <g style="animation: orbitGlow 3s ease-in-out infinite 0.4s;">
+                    <rect x="600" y="20" width="140" height="38" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="670" y="44" text-anchor="middle" fill="#fee2e2" font-family="Segoe UI" font-size="11" font-weight="700">Email &amp; Phishing</text>
+                </g>
+                <g style="animation: orbitGlow 3s ease-in-out infinite 0.8s;">
+                    <rect x="40" y="170" width="140" height="38" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="110" y="194" text-anchor="middle" fill="#fee2e2" font-family="Segoe UI" font-size="11" font-weight="700">Endpoints (BYOD/Remote)</text>
+                </g>
+                <g style="animation: orbitGlow 3s ease-in-out infinite 1.2s;">
+                    <rect x="600" y="170" width="140" height="38" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="670" y="194" text-anchor="middle" fill="#fee2e2" font-family="Segoe UI" font-size="11" font-weight="700">Supply Chain</text>
+                </g>
+                <g style="animation: orbitGlow 3s ease-in-out infinite 1.6s;">
+                    <rect x="320" y="20" width="140" height="38" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="390" y="44" text-anchor="middle" fill="#fee2e2" font-family="Segoe UI" font-size="11" font-weight="700">Web &amp; APIs</text>
+                </g>
+                <g style="animation: orbitGlow 3s ease-in-out infinite 2.0s;">
+                    <rect x="320" y="170" width="140" height="38" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                    <text x="390" y="194" text-anchor="middle" fill="#fee2e2" font-family="Segoe UI" font-size="11" font-weight="700">Insiders / People</text>
+                </g>
+
+                <!-- Lines to core -->
+                <line x1="180" y1="40"  x2="320" y2="100" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"/>
+                <line x1="600" y1="40"  x2="460" y2="100" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"/>
+                <line x1="180" y1="190" x2="320" y2="120" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"/>
+                <line x1="600" y1="190" x2="460" y2="120" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"/>
+                <line x1="390" y1="58"  x2="390" y2="80"  stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"/>
+                <line x1="390" y1="170" x2="390" y2="140" stroke="#ef4444" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"/>
+            </svg>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Attack-surface reduction in three rules</div>
+            <strong>(1)</strong> Disable what you do not use. &nbsp;<strong>(2)</strong> Restrict what you do use to the smallest scope necessary. &nbsp;<strong>(3)</strong> Monitor everything that remains.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 13 — TOPIC 3: MALWARE FAMILY TREE ============ -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 25 &nbsp;|&nbsp; Topic 3: Malware</div>
+        <div class="slide-title">The <span class="accent-red">Malware</span> Family Tree</div>
+        <div class="slide-subtitle">Six categories cover almost every malicious program you will encounter on the exam &mdash; or in the wild.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 780 220" width="780" height="220" xmlns="http://www.w3.org/2000/svg">
+                <!-- Root -->
+                <rect x="320" y="10" width="140" height="36" rx="6" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="2"/>
+                <text x="390" y="33" text-anchor="middle" fill="#fecaca" font-family="Segoe UI" font-size="13" font-weight="800">MALWARE</text>
+
+                <!-- 6 branches -->
+                <line x1="390" y1="46" x2="80"  y2="100" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5"/>
+                <line x1="390" y1="46" x2="220" y2="100" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5"/>
+                <line x1="390" y1="46" x2="360" y2="100" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5"/>
+                <line x1="390" y1="46" x2="500" y2="100" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5"/>
+                <line x1="390" y1="46" x2="640" y2="100" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5"/>
+
+                <!-- 6 children -->
+                <g style="opacity:0;animation:cardIn 0.5s ease-out forwards 0.3s">
+                    <rect x="20" y="100" width="120" height="80" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>
+                    <text x="80" y="120" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="13" font-weight="700">VIRUS</text>
+                    <text x="80" y="140" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Needs host file</text>
+                    <text x="80" y="154" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">User-triggered</text>
+                    <text x="80" y="168" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Spread on execution</text>
+                </g>
+                <g style="opacity:0;animation:cardIn 0.5s ease-out forwards 0.45s">
+                    <rect x="155" y="100" width="120" height="80" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                    <text x="215" y="120" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="13" font-weight="700">WORM</text>
+                    <text x="215" y="140" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Self-propagating</text>
+                    <text x="215" y="154" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">No host needed</text>
+                    <text x="215" y="168" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Network-borne</text>
+                </g>
+                <g style="opacity:0;animation:cardIn 0.5s ease-out forwards 0.6s">
+                    <rect x="295" y="100" width="120" height="80" rx="6" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.5"/>
+                    <text x="355" y="120" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="13" font-weight="700">TROJAN</text>
+                    <text x="355" y="140" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Disguised payload</text>
+                    <text x="355" y="154" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">No replication</text>
+                    <text x="355" y="168" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">User installs it</text>
+                </g>
+                <g style="opacity:0;animation:cardIn 0.5s ease-out forwards 0.75s">
+                    <rect x="435" y="100" width="120" height="80" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                    <text x="495" y="120" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="13" font-weight="700">RANSOMWARE</text>
+                    <text x="495" y="140" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Encrypts files</text>
+                    <text x="495" y="154" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Demands payment</text>
+                    <text x="495" y="168" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Often double-extortion</text>
+                </g>
+                <g style="opacity:0;animation:cardIn 0.5s ease-out forwards 0.9s">
+                    <rect x="575" y="100" width="120" height="80" rx="6" fill="rgba(236,72,153,0.08)" stroke="#ec4899" stroke-width="1.5"/>
+                    <text x="635" y="120" text-anchor="middle" fill="#fce7f3" font-family="Segoe UI" font-size="13" font-weight="700">ROOTKIT</text>
+                    <text x="635" y="140" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Kernel-level hide</text>
+                    <text x="635" y="154" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Persistence</text>
+                    <text x="635" y="168" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Hard to detect/remove</text>
+                </g>
+            </svg>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The differentiator that always trips students</div>
+            <strong>Virus needs a host file and user execution. Worm replicates itself across the network without a host.</strong> Both replicate; only the worm needs no help to spread. Remember this and you've solved half the malware questions on SY0-701.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 14 — RANSOMWARE DEEP CUT ============ -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 25</div>
+        <div class="slide-title"><span class="accent-red">Ransomware</span> &mdash; The Modern Threat</div>
+        <div class="slide-subtitle">Why this single malware family dominates incident response budgets in 2024-2026.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Single Extortion</div>
+                <div class="card-desc">Encrypt files. Demand ransom for the key. Defeated by backups. Old playbook.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Double Extortion</div>
+                <div class="card-desc">Exfiltrate first, encrypt second. Now even with backups, the threat of public release forces payment. Standard since 2019.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Triple Extortion</div>
+                <div class="card-desc">Add DDoS or direct customer threats. Ransomware-as-a-Service (RaaS) operators run this as a business with affiliates and 24/7 support.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The defender's hardest truth</div>
+            Healthcare, education, and local government dominate ransomware victim lists because their availability requirements are highest and their security budgets are lowest. Attackers know exactly where to push. <strong>Backups alone no longer protect you</strong> &mdash; once exfiltration is part of the playbook, you need data-at-rest encryption, network segmentation, EDR, and tested IR plans.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 15 — MODERN MALWARE TECHNIQUES ============ -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 25</div>
+        <div class="slide-title">Modern <span class="accent-red">Evasion</span> Techniques</div>
+        <div class="slide-subtitle">Old AV signatures cannot keep up. Here is how today's malware hides.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Fileless</div>
+                <div class="card-desc">Lives entirely in memory. Uses legitimate OS tools (PowerShell, WMI). Writes nothing to disk for signature scanners to find.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Polymorphic</div>
+                <div class="card-desc">Changes its code signature with each infection while keeping the same payload behavior. Static signatures useless.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Metamorphic</div>
+                <div class="card-desc">Completely rewrites itself per infection &mdash; not just a different stub. Even structural fingerprints change.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Supply Chain</div>
+                <div class="card-desc">Compromises a trusted vendor or build pipeline. Reaches every customer through a legitimately-signed update.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Why behavior-based detection matters</div>
+            Signature-based AV asks: <em>"Is this binary on my blocklist?"</em> Behavior-based EDR asks: <em>"Is PowerShell spawning a child process that just enumerated all domain users?"</em> The first misses everything modern; the second sees through every technique on this slide.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 16 — TOPIC 4: SOCIAL ENGINEERING INTRO ============ -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 25 &nbsp;|&nbsp; Topic 4: Social Engineering</div>
+        <div class="slide-title">The <span class="accent-pink">Human</span> Vector</div>
+        <div class="slide-subtitle">You cannot patch a person. Social engineering bypasses every technical control you ever build.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 700 180" width="700" height="180" xmlns="http://www.w3.org/2000/svg">
+                <!-- Wall (technical) -->
+                <rect x="40" y="40" width="220" height="100" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="2.5"/>
+                <text x="150" y="78" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="13" font-weight="700">TECHNICAL WALL</text>
+                <text x="150" y="100" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">Firewalls · MFA · Encryption</text>
+                <text x="150" y="116" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">IDS · EDR · SIEM · Backups</text>
+                <text x="150" y="132" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11" font-weight="700">HEIGHT: HIGH</text>
+
+                <!-- Door (human) -->
+                <rect x="380" y="40" width="220" height="100" rx="6" fill="rgba(236,72,153,0.08)" stroke="#ec4899" stroke-width="2.5"/>
+                <text x="490" y="78" text-anchor="middle" fill="#fce7f3" font-family="Segoe UI" font-size="13" font-weight="700">HUMAN DOOR</text>
+                <text x="490" y="100" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">Trust · Urgency · Authority</text>
+                <text x="490" y="116" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">Helpfulness · Curiosity · Fear</text>
+                <text x="490" y="132" text-anchor="middle" fill="#ef4444" font-family="Segoe UI" font-size="11" font-weight="700">HEIGHT: LOWEST</text>
+
+                <!-- Attacker path through door -->
+                <line x1="280" y1="90" x2="370" y2="90" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="6 3" style="animation: signalSend 1.4s linear infinite"/>
+                <polygon points="370,90 358,84 358,96" fill="#ef4444"/>
+                <text x="328" y="75" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="10" font-style="italic">Attacker</text>
+                <text x="328" y="115" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9">Path of least resistance</text>
+            </svg>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The Mitnick principle</div>
+            <strong>"It's much easier to fool somebody into giving you their password than it is to spend the effort to crack into the system."</strong> Kevin Mitnick said this in 1995. Every breach report in 2026 still proves it.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 17 — PHISHING TAXONOMY ============ -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 25</div>
+        <div class="slide-title">The <span class="accent-pink">Phishing</span> Family</div>
+        <div class="slide-subtitle">Same technique. Different precision. Different targets.</div>
+
+        <div class="actor-grid">
+            <div class="actor c-cyan">
+                <img src="/assets/images/icons/icon-email.webp" alt="" class="actor-icon">
+                <div class="actor-name">Phishing</div>
+                <div class="actor-motive">Mass email. Broad net. Generic lures. Low effort, high volume.</div>
+            </div>
+            <div class="actor c-gold">
+                <img src="/assets/images/icons/icon-target.webp" alt="" class="actor-icon">
+                <div class="actor-name">Spear Phishing</div>
+                <div class="actor-motive">Targeted. Personal details. References real coworkers or projects.</div>
+            </div>
+            <div class="actor c-red">
+                <img src="/assets/images/icons/icon-shield.webp" alt="" class="actor-icon">
+                <div class="actor-name">Whaling</div>
+                <div class="actor-motive">Executive targets. CEO fraud. Wire transfer impersonation.</div>
+            </div>
+            <div class="actor c-purple">
+                <img src="/assets/images/icons/icon-phone.webp" alt="" class="actor-icon">
+                <div class="actor-name">Vishing</div>
+                <div class="actor-motive">Voice phone calls. Pretexts IT support or law enforcement.</div>
+            </div>
+            <div class="actor c-pink">
+                <img src="/assets/images/icons/icon-speech.webp" alt="" class="actor-icon">
+                <div class="actor-name">Smishing</div>
+                <div class="actor-motive">SMS text. Package delivery, bank alert, MFA prompt scams.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Detection across the family</div>
+            All five exploit the same psychology: urgency, authority, fear, helpfulness. The technical defense (DMARC, link-rewriting, SMS gateway filtering) catches a fraction. <strong>The real defense is user training plus a culture where verification is normal and not embarrassing.</strong>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 18 — BEYOND PHISHING ============ -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 25</div>
+        <div class="slide-title">Beyond <span class="accent-pink">Phishing</span></div>
+        <div class="slide-subtitle">The non-email social engineering techniques that appear constantly on exams and in real incidents.</div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Pretexting</div>
+                <div class="card-desc">Fabricates a scenario to extract information or access. "I'm calling from IT, we're seeing alerts on your account, can you confirm your password?"</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Baiting</div>
+                <div class="card-desc">Leaves something tempting. USB drives in the parking lot labeled "Q4 Salaries". Plugged in out of curiosity, executing malware on insertion.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tailgating</div>
+                <div class="card-desc">Walks in behind an authorized employee. Defeats badge readers when nobody questions the friendly face holding a coffee.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Quid Pro Quo</div>
+                <div class="card-desc">Offers something in exchange. "I can give your team free IT support &mdash; just install this remote access tool on your machine."</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Watering Hole</div>
+                <div class="card-desc">Compromises a website the target group frequents. Targets land themselves. Used against specific industries or communities.</div>
+            </div>
+            <div class="card c-pink">
+                <div class="card-label">Shoulder Surfing</div>
+                <div class="card-desc">Direct observation. Reading the screen at a coffee shop. PIN entry at an ATM. Low-tech, still effective.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 19 — TOPIC 5: SECURITY CONTROLS ============ -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 25 &nbsp;|&nbsp; Topic 5: Security Controls</div>
+        <div class="slide-title">Security Controls &mdash; The <span class="accent">3×3 Matrix</span></div>
+        <div class="slide-subtitle">Every security control fits in one box. Memorize this grid and most exam questions decompose instantly.</div>
+
+        <div class="control-matrix">
+            <div></div>
+            <div class="header" style="text-align:center;">PREVENTIVE<br><span style="font-weight:400; text-transform:none; font-size:0.78rem;">Stop before</span></div>
+            <div class="header" style="text-align:center;">DETECTIVE<br><span style="font-weight:400; text-transform:none; font-size:0.78rem;">See during</span></div>
+            <div class="header" style="text-align:center;">CORRECTIVE<br><span style="font-weight:400; text-transform:none; font-size:0.78rem;">Recover after</span></div>
+
+            <div class="row-label">TECHNICAL</div>
+            <div class="cell c-blue">
+                <div class="cell-label">Firewall</div>
+                <div class="cell-text">Blocks unauthorized traffic.</div>
+            </div>
+            <div class="cell c-cyan">
+                <div class="cell-label">IDS / SIEM</div>
+                <div class="cell-text">Detects intrusion in progress.</div>
+            </div>
+            <div class="cell c-green">
+                <div class="cell-label">Backup Restore</div>
+                <div class="cell-text">Recovers data after ransomware.</div>
+            </div>
+
+            <div class="row-label">ADMINISTRATIVE</div>
+            <div class="cell c-gold">
+                <div class="cell-label">Security Policy</div>
+                <div class="cell-text">Defines acceptable use.</div>
+            </div>
+            <div class="cell c-orange">
+                <div class="cell-label">Audits</div>
+                <div class="cell-text">Reveals policy violations.</div>
+            </div>
+            <div class="cell c-red">
+                <div class="cell-label">Disciplinary Action</div>
+                <div class="cell-text">Corrects post-violation behavior.</div>
+            </div>
+
+            <div class="row-label">PHYSICAL</div>
+            <div class="cell c-purple">
+                <div class="cell-label">Locks &amp; Mantraps</div>
+                <div class="cell-text">Prevents unauthorized entry.</div>
+            </div>
+            <div class="cell c-pink">
+                <div class="cell-label">CCTV / Sensors</div>
+                <div class="cell-text">Detects intrusion attempts.</div>
+            </div>
+            <div class="cell c-teal">
+                <div class="cell-label">Fire Suppression</div>
+                <div class="cell-text">Recovers after physical event.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.92rem;">
+            Two extras worth knowing: <strong>Deterrent</strong> controls discourage attempts (visible cameras, warning signs). <strong>Compensating</strong> controls substitute when the primary cannot be implemented.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 20 — DEFENSE IN DEPTH ============ -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 25</div>
+        <div class="slide-title"><span class="accent">Defense in Depth</span></div>
+        <div class="slide-subtitle">No single control is sufficient. Layer them. When one fails, the next is already in place.</div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: center;">
+            <div class="layers">
+                <div class="layer-ring l5"></div>
+                <div class="layer-ring l4"></div>
+                <div class="layer-ring l3"></div>
+                <div class="layer-ring l2"></div>
+                <div class="layer-ring l1"></div>
+                <div class="layer-label l1">Data</div>
+                <div class="layer-label l2">Application</div>
+                <div class="layer-label l3">Host</div>
+                <div class="layer-label l4">Network</div>
+                <div class="layer-label l5">Perimeter</div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong style="color:#ef4444;">Perimeter</strong> &mdash; firewalls, WAFs, IDS at the edge. First contact with the internet.</span></div>
+                <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong style="color:#eab308;">Network</strong> &mdash; segmentation, VLANs, internal east-west firewalls.</span></div>
+                <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong style="color:#22c55e;">Host</strong> &mdash; OS hardening, EDR, host firewall, patching.</span></div>
+                <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong style="color:#06b6d4;">Application</strong> &mdash; input validation, authentication, authorization checks.</span></div>
+                <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong style="color:#3b82f6;">Data</strong> &mdash; encryption at rest, classification, DLP, key management.</span></div>
+                <div style="margin-top:8px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08); font-size:0.88rem; color:#cbd5e1;"><strong>Plus:</strong> physical layer below, and human/policy layer above. Seven layers in the full model.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 21 — LEAST PRIVILEGE + SoD ============ -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 25</div>
+        <div class="slide-title">Two Principles That <span class="accent">Limit Blast Radius</span></div>
+        <div class="slide-subtitle">If you take only two ideas from controls, take these.</div>
+
+        <div class="card-grid-2">
+            <div class="stat-card" style="text-align:left;">
+                <div class="stat-label">Principle 1</div>
+                <div class="stat-title">Least Privilege</div>
+                <div class="stat-text">Every user account, service, and process gets the minimum permissions needed to perform its function. Nothing more. When an account is compromised, the attacker inherits only that minimum scope &mdash; not your whole environment.</div>
+            </div>
+            <div class="stat-card" style="text-align:left;">
+                <div class="stat-label">Principle 2</div>
+                <div class="stat-title">Separation of Duties</div>
+                <div class="stat-text">Critical actions require two or more people. The person who approves a wire transfer is not the person who initiates it. The developer who writes code is not the person who deploys it to production. Fraud requires collusion, not a single bad decision.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Why these are the bedrock</div>
+            Both are <strong>administrative controls</strong> &mdash; they're rules, not products. They cost nothing to implement and they cap the damage from every other failure. Most breaches that escalate to "catastrophic" did so because least privilege wasn't enforced and one compromised account had keys to everything.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 22 — RISK MANAGEMENT CYCLE ============ -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 25</div>
+        <div class="slide-title">The <span class="accent">Risk Management</span> Cycle</div>
+        <div class="slide-subtitle">Security is not a project that finishes. It's a loop. This is the loop.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 600 240" width="600" height="240" xmlns="http://www.w3.org/2000/svg">
+                <!-- 4 stages in a circle -->
+                <g style="opacity:0;animation:cardIn 0.5s ease-out forwards 0.2s;">
+                    <rect x="220" y="20" width="160" height="50" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"/>
+                    <text x="300" y="40" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="13" font-weight="700">IDENTIFY</text>
+                    <text x="300" y="58" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">Assets · Threats · Vulnerabilities</text>
+                </g>
+                <g style="opacity:0;animation:cardIn 0.5s ease-out forwards 0.4s;">
+                    <rect x="440" y="100" width="160" height="50" rx="8" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="2"/>
+                    <text x="520" y="120" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="13" font-weight="700">ASSESS</text>
+                    <text x="520" y="138" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">Probability × Impact</text>
+                </g>
+                <g style="opacity:0;animation:cardIn 0.5s ease-out forwards 0.6s;">
+                    <rect x="220" y="180" width="160" height="50" rx="8" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="2"/>
+                    <text x="300" y="200" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="13" font-weight="700">RESPOND</text>
+                    <text x="300" y="218" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">Avoid · Mitigate · Transfer · Accept</text>
+                </g>
+                <g style="opacity:0;animation:cardIn 0.5s ease-out forwards 0.8s;">
+                    <rect x="0" y="100" width="160" height="50" rx="8" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="2"/>
+                    <text x="80" y="120" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="13" font-weight="700">MONITOR</text>
+                    <text x="80" y="138" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">Reassess continuously</text>
+                </g>
+                <!-- Arrows -->
+                <path d="M 380 50 Q 460 60, 480 100" stroke="#60a5fa" stroke-width="2" fill="none" stroke-dasharray="5 3" style="animation: signalSend 2s linear infinite"/>
+                <polygon points="480,100 472,93 472,105" fill="#60a5fa"/>
+                <path d="M 480 150 Q 470 190, 380 200" stroke="#60a5fa" stroke-width="2" fill="none" stroke-dasharray="5 3" style="animation: signalSend 2s linear infinite 0.5s"/>
+                <polygon points="380,200 388,193 388,205" fill="#60a5fa"/>
+                <path d="M 220 200 Q 130 195, 120 150" stroke="#60a5fa" stroke-width="2" fill="none" stroke-dasharray="5 3" style="animation: signalSend 2s linear infinite 1s"/>
+                <polygon points="120,150 113,158 127,158" fill="#60a5fa"/>
+                <path d="M 120 100 Q 130 60, 220 50" stroke="#60a5fa" stroke-width="2" fill="none" stroke-dasharray="5 3" style="animation: signalSend 2s linear infinite 1.5s"/>
+                <polygon points="220,50 213,42 213,57" fill="#60a5fa"/>
+            </svg>
+        </div>
+
+        <div class="card-grid-4" style="font-size:0.85rem;">
+            <div class="card c-blue" style="padding:10px 12px;"><div class="card-label" style="font-size:0.9rem;">Avoid</div><div class="card-desc" style="font-size:0.78rem;">Don't do the activity at all.</div></div>
+            <div class="card c-gold" style="padding:10px 12px;"><div class="card-label" style="font-size:0.9rem;">Mitigate</div><div class="card-desc" style="font-size:0.78rem;">Add controls to reduce probability or impact.</div></div>
+            <div class="card c-cyan" style="padding:10px 12px;"><div class="card-label" style="font-size:0.9rem;">Transfer</div><div class="card-desc" style="font-size:0.78rem;">Cyber insurance. Outsource the function.</div></div>
+            <div class="card c-green" style="padding:10px 12px;"><div class="card-label" style="font-size:0.9rem;">Accept</div><div class="card-desc" style="font-size:0.78rem;">Document and monitor; risk is below threshold.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 23 — WEEK 1 SYNTHESIS ============ -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 25 &nbsp;|&nbsp; Synthesis</div>
+        <div class="slide-title">Week 1: <span class="accent">Nine Things to Remember</span></div>
+        <div class="slide-subtitle">If you walk out of this lecture with only these nine sentences, you can answer 80% of Week 1 questions.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>CIA Triad</strong> &mdash; Confidentiality, Integrity, Availability. Every control protects at least one. Every attack violates at least one.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Vulnerability is a weakness. Threat is a potential exploiter. Risk is probability × impact.</strong> Three different words for three different ideas.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>AAA</strong> &mdash; Authentication (who), Authorization (what), Accounting (when and how).</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Threat actors range from <strong>script kiddies (low skill, high noise)</strong> to <strong>nation-state APTs (years of patience, unlimited resources).</strong></span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Virus needs a host file. Worm self-propagates.</strong> Ransomware double-extorts: exfiltrate + encrypt.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Modern malware uses <strong>fileless, polymorphic, metamorphic, and supply-chain</strong> techniques to evade signature-based AV. Behavior-based detection (EDR) is the answer.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">Social engineering bypasses every technical control. <strong>Phishing family: phish, spear, whale, vish, smish.</strong> Plus pretexting, baiting, tailgating, quid pro quo, watering hole, shoulder surfing.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text"><strong>Controls 3×3:</strong> Technical / Administrative / Physical × Preventive / Detective / Corrective. Plus Deterrent and Compensating.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text"><strong>Defense in Depth + Least Privilege + Separation of Duties.</strong> Three principles. Free to implement. Cap the damage from every other failure.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 24 — LOOKING AHEAD ============ -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 25 &nbsp;|&nbsp; Looking Ahead</div>
+        <div class="slide-title">Looking Ahead to <span class="accent">Week 2</span></div>
+        <div class="slide-subtitle">Week 1 was foundations. Week 2 puts foundations to use against specific attack categories.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Cryptography</div>
+                <div class="card-desc">The math behind confidentiality and integrity. Symmetric, asymmetric, hashing, digital signatures, PKI. The tools we use to enforce CIA in transit and at rest.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Application &amp; Network Attacks</div>
+                <div class="card-desc">SQL injection, XSS, buffer overflows, DDoS, MITM, ARP poisoning. The catalog of <em>how</em> attacks actually happen at the protocol and application layer.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Device Security</div>
+                <div class="card-desc">Hardening endpoints. Mobile device management. IoT and BYOD. The endpoint is the new perimeter for most modern organizations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Week 1 Reinforcement</div>
+                <div class="card-desc">Every Week 2 topic will reference back to the CIA pillar it protects, the threat actor it counters, and the control category it falls into. The map you built today is the map for the whole course.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="text-align:center;">
+            <div class="box-label">Before class next week</div>
+            Complete the <strong>Week 1 Quiz</strong> (15 questions, 70% to pass). Read the textbook drilldown for any sub-topic that felt thin in lecture. Bring questions.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 25 — END / RESOURCES ============ -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 25</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">End of Week 1</span></div>
+            <div class="lead">You now have the lens. Every Week 2-8 topic loads into this map. Bring your questions to office hours.</div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Drilldown Decks</div>
+                <div class="card-desc">CIA Triad · Threat Actors · Malware · Social Engineering · Security Controls. 35 slides each.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Week 1 Quiz</div>
+                <div class="card-desc">15 questions across all five sub-topics. 70% to pass. Multiple attempts allowed.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Hands-On Labs</div>
+                <div class="card-desc">PIS-L01 through L12 in the Infosec Hub. Specimen classification, vector drills, isolation protocols.</div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:14px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ============ NAV ============ -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 25</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 25;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w1-lecture', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
