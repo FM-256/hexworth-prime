@@ -41,13 +41,18 @@ module.exports = function createQuizSyncAdapter({ name, dataPath, projectRoot })
             // gradeQuiz is never called against them. orphanNote field
             // documents the lineage for future audits.
             if (entry.orphan === true) continue;
-            // Skip entries verified as Discipline A architecture (correct answer
-            // authored at options[0], shuffle at render). Their all-zeros key is
-            // correct BY DESIGN, not a placeholder bug. Cross-quiz clustering on
-            // identical [0,0,...] arrays is a structural false positive in this
-            // architecture. Karl QC-48 audit artifacts in ~/hexworth-shared/
-            // Solutions/_audit/karl-qc48-*.md document each verified quiz.
+            // Skip entries verified as one of the "shuffle-at-render" architecture
+            // patterns. The quiz author places correct answers at a deterministic
+            // position (A=0, B=1) or in a cycling distribution (Cycle-4 = 0,1,2,3
+            // per topic-block of 4); renderer shuffles answer positions per
+            // session so students don't see the pattern. The resulting Firestore
+            // key is correct BY DESIGN. Cross-quiz clustering on identical arrays
+            // in this family is a structural false positive. Audit artifacts:
+            //   ~/hexworth-shared/Solutions/_audit/karl-qc48-*.md     (Discipline A)
+            //   ~/hexworth-shared/Solutions/_audit/qc49-*.md          (Discipline B + Cycle-4)
             if (entry.disciplineA === true) continue;
+            if (entry.disciplineB === true) continue;
+            if (entry.disciplineCycle4 === true) continue;
             if (!entry.answers.every(v => Number.isInteger(v))) continue;
             if (entry.answers.length < MIN_LEN) continue;
             const k = entry.answers.join(',');
