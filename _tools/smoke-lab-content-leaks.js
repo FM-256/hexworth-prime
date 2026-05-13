@@ -2,19 +2,26 @@
 'use strict';
 
 /**
- * smoke-lab-fixes-2026-05-13.js
+ * smoke-lab-content-leaks.js
  *
- * Browser smoke for the 6 lab fixes shipped 2026-05-13 (commit 61994e05).
- * Loads each of the 4 modified labs on production (hexworth.com), waits for
- * the global config object to attach to window, and asserts that the fixed
- * strings are present and the leaked strings are gone.
+ * Standing regression smoke for CTF lab content. Loads each lab in the
+ * CHECKS array on production (or a preview channel), waits for its config
+ * global to attach, and asserts that known answer-leak vectors are absent
+ * and known fix strings are present. Originally seeded with the 6 fixes
+ * from commit 61994e05 (2026-05-13); grow over time as future lab-content
+ * regressions are caught.
  *
- * Does NOT attempt to play through each lab — that's a different test. This
- * is a deploy-correctness smoke: the right bytes shipped.
+ * Does NOT play through each lab end-to-end — that's a different test.
+ * This is a deploy-correctness smoke: did the right bytes ship.
+ *
+ * Exit codes:
+ *   0 — all assertions passed
+ *   1 — one or more assertions failed (regression detected)
+ *   2 — infrastructure failure (puppeteer launch, network, missing deps)
  *
  * Usage:
- *   node _tools/smoke-lab-fixes-2026-05-13.js
- *   BASE=https://master--hexworth-prime.web.app node _tools/smoke-lab-fixes-2026-05-13.js   (preview channel)
+ *   node _tools/smoke-lab-content-leaks.js
+ *   BASE=https://master--hexworth-prime.web.app node _tools/smoke-lab-content-leaks.js   (preview channel)
  */
 
 const puppeteer = require('puppeteer');
@@ -192,7 +199,7 @@ async function runOne(browser, check) {
 }
 
 (async () => {
-    console.log(`\n══ LAB SMOKE — fixes deployed 2026-05-13 ══`);
+    console.log(`\n══ LAB CONTENT-LEAK SMOKE ══`);
     console.log(`Base: ${BASE}\n`);
 
     const browser = await puppeteer.launch({

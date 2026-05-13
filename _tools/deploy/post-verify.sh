@@ -110,7 +110,7 @@ echo "  scope:         $([[ $HOSTING_ONLY == 1 ]] && echo 'hosting-only' || echo
 echo ""
 
 # ── Check 1: Nexus refresh ───────────────────────────────────────────
-echo "[1/4] Nexus refresh"
+echo "[1/5] Nexus refresh"
 NEXUS_CMD=""
 if [[ "$HOSTING_ONLY" == 1 ]]; then
     NEXUS_CMD="scan"      # hosting → read-only scan, no Firestore publish
@@ -131,7 +131,7 @@ fi
 echo ""
 
 # ── Check 2: gcloud functions ACTIVE check (functions deploys only) ──
-echo "[2/4] Functions ACTIVE check"
+echo "[2/5] Functions ACTIVE check"
 if [[ "$HOSTING_ONLY" == 1 ]]; then
     echo -e "  ${DIM}skipped (hosting-only deploy)${NC}"
 elif ! command -v gcloud >/dev/null 2>&1; then
@@ -157,7 +157,7 @@ fi
 echo ""
 
 # ── Check 3: Cloud Logging error-spike check ─────────────────────────
-echo "[3/4] Cloud Logging error spike (last 5 min)"
+echo "[3/5] Cloud Logging error spike (last 5 min)"
 if ! command -v gcloud >/dev/null 2>&1; then
     echo -e "  ${YELLOW}⚠ gcloud not installed — skipping${NC}"
 elif [[ "$DRY_RUN" == 1 ]]; then
@@ -177,7 +177,7 @@ fi
 echo ""
 
 # ── Check 4: EduScan critical+high gate ──────────────────────────────
-echo "[4/4] EduScan critical+high gate"
+echo "[4/5] EduScan critical+high gate"
 if [[ "$DRY_RUN" == 1 ]]; then
     echo -e "  ${DIM}DRY-RUN: would run eduscan --fail-on critical,high${NC}"
 else
@@ -186,6 +186,40 @@ else
         DIVERGENCE=1
     else
         echo -e "  ${GREEN}✓${NC} no critical/high findings"
+    fi
+fi
+echo ""
+
+# ── Check 5: Lab content-leak browser smoke (hosting deploys only) ───
+echo "[5/5] Lab content-leak browser smoke"
+if [[ "$HOSTING_ONLY" != 1 ]]; then
+    echo -e "  ${DIM}skipped (non-hosting deploy — lab content unchanged)${NC}"
+elif [[ "$DRY_RUN" == 1 ]]; then
+    echo -e "  ${DIM}DRY-RUN: would run smoke-lab-content-leaks.js${NC}"
+elif [[ "${SKIP_LAB_SMOKE:-0}" == 1 ]]; then
+    echo -e "  ${YELLOW}⚠ skipped (SKIP_LAB_SMOKE=1 — reason: ${SKIP_LAB_SMOKE_REASON:-unspecified})${NC}"
+else
+    # Preflight: confirm puppeteer is resolvable. If not, this is infra, not
+    # regression — YELLOW warn + INFRA_FAIL=1, do NOT set DIVERGENCE.
+    if ! node -e "require('puppeteer')" >/dev/null 2>&1; then
+        echo -e "  ${YELLOW}⚠ puppeteer not resolvable — skipping (run 'npm i puppeteer' in repo root)${NC}"
+        INFRA_FAIL=1
+    else
+        SMOKE_OUTPUT=$(node "$REPO_ROOT/_tools/smoke-lab-content-leaks.js" 2>&1)
+        SMOKE_EXIT=$?
+        if [[ "$SMOKE_EXIT" == 0 ]]; then
+            # Print the trailing summary line only — full output is noisy
+            echo -e "  ${GREEN}✓${NC} $(echo "$SMOKE_OUTPUT" | grep -E '══ [0-9]+ PASS' | tail -1)"
+        elif [[ "$SMOKE_EXIT" == 1 ]]; then
+            echo -e "  ${RED}✗ lab content-leak smoke flagged regression(s):${NC}"
+            echo "$SMOKE_OUTPUT" | sed 's/^/      /'
+            DIVERGENCE=1
+        else
+            # Exit code 2 or other = infra failure (puppeteer launch, network)
+            echo -e "  ${YELLOW}⚠ lab smoke infra failure (exit=$SMOKE_EXIT):${NC}"
+            echo "$SMOKE_OUTPUT" | tail -10 | sed 's/^/      /'
+            INFRA_FAIL=1
+        fi
     fi
 fi
 echo ""
