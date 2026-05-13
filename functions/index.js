@@ -2273,6 +2273,182 @@ exports.adminListAdmins = onCall(cfOptions, async (request) => {
 });
 
 /**
+ * userOnboardingState — Admin diagnostic. Returns the full provisioning
+ * state of a user across Firebase Auth, users/, enrollments/, all class
+ * progress docs, and tenant adminUids. Used to diagnose "I see them in
+ * the roster but searchUsers can't find them" cases — exactly the Wendy
+ * Norfleet 2026-05-13 pattern (Auth + class-progress present, users/{uid}
+ * missing because enrollInClass doesn't upsert the global profile).
+ *
+ * Input:  { email?: string, uid?: string }  — at least one required
+ * Returns: {
+ *   query: { email, uid },
+ *   resolvedUid,
+ *   auth:        { exists, uid, email, displayName, emailVerified, providers, createdAt, lastSignIn } | null,
+ *   usersDoc:    { exists, hasEmail, hasDisplayName, hasCallsign, fieldCount, data } | null,
+ *   enrollments: [{ tenantSlug, classId, courseId }],
+ *   progressDocs:[{ path, tenantSlug, classId, displayName, email, lastActive, isGuest }],
+ *   tenantAdminships: [{ tenantId, tenantName }],
+ *   gaps:        ['not_in_firebase_auth' | 'users_doc_missing' | 'users_doc_no_email' |
+ *                 'users_doc_no_displayName' | 'enrolled_without_users_doc' |
+ *                 'progress_without_users_doc' | 'progress_query_failed:<code>']
+ * }
+ *
+ * Cost: 1 Auth lookup + 1 users get + 1 enrollments get + 1 collectionGroup
+ * query on `progress` (email-indexed) + 1 tenants scan. ~5 Firestore ops.
+ *
+ * v1: platform-operator-only via requireAdmin().
+ * v2 (future): tenant-scoped — allow tenant admins to diagnose users
+ * within their own tenant. Requires tenant-membership check.
+ */
+exports.userOnboardingState = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { email: queryEmail, uid: queryUid } = request.data || {};
+    if (!queryEmail && !queryUid) {
+        throw new HttpsError('invalid-argument', 'Provide email or uid.');
+    }
+
+    let resolvedUid = queryUid || null;
+    let authRecord = null;
+    const gaps = [];
+
+    // 1. Firebase Auth lookup — exact email or uid
+    try {
+        if (queryUid) {
+            authRecord = await admin.auth().getUser(queryUid);
+        } else {
+            authRecord = await admin.auth().getUserByEmail(queryEmail);
+        }
+        resolvedUid = authRecord.uid;
+    } catch (e) {
+        if (e.code === 'auth/user-not-found' || e.code === 'auth/email-not-found') {
+            gaps.push('not_in_firebase_auth');
+        } else {
+            console.error('[userOnboardingState] Auth lookup failed:', e);
+            gaps.push('auth_lookup_error:' + e.code);
+        }
+    }
+
+    const auth = authRecord ? {
+        exists: true,
+        uid: authRecord.uid,
+        email: authRecord.email || null,
+        displayName: authRecord.displayName || null,
+        emailVerified: authRecord.emailVerified,
+        providers: authRecord.providerData.map(p => p.providerId),
+        createdAt: authRecord.metadata.creationTime,
+        lastSignIn: authRecord.metadata.lastSignInTime
+    } : null;
+
+    // 2. users/{uid} profile doc
+    let usersDoc = null;
+    if (resolvedUid) {
+        const snap = await db.doc('users/' + resolvedUid).get();
+        if (snap.exists) {
+            const d = snap.data();
+            usersDoc = {
+                exists: true,
+                hasEmail: !!d.email,
+                hasDisplayName: !!d.displayName,
+                hasCallsign: !!d.callsign,
+                fieldCount: Object.keys(d).length,
+                data: {
+                    email: d.email || null,
+                    displayName: d.displayName || null,
+                    callsign: d.callsign || null,
+                    accountType: d.accountType || null,
+                    tier: d.tier || null
+                }
+            };
+            if (!d.email) gaps.push('users_doc_no_email');
+            if (!d.displayName) gaps.push('users_doc_no_displayName');
+        } else {
+            usersDoc = { exists: false };
+            if (auth) gaps.push('users_doc_missing');
+        }
+    }
+
+    // 3. enrollments/{uid}
+    const enrollments = [];
+    if (resolvedUid) {
+        const enrollSnap = await db.doc('enrollments/' + resolvedUid).get();
+        if (enrollSnap.exists) {
+            const data = enrollSnap.data();
+            if (Array.isArray(data.enrollments)) {
+                enrollments.push(...data.enrollments);
+            } else if (data.tenantSlug) {
+                // Legacy single-enrollment format
+                enrollments.push({
+                    tenantSlug: data.tenantSlug,
+                    classId: data.classId,
+                    courseId: data.courseId || ''
+                });
+            }
+        }
+        if (enrollments.length > 0 && usersDoc && !usersDoc.exists) {
+            gaps.push('enrolled_without_users_doc');
+        }
+    }
+
+    // 4. progress docs — iterate enrollments and read each known path.
+    // (Avoids needing a collectionGroup index on `progress`. Orphan-progress
+    // detection — docs that exist with no matching enrollment — is out of
+    // scope for v1; if needed later, add a collectionGroup('progress')
+    // index on `email` or `__name__` and run a one-time scan.)
+    const progressDocs = [];
+    if (resolvedUid) {
+        for (const e of enrollments) {
+            const path = `tenants/${e.tenantSlug}/classes/${e.classId}/progress/${resolvedUid}`;
+            const pgSnap = await db.doc(path).get();
+            if (pgSnap.exists) {
+                const d = pgSnap.data();
+                progressDocs.push({
+                    path,
+                    tenantSlug: e.tenantSlug,
+                    classId: e.classId,
+                    displayName: d.displayName || null,
+                    email: d.email || null,
+                    lastActive: d.lastActive || null,
+                    isGuest: !!d.isGuest
+                });
+            }
+        }
+        if (progressDocs.length > 0 && usersDoc && !usersDoc.exists) {
+            gaps.push('progress_without_users_doc');
+        }
+    }
+
+    // 5. Tenant adminships — full tenants scan. Small today (~12 tenants).
+    // If tenant count grows >100 we should switch to a reverse-index
+    // (e.g. collectionGroup('adminUids') or a tenants_by_admin/{uid} doc).
+    const tenantAdminships = [];
+    if (resolvedUid) {
+        const tenSnap = await db.collection('tenants').get();
+        tenSnap.forEach(t => {
+            const adminUids = t.data().adminUids || [];
+            if (adminUids.includes(resolvedUid)) {
+                tenantAdminships.push({
+                    tenantId: t.id,
+                    tenantName: t.data().name || t.id
+                });
+            }
+        });
+    }
+
+    return {
+        query: { email: queryEmail || null, uid: queryUid || null },
+        resolvedUid,
+        auth,
+        usersDoc,
+        enrollments,
+        progressDocs,
+        tenantAdminships,
+        gaps
+    };
+});
+
+/**
  * adminGetStats — Aggregate platform statistics for the admin dashboard.
  */
 exports.adminGetStats = onCall(cfOptions, async (request) => {
