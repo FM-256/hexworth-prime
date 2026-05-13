@@ -47,7 +47,7 @@ const PISL12Config = {
     // =========================================================
 
     lore: {
-        intro: 'You are the lead external auditor from the Regulatory Compliance Office. Hexworth Containment is due for its annual BSL-4 security audit. Accreditation requires a passing certification or the facility must suspend BSL-4 operations until remediation is complete. The facility director has provided read-only access to all systems. You have 45 minutes to inspect four domains: network architecture, access controls, cryptography, and IR readiness. Document every finding. Then make the call.',
+        intro: 'You are the lead external auditor from the Regulatory Compliance Office. Hexworth Containment is due for its annual BSL-4 security audit. Accreditation requires a passing certification or the facility must suspend BSL-4 operations until remediation is complete. The facility director has provided read-only access to all systems. You have 45 minutes to inspect five domains: network architecture, access controls, cryptography, incident response readiness, and security policy. Document every finding. Then make the call.',
         scenario: 'Run each audit command to inspect its domain. Each audit reveals a mix of compliant items and findings. Use "finding <area> <issue>" to formally document each non-compliant item you discover. At the end, review your findings and make the certification decision with either "certify" (all critical findings resolved or no blocking findings) or "fail-facility" (critical findings remain). This is a judgment call based on evidence -- not a trick.',
         outro: 'Audit complete. This capstone integrates every domain from the course: network segmentation (Week 3), PKI and certificates (Week 3), authentication and access control (Week 4), incident response readiness (Week 4), and security governance (Week 4). A real security audit is exactly this -- systematic inspection across all controls, documented findings, and a defensible certification decision.',
 
@@ -338,21 +338,15 @@ const PISL12Config = {
             const criticalCount = engine.config._state.findings.filter(f => f.severity === 'critical').length;
 
             // Certifying with documented critical findings is wrong -- the facility should fail
-            if (criticalCount >= 3) {
-                engine.config._state.certificationDecision = 'fail';
-
-                let output = `CERTIFICATION DECISION: FAIL\n${'='.repeat(60)}\n\nYou attempted to CERTIFY the facility despite ${criticalCount} documented critical findings.\n\nCritical findings prevent certification:\n`;
+            if (criticalCount > 0) {
+                let output = `CERTIFICATION ATTEMPT REJECTED\n${'='.repeat(60)}\n\nYou attempted to CERTIFY the facility despite ${criticalCount} documented critical finding${criticalCount === 1 ? '' : 's'}.\n\nCritical findings prevent certification:\n`;
                 engine.config._state.findings.filter(f => f.severity === 'critical').forEach(f => {
                     output += `  [CRITICAL] ${f.id} -- ${f.area}: ${f.issue}\n`;
                 });
-                output += `\nA certifying auditor who issues a PASS with unresolved critical findings\nis in violation of audit standards and potentially liable for negligence.\n\nCorrect decision: FAIL -- require remediation before re-audit.\n\nResult recorded: FACILITY FAILED -- Re-audit required after remediation.\n`;
+                output += `\nA certifying auditor who issues a PASS with unresolved critical findings\nis in violation of audit standards and potentially liable for negligence.\n\nNo certification decision has been recorded. The defensible call here is\nfail-facility. Re-issue the correct decision to complete the capstone.\n`;
 
-                if (!engine.config._flag4Awarded) {
-                    engine.config._flag4Awarded = true;
-                    engine.awardFlag('flag4');
-                    output += '\n[CAPSTONE MILESTONE] Certification decision made based on documented evidence. Flag unlocked.\n(Note: the correct decision was fail-facility -- critical findings cannot be waived.)';
-                }
-
+                // Do not award flag4 -- the wrong decision does not pass the capstone.
+                // Do not record certificationDecision -- the student must retry with fail-facility.
                 return output;
             }
 

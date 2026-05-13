@@ -558,7 +558,7 @@ ${'─'.repeat(60)}
 
         // help -- command reference
         'help': function(args, term, engine) {
-            return 'SIEM ANALYST TERMINAL -- COMMAND REFERENCE\n\n  siem                              Show alert queue summary\n  alert <id>                        Read full alert details (e.g. alert ALT-023)\n  correlate <id1> <id2>             Link two related alerts\n  classify <id> <severity> <type>   Classify an alert\n  report                            File formal incident report\n  cat <file>                        Read a file\n  ls <path>                         List directory\n\nSeverities: critical, high, medium, low\nTypes: data-exfil, lateral-movement, c2-beacon, brute-force, malware, policy-violation, false-positive\n\nSee ~/notes.txt for triage guidance.\nFocus on: ALT-023, ALT-071, ALT-158 (notable in the queue).';
+            return 'SIEM ANALYST TERMINAL -- COMMAND REFERENCE\n\n  siem                              Show alert queue summary\n  alert <id>                        Read full alert details (e.g. alert ALT-023)\n  correlate <id1> <id2>             Link two related alerts\n  classify <id> <severity> <type>   Classify an alert\n  report                            File formal incident report\n  cat <file>                        Read a file\n  ls <path>                         List directory\n\nSeverities: critical, high, medium, low\nTypes: data-exfil, lateral-movement, c2-beacon, brute-force, malware, policy-violation, false-positive\n\nSee ~/notes.txt for triage guidance.';
         }
     },
 

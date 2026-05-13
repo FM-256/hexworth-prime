@@ -60,7 +60,7 @@ const PISL02Config = {
         toolkit: [
             { name: "inbox", purpose: "List the ten messages awaiting analyst review", sample: "inbox" },
             { name: "read", purpose: "Open a single message and inspect its full content + headers", sample: "read MSG-04" },
-            { name: "flag", purpose: "Mark a message as a suspected social-engineering attempt", sample: "flag MSG-04" },
+            { name: "flag", purpose: "Mark a message as a suspected social-engineering attempt and classify the technique", sample: "flag MSG-04 phishing" },
             { name: "unflag", purpose: "Reverse a flag if you misclassified", sample: "unflag MSG-04" },
             { name: "submit", purpose: "File the flagged-message + technique-classification report once review is complete", sample: "submit MSG-04 phishing" },
             { name: "help", purpose: "Command reference", sample: "help" }
@@ -341,7 +341,7 @@ const PISL02Config = {
             let techErrors = [];
             for (const [id, technique] of Object.entries(flagged)) {
                 if (answers[id] && answers[id] !== technique) {
-                    techErrors.push(`  ${id}: submitted "${technique}" -- correct answer is "${answers[id]}"`);
+                    techErrors.push(`  ${id}: technique "${technique}" is incorrect -- review the message indicators and try another classification.`);
                 }
             }
 
