@@ -4370,6 +4370,302 @@ exports.adminPurgeDeletedTenants = onCall(cfOptions, async (request) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// TENANT INVITES — Pre-registration instructor invites (2026-05-13)
+// ═══════════════════════════════════════════════════════════════════════════
+// Built after the Wendy Norfleet pattern was closed via backfill: this slice
+// goes one step further by supporting "create tenant → invite instructor by
+// email" BEFORE the instructor has signed up. Token-based redemption flow
+// binds the invite to a specific email — when the instructor signs in (any
+// time before expiry, with a matching email), they're auto-added to the
+// tenant's adminUids.
+//
+// Data model: tenant_invites/{tokenId}
+//   { tenantId, email (lowercased), role, createdBy, createdAt, expiresAt,
+//     redeemedAt, redeemedByUid, status: 'pending'|'redeemed'|'expired'|'revoked' }
+//
+// Security: tokens are bearer credentials. Strict email binding on redemption
+// — auth.token.email MUST match invite.email to prevent URL-leak abuse.
+// Single-use, 7-day default expiry.
+
+const INVITE_DEFAULT_TTL_DAYS = 7;
+const INVITE_VALID_ROLES = ['instructor', 'student'];
+
+/**
+ * adminCreateInvite — Generates a pre-registration invite token for a tenant.
+ * Input:  { tenantId, email, role?, ttlDays? }
+ * Returns: { tokenId, inviteUrl, expiresAt }
+ *
+ * Admin-gated (platform operator). Returns the URL for the operator to share.
+ * Auto-email-send is NOT included in v1 — operator shares the link manually.
+ */
+exports.adminCreateInvite = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { tenantId, email: rawEmail, role: rawRole, ttlDays: rawTtl } = request.data || {};
+    if (!tenantId || typeof tenantId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing tenantId.');
+    }
+    if (!rawEmail || typeof rawEmail !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing email.');
+    }
+    const email = rawEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new HttpsError('invalid-argument', 'Invalid email format.');
+    }
+    const role = rawRole || 'instructor';
+    if (!INVITE_VALID_ROLES.includes(role)) {
+        throw new HttpsError('invalid-argument', 'Invalid role. Must be: ' + INVITE_VALID_ROLES.join(', '));
+    }
+    const ttlDays = Math.min(Math.max(parseInt(rawTtl, 10) || INVITE_DEFAULT_TTL_DAYS, 1), 30);
+
+    // Verify tenant exists + is active
+    const tenantDoc = await db.doc(`tenants/${tenantId}`).get();
+    if (!tenantDoc.exists) throw new HttpsError('not-found', 'Tenant not found.');
+    if (tenantDoc.data().status !== 'active') {
+        throw new HttpsError('failed-precondition', 'Tenant is not active.');
+    }
+
+    // H1 — Reject duplicate pending invite for the same (tenantId, email).
+    // Expired/redeemed/revoked invites do NOT block re-invite.
+    // NOTE (best-effort, not atomic): this read is OUTSIDE a transaction. Two
+    // concurrent admin clicks for the same (tenantId, email) can each pass the
+    // duplicate check before either set() commits. Acceptable for v1: admin-only
+    // path, microsecond race window, no security impact. If H1 becomes a hard
+    // guarantee, switch to deterministic doc IDs or wrap read+write in a tx.
+    const dupSnap = await db.collection('tenant_invites')
+        .where('tenantId', '==', tenantId)
+        .where('email', '==', email)
+        .where('status', '==', 'pending')
+        .limit(1)
+        .get();
+    if (!dupSnap.empty) {
+        throw new HttpsError('already-exists',
+            'Active pending invite exists for this email. Revoke it first or wait for expiry.');
+    }
+
+    // H2 — Soft warn if the invitee is already a tenant admin. Don't block.
+    let warning = null;
+    const adminUidsExisting = Array.isArray(tenantDoc.data().adminUids) ? tenantDoc.data().adminUids : [];
+    if (adminUidsExisting.length > 0) {
+        try {
+            const existingUser = await admin.auth().getUserByEmail(email);
+            if (adminUidsExisting.includes(existingUser.uid)) {
+                warning = 'User is already an admin of this tenant. Invite created but unnecessary.';
+            }
+        } catch (e) {
+            // Only swallow the expected "no Auth account yet" case — the normal
+            // pre-registration path. Other errors (network, quota, etc.) must
+            // surface so a transient failure doesn't produce a phantom-clean
+            // invite without the admin-already check actually running.
+            if (e && e.code !== 'auth/user-not-found') throw e;
+        }
+    }
+
+    // Generate cryptographically-random token. crypto.randomUUID() gives 36 chars.
+    const tokenId = crypto.randomUUID().replace(/-/g, '');
+
+    // expiresAt uses Date.now() (host clock) for the +ttl math — serverTimestamp()
+    // is a sentinel and cannot be used in arithmetic. createdAt uses
+    // serverTimestamp() to match the codebase pattern for audit-only fields.
+    const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
+
+    await db.doc('tenant_invites/' + tokenId).set({
+        tenantId,
+        email,
+        role,
+        createdBy: request.auth.uid,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt,
+        redeemedAt: null,
+        redeemedByUid: null,
+        status: 'pending'
+    });
+
+    // Build redemption URL. Production frontend lives at hexworth.com.
+    const baseUrl = process.env.INVITE_BASE_URL || 'https://hexworth.com';
+    const inviteUrl = `${baseUrl}/accept-invite.html?token=${tokenId}`;
+
+    return {
+        tokenId,
+        inviteUrl,
+        expiresAt: expiresAt.toDate().toISOString(),
+        tenantId,
+        email,
+        role,
+        warning
+    };
+});
+
+/**
+ * adminListInvites — Lists invites for a tenant (or all pending invites).
+ * Input: { tenantId?, status? } — both optional, defaults to all-pending
+ */
+exports.adminListInvites = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { tenantId, status } = request.data || {};
+    let query = db.collection('tenant_invites');
+    if (tenantId) query = query.where('tenantId', '==', tenantId);
+    if (status)   query = query.where('status', '==', status);
+    query = query.orderBy('createdAt', 'desc').limit(100);
+
+    const snap = await query.get();
+    const invites = [];
+    snap.forEach(d => {
+        const data = d.data();
+        invites.push({
+            tokenId: d.id,
+            tenantId: data.tenantId,
+            email: data.email,
+            role: data.role,
+            status: data.status,
+            createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
+            expiresAt: data.expiresAt ? data.expiresAt.toDate().toISOString() : null,
+            redeemedAt: data.redeemedAt ? data.redeemedAt.toDate().toISOString() : null,
+            redeemedByUid: data.redeemedByUid || null
+        });
+    });
+    return { invites };
+});
+
+/**
+ * adminRevokeInvite — Marks a pending invite as revoked. Idempotent.
+ * Input: { tokenId }
+ */
+exports.adminRevokeInvite = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { tokenId } = request.data || {};
+    if (!tokenId || typeof tokenId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing tokenId.');
+    }
+    const ref = db.doc('tenant_invites/' + tokenId);
+
+    // Transactional revoke prevents a redeem-vs-revoke race from overwriting
+    // a legitimately redeemed invite with status='revoked' (which would leave
+    // the instructor in tenants.adminUids while the audit trail says revoked).
+    // Note: Admin SDK only retries transactions on Firestore ABORTED errors;
+    // HttpsError thrown inside the callback propagates out without retry.
+    await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw new HttpsError('not-found', 'Invite not found.');
+        const status = snap.data().status;
+        if (status === 'redeemed') {
+            throw new HttpsError('failed-precondition', 'Invite already redeemed — cannot revoke.');
+        }
+        if (status === 'revoked') {
+            // Idempotent: silent no-op on already-revoked.
+            return;
+        }
+        tx.update(ref, {
+            status: 'revoked',
+            revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+            revokedBy: request.auth.uid
+        });
+    });
+    return { success: true, tokenId };
+});
+
+/**
+ * redeemInvite — Called by the instructor after signing in. Validates the
+ * token (exists, pending, not expired, email matches auth.token.email),
+ * then adds their UID to the tenant's adminUids and marks the invite redeemed.
+ *
+ * Input: { tokenId }
+ * Returns: { success, tenantId, role }
+ *
+ * Open to any authenticated user — security comes from token possession +
+ * email binding. If auth.token.email doesn't match invite.email, reject.
+ */
+exports.redeemInvite = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    const { tokenId } = request.data || {};
+    if (!tokenId || typeof tokenId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing tokenId.');
+    }
+
+    const callerEmail = (request.auth.token.email || '').trim().toLowerCase();
+    if (!callerEmail) {
+        throw new HttpsError('failed-precondition',
+            'No email on auth token — sign in with a Google account that has email verified.');
+    }
+
+    const inviteRef = db.doc('tenant_invites/' + tokenId);
+
+    // Pre-flight: cheap fail-fast checks (email-binding, role, lazy-expiry) before
+    // entering the transaction. Status/concurrency-sensitive checks re-validate
+    // INSIDE the transaction to avoid double-redeem races.
+    const preSnap = await inviteRef.get();
+    if (!preSnap.exists) throw new HttpsError('not-found', 'Invite not found.');
+    const preInvite = preSnap.data();
+
+    // Email binding — DO NOT echo the expected email back. URL holders may not be authorized.
+    if (callerEmail !== preInvite.email) {
+        throw new HttpsError('permission-denied',
+            'This invite is for a different email address. Sign out and try a different Google account.');
+    }
+
+    if (preInvite.role === 'student') {
+        // Reserved for future student-invite flow. Not implemented in v1.
+        throw new HttpsError('unimplemented', 'Student invites are not yet supported.');
+    }
+
+    // Lazy expiry — flip status outside transaction, then reject.
+    // Catch logs but does not block rejection — the user-facing error is unchanged
+    // either way, and a swallowed write silently masks rules/permission misconfig.
+    if (preInvite.expiresAt && preInvite.expiresAt.toMillis() < Date.now()) {
+        if (preInvite.status === 'pending') {
+            await inviteRef.update({ status: 'expired' }).catch(e => {
+                console.warn('[redeemInvite] lazy-expiry status update failed for token ' + tokenId + ':', e);
+            });
+        }
+        throw new HttpsError('failed-precondition', 'Invite has expired.');
+    }
+
+    // Transactional redemption — atomic read-validate-write across invite + tenant docs.
+    // Prevents double-redeem races (e.g., two tabs hitting Accept simultaneously).
+    const tenantRef = db.doc('tenants/' + preInvite.tenantId);
+    const result = await db.runTransaction(async (tx) => {
+        const inviteTxSnap = await tx.get(inviteRef);
+        if (!inviteTxSnap.exists) throw new HttpsError('not-found', 'Invite not found.');
+        const inv = inviteTxSnap.data();
+        if (inv.status === 'redeemed') {
+            throw new HttpsError('failed-precondition', 'Invite already redeemed.');
+        }
+        if (inv.status === 'revoked') {
+            throw new HttpsError('failed-precondition', 'Invite has been revoked.');
+        }
+        if (inv.status === 'expired') {
+            throw new HttpsError('failed-precondition', 'Invite has expired.');
+        }
+        // Defense-in-depth: re-check tenant exists inside the tx so a tenant
+        // deletion racing with redemption can't trigger set+merge ghost-creation.
+        const tenantTxSnap = await tx.get(tenantRef);
+        if (!tenantTxSnap.exists) {
+            throw new HttpsError('not-found', 'Tenant not found.');
+        }
+        tx.set(tenantRef, {
+            adminUids: admin.firestore.FieldValue.arrayUnion(request.auth.uid),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        tx.update(inviteRef, {
+            status: 'redeemed',
+            redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
+            redeemedByUid: request.auth.uid
+        });
+        return { tenantId: inv.tenantId, role: inv.role };
+    });
+
+    return {
+        success: true,
+        tenantId: result.tenantId,
+        role: result.role
+    };
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // CLASS MANAGEMENT — CRUD for tenant classes (Phase 2)
 // ═══════════════════════════════════════════════════════════════════════════
 
