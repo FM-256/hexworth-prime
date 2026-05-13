@@ -2020,6 +2020,29 @@ exports.searchUsers = onCall(cfOptions, async (request) => {
         console.error('[searchUsers] Query failed:', e);
     }
 
+    // Fallback: if Firestore scan turned up nothing AND the query looks like
+    // an email, try Firebase Auth's getUserByEmail. Catches Auth-only users
+    // who haven't been written to users/ yet (Wendy Norfleet 2026-05-13).
+    // Only triggers on empty result + email-shape query — preserves the
+    // original semantics for callsign/name searches.
+    if (results.size === 0 && original.includes('@')) {
+        try {
+            const authUser = await admin.auth().getUserByEmail(original);
+            results.set(authUser.uid, {
+                uid: authUser.uid,
+                displayName: authUser.displayName || null,
+                photoURL: authUser.photoURL || null,
+                callsign: null,
+                accountType: 'operative'
+            });
+        } catch (e) {
+            // user-not-found / email-not-found are expected — silently ignore
+            if (e.code && e.code !== 'auth/user-not-found' && e.code !== 'auth/email-not-found') {
+                console.error('[searchUsers] Auth fallback error:', e.code, e.message);
+            }
+        }
+    }
+
     // Return limited fields only — no sensitive data
     const users = Array.from(results.values()).slice(0, 15).map(u => ({
         uid: u.uid,
@@ -4718,6 +4741,36 @@ exports.enrollInClass = onCall(cfOptions, async (request) => {
     const currentCount = classData.studentCount || 0;
     if (currentCount >= maxSeats) {
         throw new HttpsError('resource-exhausted', 'Class is full. Contact your instructor.');
+    }
+
+    // Ensure global users/{uid} exists. Runs on EVERY enrollInClass call so
+    // re-enrollments of users in the Wendy-pattern state (progress exists,
+    // users/ doesn't) get repaired too — not just first-time enrollments.
+    // Closes the gap that made the instructor-add search fail for users who
+    // join via lobby join-code and never visit dashboard.
+    //
+    // photoURL pulled from request.auth.token.picture which is set by
+    // Google OAuth but NOT by email/password, custom-token, or anonymous
+    // providers — falls through to null in those cases (acceptable).
+    const userRef = db.doc('users/' + uid);
+    const existingUser = await userRef.get();
+    if (!existingUser.exists) {
+        // Matches FirestoreManager.js:1594-1607 canonical first-visit shape.
+        await userRef.set({
+            email: email || null,
+            displayName: displayName || null,
+            photoURL: request.auth.token.picture || null,
+            tier: 'free',
+            grandfathered: false,
+            xp: 0,
+            streak: 0,
+            modulesCompleted: [],
+            labsCompleted: [],
+            achievements: [],
+            quizzes: {},
+            createdAt: FieldValue.serverTimestamp(),
+            _profileCreatedBy: 'enrollInClass'
+        }, { merge: true });
     }
 
     // Check if already enrolled
