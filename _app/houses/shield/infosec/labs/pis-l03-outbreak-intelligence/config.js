@@ -64,7 +64,8 @@ const PISL03Config = {
             { name: "threat-feed", purpose: "Pull active threat feed entries for a campaign or actor", sample: "threat-feed OUTBREAK-7719" },
             { name: "profile", purpose: "Build/view the threat profile being assembled from queries above", sample: "profile build" },
             { name: "recommend", purpose: "Issue the containment recommendation derived from the assembled profile", sample: "recommend OUTBREAK-7719" },
-            { name: "help", purpose: "Command reference", sample: "help" }
+            { name: "help", purpose: "Command reference", sample: "help" },
+            { name: "KBA-1947", purpose: "Internal SOP: standard procedure for translating a CVE record into MITRE ATT&CK technique IDs", sample: "cat KBA-1947-CVE-to-ATTACK-Mapping.md" }
         ]
     },
 
@@ -76,7 +77,7 @@ const PISL03Config = {
         user: 'analyst',
         hostname: 'intel-ws-01',
         startDir: '/home/analyst',
-        welcome: 'Hexworth Containment -- Outbreak Intelligence Terminal\nBSL-1 Clearance Active\n\n*** NEW PATHOGEN ALERT: OUTBREAK-7719 ***\n*** Spreading in financial sector networks ***\n*** Full threat profile required within 45 minutes ***\n\nStart with: cve-search CVE-2024-3094\nType "help" for all available commands.\n'
+        welcome: 'Hexworth Containment -- Outbreak Intelligence Terminal\nBSL-1 Clearance Active\n\n*** NEW PATHOGEN ALERT: OUTBREAK-7719 ***\n*** Spreading in financial sector networks ***\n*** Full threat profile required within 45 minutes ***\n\nStart with: cve-search CVE-2024-3094\nSOP reference: cat KBA-1947-CVE-to-ATTACK-Mapping.md\nType "help" for all available commands.\n'
     },
 
     // =========================================================
@@ -119,7 +120,72 @@ const PISL03Config = {
                             children: {
                                 'notes.txt': {
                                     type: 'file',
-                                    content: 'OUTBREAK-7719 INVESTIGATION NOTES\n==================================\nInternal tracking ID: OUTBREAK-7719\nFirst detected: 2026-04-08 by financial sector ISAC\nSuspected CVE: CVE-2024-3094 (confirm with cve-search)\n\nWorkflow:\n  1. cve-search <term> -- query the CVE database\n  2. mitre-lookup <technique-id> -- look up ATT&CK techniques\n  3. threat-feed -- pull live threat intelligence\n  4. profile -- review accumulated profile data\n  5. recommend -- submit containment recommendation\n\nProfile requires:\n  - CVE ID and CVSS score\n  - Attack vector and affected systems\n  - At least 2 ATT&CK technique IDs\n  - Containment recommendation based on ATT&CK\n'
+                                    content: 'OUTBREAK-7719 INVESTIGATION NOTES\n==================================\nInternal tracking ID: OUTBREAK-7719\nFirst detected: 2026-04-08 by financial sector ISAC\nSuspected CVE: CVE-2024-3094 (confirm with cve-search)\n\nReference: see KBA-1947-CVE-to-ATTACK-Mapping.md for the standard\ntechnique-mapping procedure.\n\nWorkflow:\n  1. cve-search <term> -- query the CVE database\n  2. mitre-lookup <technique-id> -- look up ATT&CK techniques\n  3. threat-feed -- pull live threat intelligence\n  4. profile -- review accumulated profile data\n  5. recommend -- submit containment recommendation\n\nProfile requires:\n  - CVE ID and CVSS score\n  - Attack vector and affected systems\n  - At least 2 ATT&CK technique IDs\n  - Containment recommendation based on ATT&CK\n'
+                                },
+                                'KBA-1947-CVE-to-ATTACK-Mapping.md': {
+                                    type: 'file',
+                                    content: `KBA-1947: Mapping CVE Records to MITRE ATT&CK Techniques
+========================================================
+Owner:        Threat Intelligence Division
+Last review:  2026-03-14
+Applies to:   All analysts performing initial threat profiling
+
+PURPOSE
+  Standard procedure for translating a CVE record into one or more
+  MITRE ATT&CK technique IDs during initial threat profiling.
+
+WHEN TO USE
+  Any time a new CVE enters the active investigation queue and
+  requires ATT&CK mapping before containment recommendations are
+  filed.
+
+PROCEDURE
+
+  Step 1 -- Extract attack-pattern keywords from the CVE description.
+    Read the CVE record returned by cve-search. Identify phrases
+    that describe HOW the attack works. ATT&CK technique names
+    frequently appear verbatim or near-verbatim. Common examples:
+
+      "supply chain compromise"      -> T1195 Supply Chain Compromise
+      "command/scripting interp."    -> T1059 Command and Scripting Interpreter
+      "remote service" / SSH abuse   -> T1021 Remote Services
+      "valid account" / cred abuse   -> T1078 Valid Accounts
+      "disable security tooling"     -> T1562 Impair Defenses
+
+  Step 2 -- Resolve keywords to technique IDs.
+    If the technique ID is known, run: mitre-lookup <ID>
+    If the ID is not known, run: help -- the workstation lists the
+    techniques present in the local mirror. The mitre-lookup error
+    response also lists valid IDs with their names.
+
+  Step 3 -- Confirm the technique matches the CVE behavior.
+    Read the description returned by mitre-lookup. The local mirror
+    cross-references CVE IDs in technique descriptions when a
+    documented example exists. If the description does not match
+    the CVE behavior, the mapping is wrong -- keep searching.
+
+  Step 4 -- Verify profile completeness.
+    Profile requires AT LEAST 2 distinct technique IDs. Run:
+    profile -- confirm COMPLETE status before proceeding.
+
+  Step 5 -- File the recommendation.
+    Run: recommend -- gated on the steps above. If blocked, the
+    response will name the missing profile field.
+
+VERIFICATION
+  At completion: profile shows COMPLETE; recommend succeeds; both
+  flags fire in the lab tracker.
+
+COMMON PITFALLS
+  - Filing recommendation before pulling threat-feed
+  - Mapping only one technique (minimum is 2)
+  - Guessing T-IDs without reading descriptions
+
+REFERENCES
+  - MITRE ATT&CK Enterprise v15 (local mirror)
+  - NVD: National Vulnerability Database
+  - CISA Known-Exploited-Vulnerability Catalog
+`
                                 },
                                 '.bash_history': {
                                     type: 'file',
@@ -170,7 +236,7 @@ const PISL03Config = {
                 engine.config._profileData.attackVector = 'Network';
                 engine.config._profileData.affectedSystems = 'XZ Utils 5.6.0-5.6.1 (liblzma), systemd-integrated Linux systems';
 
-                return 'CVE DATABASE QUERY RESULT\n' + '='.repeat(50) + '\nCVE ID:      CVE-2024-3094\nPublished:   2024-03-29\nModified:    2024-04-05\nCVSS Score:  10.0 (CRITICAL)\nCVSS Vector: AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H\n\nDescription:\n  A supply chain compromise was discovered in XZ Utils (liblzma)\n  versions 5.6.0 and 5.6.1. A malicious maintainer inserted a backdoor\n  into the build system that modified the RSA key decryption function\n  in liblzma. On systems where systemd uses sshd via systemd-notify,\n  this allows an unauthenticated remote attacker to execute arbitrary\n  code with root privileges.\n\nAffected Systems:\n  - XZ Utils 5.6.0, 5.6.1\n  - Any Linux distribution shipping these versions with systemd-linked sshd\n  - Notably: Fedora 40 beta, Debian unstable/testing (at time of discovery)\n\nAttack Vector:      Network\nAuthentication:     None required\nImpact:             Full system compromise\n\nReferences:\n  NVD: https://nvd.nist.gov/vuln/detail/CVE-2024-3094\n  OSS-Security: https://www.openwall.com/lists/oss-security/2024/03/29/4\n\n[Profile updated: CVE-2024-3094 recorded]';
+                return 'CVE DATABASE QUERY RESULT\n' + '='.repeat(50) + '\nCVE ID:      CVE-2024-3094\nPublished:   2024-03-29\nModified:    2024-04-05\nCVSS Score:  10.0 (CRITICAL)\nCVSS Vector: AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H\n\nDescription:\n  A supply chain compromise was discovered in XZ Utils (liblzma)\n  versions 5.6.0 and 5.6.1. A malicious maintainer inserted a backdoor\n  into the build system that modified the RSA key decryption function\n  in liblzma. On systems where systemd uses sshd via systemd-notify,\n  this allows an unauthenticated remote attacker to execute arbitrary\n  code with root privileges.\n\nAffected Systems:\n  - XZ Utils 5.6.0, 5.6.1\n  - Any Linux distribution shipping these versions with systemd-linked sshd\n  - Notably: Fedora 40 beta, Debian unstable/testing (at time of discovery)\n\nAttack Vector:      Network\nAuthentication:     None required\nImpact:             Full system compromise\n\nReferences:\n  NVD: https://nvd.nist.gov/vuln/detail/CVE-2024-3094\n  OSS-Security: https://www.openwall.com/lists/oss-security/2024/03/29/4\n  Internal: KBA-1947 (CVE-to-ATT&CK mapping procedure)\n\n[Profile updated: CVE-2024-3094 recorded]';
             }
 
             // Generic fallback for other searches
@@ -310,7 +376,7 @@ const PISL03Config = {
 
         // help -- command reference
         'help': function(args, term, engine) {
-            return 'OUTBREAK INTELLIGENCE TERMINAL -- COMMAND REFERENCE\n\n  cve-search <term>       Query CVE database\n  mitre-lookup <id>       Look up ATT&CK technique\n  threat-feed             Pull live threat intelligence\n  profile                 View accumulated threat profile\n  recommend               File containment recommendation\n  cat <file>              Read a file\n\nTarget CVE: CVE-2024-3094\nTarget pathogen: OUTBREAK-7719\nATT&CK techniques to explore: T1195, T1059, T1078, T1021, T1562';
+            return 'OUTBREAK INTELLIGENCE TERMINAL -- COMMAND REFERENCE\n\n  cve-search <term>       Query CVE database\n  mitre-lookup <id>       Look up ATT&CK technique\n  threat-feed             Pull live threat intelligence\n  profile                 View accumulated threat profile\n  recommend               File containment recommendation\n  cat <file>              Read a file\n\nTarget CVE: CVE-2024-3094\nTarget pathogen: OUTBREAK-7719\nATT&CK techniques to explore: T1195, T1059, T1078, T1021, T1562\n\nReference: KBA-1947-CVE-to-ATTACK-Mapping.md (in /home/analyst)';
         }
     },
 
