@@ -6346,6 +6346,11 @@
             // with the create form we are about to render.
             document.getElementById('tenantEditFormBody').innerHTML = '';
 
+            // Clear the editing-tenant context. Without this, the invite
+            // auto-detect path in _addInstructorDirect would route to the
+            // previously-edited tenant instead of refusing until save.
+            _editingTenantSlug = null;
+
             // Render a blank form into the create container.
             const body = document.getElementById('tenantCreateFormBody');
             body.innerHTML = '';
@@ -6435,18 +6440,39 @@
         // matching user is added directly. No need to click Search first and then
         // hunt for the per-result Add button. Falls back to the fuzzy-results UI
         // when the query is ambiguous (multiple matches, no exact email).
+        let _addInstructorInFlight = false;
         window._addInstructorDirect = async function() {
+            // In-flight guard — prevents double-click from racing two invite
+            // creations against the H1 duplicate-pending CF check (the second
+            // would overwrite the success card with an "already exists" error).
+            if (_addInstructorInFlight) return;
             const queryRaw = document.getElementById('tenantAdminSearch').value.trim();
             if (!queryRaw || queryRaw.length < 2) {
                 showToast('Type an email or callsign first.', 'warning');
                 return;
             }
+            _addInstructorInFlight = true;
             const query = queryRaw.toLowerCase();
             try {
                 const result = await FirebaseAuth.callFunction('searchUsers', { query: queryRaw });
                 const users = (result.data || result).users || [];
 
                 if (users.length === 0) {
+                    // Auto-detect: if the input is a valid email and we're editing
+                    // an existing tenant, offer the pre-registration invite path
+                    // instead of showing a dead-end error. Tenant must already be
+                    // saved (slug-bound) for the invite CF to succeed.
+                    const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(queryRaw);
+                    if (looksLikeEmail && _editingTenantSlug) {
+                        await _createInviteForUnknownInstructor(queryRaw, _editingTenantSlug);
+                        return;
+                    }
+                    if (looksLikeEmail && !_editingTenantSlug) {
+                        showToast('Save the tenant first, then invite the instructor.', 'warning');
+                        document.getElementById('tenantAdminSearchResults').innerHTML =
+                            '<div style="font-size:0.8rem;color:var(--ac-text-muted);padding:8px;">No matches. Save this tenant before sending an invite.</div>';
+                        return;
+                    }
                     showToast('No user found with "' + queryRaw + '". Check the spelling or try Search.', 'error');
                     document.getElementById('tenantAdminSearchResults').innerHTML =
                         '<div style="font-size:0.8rem;color:var(--ac-text-muted);padding:8px;">No matches.</div>';
@@ -6468,7 +6494,108 @@
                 _searchTenantAdmin();
             } catch (e) {
                 showToast('Add failed: ' + (e.message || 'unknown error'), 'error');
+            } finally {
+                _addInstructorInFlight = false;
             }
+        };
+
+        // ── Pre-registration invite path ─────────────────────────────────
+        // Called by _addInstructorDirect when the typed email matches no
+        // existing Auth user. Generates a token-based invite via the
+        // adminCreateInvite CF and renders a copyable URL in the results
+        // pane. Operator shares the URL manually (no email send in v1).
+        // See _docs/architecture/tenant-invites.md.
+        window._createInviteForUnknownInstructor = async function(email, tenantId) {
+            const resultsEl = document.getElementById('tenantAdminSearchResults');
+            resultsEl.innerHTML = '<div class="ac-loading" style="padding:8px;"><div class="ac-spinner"></div>Generating invite...</div>';
+            try {
+                const result = await FirebaseAuth.callFunction('adminCreateInvite', {
+                    tenantId: tenantId,
+                    email: email,
+                    role: 'instructor'
+                });
+                const data = result.data || result;
+                const inviteUrl = data.inviteUrl;
+                const expiresAt = data.expiresAt;
+                const warning = data.warning;
+
+                if (!inviteUrl) {
+                    resultsEl.innerHTML = '';
+                    showToast('Invite created but no URL returned. Check the invites list.', 'warning');
+                    return;
+                }
+
+                let html = '<div style="background:var(--ac-success-subtle);border:1px solid var(--ac-success);border-radius:6px;padding:12px;">';
+                html += '<div style="font-size:0.78rem;color:var(--ac-success);font-weight:600;margin-bottom:6px;">Invite created for ' + escHtml(email) + '</div>';
+                if (warning) {
+                    html += '<div style="font-size:0.72rem;color:var(--ac-warning);margin-bottom:6px;">⚠ ' + escHtml(warning) + '</div>';
+                }
+                html += '<div style="font-size:0.7rem;color:var(--ac-text-muted);margin-bottom:8px;">Expires: ' + escHtml(new Date(expiresAt).toLocaleString()) + '</div>';
+                html += '<div style="display:flex;gap:6px;">';
+                // Input rendered with empty value here; the actual URL is set via
+                // the DOM .value property below to avoid attribute-injection risk
+                // (escHtml does not encode " — it would be unsafe for value="...").
+                html += '<input type="text" readonly id="inviteUrlField" style="flex:1;background:var(--ac-bg);border:1px solid var(--ac-border);border-radius:4px;padding:6px 8px;font-size:0.72rem;color:var(--ac-text);font-family:monospace;" onclick="this.select()">';
+                html += '<button class="ac-btn ac-btn-primary ac-btn-sm" onclick="_copyInviteUrl()">Copy</button>';
+                html += '</div>';
+                html += '<div style="font-size:0.7rem;color:var(--ac-text-muted);margin-top:8px;">Send this URL to ' + escHtml(email) + '. They must sign in with that email address to accept.</div>';
+                html += '</div>';
+                resultsEl.innerHTML = html;
+                // Inject URL via DOM property — bypasses HTML attribute parsing.
+                document.getElementById('inviteUrlField').value = inviteUrl;
+
+                document.getElementById('tenantAdminSearch').value = '';
+                showToast('Invite link generated for ' + email, 'success');
+            } catch (e) {
+                const code = e && e.code;
+                if (code === 'already-exists' || code === 'functions/already-exists') {
+                    resultsEl.innerHTML = '<div style="background:var(--ac-warning-subtle);border:1px solid var(--ac-warning);border-radius:6px;padding:12px;font-size:0.78rem;color:var(--ac-text);">An active pending invite already exists for this email. Revoke it before creating a new one.</div>';
+                    showToast('Active invite already exists for ' + email, 'warning');
+                } else if (code === 'not-found' || code === 'functions/not-found') {
+                    resultsEl.innerHTML = '';
+                    showToast('Tenant not found. Save the tenant first.', 'error');
+                } else if (code === 'failed-precondition' || code === 'functions/failed-precondition') {
+                    resultsEl.innerHTML = '';
+                    showToast('Cannot create invite: ' + (e.message || 'tenant inactive'), 'error');
+                } else {
+                    console.error('adminCreateInvite error:', e);
+                    resultsEl.innerHTML = '';
+                    showToast('Invite creation failed: ' + (e.message || 'unknown error'), 'error');
+                }
+            }
+        };
+
+        // Copy invite URL to clipboard. Uses Clipboard API where available,
+        // falls back to execCommand for older browsers.
+        window._copyInviteUrl = function() {
+            const field = document.getElementById('inviteUrlField');
+            if (!field) return;
+            field.select();
+            field.setSelectionRange(0, 99999);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(field.value).then(
+                    function() { showToast('Invite URL copied to clipboard.', 'success'); },
+                    function() {
+                        try {
+                            if (document.execCommand('copy')) {
+                                showToast('Invite URL copied to clipboard.', 'success');
+                            } else {
+                                showToast('Copy failed — select the URL and copy manually.', 'warning');
+                            }
+                        } catch (_) {
+                            showToast('Copy failed — select the URL and copy manually.', 'warning');
+                        }
+                    }
+                );
+                return;
+            }
+            try {
+                if (document.execCommand('copy')) {
+                    showToast('Invite URL copied to clipboard.', 'success');
+                    return;
+                }
+            } catch (_) {}
+            showToast('Copy failed — select the URL and copy manually.', 'warning');
         };
 
         window._searchTenantAdmin = async function() {
