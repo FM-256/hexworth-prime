@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 2 Lecture Companion | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 16px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 28px 36px 78px; overflow: hidden;
+            animation: slideIn 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(28px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .slide-inner { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 18px; }
+
+        /* progress + nav */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+            transition: width 0.45s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+            background: rgba(2, 8, 20, 0.95); border-top: 1px solid rgba(59, 130, 246, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 9px 24px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.84rem; padding: 9px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.84rem; min-width: 100px; text-align: center; }
+
+        #complete-btn { display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35); }
+
+        /* typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; opacity: 0.8; }
+        .slide-title { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; text-align: center; line-height: 1.18; }
+        .slide-title .accent { color: #3b82f6; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+        .slide-title .accent-gold { color: #eab308; }
+        .slide-title .accent-red { color: #ef4444; }
+        .slide-title .accent-pink { color: #ec4899; }
+        .slide-title .accent-purple { color: #a855f7; }
+        .slide-subtitle { font-size: 1.05rem; color: #94a3b8; text-align: center; max-width: 880px; margin: 0 auto; }
+
+        /* hero title slide */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 3rem; font-weight: 900; color: #f1f5f9; line-height: 1.12; letter-spacing: -0.01em; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-hero .lead { font-size: 1.2rem; color: #94a3b8; max-width: 720px; }
+        .title-meta-row { display: flex; gap: 32px; justify-content: center; margin-top: 12px; font-size: 0.85rem; color: #64748b; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* cards */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 16px 18px; border-left: 3px solid #3b82f6;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        .slide.active .card:nth-child(1) { animation-delay: 0.18s; }
+        .slide.active .card:nth-child(2) { animation-delay: 0.32s; }
+        .slide.active .card:nth-child(3) { animation-delay: 0.46s; }
+        .slide.active .card:nth-child(4) { animation-delay: 0.60s; }
+        .slide.active .card:nth-child(5) { animation-delay: 0.74s; }
+        .slide.active .card:nth-child(6) { animation-delay: 0.88s; }
+
+        .card .card-label { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.9rem; color: #94a3b8; line-height: 1.5; }
+        .card.c-blue  { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.04); }
+        .card.c-red   { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.04); }
+        .card.c-gold  { border-left-color: #eab308; background: rgba(234, 179, 8, 0.04); }
+        .card.c-cyan  { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.04); }
+        .card.c-green { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.04); }
+        .card.c-purple { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.04); }
+        .card.c-pink  { border-left-color: #ec4899; background: rgba(236, 72, 153, 0.04); }
+        .card.c-orange { border-left-color: #f97316; background: rgba(249, 115, 22, 0.04); }
+        .card.c-teal  { border-left-color: #14b8a6; background: rgba(20, 184, 166, 0.04); }
+
+        /* big-stat hero cards */
+        .stat-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(6, 182, 212, 0.04));
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 14px; padding: 22px 24px; text-align: center;
+            opacity: 0; animation: cardIn 0.6s ease-out forwards;
+        }
+        .stat-card .stat-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #3b82f6; margin-bottom: 6px; }
+        .stat-card .stat-title { font-size: 1.4rem; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
+        .stat-card .stat-text  { font-size: 0.92rem; color: #cbd5e1; line-height: 1.55; }
+
+        /* callouts */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 12px 18px;
+            font-size: 0.95rem; color: #bfdbfe; font-style: italic; line-height: 1.55;
+        }
+        .box { border-radius: 8px; padding: 14px 18px; font-size: 0.92rem; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-purple { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.75; }
+
+        /* diagrams */
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 6px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.5; r: 4; } 50% { opacity: 1; r: 6; } }
+        @keyframes pulseGlow { 0%, 100% { filter: drop-shadow(0 0 4px currentColor); } 50% { filter: drop-shadow(0 0 14px currentColor); } }
+        @keyframes signalSend { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes expandOut { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* recap fact rows */
+        .summary-facts { display: flex; flex-direction: column; gap: 8px; }
+        .fact-row { display: flex; gap: 14px; align-items: baseline; font-size: 0.95rem; opacity: 0; animation: cardIn 0.45s ease-out forwards; }
+        .fact-num  { font-size: 0.85rem; font-weight: 800; color: #3b82f6; min-width: 26px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.55; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #3b82f6; background: rgba(59, 130, 246, 0.08); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; }
+        .slide.active .fact-row:nth-child(1) { animation-delay: 0.14s; }
+        .slide.active .fact-row:nth-child(2) { animation-delay: 0.22s; }
+        .slide.active .fact-row:nth-child(3) { animation-delay: 0.30s; }
+        .slide.active .fact-row:nth-child(4) { animation-delay: 0.38s; }
+        .slide.active .fact-row:nth-child(5) { animation-delay: 0.46s; }
+        .slide.active .fact-row:nth-child(6) { animation-delay: 0.54s; }
+        .slide.active .fact-row:nth-child(7) { animation-delay: 0.62s; }
+        .slide.active .fact-row:nth-child(8) { animation-delay: 0.70s; }
+        .slide.active .fact-row:nth-child(9) { animation-delay: 0.78s; }
+        .slide.active .fact-row:nth-child(10) { animation-delay: 0.86s; }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 12px; } .slide-title { font-size: 1.7rem; } .title-hero .big-title { font-size: 2.2rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-2, .card-grid-4 { grid-template-columns: 1fr; } .slide-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Week 2 Lecture Companion | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:6.7%"></div>
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Lecture Companion &nbsp;|&nbsp; Week 2 of 8 &nbsp;|&nbsp; CompTIA SY0-701</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Four Domains,<br>
+                <span class="accent">One Posture</span>
+            </div>
+            <div class="lead">
+                Application attacks, cryptography, device security, and network attacks. Four surfaces an adversary can target &mdash; and four surfaces you have to defend simultaneously.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>15 Slides</span>
+            <span>~35 min</span>
+            <span>4 sub-topics</span>
+            <span>Lecture pace</span>
+        </div>
+        <div class="scenario-strip" style="margin-top:14px;">
+            This deck is the instructor companion. The 4 textbook decks (Application Attacks, Cryptography, Device Security, Network Attacks) hold the drilldown. This deck holds the throughline &mdash; how the four surfaces interconnect, and what an analyst needs to carry into Week 3.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 2 — APP ATTACK SURFACE ============ -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 15 &nbsp;|&nbsp; Topic 1: Application Attacks</div>
+        <div class="slide-title">The <span class="accent">Application</span> Attack Surface</div>
+        <div class="slide-subtitle">An application is not one target. It is five layered targets, and an adversary picks the weakest layer.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 200" width="720" height="200" xmlns="http://www.w3.org/2000/svg">
+                <!-- Layered app -->
+                <rect x="20" y="20" width="680" height="30" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="40" y="40" fill="#bfdbfe" font-family="Segoe UI" font-size="12" font-weight="700">PRESENTATION / INPUT</text>
+                <text x="680" y="40" text-anchor="end" fill="#94a3b8" font-family="Segoe UI" font-size="10">XSS · CSRF · clickjacking · file upload</text>
+
+                <rect x="20" y="55" width="680" height="30" rx="4" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="40" y="75" fill="#cffafe" font-family="Segoe UI" font-size="12" font-weight="700">SESSION / IDENTITY</text>
+                <text x="680" y="75" text-anchor="end" fill="#94a3b8" font-family="Segoe UI" font-size="10">session fixation · broken auth · IDOR</text>
+
+                <rect x="20" y="90" width="680" height="30" rx="4" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="40" y="110" fill="#e9d5ff" font-family="Segoe UI" font-size="12" font-weight="700">BUSINESS LOGIC</text>
+                <text x="680" y="110" text-anchor="end" fill="#94a3b8" font-family="Segoe UI" font-size="10">race conditions · privilege escalation · deserialization</text>
+
+                <rect x="20" y="125" width="680" height="30" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="40" y="145" fill="#fef9c3" font-family="Segoe UI" font-size="12" font-weight="700">DATA / PERSISTENCE</text>
+                <text x="680" y="145" text-anchor="end" fill="#94a3b8" font-family="Segoe UI" font-size="10">SQL injection · XML injection · SSRF</text>
+
+                <rect x="20" y="160" width="680" height="30" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="40" y="180" fill="#fee2e2" font-family="Segoe UI" font-size="12" font-weight="700">MEMORY / RUNTIME</text>
+                <text x="680" y="180" text-anchor="end" fill="#94a3b8" font-family="Segoe UI" font-size="10">buffer overflow · TOCTOU · directory traversal</text>
+            </svg>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Anchor question for every app finding</div>
+            <strong>Which layer does this attack live in?</strong> The defense lives in the same layer. Input attacks need input validation. Session attacks need session hardening. Memory attacks need memory-safe code or runtime mitigations (ASLR, DEP). Misplace the defense, you spend money for no protection.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3 — INJECTION FAMILY ============ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 15</div>
+        <div class="slide-title">The <span class="accent-red">Injection</span> Family</div>
+        <div class="slide-subtitle">One pattern, four variants: untrusted input is interpreted as code by a downstream parser.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-red">
+                <div class="card-label">SQL Injection</div>
+                <div class="card-desc">Input concatenated into a SQL query. Database treats data as syntax. <strong>Defense:</strong> parameterized queries / prepared statements. Never sanitize-and-concatenate.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Cross-Site Scripting (XSS)</div>
+                <div class="card-desc">Input rendered into HTML/JS. Browser treats data as code. <strong>Defense:</strong> context-aware output encoding + Content Security Policy.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Command Injection</div>
+                <div class="card-desc">Input passed to OS shell. Shell treats data as commands. <strong>Defense:</strong> use exec-array APIs, never shell strings. Allowlist arguments.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">XXE / XML Injection</div>
+                <div class="card-desc">Malicious XML entities expand into file reads or SSRF. <strong>Defense:</strong> disable external entity processing in XML parsers.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The universal injection rule</div>
+            <strong>Data must never become code without an explicit boundary.</strong> Every injection class violates this single principle. The defense is structural &mdash; force the parser to treat input as data via parameterization, encoding, or sandboxing. Sanitization is a fallback, not a primary defense.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 4 — APP DEFENSE STACK ============ -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 15</div>
+        <div class="slide-title">The <span class="accent">Application Defense</span> Stack</div>
+        <div class="slide-subtitle">Defense is layered. Each layer catches a different class of failure. No layer is sufficient alone.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 130" width="720" height="130" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="50" width="120" height="40" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="80" y="68" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="12" font-weight="700">INPUT</text>
+                <text x="80" y="83" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">validation · allowlist</text>
+
+                <polygon points="140,70 160,60 160,80" fill="#60a5fa"/>
+
+                <rect x="170" y="50" width="120" height="40" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="230" y="68" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="12" font-weight="700">OUTPUT</text>
+                <text x="230" y="83" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">context encoding</text>
+
+                <polygon points="290,70 310,60 310,80" fill="#60a5fa"/>
+
+                <rect x="320" y="50" width="120" height="40" rx="6" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="380" y="68" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="12" font-weight="700">WAF</text>
+                <text x="380" y="83" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">signature + behavior</text>
+
+                <polygon points="440,70 460,60 460,80" fill="#60a5fa"/>
+
+                <rect x="470" y="50" width="120" height="40" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="530" y="68" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="12" font-weight="700">TESTING</text>
+                <text x="530" y="83" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">SAST · DAST · fuzz</text>
+
+                <polygon points="590,70 610,60 610,80" fill="#60a5fa"/>
+
+                <rect x="620" y="50" width="80" height="40" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="660" y="68" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="12" font-weight="700">SDL</text>
+                <text x="660" y="83" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">policy</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Validation &amp; Encoding</div>
+                <div class="card-desc">First and cheapest defense. Allowlist input; context-encode output. Catches 80% of injection if applied consistently.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">WAF (Web App Firewall)</div>
+                <div class="card-desc">Network-layer net. Signature-based + behavioral rules. Buys time during patch windows, never replaces the patch.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Testing + SDL</div>
+                <div class="card-desc">Shift-left. Static analysis (SAST) finds bugs in code; dynamic (DAST) finds bugs in running app. Secure Development Lifecycle bakes both into the release process.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 5 — CRYPTO BUILDING BLOCKS ============ -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 15 &nbsp;|&nbsp; Topic 2: Cryptography</div>
+        <div class="slide-title">Three <span class="accent-gold">Crypto</span> Building Blocks</div>
+        <div class="slide-subtitle">Modern cryptography reduces to three primitives. Every protocol you'll meet is a combination of these.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Symmetric Encryption</div>
+                <div class="card-desc"><strong>One key. Fast.</strong> Protects bulk data. AES-256 is the workhorse. <em>Property:</em> Confidentiality. <em>Challenge:</em> distributing the key safely.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Asymmetric Encryption</div>
+                <div class="card-desc"><strong>Two keys (public + private). Slow.</strong> Used for identity and key exchange. RSA, ECC, Diffie-Hellman. <em>Property:</em> Confidentiality + authentication. <em>Challenge:</em> proving who owns a public key &rarr; PKI.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Cryptographic Hashing</div>
+                <div class="card-desc"><strong>One-way. Fixed output.</strong> Used for integrity and password storage. SHA-256, SHA-3, bcrypt. <em>Property:</em> Integrity. <em>Challenge:</em> collisions kill the property (MD5, SHA-1 are broken).</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The hybrid pattern</div>
+            <strong>TLS uses all three.</strong> Asymmetric for key exchange (slow but secure). Symmetric for bulk encryption (fast, scales). Hashing for message integrity (HMAC). Real protocols always combine primitives &mdash; using just one is almost always wrong.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 6 — PKI ============ -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 15</div>
+        <div class="slide-title"><span class="accent-cyan">PKI</span>: Identity at Scale</div>
+        <div class="slide-subtitle">Public Key Infrastructure answers one question: "who actually owns this public key?"</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 150" width="720" height="150" xmlns="http://www.w3.org/2000/svg">
+                <!-- Root CA -->
+                <rect x="280" y="10" width="160" height="40" rx="6" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="2"/>
+                <text x="360" y="28" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="12" font-weight="700">ROOT CA</text>
+                <text x="360" y="43" text-anchor="middle" fill="#fde68a" font-family="Segoe UI" font-size="10">offline · self-signed · trust anchor</text>
+
+                <!-- Lines down to intermediate -->
+                <line x1="360" y1="50" x2="360" y2="70" stroke="#eab308" stroke-width="1.5"/>
+
+                <!-- Intermediate CA -->
+                <rect x="280" y="70" width="160" height="40" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="360" y="88" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="12" font-weight="700">INTERMEDIATE CA</text>
+                <text x="360" y="103" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">online · issues leaf certs</text>
+
+                <!-- Lines down to leaves -->
+                <line x1="200" y1="130" x2="280" y2="115" stroke="#06b6d4" stroke-width="1" opacity="0.6"/>
+                <line x1="360" y1="110" x2="360" y2="130" stroke="#06b6d4" stroke-width="1" opacity="0.6"/>
+                <line x1="520" y1="130" x2="440" y2="115" stroke="#06b6d4" stroke-width="1" opacity="0.6"/>
+
+                <!-- Leaf certs -->
+                <rect x="120" y="130" width="160" height="15" rx="3" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="200" y="142" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">server.example.com</text>
+
+                <rect x="280" y="130" width="160" height="15" rx="3" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="360" y="142" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">mail.example.com</text>
+
+                <rect x="440" y="130" width="160" height="15" rx="3" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="520" y="142" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">vpn.example.com</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-4">
+            <div class="card c-gold">
+                <div class="card-label">Certificate Authority</div>
+                <div class="card-desc">The trusted third party. Browsers ship with ~150 root CAs preinstalled. That trust anchor is what makes TLS work at internet scale.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Certificate</div>
+                <div class="card-desc">A signed binding: "this public key belongs to this domain, until this expiry date, attested by this CA."</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Revocation (CRL/OCSP)</div>
+                <div class="card-desc">When a cert is compromised, you must invalidate it before expiry. CRL = list. OCSP = real-time check. Both are imperfect.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Trust Store</div>
+                <div class="card-desc">The browser/OS list of "CAs I trust." Compromise the trust store, you compromise every TLS connection from that machine.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 7 — CRYPTO FAILURES ============ -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 15</div>
+        <div class="slide-title">How <span class="accent-red">Crypto Fails</span> in Practice</div>
+        <div class="slide-subtitle">Algorithms rarely break. Implementations always do. Four failure modes you will see in the wild.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-red">
+                <div class="card-label">Weak RNG</div>
+                <div class="card-desc">If the random number generator is predictable, every key it produces is too. Debian's 2008 OpenSSL bug shipped 32,767 possible keys for two years.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Key Reuse</div>
+                <div class="card-desc">Reusing a nonce, IV, or key across messages collapses semantic security. WEP fell to IV reuse in under a minute of capture.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Side Channels</div>
+                <div class="card-desc">Timing, power draw, electromagnetic emissions, cache state &mdash; the algorithm leaks information through its execution. Spectre exploited CPU cache timing; Lucky 13 exploited TLS MAC processing timing.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Obsolete Primitives</div>
+                <div class="card-desc">MD5, SHA-1, RC4, DES, 3DES &mdash; broken or weak today. They linger in legacy systems and compliance checklists, and attackers love them.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The implementation rule</div>
+            <strong>Never roll your own crypto.</strong> The math is the easy part. The implementation &mdash; constant-time operations, secure RNG, IV management, key rotation, side-channel hardening &mdash; is decades of accumulated bugs. Use vetted libraries (libsodium, BoringSSL, Bouncy Castle). When the question is "should I implement this primitive myself?", the answer is no.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 8 — DEVICE LANDSCAPE ============ -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 15 &nbsp;|&nbsp; Topic 3: Device Security</div>
+        <div class="slide-title">The <span class="accent-purple">Device</span> Landscape</div>
+        <div class="slide-subtitle">"Endpoint" is no longer one category. Four device classes, four threat models, four control sets.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-blue">
+                <div class="card-label">Endpoint (PC/Laptop)</div>
+                <div class="card-desc"><strong>Lifecycle:</strong> 3-5 years. <strong>Update path:</strong> regular, automated. <strong>Risk:</strong> phishing, malware, lateral movement. <strong>Control:</strong> EDR, FDE, patching.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Mobile</div>
+                <div class="card-desc"><strong>Lifecycle:</strong> 2-4 years. <strong>Update path:</strong> OS-vendor controlled. <strong>Risk:</strong> rogue apps, BYOD blur, physical loss. <strong>Control:</strong> MDM, MTD, app vetting.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">IoT</div>
+                <div class="card-desc"><strong>Lifecycle:</strong> 5-10 years. <strong>Update path:</strong> often none. <strong>Risk:</strong> default creds, weak crypto, botnet enrollment. <strong>Control:</strong> network segmentation, default-cred change, retirement.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">ICS/SCADA</div>
+                <div class="card-desc"><strong>Lifecycle:</strong> 10-25 years. <strong>Update path:</strong> rare, scheduled, terrifying. <strong>Risk:</strong> physical-world impact (power, water, manufacturing). <strong>Control:</strong> air-gap, allowlisting, defense in depth.</div>
+            </div>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">Why this matters for the analyst</div>
+            <strong>The same "patch it" advice does not apply across all four.</strong> A 2-week IT patch SLA breaks ICS uptime. A wipe-and-reimage policy is unusable for a $400k SCADA controller. Each device class needs its own playbook &mdash; and most organizations have one playbook for all four, which is why ICS keeps breaking.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 9 — MDM / BYOD / LIFECYCLE ============ -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 15</div>
+        <div class="slide-title">MDM, BYOD, and <span class="accent">Lifecycle</span></div>
+        <div class="slide-subtitle">Device security is a control problem, not a tech problem. You can't defend what you don't track.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Acquisition</div>
+                <div class="card-desc">Procurement under standard config. Hardware from trusted suppliers (supply chain). Initial enrollment in MDM. Baseline image with security tooling pre-installed. <em>Skip this and you ship the breach.</em></div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Use (MDM + BYOD)</div>
+                <div class="card-desc">MDM enforces policy: encryption on, PIN required, app allowlist, remote wipe ready. BYOD adds the tenant boundary &mdash; corporate container vs. personal data, with explicit consent on what the company can see.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Decommission</div>
+                <div class="card-desc">Sanitize: certified wipe per NIST 800-88, or physical destruction. Remove from inventory and MDM. Recover keys, certs, licenses. <em>"Lost in a drawer" devices are the source of most surprise breaches.</em></div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The asset-inventory truth</div>
+            <strong>You cannot patch, isolate, wipe, or retire a device you don't know exists.</strong> Asset inventory is the foundation of every other device control. Most "device security" failures are upstream inventory failures &mdash; the device wasn't tracked, so it wasn't patched, so it wasn't seen when the breach started.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10 — HARDWARE ROOTS ============ -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 15</div>
+        <div class="slide-title">Hardware <span class="accent-gold">Roots of Trust</span></div>
+        <div class="slide-subtitle">Trust starts at silicon, not at the operating system. Four hardware features carry the modern security chain.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 110" width="720" height="110" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="40" width="120" height="40" rx="6" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="80" y="58" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="11" font-weight="700">SILICON</text>
+                <text x="80" y="73" text-anchor="middle" fill="#fde68a" font-family="Segoe UI" font-size="9">TPM · HSM</text>
+
+                <polygon points="140,60 160,52 160,68" fill="#60a5fa"/>
+
+                <rect x="170" y="40" width="120" height="40" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="230" y="58" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="11" font-weight="700">FIRMWARE</text>
+                <text x="230" y="73" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">UEFI · signed</text>
+
+                <polygon points="290,60 310,52 310,68" fill="#60a5fa"/>
+
+                <rect x="320" y="40" width="120" height="40" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="380" y="58" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="11" font-weight="700">BOOTLOADER</text>
+                <text x="380" y="73" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">measured boot</text>
+
+                <polygon points="440,60 460,52 460,68" fill="#60a5fa"/>
+
+                <rect x="470" y="40" width="120" height="40" rx="6" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="530" y="58" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="11" font-weight="700">KERNEL</text>
+                <text x="530" y="73" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">signed · verified</text>
+
+                <polygon points="590,60 610,52 610,68" fill="#60a5fa"/>
+
+                <rect x="620" y="40" width="80" height="40" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+                <text x="660" y="58" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="11" font-weight="700">OS / APP</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-4">
+            <div class="card c-gold">
+                <div class="card-label">Secure Boot</div>
+                <div class="card-desc">UEFI verifies firmware and bootloader signatures before executing. Stops bootkit and rootkit at boot. If the chain breaks, the device refuses to boot.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">TPM</div>
+                <div class="card-desc">Trusted Platform Module. Chip-level key storage, attestation, and measurement of boot state. Hosts BitLocker/FileVault keys and signs platform health reports.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">FDE (Full Disk Encryption)</div>
+                <div class="card-desc">All disk content is encrypted at rest. Lost laptop = lost disk, not lost data. BitLocker on Windows, FileVault on macOS, LUKS on Linux. Key bound to TPM.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">HSM</div>
+                <div class="card-desc">Hardware Security Module. Tamper-resistant key vault for high-value workloads (CAs, payment processing). Keys never leave the device; signing happens inside.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 11 — NETWORK ATTACK CATEGORIES ============ -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 15 &nbsp;|&nbsp; Topic 4: Network Attacks</div>
+        <div class="slide-title">Network Attack <span class="accent-red">Categories</span></div>
+        <div class="slide-subtitle">Every network attack you'll see in the wild slots into one of three goals.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Denial of Service</div>
+                <div class="card-desc"><strong>Goal:</strong> break availability. <strong>How:</strong> exhaust bandwidth (volumetric), connection state (protocol), or app resources (application-layer). DDoS is the distributed version. <em>CIA pillar violated:</em> Availability.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Man-in-the-Middle</div>
+                <div class="card-desc"><strong>Goal:</strong> intercept or modify traffic. <strong>How:</strong> position between endpoints (ARP/DNS poison, rogue AP, SSL strip). Read, alter, or replay traffic. <em>CIA pillars violated:</em> Confidentiality + Integrity.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Reconnaissance</div>
+                <div class="card-desc"><strong>Goal:</strong> gather intelligence. <strong>How:</strong> port scan, banner grab, packet capture, DNS enumeration. Often the first stage of a longer attack chain. <em>CIA pillar violated:</em> Confidentiality (of infrastructure).</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The categorization payoff</div>
+            <strong>Detection depends on the category.</strong> DoS shows in traffic-volume metrics. MitM shows in certificate or ARP anomalies. Recon shows in connection patterns. Stack a SIEM on the wrong signals and you miss the attack class your tools weren't tuned for.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 12 — LAYER 2/3 ATTACKS ============ -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 15</div>
+        <div class="slide-title"><span class="accent-red">Layer 2/3</span> Attacks</div>
+        <div class="slide-subtitle">The lower the layer, the more trust the protocol assumes. Three attacks that exploit that trust.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">ARP Spoofing (L2)</div>
+                <div class="card-desc">Attacker sends forged ARP replies, claiming to be the gateway. Local network traffic now flows through the attacker. <strong>Detection:</strong> ARP-watch tools, static ARP for critical hosts, dynamic ARP inspection on managed switches.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">DNS Poisoning (L3)</div>
+                <div class="card-desc">Attacker injects forged DNS responses, redirecting traffic to a malicious server. Resolver caches the bad answer for hours. <strong>Defense:</strong> DNSSEC, DNS-over-HTTPS, response-rate limiting.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">VLAN Hopping (L2)</div>
+                <div class="card-desc">Attacker injects double-tagged frames to escape one VLAN and reach another. Defeats logical segmentation if switch ports are misconfigured. <strong>Defense:</strong> disable DTP, drop double-tagged frames, lock down trunk ports.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The trust-the-wire warning</div>
+            <strong>If you trust the wire, you trust whoever can see the wire.</strong> Layer 2 and Layer 3 protocols predate cryptography. ARP, DNS, ICMP, BGP &mdash; all of them assume the network medium itself is honest. That assumption fails the moment an attacker is on the same broadcast domain, or upstream of you.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 13 — NETWORK DEFENSE ============ -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 15</div>
+        <div class="slide-title">Network <span class="accent-cyan">Defense</span> Stack</div>
+        <div class="slide-subtitle">Four defenses that compose into a modern network security posture.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-blue">
+                <div class="card-label">Segmentation</div>
+                <div class="card-desc">Divide the network into trust zones (DMZ, server, user, ICS). Breach in one zone doesn't reach the others. The cheapest defense with the highest impact.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Zero Trust (ZTNA)</div>
+                <div class="card-desc">"Never trust, always verify." No implicit trust from network location. Every connection is authenticated and authorized per session. The death of the network perimeter.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Firewall (NGFW)</div>
+                <div class="card-desc">Stateful inspection + application-layer rules + intrusion prevention. Modern firewalls inspect TLS, deep-packet inspect protocols, and integrate with threat feeds.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">IPsec / VPN</div>
+                <div class="card-desc">Authenticated and encrypted tunnels for site-to-site or remote access. IKEv2 for the modern stack. Provides confidentiality and integrity over hostile transit networks.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The defense-in-depth point</div>
+            <strong>No single network control stops everything.</strong> Segmentation contains lateral movement. ZTNA stops trust-from-location attacks. Firewalls catch known-bad traffic. IPsec protects in-transit data. Each one closes a different attacker goal. Defense-in-depth is the explicit recognition that any one layer will fail.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 14 — TEN THINGS ============ -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 15 &nbsp;|&nbsp; Synthesis</div>
+        <div class="slide-title">Week 2: <span class="accent">Ten Things to Remember</span></div>
+        <div class="slide-subtitle">If you carry ten things from this week into the exam and the career, carry these.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Applications attack on five layers</strong> &mdash; input, session, business logic, data, memory. Defense has to live in the same layer as the attack.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>Injection is one pattern, four variants.</strong> SQL, XSS, command, XXE all violate one rule: data must never become code without an explicit boundary. Defense is structural &mdash; parameterization, encoding, sandboxing.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>App defense is layered:</strong> validation &rarr; encoding &rarr; WAF &rarr; testing &rarr; SDL. No layer is sufficient alone.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Crypto has three primitives:</strong> symmetric (speed), asymmetric (identity), hash (integrity). Real protocols always combine all three (TLS, Signal, JWTs).</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>PKI answers "who owns this public key?"</strong> CAs, certificates, revocation, trust stores. Compromise the trust store, you compromise every TLS connection.</span></div>
+            <div class="fact-row"><span class="fact-num">6</span><span class="fact-text"><strong>Crypto fails through implementation, not math.</strong> Weak RNG, key reuse, side channels, obsolete primitives. Never roll your own &mdash; use vetted libraries.</span></div>
+            <div class="fact-row"><span class="fact-num">7</span><span class="fact-text"><strong>Four device classes, four threat models:</strong> endpoint, mobile, IoT, ICS. The same playbook does not work across all four &mdash; ICS uptime breaks under IT patching.</span></div>
+            <div class="fact-row"><span class="fact-num">8</span><span class="fact-text"><strong>Hardware roots of trust:</strong> Secure Boot, TPM, FDE, HSM. Trust starts at silicon. The boot chain verifies each layer before executing the next.</span></div>
+            <div class="fact-row"><span class="fact-num">9</span><span class="fact-text"><strong>Network attacks fall into three goals:</strong> DoS (availability), MitM (confidentiality + integrity), recon (intel). Detection has to match the category.</span></div>
+            <div class="fact-row"><span class="fact-num">10</span><span class="fact-text"><strong>L2/L3 protocols trust the wire.</strong> ARP, DNS, VLAN, BGP all assume honesty &mdash; that fails when an attacker is on the broadcast domain or upstream. Modern defense is segmentation + zero trust + crypto in transit.</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 15 — LOOKING AHEAD ============ -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 15 &nbsp;|&nbsp; Looking Ahead</div>
+        <div class="slide-title">Looking Ahead to <span class="accent">Week 3</span></div>
+        <div class="slide-subtitle">Week 2 was the attack catalog. Week 3 is how organizations operationalize defense across architecture, identity, and the security operations center.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-blue">
+                <div class="card-label">Network Architecture</div>
+                <div class="card-desc">DMZs, screened subnets, network segmentation patterns, SDN. How real enterprise networks are laid out for security and performance.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">PKI Deep Dive</div>
+                <div class="card-desc">From the Week 2 PKI overview to the actual mechanics: certificate lifecycle, trust paths, OCSP stapling, certificate transparency, key escrow.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Security Operations</div>
+                <div class="card-desc">SIEM, SOAR, threat hunting, incident response. The day-to-day of running a security program. From "we have logs" to "we know what's happening."</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Wireless &amp; Cloud</div>
+                <div class="card-desc">WPA3, EAP methods, cloud-specific threat models, shared-responsibility, CASB. Where Week 2's attacks land in the cloud and on the air.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="text-align:center;">
+            <div class="box-label">Before class next week</div>
+            Complete the <strong>Week 2 Quiz</strong>. Review any of the 4 drilldown decks (app-attacks, cryptography, device-security, network-attacks) for topics that felt thin. Bring questions on whichever of the four domains hits hardest at your current job.
+        </div>
+
+        <div style="text-align:center; margin-top:14px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ============ NAV ============ -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 15</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 15;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w2-lecture', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
