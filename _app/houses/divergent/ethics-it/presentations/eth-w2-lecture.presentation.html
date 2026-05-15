@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 2 Lecture: Rights Through the Lens | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #150e18 50%, #1a0c20 100%);
+            background-size: 250% 250%;
+            animation: bgPan 32s ease-in-out infinite;
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: absolute; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* nav + progress */
+        #progress-bar {
+            position: absolute; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff 0%, #a855f7 50%, #ff00ff 100%);
+            background-size: 200% 100%;
+            animation: shimmer 4s linear infinite;
+            transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.04); color: #94a3b8;
+            border: 1px solid rgba(255, 0, 255, 0.18);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.10); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #ff00ff; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.5px;
+        }
+        #complete-btn:hover { background: #ff66ff; transform: translateY(-1px); }
+
+        /* typography */
+        .slide-meta {
+            font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em;
+            text-transform: uppercase; text-align: center;
+            position: relative; padding-bottom: 4px;
+        }
+        .slide-meta::after {
+            content: ""; position: absolute; left: 50%; bottom: 0;
+            width: 80px; height: 2.5px; margin-left: -40px;
+            background: linear-gradient(90deg, transparent, #ff00ff, transparent);
+            transform-origin: center; transform: scaleX(0);
+        }
+        .slide.active .slide-meta::after { animation: slideUnderline 1.4s ease-out 1.00s forwards; }
+        .slide-title { font-size: 1.85rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; display: inline-block; animation: accentBreathe 3.2s ease-in-out infinite; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+        .slide-title .accent-amber { color: #f59e0b; }
+        .slide-title .accent-red { color: #ef4444; }
+        .slide-subtitle { font-size: 0.96rem; color: #94a3b8; text-align: center; max-width: 880px; margin: 0 auto; }
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5d5f5; font-style: italic;
+        }
+
+        /* boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.07); border: 1px solid rgba(255, 0, 255, 0.30); color: #f5d5f5; }
+        .box-green   { background: rgba(58, 181, 119, 0.07); border: 1px solid rgba(58, 181, 119, 0.32); color: #d1fae5; }
+        .box-red     { background: rgba(239, 68, 68, 0.07); border: 1px solid rgba(239, 68, 68, 0.30); color: #fee2e2; }
+        .box-cyan    { background: rgba(6, 182, 212, 0.07); border: 1px solid rgba(6, 182, 212, 0.30); color: #cffafe; }
+        .box-amber   { background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.30); color: #fef3c7; }
+        .box-purple  { background: rgba(168, 85, 247, 0.07); border: 1px solid rgba(168, 85, 247, 0.30); color: #ede9fe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.85; }
+
+        /* cover */
+        .cover-hero {
+            display: flex; flex-direction: column; align-items: center; gap: 18px;
+            text-align: center;
+        }
+        .cover-eyebrow { font-size: 0.82rem; letter-spacing: 0.2em; color: #ff00ff; text-transform: uppercase; font-weight: 700; }
+        .cover-title {
+            font-size: 3.2rem; font-weight: 800; line-height: 1.05;
+            background: linear-gradient(90deg, #f1f5f9 0%, #ff00ff 50%, #a855f7 100%);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+        .cover-subtitle { font-size: 1.15rem; color: #cbd5e1; max-width: 760px; line-height: 1.5; }
+        .cover-tagline {
+            font-size: 0.92rem; color: #94a3b8; font-style: italic;
+            border-top: 1px solid rgba(255, 0, 255, 0.18);
+            border-bottom: 1px solid rgba(255, 0, 255, 0.18);
+            padding: 10px 30px; margin-top: 8px; max-width: 760px;
+        }
+        .cover-meta-row {
+            display: flex; gap: 26px; justify-content: center;
+            font-size: 0.82rem; color: #64748b; margin-top: 12px;
+        }
+        .cover-meta-row span { border-left: 2px solid #2a1a30; padding-left: 26px; }
+        .cover-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* character analysis (thanos-grid: 2-column) */
+        .thanos-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+            align-items: stretch;
+        }
+        .thanos-portrait {
+            background: rgba(255, 0, 255, 0.04); border: 1px solid rgba(255, 0, 255, 0.18);
+            border-radius: 10px; padding: 16px;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .thanos-portrait .character-label {
+            font-size: 0.72rem; color: #ff00ff; letter-spacing: 0.18em;
+            text-transform: uppercase; font-weight: 700;
+        }
+        .thanos-portrait .character-name {
+            font-size: 1.3rem; font-weight: 800; color: #f1f5f9;
+        }
+        .thanos-portrait .character-tagline {
+            font-size: 0.82rem; color: #cbd5e1; font-style: italic;
+            border-left: 2px solid #ff00ff; padding-left: 10px;
+        }
+        .character-image {
+            display: block;
+            width: 100%; max-height: 200px;
+            object-fit: contain; object-position: center center;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 0, 255, 0.30);
+            background: rgba(255, 255, 255, 0.02);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45),
+                        0 0 24px rgba(255, 0, 255, 0.08);
+            opacity: 0;
+            animation: charEnter 1.0s ease-out 0.4s forwards, charFloat 7.5s ease-in-out 1.5s infinite;
+        }
+        @keyframes charEnter {
+            0%   { opacity: 0; transform: scale(1.03); filter: blur(3px); }
+            100% { opacity: 1; transform: scale(1);    filter: blur(0); }
+        }
+        @keyframes charFloat {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-5px); }
+        }
+        .character-quote {
+            font-size: 0.86rem; color: #f5d5f5; line-height: 1.5;
+            background: rgba(168, 85, 247, 0.08);
+            border-radius: 6px; padding: 8px 12px;
+            font-style: italic;
+        }
+        .character-quote::before { content: "\201C"; font-size: 1.4rem; color: #ff00ff; line-height: 0; vertical-align: -0.4em; margin-right: 4px; }
+        .character-quote::after  { content: "\201D"; font-size: 1.4rem; color: #ff00ff; line-height: 0; vertical-align: -0.4em; margin-left: 4px; }
+        .character-verdict {
+            font-size: 0.86rem; color: #cbd5e1; line-height: 1.5;
+        }
+        .character-verdict strong { color: #f1f5f9; }
+
+        /* analysis rows */
+        .analysis-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .analysis-row {
+            display: grid; grid-template-columns: 130px 1fr; gap: 12px;
+            font-size: 0.86rem; align-items: baseline;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 10px 14px; border-radius: 6px;
+            border-left: 3px solid #ff00ff;
+        }
+        .analysis-row.analysis-flaw { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.04); }
+        .analysis-row.analysis-good { border-left-color: #3ab577; background: rgba(58, 181, 119, 0.04); }
+        .analysis-row.analysis-cyan { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.04); }
+        .analysis-row.analysis-amber { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.04); }
+        .analysis-label {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: #ff00ff;
+        }
+        .analysis-row.analysis-flaw .analysis-label { color: #ef4444; }
+        .analysis-row.analysis-good .analysis-label { color: #3ab577; }
+        .analysis-row.analysis-cyan .analysis-label { color: #06b6d4; }
+        .analysis-row.analysis-amber .analysis-label { color: #f59e0b; }
+        .analysis-text { color: #cbd5e1; line-height: 1.45; }
+        .analysis-text strong { color: #f1f5f9; }
+
+        /* card grids */
+        .card-grid     { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .card-grid-4   { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card-grid-5   { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 14px 16px; border-left: 3px solid #ff00ff;
+        }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card .card-anchor { font-size: 0.74rem; color: #ff00ff; font-style: italic; margin-top: 6px; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-green   { border-left-color: #3ab577; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-amber   { border-left-color: #f59e0b; }
+        .card.c-purple  { border-left-color: #a855f7; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        /* framework recap chips */
+        .framework-chip {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 12px 10px; text-align: center; border-top: 3px solid #ff00ff;
+            display: flex; flex-direction: column; gap: 6px;
+            align-items: center;
+        }
+        .framework-chip.fc-util { border-top-color: #ff00ff; }
+        .framework-chip.fc-deont { border-top-color: #06b6d4; }
+        .framework-chip.fc-virtue { border-top-color: #f59e0b; }
+        .framework-chip.fc-contract { border-top-color: #3ab577; }
+        .framework-chip.fc-ends { border-top-color: #a855f7; }
+        .framework-chip .fc-character {
+            font-size: 0.82rem; font-weight: 700; color: #f1f5f9;
+        }
+        .framework-chip .fc-name {
+            font-size: 0.72rem; color: #94a3b8; letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .framework-chip .fc-anchor {
+            font-size: 0.72rem; color: #cbd5e1; line-height: 1.4;
+            font-style: italic;
+        }
+
+        /* in-class dilemma stage */
+        .dilemma-prompt {
+            background: rgba(255, 0, 255, 0.06);
+            border-left: 4px solid #ff00ff;
+            padding: 14px 18px; border-radius: 0 10px 10px 0;
+            font-size: 0.94rem; color: #f5d5f5;
+        }
+        .dilemma-frameworks {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+            margin-top: 10px;
+        }
+        .dilemma-fw {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px; padding: 10px;
+            font-size: 0.78rem;
+        }
+        .dilemma-fw .dilemma-fw-label {
+            font-weight: 700; font-size: 0.72rem; letter-spacing: 0.08em;
+            text-transform: uppercase; margin-bottom: 4px;
+        }
+        .dilemma-fw .dilemma-fw-text { color: #cbd5e1; line-height: 1.4; }
+        .dilemma-fw.fw-util { border-top: 2px solid #ff00ff; }
+        .dilemma-fw.fw-util .dilemma-fw-label { color: #ff00ff; }
+        .dilemma-fw.fw-deont { border-top: 2px solid #06b6d4; }
+        .dilemma-fw.fw-deont .dilemma-fw-label { color: #06b6d4; }
+        .dilemma-fw.fw-virtue { border-top: 2px solid #f59e0b; }
+        .dilemma-fw.fw-virtue .dilemma-fw-label { color: #f59e0b; }
+        .dilemma-fw.fw-contract { border-top: 2px solid #3ab577; }
+        .dilemma-fw.fw-contract .dilemma-fw-label { color: #3ab577; }
+        .dilemma-fw.fw-ends { border-top: 2px solid #a855f7; }
+        .dilemma-fw.fw-ends .dilemma-fw-label { color: #a855f7; }
+        .facilitator-note {
+            background: rgba(58, 181, 119, 0.04);
+            border-left: 3px solid #3ab577;
+            padding: 10px 14px; border-radius: 0 6px 6px 0;
+            font-size: 0.82rem; color: #d1fae5;
+            margin-top: 8px;
+        }
+        .facilitator-note strong { color: #6ee7b7; }
+
+        /* animations */
+        @keyframes bgPan { 0%, 100% { background-position: 0% 0%; } 50% { background-position: 100% 100%; } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        @keyframes accentBreathe {
+            0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 0, 255, 0.35)); transform: scale(1); }
+            50% { filter: drop-shadow(0 0 24px rgba(255, 0, 255, 0.85)); transform: scale(1.025); }
+        }
+        @keyframes slideFromLeft {
+            0% { opacity: 0; transform: translateX(-40px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideFromRight {
+            0% { opacity: 0; transform: translateX(40px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideFromBelow {
+            0% { opacity: 0; transform: translateY(30px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes cardPopIn {
+            0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+            60% { opacity: 1; transform: scale(1.03) translateY(-3px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes boxSwoop {
+            0% { opacity: 0; transform: translateY(35px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes slideUnderline {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        /* slide-active entrances */
+        .slide.active .slide-meta     { animation: slideFromBelow 1.0s cubic-bezier(0.16, 1, 0.3, 1)    0.20s backwards; }
+        .slide.active .slide-title    { animation: slideFromLeft  1.4s cubic-bezier(0.34, 1.56, 0.64, 1) 1.10s backwards; }
+        .slide.active .slide-subtitle { animation: slideFromRight 1.2s cubic-bezier(0.22, 1, 0.36, 1)   2.20s backwards; }
+        .slide.active .cover-title    { animation: cardPopIn 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.30s backwards; }
+        .slide.active .cover-subtitle { animation: fadeUp 1.1s ease-out 1.80s backwards; }
+        .slide.active .cover-tagline  { animation: fadeUp 1.0s ease-out 2.70s backwards; }
+        .slide.active .cover-meta-row { animation: fadeUp 0.9s ease-out 3.40s backwards; }
+        .slide.active .box,
+        .slide.active .thanos-grid,
+        .slide.active .scenario-strip,
+        .slide.active .dilemma-prompt,
+        .slide.active .facilitator-note {
+            animation: boxSwoop 1.1s cubic-bezier(0.16, 1, 0.3, 1) 3.60s backwards;
+        }
+        .slide.active .card-grid > *,
+        .slide.active .card-grid-4 > *,
+        .slide.active .card-grid-5 > *,
+        .slide.active .analysis-grid > *,
+        .slide.active .dilemma-frameworks > * {
+            animation: cardPopIn 1.0s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        .slide.active .card-grid > *:nth-child(1),
+        .slide.active .card-grid-4 > *:nth-child(1),
+        .slide.active .card-grid-5 > *:nth-child(1),
+        .slide.active .analysis-grid > *:nth-child(1),
+        .slide.active .dilemma-frameworks > *:nth-child(1) { animation-delay: 3.70s; }
+        .slide.active .card-grid > *:nth-child(2),
+        .slide.active .card-grid-4 > *:nth-child(2),
+        .slide.active .card-grid-5 > *:nth-child(2),
+        .slide.active .analysis-grid > *:nth-child(2),
+        .slide.active .dilemma-frameworks > *:nth-child(2) { animation-delay: 4.10s; }
+        .slide.active .card-grid > *:nth-child(3),
+        .slide.active .card-grid-4 > *:nth-child(3),
+        .slide.active .card-grid-5 > *:nth-child(3),
+        .slide.active .analysis-grid > *:nth-child(3),
+        .slide.active .dilemma-frameworks > *:nth-child(3) { animation-delay: 4.50s; }
+        .slide.active .card-grid-4 > *:nth-child(4),
+        .slide.active .card-grid-5 > *:nth-child(4),
+        .slide.active .analysis-grid > *:nth-child(4),
+        .slide.active .dilemma-frameworks > *:nth-child(4) { animation-delay: 4.90s; }
+        .slide.active .card-grid-5 > *:nth-child(5),
+        .slide.active .analysis-grid > *:nth-child(n+5),
+        .slide.active .dilemma-frameworks > *:nth-child(5) { animation-delay: 5.30s; }
+
+        /* hover lifts */
+        .card, .thanos-portrait, .analysis-row, .framework-chip, .dilemma-fw {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        box-shadow 0.3s ease-out, border-color 0.3s ease-out;
+        }
+        .card:hover, .framework-chip:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 28px rgba(255, 0, 255, 0.30);
+        }
+        .thanos-portrait:hover { transform: translateY(-4px) scale(1.01); }
+        .analysis-row:hover { transform: translateX(6px); }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 10px; } .slide-title { font-size: 1.5rem; } .cover-title { font-size: 2.2rem; } }
+        @media (max-width: 900px) {
+            .thanos-grid { grid-template-columns: 1fr; }
+            .card-grid, .card-grid-4, .card-grid-5, .dilemma-frameworks { grid-template-columns: 1fr; }
+            .slide-title { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Week 2 Lecture: Rights Through the Lens | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:6.7%"></div>
+
+<!-- ====== SLIDE 1 — COVER ====== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="cover-hero">
+            <div class="cover-eyebrow">Week 2 Lecture Companion &middot; Ethics in IT</div>
+            <div class="cover-title">Rights Through the Lens</div>
+            <div class="cover-subtitle">
+                Week 2's real cases &mdash; Waymo v. Uber, Carpenter v. United States, Section 230 &mdash; dissected through the frameworks you met in Week 1.
+            </div>
+            <div class="cover-tagline">
+                Privacy. Expression. Property. Three rights, three real conflicts, six characters who can explain why the disagreement is the point.
+            </div>
+            <div class="cover-meta-row">
+                <span>15 Slides</span>
+                <span>~50 min</span>
+                <span>3 cases &times; 2 lenses each</span>
+                <span>In-class assignment included</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 2 — FIVE FRAMEWORKS RECAP ====== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 15 &middot; Recap from Week 1</div>
+        <div class="slide-title">The <span class="accent">Five Frameworks</span> Go to Work</div>
+        <div class="slide-subtitle">You met them last week through characters. Today they argue with each other about real cases.</div>
+
+        <div class="card-grid-5">
+            <div class="framework-chip fc-util">
+                <div class="fc-character">Thanos</div>
+                <div class="fc-name">Utilitarianism</div>
+                <div class="fc-anchor">Greatest good for the greatest number.</div>
+            </div>
+            <div class="framework-chip fc-deont">
+                <div class="fc-character">Captain America</div>
+                <div class="fc-name">Deontology</div>
+                <div class="fc-anchor">Duty regardless of consequence.</div>
+            </div>
+            <div class="framework-chip fc-virtue">
+                <div class="fc-character">Uncle Iroh</div>
+                <div class="fc-name">Virtue Ethics</div>
+                <div class="fc-anchor">What would a good person do?</div>
+            </div>
+            <div class="framework-chip fc-contract">
+                <div class="fc-character">Tony vs Steve</div>
+                <div class="fc-name">Social Contract</div>
+                <div class="fc-anchor">Negotiated rules for shared power.</div>
+            </div>
+            <div class="framework-chip fc-ends">
+                <div class="fc-character">Itachi / Ozymandias</div>
+                <div class="fc-name">Ends Justify Means</div>
+                <div class="fc-anchor">The math that wins, at terrible cost.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The move today</div>
+            <strong>Take one case. Run it through two frameworks.</strong> Where they agree, you have signal. Where they disagree, you have the actual ethical question. Hard cases are exactly the ones where frameworks disagree &mdash; that's why they're hard.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 3 — THREE CASES AGENDA ====== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 15 &middot; Three W2 Cases</div>
+        <div class="slide-title">Three <span class="accent">Real Cases</span>, Three Rights</div>
+        <div class="slide-subtitle">Every Week 2 right has a defining real-world case. We'll dissect all three.</div>
+
+        <div class="card-grid">
+            <div class="card c-amber">
+                <div class="card-label">Case 1 &middot; Intellectual Property</div>
+                <div class="card-desc"><strong>Waymo v. Uber (2017).</strong> Anthony Levandowski downloaded 14,000 files from Waymo, then joined Uber. $245M settlement. 18 months prison.</div>
+                <div class="card-anchor">Lenses: Thanos vs Captain America</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Case 2 &middot; Privacy</div>
+                <div class="card-desc"><strong>Carpenter v. United States (2018).</strong> Police obtained 127 days of cell-site location data without a warrant. SCOTUS, 5-4: unconstitutional.</div>
+                <div class="card-anchor">Lenses: Homelander vs Iroh</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Case 3 &middot; Freedom of Expression</div>
+                <div class="card-desc"><strong>Section 230 of the CDA (1996).</strong> 26 words that built the modern internet &mdash; and that everyone now wants to rewrite.</div>
+                <div class="card-anchor">Lenses: Civil War vs Light Yagami</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The pattern, applied three times</div>
+            For each case: a setup slide that gives you the facts. Then a dual-lens slide that runs two frameworks at each other. Then a synthesis slide for what the IT professional carries away.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 4 — CASE 1 SETUP: WAYMO v UBER ====== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 15 &middot; Case 1: Intellectual Property</div>
+        <div class="slide-title">Waymo v. Uber: <span class="accent-amber">The Trade Secret War</span></div>
+        <div class="slide-subtitle">A $245M settlement, 18 months in federal prison, and the question that splits Silicon Valley.</div>
+
+        <div class="scenario-strip">
+            Anthony Levandowski was a Waymo (Google) self-driving engineer. Before he left in 2016, he downloaded 14,000 files &mdash; LiDAR designs, source code, supplier lists &mdash; onto his personal laptop. Six months later he co-founded Otto. Six months after that, Uber acquired Otto for $680M and put Levandowski in charge of Uber's self-driving program. Waymo sued. Discovery showed the downloads. Federal trade-secret theft conviction. 18 months. $245M paid by Uber to Waymo.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The narrative on Levandowski's side</div>
+                <div class="card-desc">Self-driving cars will save tens of thousands of American lives every year. Waymo's secrecy was slowing the technology. Faster competition saves more people. The math is brutal but it's real.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The narrative on Waymo's side</div>
+                <div class="card-desc">Years of R&amp;D investment. Contracts signed. NDA executed. Trade-secret law is what makes investment in expensive R&amp;D possible. Take that away and the next generation of innovation never gets funded.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The dilemma for the IT professional</div>
+                <div class="card-desc">You sign NDAs. You leave jobs. What did you build? Whose is it? Where does general knowledge end and trade secret begin? The legal line is clear after the lawsuit &mdash; it's never clear before.</div>
+            </div>
+        </div>
+
+        <div class="box box-amber">
+            <div class="box-label">The framing question for the next slide</div>
+            Two frameworks. <strong>Thanos says: greatest good demands the technology spread faster.</strong> <strong>Captain America says: you signed the NDA, end of analysis.</strong> Which one is right? Or are both right about different things?
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 5 — WAYMO THROUGH TWO LENSES ====== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 15 &middot; Waymo &times; Two Lenses</div>
+        <div class="slide-title">Thanos vs <span class="accent-cyan">Captain America</span></div>
+        <div class="slide-subtitle">Utilitarian math vs deontological duty. Same facts, opposite verdicts.</div>
+
+        <div class="thanos-grid">
+            <div class="thanos-portrait">
+                <div class="character-label">Lens 1 &middot; Utilitarianism</div>
+                <div class="character-name">Thanos</div>
+                <div class="character-tagline">"The hardest choices require the strongest wills."</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/thanos-gauntlet.png"
+                     alt="Thanos wearing the completed Infinity Gauntlet"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">When I'm done, half of humanity will still exist. Perfectly balanced.</p>
+                <p class="character-verdict">
+                    <strong>Thanos's verdict on Waymo v. Uber:</strong> Self-driving cars save 40,000 American lives a year. Anything that accelerates the technology &mdash; including bending IP rules &mdash; is justified by the aggregate lives saved. Property right of one corporation is a rounding error against population-scale mortality.
+                </p>
+            </div>
+
+            <div class="thanos-portrait" style="border-color: rgba(6, 182, 212, 0.30); background: rgba(6, 182, 212, 0.04);">
+                <div class="character-label" style="color: #06b6d4;">Lens 2 &middot; Deontology</div>
+                <div class="character-name">Captain America</div>
+                <div class="character-tagline">"I can do this all day."</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/cap-civil-war.png"
+                     alt="Captain America in Civil War uniform"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">You signed it. That settles it.</p>
+                <p class="character-verdict">
+                    <strong>Cap's verdict on Waymo v. Uber:</strong> Levandowski signed an NDA. The promise was the moral act &mdash; not whatever utilitarian calculus he'd later run. Duty does not negotiate with outcomes. He stole property regardless of what self-driving cars might do for the world. The right action was: build new IP at the new job. The math doesn't enter into it.
+                </p>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The disagreement IS the lesson</div>
+            <strong>Both frameworks are internally consistent. Both yield different verdicts.</strong> That's not a bug &mdash; that's exactly what frameworks are for. They surface the real tradeoff: do consequences override promises, or do promises override consequences? You can defend either answer. You cannot defend "I didn't think about it."
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 6 — WAYMO: WHERE THIS LEAVES THE IT PRO ====== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 15 &middot; Waymo: Takeaway</div>
+        <div class="slide-title">Waymo: Where This Leaves <span class="accent">You</span></div>
+        <div class="slide-subtitle">Two frameworks, one defensible posture for the working IT professional.</div>
+
+        <div class="analysis-grid">
+            <div class="analysis-row analysis-good">
+                <div class="analysis-label">Default Posture</div>
+                <div class="analysis-text"><strong>Captain America wins on this one</strong> &mdash; in employment ethics, the deontological framework is the working baseline. NDAs and trade-secret obligations are honored regardless of how compelling the consequentialist case looks. The reason: a society where promises are conditional on later cost-benefit calculations cannot fund R&amp;D at all.</div>
+            </div>
+            <div class="analysis-row analysis-cyan">
+                <div class="analysis-label">When Thanos Has a Point</div>
+                <div class="analysis-text"><strong>Whistleblowing carves the exception.</strong> If an NDA covers up active harm (data the public should know, fraud, deaths-in-progress) the utilitarian case can override the deontological default. Levandowski was not a whistleblower. He was a competitor. The distinction matters.</div>
+            </div>
+            <div class="analysis-row analysis-amber">
+                <div class="analysis-label">The Gray Zone</div>
+                <div class="analysis-text"><strong>What's in your head is yours.</strong> Knowledge, skills, general approaches &mdash; you take with you. <strong>What's on your laptop is theirs.</strong> The line between general knowledge and trade secret is the entire IP-portability fight. Document carefully; download nothing.</div>
+            </div>
+            <div class="analysis-row analysis-flaw">
+                <div class="analysis-label">Code Anchor</div>
+                <div class="analysis-text"><strong>ACM Code of Ethics 1.5:</strong> "Respect the work required to produce new ideas, inventions, creative works, and computing artifacts." <strong>IEEE Code 7:</strong> "Treat all persons fairly... including credit for their contributions." Both codes back Cap, not Thanos, on this one.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 7 — CASE 2 SETUP: CARPENTER v UNITED STATES ====== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 15 &middot; Case 2: Privacy</div>
+        <div class="slide-title">Carpenter v. United States: <span class="accent-cyan">127 Days of Location</span></div>
+        <div class="slide-subtitle">The 2018 SCOTUS decision that redrew the Fourth Amendment line for digital data.</div>
+
+        <div class="scenario-strip">
+            Timothy Carpenter was a robbery suspect. Police obtained 127 days of his cell-site location records from his wireless carrier &mdash; without a warrant, under the Stored Communications Act. The data showed where he had been every day for four months. Carpenter was convicted partly on that data. He appealed all the way to the Supreme Court. Roberts, writing for a 5-4 majority: warrantless acquisition of cell-site location data is an unconstitutional search. The "third-party doctrine" doesn't apply when the third party knows where you sleep.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The government's argument</div>
+                <div class="card-desc">Cell-site data was held by the carrier, not Carpenter. Under the third-party doctrine (Smith v. Maryland, 1979), information voluntarily shared with a third party has no reasonable expectation of privacy.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Court's response</div>
+                <div class="card-desc">Cell phones are not voluntary. To exist in modern society is to carry one. The location data is so comprehensive &mdash; "near-perfect surveillance, as if it had attached an ankle monitor" &mdash; that the third-party doctrine cannot apply.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The IT professional's stake</div>
+                <div class="card-desc">YOU build the systems that generate this data. Telemetry, location services, fitness trackers, smart speakers. Carpenter draws a constitutional line. Your design choices decide which side of that line your product lives on.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The framing question</div>
+            Two frameworks. <strong>Homelander says: we have the capability, so we'll use it.</strong> <strong>Iroh says: what kind of professional am I if I build this?</strong> One looks at power. The other looks at character.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 8 — CARPENTER THROUGH TWO LENSES ====== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 15 &middot; Carpenter &times; Two Lenses</div>
+        <div class="slide-title">Homelander vs <span class="accent-amber">Uncle Iroh</span></div>
+        <div class="slide-subtitle">Unchecked power vs character. The surveillance question is fundamentally about who you are.</div>
+
+        <div class="thanos-grid">
+            <div class="thanos-portrait" style="border-color: rgba(239, 68, 68, 0.30); background: rgba(239, 68, 68, 0.04);">
+                <div class="character-label" style="color: #ef4444;">Lens 1 &middot; Power Without Checks</div>
+                <div class="character-name">Homelander</div>
+                <div class="character-tagline">The Boys &middot; What unchecked capability looks like in a human.</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/homelander.jpg"
+                     alt="Homelander"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">I'm the strongest person in the world. Who could stop me?</p>
+                <p class="character-verdict">
+                    <strong>Homelander's verdict on warrantless tracking:</strong> Of course you use the data. You have it. Who's going to stop you? The carrier has it, the database is right there, the suspect is probably guilty. The Fourth Amendment is a polite suggestion when capability outruns oversight. <em>This is the framework the Court rejected.</em>
+                </p>
+            </div>
+
+            <div class="thanos-portrait" style="border-color: rgba(245, 158, 11, 0.30); background: rgba(245, 158, 11, 0.04);">
+                <div class="character-label" style="color: #f59e0b;">Lens 2 &middot; Virtue Ethics</div>
+                <div class="character-name">Uncle Iroh</div>
+                <div class="character-tagline">Avatar: The Last Airbender &middot; Aristotelian virtue made human.</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/iroh.jpg"
+                     alt="Uncle Iroh"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">Pride is not the opposite of shame, but its source.</p>
+                <p class="character-verdict">
+                    <strong>Iroh's verdict on building the surveillance state:</strong> The question isn't "is it legal?" The question is: <em>what kind of engineer am I if I help build this?</em> Will the version of me that retires from this job be proud of the systems I shipped? Iroh isn't asking the system. He's asking the person.
+                </p>
+            </div>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">Why these two lenses together</div>
+            <strong>Homelander shows you the failure mode if you optimize for capability.</strong> <strong>Iroh gives you the protocol to avoid becoming Homelander.</strong> The first describes the trap; the second describes the way out. Carpenter is constitutional law catching up with what Iroh would have told the engineers years earlier.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 9 — CARPENTER: WHERE THIS LEAVES THE IT PRO ====== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 15 &middot; Carpenter: Takeaway</div>
+        <div class="slide-title">Carpenter: Where This Leaves <span class="accent-cyan">You</span></div>
+        <div class="slide-subtitle">Three operational anchors for IT professionals who build data-collecting systems.</div>
+
+        <div class="analysis-grid">
+            <div class="analysis-row analysis-good">
+                <div class="analysis-label">Privacy by Default</div>
+                <div class="analysis-text"><strong>Collect the minimum. Retain the shortest. Encrypt by default.</strong> If a feature works without storing location, don't store location. If it works with seven days of retention, don't retain ninety. Every byte you don't collect is a byte the government can't subpoena later.</div>
+            </div>
+            <div class="analysis-row analysis-amber">
+                <div class="analysis-label">Iroh's Question</div>
+                <div class="analysis-text"><strong>Would the version of me ten years from now be proud of this design?</strong> Ask it about the feature you're building right now. If the answer is "depends on who buys the company," redesign the feature so the answer is "yes regardless."</div>
+            </div>
+            <div class="analysis-row analysis-cyan">
+                <div class="analysis-label">The Carpenter Line</div>
+                <div class="analysis-text"><strong>Aggregated location data is now warrant-protected.</strong> Healthcare records, biometrics, and minor-targeted data are also walking up to similar lines. Design as though the Court will catch up &mdash; because it will.</div>
+            </div>
+            <div class="analysis-row analysis-flaw">
+                <div class="analysis-label">Code Anchor</div>
+                <div class="analysis-text"><strong>ACM Code 1.6:</strong> "Respect privacy. The responsibility of respecting privacy applies to computing professionals in a particularly profound way." <strong>IEEE Code 1:</strong> "Hold paramount the safety, health, and welfare of the public." Both codes are Iroh, not Homelander.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 10 — CASE 3 SETUP: SECTION 230 ====== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 15 &middot; Case 3: Freedom of Expression</div>
+        <div class="slide-title">Section 230: <span class="accent-purple">The 26 Words That Built the Internet</span></div>
+        <div class="slide-subtitle">The most-fought-over 26 words in tech law. Everyone wants to amend them. Almost no one agrees how.</div>
+
+        <div class="scenario-strip">
+            <strong>47 U.S.C. &sect; 230(c)(1):</strong> "No provider or user of an interactive computer service shall be treated as the publisher or speaker of any information provided by another information content provider." Passed in 1996. The legal foundation that made YouTube, Facebook, Reddit, Wikipedia, and every comment section possible &mdash; because platforms cannot be sued for what their users post. Both political parties now want to rewrite it. They disagree on direction.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">What 230 protects</div>
+                <div class="card-desc">Platforms aren't liable for user-generated content. A platform can host millions of posts without reading each one. A platform can moderate "in good faith" without becoming a publisher. <strong>Without 230, platforms either lock down or shut down.</strong></div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What critics want changed</div>
+                <div class="card-desc"><strong>From the left:</strong> remove protection for amplified hate, disinformation, harassment. Make platforms accountable for what their algorithms boost. <strong>From the right:</strong> remove protection from platforms that moderate too aggressively. Make them "neutral" or lose the shield.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The IT professional's stake</div>
+                <div class="card-desc">You build the moderation systems. You write the algorithms that amplify some posts and bury others. Section 230 is the legal scaffold around your design choices. Whatever Congress does next, the design choices are still yours.</div>
+            </div>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">The framing question</div>
+            Two frameworks for a hard case. <strong>Civil War (Tony vs Steve) says: the tension is the answer.</strong> <strong>Light Yagami says: be very careful about who gets to judge speech, even with good intentions.</strong>
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 11 — SECTION 230 THROUGH TWO LENSES ====== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 15 &middot; Section 230 &times; Two Lenses</div>
+        <div class="slide-title">Civil War vs <span class="accent-red">Light Yagami</span></div>
+        <div class="slide-subtitle">Social-contract tension vs vigilante justice. Two lenses on the moderation problem.</div>
+
+        <div class="thanos-grid">
+            <div class="thanos-portrait" style="border-color: rgba(58, 181, 119, 0.30); background: rgba(58, 181, 119, 0.04);">
+                <div class="character-label" style="color: #3ab577;">Lens 1 &middot; Social Contract</div>
+                <div class="character-name">Civil War: Tony vs Steve</div>
+                <div class="character-tagline">The Sokovia Accords are a 90-minute social-contract argument.</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/cap-civil-war.png"
+                     alt="Captain America in Civil War"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">Both characters are right. Both are wrong. That's the framework.</p>
+                <p class="character-verdict">
+                    <strong>Civil War's verdict on Section 230:</strong> Tony's position &mdash; platforms must be accountable, oversight is required &mdash; is the case for amending 230. Steve's position &mdash; centralized judgment of speech is more dangerous than the harms it prevents &mdash; is the case for preserving 230. <em>The tension between them is not noise. It IS the question.</em> Whatever you build, you've taken a side.
+                </p>
+            </div>
+
+            <div class="thanos-portrait" style="border-color: rgba(168, 85, 247, 0.30); background: rgba(168, 85, 247, 0.04);">
+                <div class="character-label" style="color: #a855f7;">Lens 2 &middot; Vigilante Justice</div>
+                <div class="character-name">Light Yagami</div>
+                <div class="character-tagline">Death Note &middot; What happens when a smart, idealistic person decides &mdash; alone &mdash; what right looks like.</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/light-yagami.jpg"
+                     alt="Light Yagami"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">I am Justice.</p>
+                <p class="character-verdict">
+                    <strong>Light's verdict on algorithmic moderation:</strong> The platform decides what's true. The platform decides what's allowed. The platform decides who is amplified. No appeals court. No due process. No transparency about why. <em>This is Light writing in the Death Note at scale.</em> Even when the platform is right, the unaccountability is the failure.
+                </p>
+            </div>
+        </div>
+
+        <div class="box box-amber">
+            <div class="box-label">The unresolvable tension</div>
+            <strong>Civil War says the tension is the point. Light says watch out for whoever resolves it.</strong> Both lenses are warning you about different failures: the failure to act (Civil War) and the failure to constrain who acts (Light). Section 230 will get rewritten. The design choices outlast the statute.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 12 — SECTION 230: WHERE THIS LEAVES THE IT PRO ====== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 15 &middot; Section 230: Takeaway</div>
+        <div class="slide-title">Section 230: Where This Leaves <span class="accent-purple">You</span></div>
+        <div class="slide-subtitle">Platform engineers are the moderation policy. The law is downstream of your decisions.</div>
+
+        <div class="analysis-grid">
+            <div class="analysis-row analysis-good">
+                <div class="analysis-label">You Are the Policy</div>
+                <div class="analysis-text"><strong>The ranking algorithm IS the speech policy.</strong> What you amplify, you endorse at scale. What you suppress, you ban without due process. Engineers writing recommendation systems are making First Amendment-shaped decisions every sprint.</div>
+            </div>
+            <div class="analysis-row analysis-cyan">
+                <div class="analysis-label">Build for Transparency</div>
+                <div class="analysis-text"><strong>Document your moderation criteria.</strong> Publish appeal processes. Make removals reversible by default. Whatever Congress does to 230, transparency-by-design is the version of moderation Light cannot become.</div>
+            </div>
+            <div class="analysis-row analysis-amber">
+                <div class="analysis-label">The Civil War Test</div>
+                <div class="analysis-text"><strong>Is your moderation defensible to BOTH a Tony Stark and a Steve Rogers?</strong> If Tony approves but Steve objects, you've over-moderated. If Steve approves but Tony objects, you've under-moderated. Hit the seam, you've probably gotten the balance roughly right.</div>
+            </div>
+            <div class="analysis-row analysis-flaw">
+                <div class="analysis-label">Code Anchor</div>
+                <div class="analysis-text"><strong>ACM Code 1.2:</strong> "Avoid harm. In this document, 'harm' means negative consequences, especially when those consequences are significant and unjust." Both ends of the 230 debate cite this clause. The disagreement is which harm dominates &mdash; harm from speech, or harm from suppression. Pick consciously.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 13 — CROSS-CASE PATTERN ====== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 15 &middot; Synthesis</div>
+        <div class="slide-title">When Frameworks <span class="accent">Disagree</span></div>
+        <div class="slide-subtitle">The pattern across all three cases. The disagreement isn't a bug. It's the signal.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Pattern 1 &middot; Hard cases SPLIT</div>
+                <div class="card-desc">Easy ethical cases have framework consensus. Hard cases have framework disagreement. If you've checked utilitarianism, deontology, and virtue ethics and they all agree &mdash; you're not in a hard case. The hard case is where they disagree.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Pattern 2 &middot; Two lenses minimum</div>
+                <div class="card-desc">Single-lens analysis is how Levandowski talked himself into 14,000 file downloads. Anyone can find ONE framework that endorses what they wanted to do. The professional move is running at least two, especially when they conflict.</div>
+            </div>
+            <div class="card c-amber">
+                <div class="card-label">Pattern 3 &middot; Aim for defensible</div>
+                <div class="card-desc">"Right" is what you tell yourself before the lawsuit. "Defensible" is what survives the lawsuit, the press, the deposition, and your own retirement conscience. The repeatable process aims for defensible &mdash; one you can explain to all three audiences without flinching.</div>
+            </div>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">The repeatable decision protocol (from Week 1)</div>
+            <strong>1.</strong> What's the actual decision &mdash; not the rationalization? <strong>2.</strong> Run it through at least two frameworks. <strong>3.</strong> If they agree, the answer is easy. <strong>4.</strong> If they disagree, the disagreement IS the question &mdash; choose which framework dominates here, and write down why. <strong>5.</strong> Can you defend this to future you, your peers, and the public? If yes, ship. If no, redesign.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 14 — IN-CLASS ASSIGNMENT ====== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 15 &middot; In-Class Assignment</div>
+        <div class="slide-title">Your <span class="accent-red">Dual-Lens</span> Case Analysis</div>
+        <div class="slide-subtitle">Pick a real W2 case we did NOT cover. Run it through two frameworks. 20 minutes, pair-share.</div>
+
+        <div class="dilemma-prompt">
+            <strong>Your task:</strong> Pick one Week 2 case from the list below. With your partner: name two frameworks that would give DIFFERENT verdicts. Sketch each framework's verdict, then write the defensible synthesis. Whiteboard or paper; 15 min pair work + 5 min table report-out.
+        </div>
+
+        <div class="dilemma-frameworks">
+            <div class="dilemma-fw fw-util">
+                <div class="dilemma-fw-label">Utilitarianism</div>
+                <div class="dilemma-fw-text">Thanos. Greatest good for the greatest number. Sum the consequences.</div>
+            </div>
+            <div class="dilemma-fw fw-deont">
+                <div class="dilemma-fw-label">Deontology</div>
+                <div class="dilemma-fw-text">Cap. Duty regardless of outcome. Rules over results.</div>
+            </div>
+            <div class="dilemma-fw fw-virtue">
+                <div class="dilemma-fw-label">Virtue Ethics</div>
+                <div class="dilemma-fw-text">Iroh. What would a person of good character do?</div>
+            </div>
+            <div class="dilemma-fw fw-contract">
+                <div class="dilemma-fw-label">Social Contract</div>
+                <div class="dilemma-fw-text">Civil War. Negotiated rules between people with shared stakes.</div>
+            </div>
+            <div class="dilemma-fw fw-ends">
+                <div class="dilemma-fw-label">Ends-Justify-Means</div>
+                <div class="dilemma-fw-text">Itachi. The math that wins, paid for by the math-doer.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Case Options (pick one)</div>
+                <div class="card-desc"><strong>IP:</strong> Plagiarism in IT &middot; Reverse engineering &middot; Open source license violation &middot; DMCA anti-circumvention. <strong>Privacy:</strong> HIPAA breach response &middot; GDPR right-to-erasure &middot; COPPA enforcement &middot; FERPA in EdTech. <strong>Free Expression:</strong> Algorithmic amplification &middot; Hate speech moderation &middot; Online anonymity protections &middot; Online defamation.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Required Anchors (your output must hit all five)</div>
+                <div class="card-desc"><strong>1.</strong> One-sentence case summary. <strong>2.</strong> Framework A verdict (which character, what it would say). <strong>3.</strong> Framework B verdict (different character). <strong>4.</strong> Where the two frameworks disagree (the actual ethical question). <strong>5.</strong> Defensible synthesis: which framework dominates here, and why?</div>
+            </div>
+            <div class="card c-amber">
+                <div class="card-label">Format &middot; Time</div>
+                <div class="card-desc"><strong>15 minutes</strong> pair work (whiteboard or paper sketch is fine). <strong>5 minutes</strong> table report-out &mdash; one pair shares their case + which frameworks they ran + the synthesis. No grading during class &mdash; instructor may collect for follow-up.</div>
+            </div>
+        </div>
+
+        <div class="facilitator-note">
+            <strong>Facilitator anchor:</strong> The depth check is anchor 4 ("where they disagree"). Strong students will name a real tension; weak students will pick two frameworks that both happen to agree. If a pair reports both frameworks giving the same verdict, push back &mdash; they've either picked a soft case or they're collapsing the analysis. Force the disagreement before they synthesize.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 15 — LOOKING AHEAD ====== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 15 &middot; Looking Ahead</div>
+        <div class="slide-title">Looking Ahead to <span class="accent">Week 3</span></div>
+        <div class="slide-subtitle">Week 2 was about rights. Week 3 is about what your software DOES to people.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">IT Impact on Society</div>
+                <div class="card-desc">The systemic effects of software at scale: labor displacement, surveillance capitalism, digital divides. Frameworks: still Thanos and Cap, but now asking "who pays for innovation, and who benefits?"</div>
+            </div>
+            <div class="card c-amber">
+                <div class="card-label">Software Development Ethics</div>
+                <div class="card-desc">Inside the building process: technical debt as ethical debt, dark patterns, accessibility as a duty, the responsibility of estimates. The professional's day-to-day ethics, not just the courtroom-level cases.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Week 3 Checkpoint</div>
+                <div class="card-desc">The Week 3 quiz will test framework application across cases (not framework names from a list). Bring the dual-lens habit you practiced today &mdash; that's the working skill the rest of the course tests.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Before class next week</div>
+            Complete the <strong>Week 2 Quiz</strong>. Review the topic decks (Privacy / Freedom of Expression / Intellectual Property) for any framework that felt thin in your pair work. <strong>Read one case from the Week 3 list ahead</strong> so you arrive primed.
+        </div>
+
+        <div style="text-align: center; margin-top: 14px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 15</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 15;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w2-lecture', { returnUrl: '../index.html' });
+        }
+    }
+
+    goToSlide(1);
+</script>
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
