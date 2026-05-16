@@ -8076,3 +8076,10 @@ exports.analyticsHealthCheck  = _analyticsV2Health.analyticsHealthCheck;
 // Scheduled job; reads quiz_keys/ collection, writes QUIZ-DUP triage items
 const _quizQualityMonitor = require('./quiz-quality-monitor');
 exports.quizQualityMonitor    = _quizQualityMonitor.quizQualityMonitor;
+
+// ─── Operator Board — XIAO 7.5" ePaper status display ──────────────
+// HTTP endpoint; serves a PNG image rendered for the e-paper panel.
+// Phase 1: static Hello World image. Phase 2: composed from Firestore.
+// Project: _tools/operator-board/
+const _operatorBoard = require('./operator-board');
+exports.operatorBoard         = _operatorBoard.operatorBoard;
