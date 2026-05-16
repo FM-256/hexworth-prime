@@ -134,6 +134,23 @@ const SignalData = {
 
     // -------------------------------------------------------------------------
     // Difficulty tiers
+    //
+    // Rubric (for authors classifying a new project):
+    //   recruit     — First project on a platform. No prerequisites. Single
+    //                 technology layer. Kit components only.
+    //   operative   — 1-2 prerequisites. One new technology added on top of
+    //                 a recruit-level base.
+    //   operator    — Practitioner workflow. Uses established tools (KiCad,
+    //                 dnsmasq, betaflight, rtl_sdr, etc.) rather than writing
+    //                 code from scratch. Integration and configuration over
+    //                 greenfield development.
+    //   specialist  — 2-3 prerequisites. Integrates multiple technologies
+    //                 (e.g. WiFi + BLE, HID + MSC). Protocol-level work.
+    //   field_agent — 3+ prerequisites. Capstone tying together an entire
+    //                 track. Field-deployable / production-grade output.
+    //
+    // The engine looks up tier metadata here; an undeclared difficulty
+    // renders with NO badge (see SignalEngine._diffBadge).
     // -------------------------------------------------------------------------
     difficulties: {
         recruit: {
@@ -149,6 +166,13 @@ const SignalData = {
             xp: 600,
             costRange: '$5-75',
             description: 'Intermediate. Some external parts, moderate code complexity, networking concepts.'
+        },
+        operator: {
+            label: 'Operator',
+            color: '#fb923c',
+            xp: 900,
+            costRange: '$0-120',
+            description: 'Practitioner. Tool-driven workflows (KiCad, JLCPCB, dnsmasq, betaflight, rtl_sdr). Integration and configuration over greenfield code.'
         },
         specialist: {
             label: 'Specialist',
