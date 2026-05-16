@@ -1,72 +1,89 @@
 // ============================================================
-//  Operator Board — XIAO ESP32S3 + Waveshare 7.5" V2 ePaper
-//  Phase 1: WiFi → HTTPS GET → render PNG → deep sleep
+//  Operator Board — XIAO ESP32-C3 + Waveshare 7.5" V2 ePaper
+//  Phase 4: WiFiManager captive-portal provisioning + NVS storage
 // ============================================================
 //
-//  Boot sequence on each wake:
-//    1. Connect to WiFi from secrets.h credentials
-//    2. HTTPS GET the BOARD_URL (Cloud Function)
-//    3. Decode PNG, render to 7.5" e-paper
-//    4. Deep sleep REFRESH_MINUTES, then repeat
+//  Boot sequence:
+//    1. If BOOT button held at startup, clear NVS (factory reset).
+//    2. Initialize e-paper display.
+//    3. Load WiFi creds + board ID from NVS (Preferences).
+//       If empty AND compile-time secrets.h provides WIFI_SSID/
+//       WIFI_PASSWORD, migrate them into NVS (one-time bootstrap).
+//    4. If we have creds, connect; otherwise open the captive
+//       portal AP "HexworthBoard-XXXX" (last 4 hex of MAC).
+//    5. Once provisioned, HTTPS GET the board image and render.
+//    6. Idle REFRESH_MINUTES, refetch.
 //
-//  Deep sleep current on XIAO ESP32S3 is ~10 µA — a 2000 mAh
-//  battery would last ~6 months at a 15-minute refresh cadence,
-//  most of the budget spent on the wake/WiFi/render bursts.
+//  Captive portal flow:
+//    - Phone connects to HexworthBoard-XXXX (open AP)
+//    - Captive-portal popup appears (or browse to 192.168.4.1)
+//    - User picks home WiFi + enters Board ID
+//    - Device saves to NVS, restarts, joins home WiFi
 //
-//  Failure modes:
-//    - WiFi fail: retry 3x, then deep sleep and try again next cycle
-//    - HTTP fail: log + deep sleep (display keeps the previous frame)
-//    - PNG decode fail: log + deep sleep
-//
-//  The e-paper retains its last image when unpowered, so a transient
-//  failure does not blank the screen — it just shows yesterday's data.
+//  Factory reset: hold the BOOT button for >5s during startup.
 // ============================================================
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <Preferences.h>
+#include <WiFiManager.h>
 
 #include <GxEPD2_BW.h>
+#include <Fonts/FreeSansBold24pt7b.h>
+#include <Fonts/FreeSans12pt7b.h>
+#include <Fonts/FreeSans9pt7b.h>
 #include <PNGdec.h>
 
 #include "secrets.h"
 
-// ─── Display setup ──────────────────────────────────────────
-//
-// Driver class: GxEPD2_750_T7 = Waveshare 7.5" V2 (800x480 monochrome).
-// If the panel turns out to be a different variant, swap this constant.
-// Common alternates:
-//   GxEPD2_750     — V1 (640x384, original)
-//   GxEPD2_750_T7  — V2 (800x480 mono, MOST COMMON Seeed XIAO combo)
-//   GxEPD2_750_GDEY075T7 — Good Display equivalent (also 800x480 mono)
-//
-// XIAO ESP32-C3 pin mapping for the Seeed ePaper Driver Board.
-// Verified against Seeed_GFX/User_Setups/EPaper_Board_Pins_Setups.h
-// (USE_XIAO_EPAPER_DRIVER_BOARD block):
-//   D0 / GPIO2  = RST   (TFT_RST)
-//   D1 / GPIO3  = CS    (TFT_CS)
-//   D2 / GPIO4  = BUSY  (TFT_BUSY)
-//   D3 / GPIO5  = DC    (TFT_DC)
-//   D8 / GPIO8  = SCK   (default SPI)
-//   D10 / GPIO10 = MOSI (default SPI)
+// ─── Compile-time defaults (overridable in secrets.h) ───────
+#ifndef BOARD_URL
+#define BOARD_URL "https://us-central1-hexworth-prime.cloudfunctions.net/operatorBoard"
+#endif
+#ifndef REFRESH_MINUTES
+#define REFRESH_MINUTES 15
+#endif
+#ifndef DEFAULT_BOARD_ID
+#define DEFAULT_BOARD_ID "room-214"
+#endif
 
+// ─── NVS (Preferences) namespace + keys ─────────────────────
+#define NVS_NS          "hexops"
+#define NVS_KEY_SSID    "ssid"
+#define NVS_KEY_PASS    "pass"
+#define NVS_KEY_BOARD   "board"
+
+// ─── Hardware ───────────────────────────────────────────────
+// XIAO ESP32-C3 pin mapping for the Seeed ePaper Driver Board.
+// Verified against Seeed_GFX USE_XIAO_EPAPER_DRIVER_BOARD block.
 #define EPD_RST   2   // D0
 #define EPD_CS    3   // D1
 #define EPD_BUSY  4   // D2
 #define EPD_DC    5   // D3
 
+// BOOT button on XIAO ESP32-C3 is wired to GPIO9, active LOW.
+// Used here as a factory-reset gesture at boot.
+#define BTN_BOOT       9
+#define BTN_HOLD_MS    5000
+
 GxEPD2_BW<GxEPD2_750_T7, GxEPD2_750_T7::HEIGHT> display(
     GxEPD2_750_T7(/*CS=*/EPD_CS, /*DC=*/EPD_DC, /*RST=*/EPD_RST, /*BUSY=*/EPD_BUSY));
 
-// ─── PNG decoder state ──────────────────────────────────────
 PNG png;
+Preferences prefs;
+
 static uint8_t* pngBuf = nullptr;
 static size_t pngLen = 0;
 
-// PNGdec callback: render one decoded line to e-paper buffer.
-// Signature: must return int (1 = continue decoding, 0 = stop).
-// For our monochrome PNG, R==G==B and we threshold at 128.
+// Runtime credentials (loaded from NVS or provisioned via portal)
+static String g_ssid;
+static String g_pass;
+static String g_boardId;
+
+// ─── PNG decoder callback ───────────────────────────────────
+// Render one decoded line to the e-paper buffer. Threshold at 128.
 static int pngDrawCallback(PNGDRAW* pDraw) {
     uint16_t lineRGB[800];
     png.getLineAsRGB565(pDraw, lineRGB, PNG_RGB565_BIG_ENDIAN, 0xFFFFFFFF);
@@ -76,22 +93,119 @@ static int pngDrawCallback(PNGDRAW* pDraw) {
     if (w > 800) w = 800;
 
     for (int x = 0; x < w; x++) {
-        // Convert RGB565 → luminance approximation, threshold at 128.
         uint16_t px = lineRGB[x];
         uint8_t r = (px >> 11) & 0x1F;
         uint8_t g = (px >> 5) & 0x3F;
         uint8_t b = px & 0x1F;
-        uint8_t lum = (r << 3) | (g << 2) | (b << 3);  // coarse luminance
+        uint8_t lum = (r << 3) | (g << 2) | (b << 3);
         display.drawPixel(x, y, lum < 128 ? GxEPD_BLACK : GxEPD_WHITE);
     }
-    return 1;  // continue decoding next line
+    return 1;
 }
 
-// ─── WiFi ───────────────────────────────────────────────────
+// ─── NVS credentials helpers ────────────────────────────────
+static void saveCreds(const String& ssid, const String& pass, const String& boardId) {
+    prefs.begin(NVS_NS, false);
+    prefs.putString(NVS_KEY_SSID,  ssid);
+    prefs.putString(NVS_KEY_PASS,  pass);
+    prefs.putString(NVS_KEY_BOARD, boardId);
+    prefs.end();
+    Serial.printf("[nvs] saved SSID=%s board=%s\n", ssid.c_str(), boardId.c_str());
+}
+
+static void clearCreds() {
+    prefs.begin(NVS_NS, false);
+    prefs.clear();
+    prefs.end();
+    Serial.println("[nvs] cleared all credentials");
+}
+
+// Load creds from NVS. If empty AND compile-time fallback exists,
+// migrate that into NVS once. Returns true if creds are now present.
+static bool loadCreds() {
+    prefs.begin(NVS_NS, true);
+    g_ssid    = prefs.getString(NVS_KEY_SSID, "");
+    g_pass    = prefs.getString(NVS_KEY_PASS, "");
+    g_boardId = prefs.getString(NVS_KEY_BOARD, "");
+    prefs.end();
+
+    if (g_ssid.length() > 0) {
+        Serial.printf("[nvs] loaded SSID=%s board=%s\n",
+                      g_ssid.c_str(), g_boardId.c_str());
+        return true;
+    }
+
+    // One-time migration from compile-time secrets.h (lets existing
+    // pre-WiFiManager devices upgrade without re-pairing).
+#if defined(WIFI_SSID) && defined(WIFI_PASSWORD)
+    Serial.println("[nvs] empty — migrating from secrets.h fallback");
+    g_ssid    = String(WIFI_SSID);
+    g_pass    = String(WIFI_PASSWORD);
+    g_boardId = String(DEFAULT_BOARD_ID);
+    saveCreds(g_ssid, g_pass, g_boardId);
+    return true;
+#else
+    Serial.println("[nvs] empty and no compile-time fallback — portal required");
+    return false;
+#endif
+}
+
+// ─── Setup-screen renderer (drawn locally, no WiFi needed) ──
+static void renderSetupScreen(const String& apName) {
+    Serial.println("[disp] rendering setup screen");
+    display.setRotation(0);
+    display.setTextColor(GxEPD_BLACK);
+    display.setFullWindow();
+    display.firstPage();
+    do {
+        display.fillScreen(GxEPD_WHITE);
+
+        display.setFont(&FreeSansBold24pt7b);
+        display.setCursor(40, 70);
+        display.print("HEXWORTH OPERATOR BOARD");
+
+        display.setFont(&FreeSans12pt7b);
+        display.setCursor(40, 110);
+        display.print("Setup Mode — WiFi configuration required");
+
+        int y = 180;
+        display.setCursor(40, y);
+        display.print("1.  On your phone or laptop, join this WiFi network:");
+
+        y += 60;
+        display.setFont(&FreeSansBold24pt7b);
+        display.setCursor(80, y);
+        display.print(apName);
+        display.setFont(&FreeSans12pt7b);
+
+        y += 50;
+        display.setCursor(40, y);
+        display.print("2.  A setup page should open automatically.");
+        y += 28;
+        display.setCursor(70, y);
+        display.print("Or open a browser to: http://192.168.4.1");
+
+        y += 50;
+        display.setCursor(40, y);
+        display.print("3.  Choose your WiFi network and enter a Board ID");
+        y += 28;
+        display.setCursor(70, y);
+        display.print("(e.g. \"room-214\"). The device will reboot when saved.");
+
+        display.setFont(&FreeSans9pt7b);
+        display.setCursor(40, 460);
+        display.printf("MAC %s   /   firmware: phase-4 wifi-manager",
+                       WiFi.macAddress().c_str());
+    } while (display.nextPage());
+    Serial.println("[disp] setup screen rendered");
+}
+
+// ─── WiFi connect ───────────────────────────────────────────
 static bool connectWiFi(uint32_t timeoutMs = 20000) {
-    Serial.printf("[wifi] connecting to %s ... ", WIFI_SSID);
+    if (g_ssid.length() == 0) return false;
+    Serial.printf("[wifi] connecting to %s ... ", g_ssid.c_str());
     WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    WiFi.begin(g_ssid.c_str(), g_pass.c_str());
 
     uint32_t start = millis();
     while (WiFi.status() != WL_CONNECTED) {
@@ -108,16 +222,69 @@ static bool connectWiFi(uint32_t timeoutMs = 20000) {
     return true;
 }
 
+// ─── Captive portal (blocking until user provisions or timeout) ─
+static void runPortal() {
+    // Build a stable, human-readable AP name from MAC tail
+    String mac = WiFi.macAddress();
+    mac.replace(":", "");
+    String apName = "HexworthBoard-" + mac.substring(8);
+
+    renderSetupScreen(apName);
+
+    WiFiManager wm;
+    wm.setConfigPortalTimeout(600);       // 10 min before reboot
+    wm.setBreakAfterConfig(true);
+    wm.setConnectTimeout(20);
+
+    WiFiManagerParameter boardIdParam(
+        "board",
+        "Board ID (e.g. room-214)",
+        g_boardId.length() > 0 ? g_boardId.c_str() : "room-XXX",
+        32);
+    wm.addParameter(&boardIdParam);
+
+    Serial.printf("[portal] opening AP %s — waiting for input\n", apName.c_str());
+    bool ok = wm.startConfigPortal(apName.c_str());
+
+    if (ok) {
+        String newSsid    = WiFi.SSID();
+        String newPass    = WiFi.psk();
+        String newBoardId = String(boardIdParam.getValue());
+        if (newBoardId.length() == 0) newBoardId = String(DEFAULT_BOARD_ID);
+
+        if (newSsid.length() > 0) {
+            Serial.printf("[portal] provisioned SSID=%s board=%s\n",
+                          newSsid.c_str(), newBoardId.c_str());
+            saveCreds(newSsid, newPass, newBoardId);
+        } else {
+            Serial.println("[portal] returned ok but no SSID — falling through to restart");
+        }
+    } else {
+        Serial.println("[portal] timed out without input");
+    }
+
+    Serial.println("[portal] restarting...");
+    delay(500);
+    ESP.restart();
+}
+
 // ─── HTTPS fetch ────────────────────────────────────────────
+static String buildBoardUrl() {
+    String base = String(BOARD_URL);
+    if (g_boardId.length() == 0) return base;
+    String sep = (base.indexOf('?') >= 0) ? "&" : "?";
+    return base + sep + "board=" + g_boardId;
+}
+
 static bool fetchImage() {
     WiFiClientSecure client;
-    client.setInsecure();  // Phase 1: skip cert verification.
-                           // Phase 2 polish: pin Google's root CA.
+    client.setInsecure();  // Phase 4 still: pin Google's root CA later
 
     HTTPClient http;
-    Serial.printf("[http] GET %s\n", BOARD_URL);
+    String url = buildBoardUrl();
+    Serial.printf("[http] GET %s\n", url.c_str());
 
-    if (!http.begin(client, BOARD_URL)) {
+    if (!http.begin(client, url)) {
         Serial.println("[http] begin failed");
         return false;
     }
@@ -137,7 +304,6 @@ static bool fetchImage() {
         return false;
     }
 
-    // Allocate from PSRAM if available (XIAO ESP32S3 has 8 MB).
     if (pngBuf) { free(pngBuf); pngBuf = nullptr; }
     pngBuf = (uint8_t*)ps_malloc(contentLen);
     if (!pngBuf) pngBuf = (uint8_t*)malloc(contentLen);
@@ -196,7 +362,7 @@ static bool renderImage() {
     return true;
 }
 
-// ─── Run one full cycle ────────────────────────────────────
+// ─── Run one fetch+render cycle ────────────────────────────
 static bool runCycle() {
     bool ok = false;
     for (int attempt = 0; attempt < 3 && !ok; attempt++) {
@@ -215,31 +381,61 @@ static bool runCycle() {
     return ok;
 }
 
+// ─── Factory-reset gesture ─────────────────────────────────
+// If BOOT (GPIO9) is held LOW for >BTN_HOLD_MS during early boot,
+// wipe NVS so the next boot opens the portal.
+static bool checkFactoryResetGesture() {
+    pinMode(BTN_BOOT, INPUT_PULLUP);
+    if (digitalRead(BTN_BOOT) != LOW) return false;
+
+    Serial.printf("[boot] BOOT held — keep holding %d ms to factory reset\n", BTN_HOLD_MS);
+    uint32_t start = millis();
+    while (digitalRead(BTN_BOOT) == LOW) {
+        if (millis() - start > BTN_HOLD_MS) {
+            Serial.println("[boot] factory reset confirmed");
+            clearCreds();
+            return true;
+        }
+        delay(50);
+    }
+    Serial.println("[boot] released before threshold — no reset");
+    return false;
+}
+
 // ─── setup() / loop() ──────────────────────────────────────
 //
-// DEV MODE: no deep sleep. The chip stays awake, USB stays up so we can
-// monitor serial output and re-flash freely. Production should switch to
-// deep_sleep once the full pipeline is verified end-to-end.
-// TODO(prod): re-enable deep sleep behind a -D PRODUCTION_DEEP_SLEEP flag.
+// DEV MODE: no deep sleep. The chip stays awake, USB stays up so we
+// can monitor serial output and re-flash freely. Production should
+// switch to deep_sleep once the full pipeline is verified end-to-end.
 
 void setup() {
     Serial.begin(115200);
-    delay(1500);  // wait for USB CDC + serial monitor to attach
+    delay(1500);  // USB CDC + serial monitor settle
     Serial.println();
-    Serial.println("=== Hexworth Operator Board boot ===");
+    Serial.println("=== Hexworth Operator Board boot (phase 4) ===");
     Serial.println("[dev] no-sleep mode — USB stays up for monitoring");
+
+    bool wasReset = checkFactoryResetGesture();
 
     Serial.println("[disp] init ...");
     display.init(115200, true, 50, false);
     Serial.println("[disp] init done");
+
+    bool haveCreds = loadCreds();
+
+    if (!haveCreds || wasReset) {
+        Serial.println("[boot] entering captive portal");
+        runPortal();  // never returns — reboots after save or timeout
+    }
+
+    Serial.printf("[boot] board=%s URL=%s\n",
+                  g_boardId.c_str(), buildBoardUrl().c_str());
 
     Serial.println("[cycle] running initial cycle");
     runCycle();
 }
 
 void loop() {
-    // Stay awake. Every REFRESH_MINUTES, run another cycle.
-    // chunk the delay so we can print a heartbeat
     for (uint32_t s = 0; s < (uint32_t)REFRESH_MINUTES * 60; s += 10) {
         Serial.printf("[idle] %lu / %lu seconds (USB up, awake)\n",
                       (unsigned long)s, (unsigned long)REFRESH_MINUTES * 60);
