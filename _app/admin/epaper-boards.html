@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ePaper Boards — Hexworth Prime</title>
+
+    <!-- Admin guard: hide page until verified -->
+    <style id="admin-guard">body { visibility: hidden; }</style>
+
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="/components/AccountFrame.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.5;
+        }
+        h1 { font-size: 1.6rem; margin-bottom: 4px; color: #c084fc; }
+        h2 { font-size: 1.05rem; color: #c084fc; margin: 18px 0 8px; }
+        .subtitle { color: #888; font-size: 0.92rem; margin-bottom: 24px; max-width: 720px; }
+        .toolbar {
+            display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap;
+        }
+        button {
+            background: #a855f7; color: #fff; border: none;
+            padding: 9px 18px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: background 0.2s;
+            font-weight: 600;
+        }
+        button:hover { background: #c084fc; }
+        button.secondary {
+            background: transparent; color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.4);
+        }
+        button.secondary:hover { background: rgba(168, 85, 247, 0.08); color: #e9d5ff; }
+        button.danger { background: #ef4444; }
+        button.danger:hover { background: #f87171; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            align-items: start;
+        }
+        @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: #161822;
+            border: 1px solid rgba(168, 85, 247, 0.18);
+            border-radius: 8px;
+            padding: 18px 22px;
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        th {
+            text-align: left; color: #888; font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 8px 10px; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.04em;
+        }
+        td { padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        tr:hover td { background: rgba(168, 85, 247, 0.04); cursor: pointer; }
+        .row-id { font-family: 'Courier New', monospace; color: #c084fc; }
+        .row-label { color: #e2e8f0; font-weight: 600; }
+        .row-template { color: #94a3b8; font-size: 0.82rem; }
+        .row-meta { color: #64748b; font-size: 0.78rem; }
+        .heartbeat-ok { color: #22c55e; }
+        .heartbeat-stale { color: #eab308; }
+        .heartbeat-dead { color: #ef4444; }
+
+        .form-row { margin-bottom: 14px; display: flex; flex-direction: column; gap: 5px; }
+        .form-row label {
+            font-size: 0.78rem; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+        }
+        .form-row input[type="text"],
+        .form-row input[type="number"],
+        .form-row select,
+        .form-row textarea {
+            background: #0f1117; color: #e2e8f0;
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            padding: 9px 12px; border-radius: 6px;
+            font-size: 0.92rem; font-family: inherit;
+        }
+        .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+            outline: none; border-color: #c084fc;
+        }
+        .form-row .hint { font-size: 0.74rem; color: #64748b; }
+
+        .course-block {
+            background: #0f1117;
+            border: 1px solid rgba(168, 85, 247, 0.15);
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+        .course-block .course-title {
+            font-size: 0.84rem; color: #c084fc; font-weight: 700;
+            margin-bottom: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .day-checkboxes { display: flex; gap: 8px; flex-wrap: wrap; }
+        .day-checkboxes label {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: #161822; padding: 6px 10px; border-radius: 4px;
+            font-size: 0.82rem; cursor: pointer; user-select: none;
+            border: 1px solid rgba(255,255,255,0.06);
+            text-transform: none; letter-spacing: 0;
+        }
+        .day-checkboxes input[type="checkbox"] { cursor: pointer; }
+        .day-checkboxes label:has(input:checked) {
+            background: rgba(168, 85, 247, 0.18);
+            border-color: #c084fc; color: #e9d5ff;
+        }
+
+        .preview-frame {
+            background: #fff;
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            border-radius: 6px;
+            margin-top: 10px;
+            min-height: 200px;
+            display: flex; align-items: center; justify-content: center;
+            color: #888;
+            overflow: hidden;
+        }
+        .preview-frame img { display: block; width: 100%; height: auto; }
+        .preview-hint { font-size: 0.78rem; color: #64748b; margin-bottom: 6px; }
+
+        .form-actions {
+            display: flex; gap: 10px; margin-top: 18px;
+            padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .empty-state {
+            text-align: center; padding: 36px 18px; color: #64748b;
+        }
+        .empty-state p { margin-top: 8px; font-size: 0.92rem; }
+        .status-pill {
+            display: inline-block; padding: 2px 8px; border-radius: 99px;
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+        }
+        .status-pill.ok { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .status-pill.stale { background: rgba(234, 179, 8, 0.15); color: #facc15; }
+        .status-pill.dead { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+        #saveMsg { margin-top: 10px; font-size: 0.86rem; min-height: 1.2em; }
+        #saveMsg.ok { color: #4ade80; }
+        #saveMsg.err { color: #f87171; }
+        .back-link {
+            color: #94a3b8; text-decoration: none; font-size: 0.86rem;
+            margin-bottom: 18px; display: inline-block;
+        }
+        .back-link:hover { color: #c084fc; }
+    </style>
+</head>
+<body>
+    <a href="console.html" class="back-link">← Admin Console</a>
+    <h1>ePaper Boards</h1>
+    <p class="subtitle">
+        Each board is a physical e-paper display (XIAO ESP32 + ePaper) registered here. The
+        <code style="color:#c084fc">operatorBoard</code> Cloud Function reads this config per
+        request and renders the image. Boards update on their own polling interval (default 15 min).
+    </p>
+
+    <div class="toolbar">
+        <button id="addBtn">+ New Board</button>
+        <button class="secondary" id="reloadBtn">↻ Reload</button>
+    </div>
+
+    <div class="grid">
+        <!-- LEFT: list -->
+        <div class="card">
+            <h2>Registered Boards</h2>
+            <table id="boardsTable">
+                <thead>
+                    <tr>
+                        <th>ID / Label</th>
+                        <th>Template</th>
+                        <th>Last seen</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="boardsBody">
+                    <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- RIGHT: editor (hidden until clicked) -->
+        <div class="card" id="editorCard" hidden>
+            <h2 id="editorTitle">Edit Board</h2>
+
+            <div class="form-row">
+                <label for="fId">Board ID</label>
+                <input type="text" id="fId" placeholder="room-214" maxlength="64">
+                <span class="hint">lowercase + numbers + dashes only. Permanent — used in the URL.</span>
+            </div>
+            <div class="form-row">
+                <label for="fLabel">Label</label>
+                <input type="text" id="fLabel" placeholder="Room 214 Door Display">
+            </div>
+            <div class="form-row">
+                <label for="fTemplate">Template</label>
+                <select id="fTemplate">
+                    <option value="classroom-schedule">classroom-schedule</option>
+                </select>
+            </div>
+
+            <h2 style="margin-top:18px;">Display</h2>
+            <div class="form-row">
+                <label for="fRoom">Room</label>
+                <input type="text" id="fRoom" placeholder="Room 214">
+            </div>
+            <div class="form-row">
+                <label for="fInstructor">Instructor</label>
+                <input type="text" id="fInstructor" placeholder="Professor Frank Mora, MCSIA">
+            </div>
+            <div class="form-row">
+                <label for="fTimezone">Timezone</label>
+                <input type="text" id="fTimezone" value="America/New_York">
+                <span class="hint">IANA timezone (e.g., America/New_York, America/Chicago, Europe/London).</span>
+            </div>
+            <div class="form-row">
+                <label for="fClassTime">Class time slot</label>
+                <input type="text" id="fClassTime" placeholder="6:00 – 9:00 PM">
+            </div>
+
+            <h2>Courses (Left and Right panels)</h2>
+            <div id="courseBlocks"></div>
+
+            <h2>Open Lab</h2>
+            <div class="form-row">
+                <label><input type="checkbox" id="fOpenLabEnabled"> Show Open Lab bar</label>
+            </div>
+            <div class="form-row">
+                <label for="fOpenLabTime">Open Lab time</label>
+                <input type="text" id="fOpenLabTime" placeholder="3:00 – 5:00 PM">
+            </div>
+
+            <div class="form-actions">
+                <button id="saveBtn">Save</button>
+                <button class="secondary" id="cancelBtn">Cancel</button>
+                <button class="danger" id="deleteBtn" style="margin-left:auto;" hidden>Delete</button>
+            </div>
+            <div id="saveMsg"></div>
+
+            <h2 style="margin-top:18px;">Live preview</h2>
+            <div class="preview-hint">Saved boards preview directly from the live CF. Reload after save.</div>
+            <div class="preview-frame" id="previewFrame">No board selected</div>
+        </div>
+    </div>
+
+<script>
+    'use strict';
+    let db = null;
+    let _firestoreModule = null;
+    let currentBoardId = null;  // null = creating; set = editing
+    let boards = [];
+
+    const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // ── Admin guard ────────────────────────────────────────
+    async function guard() {
+        try {
+            const user = await FirebaseAuth.waitForAuth();
+            if (!user) {
+                window.location.href = '../dashboard.html';
+                return false;
+            }
+            const isAdmin = FirebaseAuth.isAdmin();
+            const accountAdmin = AccountFrame.getAccountType() === 'admin';
+            if (!isAdmin && !accountAdmin) {
+                window.location.href = '../dashboard.html';
+                return false;
+            }
+            const g = document.getElementById('admin-guard');
+            if (g) g.remove();
+            return true;
+        } catch (e) {
+            console.error('Admin guard failed:', e);
+            window.location.href = '../dashboard.html';
+            return false;
+        }
+    }
+
+    // ── Firestore init ─────────────────────────────────────
+    async function initFirestore() {
+        if (db) return true;
+        if (!window.firebaseFirestore) {
+            try {
+                _firestoreModule = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+                window.firebaseFirestore = _firestoreModule;
+            } catch (e) {
+                console.error('Failed to load Firestore SDK:', e);
+                return false;
+            }
+        } else {
+            _firestoreModule = window.firebaseFirestore;
+        }
+        const { getFirestore } = _firestoreModule;
+        const apps = window.firebaseApp.getApps();
+        if (apps.length > 0) db = getFirestore(apps[0]);
+        return !!db;
+    }
+
+    // ── Heartbeat helper ───────────────────────────────────
+    function heartbeatLabel(ts) {
+        if (!ts) return { text: 'never', cls: 'dead' };
+        const ms = ts.toMillis ? ts.toMillis() : (ts.seconds ? ts.seconds * 1000 : 0);
+        if (!ms) return { text: 'never', cls: 'dead' };
+        const diff = Date.now() - ms;
+        const mins = Math.floor(diff / 60000);
+        let text, cls;
+        if (mins < 1) text = 'just now';
+        else if (mins < 60) text = mins + ' min ago';
+        else if (mins < 1440) text = Math.floor(mins / 60) + ' hr ago';
+        else text = Math.floor(mins / 1440) + ' day ago';
+        if (mins <= 30) cls = 'ok';
+        else if (mins <= 240) cls = 'stale';
+        else cls = 'dead';
+        return { text, cls };
+    }
+
+    // ── Load + render boards ───────────────────────────────
+    async function loadBoards() {
+        const tbody = document.getElementById('boardsBody');
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Loading…</td></tr>';
+        try {
+            const { collection, getDocs, query, orderBy } = _firestoreModule;
+            const snap = await getDocs(query(collection(db, 'epaper_boards'), orderBy('label')));
+            boards = [];
+            snap.forEach(d => boards.push({ id: d.id, ...d.data() }));
+            renderBoards();
+        } catch (e) {
+            console.error('loadBoards failed:', e);
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state" style="color:#f87171;">Failed to load: ' + e.message + '</td></tr>';
+        }
+    }
+
+    function renderBoards() {
+        const tbody = document.getElementById('boardsBody');
+        if (boards.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No boards yet.<p>Click <strong>+ New Board</strong> above to add the first one.</p></td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
+        boards.forEach(b => {
+            const hb = heartbeatLabel(b.lastSeen);
+            const tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td><div class="row-id">' + escapeHtml(b.id) + '</div>' +
+                '<div class="row-label">' + escapeHtml(b.label || '(no label)') + '</div></td>' +
+                '<td class="row-template">' + escapeHtml(b.template || 'classroom-schedule') + '</td>' +
+                '<td><span class="status-pill ' + hb.cls + '">' + hb.text + '</span></td>' +
+                '<td style="text-align:right"><button class="secondary" data-edit="' + escapeHtml(b.id) + '">Edit</button></td>';
+            tr.querySelector('[data-edit]').addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                openEditor(b.id);
+            });
+            tr.addEventListener('click', () => openEditor(b.id));
+            tbody.appendChild(tr);
+        });
+    }
+
+    // ── Editor ─────────────────────────────────────────────
+    function openEditor(boardId) {
+        const board = boardId ? boards.find(x => x.id === boardId) : null;
+        currentBoardId = boardId || null;
+        document.getElementById('editorCard').hidden = false;
+        document.getElementById('editorTitle').textContent = board ? ('Edit: ' + board.id) : 'New Board';
+        document.getElementById('fId').value = board ? board.id : '';
+        document.getElementById('fId').disabled = !!board;
+        document.getElementById('fLabel').value = board ? (board.label || '') : '';
+        document.getElementById('fTemplate').value = (board && board.template) || 'classroom-schedule';
+
+        const cfg = (board && board.config) || {};
+        document.getElementById('fRoom').value = cfg.room || '';
+        document.getElementById('fInstructor').value = cfg.instructor || '';
+        document.getElementById('fTimezone').value = cfg.timezone || 'America/New_York';
+        document.getElementById('fClassTime').value = cfg.classTime || '6:00 – 9:00 PM';
+
+        const courses = cfg.courses || [
+            { code: '', title: '', days: '', dayNums: [], side: 'left' },
+            { code: '', title: '', days: '', dayNums: [], side: 'right' },
+        ];
+        // Ensure left + right
+        const leftCourse = courses.find(c => c.side === 'left') || { code: '', title: '', days: '', dayNums: [], side: 'left' };
+        const rightCourse = courses.find(c => c.side === 'right') || { code: '', title: '', days: '', dayNums: [], side: 'right' };
+        renderCourseBlocks([leftCourse, rightCourse]);
+
+        const openLab = cfg.openLab || { enabled: true, time: '3:00 – 5:00 PM' };
+        document.getElementById('fOpenLabEnabled').checked = !!openLab.enabled;
+        document.getElementById('fOpenLabTime').value = openLab.time || '';
+
+        document.getElementById('deleteBtn').hidden = !board;
+        document.getElementById('saveMsg').textContent = '';
+        document.getElementById('saveMsg').className = '';
+
+        if (board) {
+            updatePreview(board.id);
+        } else {
+            const pf = document.getElementById('previewFrame');
+            pf.innerHTML = 'Preview will appear after first save.';
+        }
+    }
+
+    function renderCourseBlocks(courses) {
+        const wrap = document.getElementById('courseBlocks');
+        wrap.innerHTML = '';
+        courses.forEach((c, idx) => {
+            const block = document.createElement('div');
+            block.className = 'course-block';
+            block.dataset.side = c.side;
+            block.innerHTML =
+                '<div class="course-title">' + (c.side === 'left' ? 'LEFT PANEL' : 'RIGHT PANEL') + '</div>' +
+                '<div class="form-row"><label>Course code</label><input type="text" data-field="code" value="' + escapeAttr(c.code || '') + '" placeholder="CIS4253"></div>' +
+                '<div class="form-row"><label>Title</label><input type="text" data-field="title" value="' + escapeAttr(c.title || '') + '" placeholder="ETHICS IN IT"></div>' +
+                '<div class="form-row"><label>Days label (shown on the board)</label><input type="text" data-field="days" value="' + escapeAttr(c.days || '') + '" placeholder="Mondays · Wednesdays"></div>' +
+                '<div class="form-row"><label>Days that this course is active</label><div class="day-checkboxes">' +
+                    DAYS.map((d, i) =>
+                        '<label><input type="checkbox" data-field="dayNum" value="' + i + '"' +
+                        ((c.dayNums || []).includes(i) ? ' checked' : '') + '> ' + d + '</label>'
+                    ).join('') +
+                '</div></div>';
+            wrap.appendChild(block);
+        });
+    }
+
+    function readForm() {
+        const id = document.getElementById('fId').value.trim();
+        const label = document.getElementById('fLabel').value.trim();
+        const template = document.getElementById('fTemplate').value;
+        const cfg = {
+            room: document.getElementById('fRoom').value.trim(),
+            instructor: document.getElementById('fInstructor').value.trim(),
+            timezone: document.getElementById('fTimezone').value.trim() || 'America/New_York',
+            classTime: document.getElementById('fClassTime').value.trim(),
+            courses: [],
+            openLab: {
+                enabled: document.getElementById('fOpenLabEnabled').checked,
+                time: document.getElementById('fOpenLabTime').value.trim(),
+            },
+        };
+        document.querySelectorAll('.course-block').forEach(block => {
+            const side = block.dataset.side;
+            const code = block.querySelector('[data-field="code"]').value.trim();
+            const title = block.querySelector('[data-field="title"]').value.trim();
+            const days = block.querySelector('[data-field="days"]').value.trim();
+            const dayNums = Array.from(block.querySelectorAll('[data-field="dayNum"]:checked')).map(x => parseInt(x.value, 10));
+            cfg.courses.push({ code, title, days, dayNums, side });
+        });
+        return { id, label, template, config: cfg };
+    }
+
+    async function save() {
+        const msg = document.getElementById('saveMsg');
+        msg.textContent = '';
+        msg.className = '';
+        const data = readForm();
+        if (!data.id) { msg.textContent = 'Board ID is required.'; msg.className = 'err'; return; }
+        if (!/^[a-z0-9-]+$/.test(data.id)) {
+            msg.textContent = 'Board ID must be lowercase letters, numbers, and dashes only.';
+            msg.className = 'err';
+            return;
+        }
+        try {
+            const { doc, setDoc, getDoc, serverTimestamp } = _firestoreModule;
+            const ref = doc(db, 'epaper_boards', data.id);
+            const existing = await getDoc(ref);
+            const payload = {
+                template: data.template,
+                label: data.label || data.id,
+                config: data.config,
+                updatedAt: serverTimestamp(),
+            };
+            if (!existing.exists()) payload.createdAt = serverTimestamp();
+            await setDoc(ref, payload, { merge: true });
+            msg.textContent = 'Saved. The next device fetch will pick it up.';
+            msg.className = 'ok';
+            currentBoardId = data.id;
+            await loadBoards();
+            updatePreview(data.id);
+        } catch (e) {
+            console.error('save failed:', e);
+            msg.textContent = 'Save failed: ' + e.message;
+            msg.className = 'err';
+        }
+    }
+
+    async function removeBoard() {
+        if (!currentBoardId) return;
+        if (!confirm('Delete board "' + currentBoardId + '"?\n\nThis is permanent. Any device pointing at this board will receive a 404 until reconfigured.')) return;
+        try {
+            const { doc, deleteDoc } = _firestoreModule;
+            await deleteDoc(doc(db, 'epaper_boards', currentBoardId));
+            currentBoardId = null;
+            document.getElementById('editorCard').hidden = true;
+            await loadBoards();
+        } catch (e) {
+            console.error('delete failed:', e);
+            alert('Delete failed: ' + e.message);
+        }
+    }
+
+    function updatePreview(boardId) {
+        const pf = document.getElementById('previewFrame');
+        pf.innerHTML = '';
+        const img = document.createElement('img');
+        // cache-bust so reloads show fresh content after save
+        img.src = 'https://us-central1-hexworth-prime.cloudfunctions.net/operatorBoard?board=' +
+                  encodeURIComponent(boardId) + '&t=' + Date.now();
+        img.alt = 'Live preview';
+        pf.appendChild(img);
+    }
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function escapeAttr(s) { return escapeHtml(s); }
+
+    // ── Wire up ────────────────────────────────────────────
+    (async () => {
+        if (!(await guard())) return;
+        if (!(await initFirestore())) {
+            document.body.innerHTML = '<p style="color:#f87171;padding:24px;">Failed to initialize Firestore.</p>';
+            return;
+        }
+        document.getElementById('addBtn').addEventListener('click', () => openEditor(null));
+        document.getElementById('reloadBtn').addEventListener('click', loadBoards);
+        document.getElementById('saveBtn').addEventListener('click', save);
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            document.getElementById('editorCard').hidden = true;
+            currentBoardId = null;
+        });
+        document.getElementById('deleteBtn').addEventListener('click', removeBoard);
+        await loadBoards();
+    })();
+</script>
+</body>
+</html>
