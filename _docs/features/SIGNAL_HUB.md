@@ -2,7 +2,7 @@
 
 **Status:** SHIPPED
 **Components:** `SignalEngine.js` (2,332 lines), `SignalData.js` (1,685 lines)
-**Location:** `_app/signal/` (engine, data, 113 project HTML files), `_app/signal/toolkit/` (22 tools + 2 custom apps)
+**Location:** `_app/signal/` (engine, data, 113 project HTML files), `_app/signal/toolkit/` (22 third-party tools + 5 Hexworth-built apps + walkthroughs)
 **Added:** v5.0.0
 **Last reviewed:** 2026-04-05
 
@@ -98,7 +98,7 @@ Each of the 92 projects includes:
 }
 ```
 
-## Toolkit Library (22 Software Tools + 2 Custom Apps)
+## Toolkit Library (22 Third-Party Tools + 5 Hexworth-Built Apps/Walkthroughs)
 
 The toolkit is a reference library of recommended software:
 
@@ -109,9 +109,12 @@ The toolkit is a reference library of recommended software:
 **Virtualization:** VirtualBox, VMware Workstation
 **Retro:** RetroPie
 
-**Custom Signal apps:**
+**Hexworth-built apps:**
 - **C2 Command & Control Dashboard** — custom Signal build for hardware C2 monitoring
 - **DuckyScript IDE** — full IDE for writing Rubber Ducky payloads (6 modules: intro, basics, payloads, recon, persistence, defense)
+- **Hexworth Web Flasher** (`web-flasher.html`) — single entry point for flashing/installing software on every Hexworth-supported platform: ESP32 (WebSerial + esptool-js), Pi Pico (UF2 drag-drop), Arduino Mega (IDE handoff), Pi 3/4/5 (Imager walkthrough). See [WEB_FLASHER.md](WEB_FLASHER.md).
+- **My Devices** (`my-devices.html`) — owner-scoped dashboard of devices a student has registered against the Hexworth C2 backend.
+- **Install Raspberry Pi OS walkthrough** (`install-pi-os.html`) — step-by-step Pi 3/4/5 OS install guide; target of the Web Flasher's `disk-image` mode and also reachable directly from the Toolkit catalog.
 
 ## Red Team Hardware Track
 
@@ -171,7 +174,7 @@ gpio, tor-privacy, ids-ips, physical-security, firmware-dev
   are taught with defensive context. Each offensive build includes a defense/detection
   module. The DuckyScript IDE course ends with a "Defense & Capstone" module.
 
-- **Toolkit as reference, not requirement** — The 22-tool library is informational.
+- **Toolkit as reference, not requirement** — The 22-tool third-party library is informational. The 5 Hexworth-built apps/walkthroughs ARE part of the platform's core student-facing surface.
   Students aren't required to install all tools — they're recommendations for each
   platform.
 
