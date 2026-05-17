@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-05-12 5:52:07 PM
+                    Scanned: 2026-05-17 11:01:37 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,17 +10,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5066 |
-| Directories | 1185 |
-| Content Files | 5066 |
-| Scan Duration | 3118ms |
+| Files Scanned | 5077 |
+| Directories | 1207 |
+| Content Files | 5077 |
+| Scan Duration | 2631ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2298 |
-| html | 1491 |
+| presentation | 2300 |
+| html | 1500 |
 | lab | 587 |
 | quiz | 487 |
 | applet | 203 |
@@ -29,8 +29,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 3599 |
-| Available | 3554 |
+| Total Modules | 3601 |
+| Available | 3556 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 1 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 25 |
-| Warning | 2294 |
+| Warning | 2296 |
 | Info | 681 |
-| **Total** | **12521** |
+| **Total** | **12538** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3563 |
+| Ready | 3565 |
 | Not Ready | 12 |
-| Unknown | 1491 |
+| Unknown | 1500 |
 
 
 ## FILE HIERARCHY
@@ -61,11 +61,14 @@
 ```
 📁 _app [root]
 ├── 📄 about.html
+├── 📄 accept-invite.html
 ├── 📁 admin
 │   ├── 📄 analytics-v2-status.html
 │   ├── 📄 audit-tool.html
+│   ├── 📄 c2-pairing-codes.html
 │   ├── 📄 console.html
 │   ├── 📄 course-tree.html
+│   ├── 📄 epaper-boards.html
 │   └── 📁 scripts
 ├── 📁 announcements
 │   └── 📍 index.html
@@ -2818,6 +2821,7 @@
 │   │   │   │   ├── 📊 eth-w1-it-professionals.presentation.html
 │   │   │   │   ├── 📊 eth-w2-freedom-expression.presentation.html
 │   │   │   │   ├── 📊 eth-w2-intellectual-property.presentation.html
+│   │   │   │   ├── 📊 eth-w2-lecture.presentation.html
 │   │   │   │   ├── 📊 eth-w2-privacy.presentation.html
 │   │   │   │   ├── 📊 eth-w3-it-impact.presentation.html
 │   │   │   │   ├── 📊 eth-w3-software-ethics.presentation.html
@@ -4967,6 +4971,7 @@
 │   │   │   │   ├── 📊 pis-w2-app-attacks.presentation.html
 │   │   │   │   ├── 📊 pis-w2-cryptography.presentation.html
 │   │   │   │   ├── 📊 pis-w2-device-security.presentation.html
+│   │   │   │   ├── 📊 pis-w2-lecture.presentation.html
 │   │   │   │   ├── 📊 pis-w2-network-attacks.presentation.html
 │   │   │   │   ├── 📊 pis-w3-network-architecture.presentation.html
 │   │   │   │   ├── 📊 pis-w3-pki.presentation.html
@@ -6042,6 +6047,23 @@
 │       └── 📁 iam
 │           └── 📍 index.html
 ├── 📁 signal
+│   ├── 📁 firmware-bins
+│   │   ├── 📁 arduino-mega-blink
+│   │   │   └── 📁 v0.1
+│   │   ├── 📁 c2-device
+│   │   │   └── 📁 v0.2
+│   │   ├── 📁 c2-device-xiao-c3
+│   │   │   └── 📁 v0.2
+│   │   ├── 📁 c2-device-xiao-s3
+│   │   │   └── 📁 v0.2
+│   │   ├── 📁 circuitpython-pi-pico
+│   │   │   └── 📁 v9.2
+│   │   ├── 📁 micropython-pi-pico
+│   │   │   └── 📁 v1.23
+│   │   ├── 📁 raspberry-pi-os
+│   │   │   └── 📁 v1
+│   │   └── 📁 wifimanager-template
+│   │       └── 📁 v0.1
 │   ├── 📍 index.html
 │   ├── 📁 sections
 │   │   ├── 📁 arcade-ops
@@ -6196,33 +6218,44 @@
 │   │       ├── 🔬 sg-13-bad-usb-lab.html
 │   │       ├── 📄 sg-14-motion-surveillance.html
 │   │       └── 📄 sg-15-perimeter-alarm.html
-│   └── 📁 toolkit
-│       ├── 📄 c2-dashboard.html
-│       ├── 📄 duckyscript-ide.html
-│       ├── 📍 index.html
-│       └── 📁 tools
-│           ├── 📄 arduino-ide.tool.html
-│           ├── 📄 balenaetcher.tool.html
-│           ├── 📄 clonezilla.tool.html
-│           ├── 📄 coolterm.tool.html
-│           ├── 📄 dban.tool.html
-│           ├── 📄 gparted.tool.html
-│           ├── 📄 hirens-bootcd.tool.html
-│           ├── 📄 memtest86.tool.html
-│           ├── 📄 minicom.tool.html
-│           ├── 📄 nmap.tool.html
-│           ├── 📄 platformio.tool.html
-│           ├── 📄 putty.tool.html
-│           ├── 📄 raspberry-pi-imager.tool.html
-│           ├── 📄 retropie.tool.html
-│           ├── 📄 rufus.tool.html
-│           ├── 📄 screen.tool.html
-│           ├── 📄 thonny.tool.html
-│           ├── 📄 ventoy.tool.html
-│           ├── 📄 virtualbox.tool.html
-│           ├── 📄 vmware-workstation.tool.html
-│           ├── 📄 vscode.tool.html
-│           └── 📄 wireshark.tool.html
+│   ├── 📁 toolkit
+│   │   ├── 📄 c2-dashboard.html
+│   │   ├── 📄 duckyscript-ide.html
+│   │   ├── 📍 index.html
+│   │   ├── 📄 install-pi-os.html
+│   │   ├── 📄 my-devices.html
+│   │   ├── 📁 tools
+│   │   │   ├── 📄 arduino-ide.tool.html
+│   │   │   ├── 📄 balenaetcher.tool.html
+│   │   │   ├── 📄 clonezilla.tool.html
+│   │   │   ├── 📄 coolterm.tool.html
+│   │   │   ├── 📄 dban.tool.html
+│   │   │   ├── 📁 esptool-js
+│   │   │   ├── 📄 gparted.tool.html
+│   │   │   ├── 📄 hirens-bootcd.tool.html
+│   │   │   ├── 📄 memtest86.tool.html
+│   │   │   ├── 📄 minicom.tool.html
+│   │   │   ├── 📄 nmap.tool.html
+│   │   │   ├── 📄 platformio.tool.html
+│   │   │   ├── 📄 putty.tool.html
+│   │   │   ├── 📄 raspberry-pi-imager.tool.html
+│   │   │   ├── 📄 retropie.tool.html
+│   │   │   ├── 📄 rufus.tool.html
+│   │   │   ├── 📄 screen.tool.html
+│   │   │   ├── 📄 thonny.tool.html
+│   │   │   ├── 📄 ventoy.tool.html
+│   │   │   ├── 📄 virtualbox.tool.html
+│   │   │   ├── 📄 vmware-workstation.tool.html
+│   │   │   ├── 📄 vscode.tool.html
+│   │   │   └── 📄 wireshark.tool.html
+│   │   └── 📄 web-flasher.html
+│   └── 📁 views
+│       ├── 📁 recruit-track
+│       │   └── 📍 index.html
+│       ├── 📁 usb-toolkit
+│       │   └── 📍 index.html
+│       └── 📁 wireless-track
+│           └── 📍 index.html
 ├── 📄 sorting.html
 ├── 📁 styles
 ├── 📄 subscription.html
@@ -7563,6 +7596,7 @@
 | eth-w1-it-professionals.presentation | presentation | ✓ | 0 |
 | eth-w2-freedom-expression.presentation | presentation | ✓ | 0 |
 | eth-w2-intellectual-property.presentation | presentation | ✓ | 0 |
+| eth-w2-lecture.presentation | presentation | ✓ | 0 |
 | eth-w2-privacy.presentation | presentation | ✓ | 0 |
 | eth-w3-it-impact.presentation | presentation | ✓ | 0 |
 | eth-w3-software-ethics.presentation | presentation | ✓ | 0 |
@@ -8981,6 +9015,7 @@
 | pis-w2-app-attacks.presentation | presentation | ✓ | 0 |
 | pis-w2-cryptography.presentation | presentation | ✓ | 0 |
 | pis-w2-device-security.presentation | presentation | ✓ | 0 |
+| pis-w2-lecture.presentation | presentation | ✓ | 0 |
 | pis-w2-network-attacks.presentation | presentation | ✓ | 0 |
 | pis-w3-network-architecture.presentation | presentation | ✓ | 0 |
 | pis-w3-pki.presentation | presentation | ✓ | 0 |
@@ -10069,7 +10104,7 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (2294)
+### WARNING (2296)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -14672,6 +14707,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/divergent/ethics-it/presentations/eth-w2-lecture.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/divergent/ethics-it/presentations/eth-w2-privacy.presentation.html`
   Fix: Add entry to content-registry.js
 
@@ -16953,6 +16992,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/presentations/pis-w2-device-security.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w2-lecture.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -20485,7 +20528,7 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 3166 of 3599 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3168 of 3601 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
@@ -21837,7 +21880,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (2244)
+### Unregistered Content (2246)
 
 | Path | Type | House |
 |------|------|-------|
@@ -22984,6 +23027,7 @@
 | houses/divergent/ethics-it/presentations/eth-w1-it-professionals.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w2-freedom-expression.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w2-intellectual-property.presentation.html | presentation | divergent |
+| houses/divergent/ethics-it/presentations/eth-w2-lecture.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w2-privacy.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w3-it-impact.presentation.html | presentation | divergent |
 | houses/divergent/ethics-it/presentations/eth-w3-software-ethics.presentation.html | presentation | divergent |
@@ -23555,6 +23599,7 @@
 | houses/shield/infosec/presentations/pis-w2-app-attacks.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w2-cryptography.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w2-device-security.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w2-lecture.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w2-network-attacks.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w3-network-architecture.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w3-pki.presentation.html | presentation | shield |
