@@ -77,6 +77,7 @@ cd _tools/nexus && node nexus.js status                # QC health across all to
 | [stragglers-merge-runbook.md](operations/stragglers-merge-runbook.md) | — | Step-by-step copy-paste runbook for the v7.1.0 ZION merge + deploy + verification + rollback |
 | [stragglers-progress-safety-audit.md](operations/stragglers-progress-safety-audit.md) | — | Per-change audit (8 categories) of branch impact on student progress data; recovery procedure |
 | [stragglers-pr-body.md](operations/stragglers-pr-body.md) | — | Comprehensive PR description for the Stragglers branch landing |
+| [web-flasher-runbook.md](operations/web-flasher-runbook.md) | — | Triage runbook for student "I tried to flash my ESP32 and it didn't work" — 7 failure buckets, what to check, escalation path |
 
 #### Safety Net & SYM Sprint (added 2026-05-03 onward)
 
@@ -165,6 +166,7 @@ Man pages for shipped features. Each document covers purpose, architecture, and 
 | [Operator Missions](features/OPERATOR_MISSIONS.md) | OperatorEngine.js, AgentBridge.js, OperatorInterpreter.js | 72-mission Metroidvania: 50 Python levels with obstacles, permanent tools, persistent inventory, dispatch table pedagogy |
 | [Arctic CLI Hub](features/ARCTIC_CLI_HUB.md) | ArcticEngine.js, ArcticData.js | 24 Linux districts, 600+ modules, 3 faction paths, section-level fog-of-war |
 | [Signal Hub](features/SIGNAL_HUB.md) | SignalEngine.js, SignalData.js | 92 hardware projects, 6 platforms, real parts/costs, 22-tool toolkit |
+| [Web Flasher](features/WEB_FLASHER.md) | web-flasher.html, my-devices.html, vendored esptool-js, c2RequestStudentPairingCode CF | Browser-based ESP32 flashing + student-owned device registration on the C2 backend |
 | [Forensics Hub](features/FORENSICS_HUB.md) | ForensicsEngine.js, ForensicsData.js, cert-alignment.js | 60 modules, 5 certification alignments, courtroom-ready framework |
 | [Sandbox Labs](features/SANDBOX_LABS.md) | lab-manager/server.js, docker-compose.yml, SandboxLauncher.js | Docker containers, Traefik routing, Cloudflare Tunnel, Sablier idle mgmt |
 | [Multiplayer & Hive](features/MULTIPLAYER_HIVE.md) | MultiplayerManager.js, HiveManager.js, VsBridge.js | 2-player arcade, ghost replay, Hive exploration, Red Queen, CTF VS mode |
