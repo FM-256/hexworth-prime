@@ -28,6 +28,40 @@ const SignalEngine = (() => {
     const PRIMARY_DIM = 'rgba(255, 107, 53, 0.15)';
 
     // -------------------------------------------------------------------------
+    // Cloud sync bootstrap
+    //
+    // Inject FirebaseAuth.js + SignalProgressSync.js so Signal pages get
+    // cross-device progress sync without every wrapper having to load
+    // them. Silent no-op if the scripts fail to load (file://, offline,
+    // CSP, etc.) — Signal keeps working from localStorage in that case.
+    // -------------------------------------------------------------------------
+    function _bootstrapCloudSync() {
+        if (typeof window === 'undefined' || typeof document === 'undefined') return;
+        if (window.__signalCloudSyncBootstrapped) return;
+        window.__signalCloudSyncBootstrapped = true;
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const existing = document.querySelector('script[src="' + src + '"]');
+                if (existing) { resolve(); return; }
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = false;  // preserve order: auth before sync
+                s.onload = resolve;
+                s.onerror = () => reject(new Error('failed to load ' + src));
+                document.head.appendChild(s);
+            });
+        }
+
+        // Relative to current page. SignalEngine.js loads from /signal/
+        // (hub) or /signal/sections/<name>/ (section + project pages),
+        // so use absolute paths.
+        loadScript('/components/FirebaseAuth.js')
+            .then(() => loadScript('/signal/SignalProgressSync.js'))
+            .catch(() => { /* offline or local — sync stays disabled */ });
+    }
+
+    // -------------------------------------------------------------------------
     // Progress helpers
     // -------------------------------------------------------------------------
 
@@ -40,9 +74,20 @@ const SignalEngine = (() => {
         }
     }
 
-    /** Persist project completion state to localStorage */
+    /** Persist project completion state to localStorage; trigger cloud sync if available */
     function _saveProgress() {
         localStorage.setItem('hexworth_signal_progress', JSON.stringify(_progress));
+        // Cross-device sync: optional, no-op if SignalProgressSync not loaded
+        // or user is not signed in.
+        if (typeof window !== 'undefined' && window.SignalProgressSync && window.SignalProgressSync.push) {
+            try { window.SignalProgressSync.push(); } catch (e) { /* never throw from save */ }
+        }
+    }
+
+    /** Reload progress from localStorage (called by SignalProgressSync after
+     *  cloud pull merges new entries from another device). */
+    function reloadProgress() {
+        _loadProgress();
     }
 
     /** @returns {boolean} Whether the given project has been marked complete */
@@ -134,6 +179,7 @@ const SignalEngine = (() => {
 
     /** Render the full Signal hub page: hero, progress bar, platform overview, track sections */
     function renderHub() {
+        _bootstrapCloudSync();
         _loadProgress();
         document.title = 'The Signal \u2014 Hardware Projects \u2014 Hexworth Prime';
         _injectStyles(_getHubCSS());
@@ -461,6 +507,7 @@ const SignalEngine = (() => {
 
     /** Render a single section page with project cards and guides */
     function renderSection(sectionId) {
+        _bootstrapCloudSync();
         _basePath = '../../../../'; // from sections/{id}/ to _app/
         _loadProgress();
         const section = SignalData.getSection(sectionId);
@@ -1109,6 +1156,7 @@ a { color: inherit; text-decoration: none; }
     // =========================================================================
 
     function renderProject(projectId) {
+        _bootstrapCloudSync();
         _basePath = '../../../../'; // from sections/{id}/ to _app/
         _loadProgress();
 
@@ -2378,7 +2426,8 @@ a { color: inherit; text-decoration: none; }
     return {
         renderHub,
         renderSection,
-        renderProject
+        renderProject,
+        reloadProgress
     };
 
 })();
