@@ -273,6 +273,14 @@ function buildTriageItems(issues) {
     // fingerprint, not just the queueable ones. Without this, a rule whose
     // severity drops from high to medium would cause its existing queue
     // items to silently auto-resolve as "disappeared" — Nancy round 4 fix.
+    //
+    // Transient handling: any spoke that emits ephemeral findings (e.g.
+    // smoke-test failures, network-blip detections) sets `transient: true`
+    // on each issue. The group inherits transient via AND-aggregation —
+    // it stays transient only if ALL its issues are transient. A transient
+    // group still contributes to deploy-gate severity counts (so smoke
+    // failures CAN block a deploy), but it never enters _triage_queue (so
+    // smoke failures don't auto-create sprint items that haunt the queue).
     const groups = new Map();
     for (const issue of issues) {
         const rule = issue.code || 'UNKNOWN';
@@ -280,10 +288,11 @@ function buildTriageItems(issues) {
         const dir = directoryPrefix(issue.file);
         const groupKey = `${rule}::${dir}`;
         if (!groups.has(groupKey)) {
-            groups.set(groupKey, { rule, dir, severity: sev, issues: [] });
+            groups.set(groupKey, { rule, dir, severity: sev, issues: [], transient: !!issue.transient });
         }
         const g = groups.get(groupKey);
         g.issues.push(issue);
+        g.transient = g.transient && !!issue.transient;
         // Promote group severity to the highest of any member
         const sevOrder = ['low', 'medium', 'high', 'critical'];
         if (sevOrder.indexOf(sev) > sevOrder.indexOf(g.severity)) {
@@ -308,6 +317,12 @@ function buildTriageItems(issues) {
         // their fingerprint to allFingerprints (so reconciliation can detect
         // their continued existence).
         if (!TRIAGE_SEVERITY_GATE.has(g.severity) && !isAutoFix) continue;
+        // Transient skip: spoke-emitted ephemeral findings (e.g. smoke-test
+        // failures) never enter _triage_queue. They still show up in the
+        // status table and deploy gate counts via their spoke's getStatus(),
+        // so smoke-detected regressions can block a deploy without polluting
+        // long-lived sprint state.
+        if (g.transient && !isAutoFix) continue;
 
         const sample = g.issues[0] || {};
         const childPaths = g.issues

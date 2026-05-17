@@ -708,6 +708,19 @@ async function cmdFull(args, flags) {
     const spokes = hub.loadSpokes(config);
     const store = hub.loadFindings();
 
+    // Warm-up phase: any adapter with an optional async `prepare()`
+    // method runs it now, in parallel. Lets spokes that need to do
+    // network work (like web-flasher-smoke) populate their memoized
+    // state before the synchronous sync + gate steps below. Adapters
+    // without prepare() are unaffected.
+    const prepareEntries = Object.entries(spokes).filter(([, a]) => typeof a.prepare === 'function');
+    if (prepareEntries.length > 0) {
+        await Promise.all(prepareEntries.map(async ([name, adapter]) => {
+            try { await adapter.prepare(); }
+            catch (err) { console.log(`  ${C.dim}${name} prepare(): ${err.message}${C.reset}`); }
+        }));
+    }
+
     for (const name of Object.keys(spokes)) {
         const adapter = spokes[name];
         try {
@@ -1165,6 +1178,10 @@ switch (command) {
     case 'firmware-manifest':
     case 'fm':
         cmdSpoke('firmware-manifest', positional, flags);
+        break;
+    case 'web-flasher-smoke':
+    case 'wfs':
+        cmdSpoke('web-flasher-smoke', positional, flags);
         break;
     case 'dead-code':
         cmdSpoke('dead-code', positional, flags);
