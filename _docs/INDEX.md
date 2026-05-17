@@ -78,6 +78,8 @@ cd _tools/nexus && node nexus.js status                # QC health across all to
 | [stragglers-progress-safety-audit.md](operations/stragglers-progress-safety-audit.md) | — | Per-change audit (8 categories) of branch impact on student progress data; recovery procedure |
 | [stragglers-pr-body.md](operations/stragglers-pr-body.md) | — | Comprehensive PR description for the Stragglers branch landing |
 | [web-flasher-runbook.md](operations/web-flasher-runbook.md) | — | Triage runbook for student "I tried to flash my ESP32 and it didn't work" — 7 failure buckets, what to check, escalation path |
+| [web-flasher-smoke.md](operations/web-flasher-smoke.md) | — | Operations guide for the `web-flasher-smoke` Nexus deploy-gate spoke — 38 assertions, severity model, failure-mode triage table mapping every assertion to its likely root cause, off-switch usage, transient-findings mechanism |
+| [web-flasher-hardware-smoke-2026-05-17.md](operations/web-flasher-hardware-smoke-2026-05-17.md) | — | Operator-driven hardware smoke test plan — 6 rounds across ESP32 DevKit / XIAO C3 / XIAO S3 / Pi Pico / Arduino Mega / Pi 3/4/5 with explicit PASS criteria |
 
 #### Safety Net & SYM Sprint (added 2026-05-03 onward)
 
