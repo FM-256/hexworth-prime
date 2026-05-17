@@ -208,6 +208,9 @@ const SignalEngine = (() => {
         // Hero
         main.appendChild(_buildHero());
 
+        // Briefing dropdown (closed by default — discoverable, not in the way)
+        main.appendChild(_buildBriefing());
+
         // Overall progress
         main.appendChild(_buildOverallProgress());
 
@@ -352,6 +355,57 @@ const SignalEngine = (() => {
         });
 
         wrap.appendChild(grid);
+        return wrap;
+    }
+
+    /** Build the briefing disclosure on the hub.
+     *
+     * Native <details>/<summary> dropdown explaining what the Signal hub
+     * is, how navigation works (sections, views, tracks), how completion
+     * tracking + sync work, and where to start. Closed by default so it
+     * doesn't push content below the fold.
+     */
+    function _buildBriefing() {
+        const wrap = document.createElement('details');
+        wrap.className = 'se-briefing';
+        wrap.innerHTML = `
+            <summary class="se-briefing-summary">What is The Signal? How do I use it?</summary>
+            <div class="se-briefing-body">
+
+                <h3>What is this?</h3>
+                <p>The Signal is Hexworth's hardware-projects hub. ~112 build guides spanning Arduino, ESP32, Raspberry Pi, and RP2040 Pico — from a five-dollar "blink an LED" exercise to a capstone field-deployable security tool. Every project ships with parts list, difficulty rating, prerequisites, wiring diagram, and step-by-step instructions.</p>
+
+                <h3>Three ways to navigate</h3>
+                <ol>
+                    <li><strong>Tracks</strong> — the default. Tabs across the middle of this page (Foundations, Network Recon, Red Team Hardware, etc.). Pick a track that matches your interest; expand a section card; pick a project.</li>
+                    <li><strong>Curated Views</strong> — the orange cards just below this panel. Cross-section indexes: <em>USB Toolkit</em>, <em>Recruit Track</em> (start-here for beginners), <em>Wireless Track</em>. Each view filters the whole project library by a single dimension.</li>
+                    <li><strong>Toolkit</strong> — the orange link in the hero above. DuckyScript IDE for writing keystroke-injection payloads in your browser, C2 Dashboard for managing connected devices.</li>
+                </ol>
+
+                <h3>Marking a project complete</h3>
+                <ul>
+                    <li>On any section page or view, click the empty checkbox next to a project to mark it complete. Click again to un-mark.</li>
+                    <li>Completion stamps a timestamp. Your overall progress bar (above) and per-track / per-section / per-view bars update live.</li>
+                    <li><strong>If you are signed in:</strong> completions sync to the cloud automatically. Your phone, laptop, lab workstation — all stay in step. First sync runs on page load; subsequent toggles push within ~1.5 seconds.</li>
+                    <li><strong>If you are not signed in:</strong> completions still save in this browser's local storage. They just won't follow you to another device.</li>
+                </ul>
+
+                <h3>Difficulty tiers</h3>
+                <ul>
+                    <li><strong>Recruit</strong> (green) — first project on a platform; no prerequisites; single technology.</li>
+                    <li><strong>Operative</strong> (yellow) — one new technology layered on a recruit-level base.</li>
+                    <li><strong>Operator</strong> (orange) — practitioner workflow using established tools (KiCad, dnsmasq, betaflight, rtl_sdr).</li>
+                    <li><strong>Specialist</strong> (red) — multi-layer integration; protocol-level work.</li>
+                    <li><strong>Field Agent</strong> (purple) — capstone tying together an entire track.</li>
+                </ul>
+
+                <h3>Where to start</h3>
+                <p>If this is your first time here, open the <strong>Recruit Track</strong> view above. Pick a project whose platform matches what you have on your desk. Each recruit project lists exact parts and average build time so you can pick something that fits your evening.</p>
+
+                <h3>Getting parts</h3>
+                <p>The <em>Build Your Kit</em> section above the curated views shows every hardware platform with approximate cost and which kit Hexworth tested against. Most projects assume you have only the kit listed for their platform.</p>
+
+            </div>`;
         return wrap;
     }
 
@@ -1081,6 +1135,58 @@ a { color: inherit; text-decoration: none; }
 .se-plat-project--done .se-plat-proj-title { text-decoration: line-through; }
 .se-plat-proj-id { font-size: 10px; color: #555; font-weight: 700; min-width: 38px; }
 .se-plat-proj-title { flex: 1; font-size: 12px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Briefing dropdown — native <details> */
+.se-briefing {
+    margin-bottom: 24px;
+    border: 1px solid rgba(255, 107, 53, 0.25);
+    border-radius: 8px;
+    background: rgba(20, 20, 28, 0.5);
+    overflow: hidden;
+}
+.se-briefing[open] { border-color: rgba(255, 107, 53, 0.5); }
+.se-briefing-summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 14px 22px;
+    color: #ff6b35;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    user-select: none;
+    display: flex; align-items: center; gap: 10px;
+}
+.se-briefing-summary::-webkit-details-marker { display: none; }
+.se-briefing-summary::before {
+    content: "▶";
+    font-size: 10px;
+    color: #888;
+    transition: transform 0.15s;
+}
+.se-briefing[open] .se-briefing-summary::before { transform: rotate(90deg); }
+.se-briefing-summary:hover { background: rgba(255, 107, 53, 0.06); }
+.se-briefing-body {
+    padding: 6px 24px 22px;
+    border-top: 1px solid rgba(255, 107, 53, 0.12);
+    color: #d0d0d0;
+    font-size: 14px;
+    line-height: 1.6;
+}
+.se-briefing-body h3 {
+    color: #ff6b35;
+    font-size: 13px;
+    font-weight: 700;
+    margin: 18px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.se-briefing-body h3:first-child { margin-top: 8px; }
+.se-briefing-body p { margin: 0 0 8px; }
+.se-briefing-body ol,
+.se-briefing-body ul { margin: 4px 0 12px 24px; }
+.se-briefing-body li { margin-bottom: 4px; }
+.se-briefing-body strong { color: #fff; }
+.se-briefing-body em { color: #aaa; font-style: normal; }
 
 /* Curated Views panel */
 .se-views-panel { margin-bottom: 32px; }
