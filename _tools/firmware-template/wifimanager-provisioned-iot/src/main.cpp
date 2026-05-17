@@ -42,9 +42,20 @@
 #define NVS_KEY_DEVICE  "device"
 
 // -------- Hardware --------
-// BOOT button on most XIAO + ESP32 devkits is GPIO9 (active LOW).
-// Verify on your specific board before deploying.
+// BOOT button GPIO. Defaults to 9 (Seeed XIAO ESP32-C3 / ESP32-S3).
+// Override via platformio.ini build_flags for other boards:
+//   ESP32 DevKit V1 (38-pin):  -D BTN_BOOT=0
+//   ESP32-WROOM modules:        -D BTN_BOOT=0
+//   Boards with no BOOT:        -D BTN_BOOT=-1  (disables the gesture)
+//
+// Note: many ESP32 modules wire BOOT directly to the bootloader-
+// flash entry. Holding BOOT during external RESET puts the chip in
+// download mode (user code never runs). The factory-reset gesture
+// here only works if the user releases BOOT after reset and re-
+// presses it during the first second of app boot.
+#ifndef BTN_BOOT
 #define BTN_BOOT      9
+#endif
 #define BTN_HOLD_MS   5000
 
 // TODO(app): #include your hardware-specific libraries here.
