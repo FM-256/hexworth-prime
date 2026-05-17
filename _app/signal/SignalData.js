@@ -380,6 +380,26 @@ const SignalData = {
             color: '#facc15',
             colorDim: 'rgba(250, 204, 21, 0.15)',
             predicate: { anyOfSkills: ['usb-protocol', 'usb'] }
+        },
+        {
+            id: 'recruit-track',
+            name: 'Recruit Track',
+            tagline: 'Start here. Every beginner-friendly project on the platform.',
+            description: 'All recruit-difficulty projects across every section, in one place. Each is designed as a no-prereq starting point on its platform — pick the one whose hardware matches what you have. 22 projects spanning ESP32, ESP32-S3, Pi Pico, Raspberry Pi, Arduino Mega, and plain workstation builds.',
+            icon: '../../assets/images/icons/icon-memory.webp',
+            color: '#4ade80',
+            colorDim: 'rgba(74, 222, 128, 0.15)',
+            predicate: { difficulties: ['recruit'] }
+        },
+        {
+            id: 'wireless-track',
+            name: 'Wireless Track',
+            tagline: 'WiFi, BLE, and Bluetooth across the Signal.',
+            description: 'Cross-section index of wireless-protocol projects — WiFi scanning, deauther detection, BLE enumeration, Bluetooth recon, and beacon work. 16 projects across iot-hacking, pcb-design, and esp32-s3-arsenal.',
+            icon: '../../assets/images/icons/icon-antenna.webp',
+            color: '#38bdf8',
+            colorDim: 'rgba(56, 189, 248, 0.15)',
+            predicate: { anyOfSkills: ['wifi-scanning', 'ble', 'bluetooth', 'wireless'] }
         }
     ],
 

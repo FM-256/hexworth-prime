@@ -214,6 +214,10 @@ const SignalEngine = (() => {
         // Platform overview (Build Your Kit)
         main.appendChild(_buildPlatformOverview());
 
+        // Curated views (USB Toolkit, Recruit Track, etc.)
+        const viewsPanel = _buildViewsPanel();
+        if (viewsPanel) main.appendChild(viewsPanel);
+
         // Track tabs + section grid
         main.appendChild(_buildTrackSection());
 
@@ -344,6 +348,58 @@ const SignalEngine = (() => {
                 hint.innerHTML = open ? '&#9662;' : '&#9652;';
             });
 
+            grid.appendChild(card);
+        });
+
+        wrap.appendChild(grid);
+        return wrap;
+    }
+
+    /** Build the "Curated Views" panel on the hub.
+     *
+     * Surfaces SignalData.views[] as a row of clickable cards. Each card
+     * shows the view's name, project count (computed live from the
+     * predicate), and progress against the current user's completions.
+     *
+     * Returns null if no views are declared so the hub layout stays the
+     * same on projects that don't use the views feature.
+     */
+    function _buildViewsPanel() {
+        if (!SignalData.views || SignalData.views.length === 0) return null;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'se-views-panel';
+
+        const header = document.createElement('div');
+        header.className = 'se-views-header';
+        header.innerHTML = `
+            <div class="se-views-title">Curated Views</div>
+            <div class="se-views-subtitle">Cross-section indexes for common paths</div>`;
+        wrap.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.className = 'se-views-grid';
+
+        SignalData.views.forEach(view => {
+            const stats = SignalData.getViewStats(view.id, _progress);
+            const card = document.createElement('a');
+            card.className = 'se-view-card';
+            card.href = 'views/' + view.id + '/index.html';
+            card.style.setProperty('--view-color', view.color);
+            card.innerHTML = `
+                <div class="se-view-card-icon">
+                    <img src="${_icon(view.icon)}" alt="" width="32" height="32"
+                         onerror="this.onerror=null;this.src='${_basePath}assets/images/icons/icon-tools.webp'">
+                </div>
+                <div class="se-view-card-name">${view.name}</div>
+                <div class="se-view-card-tagline">${view.tagline}</div>
+                <div class="se-view-card-stats">
+                    <span>${stats.completed} / ${stats.total}</span>
+                    <span class="se-view-card-pct">${stats.pct}%</span>
+                </div>
+                <div class="se-view-card-bar">
+                    <div class="se-view-card-fill" style="width:${stats.pct}%;background:${view.color}"></div>
+                </div>`;
             grid.appendChild(card);
         });
 
@@ -1025,6 +1081,53 @@ a { color: inherit; text-decoration: none; }
 .se-plat-project--done .se-plat-proj-title { text-decoration: line-through; }
 .se-plat-proj-id { font-size: 10px; color: #555; font-weight: 700; min-width: 38px; }
 .se-plat-proj-title { flex: 1; font-size: 12px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Curated Views panel */
+.se-views-panel { margin-bottom: 32px; }
+.se-views-header { margin-bottom: 16px; text-align: center; }
+.se-views-title { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: 0.02em; }
+.se-views-subtitle { font-size: 12px; color: #888; margin-top: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
+.se-views-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.se-view-card {
+    display: block;
+    text-decoration: none;
+    background: linear-gradient(135deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left: 3px solid var(--view-color, #888);
+    border-radius: 8px;
+    padding: 14px 16px;
+    transition: transform 0.15s, border-color 0.15s, background 0.15s;
+}
+.se-view-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--view-color, #fff);
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+}
+.se-view-card-icon { margin-bottom: 8px; }
+.se-view-card-icon img { border-radius: 6px; opacity: 0.9; }
+.se-view-card-name {
+    font-size: 14px; font-weight: 700; color: #e0e0e0;
+    letter-spacing: 0.04em;
+}
+.se-view-card-tagline {
+    font-size: 11px; color: #888; margin-top: 4px;
+    line-height: 1.4; min-height: 30px;
+}
+.se-view-card-stats {
+    display: flex; justify-content: space-between;
+    margin-top: 12px;
+    font-size: 11px; color: #aaa;
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+.se-view-card-pct { color: var(--view-color, #fff); font-weight: 700; }
+.se-view-card-bar {
+    margin-top: 6px;
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.se-view-card-fill { height: 100%; transition: width 0.3s; }
 
 /* Track tabs */
 .se-track-section { margin-top: 8px; }
