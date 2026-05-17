@@ -357,6 +357,33 @@ const SignalData = {
     ],
 
     // -------------------------------------------------------------------------
+    // Curated views — cross-section project indexes computed from a predicate
+    // against existing project metadata. Unlike sections, views have no
+    // dedicated guide content; they are surfaces for discovery.
+    //
+    // Predicate shape (extensible):
+    //   { anyOfSkills: [...] }       — match any of the listed skills
+    //   { allOfSkills: [...] }       — match all of the listed skills
+    //   { platforms:    [...] }       — match any of the listed platforms
+    //   { difficulties: [...] }       — match any of the listed difficulties
+    // Multiple predicates AND together; arrays inside a single predicate OR.
+    //
+    // Wrapper: _app/signal/views/{id}/index.html calls SignalEngine.renderView(id).
+    // -------------------------------------------------------------------------
+    views: [
+        {
+            id: 'usb-toolkit',
+            name: 'USB Toolkit',
+            tagline: 'Every USB attack and defense across the Signal.',
+            description: 'Cross-section index of all USB-touching projects: HID injection, mass storage exfiltration, USB-Ethernet impersonation, malicious cable detection, hardware keylogger defense, USB-HID arcade controllers, multi-tool builds, bootable USB utilities, and breakout-board design. 17 projects across arcade-ops, security-tools, field-prep, red-team-hw, pcb-design, and esp32-s3-arsenal.',
+            icon: '../../assets/images/icons/icon-plug.webp',
+            color: '#facc15',
+            colorDim: 'rgba(250, 204, 21, 0.15)',
+            predicate: { anyOfSkills: ['usb-protocol', 'usb'] }
+        }
+    ],
+
+    // -------------------------------------------------------------------------
     // Section definitions — each section maps to a navigable page with projects
     // -------------------------------------------------------------------------
     sections: [
@@ -1857,6 +1884,47 @@ const SignalData = {
     /** Get a section by its id. */
     getSection(sectionId) {
         return this.sections.find(s => s.id === sectionId) || null;
+    },
+
+    /** Get a curated view by its id. */
+    getView(viewId) {
+        if (!this.views) return null;
+        return this.views.find(v => v.id === viewId) || null;
+    },
+
+    /** Evaluate a view's predicate against a single project. */
+    _matchesPredicate(project, predicate) {
+        if (!predicate) return true;
+        const skills = project.skills || [];
+        if (predicate.anyOfSkills && !predicate.anyOfSkills.some(s => skills.includes(s))) return false;
+        if (predicate.allOfSkills && !predicate.allOfSkills.every(s => skills.includes(s))) return false;
+        if (predicate.platforms    && !predicate.platforms.includes(project.platform)) return false;
+        if (predicate.difficulties && !predicate.difficulties.includes(project.difficulty)) return false;
+        return true;
+    },
+
+    /** Get all projects matching a view's predicate, in section/sg-NN order. */
+    getViewProjects(viewId) {
+        const view = this.getView(viewId);
+        if (!view) return [];
+        const matches = [];
+        for (const section of this.sections) {
+            for (const proj of section.projects) {
+                if (this._matchesPredicate(proj, view.predicate)) {
+                    // Annotate with the source section so the view can show provenance
+                    matches.push({ ...proj, _sourceSection: section.id, _sourceSectionName: section.name });
+                }
+            }
+        }
+        return matches;
+    },
+
+    /** View completion stats (mirrors getSectionStats shape). */
+    getViewStats(viewId, progress) {
+        const projects = this.getViewProjects(viewId);
+        const total = projects.length;
+        const completed = projects.filter(p => progress[p.id]).length;
+        return { total, completed, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
     },
 
     /** Get a project by its id. */

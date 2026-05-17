@@ -505,6 +505,92 @@ const SignalEngine = (() => {
     // SECTION RENDERER
     // =========================================================================
 
+    /** Render a curated cross-section view.
+     *
+     * Renders the same chrome as a section page, but the project list
+     * is synthesized from SignalData.getViewProjects(viewId) instead of
+     * a single section's .projects array. Wrapper lives at
+     * _app/signal/views/{viewId}/index.html, so href values get
+     * rewritten to point at ../../sections/{sourceSection}/<file>.html.
+     */
+    function renderView(viewId) {
+        _bootstrapCloudSync();
+        _basePath = '../../../../'; // views/{id}/ -> _app/
+        _loadProgress();
+
+        const view = SignalData.getView(viewId);
+        if (!view) {
+            document.body.innerHTML = '<p style="color:#e74c3c;padding:2rem">View not found: ' + viewId + '</p>';
+            return;
+        }
+
+        const rawProjects = SignalData.getViewProjects(viewId);
+        const projects = rawProjects.map(p => ({
+            ...p,
+            // Original href is relative to the source section's directory.
+            // We are one directory deeper (views/{id}/), so rewrite to:
+            //   ../../sections/{sourceSection}/{originalHref}
+            href: p.href ? '../../sections/' + p._sourceSection + '/' + p.href : '',
+        }));
+
+        const virtualSection = {
+            id: 'view:' + viewId,
+            name: view.name,
+            description: view.description,
+            icon: view.icon,
+            color: view.color,
+            colorDim: view.colorDim,
+            projects,
+        };
+
+        document.title = view.name + ' — The Signal — Hexworth Prime';
+        _injectStyles(_getSectionCSS(view.color));
+
+        document.body.innerHTML = '';
+
+        const particles = document.createElement('div');
+        particles.className = 'se-particles';
+        _buildParticles(particles);
+        document.body.appendChild(particles);
+
+        document.body.appendChild(_buildHeader(view.name, 'The Signal', 'The Signal', '../../index.html'));
+
+        const main = document.createElement('main');
+        main.className = 'se-main';
+
+        // View hero — uses view stats, not section stats
+        const stats = SignalData.getViewStats(viewId, _progress);
+        const hero = document.createElement('div');
+        hero.className = 'se-section-hero';
+        hero.innerHTML = `
+            <img class="se-section-icon" src="${_icon(view.icon)}" alt="" width="48" height="48">
+            <h1 class="se-section-title">${view.name}</h1>
+            <div class="se-section-desc">${view.description}</div>
+            <div class="se-section-stats">
+                <span>${stats.completed} / ${stats.total} complete</span>
+                <span>&mdash;</span>
+                <span>${stats.pct}%</span>
+            </div>
+            <div class="se-progress-track" style="max-width:400px;margin:0 auto">
+                <div class="se-progress-fill" style="width:${stats.pct}%"></div>
+            </div>`;
+        main.appendChild(hero);
+
+        // Platform filter (works as-is — operates on virtualSection.projects)
+        main.appendChild(_buildPlatformFilter(virtualSection));
+
+        // Project list (works as-is — uses virtualSection.projects)
+        main.appendChild(_buildProjectList(virtualSection));
+
+        // Footer
+        const footer = document.createElement('div');
+        footer.className = 'se-footer';
+        footer.innerHTML = `${view.name} &mdash; The Signal &mdash; Hexworth Prime`;
+        main.appendChild(footer);
+
+        document.body.appendChild(main);
+    }
+
     /** Render a single section page with project cards and guides */
     function renderSection(sectionId) {
         _bootstrapCloudSync();
@@ -729,7 +815,14 @@ const SignalEngine = (() => {
     }
 
     function _updateSectionProgress(section) {
-        const stats = SignalData.getSectionStats(section.id, _progress);
+        // section.id is either a real section id or "view:<viewId>" for
+        // synthesized view renders. Route to the matching stats fn.
+        let stats;
+        if (section.id && section.id.startsWith('view:')) {
+            stats = SignalData.getViewStats(section.id.slice(5), _progress);
+        } else {
+            stats = SignalData.getSectionStats(section.id, _progress);
+        }
         const statsEl = document.querySelector('.se-section-stats');
         if (statsEl) {
             statsEl.innerHTML = `
@@ -2427,6 +2520,7 @@ a { color: inherit; text-decoration: none; }
         renderHub,
         renderSection,
         renderProject,
+        renderView,
         reloadProgress
     };
 
