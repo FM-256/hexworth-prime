@@ -166,7 +166,7 @@ Man pages for shipped features. Each document covers purpose, architecture, and 
 | [Operator Missions](features/OPERATOR_MISSIONS.md) | OperatorEngine.js, AgentBridge.js, OperatorInterpreter.js | 72-mission Metroidvania: 50 Python levels with obstacles, permanent tools, persistent inventory, dispatch table pedagogy |
 | [Arctic CLI Hub](features/ARCTIC_CLI_HUB.md) | ArcticEngine.js, ArcticData.js | 24 Linux districts, 600+ modules, 3 faction paths, section-level fog-of-war |
 | [Signal Hub](features/SIGNAL_HUB.md) | SignalEngine.js, SignalData.js | 92 hardware projects, 6 platforms, real parts/costs, 22-tool toolkit |
-| [Web Flasher](features/WEB_FLASHER.md) | web-flasher.html, my-devices.html, vendored esptool-js, c2RequestStudentPairingCode CF | Browser-based ESP32 flashing + student-owned device registration on the C2 backend |
+| [Web Flasher](features/WEB_FLASHER.md) | web-flasher.html, my-devices.html, install-pi-os.html, vendored esptool-js, c2RequestStudentPairingCode CF | Multi-platform: ESP32 (in-browser flash + student device ownership), Pi Pico (UF2 drag-drop), Arduino Mega (IDE handoff), Pi 3/4/5 (Imager walkthrough). 4-way `flasherMode` dispatch. |
 | [Forensics Hub](features/FORENSICS_HUB.md) | ForensicsEngine.js, ForensicsData.js, cert-alignment.js | 60 modules, 5 certification alignments, courtroom-ready framework |
 | [Sandbox Labs](features/SANDBOX_LABS.md) | lab-manager/server.js, docker-compose.yml, SandboxLauncher.js | Docker containers, Traefik routing, Cloudflare Tunnel, Sablier idle mgmt |
 | [Multiplayer & Hive](features/MULTIPLAYER_HIVE.md) | MultiplayerManager.js, HiveManager.js, VsBridge.js | 2-player arcade, ghost replay, Hive exploration, Red Queen, CTF VS mode |

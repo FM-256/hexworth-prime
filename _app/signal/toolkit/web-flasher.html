@@ -143,12 +143,12 @@
     <div class="page-wrap">
         <a href="../index.html" class="back-btn">&larr; Back to Signal</a>
         <h1>Hexworth Web Flasher</h1>
-        <p class="tagline">Flash Hexworth firmware to your ESP32 directly from this browser. No install. No toolchain. You own the device — Hexworth provides the instruction and software.</p>
+        <p class="tagline">A single entry point for flashing or installing software on every Hexworth-supported hardware platform: ESP32 (in-browser), Raspberry Pi Pico (drag-drop), Arduino (IDE handoff), and Raspberry Pi OS (Imager walkthrough). You own the device &mdash; Hexworth provides the instruction and software.</p>
 
         <div id="browser-warn" class="browser-warn">
-            <h2 style="font-size:14px; margin:0 0 8px 0;">This browser cannot flash devices.</h2>
-            <p>The flasher requires the <strong>WebSerial API</strong>, which is available in Chrome, Edge, and Opera on desktop. Safari, Firefox, and mobile browsers do not support it.</p>
-            <p style="margin-top:8px;">Open this page in Chrome or Edge on a laptop or desktop to flash. You can still read the docs below.</p>
+            <h2 style="font-size:14px; margin:0 0 8px 0;">This browser cannot flash ESP32 devices in-place.</h2>
+            <p>In-browser flashing for ESP32 requires the <strong>WebSerial API</strong>, available in Chrome, Edge, and Opera on desktop. Safari, Firefox, and mobile browsers do not support it.</p>
+            <p style="margin-top:8px;">The Raspberry Pi Pico, Arduino, and Raspberry Pi OS paths below work in <strong>any browser</strong> &mdash; they use downloads and external tools instead of WebSerial.</p>
         </div>
 
         <div class="panel" id="picker-panel">
@@ -158,7 +158,7 @@
             </div>
         </div>
 
-        <div class="panel hidden" id="confirm-panel">
+        <div class="panel hidden mode-webserial-esp32" id="confirm-panel">
             <h2>2. Confirm board &amp; connect</h2>
             <div class="panel-sub" id="confirm-sub"></div>
             <div class="row">
@@ -168,7 +168,7 @@
             <div class="log hidden" id="connect-log"></div>
         </div>
 
-        <div class="panel hidden" id="flash-panel">
+        <div class="panel hidden mode-webserial-esp32" id="flash-panel">
             <h2>3. Flash</h2>
             <div class="panel-sub">Erases the chip and writes the three firmware artifacts. Do not unplug the device or close this tab while flashing is in progress.</div>
             <div class="row">
@@ -179,7 +179,30 @@
             <div class="log hidden" id="flash-log"></div>
         </div>
 
-        <div class="panel hidden" id="post-flash-panel">
+        <div class="panel hidden mode-external-download" id="download-panel">
+            <h2>2. Download &amp; drag-drop</h2>
+            <div class="panel-sub" id="download-summary"></div>
+            <div id="download-instructions"></div>
+            <div class="row" id="download-buttons" style="margin-top:14px;"></div>
+            <div id="download-verify" class="panel-sub" style="margin-top:14px;"></div>
+        </div>
+
+        <div class="panel hidden mode-external-editor" id="editor-panel">
+            <h2>2. Use Arduino IDE or Web Editor</h2>
+            <div class="panel-sub" id="editor-summary"></div>
+            <div id="editor-primary"></div>
+            <div id="editor-secondary" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border);"></div>
+            <div id="editor-source" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border);"></div>
+        </div>
+
+        <div class="panel hidden mode-disk-image" id="diskimage-panel">
+            <h2>2. Use Raspberry Pi Imager</h2>
+            <div class="panel-sub" id="diskimage-summary"></div>
+            <div class="row" id="diskimage-buttons" style="margin-top:14px;"></div>
+            <div id="diskimage-extra" class="panel-sub" style="margin-top:14px;"></div>
+        </div>
+
+        <div class="panel hidden mode-webserial-esp32" id="post-flash-panel">
             <h2>4. Provision &amp; (optional) pair</h2>
             <div class="panel-sub" id="post-flash-sub"></div>
             <ol class="step-list">
@@ -266,13 +289,22 @@ function renderProjectList() {
         const card = document.createElement('div');
         card.className = 'project-card';
         const versionLabel = p.latest || p.versions?.[0] || '?';
+        const platformTag = p.platform ? `<span class="meta" style="margin-left:8px; color:var(--text-muted); font-size:12px;">&middot; ${escapeHtml(p.platform)}</span>` : '';
         card.innerHTML = `
-            <h3>${escapeHtml(p.name)} <span class="meta"><code>${escapeHtml(versionLabel)}</code></span></h3>
+            <h3>${escapeHtml(p.name)} <span class="meta"><code>${escapeHtml(versionLabel)}</code></span>${platformTag}</h3>
             <div class="meta">${escapeHtml(p.shortDescription || '')}</div>
         `;
         card.addEventListener('click', () => selectProject(p, versionLabel, card));
         list.appendChild(card);
     }
+}
+
+function hideAllModePanels() {
+    document.querySelectorAll('[class*="mode-"]').forEach(el => el.classList.add('hidden'));
+}
+
+function showModePanels(mode) {
+    document.querySelectorAll('.mode-' + mode).forEach(el => el.classList.remove('hidden'));
 }
 
 async function selectProject(project, version, cardEl) {
@@ -287,29 +319,117 @@ async function selectProject(project, version, cardEl) {
         if (!r.ok) throw new Error('manifest ' + r.status);
         manifest = await r.json();
     } catch (e) {
+        hideAllModePanels();
         $('confirm-sub').innerHTML = '<span style="color:var(--err);">Could not load manifest: ' + escapeHtml(e.message) + '</span>';
         $('confirm-panel').classList.remove('hidden');
         return;
     }
     state.manifest = manifest;
 
+    hideAllModePanels();
+    const mode = manifest.flasherMode || 'webserial-esp32';
+    switch (mode) {
+        case 'webserial-esp32':    renderEsp32(manifest); break;
+        case 'external-download':  renderExternalDownload(manifest); break;
+        case 'external-editor':    renderExternalEditor(manifest); break;
+        case 'disk-image':         renderDiskImage(manifest); break;
+        default:
+            $('confirm-sub').innerHTML = '<span style="color:var(--err);">Unknown flasherMode: ' + escapeHtml(mode) + '</span>';
+            $('confirm-panel').classList.remove('hidden');
+    }
+}
+
+function renderEsp32(manifest) {
+    showModePanels('webserial-esp32');
     const pending = manifest.files.some(f => f.sha256 === 'PENDING_BC1_BUILD');
     const targets = (manifest.boardTargets || []).join(', ');
     let html = `<strong>${escapeHtml(manifest.name)}</strong> v${escapeHtml(manifest.version)}<br>`
              + `Target boards: <code style="color:var(--accent);">${escapeHtml(targets)}</code><br>`
              + `<span style="color:var(--text-muted);">${escapeHtml(manifest.description || '')}</span>`;
     if (pending) {
-        html += '<br><br><span style="color:var(--warn);"><strong>Pending build.</strong> Operator must compile this firmware on bc1 and stage the binaries before flashing is enabled. Pick a different firmware or check back later.</span>';
+        html += '<br><br><span style="color:var(--warn);"><strong>Pending build.</strong> Operator must compile this firmware on bc1 and stage the binaries before flashing is enabled.</span>';
     }
     $('confirm-sub').innerHTML = html;
-
-    $('confirm-panel').classList.remove('hidden');
     $('connect-btn').disabled = pending || !supportsWebSerial;
 
-    if (manifest.postFlash) {
-        if (manifest.postFlash.supportsPairingCode) $('step-pair-code').classList.remove('hidden');
-        else $('step-pair-code').classList.add('hidden');
+    if (manifest.postFlash && manifest.postFlash.supportsPairingCode) {
+        $('step-pair-code').classList.remove('hidden');
+    } else {
+        $('step-pair-code').classList.add('hidden');
     }
+}
+
+function renderExternalDownload(manifest) {
+    showModePanels('external-download');
+    const projDir = `${FIRMWARE_BASE}/${state.selectedProject.id}/${state.selectedVersion}`;
+    const boot = manifest.boot || {};
+    const instructions = (boot.instructions || []).map(s => `<li>${escapeHtml(s)}</li>`).join('');
+    const mountTag = boot.mountLabel ? `<code style="color:var(--accent);">${escapeHtml(boot.mountLabel)}</code>` : '';
+    const buttonTag = boot.buttonName ? `<code style="color:var(--accent);">${escapeHtml(boot.buttonName)}</code>` : '';
+
+    $('download-summary').innerHTML =
+        `<strong>${escapeHtml(manifest.name)}</strong> v${escapeHtml(manifest.version)} &mdash; ${escapeHtml(manifest.description || '')}`;
+
+    $('download-instructions').innerHTML = `
+        <p style="margin:14px 0 6px;">Hold the ${buttonTag} button on your board, plug it into USB, and a drive named ${mountTag} should appear on your computer. Then:</p>
+        <ol class="step-list">${instructions}</ol>`;
+
+    $('download-buttons').innerHTML = (manifest.files || []).map(f => `
+        <a class="btn" href="${projDir}/${escapeHtml(f.path)}" download="${escapeHtml(f.path)}">Download ${escapeHtml(f.label || f.path)}</a>
+    `).join('') + (manifest.helpUrl ? `
+        <a class="btn ghost" href="${escapeHtml(manifest.helpUrl)}" target="_blank" rel="noopener">Open ${escapeHtml(manifest.name)} docs &nearr;</a>` : '');
+
+    $('download-verify').innerHTML = manifest.verify
+        ? `<strong>Verify:</strong> ${escapeHtml(manifest.verify)}`
+        : '';
+}
+
+function renderExternalEditor(manifest) {
+    showModePanels('external-editor');
+    const projDir = `${FIRMWARE_BASE}/${state.selectedProject.id}/${state.selectedVersion}`;
+    const ed = manifest.editor || {};
+
+    $('editor-summary').innerHTML =
+        `<strong>${escapeHtml(manifest.name)}</strong> v${escapeHtml(manifest.version)} &mdash; ${escapeHtml(manifest.description || '')}`;
+
+    function renderPath(role, p) {
+        if (!p) return '';
+        const steps = (p.instructions || []).map(s => `<li>${escapeHtml(s)}</li>`).join('');
+        return `
+            <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin:14px 0 8px;">${role} &mdash; ${escapeHtml(p.label || '')}</h3>
+            <a class="btn" href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(p.label || 'Open')} &nearr;</a>
+            <ol class="step-list" style="margin-top:10px;">${steps}</ol>`;
+    }
+    $('editor-primary').innerHTML = renderPath('Primary (recommended)', ed.primary);
+    $('editor-secondary').innerHTML = renderPath('Alternative', ed.secondary);
+
+    const sourceLinks = (manifest.files || []).map(f => `
+        <a class="btn ghost" href="${projDir}/${escapeHtml(f.path)}" download="${escapeHtml(f.path)}">Download ${escapeHtml(f.label || f.path)}</a>`
+    ).join('');
+    $('editor-source').innerHTML = sourceLinks
+        ? `<h3 style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin-bottom:8px;">Sketch source</h3>${sourceLinks}`
+        + (manifest.verify ? `<p class="panel-sub" style="margin-top:10px;"><strong>Verify:</strong> ${escapeHtml(manifest.verify)}</p>` : '')
+        : '';
+}
+
+function renderDiskImage(manifest) {
+    showModePanels('disk-image');
+    const walkthrough = manifest.walkthroughUrl;
+    const imager = manifest.imager || {};
+    const alt = manifest.alternativeTool || {};
+
+    $('diskimage-summary').innerHTML =
+        `<strong>${escapeHtml(manifest.name)}</strong> &mdash; ${escapeHtml(manifest.description || '')}`;
+
+    $('diskimage-buttons').innerHTML = `
+        ${walkthrough ? `<a class="btn" href="${escapeHtml(walkthrough)}">Open Hexworth walkthrough &rarr;</a>` : ''}
+        ${imager.url ? `<a class="btn ghost" href="${escapeHtml(imager.url)}" target="_blank" rel="noopener">${escapeHtml(imager.label || 'Imager')} &nearr;</a>` : ''}
+        ${alt.url ? `<a class="btn ghost" href="${escapeHtml(alt.url)}" target="_blank" rel="noopener">${escapeHtml(alt.label || 'Alternative')} &nearr;</a>` : ''}
+    `;
+
+    $('diskimage-extra').innerHTML =
+        (imager.description ? `<strong>${escapeHtml(imager.label || 'Imager')}:</strong> ${escapeHtml(imager.description)}<br>` : '')
+        + (alt.description ? `<strong>${escapeHtml(alt.label || 'Alternative')}:</strong> ${escapeHtml(alt.description)}` : '');
 }
 
 async function connectDevice() {

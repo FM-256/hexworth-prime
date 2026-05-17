@@ -12,31 +12,87 @@ bins to their device over WebSerial via vendored esptool-js.
 
 ## Manifest schema
 
+Every manifest has a `flasherMode` field that tells the Web Flasher which renderer to use. The flasher dispatches to one of four panel layouts, and only the fields relevant to that mode need to be present.
+
+Watch for the naming collision: `flasherMode` (with the `r`) is the renderer dispatch enum; `flashMode` (no `r`) is the ESP32 chip-level flash IO mode (DIO/QIO/DOUT/QOUT). Both can appear in `webserial-esp32` manifests with different meanings.
+
+### Universal fields (all modes)
+
 ```jsonc
 {
   "name": "Display name shown in the picker",
   "version": "0.2",
+  "flasherMode": "webserial-esp32",   // REQUIRED, no default
   "boardTargets": ["esp32dev"],
   "chipFamily": "ESP32",
+  "description": "What this firmware does after install.",
+  "license": "MIT",
+  "kbaRef": "https://hexworth.atlassian.net/wiki/spaces/KBA/pages/<id>",
+  "helpUrl": "https://upstream-or-hexworth-docs/...",
+  "status": "ready"
+}
+```
+
+### `webserial-esp32` extra fields (Hexworth in-browser flashing of ESP32 firmware)
+
+```jsonc
+{
   "flashSize": "4MB",
-  "flashMode": "DIO",
+  "flashMode": "DIO",       // chip-level IO mode for esptool — NOT flasherMode
   "flashFreq": "40m",
   "files": [
     { "path": "bootloader.bin", "offset": 4096,   "sha256": "..." },
     { "path": "partitions.bin", "offset": 32768,  "sha256": "..." },
     { "path": "firmware.bin",   "offset": 65536,  "sha256": "..." }
   ],
-  "kbaRef": "https://hexworth.atlassian.net/wiki/spaces/KBA/pages/<id>",
-  "description": "What this firmware does after flashing.",
-  "postFlash": {
-    "requiresPairingCode": true,
-    "captivePortalApName": "HexworthDevice-XXXX"
-  }
+  "postFlash": { "supportsPairingCode": true, ... },
+  "buildInfo": { "ramPercent": 14.5, "flashPercent": 33.7, ... }
 }
 ```
 
-Offsets are decimal numbers (not hex strings) so JSON parsing yields
-plain `Number` values that esptool-js can consume without conversion.
+Offsets are decimal numbers (not hex strings) so JSON parsing yields plain `Number` values that esptool-js can consume directly.
+
+### `external-download` extra fields (Pi Pico drag-drop, future CircuitPython)
+
+```jsonc
+{
+  "files": [
+    { "path": "firmware.uf2", "size": 659968, "sha256": "...", "label": "MicroPython UF2 (660 KB)" }
+  ],
+  "boot": {
+    "mountLabel": "RPI-RP2",
+    "buttonName": "BOOTSEL",
+    "instructions": ["Unplug the Pico...", "Hold BOOTSEL...", "Drag firmware.uf2..."]
+  },
+  "verify": "Plain-English description of what success looks like.",
+  "upstreamUrl": "https://micropython.org/download/..."
+}
+```
+
+### `external-editor` extra fields (Arduino IDE / Web Editor handoff)
+
+```jsonc
+{
+  "files": [
+    { "path": "blink.ino", "size": 1121, "sha256": "...", "label": "blink.ino (Arduino sketch)" }
+  ],
+  "editor": {
+    "primary":   { "label": "Install Arduino IDE",  "url": "https://www.arduino.cc/en/software", "instructions": [...] },
+    "secondary": { "label": "Use Arduino Web Editor","url": "https://app.arduino.cc/sketches/new", "instructions": [...] }
+  },
+  "verify": "What should happen after upload."
+}
+```
+
+### `disk-image` extra fields (Pi 3/4/5 OS install)
+
+```jsonc
+{
+  "walkthroughUrl": "/signal/toolkit/install-pi-os.html",
+  "imager":          { "label": "Raspberry Pi Imager", "url": "https://www.raspberrypi.com/software/", "description": "..." },
+  "alternativeTool": { "label": "balenaEtcher",        "url": "https://etcher.balena.io/",            "description": "..." }
+}
+```
 
 The standard ESP32 offsets are:
 

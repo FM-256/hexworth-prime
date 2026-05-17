@@ -1,19 +1,34 @@
 # Hexworth Web Flasher
 
-**Status:** SHIPPED (2026-05-17)
-**Pages:** `_app/signal/toolkit/web-flasher.html`, `_app/signal/toolkit/my-devices.html`
+**Status:** SHIPPED (2026-05-17, multi-platform expansion same day)
+**Pages:** `_app/signal/toolkit/web-flasher.html`, `_app/signal/toolkit/my-devices.html`, `_app/signal/toolkit/install-pi-os.html`
 **Vendored library:** `_app/signal/toolkit/tools/esptool-js/` (esptool-js v0.5.4)
-**Firmware artifacts:** `_app/signal/firmware-bins/<project>/<version>/`
+**Firmware catalog:** `_app/signal/firmware-bins/index.json` + per-project manifests
 **Cloud Functions:** `c2RequestStudentPairingCode` (new), `c2RegisterWithCode` (modified)
 **Confluence KBA:** [#12](https://hexworth.atlassian.net/wiki/spaces/KBA/pages/14975058) (with #10 v5 and #11 v2 for the firmware and pairing-code halves)
 
 ## Purpose
 
-A student with their own ESP32 should be able to flash Hexworth firmware and register the device against the Hexworth C2 backend without needing PlatformIO, a Linux toolchain, or operator (bc1) access. The Web Flasher is a single HTML page that uses WebSerial + vendored esptool-js to talk to the ESP32 ROM bootloader directly from the browser, downloads compiled bins from the same origin, verifies them with sha256, and writes them to flash.
+A student should be able to flash or install software on any of the four hardware platforms Hexworth teaches against, from one page, without needing PlatformIO, an Arduino IDE pre-installed, or bc1 access. The Web Flasher is a single HTML page with a catalog of firmware/OS images. For each entry, the page dispatches to one of four `flasherMode` renderers:
 
-A successful flash takes the student through a captive-portal handoff: the freshly flashed device boots into an AP, the student joins from their phone, hands the device WiFi credentials, and (optionally) pastes a Hexworth pairing code. The pairing code is minted from the same page via an auth-gated callable; once redeemed, the resulting device document carries `ownerUid = student.uid`, so the student can see the device in `my-devices.html`.
+| `flasherMode` | Platform | What the page does |
+|---|---|---|
+| `webserial-esp32` | ESP32 family (DevKit V1, XIAO C3/S3) | Uses WebSerial + vendored esptool-js to flash Hexworth-built `.bin` files directly to the chip. sha256-verifies each bin against the manifest before writing. |
+| `external-download` | Raspberry Pi Pico (RP2040), CircuitPython-supported boards | Provides BOOTSEL drag-drop instructions and a download button. The Pico literally mounts as a USB-mass-storage drive in BOOTSEL mode — no browser flashing required. |
+| `external-editor` | Arduino Mega 2560 | Provides the `.ino` sketch source plus two paths: install Arduino IDE (primary, offline, reliable) or use Arduino Web Editor (secondary, cloud, requires free account). |
+| `disk-image` | Raspberry Pi 3 / 4 / 5 (full Linux) | Links to a Hexworth walkthrough (`install-pi-os.html`) that drives Raspberry Pi Imager — a full Pi installs a complete OS to an SD card, which is fundamentally a disk-write, not a USB-MCU programming operation. |
+
+The ESP32 path is end-to-end Hexworth-integrated: the flashed device registers against the Hexworth C2 backend with `ownerUid = student.uid`, and the student can see it in `my-devices.html`. The other three paths are curated entry points to official, free, well-maintained third-party tooling — Hexworth provides the instruction, the upstream provides the implementation.
 
 Hexworth provides instruction + software. The student owns the hardware.
+
+## Why not in-browser flashing for Arduino and Pi?
+
+Asked and answered during the 2026-05-17 architectural review:
+
+- **Arduino Mega 2560 (AVR ATmega2560)** uses STK500v2 over USB serial. WebSerial CAN drive it in principle, but there is no production-grade browser library matching esptool-js maturity. Shipping a half-written avrdude-in-JS to beginners would risk bricking boards. Arduino's official Web Editor already does WebSerial flashing well — Hexworth gets out of the way.
+- **Raspberry Pi Pico (RP2040)** has a USB-mass-storage bootloader. The student holds BOOTSEL, plugs in USB, and a drive named `RPI-RP2` appears. Drag-drop is the official Raspberry Pi path and is *more* reliable than any browser WebUSB implementation. Hexworth provides the UF2 download + instructions.
+- **Raspberry Pi 3 / 4 / 5** runs full Linux from an SD card or USB drive. Installing the OS is a multi-gigabyte disk-write, not USB-MCU programming. No browser does this. Rpi-imager is the official tool; Hexworth's walkthrough page wraps it with pre-config guidance.
 
 ## End-to-end flow
 
@@ -52,18 +67,18 @@ Hexworth provides instruction + software. The student owns the hardware.
 
 ### 1. Web flasher page
 
-`_app/signal/toolkit/web-flasher.html` (~430 lines).
+`_app/signal/toolkit/web-flasher.html` (~540 lines).
 
 | Element | Role |
 |---|---|
-| WebSerial feature gate | Hides Connect button + shows warning on Safari, Firefox, mobile. |
-| Project picker | Loads from `firmware-bins/index.json`. Cards show name, version, short description. |
-| Manifest panel | Loads `<project>/<version>/manifest.json`, displays target boards + build sizes. Disables Connect if any sha256 is `PENDING_BC1_BUILD` (placeholder). |
-| Connect handler | `navigator.serial.requestPort({})` → wrap in esptool-js `Transport`, call `ESPLoader.main()` to detect chip. |
-| Flash handler | Fetches each .bin as `ArrayBuffer`, sha256-verifies against manifest, converts to binary string in 32KB chunks (works around `String.fromCharCode.apply` arg-count limit), calls `esploader.writeFlash({ fileArray, … })` with a progress callback. |
-| `beforeunload` guard | Prompts the user before letting them close the tab while `state.flashing` is true. |
-| Post-flash panel | Shows the captive-portal instructions and the optional pairing-code claim form. |
-| Pairing-code claim | Calls `FirebaseAuth.callFunction('c2RequestStudentPairingCode', {})`. If anonymous, redirects to `/login.html?return=…`. |
+| WebSerial feature gate | Shows an information banner explaining that ESP32 flashing requires Chrome/Edge but the other three modes work in any browser. |
+| Project picker | Loads from `firmware-bins/index.json`. Cards show name + version + platform + short description. Click selects, populates state, dispatches by `flasherMode`. |
+| `flasherMode` dispatcher | `selectProject()` reads `manifest.flasherMode` and calls one of four renderers: `renderEsp32`, `renderExternalDownload`, `renderExternalEditor`, `renderDiskImage`. Each renderer hides all other mode panels and populates its own. |
+| ESP32 mode panels | `confirm-panel` (info + Connect button), `flash-panel` (Flash button + progress + log), `post-flash-panel` (captive portal + optional pairing-code claim). Uses vendored esptool-js. sha256-verifies each .bin before writing. `beforeunload` guard. |
+| External-download mode panel | `download-panel` shows mountLabel + boot-button name + step-by-step instructions + download buttons. No browser USB at all. |
+| External-editor mode panel | `editor-panel` shows primary + secondary editor paths with separate instruction lists + sketch-source download. |
+| Disk-image mode panel | `diskimage-panel` shows summary + buttons to the Hexworth walkthrough (`install-pi-os.html`) + the official upstream tool (rpi-imager). |
+| Pairing-code claim (ESP32 only) | Calls `FirebaseAuth.callFunction('c2RequestStudentPairingCode', {})`. If anonymous, redirects to `/login.html?return=…`. |
 
 ### 2. My Devices page
 
@@ -91,27 +106,100 @@ Hexworth provides instruction + software. The student owns the hardware.
 
 Vendored at pinned v0.5.4. No CDN runtime dependency (intentional — see [the adversarial review](#design-decisions) below).
 
-### 4. Firmware bins
+### 4. Firmware catalog
 
 `_app/signal/firmware-bins/`:
 
 ```
 firmware-bins/
 ├── README.md                                      ← build → stage pipeline doc
-├── index.json                                     ← catalog (drives picker)
-├── c2-device/v0.2/
-│   ├── manifest.json                              ← offsets + sha256 + buildInfo
-│   ├── bootloader.bin     0x1000  17,536 B
-│   ├── partitions.bin     0x8000   3,072 B
-│   └── firmware.bin      0x10000 1,066,896 B
-└── wifimanager-template/v0.1/
-    ├── manifest.json
-    ├── bootloader.bin     0x1000  17,536 B
-    ├── partitions.bin     0x8000   3,072 B
-    └── firmware.bin      0x10000   881,488 B
+├── index.json                                     ← catalog (drives picker, 5 projects)
+├── c2-device/v0.2/                                ← flasherMode: webserial-esp32
+│   ├── manifest.json + 3 .bin files (built on bc1, sha256-pinned)
+├── wifimanager-template/v0.1/                     ← flasherMode: webserial-esp32
+│   ├── manifest.json + 3 .bin files (built on bc1, sha256-pinned)
+├── micropython-pi-pico/v1.23/                     ← flasherMode: external-download
+│   ├── manifest.json
+│   └── firmware.uf2 (660 KB, official MicroPython, sha256-pinned)
+├── arduino-mega-blink/v0.1/                       ← flasherMode: external-editor
+│   ├── manifest.json
+│   └── blink.ino (Hexworth-authored sample sketch, sha256-pinned)
+└── raspberry-pi-os/v1/                            ← flasherMode: disk-image
+    └── manifest.json (no payload — links to walkthrough + rpi-imager)
 ```
 
-Manifest entries are decimal offsets (not hex strings) so the flasher consumes them as plain `Number` values. Each `manifest.json` has `buildInfo.{ramPercent, flashPercent, framework, compiledOn, compiledAt}` for audit.
+#### Manifest schema (mode-specific fields)
+
+**Universal:**
+```json
+{
+  "name": "Display name",
+  "version": "0.2",
+  "flasherMode": "webserial-esp32 | external-download | external-editor | disk-image",
+  "boardTargets": ["..."],
+  "chipFamily": "ESP32 | RP2040 | ATmega2560 | ARM",
+  "description": "...",
+  "license": "...",
+  "kbaRef": "https://...",
+  "helpUrl": "https://...",
+  "status": "ready"
+}
+```
+
+**`webserial-esp32`-specific:**
+```json
+{
+  "flashSize": "4MB",
+  "flashMode": "DIO",      // ESP32 chip-level flash mode — NOT the renderer dispatch
+  "flashFreq": "40m",
+  "files": [
+    { "path": "bootloader.bin", "offset": 4096,  "sha256": "..." },
+    { "path": "partitions.bin", "offset": 32768, "sha256": "..." },
+    { "path": "firmware.bin",   "offset": 65536, "sha256": "..." }
+  ],
+  "postFlash": { "supportsPairingCode": true, ... },
+  "buildInfo": { "ramPercent": 14.5, "flashPercent": 33.7, ... }
+}
+```
+
+**`external-download`-specific:**
+```json
+{
+  "files": [{ "path": "firmware.uf2", "size": 659968, "sha256": "...", "label": "..." }],
+  "boot": {
+    "mountLabel": "RPI-RP2",
+    "buttonName": "BOOTSEL",
+    "instructions": ["step 1...", "step 2..."]
+  },
+  "verify": "what should happen after drag-drop",
+  "upstreamUrl": "https://micropython.org/..."
+}
+```
+
+**`external-editor`-specific:**
+```json
+{
+  "files": [{ "path": "blink.ino", "size": 1121, "sha256": "...", "label": "..." }],
+  "editor": {
+    "primary":   { "label": "Install Arduino IDE", "url": "...", "instructions": [...] },
+    "secondary": { "label": "Use Arduino Web Editor", "url": "...", "instructions": [...] }
+  },
+  "verify": "what should happen after upload"
+}
+```
+
+**`disk-image`-specific:**
+```json
+{
+  "walkthroughUrl": "/signal/toolkit/install-pi-os.html",
+  "imager": { "label": "Raspberry Pi Imager", "url": "...", "description": "..." },
+  "alternativeTool": { "label": "balenaEtcher", "url": "...", "description": "..." }
+}
+```
+
+#### Naming collision avoided
+
+`flasherMode` is the renderer dispatch enum (`webserial-esp32` etc.). `flashMode` (without the `r`) is the ESP32 chip-level flash IO mode (DIO/QIO/DOUT/QOUT) that esptool-js consumes for `webserial-esp32` builds. Both can appear in the same manifest; they mean different things. Don't confuse them.
 
 ### 5. Cloud Functions
 

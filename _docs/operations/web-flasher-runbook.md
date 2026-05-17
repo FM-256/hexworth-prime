@@ -1,12 +1,14 @@
 # Web Flasher — Failure-Mode Runbook
 
-Triage guide for "I tried to flash my ESP32 and it didn't work."
+Triage guide for "I tried to use the Web Flasher and it didn't work." Covers all four flash modes: ESP32 in-browser, Pi Pico drag-drop, Arduino IDE handoff, Pi-OS disk-image install.
 
 This runbook complements the feature documentation in [`_docs/features/WEB_FLASHER.md`](../features/WEB_FLASHER.md) and the server-side smoke at `functions/_smoke_web_flasher_cf.js`.
 
 ## Step 0: classify the failure
 
-Ask the student where in the flow they got stuck. The error mode usually narrows it to one of the buckets below.
+First find out **which platform** the student picked, then **where in the flow** they got stuck. The platform tells you which mode they were in; the symptom narrows to a bucket.
+
+### ESP32 mode (`webserial-esp32`)
 
 | Symptom | Bucket | First check |
 |---|---|---|
@@ -17,6 +19,34 @@ Ask the student where in the flow they got stuck. The error mode usually narrows
 | "Flash succeeded but no `HexworthDevice-XXXX` AP appears" | Firmware boot crash | serial monitor, partition table, secrets.h |
 | "Pairing code claim returns 400/permission-denied" | Auth / rate limit | sign-in state, `student_pairing_state` doc |
 | "Device registers but doesn't appear in My Devices" | Firestore rule / query | `ownerUid` field on the device doc |
+
+### Pi Pico mode (`external-download`)
+
+| Symptom | Bucket | First check |
+|---|---|---|
+| "Nothing happens when I plug in the Pico" | BOOTSEL not held | The BOOTSEL button MUST be held *while* plugging in, not after. Unplug, hold BOOTSEL, plug in, then release. |
+| "I see a drive but it's not called RPI-RP2" | Wrong board variant | The student may have a Pico W or a Pico 2 (RP2350) — those work but mount as different volume names. Confirm hardware. |
+| "I dragged the UF2 but the LED isn't blinking" | UF2 doesn't include a blink program | Correct! MicroPython is an interpreter, not a sketch. After install, connect with Thonny (https://thonny.org) and run `from machine import Pin; Pin(25, Pin.OUT).value(1)` to light the LED. |
+| "The drive ejected but the Pico isn't recognized at all afterward" | Bad UF2 or interrupted copy | Hold BOOTSEL, replug, retry the drag-drop. UF2s are atomic — the Pico won't half-write. |
+
+### Arduino Mega mode (`external-editor`)
+
+| Symptom | Bucket | First check |
+|---|---|---|
+| "The Arduino IDE install link goes to Arduino's site, not a download" | Working as intended | Arduino's site auto-detects the OS and offers the right installer. Click through. |
+| "The IDE installed but doesn't see my Mega on the port list" | Driver (Windows) / cable (any) | CH340 driver on Windows; data-not-charge cable. Reboot Windows after driver install. |
+| "Upload fails with 'avrdude: stk500_recv'" | Wrong board or port selected | Tools > Board > Arduino Mega or Mega 2560 (NOT Uno). Tools > Port > pick the one that disappears when you unplug. |
+| "Upload fails with 'programmer not responding'" | Reset / cable | Try a different USB port; press the small RESET button on the Mega the moment upload starts. |
+| "I want to use Arduino Web Editor but it doesn't see my Mega" | Arduino Create Agent not installed | Web Editor needs a small bridge process on the local machine. Web Editor will offer to install it on first connect. |
+
+### Pi 3/4/5 mode (`disk-image`)
+
+| Symptom | Bucket | First check |
+|---|---|---|
+| "I can't find Imager's CHOOSE STORAGE option" | Imager too old | Update Imager — recent versions changed the layout. https://www.raspberrypi.com/software/ always has the latest. |
+| "Imager wrote the card but the Pi doesn't boot" | Wrong OS / wrong card | Check that you picked the 64-bit OS for Pi 3/4/5 and that the SD card is in the slot the right way around. The green LED should flash within 5s of power-on. |
+| "Pi boots but I can't SSH in" | SSH not enabled or wrong hostname | Re-image the card and use the EDIT SETTINGS dialog in Imager to enable SSH and set hostname + WiFi. Some routers don't resolve `<hostname>.local` — find the IP from router admin instead. |
+| "Imager hangs at 'Writing'" | Slow USB / bad card | Cheap or counterfeit SD cards write at 1-2 MB/s and fail Imager's verify step. Real Class-10 or A1 cards write at 10-30 MB/s. |
 
 ## Bucket 1 — Browser support
 
