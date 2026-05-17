@@ -1162,6 +1162,10 @@ switch (command) {
     case 'sg':
         cmdSpoke('signal-guides', positional, flags);
         break;
+    case 'firmware-manifest':
+    case 'fm':
+        cmdSpoke('firmware-manifest', positional, flags);
+        break;
     case 'dead-code':
         cmdSpoke('dead-code', positional, flags);
         break;

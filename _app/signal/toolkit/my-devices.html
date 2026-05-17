@@ -101,6 +101,16 @@
             margin-bottom: 14px;
         }
         .reload-btn:hover { border-color: var(--border-hover); color: var(--accent); }
+        .decommission-btn {
+            background: transparent; color: var(--text-muted);
+            border: 1px solid rgba(248,113,113,0.25); border-radius: 4px;
+            padding: 4px 10px; font-size: 11px; cursor: pointer;
+            transition: border-color .15s, color .15s, background .15s;
+        }
+        .decommission-btn:hover {
+            border-color: var(--err); color: var(--err);
+            background: rgba(248,113,113,0.08);
+        }
         .hidden { display: none; }
     </style>
 </head>
@@ -118,6 +128,14 @@
         <div id="content" class="hidden">
             <button class="reload-btn" id="reload-btn">Refresh</button>
             <div id="error-banner" class="err-banner hidden"></div>
+            <div id="active-code-panel" class="hidden" style="background:var(--card); border:1px solid var(--border-hover); border-radius:8px; padding:14px 18px; margin-bottom:16px;">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin-bottom:6px;">Active pairing code</div>
+                <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                    <code id="active-code-value" style="font-family:'SF Mono',Menlo,Consolas,monospace; font-size:18px; font-weight:700; letter-spacing:0.05em; color:var(--accent); user-select:all;"></code>
+                    <span id="active-code-meta" style="color:var(--text-muted); font-size:12px;"></span>
+                </div>
+                <div class="meta-line" style="margin-top:8px;">Paste this code into your device's captive portal during first-boot setup. The code is single-use and unique to you.</div>
+            </div>
             <div id="device-table-wrap"></div>
         </div>
     </div>
@@ -167,6 +185,33 @@ async function loadDevices(db, uid, fsMod) {
     return rows;
 }
 
+async function loadActiveCode(db, uid, fsMod) {
+    const { doc, getDoc } = fsMod;
+    const stateSnap = await getDoc(doc(db, 'student_pairing_state', uid));
+    if (!stateSnap.exists()) return null;
+    const activeId = stateSnap.data().activeCodeId;
+    if (!activeId) return null;
+    const codeSnap = await getDoc(doc(db, 'c2_pairing_codes', activeId));
+    if (!codeSnap.exists()) return null;
+    const code = codeSnap.data();
+    if (code.usedAt) return null;
+    const exp = code.expiresAt && code.expiresAt.toDate ? code.expiresAt.toDate() : new Date(code.expiresAt);
+    if (!exp || exp.getTime() < Date.now()) return null;
+    return { code: code.code, expiresAt: exp };
+}
+
+function renderActiveCode(active) {
+    const panel = $('active-code-panel');
+    if (!active) {
+        panel.classList.add('hidden');
+        return;
+    }
+    $('active-code-value').textContent = active.code;
+    const minsLeft = Math.max(0, Math.round((active.expiresAt.getTime() - Date.now()) / 60000));
+    $('active-code-meta').textContent = 'expires in ' + minsLeft + ' min (' + active.expiresAt.toLocaleTimeString() + ')';
+    panel.classList.remove('hidden');
+}
+
 function renderDevices(rows) {
     const host = $('device-table-wrap');
     if (!rows.length) {
@@ -186,6 +231,7 @@ function renderDevices(rows) {
                 <th>Status</th>
                 <th>Last check-in</th>
                 <th>Device ID</th>
+                <th>Actions</th>
             </tr>
         </thead>`;
     const body = rows.map(d => `
@@ -199,8 +245,35 @@ function renderDevices(rows) {
             <td>${statusPill(d)}</td>
             <td>${fmtRelative(d.lastCheckIn)}<div class="meta-line">interval ${d.checkInInterval || 30}s</div></td>
             <td><code>${escapeHtml(d.deviceId || '')}</code></td>
+            <td><button class="decommission-btn" data-device-id="${escapeHtml(d.deviceId || '')}" data-device-name="${escapeHtml(d.name || '')}">Decommission</button></td>
         </tr>`).join('');
     host.innerHTML = '<table>' + head + '<tbody>' + body + '</tbody></table>';
+    // Wire the decommission buttons
+    host.querySelectorAll('.decommission-btn').forEach(btn => {
+        btn.addEventListener('click', () => decommissionDevice(btn.dataset.deviceId, btn.dataset.deviceName));
+    });
+}
+
+async function decommissionDevice(deviceId, deviceName) {
+    const label = deviceName || '(unnamed)';
+    const confirmed = confirm(
+        `Decommission "${label}" (${deviceId})?\n\n` +
+        `This removes the device from your Hexworth fleet. The physical device keeps running but its next check-in returns 404 from the backend.\n\n` +
+        `To bring it back online: factory-reset WiFi on the device (hold BOOT for 5s during power-on) and re-pair with a fresh pairing code. It will register as a new device.\n\n` +
+        `This action cannot be undone from this page. Continue?`
+    );
+    if (!confirmed) return;
+    try {
+        if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.callFunction) {
+            throw new Error('FirebaseAuth not loaded');
+        }
+        await FirebaseAuth.callFunction('c2DecommissionDevice', { deviceId });
+        await refresh();
+    } catch (e) {
+        const banner = $('error-banner');
+        banner.textContent = 'Could not decommission device: ' + (e && e.message ? e.message : String(e));
+        banner.classList.remove('hidden');
+    }
 }
 
 async function ensureFirebase() {
@@ -218,7 +291,11 @@ async function refresh() {
         const { db, fsMod } = await ensureFirebase();
         const user = FirebaseAuth.getUser();
         if (!user) throw new Error('not signed in');
-        const rows = await loadDevices(db, user.uid, fsMod);
+        const [rows, active] = await Promise.all([
+            loadDevices(db, user.uid, fsMod),
+            loadActiveCode(db, user.uid, fsMod).catch(() => null),
+        ]);
+        renderActiveCode(active);
         renderDevices(rows);
     } catch (e) {
         banner.textContent = 'Could not load devices: ' + (e && e.message ? e.message : String(e));

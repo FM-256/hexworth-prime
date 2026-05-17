@@ -750,5 +750,40 @@ service cloud.firestore {
     match /signal_progress/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // ─── Web Flasher telemetry ─────────────────────────────────
+    // Anonymous append-only event log for the Web Flasher. Each doc
+    // is one event (page_load, project_select, connect_success,
+    // connect_fail, flash_success, flash_fail). Lets us tune the
+    // tool against real-world WebSerial / driver / cable failure
+    // rates without burdening students with sign-in or surveys.
+    //
+    // No uid stored. Schema enforced at the rule layer: only a
+    // fixed whitelist of fields, only a fixed set of event types,
+    // size capped to prevent abuse. Read is admin-only.
+    //
+    // Top-level collection (Firestore paths alternate collection/doc;
+    // a nested `/_telemetry/web_flasher_events/{id}` path would imply
+    // `_telemetry` is a single doc with a subcollection, which is not
+    // what we want).
+    match /web_flasher_telemetry/{eventId} {
+      allow read: if isAdmin();
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          'event', 'createdAt', 'project', 'flasherMode', 'errorMessage',
+          'userAgent', 'browser', 'webSerialSupported'
+        ]) &&
+        request.resource.data.event in [
+          'page_load', 'project_select', 'connect_success', 'connect_fail',
+          'flash_start', 'flash_success', 'flash_fail',
+          'pairing_code_claim_success', 'pairing_code_claim_fail'
+        ] &&
+        request.resource.data.createdAt == request.time &&
+        (!('userAgent' in request.resource.data) ||
+          request.resource.data.userAgent.size() < 500) &&
+        (!('errorMessage' in request.resource.data) ||
+          request.resource.data.errorMessage.size() < 500);
+      allow update, delete: if false;
+    }
   }
 }

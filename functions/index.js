@@ -5556,12 +5556,31 @@ exports.c2Dispatch = onCall(cfOptions, async (request) => {
     if (!deviceDoc.exists) {
         throw new HttpsError('not-found', `Device ${deviceId} not found.`);
     }
+    const devData = deviceDoc.data();
 
-    // Verify the action is in the device's capabilities (optional enforcement)
-    const caps = deviceDoc.data().capabilities || [];
-    if (caps.length > 0 && !caps.includes(action)) {
+    // Capability gate: the device's declared capabilities array MUST
+    // include the requested action, AND the action must be in the
+    // server-side allowlist for the device's type. A device declaring
+    // capabilities: [] used to bypass this check entirely — that was
+    // the gap Nancy caught 2026-05-17. Hardened now: both client-side
+    // declaration and server-side type allowlist must agree.
+    if (!ALLOWED_C2_ACTIONS_BY_TYPE[devData.type || 'esp32']) {
         throw new HttpsError('invalid-argument',
-            `Device ${deviceId} does not support action "${action}". Capabilities: ${caps.join(', ')}`);
+            `Unknown device type "${devData.type}" — no server-side capability allowlist defined.`);
+    }
+    const serverAllowed = ALLOWED_C2_ACTIONS_BY_TYPE[devData.type || 'esp32'];
+    if (!serverAllowed.includes(action)) {
+        throw new HttpsError('invalid-argument',
+            `Action "${action}" is not in the server-side allowlist for device type "${devData.type}". Allowed: ${serverAllowed.join(', ')}`);
+    }
+    const declaredCaps = devData.capabilities || [];
+    if (declaredCaps.length === 0) {
+        throw new HttpsError('failed-precondition',
+            `Device ${deviceId} declared empty capabilities at register time. Re-flash with a non-empty capabilities array to use C2 dispatch.`);
+    }
+    if (!declaredCaps.includes(action)) {
+        throw new HttpsError('invalid-argument',
+            `Device ${deviceId} did not declare action "${action}" at register time. Declared: ${declaredCaps.join(', ')}`);
     }
 
     // Calculate expiry
@@ -5666,6 +5685,18 @@ exports.c2ListDevices = onCall(cfOptions, async (request) => {
 // Firestore: /c2_pairing_codes/{code} with { createdAt, createdBy,
 // createdByEmail, label, ttlSeconds, expiresAt, usedAt, usedByDeviceId }.
 // Rule: admin read; CF-only writes. Single document per code.
+
+// Server-side authoritative allowlist of C2 actions per device type.
+// A device's declared `capabilities` array (set at register time) is
+// intersected with this allowlist in c2Dispatch — both must include
+// the requested action for dispatch to succeed. New actions get added
+// here when the firmware on a device type implements them.
+const ALLOWED_C2_ACTIONS_BY_TYPE = Object.freeze({
+    esp32:   ['ping', 'echo', 'blink', 'reboot'],
+    arduino: ['ping', 'echo'],
+    pi:      ['ping', 'echo', 'reboot'],
+    ducky:   ['ping', 'echo'],
+});
 
 const PAIRING_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -5922,6 +5953,64 @@ exports.c2RegisterWithCode = onRequest(cfOptions, async (req, res) => {
         console.error('c2RegisterWithCode error:', e);
         res.status(500).json({ error: 'Registration failed.' });
     }
+});
+
+/**
+ * c2DecommissionDevice — Owner removes their own device from the fleet.
+ *
+ * Drops the c2_devices/{deviceId} doc, breaking the deviceId/deviceKey
+ * pairing on the backend side. The physical device keeps running with
+ * its NVS-stored credentials but its next check-in will get HTTP 404
+ * and effectively go offline against this backend. To bring it back
+ * online, the student factory-resets WiFi (BOOT-hold 5s) and re-pairs
+ * with a fresh pairing code, registering as a new c2_devices/{id}.
+ *
+ * This is the v1 "device management" action. Real in-place key
+ * rotation (preserving deviceId) requires firmware that knows the new
+ * rekey endpoint; that ships with a future firmware revision and gets
+ * paired with c2RequestRekeyCode at that time.
+ *
+ * Owner-only: the caller must be the device's ownerUid OR an admin.
+ * Admin-issued devices (ownerUid == null) can only be removed by admins.
+ */
+exports.c2DecommissionDevice = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+    const uid = request.auth.uid;
+    const email = request.auth.token.email || '';
+    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+
+    const { deviceId } = request.data || {};
+    if (!deviceId) throw new HttpsError('invalid-argument', 'deviceId is required.');
+
+    const devRef = db.doc(`c2_devices/${deviceId}`);
+    const devSnap = await devRef.get();
+    if (!devSnap.exists) {
+        throw new HttpsError('not-found', `Device ${deviceId} not found.`);
+    }
+    const dev = devSnap.data();
+
+    if (!isAdmin && dev.ownerUid !== uid) {
+        throw new HttpsError('permission-denied',
+            `You are not the owner of device ${deviceId}.`);
+    }
+
+    // Log the decommission before the delete so we keep an audit trail.
+    try {
+        await db.collection(`c2_logs/${deviceId}/entries`).add({
+            type: 'decommission',
+            timestamp: FieldValue.serverTimestamp(),
+            data: {
+                actorUid: uid,
+                actorEmail: email,
+                actorIsAdmin: isAdmin,
+                deviceName: dev.name || null,
+                ownerUid: dev.ownerUid || null,
+            }
+        });
+    } catch (e) { /* audit logging is best-effort */ }
+
+    await devRef.delete();
+    return { decommissioned: true, deviceId };
 });
 
 // ─── The Wire: Discord Tournament Notifications ─────────────────

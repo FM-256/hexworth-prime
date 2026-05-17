@@ -242,6 +242,28 @@ const supportsWebSerial = (typeof navigator !== 'undefined') && ('serial' in nav
 const browserWarn = document.getElementById('browser-warn');
 if (!supportsWebSerial) browserWarn.classList.add('show');
 
+// ── Telemetry (anonymous, fire-and-forget) ──────────────────────
+// Never blocks the user flow. Never stores uid. Schema is enforced
+// in firestore.rules. If Firestore is unreachable, telemetry silently
+// no-ops and the flasher continues working.
+async function telemetry(event, extra = {}) {
+    try {
+        if (typeof window.firebaseApp === 'undefined') return;
+        const apps = window.firebaseApp.getApps();
+        if (apps.length === 0) return;
+        const fsMod = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+        const db = fsMod.getFirestore(apps[0]);
+        await fsMod.addDoc(fsMod.collection(db, 'web_flasher_telemetry'), {
+            event,
+            createdAt: fsMod.serverTimestamp(),
+            webSerialSupported: supportsWebSerial,
+            userAgent: (navigator.userAgent || '').slice(0, 480),
+            ...extra,
+        });
+    } catch { /* never block on telemetry failure */ }
+}
+telemetry('page_load');
+
 const $ = (id) => document.getElementById(id);
 
 const state = {
@@ -325,9 +347,15 @@ async function selectProject(project, version, cardEl) {
         return;
     }
     state.manifest = manifest;
+    telemetry('project_select', { project: project.id, flasherMode: manifest.flasherMode || 'unknown' });
 
     hideAllModePanels();
-    const mode = manifest.flasherMode || 'webserial-esp32';
+    const mode = manifest.flasherMode;
+    if (!mode) {
+        $('confirm-sub').innerHTML = '<span style="color:var(--err);">Manifest is missing required field <code>flasherMode</code>. Refusing to flash &mdash; this is a manifest bug; please report it.</span>';
+        $('confirm-panel').classList.remove('hidden');
+        return;
+    }
     switch (mode) {
         case 'webserial-esp32':    renderEsp32(manifest); break;
         case 'external-download':  renderExternalDownload(manifest); break;
@@ -466,10 +494,13 @@ async function connectDevice() {
 
         $('flash-panel').classList.remove('hidden');
         $('flash-btn').disabled = false;
+        telemetry('connect_success', { project: state.selectedProject?.id, flasherMode: 'webserial-esp32' });
     } catch (e) {
-        logTo('connect-log', 'Error: ' + (e && e.message ? e.message : String(e)), 'err');
+        const errMsg = e && e.message ? e.message : String(e);
+        logTo('connect-log', 'Error: ' + errMsg, 'err');
         $('conn-status').textContent = 'failed';
         $('conn-status').className = 'status-pill err';
+        telemetry('connect_fail', { project: state.selectedProject?.id, flasherMode: 'webserial-esp32', errorMessage: errMsg.slice(0, 480) });
         if (state.transport) {
             try { await state.transport.disconnect(); } catch {}
             state.transport = null;
@@ -511,6 +542,7 @@ async function flashDevice() {
     $('flash-status').className = 'status-pill busy';
     $('progress-bar').style.width = '0%';
     state.flashing = true;
+    telemetry('flash_start', { project: state.selectedProject?.id, flasherMode: 'webserial-esp32' });
 
     try {
         const projDir = `${FIRMWARE_BASE}/${state.selectedProject.id}/${state.selectedVersion}`;
@@ -548,12 +580,15 @@ async function flashDevice() {
         $('flash-status').textContent = 'done';
         $('flash-status').className = 'status-pill ok';
         state.flashedOnce = true;
+        telemetry('flash_success', { project: state.selectedProject?.id, flasherMode: 'webserial-esp32' });
 
         showPostFlashPanel();
     } catch (e) {
-        logTo('flash-log', 'Error: ' + (e && e.message ? e.message : String(e)), 'err');
+        const errMsg = e && e.message ? e.message : String(e);
+        logTo('flash-log', 'Error: ' + errMsg, 'err');
         $('flash-status').textContent = 'failed';
         $('flash-status').className = 'status-pill err';
+        telemetry('flash_fail', { project: state.selectedProject?.id, flasherMode: 'webserial-esp32', errorMessage: errMsg.slice(0, 480) });
         btn.disabled = false;
     } finally {
         state.flashing = false;
@@ -615,6 +650,7 @@ async function claimPairingCode() {
         status.className = 'status-pill ok';
         btn.textContent = 'Code issued · paste it in the captive portal';
         btn.disabled = true;
+        telemetry('pairing_code_claim_success', { project: state.selectedProject?.id, flasherMode: state.manifest?.flasherMode });
     } catch (e) {
         const msg = e && e.message ? e.message : String(e);
         status.textContent = 'failed';
@@ -622,6 +658,7 @@ async function claimPairingCode() {
         $('code-meta').textContent = msg;
         $('code-result').classList.remove('hidden');
         btn.disabled = false;
+        telemetry('pairing_code_claim_fail', { project: state.selectedProject?.id, flasherMode: state.manifest?.flasherMode, errorMessage: msg.slice(0, 480) });
     }
 }
 

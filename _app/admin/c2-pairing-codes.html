@@ -103,6 +103,24 @@
         .empty-state {
             text-align: center; padding: 36px 18px; color: #64748b;
         }
+        .filter-btn {
+            background: transparent; color: #cbd5e1;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
+            padding: 4px 10px; font-size: 12px; cursor: pointer;
+            transition: border-color .15s, color .15s, background .15s;
+        }
+        .filter-btn:hover { border-color: rgba(192,132,252,0.4); color: #c084fc; }
+        .filter-btn.active {
+            background: rgba(192,132,252,0.15); color: #c084fc;
+            border-color: rgba(192,132,252,0.5);
+        }
+        .issued-tag {
+            display: inline-block; padding: 1px 7px; border-radius: 9px;
+            font-size: 10px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .issued-tag.admin   { background: rgba(192,132,252,0.15); color: #c084fc; }
+        .issued-tag.student { background: rgba(56,189,248,0.15);  color: #38bdf8; }
         #msg { margin-top: 10px; font-size: 0.86rem; min-height: 1.2em; }
         #msg.ok { color: #4ade80; }
         #msg.err { color: #f87171; }
@@ -219,10 +237,17 @@
 
     <div class="card">
         <h2>Recent codes</h2>
+        <div style="margin-bottom:10px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <span style="color:#8b949e; font-size:12px; text-transform:uppercase; letter-spacing:0.06em;">Filter:</span>
+            <button class="filter-btn active" data-filter="all"     type="button">All</button>
+            <button class="filter-btn"        data-filter="admin"   type="button">Admin-issued</button>
+            <button class="filter-btn"        data-filter="student" type="button">Student-issued</button>
+        </div>
         <table id="codesTable">
             <thead>
                 <tr>
                     <th>Code</th>
+                    <th>Issued to</th>
                     <th>Label</th>
                     <th>Created</th>
                     <th>Status</th>
@@ -230,7 +255,7 @@
                 </tr>
             </thead>
             <tbody id="codesBody">
-                <tr><td colspan="5" class="empty-state">Loading…</td></tr>
+                <tr><td colspan="6" class="empty-state">Loading…</td></tr>
             </tbody>
         </table>
     </div>
@@ -296,23 +321,38 @@
     }
 
     // ── Render recent codes ─────────────────────────────────────
+    let _allCodes = [];      // last-loaded snapshot, full set
+    let _filter = 'all';     // 'all' | 'admin' | 'student'
+
     async function loadCodes() {
         await ensureFirebase();
         const { collection, query, orderBy, limit, getDocs } = _firestoreModule;
         const snap = await getDocs(query(
             collection(db, 'c2_pairing_codes'),
             orderBy('createdAt', 'desc'),
-            limit(50)
+            limit(100)
         ));
+        _allCodes = [];
+        snap.forEach(doc => _allCodes.push(doc.data()));
+        renderCodes();
+    }
+
+    function renderCodes() {
         const tbody = document.getElementById('codesBody');
-        if (snap.empty) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No codes yet. Generate the first one above.</td></tr>';
+        const filtered = _allCodes.filter(c => {
+            const issuedTo = c.issuedTo || 'admin';   // pre-v2 codes default to admin
+            return _filter === 'all' || _filter === issuedTo;
+        });
+        if (filtered.length === 0) {
+            const msg = _allCodes.length === 0
+                ? 'No codes yet. Generate the first one above.'
+                : `No ${_filter}-issued codes in the last 100.`;
+            tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${msg}</td></tr>`;
             return;
         }
         const now = Date.now();
         const rows = [];
-        snap.forEach(doc => {
-            const c = doc.data();
+        for (const c of filtered) {
             const exp = c.expiresAt && c.expiresAt.toDate ? c.expiresAt.toDate().getTime() : 0;
             let statusHtml;
             let lastCellHtml;
@@ -328,17 +368,29 @@
                 statusHtml = '<span class="ok">active</span>';
                 lastCellHtml = relativeFromNow(exp - now);
             }
+            const issuedTo = c.issuedTo || 'admin';
             rows.push(`
                 <tr>
                     <td class="row-code">${escapeHtml(c.code)}</td>
+                    <td><span class="issued-tag ${issuedTo}">${escapeHtml(issuedTo)}</span></td>
                     <td>${escapeHtml(c.label || '—')}</td>
                     <td class="row-meta">${fmtTime(c.createdAt)}<br>by ${escapeHtml(c.createdByEmail || c.createdBy || '?')}</td>
                     <td class="row-status">${statusHtml}</td>
                     <td class="row-meta">${lastCellHtml}</td>
                 </tr>`);
-        });
+        }
         tbody.innerHTML = rows.join('');
     }
+
+    // Filter button wiring
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.filter-btn');
+        if (!btn) return;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        _filter = btn.dataset.filter;
+        renderCodes();
+    });
 
     // ── Generate handler ────────────────────────────────────────
     async function generate() {
@@ -394,7 +446,7 @@
         await loadCodes();
     } catch (e) {
         document.getElementById('codesBody').innerHTML =
-            `<tr><td colspan="5" class="empty-state" style="color:#f87171">Failed to load: ${escapeHtml(e.message || e)}</td></tr>`;
+            `<tr><td colspan="6" class="empty-state" style="color:#f87171">Failed to load: ${escapeHtml(e.message || e)}</td></tr>`;
     }
 })();
 </script>
