@@ -82,13 +82,26 @@ function extractSignalDataProjects(src) {
     // then iterate line by line, tracking the current section by its
     // declared `id:` field at a known indent level.
     const lines = src.split('\n');
-    const startIdx = lines.findIndex(l => /^\s*sections:\s*\[/.test(l));
-    if (startIdx < 0) throw new Error('sections: [ not found in SignalData.js');
+    // Match the TOP-LEVEL sections array (4-space indent, opening bracket
+    // alone on the line). Sub-array references like
+    //     sections: ['foundations']
+    // inside the `tracks: [...]` block use 12-space indent and a single
+    // line — both would match a loose /^\s*sections:\s*\[/ pattern.
+    const startIdx = lines.findIndex(l => l === '    sections: [');
+    if (startIdx < 0) throw new Error('top-level sections: [ not found in SignalData.js');
+
+    // The sections array closes with `^    ],`. SignalData has multiple
+    // such markers (tracks, views, sections, ...) — stop at the first
+    // one we hit AFTER startIdx so we don't drift into trailing arrays.
+    let endIdx = lines.length;
+    for (let j = startIdx + 1; j < lines.length; j++) {
+        if (/^    \],\s*$/.test(lines[j])) { endIdx = j; break; }
+    }
 
     const sections = {};   // sectionId -> Set of project ids
     let currentSection = null;
 
-    for (let i = startIdx + 1; i < lines.length; i++) {
+    for (let i = startIdx + 1; i < endIdx; i++) {
         const line = lines[i];
         // Top-level section id: appears at 12-space indent based on existing format
         const secMatch = line.match(/^            id:\s*'([a-z][a-z0-9-]+)'\s*,/);
@@ -189,9 +202,13 @@ function extractGuidesKeys(guidesSrc) {
 
 
 // ============================================================
-//  Main
+//  Audit core (pure: no stdout, no fs writes, no process.exit)
+//
+//  Returns the same `report` object the CLI writes to disk, plus a
+//  `selfValidationPassed` boolean. The Nexus adapter consumes this
+//  directly via require() — see _tools/nexus/adapters/signal-guides.js.
 // ============================================================
-function main() {
+function runAudit() {
     const startMs = Date.now();
     const findings = [];
 
@@ -279,19 +296,11 @@ function main() {
 
     // ---- Self-validation ----
     const arsenalRow = perSection['esp32-s3-arsenal'];
-    const selfPass =
+    const selfPass = !!(
         arsenalRow &&
         KNOWN_WIRED.every(id => arsenalRow.guideKeys.includes(id)) &&
-        KNOWN_WIRED.every(id => !arsenalRow.missingGuides.includes(id));
-
-    if (!selfPass) {
-        console.error('SELF-VALIDATION FAILURE: known-wired projects not detected as wired:');
-        console.error('  esp32-s3-arsenal guideKeys =',
-            arsenalRow ? arsenalRow.guideKeys : '(no row)');
-        console.error('  expected to include:', KNOWN_WIRED);
-        console.error('Refusing to write report. Investigate scope/regex.');
-        process.exit(2);
-    }
+        KNOWN_WIRED.every(id => !arsenalRow.missingGuides.includes(id))
+    );
 
     // ---- Output ----
     const totals = {
@@ -317,10 +326,30 @@ function main() {
         findings,
     };
 
+    return report;
+}
+
+
+// ============================================================
+//  CLI entrypoint — prints summary, writes JSON report
+//
+//  Skipped when this file is require()'d as a module (e.g. by the
+//  Nexus adapter). require.main === module is true only when invoked
+//  as a script.
+// ============================================================
+function cli() {
+    const report = runAudit();
+
+    if (!report.selfValidationPassed) {
+        console.error('SELF-VALIDATION FAILURE: known-wired projects not detected as wired.');
+        console.error('Refusing to write report. Investigate scope/regex.');
+        process.exit(2);
+    }
+
     if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
     fs.writeFileSync(OUT_FILE, JSON.stringify(report, null, 2));
 
-    // ---- Stdout ----
+    const { totals, findings } = report;
     console.log('signal-guides-coverage-audit (XREF-003)');
     console.log('========================================');
     console.log('  Sections scanned:           ' + totals.sectionsScanned);
@@ -329,7 +358,7 @@ function main() {
     console.log('  MISSING_GUIDE (high):       ' + totals.missingGuideCount);
     console.log('  DEAD_GUIDE (medium):        ' + totals.deadGuideCount);
     console.log('  THIN_GUIDE (low):           ' + totals.thinGuideCount);
-    console.log('  Self-validation:            ' + (selfPass ? 'PASS' : 'FAIL'));
+    console.log('  Self-validation:            PASS');
     console.log('  Duration:                   ' + totals.durationMs + 'ms');
     console.log('  Output:                     ' + path.relative(ROOT, OUT_FILE));
     if (findings.length) {
@@ -344,4 +373,8 @@ function main() {
     }
 }
 
-main();
+if (require.main === module) {
+    cli();
+}
+
+module.exports = { runAudit };

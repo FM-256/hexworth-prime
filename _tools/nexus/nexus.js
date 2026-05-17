@@ -1158,6 +1158,10 @@ switch (command) {
     case 'qkc':
         cmdSpoke('quiz-key-callsite', positional, flags);
         break;
+    case 'signal-guides':
+    case 'sg':
+        cmdSpoke('signal-guides', positional, flags);
+        break;
     case 'dead-code':
         cmdSpoke('dead-code', positional, flags);
         break;
