@@ -5713,6 +5713,83 @@ exports.c2GeneratePairingCode = onCall(cfOptions, async (request) => {
 });
 
 /**
+ * c2RequestStudentPairingCode — Authenticated student mints a code for
+ * their own device. Same code shape and lifecycle as the admin path; the
+ * difference is that the code carries ownerUid = caller, and the device
+ * doc inherits that ownerUid at register time so the student can read
+ * their own device via Firestore rules.
+ *
+ * Rate limit: 1 active code at a time, 3 codes per rolling 24h window.
+ * Both the rate-limit state read and the new-code write happen inside
+ * a single Firestore transaction so two concurrent calls cannot bypass
+ * the active-code invariant.
+ */
+exports.c2RequestStudentPairingCode = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+    const uid = request.auth.uid;
+    const email = request.auth.token.email || '';
+    const ttlSeconds = 1800;
+    const now = Date.now();
+    const expiresAt = new Date(now + ttlSeconds * 1000);
+    const stateRef = db.doc(`student_pairing_state/${uid}`);
+
+    const txResult = await db.runTransaction(async (tx) => {
+        const stateDoc = await tx.get(stateRef);
+        const state = stateDoc.exists ? stateDoc.data() : { last24h: [], activeCodeId: null };
+
+        if (state.activeCodeId) {
+            const activeRef = db.doc(`c2_pairing_codes/${state.activeCodeId}`);
+            const activeDoc = await tx.get(activeRef);
+            if (activeDoc.exists) {
+                const d = activeDoc.data();
+                const exp = d.expiresAt && d.expiresAt.toDate ? d.expiresAt.toDate().getTime() : 0;
+                if (!d.usedAt && exp > now) {
+                    return { error: 'You already have an active pairing code. Use it or wait for it to expire.', status: 'failed-precondition' };
+                }
+            }
+        }
+
+        const cutoff = now - 24 * 60 * 60 * 1000;
+        const prunedLast24h = (state.last24h || [])
+            .map(t => t && t.toMillis ? t.toMillis() : (typeof t === 'number' ? t : new Date(t).getTime()))
+            .filter(t => t > cutoff);
+        if (prunedLast24h.length >= 3) {
+            return { error: 'Rate limit: 3 pairing codes per 24 hours.', status: 'resource-exhausted' };
+        }
+
+        const code = generatePairingCodeString();
+        const codeRef = db.doc(`c2_pairing_codes/${code}`);
+
+        tx.set(codeRef, {
+            code,
+            createdAt: FieldValue.serverTimestamp(),
+            createdBy: uid,
+            createdByEmail: email,
+            label: null,
+            ttlSeconds,
+            expiresAt,
+            usedAt: null,
+            usedByDeviceId: null,
+            ownerUid: uid,
+            issuedTo: 'student',
+        });
+
+        tx.set(stateRef, {
+            activeCodeId: code,
+            last24h: [...prunedLast24h.map(t => new Date(t)), new Date(now)],
+            updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        return { code, expiresAt: expiresAt.toISOString(), ttlSeconds };
+    });
+
+    if (txResult.error) {
+        throw new HttpsError(txResult.status, txResult.error);
+    }
+    return { code: txResult.code, expiresAt: txResult.expiresAt, ttlSeconds: txResult.ttlSeconds };
+});
+
+/**
  * c2RegisterWithCode — Device registers using an admin-issued code.
  *
  * Same response shape as /c2Register (deviceId + deviceKey + intervals)
@@ -5764,6 +5841,11 @@ exports.c2RegisterWithCode = onRequest(cfOptions, async (req, res) => {
                 return { error: 'Pairing code expired.', status: 403 };
             }
 
+            const ownerUid = data.ownerUid || null;
+            const isStudentCode = !!(ownerUid && data.issuedTo === 'student');
+            const stateRef = isStudentCode ? db.doc(`student_pairing_state/${ownerUid}`) : null;
+            const stateDoc = stateRef ? await tx.get(stateRef) : null;
+
             const creds = generateDeviceCredentials();
 
             tx.set(db.doc(`c2_devices/${creds.id}`), {
@@ -5786,12 +5868,20 @@ exports.c2RegisterWithCode = onRequest(cfOptions, async (req, res) => {
                 registeredAt: FieldValue.serverTimestamp(),
                 registeredViaPairingCode: normalizedCode,
                 pairingCodeCreatedBy: data.createdBy,
+                ownerUid,
             });
 
             tx.update(codeRef, {
                 usedAt: FieldValue.serverTimestamp(),
                 usedByDeviceId: creds.id,
             });
+
+            if (stateRef && stateDoc && stateDoc.exists && stateDoc.data().activeCodeId === normalizedCode) {
+                tx.update(stateRef, {
+                    activeCodeId: null,
+                    updatedAt: FieldValue.serverTimestamp(),
+                });
+            }
 
             return {
                 status: 201,
