@@ -5652,6 +5652,188 @@ exports.c2ListDevices = onCall(cfOptions, async (request) => {
     return { devices, count: devices.length };
 });
 
+// ─── C2 Pairing Codes ───────────────────────────────────────────
+// Production hardening for /c2Register. Instead of accepting any
+// POST to /c2Register (open-enrollment), a device can call
+// /c2RegisterWithCode with a one-time admin-issued pairing code.
+// The legacy /c2Register endpoint stays open for backwards compat
+// with already-deployed firmware; new firmware should prefer the
+// authenticated path.
+//
+// Code shape: HEX-PAIR-XK7A2P  (HEX-PAIR- prefix + 6 chars from a
+// 32-symbol no-look-alike alphabet — no I/O/0/1).
+//
+// Firestore: /c2_pairing_codes/{code} with { createdAt, createdBy,
+// createdByEmail, label, ttlSeconds, expiresAt, usedAt, usedByDeviceId }.
+// Rule: admin read; CF-only writes. Single document per code.
+
+const PAIRING_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function generatePairingCodeString() {
+    const bytes = crypto.randomBytes(6);
+    let body = '';
+    for (let i = 0; i < 6; i++) body += PAIRING_ALPHABET[bytes[i] % PAIRING_ALPHABET.length];
+    return 'HEX-PAIR-' + body;
+}
+
+/**
+ * c2GeneratePairingCode — Admin generates a one-time pairing code.
+ *
+ * Returns { code, expiresAt, ttlSeconds }. Operator hands the code
+ * to whoever is provisioning the device; they paste it into the
+ * captive-portal form. Code is single-use, expires after ttlSeconds.
+ */
+exports.c2GeneratePairingCode = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+    const email = request.auth.token.email || '';
+    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    if (!isAdmin) throw new HttpsError('permission-denied', 'Admin access required.');
+
+    const { ttl, label } = request.data || {};
+    // Clamp ttl: minimum 60s (1 minute) to maximum 86400s (24 hours).
+    // Default 1800s (30 minutes) is the operator-walks-to-device window.
+    const ttlSeconds = Math.min(Math.max(parseInt(ttl, 10) || 1800, 60), 86400);
+
+    const code = generatePairingCodeString();
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+
+    await db.doc(`c2_pairing_codes/${code}`).set({
+        code,
+        createdAt: FieldValue.serverTimestamp(),
+        createdBy: request.auth.uid,
+        createdByEmail: email,
+        label: typeof label === 'string' ? label.slice(0, 80) : null,
+        ttlSeconds,
+        expiresAt,
+        usedAt: null,
+        usedByDeviceId: null,
+    });
+
+    return { code, expiresAt: expiresAt.toISOString(), ttlSeconds };
+});
+
+/**
+ * c2RegisterWithCode — Device registers using an admin-issued code.
+ *
+ * Same response shape as /c2Register (deviceId + deviceKey + intervals)
+ * so the firmware-side switch is just a different URL plus the new
+ * pairingCode field in the request body.
+ *
+ * Transactional: code lookup + mark-used + device-create happen in
+ * one Firestore transaction so two devices can't redeem the same
+ * code in a race.
+ */
+exports.c2RegisterWithCode = onRequest(cfOptions, async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
+
+    try {
+        const { pairingCode, deviceType, name, projectId, firmware, capabilities } = req.body || {};
+
+        if (!pairingCode || !deviceType || !name) {
+            res.status(400).json({ error: 'pairingCode, deviceType, and name are required.' });
+            return;
+        }
+
+        // Normalize code (uppercase, strip whitespace, allow user to type
+        // 'hex-pair-xk7a2p' or with stray dashes).
+        const normalizedCode = String(pairingCode).toUpperCase().replace(/\s+/g, '');
+
+        const intervals = {
+            esp32:   { checkIn: 30, commandPoll: 5 },
+            arduino: { checkIn: 60, commandPoll: 10 },
+            pi:      { checkIn: 15, commandPoll: 3 },
+            ducky:   { checkIn: 10, commandPoll: 2 }
+        };
+        const interval = intervals[deviceType] || intervals.esp32;
+
+        const codeRef = db.doc(`c2_pairing_codes/${normalizedCode}`);
+        const txResult = await db.runTransaction(async (tx) => {
+            const codeDoc = await tx.get(codeRef);
+            if (!codeDoc.exists) {
+                return { error: 'Unknown pairing code.', status: 403 };
+            }
+            const data = codeDoc.data();
+            if (data.usedAt) {
+                return { error: 'Pairing code already used.', status: 403 };
+            }
+            if (data.expiresAt && data.expiresAt.toDate() < new Date()) {
+                return { error: 'Pairing code expired.', status: 403 };
+            }
+
+            const creds = generateDeviceCredentials();
+
+            tx.set(db.doc(`c2_devices/${creds.id}`), {
+                deviceId: creds.id,
+                deviceKey: creds.key,
+                name: name,
+                type: deviceType,
+                projectId: projectId || null,
+                firmware: firmware || '0.0.0',
+                capabilities: capabilities || [],
+                status: 'registered',
+                lastCheckIn: null,
+                ip: null,
+                rssi: null,
+                uptime: 0,
+                freeHeap: null,
+                sensors: {},
+                checkInInterval: interval.checkIn,
+                commandPollInterval: interval.commandPoll,
+                registeredAt: FieldValue.serverTimestamp(),
+                registeredViaPairingCode: normalizedCode,
+                pairingCodeCreatedBy: data.createdBy,
+            });
+
+            tx.update(codeRef, {
+                usedAt: FieldValue.serverTimestamp(),
+                usedByDeviceId: creds.id,
+            });
+
+            return {
+                status: 201,
+                deviceId: creds.id,
+                deviceKey: creds.key,
+                checkInInterval: interval.checkIn,
+                commandPollInterval: interval.commandPoll,
+            };
+        });
+
+        if (txResult.error) {
+            res.status(txResult.status).json({ error: txResult.error });
+            return;
+        }
+
+        // Log the registration (best-effort, outside the transaction)
+        try {
+            await db.collection(`c2_logs/${txResult.deviceId}/entries`).add({
+                type: 'registration',
+                timestamp: FieldValue.serverTimestamp(),
+                data: {
+                    deviceType,
+                    name,
+                    firmware,
+                    via: 'c2RegisterWithCode',
+                    pairingCode: normalizedCode,
+                }
+            });
+        } catch (e) { /* non-critical */ }
+
+        res.status(201).json({
+            deviceId: txResult.deviceId,
+            deviceKey: txResult.deviceKey,
+            checkInInterval: txResult.checkInInterval,
+            commandPollInterval: txResult.commandPollInterval,
+        });
+    } catch (e) {
+        console.error('c2RegisterWithCode error:', e);
+        res.status(500).json({ error: 'Registration failed.' });
+    }
+});
+
 // ─── The Wire: Discord Tournament Notifications ─────────────────
 // Non-blocking. Fire-and-forget. Never throws — a failed notification
 // must never block a flag submission.

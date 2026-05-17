@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C2 Pairing Codes — Hexworth Prime</title>
+
+    <!-- Admin guard: hide page until verified -->
+    <style id="admin-guard">body { visibility: hidden; }</style>
+
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="/components/AccountFrame.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.5;
+        }
+        h1 { font-size: 1.6rem; margin-bottom: 4px; color: #c084fc; }
+        h2 { font-size: 1.05rem; color: #c084fc; margin: 18px 0 8px; }
+        .subtitle { color: #888; font-size: 0.92rem; margin-bottom: 24px; max-width: 720px; }
+
+        .card {
+            background: #161822;
+            border: 1px solid rgba(168, 85, 247, 0.18);
+            border-radius: 8px;
+            padding: 18px 22px;
+            margin-bottom: 18px;
+        }
+
+        button {
+            background: #a855f7; color: #fff; border: none;
+            padding: 9px 18px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: background 0.2s; font-weight: 600;
+        }
+        button:hover { background: #c084fc; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        button.secondary {
+            background: transparent; color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.4);
+        }
+        button.secondary:hover { background: rgba(168, 85, 247, 0.08); color: #e9d5ff; }
+
+        .form-row { margin-bottom: 14px; display: flex; flex-direction: column; gap: 5px; }
+        .form-row label {
+            font-size: 0.78rem; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+        }
+        .form-row input[type="text"], .form-row input[type="number"] {
+            background: #0f1117; color: #e2e8f0;
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            padding: 9px 12px; border-radius: 6px;
+            font-size: 0.92rem; font-family: inherit;
+        }
+        .form-row input:focus { outline: none; border-color: #c084fc; }
+        .form-row .hint { font-size: 0.74rem; color: #64748b; }
+
+        .generate-row {
+            display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+        }
+        .generate-row .form-row { flex: 1; margin: 0; min-width: 200px; }
+
+        .code-result {
+            background: #0a0d14;
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            border-radius: 8px;
+            padding: 16px 20px; margin-top: 16px;
+            font-family: 'Courier New', monospace;
+        }
+        .code-result.hidden { display: none; }
+        .code-display {
+            display: flex; gap: 12px; align-items: center;
+            font-size: 1.4rem; color: #4ade80; font-weight: 700;
+            letter-spacing: 0.06em; margin-bottom: 10px;
+        }
+        .code-display button {
+            font-size: 0.7rem; padding: 4px 10px;
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .code-display button:hover { background: rgba(34, 197, 94, 0.25); }
+        .code-meta { font-size: 0.78rem; color: #64748b; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        th {
+            text-align: left; color: #888; font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 8px 10px; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.04em;
+        }
+        td { padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .row-code { font-family: 'Courier New', monospace; color: #c084fc; font-weight: 700; }
+        .row-meta { color: #64748b; font-size: 0.78rem; }
+        .row-status .ok { color: #4ade80; }
+        .row-status .used { color: #94a3b8; }
+        .row-status .expired { color: #f87171; }
+
+        .empty-state {
+            text-align: center; padding: 36px 18px; color: #64748b;
+        }
+        #msg { margin-top: 10px; font-size: 0.86rem; min-height: 1.2em; }
+        #msg.ok { color: #4ade80; }
+        #msg.err { color: #f87171; }
+        .back-link {
+            color: #94a3b8; text-decoration: none; font-size: 0.86rem;
+            margin-bottom: 18px; display: inline-block;
+        }
+        .back-link:hover { color: #c084fc; }
+
+        details.help-disclosure {
+            margin-bottom: 18px;
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            border-radius: 8px;
+            background: #161822;
+            overflow: hidden;
+        }
+        details.help-disclosure[open] { border-color: rgba(168, 85, 247, 0.5); }
+        details.help-disclosure summary {
+            list-style: none; cursor: pointer; padding: 12px 18px;
+            color: #c084fc; font-weight: 600; font-size: 0.9rem;
+            user-select: none; display: flex; align-items: center; gap: 8px;
+        }
+        details.help-disclosure summary::-webkit-details-marker { display: none; }
+        details.help-disclosure summary::before {
+            content: "▶"; font-size: 0.7rem; transition: transform 0.15s; color: #94a3b8;
+        }
+        details.help-disclosure[open] summary::before { transform: rotate(90deg); }
+        details.help-disclosure summary:hover { background: rgba(168, 85, 247, 0.06); }
+        details.help-disclosure .help-panel {
+            padding: 4px 22px 20px;
+            border-top: 1px solid rgba(168, 85, 247, 0.12);
+            font-size: 0.9rem; color: #cbd5e1;
+        }
+        details.help-disclosure .help-panel h3 {
+            color: #c084fc; font-size: 0.92rem; margin: 18px 0 6px;
+            text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+        }
+        details.help-disclosure .help-panel ol,
+        details.help-disclosure .help-panel ul {
+            margin-left: 22px; line-height: 1.65;
+        }
+        details.help-disclosure .help-panel li { margin-bottom: 4px; }
+        details.help-disclosure .help-panel code {
+            background: rgba(168, 85, 247, 0.1);
+            padding: 1px 6px; border-radius: 3px;
+            color: #e9d5ff;
+            font-family: 'Courier New', monospace; font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+    <a href="console.html" class="back-link">← Admin Console</a>
+    <h1>C2 Pairing Codes</h1>
+    <p class="subtitle">
+        Generate a one-time code, hand it to whoever is provisioning the device, and they paste it
+        into the device's captive portal alongside the device name. The device uses
+        <code style="color:#c084fc">c2RegisterWithCode</code> instead of the open-enrollment
+        <code style="color:#c084fc">c2Register</code> endpoint. Codes are single-use and expire.
+    </p>
+
+    <details class="help-disclosure">
+        <summary>How does this work? What does the operator do?</summary>
+        <div class="help-panel">
+
+            <h3>End-to-end flow</h3>
+            <ol>
+                <li>You (admin) click <strong>Generate</strong> below. A code like <code>HEX-PAIR-XK7A2P</code> appears with a 30-minute expiration.</li>
+                <li>Hand the code to the person provisioning the device (could be you walking down the hall, could be a remote staff member over chat).</li>
+                <li>That person powers on the device. Captive portal opens as <code>HexworthDevice-XXXX</code>.</li>
+                <li>They join the AP, fill in: home WiFi network, home WiFi password, device name, <strong>pairing code</strong>.</li>
+                <li>Device posts to <code>/c2RegisterWithCode</code>. Backend validates the code transactionally (lookup + mark-used + mint device credentials in one Firestore transaction).</li>
+                <li>If valid: device gets its <code>deviceId</code> + <code>deviceKey</code>, code is marked consumed, device appears in the C2 Dashboard.</li>
+                <li>If invalid: device gets HTTP 403 with a reason (unknown / used / expired). User can request a new code.</li>
+            </ol>
+
+            <h3>Why a pairing code at all?</h3>
+            <p>The <code>/c2Register</code> endpoint accepts any POST. Anyone on the public internet who can reach the URL can mint a deviceKey. That's fine for a training-tool demo but unsafe for a real fleet. Pairing codes close that gap by requiring admin involvement before a device can register.</p>
+
+            <h3>Backwards compatibility</h3>
+            <p>The legacy <code>/c2Register</code> endpoint still works — the c2-device firmware already in the wild keeps registering normally. New firmware should prefer <code>/c2RegisterWithCode</code>. Deprecation of the open endpoint is a future hardening step.</p>
+
+            <h3>If a code leaks</h3>
+            <p>Codes are single-use and short-lived (default 30 min). A leaked code can claim one device. After that, it's dead. Reduce the TTL further if your provisioning workflow runs faster than 30 min.</p>
+
+        </div>
+    </details>
+
+    <div class="card">
+        <h2>Generate a new code</h2>
+        <div class="generate-row">
+            <div class="form-row">
+                <label for="codeLabel">Label (optional)</label>
+                <input type="text" id="codeLabel" placeholder="e.g. lab-c2-01" maxlength="80">
+                <span class="hint">Helps you remember what this code was for.</span>
+            </div>
+            <div class="form-row" style="max-width:160px;">
+                <label for="codeTTL">TTL (seconds)</label>
+                <input type="number" id="codeTTL" value="1800" min="60" max="86400">
+                <span class="hint">60 to 86400 (24 h)</span>
+            </div>
+            <div>
+                <button id="generateBtn">Generate</button>
+            </div>
+        </div>
+        <div id="codeResult" class="code-result hidden">
+            <div class="code-display">
+                <span id="codeValue"></span>
+                <button id="copyBtn">copy</button>
+            </div>
+            <div class="code-meta" id="codeMeta"></div>
+        </div>
+        <div id="msg"></div>
+    </div>
+
+    <div class="card">
+        <h2>Recent codes</h2>
+        <table id="codesTable">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Label</th>
+                    <th>Created</th>
+                    <th>Status</th>
+                    <th>Expires / Used by</th>
+                </tr>
+            </thead>
+            <tbody id="codesBody">
+                <tr><td colspan="5" class="empty-state">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+<script>
+(async function() {
+    'use strict';
+
+    // ── Admin guard ─────────────────────────────────────────────
+    try {
+        await FirebaseAuth.waitForAuth();
+    } catch (e) {
+        document.body.innerHTML = '<p style="padding:2rem;color:#f87171">Sign-in required.</p>';
+        document.body.style.visibility = 'visible';
+        return;
+    }
+    const isAdmin = FirebaseAuth.isAdmin();
+    const accountAdmin = (typeof AccountFrame !== 'undefined' && AccountFrame.getAccountType && AccountFrame.getAccountType() === 'admin');
+    if (!isAdmin && !accountAdmin) {
+        document.body.innerHTML = '<p style="padding:2rem;color:#f87171">Admin access required.</p>';
+        document.body.style.visibility = 'visible';
+        return;
+    }
+    document.getElementById('admin-guard').remove();
+    document.body.style.visibility = 'visible';
+
+    // ── Firebase modular SDK + Firestore lazy load ─────────────
+    let _firestoreModule = null;
+    let _functionsModule = null;
+    let db = null;
+    let fns = null;
+
+    async function ensureFirebase() {
+        if (db && fns) return;
+        if (!_firestoreModule) {
+            _firestoreModule = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+        }
+        if (!_functionsModule) {
+            _functionsModule = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-functions.js');
+        }
+        const apps = window.firebaseApp.getApps();
+        if (apps.length === 0) throw new Error('no Firebase app initialized');
+        db  = _firestoreModule.getFirestore(apps[0]);
+        fns = _functionsModule.getFunctions(apps[0]);
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+    function fmtTime(ts) {
+        if (!ts) return '—';
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        return d.toLocaleString();
+    }
+    function relativeFromNow(ms) {
+        if (ms <= 0) return 'expired';
+        const min = Math.round(ms / 60000);
+        if (min < 60) return `in ${min} min`;
+        const h = Math.floor(min / 60);
+        const m = min % 60;
+        return `in ${h}h ${m}m`;
+    }
+
+    // ── Render recent codes ─────────────────────────────────────
+    async function loadCodes() {
+        await ensureFirebase();
+        const { collection, query, orderBy, limit, getDocs } = _firestoreModule;
+        const snap = await getDocs(query(
+            collection(db, 'c2_pairing_codes'),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+        ));
+        const tbody = document.getElementById('codesBody');
+        if (snap.empty) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No codes yet. Generate the first one above.</td></tr>';
+            return;
+        }
+        const now = Date.now();
+        const rows = [];
+        snap.forEach(doc => {
+            const c = doc.data();
+            const exp = c.expiresAt && c.expiresAt.toDate ? c.expiresAt.toDate().getTime() : 0;
+            let statusHtml;
+            let lastCellHtml;
+            if (c.usedAt) {
+                statusHtml = '<span class="used">used</span>';
+                lastCellHtml = c.usedByDeviceId
+                    ? `device: <code>${escapeHtml(c.usedByDeviceId)}</code> at ${fmtTime(c.usedAt)}`
+                    : `used at ${fmtTime(c.usedAt)}`;
+            } else if (exp && exp < now) {
+                statusHtml = '<span class="expired">expired</span>';
+                lastCellHtml = `at ${fmtTime(c.expiresAt)}`;
+            } else {
+                statusHtml = '<span class="ok">active</span>';
+                lastCellHtml = relativeFromNow(exp - now);
+            }
+            rows.push(`
+                <tr>
+                    <td class="row-code">${escapeHtml(c.code)}</td>
+                    <td>${escapeHtml(c.label || '—')}</td>
+                    <td class="row-meta">${fmtTime(c.createdAt)}<br>by ${escapeHtml(c.createdByEmail || c.createdBy || '?')}</td>
+                    <td class="row-status">${statusHtml}</td>
+                    <td class="row-meta">${lastCellHtml}</td>
+                </tr>`);
+        });
+        tbody.innerHTML = rows.join('');
+    }
+
+    // ── Generate handler ────────────────────────────────────────
+    async function generate() {
+        const btn = document.getElementById('generateBtn');
+        const msgEl = document.getElementById('msg');
+        msgEl.textContent = '';
+        msgEl.className = '';
+        btn.disabled = true;
+        try {
+            await ensureFirebase();
+            const { httpsCallable } = _functionsModule;
+            const call = httpsCallable(fns, 'c2GeneratePairingCode');
+            const label = document.getElementById('codeLabel').value.trim();
+            const ttl = parseInt(document.getElementById('codeTTL').value, 10) || 1800;
+            const resp = await call({ ttl, label: label || undefined });
+            const { code, expiresAt, ttlSeconds } = resp.data || {};
+            if (!code) throw new Error('No code returned');
+
+            document.getElementById('codeValue').textContent = code;
+            const exp = new Date(expiresAt);
+            document.getElementById('codeMeta').textContent =
+                `expires ${exp.toLocaleString()} (TTL ${ttlSeconds}s)` +
+                (label ? ` · label: ${label}` : '');
+            document.getElementById('codeResult').classList.remove('hidden');
+
+            // Clear inputs ready for next code
+            document.getElementById('codeLabel').value = '';
+
+            await loadCodes();
+        } catch (e) {
+            msgEl.textContent = 'Failed: ' + (e.message || e);
+            msgEl.className = 'err';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', generate);
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+        const code = document.getElementById('codeValue').textContent;
+        try {
+            await navigator.clipboard.writeText(code);
+            const btn = document.getElementById('copyBtn');
+            const orig = btn.textContent;
+            btn.textContent = 'copied';
+            setTimeout(() => { btn.textContent = orig; }, 1500);
+        } catch (e) { /* clipboard might be blocked; ignore */ }
+    });
+
+    // Initial load
+    try {
+        await loadCodes();
+    } catch (e) {
+        document.getElementById('codesBody').innerHTML =
+            `<tr><td colspan="5" class="empty-state" style="color:#f87171">Failed to load: ${escapeHtml(e.message || e)}</td></tr>`;
+    }
+})();
+</script>
+</body>
+</html>
