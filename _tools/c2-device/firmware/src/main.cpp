@@ -59,6 +59,10 @@
 #define NVS_KEY_SSID    "ssid"
 #define NVS_KEY_PASS    "pass"
 #define NVS_KEY_NAME    "name"
+// Pairing code (optional) — captured during the captive portal, used
+// once on the next c2Register call, then cleared. If empty, the
+// device falls back to the legacy open-enrollment /c2Register endpoint.
+#define NVS_KEY_PCODE   "pcode"
 
 #define NVS_KEY_C2_ID       "id"
 #define NVS_KEY_C2_KEY      "key"
@@ -70,6 +74,7 @@ Preferences prefs;
 static String g_ssid;
 static String g_pass;
 static String g_deviceName;
+static String g_pairingCode;   // empty -> legacy /c2Register path
 
 static String g_deviceId;
 static String g_deviceKey;
@@ -83,13 +88,26 @@ static int g_pendingCommands = 0;
 // ============================================================
 //  NVS helpers (WiFi credentials — shared namespace with template)
 // ============================================================
-static void saveWifiCreds(const String& ssid, const String& pass, const String& name) {
+static void saveWifiCreds(const String& ssid, const String& pass, const String& name,
+                          const String& pairingCode) {
     prefs.begin(NVS_WIFI, false);
-    prefs.putString(NVS_KEY_SSID, ssid);
-    prefs.putString(NVS_KEY_PASS, pass);
-    prefs.putString(NVS_KEY_NAME, name);
+    prefs.putString(NVS_KEY_SSID,  ssid);
+    prefs.putString(NVS_KEY_PASS,  pass);
+    prefs.putString(NVS_KEY_NAME,  name);
+    prefs.putString(NVS_KEY_PCODE, pairingCode);
     prefs.end();
-    Serial.printf("[nvs/wifi] saved SSID=%s name=%s\n", ssid.c_str(), name.c_str());
+    Serial.printf("[nvs/wifi] saved SSID=%s name=%s pcode=%s\n",
+                  ssid.c_str(), name.c_str(),
+                  pairingCode.length() > 0 ? "(set)" : "(none)");
+}
+
+// Clear just the pairing code (after a successful registration consumes it).
+static void clearPairingCode() {
+    prefs.begin(NVS_WIFI, false);
+    prefs.putString(NVS_KEY_PCODE, "");
+    prefs.end();
+    g_pairingCode = "";
+    Serial.println("[nvs/wifi] pairing code cleared (consumed)");
 }
 
 static void clearWifiCreds() {
@@ -101,14 +119,16 @@ static void clearWifiCreds() {
 
 static bool loadWifiCreds() {
     prefs.begin(NVS_WIFI, true);
-    g_ssid       = prefs.getString(NVS_KEY_SSID, "");
-    g_pass       = prefs.getString(NVS_KEY_PASS, "");
-    g_deviceName = prefs.getString(NVS_KEY_NAME, "");
+    g_ssid         = prefs.getString(NVS_KEY_SSID,  "");
+    g_pass         = prefs.getString(NVS_KEY_PASS,  "");
+    g_deviceName   = prefs.getString(NVS_KEY_NAME,  "");
+    g_pairingCode  = prefs.getString(NVS_KEY_PCODE, "");
     prefs.end();
 
     if (g_ssid.length() > 0) {
-        Serial.printf("[nvs/wifi] loaded SSID=%s name=%s\n",
-                      g_ssid.c_str(), g_deviceName.c_str());
+        Serial.printf("[nvs/wifi] loaded SSID=%s name=%s pcode=%s\n",
+                      g_ssid.c_str(), g_deviceName.c_str(),
+                      g_pairingCode.length() > 0 ? "(set)" : "(none)");
         return true;
     }
 
@@ -117,7 +137,12 @@ static bool loadWifiCreds() {
     g_ssid       = String(WIFI_SSID);
     g_pass       = String(WIFI_PASSWORD);
     g_deviceName = String(DEFAULT_DEVICE_NAME);
-    saveWifiCreds(g_ssid, g_pass, g_deviceName);
+#  ifdef PAIRING_CODE
+    g_pairingCode = String(PAIRING_CODE);
+#  else
+    g_pairingCode = "";
+#  endif
+    saveWifiCreds(g_ssid, g_pass, g_deviceName, g_pairingCode);
     return true;
 #else
     return false;
@@ -187,14 +212,33 @@ static void runPortal() {
         32);
     wm.addParameter(&nameParam);
 
+    // Pairing code is OPTIONAL. If supplied, registration uses the
+    // authenticated /c2RegisterWithCode endpoint. Leave blank to fall
+    // back to the legacy open /c2Register (backwards-compat). Admins
+    // mint codes from /admin/c2-pairing-codes.html (KBA #11).
+    WiFiManagerParameter pcodeParam(
+        "pcode",
+        "Pairing code (optional)  e.g. HEX-PAIR-XK7A2P",
+        "",
+        32);
+    wm.addParameter(&pcodeParam);
+
     bool ok = wm.startConfigPortal(apName.c_str());
     if (ok) {
-        String newSsid = WiFi.SSID();
-        String newPass = WiFi.psk();
-        String newName = String(nameParam.getValue());
+        String newSsid  = WiFi.SSID();
+        String newPass  = WiFi.psk();
+        String newName  = String(nameParam.getValue());
+        String newCode  = String(pcodeParam.getValue());
         if (newName.length() == 0) newName = "c2-" + mac.substring(8);
+
+        // Normalize: uppercase + strip whitespace so the backend sees
+        // the same canonical form the user expects.
+        newCode.toUpperCase();
+        newCode.replace(" ", "");
+        newCode.replace("\t", "");
+
         if (newSsid.length() > 0) {
-            saveWifiCreds(newSsid, newPass, newName);
+            saveWifiCreds(newSsid, newPass, newName, newCode);
         }
     } else {
         Serial.println("[portal] timed out");
@@ -247,16 +291,28 @@ static bool connectWiFi(uint32_t timeoutMs = 20000) {
 //  C2 protocol — Register / CheckIn / GetCommands / Result
 // ============================================================
 
-// One-time: POST /c2Register. Returns true on success; populates
-// g_deviceId, g_deviceKey, interval globals.
+// One-time: POST /c2Register OR /c2RegisterWithCode depending on
+// whether the captive portal supplied a pairing code.
+//
+// If g_pairingCode is non-empty -> /c2RegisterWithCode (KBA #11). On
+// success the code is single-use; we clear it from NVS so a later
+// re-registration (e.g. after /c2_devices/ is manually deleted) does
+// not retry the same already-consumed code.
+//
+// If empty -> legacy /c2Register (KBA #2). Backwards-compat path that
+// matches the v0.1 firmware behavior; keeps every already-deployed
+// device working.
 static bool c2Register() {
-    Serial.println("[c2] registering with backend...");
+    const bool usingPairingCode = g_pairingCode.length() > 0;
+    Serial.printf("[c2] registering with backend (%s)...\n",
+                  usingPairingCode ? "pairing-code path" : "legacy /c2Register");
 
     WiFiClientSecure client;
     client.setInsecure();  // Phase 1 — pin CA in production
     HTTPClient http;
 
-    String url = String(C2_BASE_URL) + "/c2Register";
+    String url = String(C2_BASE_URL) +
+                 (usingPairingCode ? "/c2RegisterWithCode" : "/c2Register");
     if (!http.begin(client, url)) {
         Serial.println("[c2] register: http.begin failed");
         return false;
@@ -271,6 +327,9 @@ static bool c2Register() {
         : (String("c2-") + mac.substring(8));
 
     JsonDocument req;
+    if (usingPairingCode) {
+        req["pairingCode"] = g_pairingCode;
+    }
     req["deviceType"] = "esp32";
     req["name"]       = name;
     req["firmware"]   = FW_VERSION;
@@ -289,6 +348,13 @@ static bool c2Register() {
 
     if (code != 201) {
         Serial.printf("[c2] register HTTP %d: %s\n", code, payload.c_str());
+        // 403 from c2RegisterWithCode means the code is unknown / used /
+        // expired. Clear it so we don't keep retrying a dead code on
+        // every loop iter — the user will need to enter a fresh code.
+        if (usingPairingCode && code == 403) {
+            Serial.println("[c2] pairing code rejected — clearing so loop retries pause");
+            clearPairingCode();
+        }
         return false;
     }
 
@@ -312,6 +378,10 @@ static bool c2Register() {
                   (unsigned long)(g_commandPollIntervalMs / 1000));
 
     saveC2Creds();
+
+    // Single-use: clear the pairing code after a successful redeem.
+    if (usingPairingCode) clearPairingCode();
+
     return true;
 }
 

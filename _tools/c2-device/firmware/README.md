@@ -60,12 +60,18 @@ ArduinoJson v7 + WiFiManager).
    - Device prints "SETUP MODE" banner on serial
    - Opens AP `HexworthDevice-<MAC4>`
    - User joins from a phone
-   - Captive portal asks for home WiFi + a device name
+   - Captive portal asks for home WiFi + a device name + an OPTIONAL
+     pairing code (e.g. `HEX-PAIR-XK7A2P`, minted from
+     `/admin/c2-pairing-codes.html`)
    - User submits; device saves to `hexapp` NVS, reboots
 2. **First boot with WiFi creds, empty C2 registration**
    - Connects to WiFi
-   - POST /c2Register with the user-entered name + capabilities
-   - Saves `deviceId` + `deviceKey` to `c2dev` NVS
+   - **If a pairing code was supplied:** POST `/c2RegisterWithCode` with
+     `{ pairingCode, deviceType, name, capabilities }`. On success the
+     code is single-use and cleared from NVS. (KBA #11)
+   - **If no pairing code:** POST `/c2Register` (legacy open-enrollment
+     path, kept for backwards compatibility with v0.1 firmware). (KBA #2)
+   - Saves `deviceId` + `deviceKey` to `c2dev` NVS regardless of path
    - Sends immediate first check-in
    - Device appears in the C2 Dashboard within a few seconds
 3. **Steady state**
@@ -108,6 +114,11 @@ device.
   for typical network blips; not designed for sustained outages.
 - **Anyone with the deviceKey is the device.** No key rotation
   mechanism today. Re-flash + `pio run -t erase` is the rotation path.
+- **Pairing-code rejection clears the code.** If the user enters a
+  bad / used / expired code, the device receives HTTP 403 and clears
+  the code from NVS. The next register attempt will fall back to the
+  legacy `/c2Register` path. To re-attempt with a fresh code, factory-
+  reset WiFi (BOOT-hold 5s) and re-pair via the captive portal.
 
 ## Related KBAs
 
