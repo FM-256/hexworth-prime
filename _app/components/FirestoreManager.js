@@ -1122,9 +1122,13 @@ const FirestoreManager = (function() {
                 localStorage.setItem(LOCALSTORAGE_KEYS.achievements, JSON.stringify(profile.achievements));
             }
 
-            // Restore quiz scores
+            // Restore quiz scores — MERGE not clobber. Keeps the higher score
+            // per quiz so Device-A's better attempt isn't lost when Device-B
+            // pulls cloud. Mirrors syncBidirectional's behavior.
             if (profile.quizzes && Object.keys(profile.quizzes).length > 0) {
-                localStorage.setItem(LOCALSTORAGE_KEYS.quizScores, JSON.stringify(profile.quizzes));
+                const localQuizzes = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.quizScores) || '{}');
+                const mergedQuizzes = mergeQuizScores(profile.quizzes, localQuizzes);
+                localStorage.setItem(LOCALSTORAGE_KEYS.quizScores, JSON.stringify(mergedQuizzes));
             }
 
             // Restore XP — use deterministic calculator if available, else cloud value
@@ -1135,8 +1139,16 @@ const FirestoreManager = (function() {
                 localStorage.setItem(LOCALSTORAGE_KEYS.xp, profile.xp.toString());
             }
 
+            // Streak — take MAX(local, cloud). A user who racked up streak on
+            // Device-A while Device-B was offline shouldn't lose the streak
+            // when Device-B pulls cloud (which may have an older value).
             if (profile.streak) {
-                localStorage.setItem(LOCALSTORAGE_KEYS.streak, profile.streak.toString());
+                const localStreak = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.streak) || '0', 10);
+                const cloudStreak = parseInt(profile.streak, 10) || 0;
+                const maxStreak = Math.max(localStreak, cloudStreak);
+                if (maxStreak > 0) {
+                    localStorage.setItem(LOCALSTORAGE_KEYS.streak, maxStreak.toString());
+                }
             }
 
             // Restore favorites (merge with local)
@@ -1193,6 +1205,11 @@ const FirestoreManager = (function() {
             const gateResult = await _restoreGateProgress(uid);
 
             console.log('[FirestoreManager] Cloud data restored to localStorage');
+
+            // Stamp last-sync time so the dashboard "Last cloud sync" display
+            // and any UI relying on freshness can read it. Writes from THIS
+            // device's perspective — cache clear nukes it intentionally.
+            try { localStorage.setItem('hexworth_last_cloud_sync', new Date().toISOString()); } catch (e) {}
 
             return {
                 restored: true,
@@ -1532,6 +1549,10 @@ const FirestoreManager = (function() {
             }
 
             console.log(`[FirestoreManager] Bidirectional sync complete: +${addedToLocal} to local, +${addedToCloud} to cloud`);
+
+            // Stamp last-sync time so the dashboard "Last cloud sync" display
+            // can read it. Same key as restoreFromCloud.
+            try { localStorage.setItem('hexworth_last_cloud_sync', new Date().toISOString()); } catch (e) {}
 
             // Dispatch event so dashboard can re-render
             window.dispatchEvent(new CustomEvent('hexworth:cloudSyncComplete', {

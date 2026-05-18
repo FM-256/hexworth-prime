@@ -4267,6 +4267,19 @@
                         <button class="settings-btn" onclick="openCloudSync()">Manage</button>
                     </div>
                 </div>
+                <!-- Resync row — visible to ALL signed-in users (NOT gated by GitHub OAuth).
+                     Intentionally separate from cloudSyncRow above (which is the legacy
+                     Gist-sync row, only shown when GitHub is connected). -->
+                <div class="settings-row" id="cloudResyncRow" style="display: none;">
+                    <div class="settings-label">
+                        Resync Progress
+                        <small id="cloudResyncStatus">Last cloud sync: never</small>
+                    </div>
+                    <div class="settings-control">
+                        <button class="settings-btn" id="cloudResyncRefreshBtn" onclick="doCloudResyncRefresh()">Refresh from cloud</button>
+                        <button class="settings-btn" id="cloudResyncRestoreBtn" onclick="doCloudResyncRestore()" style="margin-left: 8px;">Restore</button>
+                    </div>
+                </div>
             </div>
 
             <div class="version-info">
@@ -9193,6 +9206,8 @@
             updateAuthLink();
             // Update header avatar now that Firebase user (photoURL) is available
             updateGitHubUI();
+            // Show/hide the Firestore resync row + refresh its "last synced" stamp
+            if (typeof updateCloudResyncRow === 'function') updateCloudResyncRow();
 
             // Patch profile tab large avatar if it was already rendered
             const profileImg = document.querySelector('.profile-avatar-large');
@@ -9693,6 +9708,115 @@
         function openCloudSync() {
             if (gistSync) {
                 gistSync.showSyncModal();
+            }
+        }
+
+        // ─── Cloud Resync (Firestore) ───────────────────────────────────
+        // Visible to all signed-in users via #cloudResyncRow. Two actions:
+        //   - Refresh: additive sync (syncBidirectional) — safe, no clobber
+        //   - Restore: full pull (restoreFromCloud) — quiz/streak now merge-safe
+        //              after the FirestoreManager fix, but theme/house DO clobber
+        //              so we still confirm-gate it.
+        function _formatLastSyncISO(iso) {
+            if (!iso) return 'never';
+            try {
+                var then = new Date(iso).getTime();
+                if (isNaN(then)) return 'never';
+                var secs = Math.floor((Date.now() - then) / 1000);
+                if (secs < 60) return 'just now';
+                if (secs < 3600) return Math.floor(secs / 60) + ' min ago';
+                if (secs < 86400) return Math.floor(secs / 3600) + ' hr ago';
+                return Math.floor(secs / 86400) + ' day(s) ago';
+            } catch (e) { return 'never'; }
+        }
+
+        function updateCloudResyncRow() {
+            var row = document.getElementById('cloudResyncRow');
+            var status = document.getElementById('cloudResyncStatus');
+            if (!row) return;
+            var signedIn = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn && FirebaseAuth.isSignedIn();
+            row.style.display = signedIn ? 'flex' : 'none';
+            if (signedIn && status) {
+                var iso = localStorage.getItem('hexworth_last_cloud_sync');
+                status.textContent = 'Last cloud sync: ' + _formatLastSyncISO(iso);
+            }
+        }
+
+        async function doCloudResyncRefresh() {
+            var refreshBtn = document.getElementById('cloudResyncRefreshBtn');
+            var restoreBtn = document.getElementById('cloudResyncRestoreBtn');
+            if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) {
+                alert('Sign in first to sync from the cloud.');
+                return;
+            }
+            if (typeof FirestoreManager === 'undefined' || !FirestoreManager.syncBidirectional) {
+                alert('Cloud sync unavailable right now. Try again in a moment.');
+                return;
+            }
+            var user = FirebaseAuth.getUser();
+            if (!user || !user.uid) {
+                alert('Could not resolve user. Try signing out and in again.');
+                return;
+            }
+            if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = 'Refreshing...'; }
+            if (restoreBtn) { restoreBtn.disabled = true; }
+            try {
+                var result = await FirestoreManager.syncBidirectional(user.uid);
+                if (result && result.synced) {
+                    var added = result.addedToLocal || 0;
+                    alert(added > 0
+                        ? 'Refreshed — pulled ' + added + ' item(s) from cloud.\nRefresh the page to see them.'
+                        : 'Refreshed — local is already up to date with cloud.');
+                } else {
+                    alert('Refresh did not complete. Reason: ' + (result && result.reason || 'unknown'));
+                }
+            } catch (err) {
+                alert('Refresh failed: ' + (err && err.message || err));
+            } finally {
+                if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh from cloud'; }
+                if (restoreBtn) { restoreBtn.disabled = false; }
+                updateCloudResyncRow();
+            }
+        }
+
+        async function doCloudResyncRestore() {
+            if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) {
+                alert('Sign in first to restore from the cloud.');
+                return;
+            }
+            // "Restore" is a deeper pull: it also rewrites house/theme/achievements
+            // and the bulk sync blob. Quiz scores and streak are merge-safe
+            // (FirestoreManager fix), but theme and house ARE replaced.
+            if (!confirm('Restore from cloud?\n\nThis will pull your cloud profile and replace local theme and house settings. Quiz scores and streak are merged (highest kept).\n\nUse this if "Refresh" didn\'t bring back missing progress.')) {
+                return;
+            }
+            if (typeof FirestoreManager === 'undefined' || !FirestoreManager.restoreFromCloud) {
+                alert('Cloud restore unavailable right now. Try again in a moment.');
+                return;
+            }
+            var user = FirebaseAuth.getUser();
+            if (!user || !user.uid) {
+                alert('Could not resolve user. Try signing out and in again.');
+                return;
+            }
+            var refreshBtn = document.getElementById('cloudResyncRefreshBtn');
+            var restoreBtn = document.getElementById('cloudResyncRestoreBtn');
+            if (refreshBtn) { refreshBtn.disabled = true; }
+            if (restoreBtn) { restoreBtn.disabled = true; restoreBtn.textContent = 'Restoring...'; }
+            try {
+                var result = await FirestoreManager.restoreFromCloud(user.uid);
+                if (result && result.restored) {
+                    alert('Restore complete. Reloading to apply changes...');
+                    location.reload();
+                } else {
+                    alert('Restore did not complete. Reason: ' + (result && result.reason || 'unknown'));
+                }
+            } catch (err) {
+                alert('Restore failed: ' + (err && err.message || err));
+            } finally {
+                if (refreshBtn) { refreshBtn.disabled = false; }
+                if (restoreBtn) { restoreBtn.disabled = false; restoreBtn.textContent = 'Restore'; }
+                updateCloudResyncRow();
             }
         }
 

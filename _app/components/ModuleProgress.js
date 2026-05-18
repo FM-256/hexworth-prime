@@ -1400,6 +1400,14 @@ if (typeof window !== 'undefined') {
     // The auth-state listener clears it once the cloud push succeeds.
     var pendingCloudSync = false;
 
+    // Per-uid debounce for the auth-state pull. Token refresh and multi-tab
+    // sessions can fire firebaseAuthStateChanged many times per minute;
+    // without this guard each fire triggers a full Firestore profile read +
+    // merge. 60s is long enough to suppress refresh storms, short enough that
+    // a deliberate sign-out/sign-in still pulls fresh data.
+    var _lastCloudPullByUid = Object.create(null);
+    var CLOUD_PULL_DEBOUNCE_MS = 60 * 1000;
+
     function parseStampKey(key) {
         for (var i = 0; i < KNOWN_HOUSES.length; i++) {
             var h = KNOWN_HOUSES[i];
@@ -1522,9 +1530,44 @@ if (typeof window !== 'undefined') {
     // for cases where the eager run fires before auth resolves.
     reconcile();
     if (typeof window !== 'undefined' && window.addEventListener) {
-        window.addEventListener('firebaseAuthStateChanged', function () {
+        window.addEventListener('firebaseAuthStateChanged', function (e) {
             reconcile();      // catch any new drift
-            tryCloudPush();   // and push pending changes
+            tryCloudPush();   // push pending changes if there are any
+
+            // Always-pull: even when local has zero drift to push, we want to
+            // pull cloud → local. This is the cache-cleared / new-device case
+            // — local is empty, reconcile finds no patches, tryCloudPush's
+            // pendingCloudSync gate skips the sync, and cloud progress never
+            // gets pulled. Fix that here unconditionally, with a per-uid
+            // debounce to suppress token-refresh / multi-tab amplification.
+            var u = (e && e.detail && e.detail.user) ||
+                    (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser && FirebaseAuth.getUser()) ||
+                    null;
+            if (!u || !u.uid) return;
+
+            var now = Date.now();
+            var last = _lastCloudPullByUid[u.uid] || 0;
+            if (now - last < CLOUD_PULL_DEBOUNCE_MS) return;
+            _lastCloudPullByUid[u.uid] = now;
+
+            // Use the memoized deps-ready promise. ensureFirestoreDeps lazy-
+            // loads FirebaseAuth + FirestoreManager + ClassManager + ...
+            // on first call. If deps were already loaded (typical for hubs
+            // that loaded ModuleProgress.js synchronously), the promise
+            // resolves immediately.
+            if (!firestoreSyncReady) {
+                firestoreSyncReady = ensureFirestoreDeps().catch(function () { return false; });
+            }
+            firestoreSyncReady.then(function () {
+                if (typeof FirestoreManager !== 'undefined' &&
+                    FirestoreManager.syncBidirectional) {
+                    FirestoreManager.syncBidirectional(u.uid).catch(function () {
+                        // Best-effort; failure is logged inside FirestoreManager.
+                        // Re-arm the debounce so the next event can retry.
+                        _lastCloudPullByUid[u.uid] = 0;
+                    });
+                }
+            });
         });
     }
 })();
