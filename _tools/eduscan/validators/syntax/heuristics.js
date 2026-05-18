@@ -44,6 +44,7 @@
  * - HEUR-027: Content link escapes to platform root — any file inside houses/ has an href that resolves above the house directory to the main platform dashboard (tenant isolation breach — students escape course context)
  * - HEUR-028: ModuleProgress.complete() signature mismatch — call does not follow the (houseId, moduleId, options) pattern; first arg is not a recognized house ID, or second arg appears to be a score/number instead of a module ID string
  * - HEUR-029: Looks-clickable but isn't — non-anchor element styled as clickable (role="link"/"button", cursor:pointer + tabindex, onkeydown navigation, or href on non-anchor) with no onclick attribute AND no class/id wired up via JS addEventListener('click') or .onclick assignment; mouse clicks silently fail
+ * - HEUR-030: Course-hub tenant-leak — _app/houses/<h>/<c>/index.html has <a id="dashboardBtn"> but is missing the canonical TenantRouter rewrite IIFE. Tenant students clicking Dashboard leak to the house index (main hex) instead of their tenant dashboard. Detection requires BOTH `getElementById('dashboardBtn')` AND `TenantRouter.getUrl` present; if either is absent the rewriter isn't wired. HIGH (tenant-isolation breach). Canonical pattern: _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button").
  * - HEUR-COMPLETE-QUIZ-PCT: ModuleProgress.completeQuiz() called with raw `score` count instead of `pct` percentage. The function internally evaluates `score >= passingScore` so a 12/15 score (80%) is checked as `12 >= 70 = false` and completion never persists. Fires when (a) file computes `var pct = Math.round(...)`, AND (b) 3rd arg of completeQuiz is a bare identifier that is NOT pct/percent/percentage/integer-literal/Math.round expression. HIGH (completion silently fails).
  * - HEUR-RESULT-BUTTON-STANDARD: Quiz results-card uses pre-standard buttons — `<button onclick="restartQuiz()">Try Again</button>` or `<a class="btn-hub">Back to <Course> Hub</a>`. New standard is `[Review Answers]` (calls showReviewAnswers()) + `[Return to Hub]`. Mixed state (Review Answers present alongside old buttons) also flags. MEDIUM (UX drift, no grading bug).
  */
@@ -200,6 +201,7 @@ class HeuristicsValidator {
         issues.push(...this.checkContentLinkEscapesToPlatformRoot(file));
         issues.push(...this.checkModuleProgressSignature(file));
         issues.push(...this.checkLooksClickableButIsnt(file));
+        issues.push(...this.checkDashboardBtnTenantRewrite(file));
         issues.push(...this.checkCompleteQuizPctArg(file));
         issues.push(...this.checkResultButtonStandard(file));
 
@@ -3071,6 +3073,71 @@ class HeuristicsValidator {
                 fix: `Add onclick="..." matching intent, or convert <${tagName}> to <a href="..."> for navigation`
             });
         }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-030: Course-hub tenant-leak via missing dashboardBtn rewrite.
+     *
+     * Scope: course-hub index.html at depth 2 inside _app/houses/ —
+     * i.e., paths matching `houses/<house>/<course>/index.html`. These
+     * are the tenant entry-point hubs (cert-hub, course-hub).
+     *
+     * Fires when the file has a static <a id="dashboardBtn"> but is
+     * missing the canonical IIFE that rewrites the button to the tenant
+     * dashboard via TenantRouter. Detection requires BOTH of these
+     * substrings to be present (per Nancy review 2026-05-17):
+     *   - getElementById('dashboardBtn')   (or "..." double-quoted)
+     *   - TenantRouter.getUrl              (any method-access form)
+     * If either is absent the rewriter isn't wired, and tenant students
+     * clicking Dashboard will leak to the house index (main hex).
+     *
+     * Severity: HIGH — tenant-isolation breach. Blocks deploy.sh via the
+     * Nexus pre-deploy gate.
+     *
+     * Canonical pattern lives in _app/houses/code/python-for-it/index.html
+     * (search for the "Tenant-aware Dashboard button" comment heading).
+     */
+    checkDashboardBtnTenantRewrite(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        // Scope check: must be a course-hub index.html at exactly 2-deep
+        // inside houses/. Anchored to /index.html at end so future
+        // sub-folder index files (units/, modules/) don't fire.
+        if (!/(?:^|\/)houses\/[^/]+\/[^/]+\/index\.html$/.test(file.path)) {
+            return issues;
+        }
+
+        // Static button present?
+        const btnMatch = content.match(/id\s*=\s*["']dashboardBtn["']/);
+        if (!btnMatch) return issues;
+
+        // Strip HTML comments so a `<!-- TODO: wire dashboardBtn -->` doesn't
+        // falsely satisfy the rewriter-present check. Matches HEUR-029 style.
+        const stripped = content.replace(/<!--[\s\S]*?-->/g, '');
+
+        // Both rewriter signals required. Either missing → leak.
+        const hasGetById = /getElementById\s*\(\s*["']dashboardBtn["']\s*\)/.test(stripped);
+        const hasRouterCall = /TenantRouter\s*\.\s*getUrl\b/.test(stripped);
+        if (hasGetById && hasRouterCall) return issues;
+
+        const line = this.getLineNumber(content, btnMatch.index);
+        const missing = [];
+        if (!hasGetById) missing.push("getElementById('dashboardBtn')");
+        if (!hasRouterCall) missing.push('TenantRouter.getUrl');
+
+        issues.push({
+            code: 'HEUR-030',
+            severity: 'high',
+            category: 'heuristic',
+            message: `Course hub has <a id="dashboardBtn"> but missing ${missing.join(' AND ')} — tenant students will leak to house index instead of tenant dashboard`,
+            file: file.path,
+            line,
+            fix: 'Add the canonical IIFE before </body>. See _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button") for the pattern.'
+        });
 
         return issues;
     }
