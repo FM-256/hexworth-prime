@@ -18,6 +18,14 @@ const FirestoreManager = (function() {
     let db = null;
     let initialized = false;
 
+    // Shared mutex across syncBidirectional and restoreFromCloud. Both
+    // functions read-then-write localStorage and a cloud profile doc;
+    // concurrent invocations (e.g. ProgressRestore auto-sync racing
+    // a user clicking the resync button) could last-write-wins with
+    // stale snapshots. Set before the first await of each function,
+    // cleared in finally. Nancy-required (2026-05-18, Phase 5 review).
+    let _syncInFlight = false;
+
     // Collection names
     const COLLECTIONS = {
         USERS: 'users',
@@ -1091,9 +1099,11 @@ const FirestoreManager = (function() {
      * @returns {object} - { restored: boolean, house: string|null, theme: string|null, profile: object|null }
      */
     async function restoreFromCloud(uid) {
+        if (_syncInFlight) return { restored: false, reason: 'in_flight', skipped: true };
         if (!initialized) await init();
         if (!db) return { restored: false, reason: 'db_unavailable' };
 
+        _syncInFlight = true;
         try {
             const profile = await getUserProfile(uid);
 
@@ -1222,6 +1232,8 @@ const FirestoreManager = (function() {
         } catch (error) {
             console.error('[FirestoreManager] Failed to restore from cloud:', error);
             return { restored: false, reason: 'error', error: error.message };
+        } finally {
+            _syncInFlight = false;
         }
     }
 
@@ -1255,9 +1267,11 @@ const FirestoreManager = (function() {
      * @returns {object} - { synced, modulesCount, added }
      */
     async function syncBidirectional(uid) {
+        if (_syncInFlight) return { synced: false, reason: 'in_flight', skipped: true };
         if (!initialized) await init();
         if (!db) return { synced: false, reason: 'db_unavailable' };
 
+        _syncInFlight = true;
         try {
             // 1. Fetch cloud profile
             const cloudProfile = await getUserProfile(uid);
@@ -1563,6 +1577,8 @@ const FirestoreManager = (function() {
         } catch (error) {
             console.error('[FirestoreManager] Bidirectional sync error:', error);
             return { synced: false, reason: 'error', error: error.message };
+        } finally {
+            _syncInFlight = false;
         }
     }
 
