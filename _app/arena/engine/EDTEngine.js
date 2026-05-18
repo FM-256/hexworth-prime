@@ -1989,6 +1989,22 @@ ${scores.framework != null && _state.instructorFeedback
             window.location.reload();
 
         } catch (err) {
+            // Mid-lab reset case: no submission exists yet (student hasn't
+            // clicked Submit), so resetEDTSubmission CF throws not-found.
+            // Treat as success — clear local in-progress state and reload.
+            // The 5-reset cap is intentionally NOT incremented for mid-lab
+            // clears; only post-submit resets count toward it.
+            // Modular Firebase SDK uses bare error codes (no "functions/"
+            // prefix). Belt-and-suspenders message match handles the rare
+            // case where the SDK shape changes.
+            if (err && (err.code === 'not-found' ||
+                        (err.message || '').includes('No submission found'))) {
+                console.info('[EDT] No submission existed; clearing localStorage only.');
+                try { localStorage.removeItem(_storageKey()); } catch (e) { /* non-critical */ }
+                window.location.reload();
+                return;
+            }
+
             console.error('[EDT] Reset failed:', err);
             btn.disabled = false;
             btn.dataset.confirming = '';
