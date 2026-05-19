@@ -212,6 +212,7 @@ Hub & Spoke orchestrator that connects the other six tools through spoke adapter
 | Git Commit Hook | Bash | `~/.git-hooks/commit-msg` | Block AI attribution in commits |
 | deploy.sh | Bash | root | Firebase hosting deploy |
 | Repo Scout | Node | `_tools/repo-scout/` | Repository analysis |
+| Walkthrough PDF Regen | Bash | `_tools/walkthrough-pdf/regen.sh` | Regenerate lab walkthrough PDFs from `.md` sources with wrap-fix CSS (8pt + A4 landscape). Prevents PDF copy-paste artifacts where long shell commands wrap at a `-flag` and produce `- in` on paste. Supports single-file, dir-sweep, and `--verify` modes. CSS at `~/hexworth-shared/Solutions/_assets/walkthrough-pdf.css`. |
 
 ---
 
