@@ -221,7 +221,7 @@ const ETHL11Config = {
         },
         {
             id: 'D4',
-            text: 'Resign from the lawful-intercept role rather than continue building or operating systems that produce 127-day chronicles of subscribers\' movements under a procedural standard you believe is constitutionally fragile. Use Iroh\'s question -- "would the future me be proud of this?" -- as the test that the role itself, not just this order, has failed.',
+            text: 'Resign from the lawful-intercept role rather than continue building or operating systems that produce 127-day chronicles of subscribers\' movements under a procedural standard you believe is constitutionally fragile. Use the future-you test -- "would the version of me ten years from now defend this design?" -- as the indicator that the role itself, not just this order, has failed.',
             framework: 'virtue'
         }
     ],
