@@ -272,7 +272,7 @@ const ETHL13Config = {
         {
             code: 'ACM',
             section: '2.5',
-            text: 'Give comprehensive and thorough evaluations of computer systems and their impacts, including analysis of possible risks. Computing professionals are in a position of trust, and therefore have a special responsibility to provide objective, credible evaluations and testimony to employers, employees, clients, users, and the public. Extraordinary care should be taken to identify and mitigate potential risks in machine learning systems and in safety-critical systems.'
+            text: 'Give comprehensive and thorough evaluations of computer systems and their impacts, including analysis of possible risks. Computing professionals are in a position of trust, and therefore have a special responsibility to provide objective, credible evaluations and testimony to employers, employees, clients, users, and the public. Extraordinary care should be taken to identify and mitigate potential risks in machine learning systems.'
         },
         {
             code: 'ACM',
