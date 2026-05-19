@@ -25,7 +25,8 @@
    permission) vs Uncle Iroh (future-you / virtue ethics).
    Code anchors: ACM 1.6 (Respect privacy), IEEE Code 1 (Hold
    paramount the safety, health, and welfare of the public),
-   ACM 1.2 (Avoid harm).
+   ACM 1.2 (Avoid harm), ACM 2.3 (Know and respect existing
+   rules pertaining to professional work).
 
    Red herrings: E5 (NSA bulk telephony metadata under USA
    PATRIOT Act § 215 -- a real, prominent surveillance program
@@ -275,15 +276,15 @@ const ETHL11Config = {
             text: 'Avoid harm. In this document, "harm" means negative consequences to any stakeholder, especially when those consequences are significant and unjust. Examples of harm include unjustified physical or mental injury, unjustified destruction or disclosure of information, and unjustified damage to property, reputation, and the environment.'
         },
         {
-            code: 'IEEE',
-            section: '7.8',
-            text: 'Follow organizational regulations, policies, and approved procedures. When a computing professional identifies conduct within their organization that may violate the law, organizational policy, or professional obligations, the appropriate first step is to seek resolution within the organization before taking external action.'
+            code: 'ACM',
+            section: '2.3',
+            text: 'Know and respect existing rules pertaining to professional work. Rules include local, regional, national, and international laws and regulations, as well as any policies and procedures of the organizations to which the professional belongs. Computing professionals must abide by these rules unless there is a compelling ethical justification to do otherwise. Rules that are judged unethical should be challenged. A computing professional should consider challenging the rule through existing channels before violating the rule.'
         }
     ],
     codeConflict: {
         provision1: 'ACM 1.6',
-        provision2: 'IEEE 7.8',
-        conflictDescription: 'ACM 1.6 establishes a substantive obligation to respect subscriber privacy, including in the design of systems that collect, retain, and disclose personal information. This obligation does not extinguish when a statute or court order authorizes disclosure; it operates as an independent professional standard.\n\nIEEE 7.8 (and analogous provisions in PMI and other codes) directs professionals to follow organizational regulations and approved procedures. The carrier\'s § 2703(d) compliance workflow is an approved procedure. The order itself is, by statute, a regulation the carrier must follow.\n\nThe conflict in the Carpenter scenario: can ACM 1.6 require an engineer to refuse, escalate, or redesign in the face of an IEEE 7.8 obligation to follow the compliance workflow? Or is the privacy obligation discharged by following the workflow, on the theory that the legal framework has already balanced the interests?\n\nThe Carpenter majority opinion (E4) cuts toward the privacy obligation: the Court ruled that the third-party doctrine does not extend to long-term aggregated CSLI, suggesting that the prior procedural balance had under-weighted the privacy interest. But the opinion came in 2018, seven years after the order in this scenario. In 2011, the engineer faces a § 2703(d) order under a doctrine that the Sotomayor concurrence (E8) had flagged as fragile but that had not yet been overruled.\n\nThe genuine conflict: does ACM 1.6 require anticipatory action -- changing retention, escalating subpoena requests, advocating for warrant defaults -- in advance of the Court catching up? Or does IEEE 7.8 require the engineer to operate within the legal framework as it currently exists, leaving constitutional reform to litigation and legislation?'
+        provision2: 'ACM 2.3',
+        conflictDescription: 'ACM 1.6 establishes a substantive obligation to respect subscriber privacy, including in the design of systems that collect, retain, and disclose personal information. This obligation does not extinguish when a statute or court order authorizes disclosure; it operates as an independent professional standard.\n\nACM 2.3 directs computing professionals to know and respect existing rules pertaining to their professional work -- including statutes and the policies and procedures of their employers. The carrier\'s § 2703(d) compliance workflow is an approved procedure. The order itself is, by statute, a regulation the carrier must follow. ACM 2.3 also recognizes the other half of the rule-obligation, however: rules judged unethical should be challenged through existing channels, and professionals may depart from a rule when there is a compelling ethical justification.\n\nThe conflict in the Carpenter scenario: can ACM 1.6 require an engineer to refuse, escalate, or redesign in the face of an ACM 2.3 obligation to follow the compliance workflow? Or is the privacy obligation discharged by following the workflow, on the theory that the legal framework has already balanced the interests?\n\nThe Carpenter majority opinion (E4) cuts toward the privacy obligation: the Court ruled that the third-party doctrine does not extend to long-term aggregated CSLI, suggesting that the prior procedural balance had under-weighted the privacy interest. But the opinion came in 2018, seven years after the order in this scenario. In 2011, the engineer faces a § 2703(d) order under a doctrine that the Sotomayor concurrence (E8) had flagged as fragile but that had not yet been overruled.\n\nThe genuine conflict: does ACM 1.6 require anticipatory action -- changing retention, escalating subpoena requests, advocating for warrant defaults -- in advance of the Court catching up? Or does ACM 2.3 require the engineer to operate within the legal framework as it currently exists, leaving constitutional reform to litigation and legislation? ACM 2.3\'s "compelling ethical justification" clause is the bridge between the two readings: it allows a rule departure but does not require one.'
     },
 
     // -- Scoring Weights --------------------------------------
