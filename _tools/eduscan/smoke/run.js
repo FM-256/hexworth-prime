@@ -152,6 +152,27 @@ const TARGETS = [
             { type: 'selector-count', selector: '[data-module]', min: 50,
               note: 'Network+ hub should render 115+ static data-module nodes (largest active course hub on the platform)' }
         ]
+    },
+    // CIS4253 capstone coverage (2026-05-19). The eth-l14 "The Reckoning"
+    // mega-lab is the course closeout EDT case room with 15 evidence items,
+    // 16 stakeholders, 6 decisions, 7 codeProvisions. Single-page lab smoke
+    // -- the existing TARGETS list is hub-level only. Three assertions catch
+    // any catastrophic engine-render regression on the largest EDT artifact
+    // on the platform. Thresholds are set to exact expected counts; the
+    // capstone has fixed structure so any reduction is a regression, not a
+    // legitimate fluctuation.
+    {
+        name: 'Ethics in IT Capstone — The Reckoning (eth-l14)',
+        url: '/houses/divergent/ethics-it/labs/eth-l14-the-reckoning/index.html',
+        seedLocalStorage: { hexworth_house: 'divergent' },
+        assertions: [
+            { type: 'selector-count', selector: '.edt-evidence-card', min: 15,
+              note: 'Capstone should render all 15 evidence cards (E1-E15)' },
+            { type: 'selector-count', selector: '.edt-decision-item', min: 6,
+              note: 'Capstone should render all 6 decisions (D1-D6)' },
+            { type: 'selector-count', selector: '.edt-stakeholder-item', min: 16,
+              note: 'Capstone should render all 16 stakeholders (S1-S16)' }
+        ]
     }
 ];
 
