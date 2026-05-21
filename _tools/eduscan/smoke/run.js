@@ -385,6 +385,25 @@ async function main() {
             }
         }
 
+        // ── Functional smoke: PIS-M2 midterm (Vault Breach) ──────────
+        // Walks all 11 command handlers in Node directly (no browser), verifies
+        // the 4-flag gating chain end-to-end. Catches regressions that the
+        // selector-based TARGETS checks above cannot see (flag-gating bugs,
+        // T1486 gaming bypass, etc.). 26 checkpoints, ~1s runtime.
+        try {
+            const { execFileSync } = require('child_process');
+            execFileSync('node', [path.join(__dirname, 'test-pis-m2-functional.js')],
+                { stdio: 'pipe' });
+            console.log('  ✓ PIS-M2 midterm functional smoke (26 checkpoints)');
+        } catch (e) {
+            console.log('  ✗ PIS-M2 midterm functional smoke — FAILED');
+            const out = (e.stdout?.toString() || '') + (e.stderr?.toString() || '');
+            // Surface only the failing checkpoints (lines starting with ✗)
+            out.split('\n').filter(l => l.includes('✗') || l.includes('FAIL'))
+               .slice(0, 10).forEach(l => console.log('      ' + l.trim()));
+            allPassed = false;
+        }
+
         console.log('');
         if (allPassed) {
             console.log('SMOKE GATE: PASS — deploy may proceed');
