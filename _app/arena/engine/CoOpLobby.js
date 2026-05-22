@@ -45,6 +45,13 @@ const CoOpLobby = (function() {
     }
 
     function _showModeSelect() {
+        // Eclipse-tier opt-in: single-button lobby with forced mode/difficulty.
+        // Affects only configs that set `lobbyMode: 'eclipse'`; all other boxes
+        // see the multi-mode/difficulty UI below.
+        if (_config.lobbyMode === 'eclipse') {
+            _showEclipseSelect();
+            return;
+        }
         _overlayEl = document.createElement('div');
         _overlayEl.className = 'coop-lobby-overlay';
         _overlayEl.innerHTML = `
@@ -106,6 +113,33 @@ const CoOpLobby = (function() {
         document.getElementById('coopBtnVs').addEventListener('click', () => {
             _gameMode = 'vs';
             _showVsFormatSelect();
+        });
+    }
+
+    // ────────────────────────────────────────────────
+    // ECLIPSE-TIER SELECT (single-button lobby)
+    // ────────────────────────────────────────────────
+
+    function _showEclipseSelect() {
+        const forceMode = _config.forceMode || 'solo';
+        const forceDifficulty = _config.forceDifficulty || 'hard';
+        _overlayEl = document.createElement('div');
+        _overlayEl.className = 'coop-lobby-overlay';
+        _overlayEl.innerHTML = `
+            <div class="coop-lobby-card eclipse">
+                <div class="eclipse-tier-chip">ECLIPSE TIER</div>
+                <div class="coop-lobby-title eclipse-title">${_escHtml(_config.title || 'Patient Zero')}</div>
+                <div class="eclipse-subtitle">FINAL PRACTICAL EXAMINATION</div>
+                <button class="eclipse-btn" id="eclipseEnter" aria-label="Begin Eclipse">ECLIPSE</button>
+                <div class="eclipse-threat">every action is graded</div>
+            </div>
+        `;
+        document.body.appendChild(_overlayEl);
+
+        document.getElementById('eclipseEnter').addEventListener('click', () => {
+            _gameMode = forceMode;
+            _close();
+            _onStart({ mode: forceMode, difficulty: forceDifficulty });
         });
     }
 

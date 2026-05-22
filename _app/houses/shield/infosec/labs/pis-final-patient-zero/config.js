@@ -23,6 +23,12 @@ const PISFinalConfig = {
     registryId: 'pis-final-patient-zero',
     trackerKey: 'lab_pis_final',
 
+    // Eclipse-tier lobby: single blinking "ECLIPSE" button instead of the
+    // mode/difficulty pickers. Forces solo + hard.
+    lobbyMode: 'eclipse',
+    forceMode: 'solo',
+    forceDifficulty: 'hard',
+
     // =========================================================
     // BOOT SEQUENCE
     // =========================================================
