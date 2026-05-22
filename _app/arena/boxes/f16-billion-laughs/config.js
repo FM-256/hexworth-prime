@@ -205,6 +205,7 @@ const F16Config = {
 
     scoring: {
         base: 1000,
+        minScore: 0,
         maxScore: 650,
         hintPenalty: true,
         wrongFlagPenalty: -25,

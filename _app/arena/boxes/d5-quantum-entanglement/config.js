@@ -293,6 +293,7 @@ const D5Config = {
 
     scoring: {
         base: 1500,
+        minScore: 0,
         maxScore: 500,
         hintPenalty: true,
         wrongFlagPenalty: -25,

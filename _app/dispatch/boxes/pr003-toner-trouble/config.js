@@ -268,7 +268,8 @@ var PR3Config = {
     filesystem: { '/': { type: 'dir', children: {} } },
 
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
 
     hints: [
         { id: 'hint1', text: 'Open Print Management to check printer status.', cost: 0, penalty: 0 },

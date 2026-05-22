@@ -271,6 +271,7 @@ const E7Config = {
 
     scoring: {
         base: 2500,
+        minScore: 0,
         maxScore: 700,
         hintPenalty: true,
         wrongFlagPenalty: -30,

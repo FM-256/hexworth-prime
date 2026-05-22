@@ -165,7 +165,8 @@ var PR6Config = {
     terminal: { user: 'Technician', hostname: 'HELPDESK01', startDir: 'C:\\Users\\Technician', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.3803]\n(c) Microsoft Corporation. All rights reserved.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [
         { id: 'hint1', text: 'Mobile printing uses mDNS, IPP, DNS-SD for discovery.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'Check VLANs, protocols, certificates, and service availability.', cost: 10, penalty: -10 },

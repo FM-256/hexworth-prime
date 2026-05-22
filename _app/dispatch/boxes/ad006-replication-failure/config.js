@@ -173,7 +173,8 @@ var AD006Config = {
     terminal: { user: 'Administrator', hostname: 'DC01', startDir: 'C:\\Windows\\System32', promptStyle: 'powershell', welcome: 'Windows PowerShell\nCopyright (C) Microsoft Corporation.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:ad006}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
     hints: [{ id: 'hint1', text: 'Use repadmin to check replication status.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Check site links, subnets, and DNS SRV records.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Identify the specific replication blocker.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Apply the fix and force replication sync.', cost: 50, penalty: -50 }],
     lore: { intro: 'AD replication between domain controllers is failing or severely delayed. As Domain Admin, diagnose and fix the replication infrastructure.', scenario: 'AD replication issues can stem from site link misconfiguration, missing subnet mappings, lingering objects from extended DC downtime, USN rollback from improper VM snapshot restores, or missing DNS SRV records.', outro: 'Replication restored across all domain controllers. Authentication is working properly at all sites.' },
     phases: [{ id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Remediation', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true }],

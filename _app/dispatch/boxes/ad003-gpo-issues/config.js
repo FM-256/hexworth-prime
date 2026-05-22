@@ -236,7 +236,8 @@ var AD003Config = {
     terminal: { user: 'Administrator', hostname: 'DC01', startDir: 'C:\\Windows\\System32', promptStyle: 'powershell', welcome: 'Windows PowerShell\nCopyright (C) Microsoft Corporation.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:ad003}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
     hints: [
         { id: 'hint1', text: 'Open the ticket, then use gpresult to see GPO application status.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'Look for Filtering: Denied entries and check why the GPO is not applying.', cost: 10, penalty: -10 },

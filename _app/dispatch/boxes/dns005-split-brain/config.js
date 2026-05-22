@@ -58,7 +58,8 @@ var DNS005Config = {
     terminal: { user: 'Administrator', hostname: 'DNS-INT', startDir: 'C:\\Users\\Administrator', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.20348]\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Query from different DNS servers.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Compare internal vs external results.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Fix depends on which view is broken.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Flag appears after fixing.', cost: 50, penalty: -50 }],
     lore: { intro: 'Split-brain DNS is one of the most confusing DNS architectures. Internal and external clients see different answers for the same name. When the split breaks, chaos ensues.', scenario: 'Each scenario breaks a different aspect of the internal/external DNS split.', outro: 'Split-brain DNS corrected. Internal and external clients are getting the right answers for their perspective.' },
     phases: [{ id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Repair', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true }],

@@ -243,6 +243,7 @@ const OPS03Config = {
 
             scoring: {
                 base: 600,
+                minScore: 0,
                 maxScore: 600,
                 hintPenalty: true,
                 wrongFlagPenalty: -25,

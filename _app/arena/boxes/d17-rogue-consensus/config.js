@@ -270,6 +270,7 @@ const D17Config = {
 
     scoring: {
         base: 2000,
+        minScore: 0,
         maxScore: 650,
         hintPenalty: true,
         wrongFlagPenalty: -25,

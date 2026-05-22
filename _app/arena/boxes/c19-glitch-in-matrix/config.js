@@ -250,6 +250,7 @@ const C19Config = {
 
     scoring: {
         base: 2000,
+        minScore: 0,
         maxScore: 500,
         hintPenalty: true,
         wrongFlagPenalty: -25,

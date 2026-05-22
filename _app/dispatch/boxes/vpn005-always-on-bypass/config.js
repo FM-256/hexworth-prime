@@ -299,7 +299,8 @@ var VPN005Config = {
     terminal: { user: 'VPN-Policy-Admin', hostname: 'MGMT-SRV01', startDir: 'C:\\Admin', promptStyle: 'windows', welcome: 'Hexworth Policy Management Server\nIntune + FortiClient EMS + AD GPO Console\nType "help" for available commands.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [ { id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 } ],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [ { id: 'hint1', text: 'Check the Compliance Dashboard for policy violations.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Use: show gpo-status, show exclusion-routes, show compliance-report.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Each scenario has a different bypass mechanism.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'The flag appears after sealing the bypass.', cost: 50, penalty: -50 } ],
 
     lore: {

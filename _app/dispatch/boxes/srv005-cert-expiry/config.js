@@ -136,7 +136,8 @@ var SRV005Config = {
     terminal: { user: 'Administrator', hostname: 'WEB-PROD-01', startDir: 'C:\\Users\\Administrator', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.20348]\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Inspect the certificate with openssl.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Check expiration, chain, CN, and revocation.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Fix depends on the issue type.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Flag appears after fixing.', cost: 50, penalty: -50 }],
     lore: { intro: 'Certificate failures break trust. When the padlock disappears, users panic, compliance fails, and revenue stops.', scenario: 'Each scenario is a different certificate nightmare. Diagnose the specific failure and apply the correct remediation.', outro: 'Certificate issue resolved. The green padlock is back. Trust restored.' },
     phases: [

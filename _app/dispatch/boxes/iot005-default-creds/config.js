@@ -154,7 +154,8 @@ var IOT005Config = {
     terminal: { user: 'sec-admin', hostname: 'SEC-WS01', startDir: '/home/sec-admin', promptStyle: 'linux', welcome: 'IoT Credential Audit Console\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [
         { id: 'hint1', text: 'Check the dashboard.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'Use terminal for investigation.', cost: 10, penalty: -10 },

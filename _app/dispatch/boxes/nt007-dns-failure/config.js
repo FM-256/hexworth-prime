@@ -164,7 +164,8 @@ const NT007Config = {
     terminal: { user: 'Technician', hostname: 'WORKSTATION07', startDir: 'C:\\Users\\Technician', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045]\n(c) Microsoft Corporation.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: null, points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Run nslookup and ipconfig /all.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'DNS: wrong server, missing records, stale cache, DNSSEC, or zones.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Fix with netsh, flushdns, or DNS Manager.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Flag in the tool you used.', cost: 50, penalty: -50 }],
     lore: { intro: 'A user is experiencing DNS resolution failures. Diagnose the specific DNS issue and restore name resolution.', scenario: 'DNS is broken in a specific way. Use nslookup and DNS tools to identify and fix the problem.', outro: 'DNS resolution restored.' },
     phases: [

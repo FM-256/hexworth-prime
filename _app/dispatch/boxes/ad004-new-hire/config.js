@@ -175,7 +175,8 @@ var AD004Config = {
     terminal: { user: 'Administrator', hostname: 'DC01', startDir: 'C:\\Windows\\System32', promptStyle: 'powershell', welcome: 'Windows PowerShell\nCopyright (C) Microsoft Corporation.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:ad004}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
     hints: [{ id: 'hint1', text: 'Read the ticket and check the new hire account in AD.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Compare jmartinez to an existing Marketing user like sevans.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Look for OU, groups, home drive path, UPN, and MFA issues.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Apply the specific fix for the provisioning failure.', cost: 50, penalty: -50 }],
     lore: { intro: 'A new hire is starting today and their account is not fully provisioned. As Domain Admin, diagnose what went wrong and fix it so the employee can work on day one.', scenario: 'New employee provisioning involves many steps: OU placement, group memberships, home drives, mailboxes, and MFA enrollment. Any step can fail silently.', outro: 'New hire provisioning issue resolved. Employee can now access all required resources.' },
     phases: [{ id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Remediation', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true }],

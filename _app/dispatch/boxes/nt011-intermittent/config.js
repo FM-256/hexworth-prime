@@ -121,7 +121,8 @@ const NT011Config = {
     terminal:{user:'Technician',hostname:'WORKSTATION11',startDir:'C:\\Users\\Technician',promptStyle:'windows',welcome:'Microsoft Windows [Version 10.0.19045]\n(c) Microsoft Corporation.\n'},
     filesystem:{'/': {type:'dir',children:{}}},
     flags:[{id:'fixed',value:null,points:500}],
-    scoring:{base:0,maxScore:600,hintPenalty:true,wrongFlagPenalty:0,speedBonus:{threshold:600000,points:100},timeBonusThreshold:1800},
+    scoring:{
+        minScore: 0,base:0,maxScore:600,hintPenalty:true,wrongFlagPenalty:0,speedBonus:{threshold:600000,points:100},timeBonusThreshold:1800},
     hints:[{id:'hint1',text:'Analyze the pattern: when, duration, who.',cost:0,penalty:0},{id:'hint2',text:'Physical: cable, NIC, STP, heat, EMI.',cost:10,penalty:-10},{id:'hint3',text:'Use Diagnostics panel.',cost:25,penalty:-25},{id:'hint4',text:'Flag after root cause fix.',cost:50,penalty:-50}],
     lore:{intro:'Users report intermittent network problems. These are the hardest to troubleshoot because the issue comes and goes. Use systematic analysis to find the pattern.',scenario:'An intermittent physical or environmental issue is causing periodic network failures.',outro:'Root cause identified and resolved. Network stability restored.'},
     phases:[{id:'investigate',name:'Investigation',requiredFlags:[],unlocks:['diagnose'],locked:false,description:'Gather data and patterns.'},{id:'diagnose',name:'Diagnosis',requiredFlags:[],unlocks:['repair'],locked:true,description:'Identify root cause.'},{id:'repair',name:'Repair',requiredFlags:[],unlocks:['verify'],locked:true,description:'Fix the issue.'},{id:'verify',name:'Verification',requiredFlags:['fixed'],unlocks:[],locked:true,description:'Verify stability and flag.'}],

@@ -221,7 +221,8 @@ const NT004Config = {
     terminal: { user: 'Technician', hostname: 'LAPTOP-WIFI04', startDir: 'C:\\Users\\Technician', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.22631]\n(c) Microsoft Corporation. All rights reserved.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: null, points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [
         { id: 'hint1', text: 'Run netsh wlan show interfaces and netsh wlan show networks.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'WiFi issues: password, hidden SSID, MAC filter, certificates, or interference.', cost: 10, penalty: -10 },

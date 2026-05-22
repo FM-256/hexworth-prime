@@ -232,6 +232,7 @@ const A8Config = {
 
     scoring: {
         base: 1000,
+        minScore: 0,
         hintPenalty: -50,
         wrongFlagPenalty: -25,
         speedBonus: { threshold: 900000, points: 100 }  // 15 minutes

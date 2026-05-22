@@ -141,7 +141,8 @@ var EM004Config = {
     terminal: { user: 'Technician', hostname: 'HELPDESK01', startDir: 'C:\\Users\\Technician', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.3803]\n(c) Microsoft Corporation.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Check MDM Console.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Use diagnostic tools.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Each issue has a different cause.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Use mobile-fix.', cost: 50, penalty: -50 }],
     lore: { intro: 'Phones won\'t sync. Mobile email setup failures are piling up. From wrong server names to certificate warnings and authentication blocks, fix them all.', scenario: 'Each scenario covers a different mobile email configuration challenge.', outro: 'Mobile mail flowing. All devices are syncing properly.' },
     phases: [{ id: 'investigate', name: 'Investigation', description: 'Read the ticket.', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', description: 'Find root cause.', requiredFlags: [], unlocks: ['fix'], locked: true }, { id: 'fix', name: 'Fix', description: 'Apply fix.', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', description: 'Confirm sync.', requiredFlags: ['fixed'], unlocks: [], locked: true }],

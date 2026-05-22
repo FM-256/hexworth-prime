@@ -172,7 +172,8 @@ var PERF001Config = {
     terminal: { user: 'netadmin', hostname: 'SW-CORE01', startDir: '/home/netadmin', promptStyle: 'linux', welcome: 'Network Operations Console\nConnected to SW-CORE01 (Cisco Catalyst 9300)\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [
         { id: 'hint1', text: 'Check Bandwidth Monitor for traffic patterns.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'Use iperf3, netstat, show interface.', cost: 10, penalty: -10 },

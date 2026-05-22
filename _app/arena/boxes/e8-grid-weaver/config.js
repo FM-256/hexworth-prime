@@ -373,6 +373,7 @@ const E8Config = {
 
     scoring: {
         base: 2500,
+        minScore: 0,
         maxScore: 650,
         hintPenalty: true,
         wrongFlagPenalty: -35,

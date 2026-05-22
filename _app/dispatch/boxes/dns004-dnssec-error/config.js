@@ -58,7 +58,8 @@ var DNS004Config = {
     terminal: { user: 'Administrator', hostname: 'DNS-01', startDir: 'C:\\Users\\Administrator', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.20348]\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Check DNSSEC with dig +dnssec.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Verify the chain of trust.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'DNSSEC has multiple failure modes.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Flag appears after fixing.', cost: 50, penalty: -50 }],
     lore: { intro: 'DNSSEC adds cryptographic trust to DNS, but when it breaks, it breaks HARD. Validating resolvers will refuse to serve data they cannot verify.', scenario: 'Each scenario targets a different part of the DNSSEC trust chain.', outro: 'DNSSEC trust chain restored. Validating resolvers are accepting signed responses again.' },
     phases: [{ id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Repair', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true }],

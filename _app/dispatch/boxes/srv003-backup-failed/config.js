@@ -189,7 +189,8 @@ var SRV003Config = {
     terminal: { user: 'Administrator', hostname: 'FILE-PROD-01', startDir: 'C:\\Users\\Administrator', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.20348.2340]\n(c) Microsoft Corporation. All rights reserved.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [
         { id: 'hint1', text: 'Check the backup agent service status.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'Review recent backup job logs.', cost: 10, penalty: -10 },

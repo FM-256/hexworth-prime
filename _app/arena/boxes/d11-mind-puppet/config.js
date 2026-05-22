@@ -318,6 +318,7 @@ NOTE: sequence_id field is logged only — NOT validated by BCI-CTRL-01 firmware
 
     scoring: {
         base: 2000,
+        minScore: 0,
         maxScore: 700,
         hintPenalty: true,
         wrongFlagPenalty: -25,

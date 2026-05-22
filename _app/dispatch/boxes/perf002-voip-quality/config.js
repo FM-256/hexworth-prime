@@ -141,7 +141,8 @@ var PERF002Config = {
     terminal: { user: 'voipadmin', hostname: 'VOIP-GW01', startDir: '/home/voipadmin', promptStyle: 'linux', welcome: 'VoIP Operations Console\nConnected to VOIP-GW01\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [ { id: 'hint1', text: 'Check VoIP Dashboard for metrics.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'VoIP needs <150ms latency, <30ms jitter, <1% loss.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Check QoS, VLAN, codec, firewall SIP ALG settings.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Fix and verify.', cost: 50, penalty: -50 } ],
     lore: { intro: 'VoIP call quality has degraded. Users report choppy audio, dropped calls, or one-way audio. Diagnose the network issue affecting voice quality.', scenario: 'Each scenario targets a different VoIP infrastructure component — QoS, WAN quality, VLANs, codecs, or firewall settings.', outro: 'VoIP quality restored. Call quality metrics are within acceptable thresholds.' },
     phases: [

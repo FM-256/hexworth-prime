@@ -182,7 +182,8 @@ var SEC004Config = {
     terminal: { user: 'DLP-Analyst', hostname: 'DLP-WS01', startDir: 'C:\\Users\\DLP-Analyst', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.4412]\n(c) Microsoft Corporation.\n\nDLP Analyst Workstation — Data Loss Prevention Console Active\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [
         { id: 'hint1', text: 'Open the DLP Console for transfer alerts.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'Use terminal tools to investigate exfiltration channels.', cost: 10, penalty: -10 },

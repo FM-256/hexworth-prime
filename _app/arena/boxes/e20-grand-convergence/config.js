@@ -272,6 +272,7 @@ const E20Config = {
 
     scoring: {
         base: 3600,
+        minScore: 0,
         maxScore: 800,
         hintPenalty: true,
         wrongFlagPenalty: -50,

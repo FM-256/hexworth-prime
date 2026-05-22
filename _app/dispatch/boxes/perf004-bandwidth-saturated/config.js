@@ -58,7 +58,8 @@ var PERF004Config = {
     terminal: { user: 'netadmin', hostname: 'SW-CORE01', startDir: '/home/netadmin', promptStyle: 'linux', welcome: 'Network Operations Console\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [ { id: 'hint1', text: 'Check Bandwidth Monitor.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Use netstat, show interface, show span.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Identify the saturation source.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Fix and verify.', cost: 50, penalty: -50 } ],
     lore: { intro: 'The network pipe is completely full. Bandwidth is saturated and production traffic cannot get through. Find what is consuming all the bandwidth and stop it.', scenario: 'Each scenario has a different saturation cause — streaming, DDoS, SPAN overload, broadcast storm, or unthrottled transfer.', outro: 'Bandwidth restored. The saturation source has been identified and remediated.' },
     phases: [ { id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false, description: 'Read ticket and check bandwidth.' }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true, description: 'Find the source.' }, { id: 'repair', name: 'Repair', requiredFlags: [], unlocks: ['verify'], locked: true, description: 'Fix the issue.' }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true, description: 'Verify and capture flag.' } ],

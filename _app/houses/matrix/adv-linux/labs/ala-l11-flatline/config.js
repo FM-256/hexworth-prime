@@ -672,6 +672,7 @@ ${engine.config._cronFixed ? '' : 'NOTE: PID 9001/9002 (find + sha256sum) run ev
 
     scoring: {
         base: 1000,
+        minScore: 0,
         maxScore: 600,
         hintPenalty: true,
         wrongFlagPenalty: -25,

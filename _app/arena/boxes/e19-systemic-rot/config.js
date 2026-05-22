@@ -280,6 +280,7 @@ const E19Config = {
 
     scoring: {
         base: 2000,
+        minScore: 0,
         maxScore: 700,
         hintPenalty: true,
         wrongFlagPenalty: -25,

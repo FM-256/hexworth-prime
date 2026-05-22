@@ -160,7 +160,8 @@ var CLD001Config = {
     terminal: { user: 'Administrator', hostname: 'ADMIN-PC', startDir: 'C:\\Users\\Administrator', promptStyle: 'powershell', welcome: 'Windows PowerShell\nConnected to Microsoft 365 Admin\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:cld001}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
     hints: [{ id: 'hint1', text: 'Read the ticket and determine if this is client-side or admin-side.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Check Teams policies and tenant settings in the admin console.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Apply the appropriate fix for the specific Teams issue.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Verify the fix resolves the reported issue.', cost: 50, penalty: -50 }],
     lore: { intro: 'Microsoft Teams is the primary collaboration tool but users are experiencing various failures. As the M365 admin, diagnose and fix the issue.', scenario: 'Teams problems range from local client cache corruption to admin policy restrictions to tenant-level settings that block entire categories of communication.', outro: 'Teams issue resolved. Collaboration is restored.' },
     phases: [{ id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Remediation', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true }],

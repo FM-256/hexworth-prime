@@ -188,6 +188,7 @@ const B16Config = {
 
     scoring: {
         base: 2000,
+        minScore: 0,
         maxScore: 1000,
         hintPenalty: true,
         wrongFlagPenalty: -50,

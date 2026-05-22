@@ -249,6 +249,7 @@ const C20Config = {
 
     scoring: {
         base: 5000,
+        minScore: 0,
         maxScore: 700,
         hintPenalty: true,
         wrongFlagPenalty: -50,

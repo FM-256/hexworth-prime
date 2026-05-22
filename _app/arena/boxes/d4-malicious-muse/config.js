@@ -229,6 +229,7 @@ const D4Config = {
 
     scoring: {
         base: 2000,
+        minScore: 0,
         maxScore: 450,
         hintPenalty: true,
         wrongFlagPenalty: -25,

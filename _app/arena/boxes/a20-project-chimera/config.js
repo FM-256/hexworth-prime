@@ -315,6 +315,7 @@ const A20Config = {
 
     scoring: {
         base: 1500,
+        minScore: 0,
         hintPenalty: -75,
         wrongFlagPenalty: -25,
         speedBonus: { threshold: 1800000, points: 200 }   // 30 minutes

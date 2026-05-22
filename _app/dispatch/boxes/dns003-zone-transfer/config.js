@@ -58,7 +58,8 @@ var DNS003Config = {
     terminal: { user: 'Administrator', hostname: 'DNS-01', startDir: 'C:\\Users\\Administrator', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.20348]\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Check SOA serials on both servers.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Test zone transfer with nslookup.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Zone transfers need TCP 53, correct ACLs, and NOTIFY.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Flag appears after fixing.', cost: 50, penalty: -50 }],
     lore: { intro: 'When zone transfers fail, secondary DNS servers serve stale data. This means some users get correct answers and others get outdated ones — an inconsistency nightmare.', scenario: 'Each scenario breaks a different part of the zone transfer mechanism.', outro: 'Zone transfer restored. Primary and secondary are in sync.' },
     phases: [{ id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Repair', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true }],

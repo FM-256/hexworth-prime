@@ -187,6 +187,7 @@ const D1Config = {
 
     scoring: {
         base: 1200,
+        minScore: 0,
         maxScore: 500,
         hintPenalty: true,
         wrongFlagPenalty: -25,

@@ -261,6 +261,7 @@ const E12Config = {
 
     scoring: {
         base: 2500,
+        minScore: 0,
         maxScore: 600,
         hintPenalty: true,
         wrongFlagPenalty: -30,

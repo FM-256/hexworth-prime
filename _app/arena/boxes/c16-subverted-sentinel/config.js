@@ -223,6 +223,7 @@ const C16Config = {
 
     scoring: {
         base: 2500,
+        minScore: 0,
         maxScore: 800,
         hintPenalty: true,
         wrongFlagPenalty: -25,

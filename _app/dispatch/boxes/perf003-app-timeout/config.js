@@ -60,7 +60,8 @@ var PERF003Config = {
     terminal: { user: 'sysadmin', hostname: 'APP-SRV01', startDir: '/home/sysadmin', promptStyle: 'linux', welcome: 'Application Server Console\nConnected to APP-SRV01\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [ { id: 'hint1', text: 'Check App Dashboard.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Use curl, nslookup, ping, netstat.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Check DB, LB, pool, DNS, MTU.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Fix and verify.', cost: 50, penalty: -50 } ],
     lore: { intro: 'The application is timing out. Response times have spiked and users are getting errors. Find the bottleneck in the application delivery chain.', scenario: 'Each scenario has a different bottleneck — database, load balancer, connection pool, DNS, or MTU.', outro: 'Application performance restored. Response times are back to normal.' },
     phases: [ { id: 'investigate', name: 'Investigation', description: 'Read ticket and check app metrics.', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', description: 'Find the bottleneck.', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Repair', description: 'Fix the issue.', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', description: 'Verify and capture flag.', requiredFlags: ['fixed'], unlocks: [], locked: true } ],

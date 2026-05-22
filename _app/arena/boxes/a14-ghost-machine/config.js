@@ -244,6 +244,7 @@ const A14Config = {
 
     scoring: {
         base: 1000,
+        minScore: 0,
         hintPenalty: -50,
         wrongFlagPenalty: -25,
         speedBonus: { threshold: 1800000, points: 100 }   // 30 minutes

@@ -262,6 +262,7 @@ const D7Config = {
 
     scoring: {
         base: 2000,
+        minScore: 0,
         maxScore: 550,
         hintPenalty: true,
         wrongFlagPenalty: -25,

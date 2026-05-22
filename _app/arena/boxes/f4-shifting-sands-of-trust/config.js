@@ -262,6 +262,7 @@ const F4Config = {
 
     scoring: {
         base: 1000,
+        minScore: 0,
         maxScore: 500,
         hintPenalty: true,
         wrongFlagPenalty: -25,

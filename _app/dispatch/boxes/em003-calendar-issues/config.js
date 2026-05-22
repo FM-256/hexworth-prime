@@ -141,7 +141,8 @@ var EM003Config = {
     terminal: { user: 'Technician', hostname: 'HELPDESK01', startDir: 'C:\\Users\\Technician', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.3803]\n(c) Microsoft Corporation.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Check the Calendar Admin Console.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Use CLI tools to diagnose.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Each scenario has a different cause.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Use cal-fix to resolve.', cost: 50, penalty: -50 }],
     lore: { intro: 'Calendars are a mess. Meetings are missed, rooms are double-booked, and mobile sync is broken. Fix the scheduling chaos.', scenario: 'Each scenario represents a different calendar management failure.', outro: 'Calendar crisis resolved. Meetings are back on track.' },
     phases: [{ id: 'investigate', name: 'Investigation', description: 'Read the ticket.', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', description: 'Find the root cause.', requiredFlags: [], unlocks: ['fix'], locked: true }, { id: 'fix', name: 'Fix', description: 'Apply correction.', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', description: 'Confirm resolution.', requiredFlags: ['fixed'], unlocks: [], locked: true }],

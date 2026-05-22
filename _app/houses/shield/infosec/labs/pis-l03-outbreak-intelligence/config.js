@@ -423,6 +423,7 @@ REFERENCES
         // maxScore: max FLAG points gainable from this lab (2 flags × 250 = 500).
         //          The engine's true theoretical max is base + maxScore + speedBonus.
         base: 1000,
+        minScore: 0,
         maxScore: 500,
         hintPenalty: true,
         wrongFlagPenalty: -25,

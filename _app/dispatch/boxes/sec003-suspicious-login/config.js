@@ -196,7 +196,8 @@ var SEC003Config = {
     terminal: { user: 'SOC-Analyst', hostname: 'SOC-WS01', startDir: 'C:\\Users\\SOC-Analyst', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.4412]\n(c) Microsoft Corporation.\n\nSOC Analyst Workstation — SIEM Integration Active\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [
         { id: 'hint1', text: 'Check the SIEM Console for authentication anomalies.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'Use auth-log and ip-lookup to investigate.', cost: 10, penalty: -10 },

@@ -561,6 +561,7 @@ var HW1Config = {
 
     scoring: {
         base: 0,
+        minScore: 0,
         maxScore: 600,
         hintPenalty: true,
         wrongFlagPenalty: 0,

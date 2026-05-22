@@ -264,6 +264,7 @@ const E18Config = {
 
     scoring: {
         base: 1500,
+        minScore: 0,
         maxScore: 600,
         hintPenalty: true,
         wrongFlagPenalty: -25,

@@ -157,7 +157,8 @@ const NT008Config = {
     terminal: { user: 'admin', hostname: 'SW1', startDir: '', promptStyle: 'cisco', welcome: 'SW1>' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: null, points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id:'hint1', text:'show vlan brief and show interfaces trunk.', cost:0, penalty:0 }, { id:'hint2', text:'VLAN issues: port VLAN, trunk, native, routing, SVI.', cost:10, penalty:-10 }, { id:'hint3', text:'Use Switch Config to fix.', cost:25, penalty:-25 }, { id:'hint4', text:'Flag in the tool after fix.', cost:50, penalty:-50 }],
     lore: { intro: 'Users in a VLAN are isolated from the rest of the network. Diagnose the VLAN configuration issue.', scenario: 'A VLAN configuration problem is preventing network connectivity.', outro: 'VLAN isolation resolved.' },
     phases: [

@@ -114,7 +114,8 @@ const NT010Config = {
     terminal:{user:'admin',hostname:'R1',startDir:'',promptStyle:'cisco',welcome:'R1>'},
     filesystem:{'/': {type:'dir',children:{}}},
     flags:[{id:'fixed',value:null,points:500}],
-    scoring:{base:0,maxScore:600,hintPenalty:true,wrongFlagPenalty:0,speedBonus:{threshold:600000,points:100},timeBonusThreshold:1800},
+    scoring:{
+        minScore: 0,base:0,maxScore:600,hintPenalty:true,wrongFlagPenalty:0,speedBonus:{threshold:600000,points:100},timeBonusThreshold:1800},
     hints:[{id:'hint1',text:'show ip route and traceroute.',cost:0,penalty:0},{id:'hint2',text:'Missing route, wrong hop, ACL, asymmetric, or loop.',cost:10,penalty:-10},{id:'hint3',text:'Router Config to fix.',cost:25,penalty:-25},{id:'hint4',text:'Flag after routing fixed.',cost:50,penalty:-50}],
     lore:{intro:'Network routing is broken. Diagnose the routing issue and restore end-to-end connectivity.',scenario:'A routing configuration problem is causing packets to be dropped, misrouted, or looped.',outro:'Routing issue resolved.'},
     phases:[{id:'investigate',name:'Investigation',requiredFlags:[],unlocks:['diagnose'],locked:false,description:'Check routing table.'},{id:'diagnose',name:'Diagnosis',requiredFlags:[],unlocks:['repair'],locked:true,description:'Identify routing issue.'},{id:'repair',name:'Repair',requiredFlags:[],unlocks:['verify'],locked:true,description:'Fix routing.'},{id:'verify',name:'Verification',requiredFlags:['fixed'],unlocks:[],locked:true,description:'Verify and flag.'}],

@@ -701,6 +701,7 @@ const ALAL08Config = {
 
     scoring: {
         base: 1000,
+        minScore: 0,
         maxScore: 600,
         hintPenalty: true,
         wrongFlagPenalty: -25,

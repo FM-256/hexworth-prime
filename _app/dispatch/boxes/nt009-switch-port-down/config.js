@@ -146,7 +146,8 @@ const NT009Config = {
     terminal:{user:'admin',hostname:'SW1',startDir:'',promptStyle:'cisco',welcome:'SW1>'},
     filesystem:{'/': {type:'dir',children:{}}},
     flags:[{id:'fixed',value:null,points:500}],
-    scoring:{base:0,maxScore:600,hintPenalty:true,wrongFlagPenalty:0,speedBonus:{threshold:600000,points:100},timeBonusThreshold:1800},
+    scoring:{
+        minScore: 0,base:0,maxScore:600,hintPenalty:true,wrongFlagPenalty:0,speedBonus:{threshold:600000,points:100},timeBonusThreshold:1800},
     hints:[{id:'hint1',text:'show interfaces status.',cost:0,penalty:0},{id:'hint2',text:'err-disabled, cable, STP, speed, or PoE.',cost:10,penalty:-10},{id:'hint3',text:'Switch Config to fix.',cost:25,penalty:-25},{id:'hint4',text:'Flag after port is up.',cost:50,penalty:-50}],
     lore:{intro:'A switch port is down or not passing traffic. Diagnose the port issue.',scenario:'The switch port has a specific problem preventing connectivity.',outro:'Switch port restored.'},
     phases:[{id:'investigate',name:'Investigation',requiredFlags:[],unlocks:['diagnose'],locked:false,description:'Check port status.'},{id:'diagnose',name:'Diagnosis',requiredFlags:[],unlocks:['repair'],locked:true,description:'Identify port issue.'},{id:'repair',name:'Repair',requiredFlags:[],unlocks:['verify'],locked:true,description:'Fix port.'},{id:'verify',name:'Verification',requiredFlags:['fixed'],unlocks:[],locked:true,description:'Verify and flag.'}],

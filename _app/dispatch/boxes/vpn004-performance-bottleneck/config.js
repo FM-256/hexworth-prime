@@ -292,7 +292,8 @@ var VPN004Config = {
     terminal: { user: 'VPN-Admin', hostname: 'FW-HQ-01', startDir: '/', promptStyle: 'cisco', welcome: 'FortiGate FW-HQ-01 v7.4.3 — VPN Performance Console\nType "help" for available commands.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [ { id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 } ],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [ { id: 'hint1', text: 'Check the Performance Dashboard for throughput metrics.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Run throughput-test, show perf, show cpu in the terminal.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Each scenario has a different bottleneck.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'The flag appears after optimization.', cost: 50, penalty: -50 } ],
 
     lore: {

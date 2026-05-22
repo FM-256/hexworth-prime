@@ -298,6 +298,7 @@ var MAIL002Config = {
 
     scoring: {
         base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0,
+        minScore: 0,
         speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800
     },
 

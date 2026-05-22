@@ -233,6 +233,7 @@ const C6Config = {
 
     scoring: {
         base: 1500,
+        minScore: 0,
         maxScore: 700,
         hintPenalty: true,
         wrongFlagPenalty: -25,

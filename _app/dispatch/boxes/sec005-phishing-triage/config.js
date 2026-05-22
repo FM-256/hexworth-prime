@@ -185,7 +185,8 @@ var SEC005Config = {
     terminal: { user: 'SOC-Analyst', hostname: 'SOC-WS01', startDir: 'C:\\Users\\SOC-Analyst', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.4412]\n\nSOC Workstation — Phishing Triage Tools Active\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [
         { id: 'hint1', text: 'Open the Email Analyzer to inspect the phishing email.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'Use url-check and header-analyze for investigation.', cost: 10, penalty: -10 },

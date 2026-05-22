@@ -153,7 +153,8 @@ var SRV004Config = {
     terminal: { user: 'Administrator', hostname: 'APP-PROD-02', startDir: 'C:\\Users\\Administrator', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.20348.2340]\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Check what is consuming disk space.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Use dir, wmic, or cleanmgr to investigate.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Common culprits: logs, temp, SQL logs, shadow copies, recycle bin.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Flag appears after freeing space.', cost: 50, penalty: -50 }],
     lore: { intro: 'A server at 99% disk capacity is on the edge of catastrophe. Services will crash, databases will corrupt, and users will riot.', scenario: 'Each scenario has a different disk space hog. Find it and eliminate it.', outro: 'Disk space reclaimed. Server is breathing again.' },
     phases: [

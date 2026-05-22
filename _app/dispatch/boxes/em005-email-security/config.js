@@ -141,7 +141,8 @@ var EM005Config = {
     terminal: { user: 'SOC-Analyst', hostname: 'SOC-WS01', startDir: 'C:\\Users\\SOC-Analyst', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.4412]\n\nSOC Workstation — Email Security Tools Active\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Check Email Security Console.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Use forensic tools.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Each incident has a different cause.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Use email-fix.', cost: 50, penalty: -50 }],
     lore: { intro: 'Email security incidents are stacking up. From phishing reports to compromised accounts and authentication failures, investigate and remediate each threat.', scenario: 'Each scenario involves a different email security threat.', outro: 'Email security incidents resolved. Authentication hardened and threats neutralized.' },
     phases: [{ id: 'investigate', name: 'Investigation', description: 'Analyze the email security incident.', requiredFlags: [], unlocks: ['analyze'], locked: false }, { id: 'analyze', name: 'Analysis', description: 'Determine scope and impact.', requiredFlags: [], unlocks: ['remediate'], locked: true }, { id: 'remediate', name: 'Remediation', description: 'Fix the vulnerability.', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', description: 'Confirm resolution.', requiredFlags: ['fixed'], unlocks: [], locked: true }],

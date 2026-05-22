@@ -184,7 +184,8 @@ const NT006Config = {
     terminal: { user: 'Technician', hostname: 'WORKSTATION06', startDir: 'C:\\Users\\Technician', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.3803]\n(c) Microsoft Corporation. All rights reserved.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: null, points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [ { id: 'hint1', text: 'Run ipconfig /all and arp -a.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Check for duplicate IPs, wrong DHCP, APIPA, or stale ARP.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Fix with IP change, DHCP renew, or arp -d.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Flag appears after resolving the conflict.', cost: 50, penalty: -50 } ],
     lore: { intro: 'A user is experiencing an IP address conflict. Identify the type of conflict and resolve it.', scenario: 'The workstation has an IP addressing problem causing connectivity issues.', outro: 'IP conflict resolved. Normal connectivity restored.' },
     phases: [

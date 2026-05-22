@@ -153,7 +153,8 @@ var EM002Config = {
     terminal: { user: 'Technician', hostname: 'HELPDESK01', startDir: 'C:\\Users\\Technician', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.3803]\n(c) Microsoft Corporation.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [ { id: 'hint1', text: 'Check the Mail Console for delivery status.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Use CLI tools to diagnose.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Each scenario has a different cause.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Use mail-fix to resolve.', cost: 50, penalty: -50 } ],
     lore: { intro: 'Emails are going missing. Users can\'t receive messages from external senders, distribution lists, or specific contacts. Find out why and fix it.', scenario: 'Each scenario involves a different receiving failure. DNS, quotas, rules, spam filters, and DL membership all need investigation.', outro: 'Inbound mail restored. Your troubleshooting identified the delivery failures and got everyone\'s email flowing again.' },
     phases: [

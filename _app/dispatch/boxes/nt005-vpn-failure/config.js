@@ -192,7 +192,8 @@ const NT005Config = {
     terminal: { user: 'Technician', hostname: 'LAPTOP-VPN05', startDir: 'C:\\Users\\Technician', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.19045.3803]\n(c) Microsoft Corporation. All rights reserved.\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: null, points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [
         { id: 'hint1', text: 'Check VPN Client status and ipconfig /all.', cost: 0, penalty: 0 },
         { id: 'hint2', text: 'VPN issues: routing, firewall, certs, MFA, or DNS.', cost: 10, penalty: -10 },

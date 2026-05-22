@@ -141,7 +141,8 @@ var DNS001Config = {
     terminal: { user: 'Administrator', hostname: 'DNS-01', startDir: 'C:\\Users\\Administrator', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.20348]\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Use nslookup to query DNS records.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Check the response code.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Fix depends on the issue type.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Flag appears after fixing.', cost: 50, penalty: -50 }],
     lore: { intro: 'When DNS breaks, everything breaks. No DNS means no websites, no email, no applications.', scenario: 'Each scenario is a different DNS failure. Use nslookup, dig, and DNS management tools to diagnose and fix.', outro: 'DNS resolution restored. Names are resolving correctly again.' },
     phases: [

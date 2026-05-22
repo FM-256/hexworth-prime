@@ -51,7 +51,8 @@ var MOB004Config = {
     terminal: { user: 'Administrator', hostname: 'ADMIN-PC', startDir: 'C:\\Users\\Administrator', promptStyle: 'powershell', welcome: 'Windows PowerShell\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:mob004}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 2400 },
     hints: [{id:'hint1',text:'Read the ticket.',cost:0,penalty:0},{id:'hint2',text:'Investigate with diagnostic tools.',cost:10,penalty:-10},{id:'hint3',text:'Identify root cause.',cost:25,penalty:-25},{id:'hint4',text:'Apply fix and verify.',cost:50,penalty:-50}],
     lore: { intro: 'WiFi Certificate Push — diagnose and resolve the mobile device issue.', scenario: 'Investigate, identify, fix, verify.', outro: 'Issue resolved. Document the incident.' },
     phases: [{id:'investigate',name:'Investigation',requiredFlags:[],unlocks:['diagnose'],locked:false},{id:'diagnose',name:'Diagnosis',requiredFlags:[],unlocks:['repair'],locked:true},{id:'repair',name:'Remediation',requiredFlags:[],unlocks:['verify'],locked:true},{id:'verify',name:'Verification',requiredFlags:['fixed'],unlocks:[],locked:true}],

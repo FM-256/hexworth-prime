@@ -83,7 +83,8 @@ var DNS002Config = {
     terminal: { user: 'Administrator', hostname: 'DNS-01', startDir: 'C:\\Users\\Administrator', promptStyle: 'windows', welcome: 'Microsoft Windows [Version 10.0.20348]\n' },
     filesystem: { '/': { type: 'dir', children: {} } },
     flags: [{ id: 'fixed', value: '{{FLAG:scenarioId}}', points: 500 }],
-    scoring: { base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
+    scoring: {
+        minScore: 0, base: 0, maxScore: 600, hintPenalty: true, wrongFlagPenalty: 0, speedBonus: { threshold: 600000, points: 100 }, timeBonusThreshold: 1800 },
     hints: [{ id: 'hint1', text: 'Query the DNS record with nslookup.', cost: 0, penalty: 0 }, { id: 'hint2', text: 'Check records, CNAMEs, forwarders, suffix, hosts.', cost: 10, penalty: -10 }, { id: 'hint3', text: 'Fix depends on which part of the resolution chain is broken.', cost: 25, penalty: -25 }, { id: 'hint4', text: 'Flag appears after fixing.', cost: 50, penalty: -50 }],
     lore: { intro: 'Internal DNS resolution failures break business applications. When the app says "server not found" for an internal resource, the DNS infrastructure is the first suspect.', scenario: 'Each scenario targets a different part of the DNS resolution chain — records, aliases, forwarders, suffix lists, and local overrides.', outro: 'Internal DNS resolution restored. Applications can find their servers again.' },
     phases: [{ id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Repair', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true }],

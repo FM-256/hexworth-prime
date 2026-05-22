@@ -607,6 +607,7 @@ const PISM2Config = {
         // maxScore: max flag points gainable (4 flags x 250 = 1000)
         // True engine-computed max = base + maxScore + speedBonus = 2200
         base: 1000,
+        minScore: 0,
         maxScore: 1000,
         hintPenalty: true,
         wrongFlagPenalty: -25,
