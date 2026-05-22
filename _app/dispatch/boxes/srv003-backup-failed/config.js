@@ -21,7 +21,7 @@ var SRV003Config = {
         steps: [
             { title: 'Open the Help Desk Ticket', tip: 'Double-click the Help Desk Ticket icon to read the backup failure report.', trigger: { event: 'window_open', match: { type: 'ticket' } } },
             { title: 'Check the backup agent', tip: 'Verify whether the backup agent service is running and check recent backup job logs.', trigger: { event: 'command', match: { cmd: 'contains:backup' }, alt: [{ event: 'command', match: { cmd: 'contains:wbadmin' } }, { event: 'window_open', match: { type: 'backup_console' } }] } },
-            { title: 'Investigate the root cause', tip: 'Check storage capacity, VSS writers, job schedules, or retention policies.', trigger: { event: 'command', match: { cmd: 'contains:vssadmin' } }, alt: [{ event: 'command', match: { cmd: 'contains:wmic' } }, { event: 'command', match: { cmd: 'contains:schtasks' } }] } },
+            { title: 'Investigate the root cause', tip: 'Check storage capacity, VSS writers, job schedules, or retention policies.', trigger: { event: 'command', match: { cmd: 'contains:vssadmin' }, alt: [{ event: 'command', match: { cmd: 'contains:wmic' } }, { event: 'command', match: { cmd: 'contains:schtasks' } }] } },
             { title: 'Apply the fix', tip: 'Start the agent, free storage, fix VSS, resolve schedule conflicts, or adjust retention.', trigger: { event: 'command', match: { cmd: 'contains:start' }, alt: [{ event: 'command', match: { cmd: 'contains:delete' } }, { event: 'command', match: { cmd: 'contains:resize' } }] } },
             { title: 'Capture the flag', tip: 'After fixing the backup issue, the recovery token appears in the diagnostic tool.', trigger: { event: 'flag_correct', match: { flagId: 'fixed' } } }
         ]

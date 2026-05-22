@@ -204,7 +204,6 @@ const ALAL09Config = {
                                 'syslog': {
                                     type: 'file',
                                     content: 'Apr 10 02:13:42 cell-ns1 sshd[31000]: Accepted publickey for root from 203.0.113.99 port 58122 ssh2\nApr 10 02:13:43 cell-ns1 sshd[31000]: pam_unix(sshd:session): session opened for user root by (uid=0)\nApr 10 02:13:44 cell-ns1 sudo[31001]: root : TTY=pts/0 ; PWD=/etc/bind/zones ; USER=root ; COMMAND=/usr/bin/vim db.sector7.matrix.net\nApr 10 02:13:44 cell-ns1 rndc[31002]: reload command sent to named\nApr 10 02:14:01 cell-ns1 sshd[31000]: pam_unix(sshd:session): session closed for user root\nApr 10 08:44:01 cell-ns1 sshd[7412]: Accepted publickey for operator from 10.0.0.1 port 44231 ssh2\n'
-                                    }
                                 }
                             }
                         }
