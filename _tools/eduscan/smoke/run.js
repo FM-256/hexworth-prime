@@ -438,7 +438,10 @@ async function main() {
         //   - BOX-010: hint Help Level honesty (informational — heuristic, 252 boxes opt out)
         //   - BOX-011: client-side flag literal leak (informational — narrative boxes expected)
         //   - BOX-013: registryId == directory basename (blocking — typo catcher)
+        //   - BOX-014: discoverability orphan (informational — 90 known orphan dispatch boxes)
+        //   - BOX-016: index.html bootstrap scripts (blocking — engine/config/auth essentials)
         //   - BOX-020: flag count consistency vs box_flags.json (blocking — mechanism-aware)
+        //   - BOX-024: duplicate flag values within a box (blocking — Mode-2 CF ambiguity)
         //
         // Each validator has a self-validation gate (exit 2 if its logic
         // misclassifies PIS-FINAL); deploy-gate treats exit 2 as a hard fail.
@@ -458,7 +461,10 @@ async function main() {
             { code: 'BOX-010',  script: 'box-hint-help-level-lint.js',     blocking: false, desc: 'hint Help Level honesty' },
             { code: 'BOX-011',  script: 'box-flag-leak-audit.js',          blocking: false, desc: 'client-side flag literal leak' },
             { code: 'BOX-013',  script: 'box-registry-id-dirname.js',      blocking: true,  desc: 'registryId == dirname' },
-            { code: 'BOX-020',  script: 'box-flag-count-consistency.js',   blocking: true,  desc: 'flag count consistency' }
+            { code: 'BOX-014',  script: 'box-content-catalog-orphan.js',   blocking: false, desc: 'discoverability orphan' },
+            { code: 'BOX-016',  script: 'box-html-bootstrap-audit.js',     blocking: true,  desc: 'index.html bootstrap scripts' },
+            { code: 'BOX-020',  script: 'box-flag-count-consistency.js',   blocking: true,  desc: 'flag count consistency' },
+            { code: 'BOX-024',  script: 'box-flag-value-duplicates.js',    blocking: true,  desc: 'duplicate flag values' }
         ];
 
         const { execFileSync } = require('child_process');
