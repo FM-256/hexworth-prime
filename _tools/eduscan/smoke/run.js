@@ -422,6 +422,70 @@ async function main() {
             allPassed = false;
         }
 
+        // ── BOX-* validator cascade ──────────────────────────────────
+        // 11 validators built 2026-05-22 catching the PIS-FINAL defect classes:
+        //   - BOX-001: flag_registry seed coverage (blocking)
+        //   - BOX-002a: walkthrough existence (informational — 1 deferred for nt1 duplicate)
+        //   - BOX-002b: walkthrough has flag values per scenario (informational)
+        //   - BOX-002c: walkthrough ↔ box_flags.json drift (blocking)
+        //   - BOX-003: engine API correctness lint (blocking)
+        //   - BOX-004: multi-action gate exclusivity (blocking)
+        //   - BOX-005: scoring.minScore floor presence (blocking)
+        //   - BOX-006: mutable-state resetState hook (informational — 24 legacy boxes pending backfill)
+        //   - BOX-007: recoverable-action presence (blocking)
+        //   - BOX-008: flag value shell-safety (informational — PIS-FINAL flag1 documented)
+        //   - BOX-009: decoy provenance surfaced (informational — heuristic)
+        //   - BOX-010: hint Help Level honesty (informational — heuristic, 252 boxes opt out)
+        //
+        // Each validator has a self-validation gate (exit 2 if its logic
+        // misclassifies PIS-FINAL); deploy-gate treats exit 2 as a hard fail.
+        const EDUSCAN_DIR = path.join(__dirname, '..');
+        const BOX_VALIDATORS = [
+            { code: 'BOX-001',  script: 'box-flag-registry-audit.js',     blocking: true,  desc: 'flag_registry seed coverage' },
+            { code: 'BOX-002a', script: 'box-walkthrough-audit.js',       blocking: false, desc: 'walkthrough existence' },
+            { code: 'BOX-002b', script: 'box-walkthrough-flag-audit.js',  blocking: false, desc: 'walkthrough has flag values' },
+            { code: 'BOX-002c', script: 'box-walkthrough-flag-drift.js',  blocking: true,  desc: 'walkthrough ↔ box_flags drift' },
+            { code: 'BOX-003',  script: 'box-engine-api-lint.js',         blocking: true,  desc: 'engine API correctness' },
+            { code: 'BOX-004',  script: 'box-gate-exclusivity-lint.js',   blocking: true,  desc: 'multi-action gate exclusivity' },
+            { code: 'BOX-005',  script: 'box-scoring-floor-audit.js',     blocking: true,  desc: 'scoring.minScore floor' },
+            { code: 'BOX-006',  script: 'box-state-reset-audit.js',       blocking: false, desc: 'state-reset hook' },
+            { code: 'BOX-007',  script: 'box-recoverable-action-audit.js',blocking: true,  desc: 'recoverable-action presence' },
+            { code: 'BOX-008',  script: 'box-flag-shell-safety.js',       blocking: false, desc: 'flag shell-safety' },
+            { code: 'BOX-009',  script: 'box-decoy-provenance-lint.js',   blocking: false, desc: 'decoy provenance surfaced' },
+            { code: 'BOX-010',  script: 'box-hint-help-level-lint.js',    blocking: false, desc: 'hint Help Level honesty' }
+        ];
+
+        const { execFileSync } = require('child_process');
+        for (const v of BOX_VALIDATORS) {
+            // Always run WITHOUT --report-only so the validator exits non-zero on findings.
+            // Catch differentiates blocking (fail the gate) vs informational (log + continue).
+            try {
+                execFileSync('node', [path.join(EDUSCAN_DIR, v.script)], { stdio: 'pipe' });
+                console.log(`  ✓ ${v.code} ${v.desc}`);
+            } catch (e) {
+                const code = e.status;
+                const out = (e.stdout?.toString() || '') + (e.stderr?.toString() || '');
+                // Extract the per-rule findings count line for context
+                const summary = out.split('\n').filter(l =>
+                    /^\s*(CRITICAL|HIGH|MEDIUM|MISSING|drift|AT-RISK|NEGATIVE|NO recovery|Under-disclosed|Has unsafe|Context only):/.test(l)
+                ).slice(0, 3);
+
+                if (code === 2) {
+                    // Self-validation failure — validator logic broken; always blocking
+                    console.log(`  ✗ ${v.code} ${v.desc} — SELF-VALIDATION FAILED (logic broken)`);
+                    summary.forEach(l => console.log('      ' + l.trim()));
+                    allPassed = false;
+                } else if (v.blocking) {
+                    console.log(`  ✗ ${v.code} ${v.desc} — FAILED (deploy-blocking)`);
+                    summary.forEach(l => console.log('      ' + l.trim()));
+                    allPassed = false;
+                } else {
+                    console.log(`  ⚠ ${v.code} ${v.desc} — informational findings (not blocking)`);
+                    summary.forEach(l => console.log('      ' + l.trim()));
+                }
+            }
+        }
+
         console.log('');
         if (allPassed) {
             console.log('SMOKE GATE: PASS — deploy may proceed');
