@@ -404,6 +404,24 @@ async function main() {
             allPassed = false;
         }
 
+        // ── Functional smoke: PIS-FINAL practical (Patient Zero — Eclipse) ──
+        // Walks 7 phases via terminal commands + form handlers in Node.
+        // Verifies all 7 flag values match locked spec, Phase 6 composite gate,
+        // Phase 7 SHA256 synthesis, score floor at 0, hint Help Levels.
+        // ~45 checkpoints, ~1s runtime.
+        try {
+            const { execFileSync } = require('child_process');
+            execFileSync('node', [path.join(__dirname, 'test-pis-final-functional.js')],
+                { stdio: 'pipe' });
+            console.log('  ✓ PIS-FINAL practical functional smoke (Patient Zero, Eclipse)');
+        } catch (e) {
+            console.log('  ✗ PIS-FINAL practical functional smoke — FAILED');
+            const out = (e.stdout?.toString() || '') + (e.stderr?.toString() || '');
+            out.split('\n').filter(l => l.includes('✗') || l.includes('FAIL'))
+               .slice(0, 10).forEach(l => console.log('      ' + l.trim()));
+            allPassed = false;
+        }
+
         console.log('');
         if (allPassed) {
             console.log('SMOKE GATE: PASS — deploy may proceed');
