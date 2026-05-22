@@ -436,23 +436,29 @@ async function main() {
         //   - BOX-008: flag value shell-safety (informational — PIS-FINAL flag1 documented)
         //   - BOX-009: decoy provenance surfaced (informational — heuristic)
         //   - BOX-010: hint Help Level honesty (informational — heuristic, 252 boxes opt out)
+        //   - BOX-011: client-side flag literal leak (informational — narrative boxes expected)
+        //   - BOX-013: registryId == directory basename (blocking — typo catcher)
+        //   - BOX-020: flag count consistency vs box_flags.json (blocking — mechanism-aware)
         //
         // Each validator has a self-validation gate (exit 2 if its logic
         // misclassifies PIS-FINAL); deploy-gate treats exit 2 as a hard fail.
         const EDUSCAN_DIR = path.join(__dirname, '..');
         const BOX_VALIDATORS = [
-            { code: 'BOX-001',  script: 'box-flag-registry-audit.js',     blocking: true,  desc: 'flag_registry seed coverage' },
-            { code: 'BOX-002a', script: 'box-walkthrough-audit.js',       blocking: false, desc: 'walkthrough existence' },
-            { code: 'BOX-002b', script: 'box-walkthrough-flag-audit.js',  blocking: false, desc: 'walkthrough has flag values' },
-            { code: 'BOX-002c', script: 'box-walkthrough-flag-drift.js',  blocking: true,  desc: 'walkthrough ↔ box_flags drift' },
-            { code: 'BOX-003',  script: 'box-engine-api-lint.js',         blocking: true,  desc: 'engine API correctness' },
-            { code: 'BOX-004',  script: 'box-gate-exclusivity-lint.js',   blocking: true,  desc: 'multi-action gate exclusivity' },
-            { code: 'BOX-005',  script: 'box-scoring-floor-audit.js',     blocking: true,  desc: 'scoring.minScore floor' },
-            { code: 'BOX-006',  script: 'box-state-reset-audit.js',       blocking: false, desc: 'state-reset hook' },
-            { code: 'BOX-007',  script: 'box-recoverable-action-audit.js',blocking: true,  desc: 'recoverable-action presence' },
-            { code: 'BOX-008',  script: 'box-flag-shell-safety.js',       blocking: false, desc: 'flag shell-safety' },
-            { code: 'BOX-009',  script: 'box-decoy-provenance-lint.js',   blocking: false, desc: 'decoy provenance surfaced' },
-            { code: 'BOX-010',  script: 'box-hint-help-level-lint.js',    blocking: false, desc: 'hint Help Level honesty' }
+            { code: 'BOX-001',  script: 'box-flag-registry-audit.js',      blocking: true,  desc: 'flag_registry seed coverage' },
+            { code: 'BOX-002a', script: 'box-walkthrough-audit.js',        blocking: false, desc: 'walkthrough existence' },
+            { code: 'BOX-002b', script: 'box-walkthrough-flag-audit.js',   blocking: false, desc: 'walkthrough has flag values' },
+            { code: 'BOX-002c', script: 'box-walkthrough-flag-drift.js',   blocking: true,  desc: 'walkthrough ↔ box_flags drift' },
+            { code: 'BOX-003',  script: 'box-engine-api-lint.js',          blocking: true,  desc: 'engine API correctness' },
+            { code: 'BOX-004',  script: 'box-gate-exclusivity-lint.js',    blocking: true,  desc: 'multi-action gate exclusivity' },
+            { code: 'BOX-005',  script: 'box-scoring-floor-audit.js',      blocking: true,  desc: 'scoring.minScore floor' },
+            { code: 'BOX-006',  script: 'box-state-reset-audit.js',        blocking: false, desc: 'state-reset hook' },
+            { code: 'BOX-007',  script: 'box-recoverable-action-audit.js', blocking: true,  desc: 'recoverable-action presence' },
+            { code: 'BOX-008',  script: 'box-flag-shell-safety.js',        blocking: false, desc: 'flag shell-safety' },
+            { code: 'BOX-009',  script: 'box-decoy-provenance-lint.js',    blocking: false, desc: 'decoy provenance surfaced' },
+            { code: 'BOX-010',  script: 'box-hint-help-level-lint.js',     blocking: false, desc: 'hint Help Level honesty' },
+            { code: 'BOX-011',  script: 'box-flag-leak-audit.js',          blocking: false, desc: 'client-side flag literal leak' },
+            { code: 'BOX-013',  script: 'box-registry-id-dirname.js',      blocking: true,  desc: 'registryId == dirname' },
+            { code: 'BOX-020',  script: 'box-flag-count-consistency.js',   blocking: true,  desc: 'flag count consistency' }
         ];
 
         const { execFileSync } = require('child_process');
