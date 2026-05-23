@@ -1788,5 +1788,27 @@ const A14Config = {
         var tmp = document.createElement('div');
         tmp.innerHTML = html;
         return tmp.textContent.trim();
+    },
+
+    resetState: function() {
+        this._state = {
+        isRoot: false,
+        persistenceCreated: false,      // LD_PRELOAD payload written
+        privilegeEscalated: false,      // backup.sh exploit succeeded
+        dataExfiltrated: false,         // root flag file read
+        tracesCleared: false,           // history cleared + HISTFILE unset
+        historyCleaned: false,          // history -c executed
+        histfileUnset: false,           // unset HISTFILE executed
+        timestampModified: false,       // touch -t used
+        backupConfigWritten: false,     // /tmp/backup_config created
+        backupRan: false,               // sudo backup.sh executed after config write
+        ldPreloadWritten: false,        // LD_PRELOAD .so stub created
+        exfilDataCreated: false         // /tmp/.data written by backup exploit
+    };
     }
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A14Config !== 'undefined') A14Config.resetState();

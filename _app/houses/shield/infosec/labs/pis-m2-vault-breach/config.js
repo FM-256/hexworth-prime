@@ -669,6 +669,25 @@ const PISM2Config = {
             { flagId: 'flag3', objective: '1.4', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'AES-256-CBC symmetric + RSA-2048 asymmetric + SHA-256 integrity under real incident-response pressure' },
             { flagId: 'flag4', objective: '4.7', description: 'Explain the importance of incident response activities', skill: 'Synthesize cross-domain findings into a complete IR report joining attack chain, technical findings, and cryptographic outcomes' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        // Phase tracking
+        phase1: { malwareClassified: false, socialEngClassified: false, cveIdentified: false, attackTechniques: [] },
+        phase2: { sqliVectorFound: false, deviceAudited: false },
+        phase3: { evidenceEncrypted: false, c2Decrypted: false, integrityVerified: false },
+        phase4: { reportFiled: false }
+    };
+        this._flag1Awarded = false;
+        this._flag2Awarded = false;
+        this._flag3Awarded = false;
+        this._flag4Awarded = false;
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof PISM2Config !== 'undefined') PISM2Config.resetState();

@@ -623,6 +623,21 @@ const ALAL05Config = {
             { flagId: 'flag2', objective: '110.1', description: 'Perform security administration tasks', skill: 'Auth log analysis and incident timeline reconstruction' },
             { flagId: 'flag3', objective: '108.2', description: 'System logging', skill: 'sudo audit trail analysis and file access forensics' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        rogueKeyRemoved: false,     // rogue key removed from authorized_keys
+        pamUpdated: false,          // pam_google_authenticator.so added to /etc/pam.d/sshd
+        sshdUpdated: false,         // KbdInteractiveAuthentication yes + PasswordAuthentication no
+        sshdReloaded: false,        // systemctl reload sshd run after config changes
+        breachAnswered: false       // Flag 2: student submitted correct IP + method
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof ALAL05Config !== 'undefined') ALAL05Config.resetState();

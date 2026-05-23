@@ -1972,6 +1972,22 @@ Package [com.nomads.voyager] (a1b2c3d):
             table.replaceWith(document.createTextNode(text));
         });
         return tmp.textContent.trim();
+    },
+
+    resetState: function() {
+        this._state = {
+        apkDecompiled: false,
+        apkInstalled: false,
+        jadxRun: false,
+        sharedPrefsPulled: false,
+        adbShellActive: false,
+        dbPulled: false
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A12Config !== 'undefined') A12Config.resetState();

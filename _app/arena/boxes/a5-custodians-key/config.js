@@ -1841,5 +1841,18 @@ const A5Config = {
             return '\'systemctl\' is not recognized as an internal or external command,\n' +
                 'operable program or batch file.\n\nTry: sc query / net start / net stop';
         }
+    },
+
+    resetState: function() {
+        this._state = {
+        isSystem: false,
+        serviceExploited: false,
+        exploitCopied: false
+    };
     }
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A5Config !== 'undefined') A5Config.resetState();

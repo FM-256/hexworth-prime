@@ -497,6 +497,24 @@ const PISL12Config = {
             { flagId: 'flag3', objective: '4.3', description: 'Explain the processes associated with third-party risk assessment and management', skill: 'IR readiness assessment: backup verification, forensic capabilities, detection metrics, policy currency' },
             { flagId: 'flag4', objective: '5.2', description: 'Explain elements of the risk management process', skill: 'Audit decision-making: evidence-based certification decisions, risk acceptance, and compliance reporting' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        auditsDone: {},          // which audit commands have been run
+        findings: [],                   // array of { area, issue, severity }
+        certificationDecision: null,    // 'pass' | 'fail' | null
+        findingsDocumented: false       // flag2 trigger: 3+ findings documented
+    };
+        this._flag1Awarded = false;
+        this._flag2Awarded = false;
+        this._flag3Awarded = false;
+        this._flag4Awarded = false;
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof PISL12Config !== 'undefined') PISL12Config.resetState();

@@ -440,6 +440,26 @@ const PISL11Config = {
             { flagId: 'flag2', objective: '4.4', description: 'Summarize elements of effective security governance', skill: 'Digital forensics: forensic imaging procedures, chain of custody documentation, and evidence integrity verification' },
             { flagId: 'flag3', objective: '4.3', description: 'Explain the processes associated with third-party risk assessment and management', skill: 'Full IR lifecycle: eradication, recovery, and root cause analysis with corrective controls recommendation' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        statusRun: false,
+        isolatedSystems: {},    // system-id -> true (plain object as set)
+        imagedSystems: {},      // system-id -> true (plain object as set)
+        custodyFiled: {},       // system-id -> true (plain object as set)
+        eradicated: false,
+        recovered: false,
+        rootCauseAnalyzed: false
+    };
+        this._flag1Awarded = false;
+        this._flag2Awarded = false;
+        this._flag3Awarded = false;
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof PISL11Config !== 'undefined') PISL11Config.resetState();

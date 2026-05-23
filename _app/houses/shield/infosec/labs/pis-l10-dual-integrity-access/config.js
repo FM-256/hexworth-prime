@@ -531,6 +531,24 @@ const PISL10Config = {
             { flagId: 'flag2', objective: '5.3', description: 'Compare and contrast authentication and authorization', skill: 'Multi-factor authentication implementation: TOTP enrollment, backup codes, and authentication factor principles' },
             { flagId: 'flag3', objective: '5.4', description: 'Summarize elements of effective security governance', skill: 'Role-based access control: policy design, least privilege, and two-person integrity for high-security access' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        ldapOUs: {},            // ou-name -> true (plain object as set)
+        ldapUsers: {},          // username -> { ou, clearance }
+        mfaEnrolled: {},        // username -> true (plain object as set)
+        rbacPolicies: {},       // role -> { permissions, dualIntegrity }
+        accessTests: []
+    };
+        this._flag1Awarded = false;
+        this._flag2Awarded = false;
+        this._flag3Awarded = false;
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof PISL10Config !== 'undefined') PISL10Config.resetState();

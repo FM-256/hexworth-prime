@@ -1622,4 +1622,18 @@ Key:    ${key}
 Key not found or no values.`;
     },
 
+    resetState: function() {
+        this._state = {
+        profileIdentified: false,
+        malProcessFound: false,
+        c2Found: false,
+        memoryDumped: false
+    };
+    }
+
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A18Config !== 'undefined') A18Config.resetState();

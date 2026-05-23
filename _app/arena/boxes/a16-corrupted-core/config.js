@@ -1745,6 +1745,23 @@ Key Addresses:
         const tmp = document.createElement('div');
         tmp.innerHTML = html;
         return tmp.textContent.trim();
+    },
+
+    resetState: function() {
+        this._state = {
+        c2Identified: false,
+        antiDebugBypassed: false,
+        keyExtracted: false,
+        gdbActive: false,
+        gdbPtracePatched: false,
+        gdbBreakpointSet: false,
+        sandboxRun: false
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A16Config !== 'undefined') A16Config.resetState();

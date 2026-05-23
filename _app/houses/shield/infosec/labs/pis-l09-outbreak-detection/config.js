@@ -634,6 +634,21 @@ ${'─'.repeat(60)}
             { flagId: 'flag1', objective: '4.1', description: 'Apply common security techniques to computing resources', skill: 'SIEM alert triage: distinguishing real incidents from false positives using contextual threat indicators' },
             { flagId: 'flag2', objective: '4.2', description: 'Explain the security implications of proper hardware, software, and data asset management', skill: 'Incident classification, severity assessment, and formal incident reporting per SOC procedures' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        classifications: {},    // alertId -> { severity, type }
+        correlations: [],       // [[id1, id2], ...]
+        reportFiled: false
+    };
+        this._flag1Awarded = false;
+        this._flag2Awarded = false;
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof PISL09Config !== 'undefined') PISL09Config.resetState();

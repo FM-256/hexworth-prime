@@ -1615,6 +1615,20 @@ Example: mongo 127.0.0.1:27017/arboreal`;
         const tmp = document.createElement('div');
         tmp.innerHTML = html;
         return tmp.textContent.trim();
+    },
+
+    resetState: function() {
+        this._state = {
+        sensorAccess: false,      // true after SSH or Telnet to SENSOR-NODE-01
+        sensorShell: false,       // true when in sensor shell context
+        pivotEstablished: false,  // true after SSH -L tunnel is set up
+        dataHubAccess: false      // true after connecting to DATA-HUB MongoDB
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A13Config !== 'undefined') A13Config.resetState();

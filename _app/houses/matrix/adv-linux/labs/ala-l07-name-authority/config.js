@@ -677,6 +677,23 @@ const ALAL07Config = {
             { flagId: 'flag2', objective: '207.1', description: 'Basic DNS server configuration', skill: 'Reverse zone file, PTR record construction, in-addr.arpa naming' },
             { flagId: 'flag3', objective: '207.2', description: 'Create and maintain DNS zones', skill: 'Zone transfer configuration, allow-transfer, AXFR verification' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        namedRunning: false,            // systemctl start named
+        optionsConfigured: false,       // named.conf.options has listen-on + allow-query
+        forwardZoneDeclared: false,     // named.conf.local has forward zone entry
+        reverseZoneDeclared: false,     // named.conf.local has reverse zone entry
+        forwardZoneFile: false,         // db.sector7.matrix.net written with all 6 A records + CNAME + MX
+        reverseZoneFile: false,         // db.10.0.1 written with all 6 PTR records
+        allowTransfer: false            // zone declaration includes allow-transfer { 10.0.1.2; }
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof ALAL07Config !== 'undefined') ALAL07Config.resetState();

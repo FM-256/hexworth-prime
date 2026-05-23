@@ -501,6 +501,23 @@ const PISL06Config = {
             { flagId: 'flag2', objective: '5.1', description: 'Summarize elements of effective security governance', skill: 'Applying RSA asymmetric encryption for secure communications -- public key encrypts, private key decrypts' },
             { flagId: 'flag3', objective: '1.4', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'Using cryptographic hash functions (SHA-256) for file integrity verification and tampering detection' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        specimenEncrypted: false,
+        commsDecrypted: false,
+        integrityVerified: false,
+        tamperedFileIdentified: null
+    };
+        this._flag1Awarded = false;
+        this._flag2Awarded = false;
+        this._flag3Awarded = false;
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof PISL06Config !== 'undefined') PISL06Config.resetState();

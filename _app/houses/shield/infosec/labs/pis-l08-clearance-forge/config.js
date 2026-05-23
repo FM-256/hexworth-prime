@@ -584,6 +584,26 @@ const PISL08Config = {
             { flagId: 'flag2', objective: '5.2', description: 'Explain elements of the risk management process', skill: 'Configuring CRL distribution points and OCSP responder for real-time certificate validity checking' },
             { flagId: 'flag3', objective: '5.1', description: 'Summarize elements of effective security governance', skill: 'Certificate lifecycle management: revocation procedures, CRL publication, and OCSP status verification' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        caInitialized: false,
+        caSubject: null,
+        certSerial: 100,                    // Tracks next serial number
+        issuedCerts: {},                    // cn -> { serial, issued, revoked }
+        crlConfigured: false,
+        compromisedServer: 'relay-01.hexworth.internal',
+        revokedSerial: null
+    };
+        this._flag1Awarded = false;
+        this._flag2Awarded = false;
+        this._flag3Awarded = false;
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof PISL08Config !== 'undefined') PISL08Config.resetState();

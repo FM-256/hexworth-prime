@@ -420,6 +420,22 @@ const PISL04Config = {
             { flagId: 'flag2', objective: '2.3', description: 'Explain different types of vulnerabilities', skill: 'Tracing data exfiltration through session analysis and response size anomalies' },
             { flagId: 'flag3', objective: '2.4', description: 'Analyze indicators of malicious activity', skill: 'Applying correct SQL injection remediation: parameterized queries vs. inadequate alternatives' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        attackTypeIdentified: false,
+        sessionTraced: false,
+        patched: false
+    };
+        this._flag1Awarded = false;
+        this._flag2Awarded = false;
+        this._flag3Awarded = false;
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof PISL04Config !== 'undefined') PISL04Config.resetState();

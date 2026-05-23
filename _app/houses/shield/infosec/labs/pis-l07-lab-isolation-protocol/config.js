@@ -486,6 +486,24 @@ const PISL07Config = {
             { flagId: 'flag2', objective: '3.1', description: 'Compare and contrast security implications of different architecture models', skill: 'Verifying that micro-segmentation prevents lateral movement between network zones' },
             { flagId: 'flag3', objective: '3.2', description: 'Apply infrastructure security best practices', skill: 'Designing segmentation that maintains operational continuity while enforcing isolation' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        vlans: {},          // id -> { name, subnet }
+        acls: [],           // array of rule objects
+        firewallRules: [],  // array of rule objects
+        isolationVerified: false,
+        operationsVerified: false
+    };
+        this._flag1Awarded = false;
+        this._flag2Awarded = false;
+        this._flag3Awarded = false;
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof PISL07Config !== 'undefined') PISL07Config.resetState();

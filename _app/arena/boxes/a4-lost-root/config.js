@@ -1856,5 +1856,21 @@ const A4Config = {
         var tmp = document.createElement('div');
         tmp.innerHTML = html;
         return tmp.textContent.trim();
+    },
+
+    resetState: function() {
+        this._state = {
+        isRoot: false,
+        inLess: false,
+        cronModified: false,
+        pathInjected: false,
+        tmpDateWritten: false,
+        escalationMethod: null
+    };
     }
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A4Config !== 'undefined') A4Config.resetState();

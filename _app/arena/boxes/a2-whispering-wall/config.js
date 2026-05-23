@@ -1097,5 +1097,23 @@ No X-XSS-Protection, No Content-Security-Policy`;
             table.replaceWith(document.createTextNode(text));
         });
         return tmp.textContent.trim();
+    },
+
+    resetState: function() {
+        this._state = {
+        posts: [
+            { name: 'Cipher_Ghost', message: 'The northern perimeter sensors are offline again. Third time this cycle. Anyone from maintenance sector reading this?' },
+            { name: 'Vex_Null', message: 'Obsidian Hand recruitment begins at midnight. Prove your worth or stay in the shadows.' },
+            { name: 'Signal_Wraith', message: 'Patched the auth module on Gate 4. Should hold until next quarter. Do NOT restart the daemon.' }
+        ],
+        xssTriggered: false,
+        adminTokenRevealed: false,
+        adminAuthenticated: false
+    };
     }
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A2Config !== 'undefined') A2Config.resetState();

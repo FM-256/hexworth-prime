@@ -1837,6 +1837,22 @@ const A19Config = {
         var tmp = document.createElement('div');
         tmp.innerHTML = html;
         return tmp.textContent.trim();
+    },
+
+    resetState: function() {
+        this._state = {
+        kernelEnumerated: false,
+        exploitCompiled: false,
+        rootObtained: false,
+        exploitSourceReviewed: false,
+        searchsploitUsed: false,
+        modulesEnumerated: false
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A19Config !== 'undefined') A19Config.resetState();

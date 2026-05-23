@@ -570,6 +570,24 @@ const ALAL06Config = {
             { flagId: 'flag1', objective: '102.5', description: 'Use Debian package management', skill: 'Compile from source, install dependencies offline, package with checkinstall' },
             { flagId: 'flag2', objective: '102.4', description: 'Use Debian package management', skill: 'Binary usage, BPF filter construction, pcap output verification' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        checksumVerified: false,        // sha256sum -c run and passed
+        depsInstalled: false,           // libpcap-dev, libssl-dev installed via dpkg
+        checkinstallInstalled: false,   // checkinstall .deb installed
+        sourceExtracted: false,         // tar -xzf run on gridmon tarball
+        configured: false,              // ./configure completed
+        built: false,                   // make completed
+        installed: false,               // checkinstall make install completed
+        capturePcapCreated: false       // gridmon capture command run
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof ALAL06Config !== 'undefined') ALAL06Config.resetState();

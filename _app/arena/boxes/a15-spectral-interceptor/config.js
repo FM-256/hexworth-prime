@@ -1170,6 +1170,19 @@ Loading: silent_broadcast.iq
         const tmp = document.createElement('div');
         tmp.innerHTML = html;
         return tmp.textContent.trim();
+    },
+
+    resetState: function() {
+        this._state = {
+        signalAnalyzed: false,
+        demodulated: false,
+        protocolReversed: false
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A15Config !== 'undefined') A15Config.resetState();

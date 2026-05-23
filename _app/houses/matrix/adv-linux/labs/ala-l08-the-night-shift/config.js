@@ -745,6 +745,23 @@ const ALAL08Config = {
             { flagId: 'flag2', objective: '104.7', description: 'Find system files and place files in the correct location', skill: 'rsync incremental backup with --link-dest, backup structure verification' },
             { flagId: 'flag3', objective: '107.2', description: 'Automate system administration tasks by scheduling jobs', skill: 'cron syntax, % escaping, crontab management, automated reporting' }
         ]
+    },
+
+    resetState: function() {
+        this._state = {
+        rotateScriptWritten: false,     // rotate-logs.sh written to /opt/cell-services/scripts/
+        rotateScriptRan: false,         // rotate-logs.sh executed successfully
+        backupScriptWritten: false,     // backup.sh written
+        backupScriptRan: false,         // backup.sh executed; /var/backups/ populated
+        healthScriptWritten: false,     // health-check.sh written
+        healthScriptRan: false,         // health-check.sh executed; report written
+        cronConfigured: false           // cron entries added (all three scripts)
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof ALAL08Config !== 'undefined') ALAL08Config.resetState();

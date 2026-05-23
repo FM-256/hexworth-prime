@@ -1705,6 +1705,20 @@ const A20Config = {
             node = node.children[resolved[j]];
         }
         return node;
+    },
+
+    resetState: function() {
+        this._state = {
+        currentHost: 'dev-build-01',
+        backdoorAnalyzed: false,
+        c2Accessed: false,
+        opsAccessed: false
+    };
     }
 
+
 };
+
+
+// Auto-reset state on script load (BOX-006 backfill 2026-05-23)
+if (typeof A20Config !== 'undefined') A20Config.resetState();
