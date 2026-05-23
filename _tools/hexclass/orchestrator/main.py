@@ -45,6 +45,7 @@ from pydantic import BaseModel, Field
 
 from personas import PERSONAS, COMMON_VOICE_RULE, resolve_persona
 from help_levels import LEVEL_DEFINITIONS, resolve_help_level
+from rag import retrieve as rag_retrieve, format_retrieved_context
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,7 +56,7 @@ log = logging.getLogger("hex_ai")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 DEFAULT_MODEL = os.environ.get("HEX_DEFAULT_MODEL", "qwen2.5:7b")
 ALLOWED_ORIGINS = os.environ.get("HEX_ALLOWED_ORIGINS", "*").split(",")
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 # ── PROMPT-INJECTION CONSTITUTION ──────────────────────────────────────────
 # Appended as a SECOND system message after the user message arrives. The
@@ -308,16 +309,18 @@ def prometheus_metrics() -> str:
 
 
 @app.get("/context/{user_uid}")
-def preview_context(
+async def preview_context(
     user_uid: str,
     house: str | None = None,
     mission_id: str | None = None,
     role: str = "student",
     failed_attempts: int = 0,
+    show_rag: bool = False,
+    query: str = "",
 ) -> dict[str, Any]:
     fake_req = ChatRequest(
         user_uid=user_uid,
-        message="(preview)",
+        message=query or "(preview)",
         house=house,
         mission_id=mission_id,
         role=role,
@@ -329,17 +332,36 @@ def preview_context(
         failed_attempts=failed_attempts,
         role=role,
     )
-    return {
+    out: dict[str, Any] = {
         "context": build_context_packet(fake_req),
         "persona": persona["name"],
         "persona_slug": [s for s, p in PERSONAS.items() if p == persona][0],
         "help_level": level,
         "help_level_label": LEVEL_DEFINITIONS[level]["label"],
     }
+    if show_rag:
+        try:
+            chunks = await asyncio.wait_for(
+                asyncio.to_thread(rag_retrieve, fake_req.message),
+                timeout=5.0,
+            )
+        except (asyncio.TimeoutError, Exception):
+            chunks = []
+        out["rag_chunks"] = chunks
+    return out
 
 
-def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str]:
-    """Shared resolution path for both /chat and /chat/stream."""
+async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, str, list[dict]]:
+    """Shared resolution path for both /chat and /chat/stream.
+
+    Returns (context, level, system, model, persona_slug, augmented_user_message,
+    retrieved_chunks). The augmented_user_message has retrieved reference
+    material (if any) prepended ahead of req.message, per Nancy review —
+    retrieved context lives in the user-turn, not the system prompt.
+
+    Async because rag retrieval involves a synchronous embed+psycopg call
+    that we wrap in asyncio.to_thread to avoid blocking the event loop.
+    """
     if metrics.shutting_down:
         raise HTTPException(status_code=503, detail="orchestrator is shutting down")
     context = build_context_packet(req)
@@ -354,7 +376,24 @@ def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str]:
     system = compose_system_prompt(persona, suffix, context)
     model = req.model or DEFAULT_MODEL
     persona_slug = [s for s, p in PERSONAS.items() if p == persona][0]
-    return context, level, system, model, persona_slug
+
+    # RAG retrieval — synchronous I/O wrapped in to_thread so it doesn't
+    # block the event loop. retrieve() handles its own timeouts; this call
+    # path is best-effort augmentation, not a hard dependency.
+    try:
+        retrieved = await asyncio.wait_for(
+            asyncio.to_thread(rag_retrieve, req.message),
+            timeout=float(os.environ.get("HEX_RAG_TIMEOUT_S", "5.0")),
+        )
+    except (asyncio.TimeoutError, Exception) as e:
+        log.warning("rag: retrieval timed out or failed: %s", e)
+        metrics.record_error("rag_timeout")
+        retrieved = []
+
+    reference_block = format_retrieved_context(retrieved)
+    augmented_user_message = reference_block + req.message if reference_block else req.message
+
+    return context, level, system, model, persona_slug, augmented_user_message, retrieved
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -363,19 +402,25 @@ async def chat(req: ChatRequest) -> ChatResponse:
     t0 = time.time()
     metrics.in_flight += 1
     try:
-        context, level, system, model, persona_slug = _resolve_request(req)
+        context, level, system, model, persona_slug, augmented_msg, retrieved = (
+            await _resolve_request(req)
+        )
         persona = PERSONAS[persona_slug]
         log.info(
-            "chat: uid=%s house=%s persona=%s level=%d model=%s",
-            req.user_uid, req.house, persona["name"], level, model,
+            "chat: uid=%s house=%s persona=%s level=%d model=%s rag_hits=%d",
+            req.user_uid, req.house, persona["name"], level, model, len(retrieved),
         )
         try:
-            content = await call_ollama_blocking(model, system, req.message)
+            content = await call_ollama_blocking(model, system, augmented_msg)
         except httpx.HTTPError as e:
             metrics.record_error("ollama_http")
             raise HTTPException(status_code=502, detail=f"ollama upstream: {e}")
         latency = time.time() - t0
         metrics.record_chat(persona_slug, level, latency)
+        thinking_payload = None
+        if req.show_thinking:
+            thinking_payload = dict(context)
+            thinking_payload["rag_chunks"] = retrieved
         return ChatResponse(
             response=content.strip(),
             persona=persona_slug,
@@ -384,7 +429,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
             help_level_label=LEVEL_DEFINITIONS[level]["label"],
             model=model,
             latency_ms=int(latency * 1000),
-            context_packet=context if req.show_thinking else None,
+            context_packet=thinking_payload,
         )
     finally:
         metrics.in_flight -= 1
@@ -392,9 +437,11 @@ async def chat(req: ChatRequest) -> ChatResponse:
 
 @app.post("/chat/stream")
 async def chat_stream(req: ChatRequest, request: Request) -> StreamingResponse:
-    """SSE pipeline. First event = metadata (persona, level), then tokens, then [DONE]."""
+    """SSE pipeline. First event = metadata (persona, level, rag), then tokens, then [DONE]."""
     t0 = time.time()
-    context, level, system, model, persona_slug = _resolve_request(req)
+    context, level, system, model, persona_slug, augmented_msg, retrieved = (
+        await _resolve_request(req)
+    )
     persona = PERSONAS[persona_slug]
 
     async def event_gen() -> AsyncIterator[str]:
@@ -407,11 +454,13 @@ async def chat_stream(req: ChatRequest, request: Request) -> StreamingResponse:
                 "help_level": level,
                 "help_level_label": LEVEL_DEFINITIONS[level]["label"],
                 "model": model,
+                "rag_hits": len(retrieved),
+                "rag_titles": [c["title"] for c in retrieved],
             }
             yield f"data: {json.dumps(meta)}\n\n"
             full_content_chunks: list[str] = []
             try:
-                async for chunk in stream_ollama(model, system, req.message):
+                async for chunk in stream_ollama(model, system, augmented_msg):
                     if await request.is_disconnected():
                         log.info("chat/stream: client disconnected mid-response")
                         break
