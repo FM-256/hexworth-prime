@@ -173,6 +173,23 @@ const TARGETS = [
             { type: 'selector-count', selector: '.edt-stakeholder-item', min: 16,
               note: 'Capstone should render all 16 stakeholders (S1-S16)' }
         ]
+    },
+    {
+        // Added 2026-05-23: the dispatch hub was overhauled to render 95 cards
+        // from a runtime manifest (boxes-manifest.js). Smoke catches three
+        // common regressions: manifest not loading (cards count < 90), tour
+        // button not present (header-action regression), filter bar lost
+        // its category buttons (filter wrap regression).
+        name: 'Dispatch Hub (95 cards from manifest)',
+        url: '/dispatch/index.html',
+        assertions: [
+            { type: 'selector-count', selector: '#dispatchCards .dispatch-card', min: 90,
+              note: 'Dispatch hub renders ≥90 cards from boxes-manifest.js' },
+            { type: 'selector-count', selector: '#dispatchTourBtn', min: 1,
+              note: 'Header Tour button is present' },
+            { type: 'selector-count', selector: '.filter-btn', min: 9,
+              note: 'Filter bar has all 9 category buttons (All + 8 categories)' }
+        ]
     }
 ];
 
