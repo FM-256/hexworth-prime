@@ -118,7 +118,14 @@ firebase functions:secrets:set HEX_AI_API_KEY
 # And the orchestrator URL (will be the Cloudflare Tunnel public hostname)
 firebase functions:secrets:set HEX_AI_URL
 #   (e.g., https://hex-ai.hexworth.com)
+
+# Cloudflare Access service-token credentials (optional — only when
+# CF Access policy is in place per the deploy runbook step 2)
+firebase functions:secrets:set CF_ACCESS_CLIENT_ID
+firebase functions:secrets:set CF_ACCESS_CLIENT_SECRET
 ```
+
+The CF Access secrets are **optional**: if unset, the bridge simply omits the `CF-Access-Client-Id` / `CF-Access-Client-Secret` headers on outbound calls. This keeps emulator + dev work happy. Production deploys set them once the Cloudflare Access policy is configured.
 
 ## Deploy gate
 

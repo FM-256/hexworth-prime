@@ -30,8 +30,35 @@ const { defineSecret } = require('firebase-functions/params');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 
-const hexAiUrl = defineSecret('HEX_AI_URL');           // e.g. https://hex-ai.hexworth.com
-const hexAiApiKey = defineSecret('HEX_AI_API_KEY');    // matches one entry in HEX_API_KEYS on hexclass
+const hexAiUrl = defineSecret('HEX_AI_URL');                       // e.g. https://hex-ai.hexworth.com
+const hexAiApiKey = defineSecret('HEX_AI_API_KEY');                // matches one entry in HEX_API_KEYS on hexclass
+const cfAccessClientId = defineSecret('CF_ACCESS_CLIENT_ID');      // optional — Cloudflare Access service token
+const cfAccessClientSecret = defineSecret('CF_ACCESS_CLIENT_SECRET'); // optional — paired with above
+
+/**
+ * Build outbound headers for orchestrator requests, including Cloudflare
+ * Access service-token headers when those secrets are configured.
+ *
+ * The CF Access headers are OPTIONAL — undefined secrets evaluate to ''
+ * and the headers are simply not set. This keeps emulator + dev-mode
+ * happy when no tunnel is up. Production deploys MUST set them once
+ * the Cloudflare Access policy is in place (per the deploy runbook).
+ */
+function buildUpstreamHeaders(extra = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        'X-API-Key': hexAiApiKey.value(),
+        ...extra,
+    };
+    let cfId = '', cfSecret = '';
+    try { cfId = cfAccessClientId.value(); } catch (_) { /* secret not set */ }
+    try { cfSecret = cfAccessClientSecret.value(); } catch (_) { /* secret not set */ }
+    if (cfId && cfSecret) {
+        headers['CF-Access-Client-Id'] = cfId;
+        headers['CF-Access-Client-Secret'] = cfSecret;
+    }
+    return headers;
+}
 
 const TIMEOUT_MS = 30000;                              // hard cap; CF max is 540s but UX needs faster fail
 const ADMIN_EMAILS = ['f.mora80@gmail.com', 'jorden@hexworth.com'];
@@ -43,7 +70,7 @@ const FAILED_ATTEMPTS_WINDOW_MS = 30 * 60 * 1000;
 
 const cfOptions = {
     region: 'us-central1',
-    secrets: [hexAiUrl, hexAiApiKey],
+    secrets: [hexAiUrl, hexAiApiKey, cfAccessClientId, cfAccessClientSecret],
     timeoutSeconds: 60,
     memory: '256MiB',
 };
@@ -109,16 +136,13 @@ async function deriveFailedAttempts(uid, missionId) {
     }
 }
 
-async function postToOrchestrator(url, apiKey, body) {
+async function postToOrchestrator(url, body) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
         const r = await fetch(`${url}/chat`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': apiKey,
-            },
+            headers: buildUpstreamHeaders(),
             body: JSON.stringify(body),
             signal: controller.signal,
         });
@@ -214,11 +238,7 @@ exports.hexAiChat = onCall(cfOptions, async (request) => {
         hint_used_recently: data.hint_used_recently === true,
     };
 
-    const orch = await postToOrchestrator(
-        hexAiUrl.value(),
-        hexAiApiKey.value(),
-        body
-    );
+    const orch = await postToOrchestrator(hexAiUrl.value(), body);
 
     return {
         response: orch.response,
@@ -288,6 +308,14 @@ const ALLOWED_STREAM_ORIGINS = [
 
 function applyCors(req, res) {
     const origin = req.headers.origin || '';
+
+    // Same-origin requests (no Origin header) reach this endpoint via the
+    // Firebase Hosting rewrite at /api/hex-ai/stream. They cannot be
+    // cross-origin attacks by definition — let them through without
+    // setting Access-Control-Allow-* headers (which only matter for
+    // cross-origin).
+    if (!origin) return true;
+
     const allowed = ALLOWED_STREAM_ORIGINS.includes(origin) ||
         origin.endsWith('.hexworth-prime.web.app') ||
         origin === 'http://localhost:5000' ||      // firebase emulator
@@ -304,7 +332,7 @@ function applyCors(req, res) {
 
 exports.hexAiChatStream = onRequest({
     region: 'us-central1',
-    secrets: [hexAiUrl, hexAiApiKey],
+    secrets: [hexAiUrl, hexAiApiKey, cfAccessClientId, cfAccessClientSecret],
     timeoutSeconds: 540,        // streaming can run longer than blocking
     memory: '256MiB',
 }, async (req, res) => {
@@ -383,11 +411,7 @@ exports.hexAiChatStream = onRequest({
     try {
         upstream = await fetch(`${hexAiUrl.value()}/chat/stream`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': hexAiApiKey.value(),
-                'Accept': 'text/event-stream',
-            },
+            headers: buildUpstreamHeaders({ 'Accept': 'text/event-stream' }),
             body: JSON.stringify(body),
             signal: controller.signal,
         });

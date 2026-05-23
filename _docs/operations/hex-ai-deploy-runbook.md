@@ -109,14 +109,15 @@ firebase functions:secrets:set CF_ACCESS_CLIENT_SECRET
 # Paste the Cloudflare Access service-token Client Secret
 ```
 
-**Note:** The current `functions/hex-ai-bridge.js` does NOT yet send the CF-Access-Client-Id/Secret headers. Before deploying:
+**Verify** the bridge code reads the CF Access secrets:
 
 ```bash
-# Confirm the bridge code is ready for CF Access
 grep -n "CF-Access-Client" functions/hex-ai-bridge.js
+# Expect lines around buildUpstreamHeaders() that set CF-Access-Client-Id
+# and CF-Access-Client-Secret when those secrets are configured.
 ```
 
-If the grep returns no results, the CF Access headers need to be added before this runbook can proceed (this is a v0.5.0b prerequisite, not v0.5.0a). See: `_docs/architecture/hex-ai-cf-bridge.md`.
+If the secrets are unset (e.g., emulator / dev mode), the headers are simply omitted — the bridge continues to work for testing without CF Access.
 
 ## Step 4: Deploy Cloud Functions
 

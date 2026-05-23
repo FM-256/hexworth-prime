@@ -259,19 +259,15 @@ export class HexAIClient {
     }
 
     _streamUrl() {
-        // Per Nancy review 2026-05-23: the Firebase Functions SDK does NOT
-        // guarantee that `this._functions.region` or
-        // `this._functions.app.options.projectId` are stable public APIs.
-        // Caller SHOULD pass `streamUrl` via constructor options. The
-        // heuristic below is a development fallback only — it will quietly
-        // produce the wrong URL on a staging project or an SDK refactor.
-        // Production callers should always pass `streamUrl` explicitly.
+        // Preferred: a Firebase Hosting rewrite to /api/hex-ai/stream
+        // (configured in firebase.json) lets the client use a same-origin
+        // relative URL — no CORS preflight, no cloudfunctions.net domain
+        // exposed, and the URL is stable across project renames.
+        //
+        // If the caller has explicitly provided options.streamUrl (e.g.
+        // for the emulator), that wins. Otherwise default to the rewrite.
         if (this._explicitStreamUrl) return this._explicitStreamUrl;
-        const region = (this._functions && this._functions.region) || 'us-central1';
-        const projectId = (this._functions && this._functions.app && this._functions.app.options
-            && this._functions.app.options.projectId) || 'hexworth-prime';
-        console.warn('HexAI: streamUrl not configured; using derived default. Set options.streamUrl in production.');
-        return `https://${region}-${projectId}.cloudfunctions.net/hexAiChatStream`;
+        return '/api/hex-ai/stream';
     }
 
     /**

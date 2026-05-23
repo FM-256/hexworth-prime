@@ -73,6 +73,12 @@ Callbacks:
 
 Auth: pass either `callbacks.idToken` (a fresh string) or `callbacks.getIdToken` (an async function — the SDK calls it to mint the token at request time). The Firebase auth instance is the caller's responsibility — the SDK does NOT import `getAuth` itself.
 
+### Endpoint URL
+
+By default `askDrHexStream` POSTs to `/api/hex-ai/stream` — a Firebase Hosting rewrite (in `firebase.json`) that forwards to the `hexAiChatStream` function. Same-origin, no CORS preflight, stable across project renames.
+
+Override via constructor: `new HexAIClient(functions, { streamUrl: 'http://localhost:5001/.../' })` for emulator work.
+
 Cancellation: pass an `AbortSignal` via `callbacks.signal`. Aborting the signal closes the connection on both sides (browser drops the EventSource; CF's `req.on('close')` cancels the upstream fetch via AbortController).
 
 ### `ai.probeHexAi()`
