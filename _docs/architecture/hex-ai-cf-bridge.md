@@ -1,6 +1,7 @@
 # Hex AI Cloud Function Bridge — `hexAiChat` + `hexAiHealth`
 
-> Built 2026-05-23 · Source: `functions/hex-ai-bridge.js` · NOT YET DEPLOYED (gated on Cloudflare Tunnel setup)
+> Built 2026-05-23 · v0.4.0 (server-side `failed_attempts`)
+> Source: `functions/hex-ai-bridge.js` · NOT YET DEPLOYED (gated on Cloudflare Tunnel setup)
 
 ## Purpose
 
@@ -29,9 +30,10 @@ Streaming UX (`/chat/stream` SSE) is **not** supported via callable functions �
 {
   message:              "What does 'ls -la' do?",   // required, <= 4000 chars
   house:                "code",                      // optional
-  mission_id:           "lab-py-01",                 // optional
-  failed_attempts:      0,                           // client-supplied (v0.3.0), see deferral
+  mission_id:           "lab-py-01",                 // optional — drives failed_attempts derivation
   hint_used_recently:   false                        // optional
+  // NOTE: failed_attempts is NOT accepted from the client as of v0.4.0.
+  //       Derived server-side from Firestore flag_attempts + flag_captures.
 }
 ```
 
@@ -79,6 +81,7 @@ Use this in the web app to detect "CF can talk to hexclass" failures separately 
 | Client cannot reach hexclass directly | Orchestrator binds `127.0.0.1` on hexclass; Cloudflare Tunnel is the only path |
 | Client cannot impersonate instructor | `role` derived from `request.auth.token.admin` claim, not client body |
 | Client cannot replay another user's UID | `user_uid` derived from `request.auth.uid`, not client body |
+| **Client cannot inflate `failed_attempts`** | **`deriveFailedAttempts()` reads Firestore `users/{uid}/flag_attempts` and `flag_captures` server-side; client value rejected (v0.4.0)** |
 | API key cannot leak through code | Stored in Secret Manager, accessed via `defineSecret('HEX_AI_API_KEY').value()` |
 | API key cannot leak through error messages | Orchestrator never echoes the supplied key in 401 responses (per `main.py:115`) |
 | Slow orchestrator does not hang clients | 30s `AbortController` timeout in `postToOrchestrator()` |
@@ -88,8 +91,8 @@ Use this in the web app to detect "CF can talk to hexclass" failures separately 
 
 | Item | Why deferred | When to revisit |
 |---|---|---|
-| Streaming responses (SSE) | onCall is unary; needs HTTP function + SSE forwarding + auth re-check | v0.4.0 |
-| Server-side `failed_attempts` | Currently trusted from client — a student who lies can game help-level escalation. Requires Firestore lookup per UID | v0.4.0 (with Firestore live-pull) |
+| Streaming responses (SSE) | onCall is unary; needs HTTP function + SSE forwarding + auth re-check | v0.5.0 |
+| Server-side `hint_used_recently` | No hint-usage tracking collection exists yet | v0.4.1 (when hint analytics ship) |
 | Conversation memory | Each call is independent; multi-turn context requires Redis-backed thread store | v0.5.0 |
 | Tool calling | Architecture-defining; needs operator design conversation | v0.6.0 |
 | Per-user rate limit | Defer until traffic shape is real | After first 100 unique callers |

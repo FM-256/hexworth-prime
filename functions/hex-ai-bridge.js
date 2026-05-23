@@ -20,14 +20,14 @@
  *
  * Security notes (per Nancy review pattern):
  * - role is derived server-side from admin custom claim, NOT from client
- * - failed_attempts is currently trusted from client (deferred to v0.4.0
- *   when Firestore live-pull lands; logged for now so misuse is auditable)
+ * - failed_attempts derived from Firestore (v0.4.0) — client value ignored
  * - HEX_AI_API_KEY is in Secret Manager, NEVER in client code
- * - 10s upstream timeout — if orchestrator is slow or down, client sees
+ * - 30s upstream timeout — if orchestrator is slow or down, client sees
  *   a clean error, not a hung promise
  */
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
+const { getFirestore } = require('firebase-admin/firestore');
 
 const hexAiUrl = defineSecret('HEX_AI_URL');           // e.g. https://hex-ai.hexworth.com
 const hexAiApiKey = defineSecret('HEX_AI_API_KEY');    // matches one entry in HEX_API_KEYS on hexclass
@@ -35,12 +35,78 @@ const hexAiApiKey = defineSecret('HEX_AI_API_KEY');    // matches one entry in H
 const TIMEOUT_MS = 30000;                              // hard cap; CF max is 540s but UX needs faster fail
 const ADMIN_EMAILS = ['f.mora80@gmail.com', 'jorden@hexworth.com'];
 
+// Window over which "recent" failed attempts count toward help-level
+// escalation. 30 minutes is the orchestrator-side semantic of "this
+// session"; longer windows make the AI more permissive on returning students.
+const FAILED_ATTEMPTS_WINDOW_MS = 30 * 60 * 1000;
+
 const cfOptions = {
     region: 'us-central1',
     secrets: [hexAiUrl, hexAiApiKey],
     timeoutSeconds: 60,
     memory: '256MiB',
 };
+
+/**
+ * Derive failed_attempts server-side from Firestore.
+ *
+ * Closes the v0.3.0 gap where the client could lie about failed_attempts
+ * to force help-level auto-escalation. Server reads the same per-user
+ * flag_attempts / flag_captures collections that validateFlag writes.
+ *
+ * Heuristic: number of distinct flagIds attempted in the window but
+ * NOT yet captured for this mission. A flagId attempted 5 times in a
+ * row without capture counts as 1 failed objective, not 5 — that
+ * matches the orchestrator's "this student is stuck on this thing"
+ * semantic better than raw attempt count.
+ *
+ * Failure mode: if Firestore is unreachable or no missionId provided,
+ * returns 0 (conservative — never inflates help level on error). Never
+ * falls back to a client-supplied value, which would re-open the bypass.
+ *
+ * @param {string} uid - Firebase auth UID
+ * @param {string|null} missionId - the boxId / labId; null if no mission context
+ * @returns {Promise<number>}
+ */
+async function deriveFailedAttempts(uid, missionId) {
+    if (!missionId) return 0;
+    try {
+        const db = getFirestore();
+        const since = new Date(Date.now() - FAILED_ATTEMPTS_WINDOW_MS);
+
+        const [attemptsSnap, capturesSnap] = await Promise.all([
+            db.collection(`users/${uid}/flag_attempts`)
+                .where('boxId', '==', missionId)
+                .where('timestamp', '>=', since)
+                .get(),
+            db.collection(`users/${uid}/flag_captures`)
+                .where('boxId', '==', missionId)
+                .get(),
+        ]);
+
+        // Distinct flagIds attempted but not captured.
+        const capturedFlagIds = new Set(
+            capturesSnap.docs.map(d => d.data().flagId).filter(Boolean)
+        );
+        const attemptedUncapturedFlagIds = new Set();
+        for (const doc of attemptsSnap.docs) {
+            const fid = doc.data().flagId;
+            // '__scan__' is the placeholder for "submitted without a target flagId"
+            // — counts as one undifferentiated failed attempt.
+            if (!fid || fid === '__scan__') {
+                attemptedUncapturedFlagIds.add('__scan__');
+                continue;
+            }
+            if (!capturedFlagIds.has(fid)) {
+                attemptedUncapturedFlagIds.add(fid);
+            }
+        }
+        return attemptedUncapturedFlagIds.size;
+    } catch (e) {
+        console.warn(`deriveFailedAttempts(uid=${uid}, mission=${missionId}) failed:`, e.message);
+        return 0;
+    }
+}
 
 async function postToOrchestrator(url, apiKey, body) {
     const controller = new AbortController();
@@ -125,15 +191,25 @@ exports.hexAiChat = onCall(cfOptions, async (request) => {
     const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
     const role = isAdmin ? 'instructor' : 'student';
 
+    // v0.4.0: failed_attempts derived from Firestore, NOT from client.
+    // Closes the help-level escalation bypass — a student lying about
+    // their failed_attempts can no longer force the AI into a higher
+    // disclosure ceiling.
+    const failed_attempts = await deriveFailedAttempts(
+        request.auth.uid,
+        data.mission_id || null
+    );
+
     const body = {
         user_uid: request.auth.uid,
         message,
         house: data.house || null,
         mission_id: data.mission_id || null,
         role,
-        // failed_attempts comes from client in v0.3.0. v0.4.0 will read this
-        // from Firestore server-side and ignore the client value.
-        failed_attempts: Math.max(0, parseInt(data.failed_attempts, 10) || 0),
+        failed_attempts,
+        // hint_used_recently still client-supplied — no server-side
+        // hint-usage tracking exists yet. Defer to v0.4.1 if/when
+        // hint analytics ship.
         hint_used_recently: data.hint_used_recently === true,
     };
 

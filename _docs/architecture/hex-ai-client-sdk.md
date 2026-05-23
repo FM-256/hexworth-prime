@@ -30,10 +30,11 @@ Send a question. Returns a Promise resolving to the orchestrator response shape.
 ```js
 const r = await ai.askDrHex("What does 'ls -la' do?", {
     house:              'code',
-    mission_id:         'lab-py-01',     // optional
-    failed_attempts:    2,                // optional, default 0
+    mission_id:         'lab-py-01',     // optional — drives server-side failed_attempts
     hint_used_recently: false,            // optional, default false
 });
+// Note: failed_attempts is not accepted from the client as of CF v0.4.0.
+// The server derives it from Firestore using mission_id.
 
 console.log(r.response);          // "ls lists directory contents. -l shows..."
 console.log(r.persona_name);      // "Patient Pat"

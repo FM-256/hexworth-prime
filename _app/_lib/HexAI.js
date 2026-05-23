@@ -92,11 +92,14 @@ export class HexAIClient {
      * @param {string} message - the student/operator question
      * @param {object} [context]
      * @param {string} [context.house]
-     * @param {string} [context.mission_id]
-     * @param {number} [context.failed_attempts=0]
+     * @param {string} [context.mission_id] - drives server-side failed_attempts derivation
      * @param {boolean} [context.hint_used_recently=false]
      * @param {boolean} [context.allowSuperseded=false] - if true, this call
      *        won't cancel prior in-flight calls (useful for background probes)
+     *
+     * NOTE: `failed_attempts` is NOT accepted from the client as of CF v0.4.0.
+     * The server derives it from Firestore using `mission_id`. Passing
+     * `failed_attempts` here is silently ignored.
      * @returns {Promise<{response: string, persona: string, persona_name: string,
      *                    help_level: number, help_level_label: string,
      *                    model: string, latency_ms: number}>}
@@ -121,7 +124,7 @@ export class HexAIClient {
                 message: message.trim(),
                 house: context.house || null,
                 mission_id: context.mission_id || null,
-                failed_attempts: Math.max(0, parseInt(context.failed_attempts, 10) || 0),
+                // failed_attempts intentionally omitted — CF derives it from Firestore.
                 hint_used_recently: context.hint_used_recently === true,
             });
             if (callId !== -1 && callId !== this._currentCallId) {

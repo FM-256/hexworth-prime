@@ -266,18 +266,19 @@ curl -s http://localhost:8000/health | python3 -m json.tool
 
 ## What v0.3.0 still does NOT do (deferred to v0.4.0+)
 
-- **No Firestore live context pull** — context still arrives in the request body. Closing the "client lies about its help-level base" gap requires the Cloud Function bridge to read Firestore server-side.
+- ~~No Firestore live context pull~~ — **closed by CF bridge v0.4.0**: `failed_attempts` derived server-side from `flag_attempts` / `flag_captures`, client value ignored.
 - **No tool calling** — architecture-defining decision; needs operator buy-in on the tool layer before implementation.
-- **No conversation memory in Redis** — Redis container up, unused. Cheap win once Cloud Function bridge exists.
+- **No conversation memory in Redis** — Redis container up, unused. Cheap win once Cloud Function bridge deploys.
+- **No streaming UX through the CF bridge** — `/chat/stream` works at the orchestrator; CF bridge is unary (onCall). HTTP function + SSE forwarding needed.
 - **No per-user-quota / rate limit** — defer until traffic shape is real.
 - **No key rotation infrastructure** — env-var-redeploy is the rotation path for now.
 - **No GPU compute runtime** — Arc Pro B60 (Battlemage) compute paths broken as of 2026-05-23 (Intel `intel-opencl-icd` predates Battlemage; PyTorch XPU segfaults). CPU-only inference. Path 3 (oneAPI Base Toolkit) is the next attempt.
 
 ## Why these are deferred (not just unfinished)
 
-- **Firestore context** — needs the Cloud Function bridge first (auth handoff problem).
 - **Tool calling** — architecture-defining; needs operator buy-in on the tool layer shape.
-- **Redis memory** — depends on user identity in the request, which the CF bridge provides cleanly.
+- **Redis memory** — depends on stable per-user identity in the request, which the CF bridge provides cleanly. Slot into v0.5.0.
+- **Streaming UX** — `onCall` is unary by Firebase design; needs an HTTP function with SSE forwarding and a separate auth check. Slot into v0.5.0.
 - **GPU runtime** — defer until Intel ships compute support for Battlemage in the rolling channel.
 
 ## Related
