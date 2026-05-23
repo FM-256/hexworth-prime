@@ -60,8 +60,13 @@ const SOLUTIONS_DIR = process.env.HEXWORTH_SOLUTIONS_DIR
 
 const REPORT_ONLY = process.argv.includes('--report-only');
 
-// Allow hyphens in flag content — PIS-M2 uses FLAG{pis-m2-vault-breach_flag1_...}
-const FLAG_RE = /FLAG\{[a-zA-Z0-9_-]+\}|flag\{[a-zA-Z0-9_-]+\}/g;
+// Match any `<prefix>{<body>}` flag pattern. Original only matched
+// FLAG{} / flag{} but dispatch boxes use the box's own prefix
+// (e.g., vpn001{ike_mismatch_...}, sec005{phish_...}, PISF{flag1}).
+// Prefix = alphabetic/digit/underscore (starts with letter); body =
+// alphanumeric + _ - : . (colon supports PIS-FINAL-style
+// COBALT_STRIKE:CVE-2022-30190 payloads, dot for hostnames).
+const FLAG_RE = /\b[a-zA-Z][a-zA-Z0-9_]*\{[a-zA-Z0-9_\-:.]+\}/g;
 const REQUEST_FLAG_RE = /requestFlagText\(\s*['"]([^'"]+)['"]\s*\)/g;
 const SCENARIO_ID_IN_BLOCK_RE = /id\s*:\s*['"]([a-z][a-z0-9_]*)['"]/g;
 const FLAGS_ARRAY_RE = /^\s{4}flags\s*:\s*\[(.*?)^\s{4}\]/ms;
@@ -96,10 +101,56 @@ function countFlagsInWalkthrough(wtRelative) {
     try {
         const content = fs.readFileSync(p, 'utf8');
         const matches = content.match(FLAG_RE) || [];
-        return { count: matches.length, file: p, uniqueCount: new Set(matches).size };
+        // Augment: PIS-FINAL-style walkthroughs use arbitrary flat strings
+        // (e.g., `e.morales`, `COBALT_STRIKE:CVE-2022-30190`) which don't
+        // fit any `prefix{body}` pattern. They live in a markdown table with
+        // a "Flag value" column. Detect that table shape and count rows.
+        const tableRows = countFlagValueTableRows(content);
+        const totalCount = Math.max(matches.length, tableRows);
+        return {
+            count: totalCount,
+            file: p,
+            uniqueCount: new Set(matches).size || tableRows,
+            patternMatchCount: matches.length,
+            tableRowCount: tableRows
+        };
     } catch (e) {
         return { count: 0, file: p, reason: 'read error: ' + e.message };
     }
+}
+
+// Detect a markdown table with a "Flag value" column header and count
+// its non-empty data rows. Used for walkthroughs whose flags are flat
+// strings (PIS-FINAL style: message-ids, hostnames, codewords).
+function countFlagValueTableRows(content) {
+    const lines = content.split('\n');
+    let inFlagTable = false;
+    let flagColIdx = -1;
+    let rows = 0;
+    for (const line of lines) {
+        if (!line.trim().startsWith('|')) {
+            if (inFlagTable && line.trim() === '') { /* blank row tolerable */ continue; }
+            if (inFlagTable) inFlagTable = false;
+            continue;
+        }
+        const cells = line.split('|').map(c => c.trim());
+        if (!inFlagTable) {
+            // Look for a header row with a "Flag value" / "Flag Value" cell
+            const headerIdx = cells.findIndex(c => /^flag\s+value$/i.test(c));
+            if (headerIdx !== -1) {
+                inFlagTable = true;
+                flagColIdx = headerIdx;
+            }
+            continue;
+        }
+        // Skip the separator row (---|---|---)
+        if (cells.every(c => /^[-:]*$/.test(c))) continue;
+        // Data row — has a non-empty cell at flagColIdx
+        if (flagColIdx < cells.length && cells[flagColIdx] && cells[flagColIdx] !== '—') {
+            rows++;
+        }
+    }
+    return rows;
 }
 
 function extractScenariosBlock(content) {
