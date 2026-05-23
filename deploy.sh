@@ -137,6 +137,19 @@ else
     fi
 fi
 
+# ── Drift report (informational) — what changed since the last deploy? ───
+# Compares the current EduScan findings against the most recent archive
+# (from the previous successful deploy's post-verify --archive step).
+# NEVER blocks deploy — smoke + nexus gates already enforce critical/high.
+# Captures the EduScan "DRIFT ANALYSIS" section: trend, counts, NEW ISSUES.
+echo -e "${BOLD}[3.5/6]${NC} EduScan drift report (informational, non-blocking)..."
+echo ""
+DRIFT_OUTPUT=$(node _tools/eduscan/cli.js --diff 2>&1 || true)
+# Extract just the DRIFT ANALYSIS block. If --diff finds no prior archive,
+# EduScan still runs the scan; the DRIFT section just shows everything as new.
+echo "$DRIFT_OUTPUT" | awk '/DRIFT ANALYSIS/,/^$/{print}' | sed 's/^/  /'
+echo ""
+
 # ── Gate 4: Firebase deploy (with deploy-in-progress lock for post-verify) ──
 echo -e "${BOLD}[4/6]${NC} Deploying to Firebase..."
 echo ""

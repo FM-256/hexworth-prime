@@ -224,6 +224,26 @@ else
 fi
 echo ""
 
+# ── EduScan baseline archive (drift detector for the NEXT deploy) ────
+# Saves the current EduScan scan to _tools/eduscan/history/ so the next
+# deploy's pre-deploy `--diff` step has a baseline. Runs only because
+# post-verify only runs after firebase deploy succeeded. NON-FATAL on
+# archive write failure — we don't fail a successful deploy because of
+# a baseline-write hiccup.
+echo ""
+echo -e "${DIM}─────────────────────────${NC}"
+echo -e "${BOLD}Archiving EduScan baseline for next-deploy drift detection...${NC}"
+if (cd "$REPO_ROOT" && node _tools/eduscan/cli.js --archive --quiet > /tmp/eduscan-archive.log 2>&1); then
+    ARCHIVED=$(ls -t "$REPO_ROOT/_tools/eduscan/history/"scan-*.json 2>/dev/null | head -1)
+    if [[ -n "$ARCHIVED" ]]; then
+        echo -e "  ${GREEN}✓${NC} archived: $(basename "$ARCHIVED")"
+    else
+        echo -e "  ${GREEN}✓${NC} archived (path not surfaced)"
+    fi
+else
+    echo -e "  ${YELLOW}⚠${NC} archive write failed (non-fatal — see /tmp/eduscan-archive.log)"
+fi
+
 # ── Final verdict ────────────────────────────────────────────────────
 echo -e "${DIM}─────────────────────────${NC}"
 if [[ "$DIVERGENCE" == 1 ]]; then
