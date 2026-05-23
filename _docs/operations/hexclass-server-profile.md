@@ -93,7 +93,27 @@ sudo mount -a
 
 Deferred to operator — disk layout is intent-bearing (separate LV vs extend root).
 
-## Model decision (deferred — Nancy tradeoff)
+## Baseline LLM (2026-05-23) — Nancy-blessed starting point
+
+**Installed and verified:** `ollama` 0.24.0 + `qwen2.5:7b` (4.7 GB model). CPU-only inference at this baseline (ollama doesn't yet know about Intel Arc Pro B60).
+
+Smoke test:
+```
+$ ollama run qwen2.5:7b "Reply in 5 words: what is dispatch in IT support?"
+Routing incidents to technicians.    (3.9s elapsed)
+```
+
+Nancy's analysis (full text in commit `<this commit>` after merge): the compute-path risk is the real blocker, not the model choice. 7B CPU baseline proves inference works without any GPU runtime gymnastics. Once `intel_gpu_top` shows real utilization (IPEX-LLM or oneAPI path), upgrade to a ceiling model — she suggested Gemma 3 27B or Qwen 2.5 32B for the ceiling slot. Hybrid router is premature; first need latency data.
+
+**Path forward (operator's decision):**
+
+1. **Stay 7B CPU** — fine for low-volume Aminos bots, ghost-layer nudges, operator-assist
+2. **Try GPU path** — install IPEX-LLM stack (Intel-native) or ollama-intel-gpu Docker container, verify with `intel_gpu_top`
+3. **Scale up to ceiling** — Qwen 2.5 32B (~18 GB) or Gemma 3 27B once GPU path confirmed
+
+Ollama API listening on `127.0.0.1:11434` (localhost only). To expose to other hosts (bc1/bc2/WSL), set `OLLAMA_HOST=0.0.0.0:11434` in `/etc/systemd/system/ollama.service` — deferred to operator (network exposure decision).
+
+## Model decision (operator deferral — see above for inputs)
 
 Hexclass has 24 GB GPU VRAM. Realistic model classes:
 
