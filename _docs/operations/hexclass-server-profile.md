@@ -140,6 +140,61 @@ Operator decision: pick a starting model + framework, then we provision.
 - **Disk LV layout** — pending operator decision
 - **ePaper Room 214 reflash** — sprint pending (`project_hexclass_server.md` legacy item; now on home network so PlatformIO mirrors should resolve)
 
+## Service stack (2026-05-23) — `/opt/hexclass/`
+
+Docker-compose stack, all bound to `127.0.0.1` only at install. Caddy fronts the reachable services; everything else is local-network-only.
+
+| Service | Container | Port | Purpose |
+|---|---|---|---|
+| `postgres` | `hex-postgres` | 5432 | pgvector/pgvector:pg16 — relational + vector store. pgvector 0.8.2 enabled in `hexclass` DB |
+| `redis` | `hex-redis` | 6379 | redis:7-alpine — cache + queue |
+| `open-webui` | `hex-openwebui` | 3000 | Open WebUI → ollama (host.docker.internal:11434) — browser chat frontend |
+| `prometheus` | `hex-prometheus` | 9091 | Metrics scrape: node_exporter (host:9100), prometheus self, ollama API |
+| `grafana` | `hex-grafana` | 3001 | Dashboards — admin password in `/opt/hexclass/.env` (`GRAFANA_PASSWORD`) |
+| `caddy` | `hex-caddy` | 8080, 8443 | Reverse proxy — `/webui` → 3000, `/grafana` → 3001 |
+
+Operations:
+
+```
+cd /opt/hexclass
+docker compose ps               # status
+docker compose logs -f <svc>    # follow logs
+docker compose restart <svc>    # restart one
+docker compose down             # stop all
+docker compose up -d            # bring back up
+```
+
+### Native services (not docker)
+
+- `ollama.service` — 0.24.0, listening on `127.0.0.1:11434` (models: `qwen2.5:7b`, `nomic-embed-text`)
+- `prometheus-node-exporter.service` — system metrics on `:9100`
+- `cockpit.service` — web admin on `:9090`
+
+### Secrets
+
+Stored in `/opt/hexclass/.env` (chmod 600, hexclass-owned):
+- `POSTGRES_PASSWORD` — postgres superuser for `hexclass` DB
+- `GRAFANA_PASSWORD` — grafana admin login
+
+Regenerable with:
+```
+openssl rand -hex 24 > /opt/hexclass/.env-new
+# then edit shape and `docker compose restart`
+```
+
+### Tier 1 host tools (installed 2026-05-23)
+
+`tmux`, `htop`, `btop`, `ncdu`, `ripgrep`, `jq`, `fzf`, `neovim`, `glances`, `intel-gpu-tools` (incl. `intel_gpu_top`), `uv` (~/.local/bin/uv 0.11.16), `restic` (backup CLI, not running yet).
+
+### Backup posture
+
+`restic` installed but no repo configured yet. Recommended targets:
+- `restic init --repo /mnt/backup/hexclass` (if external disk attached)
+- `restic init --repo b2:hexclass-backup` (Backblaze B2)
+- `restic init --repo bc1:/backup/hexclass` (peer-server backup)
+
+Deferred — operator picks the backup destination.
+
 ## How to verify the profile is still accurate
 
 ```bash
