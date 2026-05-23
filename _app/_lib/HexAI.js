@@ -213,9 +213,33 @@ export class HexAIClient {
         }
 
         // Parse SSE: lines starting with "data: ", separated by \n\n.
+        // The reader is consumed once, then the buffer is FLUSHED — per
+        // Nancy review 2026-05-23, the trailing event (if not terminated
+        // by \n\n) would otherwise be silently dropped. Most commonly
+        // this affects the final `done` event from FastAPI ASGI servers
+        // that don't always emit a trailing blank line.
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        const processEvent = (block) => {
+            const line = block.split('\n').find(l => l.startsWith('data: '));
+            if (!line) return;
+            let event;
+            try { event = JSON.parse(line.slice(6)); }
+            catch (_) { return; }
+            if (event.type === 'meta' && callbacks.onMeta) {
+                callbacks.onMeta(event);
+            } else if (event.type === 'token') {
+                callbacks.onToken(event.content || '');
+            } else if (event.type === 'done' && callbacks.onDone) {
+                callbacks.onDone(event);
+            } else if (event.type === 'error') {
+                // Throw only — do NOT fire onError separately. Per Nancy
+                // review: double-delivery (callback + throw) makes
+                // try/catch + onError combo fire twice.
+                throw new HexAIError('orchestrator', event.error || 'Stream error');
+            }
+        };
         try {
             while (true) {
                 const { done, value } = await reader.read();
@@ -223,41 +247,30 @@ export class HexAIClient {
                 buffer += decoder.decode(value, { stream: true });
                 const events = buffer.split('\n\n');
                 buffer = events.pop();             // keep the partial final event
-                for (const block of events) {
-                    const line = block.split('\n').find(l => l.startsWith('data: '));
-                    if (!line) continue;
-                    let event;
-                    try { event = JSON.parse(line.slice(6)); }
-                    catch (_) { continue; }
-                    if (event.type === 'meta' && callbacks.onMeta) {
-                        callbacks.onMeta(event);
-                    } else if (event.type === 'token') {
-                        callbacks.onToken(event.content || '');
-                    } else if (event.type === 'done' && callbacks.onDone) {
-                        callbacks.onDone(event);
-                    } else if (event.type === 'error') {
-                        const err = new HexAIError('orchestrator', event.error || 'Stream error');
-                        if (callbacks.onError) callbacks.onError(err);
-                        throw err;
-                    }
-                }
+                for (const block of events) processEvent(block);
             }
+            // Flush any final partial block — handles servers that don't
+            // emit a trailing \n\n after the last event.
+            buffer += decoder.decode();    // flush pending multi-byte UTF-8
+            if (buffer.trim()) processEvent(buffer);
         } finally {
             try { reader.releaseLock(); } catch (_) {}
         }
     }
 
     _streamUrl() {
-        // Derive the HTTP CF URL from the functions instance. The default
-        // pattern is https://<region>-<project>.cloudfunctions.net/<name>.
-        // Firebase Hosting users typically rewrite this to /api/<name>;
-        // override via constructor options.streamUrl if needed.
+        // Per Nancy review 2026-05-23: the Firebase Functions SDK does NOT
+        // guarantee that `this._functions.region` or
+        // `this._functions.app.options.projectId` are stable public APIs.
+        // Caller SHOULD pass `streamUrl` via constructor options. The
+        // heuristic below is a development fallback only — it will quietly
+        // produce the wrong URL on a staging project or an SDK refactor.
+        // Production callers should always pass `streamUrl` explicitly.
         if (this._explicitStreamUrl) return this._explicitStreamUrl;
-        // Try to derive from this._functions if available; fall back to a
-        // sensible default that the caller can override.
         const region = (this._functions && this._functions.region) || 'us-central1';
-        const projectId = (this._functions && this._functions.app && this._functions.app.options.projectId)
-            || 'hexworth-prime';
+        const projectId = (this._functions && this._functions.app && this._functions.app.options
+            && this._functions.app.options.projectId) || 'hexworth-prime';
+        console.warn('HexAI: streamUrl not configured; using derived default. Set options.streamUrl in production.');
         return `https://${region}-${projectId}.cloudfunctions.net/hexAiChatStream`;
     }
 

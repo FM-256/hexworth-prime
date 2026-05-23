@@ -256,8 +256,12 @@ exports.hexAiChat = onCall(cfOptions, async (request) => {
  *   4. Pipes the SSE response back to the browser chunk-by-chunk.
  *
  * CORS — explicit allowlist of `hexworth.com` and the Firebase preview
- * domains. The wildcard `cors: true` shortcut is unsafe here because we
- * accept credentials in the Authorization header.
+ * domains. NOTE (per Nancy 2026-05-23): the CORS allowlist is enforced
+ * by BROWSERS, not the server. A non-browser HTTP client (curl, server
+ * script) bypasses CORS entirely; only the Authorization: Bearer token
+ * gate prevents unauthorized access. CORS exists here to prevent a
+ * malicious page on another origin from invoking this endpoint with the
+ * user's credentials, NOT to be a primary auth boundary.
  *
  * Auth model rationale:
  *   - Authorization header instead of session cookies: matches the
@@ -269,7 +273,8 @@ exports.hexAiChat = onCall(cfOptions, async (request) => {
  * Response format:
  *   - 200 OK + `Content-Type: text/event-stream`
  *   - SSE events: meta (persona/level), token (...), done (latency)
- *   - The browser EventSource API consumes these natively.
+ *   - Consumed via fetch + ReadableStream on the client (EventSource
+ *     can't POST or send Authorization headers).
  *   - 401 if no/invalid token; 502 if orchestrator unreachable.
  */
 const ALLOWED_STREAM_ORIGINS = [
@@ -356,8 +361,23 @@ exports.hexAiChatStream = onRequest({
     };
 
     // Open the upstream SSE stream from the orchestrator.
+    // TWO timeouts:
+    //   - controller (manual abort): fires on browser disconnect
+    //   - inactivityTimer: aborts upstream if no bytes received for
+    //     UPSTREAM_INACTIVITY_MS. Prevents CF instance from being held
+    //     for the full 540s timeoutSeconds when orchestrator hangs
+    //     mid-stream (per Nancy review 2026-05-23 — that's $$ leaking).
     const controller = new AbortController();
-    req.on('close', () => controller.abort());        // browser disconnect → upstream cancel
+    req.on('close', () => controller.abort());
+    const UPSTREAM_INACTIVITY_MS = 60000;   // 60s of no bytes = upstream dead
+    let inactivityTimer = setTimeout(
+        () => controller.abort(),
+        UPSTREAM_INACTIVITY_MS
+    );
+    const resetInactivity = () => {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => controller.abort(), UPSTREAM_INACTIVITY_MS);
+    };
 
     let upstream;
     try {
@@ -372,11 +392,13 @@ exports.hexAiChatStream = onRequest({
             signal: controller.signal,
         });
     } catch (e) {
+        clearTimeout(inactivityTimer);
         res.status(502).json({ error: `orchestrator unreachable: ${e.message}` });
         return;
     }
 
     if (!upstream.ok) {
+        clearTimeout(inactivityTimer);
         const text = await upstream.text().catch(() => '<unreadable>');
         res.status(502).json({ error: `orchestrator status ${upstream.status}: ${text.slice(0, 200)}` });
         return;
@@ -393,6 +415,7 @@ exports.hexAiChatStream = onRequest({
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+            resetInactivity();
             res.write(value);
         }
     } catch (e) {
@@ -402,6 +425,7 @@ exports.hexAiChatStream = onRequest({
             res.write(`data: ${JSON.stringify({ type: 'error', error: e.message })}\n\n`);
         } catch (_) { /* response already closed */ }
     } finally {
+        clearTimeout(inactivityTimer);
         res.end();
     }
 });
