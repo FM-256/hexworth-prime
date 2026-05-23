@@ -15,9 +15,9 @@ const NT1Config = {
     subtitle: 'Windows Networking Troubleshooting — MD-100',
     difficulty: 'Beginner',
     accent: '#0078d4',
-    storageKey: 'hexworth_lab_nt1',
+    storageKey: 'hexworth_lab_nt1_dispatch',
     registryId: 'nt1-network-troubleshoot',
-    trackerKey: 'lab_nt1',
+    trackerKey: 'lab_nt1_dispatch',
 
     // ==========================================================
     // TUTORIAL MODE
