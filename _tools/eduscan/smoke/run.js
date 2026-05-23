@@ -488,7 +488,9 @@ async function main() {
             { code: 'BOX-035',  script: 'box-asset-existence-audit.js',    blocking: false, desc: 'asset existence' },
             { code: 'BOX-037',  script: 'box-localstorage-flag-bypass.js', blocking: true,  desc: 'localStorage flag bypass' },
             { code: 'BOX-042',  script: 'box-storage-key-uniqueness.js',   blocking: false, desc: 'storageKey uniqueness' },
-            { code: 'META-001', script: 'meta-rule-registry-audit.js',     blocking: true,  desc: 'rule registry — validator files registered in safety-net doc' }
+            { code: 'META-001', script: 'meta-rule-registry-audit.js',     blocking: true,  desc: 'rule registry — validator files registered in safety-net doc' },
+            { code: 'META-002', script: 'meta-orphan-registry-audit.js',   blocking: true,  desc: 'rule registry — doc entries have implementation files' },
+            { code: 'META-003', script: 'meta-smoke-wiring-audit.js',      blocking: true,  desc: 'rule registry — Stage-3 validators wired into smoke gate' }
         ];
 
         const { execFileSync } = require('child_process');

@@ -152,6 +152,8 @@ Pre-deploy is the LAST gate before live. Catching a HUB-001 break here means the
 | `firmware-manifest-audit.js` (FIRM-001) | C2-device firmware manifest schema check |
 | `quiz-key-callsite-audit.js` (XREF-002) | Verify quiz HTML calls into a registered key in quiz_keys.json |
 | `meta-rule-registry-audit.js` (META-001) | Self-check: every validator file declares a code that's in this doc |
+| `meta-orphan-registry-audit.js` (META-002) | Self-check: every code in this doc has a validator file that implements it (inverse of META-001) |
+| `meta-smoke-wiring-audit.js` (META-003) | Self-check: every Stage-3 validator file (BOX-*, META-*) is wired into the smoke gate's BOX_VALIDATORS array |
 
 ### Smoke gate targets (15 — last updated 2026-05-23)
 

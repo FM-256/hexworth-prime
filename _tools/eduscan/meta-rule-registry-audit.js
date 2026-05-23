@@ -81,7 +81,7 @@ const OPT_OUT_FILES = {
 // Validator code pattern. Matches strings like "BOX-001", "HEUR-018",
 // "CAT-002", "XREF-001", "META-001". Loose enough to catch most codes
 // but tight enough to avoid matching random text.
-const CODE_PATTERN = /\b((?:BOX|HEUR|CAT|XREF|PROG|QUIZ|META|FUNC|NAME|PATH|EMOJI|HTML|JS|SEM|UX|NAV|SANDBOX|TURTLE|XP|BLOB|DEP|ENG|FLEX|LT|HUB|FIRM)-\d+(?:[A-Z])?)\b/g;
+const CODE_PATTERN = /\b((?:BOX|HEUR|CAT|XREF|PROG|QUIZ|META|FUNC|NAME|PATH|EMOJI|HTML|JS|SEM|UX|NAV|SANDBOX|TURTLE|XP|BLOB|DEP|ENG|FLEX|LT|HUB|FIRM)-\d+[a-zA-Z]?)\b/g;
 
 function findValidatorFiles() {
     const files = [];
@@ -111,7 +111,7 @@ function extractCodesFromFile(filePath) {
     // that isn't documented."
     const primaries = new Set();
 
-    const vcMatch = src.match(/validatorCode\s*:\s*['"]([A-Z]+-\d+(?:[A-Z])?)['"]/);
+    const vcMatch = src.match(/validatorCode\s*:\s*['"]([A-Z]+-\d+[a-zA-Z]?)['"]/);
     if (vcMatch) {
         primaries.add(vcMatch[1]);
         return [...primaries];
@@ -119,7 +119,7 @@ function extractCodesFromFile(filePath) {
 
     // Fallback: first JSDoc title with parenthesized code (e.g.,
     // " * EduScan — Box Foo Audit (BOX-XXX)").
-    const titleMatch = src.match(/^\s*\*[^\n]*\(([A-Z]+-\d+(?:[A-Z])?)\)/m);
+    const titleMatch = src.match(/^\s*\*[^\n]*\(([A-Z]+-\d+[a-zA-Z]?)\)/m);
     if (titleMatch) {
         primaries.add(titleMatch[1]);
         return [...primaries];
