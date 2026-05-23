@@ -82,6 +82,12 @@ function collectDiscoverySurfaces() {
     if (fs.existsSync(CATALOG_PATH)) {
         surfaces.push({ file: CATALOG_PATH, content: fs.readFileSync(CATALOG_PATH, 'utf8') });
     }
+    // Dispatch hub manifest — boxes are rendered from this JSON at runtime
+    // (not embedded in dispatch/index.html as hardcoded cards anymore).
+    const dispatchManifest = path.join(APP_DIR, 'dispatch/boxes.json');
+    if (fs.existsSync(dispatchManifest)) {
+        surfaces.push({ file: dispatchManifest, content: fs.readFileSync(dispatchManifest, 'utf8') });
+    }
     const stack = [APP_DIR];
     while (stack.length > 0) {
         const d = stack.pop();

@@ -610,7 +610,7 @@ const BoxEngine = {
             el.setAttribute('tabindex', '0');
             el.setAttribute('aria-label', 'Open ' + this._escHtml(icon.label));
             el.innerHTML = `
-                <span class="icon-emoji" aria-hidden="true">${icon.icon}</span>
+                ${this._renderDesktopIconGlyph(icon.icon)}
                 <span class="icon-label">${this._escHtml(icon.label)}</span>
             `;
             el.addEventListener('dblclick', () => this._launchApp(icon));
@@ -623,6 +623,53 @@ const BoxEngine = {
             });
             container.appendChild(el);
         });
+    },
+
+    // Shorthand → webp lookup for dispatch-box desktop icons.
+    // Pre-existing configs use 2-3 letter codes (PS, AD, EVT, ...) that
+    // were originally rendered as raw text. This table maps the common
+    // codes to real icons; unknown codes fall back to text rendering.
+    _DESKTOP_ICON_MAP: {
+        'PS':   '/assets/images/icons/icon-terminal.webp',
+        '>_':   '/assets/images/icons/icon-terminal.webp',
+        'AD':   '/assets/images/icons/icon-users.webp',
+        'ADUC': '/assets/images/icons/icon-users.webp',
+        'EVT':  '/assets/images/icons/icon-list.webp',
+        'TKT':  '/assets/images/icons/icon-clipboard.webp',
+        'NET':  '/assets/images/icons/icon-network.webp',
+        'SVC':  '/assets/images/icons/icon-gear.webp',
+        'LOG':  '/assets/images/icons/icon-document.webp',
+        'TXT':  '/assets/images/icons/icon-document.webp',
+        'DSH':  '/assets/images/icons/icon-barchart.webp',
+        'ADM':  '/assets/images/icons/icon-crown.webp',
+        'DNS':  '/assets/images/icons/icon-globe.webp',
+        'SEC':  '/assets/images/icons/icon-shield.webp',
+        'FW':   '/assets/images/icons/icon-shield.webp',
+        'CRT':  '/assets/images/icons/icon-key.webp',
+        'SRV':  '/assets/images/icons/icon-server.webp',
+        'PRT':  '/assets/images/icons/icon-printer.webp',
+        'RST':  '/assets/images/icons/icon-wrench.webp',
+        'HD':   '/assets/images/icons/icon-desktop.webp',
+        'VPN':  '/assets/images/icons/icon-lock.webp',
+        '?':    '/assets/images/icons/icon-warning.webp'
+    },
+
+    _renderDesktopIconGlyph(iconRef) {
+        if (typeof iconRef !== 'string' || iconRef.length === 0) {
+            return '<span class="icon-emoji" aria-hidden="true"></span>';
+        }
+        // Image-path direct: full path or known file extension
+        if (iconRef.startsWith('/') || /\.(webp|png|svg|jpg|jpeg)$/i.test(iconRef)) {
+            return `<img class="icon-img" src="${this._escHtml(iconRef)}" alt="" aria-hidden="true">`;
+        }
+        // Shorthand lookup
+        const mapped = this._DESKTOP_ICON_MAP[iconRef];
+        if (mapped) {
+            return `<img class="icon-img" src="${mapped}" alt="" aria-hidden="true">`;
+        }
+        // Fallback: render the literal as text (preserves legacy behavior
+        // for one-off shorthand codes not yet curated into the map).
+        return `<span class="icon-emoji" aria-hidden="true">${this._escHtml(iconRef)}</span>`;
     },
 
     _buildFlagModal(parent) {
