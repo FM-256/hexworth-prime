@@ -232,7 +232,7 @@ echo ""
 # a baseline-write hiccup.
 echo ""
 echo -e "${DIM}─────────────────────────${NC}"
-echo -e "${BOLD}Archiving EduScan baseline for next-deploy drift detection...${NC}"
+echo -e "${GREEN}Archiving EduScan baseline for next-deploy drift detection...${NC}"
 if (cd "$REPO_ROOT" && node _tools/eduscan/cli.js --archive --quiet > /tmp/eduscan-archive.log 2>&1); then
     ARCHIVED=$(ls -t "$REPO_ROOT/_tools/eduscan/history/"scan-*.json 2>/dev/null | head -1)
     if [[ -n "$ARCHIVED" ]]; then
