@@ -442,6 +442,9 @@ async function main() {
         //   - BOX-016: index.html bootstrap scripts (blocking — engine/config/auth essentials)
         //   - BOX-020: flag count consistency vs box_flags.json (blocking — mechanism-aware)
         //   - BOX-024: duplicate flag values within a box (blocking — Mode-2 CF ambiguity)
+        //   - BOX-035: asset existence (informational — 5 WIP-author boxes with placeholder assets)
+        //   - BOX-037: localStorage flag bypass detection (blocking — security regression class)
+        //   - BOX-042: storageKey uniqueness (informational — 1 known nt1 dispatch/arena duplicate)
         //
         // Each validator has a self-validation gate (exit 2 if its logic
         // misclassifies PIS-FINAL); deploy-gate treats exit 2 as a hard fail.
@@ -464,7 +467,10 @@ async function main() {
             { code: 'BOX-014',  script: 'box-content-catalog-orphan.js',   blocking: false, desc: 'discoverability orphan' },
             { code: 'BOX-016',  script: 'box-html-bootstrap-audit.js',     blocking: true,  desc: 'index.html bootstrap scripts' },
             { code: 'BOX-020',  script: 'box-flag-count-consistency.js',   blocking: true,  desc: 'flag count consistency' },
-            { code: 'BOX-024',  script: 'box-flag-value-duplicates.js',    blocking: true,  desc: 'duplicate flag values' }
+            { code: 'BOX-024',  script: 'box-flag-value-duplicates.js',    blocking: true,  desc: 'duplicate flag values' },
+            { code: 'BOX-035',  script: 'box-asset-existence-audit.js',    blocking: false, desc: 'asset existence' },
+            { code: 'BOX-037',  script: 'box-localstorage-flag-bypass.js', blocking: true,  desc: 'localStorage flag bypass' },
+            { code: 'BOX-042',  script: 'box-storage-key-uniqueness.js',   blocking: false, desc: 'storageKey uniqueness' }
         ];
 
         const { execFileSync } = require('child_process');
