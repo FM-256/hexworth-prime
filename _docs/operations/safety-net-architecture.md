@@ -146,21 +146,64 @@ Pre-deploy is the LAST gate before live. Catching a HUB-001 break here means the
 | All Stage 2 validators (re-run) | Last chance to catch what slipped through pre-merge |
 | `validators/functional/smoke.js` | Real-browser headless navigation — too slow for earlier stages |
 | `validators/functional/browser.js` | DOM checks that need a rendered page |
-| `_tools/eduscan/smoke/run.js` | The 6-target smoke gate (HEUR-029 detection happens here) |
+| `_tools/eduscan/smoke/run.js` | The 15-target smoke gate (HEUR-029 detection + dispatch hub + per-course hubs) |
 | `nexus.js full --no-publish` | Cross-house diagnostic, orphan detection, content-tree integrity |
+| **BOX-* cascade** (see table below) | 21 validators for CTF-engine box configs — too cross-file for pre-commit |
+| `firmware-manifest-audit.js` (FIRM-001) | C2-device firmware manifest schema check |
+| `quiz-key-callsite-audit.js` (XREF-002) | Verify quiz HTML calls into a registered key in quiz_keys.json |
+| `meta-rule-registry-audit.js` (META-001) | Self-check: every validator file declares a code that's in this doc |
 
-### Smoke gate targets (current 6 — see SYM-6 to expand)
+### Smoke gate targets (15 — last updated 2026-05-23)
 
 ```
-1. /index.html              landing page
-2. /sorting.html            divergent vs. housed branch
-3. /dashboard.html          housed user dashboard (BF-1 onclick zone)
-4. /houses/web/index.html   house index (HEUR-029 zone)
-5. /houses/forge/index.html another house index
-6. /houses/cloud/modules/wsa/index.html  WSA hub (last-incident blast zone)
+ 1. /index.html                                            landing page
+ 2. /sorting.html                                          divergent vs. housed branch
+ 3. /dashboard.html                                        housed user dashboard
+ 4. /houses/web/index.html                                 house index (HEUR-029 zone)
+ 5. /houses/forge/index.html                               house index
+ 6. /houses/cloud/modules/wsa/index.html                   WSA hub (last-incident blast zone)
+ 7. /houses/eye/index.html                                 house index
+ 8. /houses/script/index.html                              house index
+ 9. /houses/dark-arts/index.html                           house index
+10. /houses/divergent/ethics-it/index.html                 Ethics in IT course hub
+11. /houses/shield/infosec/index.html                      PIS course hub
+12. /houses/code/python-for-it/index.html                  Python for IT course hub
+13. /houses/web/network-plus/index.html                    Network+ course hub
+14. /houses/divergent/ethics-it/labs/eth-l14-the-reckoning/index.html  Capstone lab (selector-count assertions)
+15. /dispatch/index.html                                   Dispatch hub (manifest + tour + filters)
 ```
+
+Plus 2 functional smokes (PIS-M2 midterm, PIS-FINAL practical) and the BOX-* cascade — total 38 checkpoints.
 
 Each target gets headless Puppeteer navigation, JS error capture, and assertion-based pass/fail. If any target throws a JS error or fails its assertions, the deploy aborts with the exact error.
+
+### BOX-* cascade — CTF-engine box config validators
+
+Every box config in `_app/{arena,dispatch,houses}/.../config.js` that calls `BoxEngine.init` is scanned by the BOX-* cascade. Each validator has a JSDoc header in its own file with detection algorithm + self-validation cases. Each run writes a JSON report to `_tools/reports/BOX_*.json` and exits non-zero if it finds critical/high.
+
+| Code | File | Severity | Catches |
+|---|---|---|---|
+| **BOX-001** | `box-flag-registry-audit.js` | CRITICAL | Box has flag IDs but no Firestore `flag_registry/{boxId}` entry — bridge cannot validate submissions. |
+| **BOX-002a** | `box-walkthrough-audit.js` | MEDIUM | Box has no walkthrough at `~/hexworth-shared/Solutions/`. |
+| **BOX-002b** | `box-walkthrough-flag-audit.js` | MEDIUM | Walkthrough exists but is missing flag-value entries. |
+| **BOX-002c** | `box-walkthrough-flag-drift.js` | HIGH | Walkthrough flag values disagree with `box_flags.json`. |
+| **BOX-003** | `box-engine-api-lint.js` | HIGH | Config calls a non-existent engine method (typo'd `engine.awardFlg`, `engine.complete()` etc.). |
+| **BOX-004** | `box-gate-exclusivity-lint.js` | HIGH | Multi-action gate logic where two scenarios can be satisfied simultaneously (ambiguous flag award). |
+| **BOX-005** | `box-scoring-floor-audit.js` | HIGH | Config missing `scoring.minScore` floor — score can go negative. |
+| **BOX-006** | `box-state-reset-audit.js` | HIGH | Config has mutable `_state` but no `resetState()` — session bleed across student visits. |
+| **BOX-007** | `box-recoverable-action-audit.js` | HIGH | Config levies a penalty (`engine.addScore(-N, ...)`) but has no undo/reset path — soft-lock risk. |
+| **BOX-008** | `box-flag-shell-safety.js` | MEDIUM | Flag value contains shell metacharacters that break copy-paste into a terminal. |
+| **BOX-009** | `box-decoy-provenance-lint.js` | MEDIUM | Decoy artifacts not surfaced/labeled — students can't tell decoy from real evidence. |
+| **BOX-010** | `box-hint-help-level-lint.js` | MEDIUM | Help-Level in hint metadata doesn't match the hint's actual cost/disclosure. |
+| **BOX-011** | `box-flag-leak-audit.js` | HIGH (CTF flag) / INFO (narrative) | Flag value appears as literal in client-shipped `config.js`. |
+| **BOX-013** | `box-registry-id-dirname.js` | CRITICAL | `config.registryId` does not equal directory basename — Firestore lookup silently fails. |
+| **BOX-014** | `box-content-catalog-orphan.js` | HIGH | Box exists on disk but isn't referenced from ContentCatalog or any hub HTML — student can't navigate to it. |
+| **BOX-016** | `box-html-bootstrap-audit.js` | CRITICAL / HIGH | index.html missing `config.js`, `BoxEngine.js`, or `FirebaseAuth.js` script imports. |
+| **BOX-020** | `box-flag-count-consistency.js` | HIGH | `config.flags[]` declared IDs disagree with `box_flags.json` registered IDs (mechanism-aware — handles request/auto-only/dispatch/config-embedded). |
+| **BOX-024** | `box-flag-value-duplicates.js` | HIGH | Two flags in same box share the same normalized value — Mode-2 validateFlag awards the wrong scenario. |
+| **BOX-035** | `box-asset-existence-audit.js` | HIGH | Box references `/assets/...` or relative image/audio paths that don't exist on disk. |
+| **BOX-037** | `box-localstorage-flag-bypass.js` | HIGH | Config writes flag-capture state to `localStorage` directly, bypassing the server-side `validateFlag` bridge. |
+| **BOX-042** | `box-storage-key-uniqueness.js` | CRITICAL (collision) / HIGH (missing) | Two boxes share `storageKey` — progress cross-pollutes between labs. |
 
 ### What does NOT belong here
 

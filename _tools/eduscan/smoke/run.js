@@ -487,7 +487,8 @@ async function main() {
             { code: 'BOX-024',  script: 'box-flag-value-duplicates.js',    blocking: true,  desc: 'duplicate flag values' },
             { code: 'BOX-035',  script: 'box-asset-existence-audit.js',    blocking: false, desc: 'asset existence' },
             { code: 'BOX-037',  script: 'box-localstorage-flag-bypass.js', blocking: true,  desc: 'localStorage flag bypass' },
-            { code: 'BOX-042',  script: 'box-storage-key-uniqueness.js',   blocking: false, desc: 'storageKey uniqueness' }
+            { code: 'BOX-042',  script: 'box-storage-key-uniqueness.js',   blocking: false, desc: 'storageKey uniqueness' },
+            { code: 'META-001', script: 'meta-rule-registry-audit.js',     blocking: true,  desc: 'rule registry — validator files registered in safety-net doc' }
         ];
 
         const { execFileSync } = require('child_process');
