@@ -1,6 +1,6 @@
-# Hex AI Cloud Function Bridge — `hexAiChat` + `hexAiHealth`
+# Hex AI Cloud Function Bridge — `hexAiChat` + `hexAiChatStream` + `hexAiHealth`
 
-> Built 2026-05-23 · v0.4.0 (server-side `failed_attempts`)
+> Built 2026-05-23 · v0.5.0a (streaming added)
 > Source: `functions/hex-ai-bridge.js` · NOT YET DEPLOYED (gated on Cloudflare Tunnel setup)
 
 ## Purpose
@@ -15,10 +15,18 @@ The bridge is the only path the web app (`hexworth.com` on Firebase Hosting) can
 
 | Name | Type | Auth | Purpose |
 |---|---|---|---|
-| `hexAiChat` | callable | signed-in user | Blocking AI chat — student/operator question → orchestrator → response |
-| `hexAiHealth` | callable | signed-in user | Probe whether orchestrator is reachable from CF runtime |
+| `hexAiChat` | callable (onCall) | signed-in user (callable handles automatically) | Blocking AI chat — student/operator question → orchestrator → response |
+| `hexAiChatStream` | HTTP (onRequest) | Firebase ID token in `Authorization: Bearer` header | Streaming AI chat — SSE forwarded chunk-by-chunk from orchestrator |
+| `hexAiHealth` | callable (onCall) | signed-in user | Probe whether orchestrator is reachable from CF runtime |
 
-Streaming UX (`/chat/stream` SSE) is **not** supported via callable functions — they're unary by design. Streaming would need an HTTP function with SSE forwarding. Deferred to v0.4.0+.
+### Why two chat functions?
+
+Firebase callable functions are unary by design — they buffer the entire response before returning, which defeats streaming. `hexAiChatStream` uses `onRequest` (an HTTP function) so it can pipe the orchestrator's SSE stream straight to the browser. The auth model differs:
+
+- `onCall` validates the user's Firebase ID token internally (zero callsite code).
+- `onRequest` requires the client to send `Authorization: Bearer <idToken>` explicitly, and the function calls `getAuth().verifyIdToken()` per request.
+
+The HTTP function uses an explicit CORS allowlist (hexworth.com + Firebase preview channels + localhost emulator). The `cors: true` shortcut is unsafe here because we accept credentials in the Authorization header.
 
 ## Request / response shape
 
@@ -91,7 +99,7 @@ Use this in the web app to detect "CF can talk to hexclass" failures separately 
 
 | Item | Why deferred | When to revisit |
 |---|---|---|
-| Streaming responses (SSE) | onCall is unary; needs HTTP function + SSE forwarding + auth re-check | v0.5.0 |
+| ~~Streaming responses (SSE)~~ | **shipped v0.5.0a** — `hexAiChatStream` HTTP function | done |
 | Server-side `hint_used_recently` | No hint-usage tracking collection exists yet | v0.4.1 (when hint analytics ship) |
 | Conversation memory | Each call is independent; multi-turn context requires Redis-backed thread store | v0.5.0 |
 | Tool calling | Architecture-defining; needs operator design conversation | v0.6.0 |

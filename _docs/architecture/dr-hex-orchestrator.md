@@ -269,7 +269,7 @@ curl -s http://localhost:8000/health | python3 -m json.tool
 - ~~No Firestore live context pull~~ — **closed by CF bridge v0.4.0**: `failed_attempts` derived server-side from `flag_attempts` / `flag_captures`, client value ignored.
 - **No tool calling** — architecture-defining decision; needs operator buy-in on the tool layer before implementation.
 - **No conversation memory in Redis** — Redis container up, unused. Cheap win once Cloud Function bridge deploys.
-- **No streaming UX through the CF bridge** — `/chat/stream` works at the orchestrator; CF bridge is unary (onCall). HTTP function + SSE forwarding needed.
+- ~~No streaming UX through the CF bridge~~ — **closed by CF v0.5.0a**: `hexAiChatStream` HTTP function forwards SSE from orchestrator straight to the browser; `HexAI.js` `askDrHexStream()` consumes it.
 - **No per-user-quota / rate limit** — defer until traffic shape is real.
 - **No key rotation infrastructure** — env-var-redeploy is the rotation path for now.
 - **No GPU compute runtime** — Arc Pro B60 (Battlemage) compute paths broken as of 2026-05-23 (Intel `intel-opencl-icd` predates Battlemage; PyTorch XPU segfaults). CPU-only inference. Path 3 (oneAPI Base Toolkit) is the next attempt.

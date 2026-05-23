@@ -8452,4 +8452,5 @@ exports.operatorBoard         = _operatorBoard.operatorBoard;
 // Architecture: _docs/architecture/dr-hex-orchestrator.md (v0.3.0+)
 const _hexAiBridge = require('./hex-ai-bridge');
 exports.hexAiChat             = _hexAiBridge.hexAiChat;
+exports.hexAiChatStream       = _hexAiBridge.hexAiChatStream;
 exports.hexAiHealth           = _hexAiBridge.hexAiHealth;

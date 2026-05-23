@@ -205,7 +205,9 @@
             <textarea id="message-input" placeholder="What does 'ls -la' do?"></textarea>
 
             <div class="control-row" style="margin-top:1rem">
-                <button id="ask-btn" class="primary" disabled>Ask Dr. Hex</button>
+                <button id="ask-btn" class="primary" disabled>Ask (blocking)</button>
+                <button id="ask-stream-btn" disabled>Ask (streaming)</button>
+                <button id="cancel-stream-btn" style="display:none">Cancel stream</button>
                 <span id="latency-readout" style="color:#8a8a9a; font-size:0.85rem"></span>
             </div>
 
@@ -248,11 +250,13 @@
                 $('auth-banner').style.display = 'none';
                 $('user-email').textContent = user.email;
                 $('ask-btn').disabled = false;
+                $('ask-stream-btn').disabled = false;
                 probeHealth();
             } else {
                 $('auth-banner').style.display = 'block';
                 $('user-email').textContent = '—';
                 $('ask-btn').disabled = true;
+                $('ask-stream-btn').disabled = true;
             }
         });
 
@@ -312,9 +316,81 @@
             }
         });
 
-        // Submit on Ctrl/Cmd+Enter
+        // Submit on Ctrl/Cmd+Enter → blocking; Shift+Ctrl/Cmd+Enter → streaming
         $('message-input').addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') $('ask-btn').click();
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                (e.shiftKey ? $('ask-stream-btn') : $('ask-btn')).click();
+            }
+        });
+
+        // ── Streaming question ───────────────────────────────────────────
+        let _activeStream = null;
+
+        $('cancel-stream-btn').addEventListener('click', () => {
+            if (_activeStream) {
+                _activeStream.abort();
+                _activeStream = null;
+            }
+        });
+
+        $('ask-stream-btn').addEventListener('click', async () => {
+            const message = $('message-input').value.trim();
+            if (!message) return;
+
+            $('ask-btn').disabled = true;
+            $('ask-stream-btn').disabled = true;
+            $('cancel-stream-btn').style.display = '';
+            $('latency-readout').textContent = 'Streaming…';
+            $('response-container').style.display = 'block';
+            $('response-box').textContent = '';
+            $('response-box').classList.remove('error');
+            $('response-meta').textContent = '';
+
+            const t0 = performance.now();
+            const controller = new AbortController();
+            _activeStream = controller;
+            let metaCaught = null;
+            let tokenCount = 0;
+
+            try {
+                await ai.askDrHexStream(message, {
+                    house: $('house-select').value || null,
+                    mission_id: $('mission-input').value || null,
+                }, {
+                    getIdToken: () => auth.currentUser.getIdToken(),
+                    signal: controller.signal,
+                    onMeta: (m) => {
+                        metaCaught = m;
+                        $('response-meta').textContent =
+                            `${m.persona_name} · Help Level ${m.help_level} (${m.help_level_label}) · ` +
+                            `${m.model}` +
+                            (m.rag_hits ? ` · RAG: ${m.rag_hits} chunks` : '');
+                    },
+                    onToken: (chunk) => {
+                        $('response-box').textContent += chunk;
+                        tokenCount += 1;
+                    },
+                    onDone: (d) => {
+                        const elapsed = Math.round(performance.now() - t0);
+                        $('latency-readout').textContent =
+                            `Stream done: ${tokenCount} tokens, ${d.latency_ms}ms orchestrator, ${elapsed}ms total`;
+                    },
+                });
+            } catch (e) {
+                if (e.code === 'aborted') {
+                    $('latency-readout').textContent = 'Stream cancelled';
+                } else {
+                    $('response-box').textContent += `\n\n[stream error: ${ai.prettyError(e)}]`;
+                    $('response-box').classList.add('error');
+                    $('latency-readout').textContent = 'Stream failed';
+                    console.error(e);
+                }
+            } finally {
+                _activeStream = null;
+                $('cancel-stream-btn').style.display = 'none';
+                $('ask-btn').disabled = false;
+                $('ask-stream-btn').disabled = false;
+            }
         });
     </script>
 </body>

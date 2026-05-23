@@ -65,6 +65,10 @@ export class HexAIClient {
         this._chatFn = null;
         this._healthFn = null;
 
+        // Optional override for the streaming endpoint URL — handy for
+        // emulator testing or hosting rewrites.
+        this._explicitStreamUrl = options.streamUrl || null;
+
         // In-flight tracking for cancel-previous semantics. Each askDrHex
         // call gets an AbortController; calling askDrHex again while one
         // is in flight aborts the previous (Firebase callable doesn't
@@ -135,6 +139,126 @@ export class HexAIClient {
             if (e instanceof HexAIError) throw e;
             throw this._mapFirebaseError(e);
         }
+    }
+
+    /**
+     * Streaming variant of askDrHex. Yields tokens as they arrive.
+     *
+     * @param {string} message
+     * @param {object} [context] - same shape as askDrHex
+     * @param {object} callbacks
+     * @param {function} [callbacks.onMeta] - fired once with { persona, persona_name, help_level, model, rag_hits, rag_titles }
+     * @param {function} callbacks.onToken - fired per token chunk with the string content
+     * @param {function} [callbacks.onDone] - fired once with { latency_ms }
+     * @param {function} [callbacks.onError] - fired on error with a HexAIError
+     * @param {AbortSignal} [callbacks.signal] - cancel the stream early
+     * @returns {Promise<void>} resolves when the stream completes (or rejects on error)
+     *
+     * Requires the caller's Firebase auth instance to mint a fresh ID token:
+     *   const idToken = await auth.currentUser.getIdToken();
+     * Pass either as `callbacks.idToken` (string) or as `callbacks.getIdToken`
+     * (async function returning the token).
+     *
+     * The streaming endpoint URL defaults to the project's CF region; override
+     * via options.streamUrl in the constructor if running against an emulator.
+     */
+    async askDrHexStream(message, context = {}, callbacks = {}) {
+        if (typeof message !== 'string' || !message.trim()) {
+            throw new HexAIError('invalid', "Message can't be empty.");
+        }
+        if (message.length > 4000) {
+            throw new HexAIError('invalid', "Message is too long (max 4000 characters).");
+        }
+        if (typeof callbacks.onToken !== 'function') {
+            throw new Error('askDrHexStream: callbacks.onToken is required');
+        }
+
+        const idToken = callbacks.idToken ||
+            (callbacks.getIdToken ? await callbacks.getIdToken() : null);
+        if (!idToken) {
+            throw new HexAIError('auth', "Sign in to talk to Dr. Hex.");
+        }
+
+        const streamUrl = this._streamUrl();
+
+        let response;
+        try {
+            response = await fetch(streamUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                    'Accept': 'text/event-stream',
+                },
+                body: JSON.stringify({
+                    message: message.trim(),
+                    house: context.house || null,
+                    mission_id: context.mission_id || null,
+                    hint_used_recently: context.hint_used_recently === true,
+                }),
+                signal: callbacks.signal,
+            });
+        } catch (e) {
+            if (e.name === 'AbortError') {
+                throw new HexAIError('aborted', 'Streaming was cancelled.');
+            }
+            throw new HexAIError('unreachable', "Can't reach Dr. Hex right now.", e);
+        }
+
+        if (response.status === 401) {
+            throw new HexAIError('auth', "Sign in to talk to Dr. Hex.");
+        }
+        if (!response.ok) {
+            throw new HexAIError('orchestrator', `Streaming failed: ${response.status}`);
+        }
+
+        // Parse SSE: lines starting with "data: ", separated by \n\n.
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const events = buffer.split('\n\n');
+                buffer = events.pop();             // keep the partial final event
+                for (const block of events) {
+                    const line = block.split('\n').find(l => l.startsWith('data: '));
+                    if (!line) continue;
+                    let event;
+                    try { event = JSON.parse(line.slice(6)); }
+                    catch (_) { continue; }
+                    if (event.type === 'meta' && callbacks.onMeta) {
+                        callbacks.onMeta(event);
+                    } else if (event.type === 'token') {
+                        callbacks.onToken(event.content || '');
+                    } else if (event.type === 'done' && callbacks.onDone) {
+                        callbacks.onDone(event);
+                    } else if (event.type === 'error') {
+                        const err = new HexAIError('orchestrator', event.error || 'Stream error');
+                        if (callbacks.onError) callbacks.onError(err);
+                        throw err;
+                    }
+                }
+            }
+        } finally {
+            try { reader.releaseLock(); } catch (_) {}
+        }
+    }
+
+    _streamUrl() {
+        // Derive the HTTP CF URL from the functions instance. The default
+        // pattern is https://<region>-<project>.cloudfunctions.net/<name>.
+        // Firebase Hosting users typically rewrite this to /api/<name>;
+        // override via constructor options.streamUrl if needed.
+        if (this._explicitStreamUrl) return this._explicitStreamUrl;
+        // Try to derive from this._functions if available; fall back to a
+        // sensible default that the caller can override.
+        const region = (this._functions && this._functions.region) || 'us-central1';
+        const projectId = (this._functions && this._functions.app && this._functions.app.options.projectId)
+            || 'hexworth-prime';
+        return `https://${region}-${projectId}.cloudfunctions.net/hexAiChatStream`;
     }
 
     /**

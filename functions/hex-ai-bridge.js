@@ -25,9 +25,10 @@
  * - 30s upstream timeout — if orchestrator is slow or down, client sees
  *   a clean error, not a hung promise
  */
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { getFirestore } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
 
 const hexAiUrl = defineSecret('HEX_AI_URL');           // e.g. https://hex-ai.hexworth.com
 const hexAiApiKey = defineSecret('HEX_AI_API_KEY');    // matches one entry in HEX_API_KEYS on hexclass
@@ -242,6 +243,169 @@ exports.hexAiChat = onCall(cfOptions, async (request) => {
  *     orchestrator_version: string | null,
  *   }
  */
+/**
+ * hexAiChatStream — HTTP endpoint that forwards SSE from the orchestrator.
+ *
+ * onCall is unary (Firebase callable functions buffer the entire response
+ * before returning), so streaming requires an HTTP function. This endpoint:
+ *
+ *   1. Reads `Authorization: Bearer <Firebase ID token>` and verifies it
+ *      via Firebase Admin SDK (matches what onCall does internally).
+ *   2. Derives role + failed_attempts server-side (same logic as hexAiChat).
+ *   3. POSTs to orchestrator /chat/stream with X-API-Key.
+ *   4. Pipes the SSE response back to the browser chunk-by-chunk.
+ *
+ * CORS — explicit allowlist of `hexworth.com` and the Firebase preview
+ * domains. The wildcard `cors: true` shortcut is unsafe here because we
+ * accept credentials in the Authorization header.
+ *
+ * Auth model rationale:
+ *   - Authorization header instead of session cookies: matches the
+ *     Firebase Web SDK's `user.getIdToken()` pattern, which the client
+ *     already uses for callable functions.
+ *   - ID token verified per-request (Admin SDK caches public keys
+ *     internally). No request-side caching — auth state can change.
+ *
+ * Response format:
+ *   - 200 OK + `Content-Type: text/event-stream`
+ *   - SSE events: meta (persona/level), token (...), done (latency)
+ *   - The browser EventSource API consumes these natively.
+ *   - 401 if no/invalid token; 502 if orchestrator unreachable.
+ */
+const ALLOWED_STREAM_ORIGINS = [
+    'https://hexworth.com',
+    'https://hexworth-prime.web.app',
+    'https://hexworth-prime.firebaseapp.com',
+    // Preview channels — Firebase Hosting injects --hexworth-prime.web.app
+    // subdomains for `firebase hosting:channel:deploy`. The strict-prefix
+    // check below covers them.
+];
+
+function applyCors(req, res) {
+    const origin = req.headers.origin || '';
+    const allowed = ALLOWED_STREAM_ORIGINS.includes(origin) ||
+        origin.endsWith('.hexworth-prime.web.app') ||
+        origin === 'http://localhost:5000' ||      // firebase emulator
+        origin === 'http://127.0.0.1:5000';
+    if (allowed) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    }
+    return allowed;
+}
+
+exports.hexAiChatStream = onRequest({
+    region: 'us-central1',
+    secrets: [hexAiUrl, hexAiApiKey],
+    timeoutSeconds: 540,        // streaming can run longer than blocking
+    memory: '256MiB',
+}, async (req, res) => {
+    const corsAllowed = applyCors(req, res);
+
+    if (req.method === 'OPTIONS') {
+        res.status(corsAllowed ? 204 : 403).end();
+        return;
+    }
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+    if (!corsAllowed) {
+        res.status(403).json({ error: 'Origin not allowed' });
+        return;
+    }
+
+    // Verify Firebase ID token from Authorization header.
+    const authHeader = req.headers.authorization || '';
+    const m = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (!m) {
+        res.status(401).json({ error: 'Missing Bearer token' });
+        return;
+    }
+    let decoded;
+    try {
+        decoded = await getAuth().verifyIdToken(m[1]);
+    } catch (e) {
+        res.status(401).json({ error: 'Invalid token' });
+        return;
+    }
+    const uid = decoded.uid;
+    const email = (decoded.email || '').toLowerCase();
+    const isAdmin = decoded.admin === true || ADMIN_EMAILS.includes(email);
+
+    // Parse body (Firebase auto-parses JSON for onRequest).
+    const data = (req.body && typeof req.body === 'object') ? req.body : {};
+    const message = (data.message || '').toString().trim();
+    if (!message || message.length > 4000) {
+        res.status(400).json({ error: 'message required, <= 4000 chars' });
+        return;
+    }
+
+    const failed_attempts = await deriveFailedAttempts(uid, data.mission_id || null);
+    const body = {
+        user_uid: uid,
+        message,
+        house: data.house || null,
+        mission_id: data.mission_id || null,
+        role: isAdmin ? 'instructor' : 'student',
+        failed_attempts,
+        hint_used_recently: data.hint_used_recently === true,
+    };
+
+    // Open the upstream SSE stream from the orchestrator.
+    const controller = new AbortController();
+    req.on('close', () => controller.abort());        // browser disconnect → upstream cancel
+
+    let upstream;
+    try {
+        upstream = await fetch(`${hexAiUrl.value()}/chat/stream`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': hexAiApiKey.value(),
+                'Accept': 'text/event-stream',
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+    } catch (e) {
+        res.status(502).json({ error: `orchestrator unreachable: ${e.message}` });
+        return;
+    }
+
+    if (!upstream.ok) {
+        const text = await upstream.text().catch(() => '<unreadable>');
+        res.status(502).json({ error: `orchestrator status ${upstream.status}: ${text.slice(0, 200)}` });
+        return;
+    }
+
+    // Stream SSE bytes through to the client.
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('X-Accel-Buffering', 'no');    // disable nginx-style buffering
+    res.flushHeaders();
+
+    const reader = upstream.body.getReader();
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            res.write(value);
+        }
+    } catch (e) {
+        // Connection broken mid-stream — send a final error event to the
+        // client, then close. Don't throw — that would crash the function.
+        try {
+            res.write(`data: ${JSON.stringify({ type: 'error', error: e.message })}\n\n`);
+        } catch (_) { /* response already closed */ }
+    } finally {
+        res.end();
+    }
+});
+
 exports.hexAiHealth = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');

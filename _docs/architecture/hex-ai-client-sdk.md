@@ -44,6 +44,37 @@ console.log(r.model);             // "qwen2.5:7b"
 console.log(r.latency_ms);        // 3421
 ```
 
+### `ai.askDrHexStream(message, context, callbacks)`
+
+Streaming variant. Yields tokens as they arrive via the `onToken` callback. The browser sees the response materialize chunk-by-chunk instead of waiting for the full reply.
+
+```js
+await ai.askDrHexStream(
+    "Explain TLS handshake in detail",
+    { house: 'web' },
+    {
+        getIdToken: () => auth.currentUser.getIdToken(),
+        onMeta:  (m) => console.log('persona:', m.persona_name, 'level:', m.help_level),
+        onToken: (chunk) => responseEl.textContent += chunk,
+        onDone:  (d) => console.log('total ms:', d.latency_ms),
+        signal:  controller.signal,    // optional AbortSignal for cancel
+    }
+);
+```
+
+Callbacks:
+
+| Callback | Required | Fired | Payload |
+|---|---|---|---|
+| `onMeta` | no | once at stream start | `{ persona, persona_name, help_level, help_level_label, model, rag_hits, rag_titles }` |
+| `onToken` | **yes** | per chunk | string (the token content) |
+| `onDone` | no | once at stream end | `{ latency_ms }` |
+| `onError` | no | on error | `HexAIError` |
+
+Auth: pass either `callbacks.idToken` (a fresh string) or `callbacks.getIdToken` (an async function — the SDK calls it to mint the token at request time). The Firebase auth instance is the caller's responsibility — the SDK does NOT import `getAuth` itself.
+
+Cancellation: pass an `AbortSignal` via `callbacks.signal`. Aborting the signal closes the connection on both sides (browser drops the EventSource; CF's `req.on('close')` cancels the upstream fetch via AbortController).
+
 ### `ai.probeHexAi()`
 
 Health check — does the bridge work AND can it reach the orchestrator?
@@ -117,8 +148,8 @@ This page is admin-gated (route under `/admin/`). It's the operator's verificati
 
 ## What this does NOT do (yet)
 
-- **No streaming UI** — `askDrHex` is unary. Streaming will need an HTTP endpoint + EventSource client.
-- **No conversation memory** — each call is independent. Multi-turn UX requires v0.5.0 Redis-backed memory.
+- ~~No streaming UI~~ — **shipped v0.5.0a** via `askDrHexStream()`.
+- **No conversation memory** — each call is independent. Multi-turn UX requires v0.5.0b Redis-backed memory.
 - **No retry logic** — a failed call returns the error to the caller; no auto-retry. Reason: retries on `auth` or `invalid` errors would mask real bugs.
 - **No optimistic UI** — the caller renders the "thinking" state manually. The SDK is logic-only.
 - **No rate limiting at the SDK** — defer until the CF has rate-limit headers to honor.
