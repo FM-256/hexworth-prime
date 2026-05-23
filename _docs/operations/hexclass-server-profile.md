@@ -54,9 +54,15 @@ SSH key on operator laptop: `~/.ssh/id_hexclass` (ed25519). User: `hexclass`. Pa
 
 ## What's NOT yet installed (deferred to operator)
 
-### GPU compute runtime — DEFERRED
+### GPU compute runtime — DEFERRED (2 paths confirmed broken 2026-05-23)
 
-The Arc Pro B60 (Battlemage) launched Dec 2024 / Jan 2025. The Intel client compute runtime packaged in Ubuntu 24.04's noble channel predates Battlemage stable support. `clinfo -l` returns "Number of platforms: 0" — the OpenCL stack doesn't see the GPU as a compute device.
+The Arc Pro B60 (Battlemage) launched Dec 2024 / Jan 2025. As of 2026-05-23 both compute-runtime paths I tested are broken on this hardware:
+
+**Path 1 — OpenCL via `intel-opencl-icd`:** `clinfo -l` returns "Number of platforms: 0". The compute runtime package in Ubuntu noble's `client` channel is 24.39 (Sept 2024), predating Battlemage. Rolling channel (`noble unified`) has newer packages but they have unmet `libigdfcl1` deps that break the install tree.
+
+**Path 2 — PyTorch XPU (native `torch.xpu` from PyTorch 2.5+):** Probed in isolated uv venv at `~/ipex-probe`. `python -c "import torch; torch.xpu.is_available()"` SEGFAULTS — PyTorch XPU build can't initialize against Battlemage yet. Cleanup done; env removed.
+
+**Path 3 (untested) — Intel oneAPI Base Toolkit + DPC++:** Could install in isolation. Larger surface area; potentially newer compute runtime. Worth trying but separate operator decision (5+ GB install).
 
 Three viable paths, all require operator decision:
 
@@ -194,6 +200,53 @@ openssl rand -hex 24 > /opt/hexclass/.env-new
 - `restic init --repo bc1:/backup/hexclass` (peer-server backup)
 
 Deferred — operator picks the backup destination.
+
+## RAG capability — proven working 2026-05-23
+
+The qwen + nomic-embed-text + pgvector pipeline is end-to-end functional:
+
+```
+$ curl -s http://127.0.0.1:11434/api/embed \
+    -d '{"model":"nomic-embed-text","input":"Eclipse-tier final practical"}'
+# → 768-dim embedding vector
+
+# In pgvector schema:
+CREATE TABLE hexworth_docs (
+    id SERIAL PRIMARY KEY,
+    title TEXT,
+    chunk TEXT,
+    embedding vector(768)
+);
+CREATE INDEX hexworth_docs_embedding_idx
+  ON hexworth_docs USING ivfflat (embedding vector_cosine_ops);
+```
+
+Workflow:
+1. Document chunk → POST `/api/embed` (nomic-embed-text) → 768-dim vector
+2. INSERT into pgvector
+3. Query → embed query → `SELECT ... ORDER BY embedding <=> $1 LIMIT k`
+4. Retrieved chunks → context to qwen2.5:7b → answer
+
+This is exactly the shape needed for student-memory / RAG over course content (CTF box configs, walkthroughs, Confluence solutions manual, etc.).
+
+## Access patterns
+
+All services bound to `127.0.0.1` on hexclass. To use from operator laptop:
+
+```bash
+# One-shot tunnel
+ssh -L 3000:127.0.0.1:3000 hexclass
+# → browse http://localhost:3000 (Open WebUI)
+
+# Or persistent tunnels via SSH config (add to ~/.ssh/config):
+Host hexclass
+    LocalForward 3000 127.0.0.1:3000        # Open WebUI
+    LocalForward 3001 127.0.0.1:3001        # Grafana
+    LocalForward 9091 127.0.0.1:9091        # Prometheus
+    LocalForward 11434 127.0.0.1:11434      # ollama API
+```
+
+For programmatic use from bc1/bc2: same `ssh -L` or — when operator decides — bind to LAN via Caddy + Tailscale.
 
 ## How to verify the profile is still accurate
 
