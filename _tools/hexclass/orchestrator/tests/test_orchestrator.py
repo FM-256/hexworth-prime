@@ -24,13 +24,23 @@ import urllib.parse
 
 
 URL = os.environ.get("HEX_AI_URL", "http://127.0.0.1:8000")
+# v0.3.0: when auth is active on the orchestrator, tests must send the
+# key. Set HEX_TEST_API_KEY to bypass; if unset and auth is enabled,
+# tests will get 401s and fail (intentionally — drives operators to
+# set the env var rather than silently passing on no-auth instances).
+TEST_API_KEY = os.environ.get("HEX_TEST_API_KEY", "")
 
 
 def _http(method: str, path: str, body: dict | None = None, stream: bool = False):
+    headers: dict[str, str] = {}
+    if body:
+        headers["Content-Type"] = "application/json"
+    if TEST_API_KEY:
+        headers["X-API-Key"] = TEST_API_KEY
     req = urllib.request.Request(
         URL + path,
         data=json.dumps(body).encode() if body else None,
-        headers={"Content-Type": "application/json"} if body else {},
+        headers=headers,
         method=method,
     )
     resp = urllib.request.urlopen(req, timeout=60)
@@ -46,7 +56,7 @@ def test_health_responds() -> None:
     data = json.loads(_http("GET", "/health"))
     assert data["orchestrator"] == "ok", f"orchestrator status: {data['orchestrator']}"
     assert data["ollama"] == "ok", f"ollama status: {data['ollama']}"
-    assert data["version"] == "0.2.0"
+    assert data["version"] == "0.3.0"
     print(f"  ✓ health (uptime {data['uptime_seconds']}s, {len(data.get('models_available', []))} models)")
 
 
@@ -122,6 +132,9 @@ def test_prompt_injection_refused() -> None:
 
 def test_streaming_sse_shape() -> None:
     """POST /chat/stream yields SSE 'data:' lines starting with meta, ending with done."""
+    headers = {"Content-Type": "application/json"}
+    if TEST_API_KEY:
+        headers["X-API-Key"] = TEST_API_KEY
     req = urllib.request.Request(
         URL + "/chat/stream",
         data=json.dumps({
@@ -129,7 +142,7 @@ def test_streaming_sse_shape() -> None:
             "message": "What is ls?",
             "role": "student",
         }).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     resp = urllib.request.urlopen(req, timeout=120)

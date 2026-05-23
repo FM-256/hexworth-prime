@@ -1,23 +1,38 @@
 """
-hex_ai_orchestrator — Hexworth Prime AI orchestration service (v0.1.0)
+hex_ai_orchestrator — Hexworth Prime AI orchestration service (v0.3.0)
 
 The constrained version of Dr. Hex. Routes student/operator questions
 through a context packet + persona + help-level pipeline before they
 reach an inference model.
 
-v0.1.0 adds (over v0.0.1):
+v0.3.0 adds (over v0.2.0):
+  - API-key auth on /chat, /chat/stream, /context (when show_rag=1)
+  - HEX_ENV=production fail-fast if HEX_API_KEYS unset (prevents
+    accidental no-auth boot beyond localhost)
+  - Auth is a FastAPI dependency — runs BEFORE _resolve_request, so
+    unauth'd calls never trigger RAG embed/pgvector work
+
+v0.2.0 added (over v0.1.0):
+  - RAG retrieval from pgvector via rag.retrieve(), wrapped in
+    asyncio.to_thread + asyncio.wait_for to avoid event-loop stall
+  - Retrieved context flows into the USER message (boxed), not the
+    system prompt — better qwen attention behavior + closes future
+    injection vector
+  - SQL-side distance filter, env-var threshold
+
+v0.1.0 added (over v0.0.1):
   - Streaming responses (SSE) via POST /chat/stream
   - CORS middleware (configurable allowed origins)
   - Prompt-injection guard (constitution prompt appended after user message)
   - Prometheus metrics on /metrics
   - Graceful shutdown with in-flight request draining
 
-Still NOT in this version (deferred to v0.2.0+):
+Still NOT in this version (deferred to v0.4.0+):
   - Firestore live context pull (context still from request body)
   - Tool calling
-  - RAG retrieval from pgvector
   - Conversation memory in Redis
-  - Auth (localhost-only mitigation)
+  - Per-user-quota / rate limiting
+  - Key rotation infrastructure (env-var-redeploy is current)
 
 Endpoints:
   GET  /health                — service alive + ollama reachable
@@ -31,14 +46,16 @@ Endpoints:
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import os
+import sys
 import time
 from typing import Any, AsyncIterator, Literal
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -56,7 +73,57 @@ log = logging.getLogger("hex_ai")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 DEFAULT_MODEL = os.environ.get("HEX_DEFAULT_MODEL", "qwen2.5:7b")
 ALLOWED_ORIGINS = os.environ.get("HEX_ALLOWED_ORIGINS", "*").split(",")
-VERSION = "0.2.0"
+HEX_ENV = os.environ.get("HEX_ENV", "development").lower()
+VERSION = "0.3.0"
+
+# ── API-KEY AUTH ────────────────────────────────────────────────────────────
+# CSV in HEX_API_KEYS env var. Empty entries are filtered out so an
+# accidental "HEX_API_KEYS=" does NOT result in an allowed empty key.
+# (Per Nancy review 2026-05-23: "".split(",") returns [""] and
+# hmac.compare_digest("","") returns True — silent no-auth.)
+ALLOWED_API_KEYS: set[str] = {
+    k.strip()
+    for k in os.environ.get("HEX_API_KEYS", "").split(",")
+    if k.strip()
+}
+
+# Production fail-fast: refuse to boot if we're in production and have
+# no keys. Catches the case where systemd starts the unit on a fresh
+# box without the .env loaded.
+if HEX_ENV == "production" and not ALLOWED_API_KEYS:
+    log.error(
+        "FATAL: HEX_ENV=production but HEX_API_KEYS is empty. "
+        "Refusing to start with auth disabled outside development."
+    )
+    sys.exit(1)
+
+if not ALLOWED_API_KEYS:
+    log.warning(
+        "HEX_API_KEYS is empty — auth DISABLED (HEX_ENV=%s). "
+        "All endpoints accessible without a key. This is a development-mode "
+        "configuration. Do NOT bind to a non-loopback interface like this.",
+        HEX_ENV,
+    )
+else:
+    log.info("HEX_API_KEYS loaded: %d active key(s)", len(ALLOWED_API_KEYS))
+
+
+async def require_api_key(x_api_key: str | None = Header(default=None)) -> str:
+    """FastAPI dependency: enforce X-API-Key when auth is enabled.
+
+    When ALLOWED_API_KEYS is empty (dev mode), this is a no-op. When
+    enabled, it uses hmac.compare_digest against every allowed key to
+    defeat timing oracles. The supplied key is NEVER echoed in error
+    bodies (per Nancy review — prevents key leak through error logs).
+    """
+    if not ALLOWED_API_KEYS:
+        return "(auth-disabled)"
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="X-API-Key header required")
+    for allowed in ALLOWED_API_KEYS:
+        if hmac.compare_digest(x_api_key, allowed):
+            return "(authenticated)"
+    raise HTTPException(status_code=401, detail="Invalid X-API-Key")
 
 # ── PROMPT-INJECTION CONSTITUTION ──────────────────────────────────────────
 # Appended as a SECOND system message after the user message arrives. The
@@ -317,7 +384,14 @@ async def preview_context(
     failed_attempts: int = 0,
     show_rag: bool = False,
     query: str = "",
+    x_api_key: str | None = Header(default=None),
 ) -> dict[str, Any]:
+    # show_rag=1 invokes the embed + pgvector pipeline against arbitrary
+    # query strings — that's an unauthenticated RAG corpus enumeration vector.
+    # Per Nancy review 2026-05-23 [PAUSE]: gate show_rag behind auth even
+    # though the rest of /context is informational.
+    if show_rag and ALLOWED_API_KEYS:
+        await require_api_key(x_api_key)
     fake_req = ChatRequest(
         user_uid=user_uid,
         message=query or "(preview)",
@@ -397,8 +471,11 @@ async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, 
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest) -> ChatResponse:
-    """Blocking pipeline. Use /chat/stream for token-by-token UX."""
+async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatResponse:
+    """Blocking pipeline. Use /chat/stream for token-by-token UX.
+
+    Auth dependency runs BEFORE this handler — unauthenticated calls never
+    trigger RAG embed/pgvector/ollama work."""
     t0 = time.time()
     metrics.in_flight += 1
     try:
@@ -436,8 +513,14 @@ async def chat(req: ChatRequest) -> ChatResponse:
 
 
 @app.post("/chat/stream")
-async def chat_stream(req: ChatRequest, request: Request) -> StreamingResponse:
-    """SSE pipeline. First event = metadata (persona, level, rag), then tokens, then [DONE]."""
+async def chat_stream(
+    req: ChatRequest,
+    request: Request,
+    _: str = Depends(require_api_key),
+) -> StreamingResponse:
+    """SSE pipeline. First event = metadata (persona, level, rag), then tokens, then [DONE].
+
+    Same auth-before-work guarantee as /chat."""
     t0 = time.time()
     context, level, system, model, persona_slug, augmented_msg, retrieved = (
         await _resolve_request(req)

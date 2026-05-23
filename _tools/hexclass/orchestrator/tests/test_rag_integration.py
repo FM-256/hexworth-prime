@@ -17,13 +17,19 @@ import urllib.request
 
 
 URL = os.environ.get("HEX_AI_URL", "http://127.0.0.1:8000")
+TEST_API_KEY = os.environ.get("HEX_TEST_API_KEY", "")
 
 
 def _http(method: str, path: str, body: dict | None = None):
+    headers: dict[str, str] = {}
+    if body:
+        headers["Content-Type"] = "application/json"
+    if TEST_API_KEY:
+        headers["X-API-Key"] = TEST_API_KEY
     req = urllib.request.Request(
         URL + path,
         data=json.dumps(body).encode() if body else None,
-        headers={"Content-Type": "application/json"} if body else {},
+        headers=headers,
         method=method,
     )
     return urllib.request.urlopen(req, timeout=120).read().decode()
