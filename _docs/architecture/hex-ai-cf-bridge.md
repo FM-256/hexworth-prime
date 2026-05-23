@@ -1,0 +1,150 @@
+# Hex AI Cloud Function Bridge — `hexAiChat` + `hexAiHealth`
+
+> Built 2026-05-23 · Source: `functions/hex-ai-bridge.js` · NOT YET DEPLOYED (gated on Cloudflare Tunnel setup)
+
+## Purpose
+
+The bridge is the only path the web app (`hexworth.com` on Firebase Hosting) can use to reach the Dr. Hex orchestrator on `hexclass`. It does three things the client cannot safely do itself:
+
+1. **Hold the orchestrator API key.** The `HEX_AI_API_KEY` lives in Secret Manager; the client never sees it.
+2. **Derive role server-side from the admin claim.** The client can claim any `role` it wants; the bridge ignores client `role` and uses `request.auth.token.admin` instead.
+3. **Enforce a hard timeout.** Slow or down orchestrator returns a clean `deadline-exceeded` to the client in 30s, not a hung promise.
+
+## Functions
+
+| Name | Type | Auth | Purpose |
+|---|---|---|---|
+| `hexAiChat` | callable | signed-in user | Blocking AI chat — student/operator question → orchestrator → response |
+| `hexAiHealth` | callable | signed-in user | Probe whether orchestrator is reachable from CF runtime |
+
+Streaming UX (`/chat/stream` SSE) is **not** supported via callable functions — they're unary by design. Streaming would need an HTTP function with SSE forwarding. Deferred to v0.4.0+.
+
+## Request / response shape
+
+### `hexAiChat`
+
+**Request (client → CF):**
+
+```js
+{
+  message:              "What does 'ls -la' do?",   // required, <= 4000 chars
+  house:                "code",                      // optional
+  mission_id:           "lab-py-01",                 // optional
+  failed_attempts:      0,                           // client-supplied (v0.3.0), see deferral
+  hint_used_recently:   false                        // optional
+}
+```
+
+**Response (CF → client):**
+
+```js
+{
+  response:           "...",
+  persona:            "code",
+  persona_name:       "Patient Pat",
+  help_level:         2,
+  help_level_label:   "Directional",
+  model:              "qwen2.5:7b",
+  latency_ms:         3421
+}
+```
+
+**Error codes (`HttpsError` codes):**
+
+| Code | Reason |
+|---|---|
+| `unauthenticated` | No Firebase user (must sign in) |
+| `invalid-argument` | Missing message or > 4000 chars |
+| `deadline-exceeded` | Orchestrator > 30s |
+| `unavailable` | Orchestrator unreachable (network / DNS / tunnel) |
+| `internal` | Orchestrator returned non-2xx |
+
+### `hexAiHealth`
+
+```js
+// Response:
+{
+  bridge: "ok",
+  orchestrator: "ok" | "unreachable: <reason>",
+  orchestrator_version: "0.3.0" | null
+}
+```
+
+Use this in the web app to detect "CF can talk to hexclass" failures separately from "CF code is broken" failures.
+
+## Security model
+
+| Surface | Defense |
+|---|---|
+| Client cannot reach hexclass directly | Orchestrator binds `127.0.0.1` on hexclass; Cloudflare Tunnel is the only path |
+| Client cannot impersonate instructor | `role` derived from `request.auth.token.admin` claim, not client body |
+| Client cannot replay another user's UID | `user_uid` derived from `request.auth.uid`, not client body |
+| API key cannot leak through code | Stored in Secret Manager, accessed via `defineSecret('HEX_AI_API_KEY').value()` |
+| API key cannot leak through error messages | Orchestrator never echoes the supplied key in 401 responses (per `main.py:115`) |
+| Slow orchestrator does not hang clients | 30s `AbortController` timeout in `postToOrchestrator()` |
+| Stolen API key cannot reach hexclass | Cloudflare Access service-token policy limits the tunnel to the CF runtime |
+
+## Deferred work (called out explicitly)
+
+| Item | Why deferred | When to revisit |
+|---|---|---|
+| Streaming responses (SSE) | onCall is unary; needs HTTP function + SSE forwarding + auth re-check | v0.4.0 |
+| Server-side `failed_attempts` | Currently trusted from client — a student who lies can game help-level escalation. Requires Firestore lookup per UID | v0.4.0 (with Firestore live-pull) |
+| Conversation memory | Each call is independent; multi-turn context requires Redis-backed thread store | v0.5.0 |
+| Tool calling | Architecture-defining; needs operator design conversation | v0.6.0 |
+| Per-user rate limit | Defer until traffic shape is real | After first 100 unique callers |
+
+## Secrets to set before deploy
+
+```bash
+# From hexclass operator shell — copy the live key
+ssh hexclass 'grep -oP "KEY=\K.*" /tmp/hex-test-key'
+
+# In Firebase project — store the key
+firebase functions:secrets:set HEX_AI_API_KEY
+#   (paste the key from above when prompted)
+
+# And the orchestrator URL (will be the Cloudflare Tunnel public hostname)
+firebase functions:secrets:set HEX_AI_URL
+#   (e.g., https://hex-ai.hexworth.com)
+```
+
+## Deploy gate
+
+This function is FORBIDDEN to deploy until:
+
+1. Cloudflare Tunnel is provisioned on hexclass with public hostname
+2. Cloudflare Access service-token policy is configured (only CF runtime allowed)
+3. Both secrets above are set in the Firebase project
+4. Operator explicitly authorizes the deploy in chat
+
+Per `CLAUDE.md` rule 10 — production write gate. The functions code is staged in the repo; the deploy is the operator's call.
+
+## Test plan (before deploy)
+
+Local emulator test (`firebase emulators:start --only functions`):
+
+```bash
+# In a test client, sign in as a Firebase user, then:
+const chat = httpsCallable(functions, 'hexAiChat');
+const result = await chat({ message: "What is ls?", house: "code" });
+console.log(result.data.response);
+
+const health = httpsCallable(functions, 'hexAiHealth');
+const probe = await health();
+console.log(probe.data);
+// Expected if orchestrator is offline-from-CF (no tunnel yet):
+//   { bridge: "ok", orchestrator: "unreachable: ...", orchestrator_version: null }
+```
+
+Once the tunnel is up, `orchestrator: "ok"` should appear.
+
+## Related
+
+- `_docs/architecture/dr-hex-orchestrator.md` — the orchestrator this bridge talks to
+- `_docs/architecture/hex-ai-network-exposure.md` — Cloudflare Tunnel decision (prerequisite)
+- `_docs/operations/hexclass-server-profile.md` — the host that runs the orchestrator
+
+---
+
+*Last Updated: 2026-05-23 · v0.3.0 bridge — built, not yet deployed*

@@ -8444,3 +8444,12 @@ exports.quizQualityMonitor    = _quizQualityMonitor.quizQualityMonitor;
 // Project: _tools/operator-board/
 const _operatorBoard = require('./operator-board');
 exports.operatorBoard         = _operatorBoard.operatorBoard;
+
+// ─── Hex AI Bridge — CF → hexclass Dr. Hex orchestrator ────────────
+// hexAiChat: authenticated callable; proxies signed-in user chat to the
+// orchestrator with server-derived role + API key from Secret Manager.
+// hexAiHealth: authenticated callable; reports orchestrator reachability.
+// Architecture: _docs/architecture/dr-hex-orchestrator.md (v0.3.0+)
+const _hexAiBridge = require('./hex-ai-bridge');
+exports.hexAiChat             = _hexAiBridge.hexAiChat;
+exports.hexAiHealth           = _hexAiBridge.hexAiHealth;
