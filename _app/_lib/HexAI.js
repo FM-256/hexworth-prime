@@ -69,6 +69,14 @@ export class HexAIClient {
         // emulator testing or hosting rewrites.
         this._explicitStreamUrl = options.streamUrl || null;
 
+        // v0.6.1: conversation memory. The SDK tracks a single active
+        // conversationId; askDrHex/askDrHexStream send it automatically
+        // unless the caller overrides via context.conversation_id (which
+        // can be passed explicitly to use a different conversation, or
+        // `null` to make an independent call without memory).
+        // Call startConversation() to mint a fresh one.
+        this._currentConversationId = null;
+
         // In-flight tracking for cancel-previous semantics. Each askDrHex
         // call gets an AbortController; calling askDrHex again while one
         // is in flight aborts the previous (Firebase callable doesn't
@@ -123,6 +131,13 @@ export class HexAIClient {
         // before resolving to the caller.
         const callId = context.allowSuperseded ? -1 : ++this._currentCallId;
 
+        // v0.6.1 conversation memory:
+        //   - undefined  → use the SDK's currently-active conversationId
+        //   - null       → opt out of memory for this call (independent)
+        //   - string     → use this specific ID
+        const conversation_id = (context.conversation_id !== undefined)
+            ? context.conversation_id : this._currentConversationId;
+
         try {
             const r = await this._chatFn({
                 message: message.trim(),
@@ -130,6 +145,7 @@ export class HexAIClient {
                 mission_id: context.mission_id || null,
                 // failed_attempts intentionally omitted — CF derives it from Firestore.
                 hint_used_recently: context.hint_used_recently === true,
+                conversation_id,
             });
             if (callId !== -1 && callId !== this._currentCallId) {
                 throw new HexAIError('superseded', 'A newer question was sent before this response arrived.');
@@ -195,6 +211,9 @@ export class HexAIClient {
                     house: context.house || null,
                     mission_id: context.mission_id || null,
                     hint_used_recently: context.hint_used_recently === true,
+                    // v0.6.1 conversation memory (see askDrHex above)
+                    conversation_id: (context.conversation_id !== undefined)
+                        ? context.conversation_id : this._currentConversationId,
                 }),
                 signal: callbacks.signal,
             });
@@ -297,6 +316,32 @@ export class HexAIClient {
         } catch (_) {
             return false;
         }
+    }
+
+    /**
+     * Start a fresh conversation. Subsequent askDrHex / askDrHexStream calls
+     * without an explicit `context.conversation_id` will use this new ID.
+     * Returns the newly-minted ID (UUID v4) so the caller can persist or
+     * display it.
+     */
+    startConversation() {
+        // Browser crypto.randomUUID is standard since Chrome 92 / Safari 15.4
+        // Hexworth supports modern browsers only; no polyfill needed.
+        this._currentConversationId = crypto.randomUUID();
+        return this._currentConversationId;
+    }
+
+    /** Drop the active conversation ID. Subsequent calls run without memory
+     * unless the caller explicitly passes context.conversation_id. */
+    endConversation() {
+        const old = this._currentConversationId;
+        this._currentConversationId = null;
+        return old;
+    }
+
+    /** Returns the SDK's currently-active conversation ID, or null. */
+    currentConversationId() {
+        return this._currentConversationId;
     }
 
     /**

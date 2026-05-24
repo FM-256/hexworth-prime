@@ -1,10 +1,11 @@
 # Dr. Hex AI Orchestrator — Architecture
 
-> Live as of 2026-05-23 on `hexclass:8000` (localhost-only until network exposure ships) — v0.3.0
+> Live as of 2026-05-24 on `hexclass:8000` (localhost-only until network exposure ships) — **v0.6.1**
 > Source: `_tools/hexclass/orchestrator/` (repo) → `/opt/hexclass/orchestrator/` (server)
 > Runtime: `hex-orchestrator.service` (systemd user unit, FastAPI + uvicorn)
 > Backend: ollama on `127.0.0.1:11434`, default model `qwen2.5:7b`, embedding `nomic-embed-text`
-> Augmentation: pgvector RAG against `hexworth_docs` (95 dispatch chunks at last seed)
+> Augmentation: pgvector RAG against `hexworth_docs` (95 dispatch chunks) + Redis-backed conversation memory (30-min TTL, 10-turn cap) + tool layer (`search_knowledge_base` live)
+> Regression: **49/49** tests across 6 sets
 
 ## Purpose
 
@@ -267,8 +268,8 @@ curl -s http://localhost:8000/health | python3 -m json.tool
 ## What v0.3.0 still does NOT do (deferred to v0.4.0+)
 
 - ~~No Firestore live context pull~~ — **closed by CF bridge v0.4.0**: `failed_attempts` derived server-side from `flag_attempts` / `flag_captures`, client value ignored.
-- **No tool calling** — architecture-defining decision; needs operator buy-in on the tool layer before implementation.
-- **No conversation memory in Redis** — Redis container up, unused. Cheap win once Cloud Function bridge deploys.
+- ~~No tool calling~~ — **scaffolding shipped v0.6.0a, wired v0.6.0b** (one read-only tool: `search_knowledge_base`). v0.6.0c lands `get_student_progress` + streaming tools + audit log.
+- ~~No conversation memory in Redis~~ — **closed v0.6.1**: bounded 30-min/10-turn memory in Redis; UID-mismatch defense; `prior_turn_count` surfaced in show_thinking.
 - ~~No streaming UX through the CF bridge~~ — **closed by CF v0.5.0a**: `hexAiChatStream` HTTP function forwards SSE from orchestrator straight to the browser; `HexAI.js` `askDrHexStream()` consumes it.
 - **No per-user-quota / rate limit** — defer until traffic shape is real.
 - **No key rotation infrastructure** — env-var-redeploy is the rotation path for now.

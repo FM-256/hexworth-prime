@@ -236,6 +236,12 @@ exports.hexAiChat = onCall(cfOptions, async (request) => {
         // hint-usage tracking exists yet. Defer to v0.4.1 if/when
         // hint analytics ship.
         hint_used_recently: data.hint_used_recently === true,
+        // v0.6.1: conversation_id passthrough — client mints UUID v4,
+        // CF forwards without inspection. UID-mismatch defense is on
+        // the orchestrator side (matches stored uid against this
+        // request's request.auth.uid).
+        conversation_id: typeof data.conversation_id === 'string'
+            ? data.conversation_id : null,
     };
 
     const orch = await postToOrchestrator(hexAiUrl.value(), body);
@@ -386,6 +392,9 @@ exports.hexAiChatStream = onRequest({
         role: isAdmin ? 'instructor' : 'student',
         failed_attempts,
         hint_used_recently: data.hint_used_recently === true,
+        // v0.6.1: conversation_id passthrough for streaming path too
+        conversation_id: typeof data.conversation_id === 'string'
+            ? data.conversation_id : null,
     };
 
     // Open the upstream SSE stream from the orchestrator.

@@ -68,6 +68,7 @@ from tools import (
     filter_tools_for_context,
     TOOL_REGISTRY,
 )
+import conversation
 
 logging.basicConfig(
     level=logging.INFO,
@@ -82,7 +83,7 @@ HEX_ENV = os.environ.get("HEX_ENV", "development").lower()
 # Per-conversation cap on tool-call iterations. Prevents runaway loops
 # where the model keeps calling tools without producing a final text.
 MAX_TOOL_ITERATIONS = int(os.environ.get("HEX_MAX_TOOL_ITERATIONS", "3"))
-VERSION = "0.6.0b"
+VERSION = "0.6.1"
 
 # ── API-KEY AUTH ────────────────────────────────────────────────────────────
 # CSV in HEX_API_KEYS env var. Empty entries are filtered out so an
@@ -199,6 +200,18 @@ class ChatRequest(BaseModel):
     base_help_level: int | None = None
     model: str | None = None
     show_thinking: bool = False
+    # v0.6.1 (was v0.5.0b): bounded conversation memory keyed by this UUID.
+    # Client mints + reuses across turns. Null → independent call, no memory.
+    # 30-min TTL, 10-entry cap. UID-mismatch defends against guessed IDs.
+    #
+    # Pydantic regex (Nancy 2026-05-24): UUID v4 format. Rejects malformed
+    # IDs like "foo:bar" that would otherwise collide with the :meta key
+    # namespace in Redis. Pydantic raises 422 on mismatch — defensive
+    # duplication of conversation.py's _UUID_RE guard.
+    conversation_id: str | None = Field(
+        None,
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -259,6 +272,7 @@ async def call_ollama_blocking(
     user_message: str,
     tool_ctx: dict | None = None,
     tools_list: list[dict] | None = None,
+    prior_turns: list[dict] | None = None,
 ) -> tuple[str, list[dict]]:
     """Run the chat + optional tool-call loop. Returns (final_text, tool_invocations).
 
@@ -266,27 +280,28 @@ async def call_ollama_blocking(
     `tool_ctx` is the identity packet handlers will see (uid/role/persona_slug/help_level).
     Both required together — passing one without the other is a programming error.
 
-    Loop semantics:
-      1. Send messages + tools to ollama
-      2. If response has tool_calls → dispatch each, append assistant + tool
-         messages, loop. If response is plain text → return it.
-      3. Hard cap at MAX_TOOL_ITERATIONS to prevent runaway loops. On cap
-         hit, ollama is re-prompted ONE more time without tools so the model
-         must produce text to wrap up.
+    `prior_turns` is the chronological-order list of {role, content} entries
+    from Redis conversation memory (v0.6.1). Inserted into the messages array
+    AFTER the system prompt and BEFORE the new user message. Empty/None →
+    independent call (matches v0.6.0b behavior).
 
-    Returns:
-      final_text: the assistant's final text response
-      tool_invocations: list of {name, ok, result|error, code} per call
-        (for telemetry + UI transparency)
+    Loop semantics: same as v0.6.0b. Tool-call iteration cap unchanged.
     """
     if (tools_list is not None) != (tool_ctx is not None):
         raise ValueError("call_ollama_blocking: tools_list and tool_ctx must be set together")
 
-    messages = [
-        {"role": "system", "content": system},
+    # Messages array order (v0.6.1):
+    #   1. system prompt (persona + help-level + context)
+    #   2. prior turns (if any) — chronological, capped by Redis LTRIM
+    #   3. new user message (with RAG block prepended per v0.2.0)
+    #   4. CONSTITUTION (anti-injection guard, always last)
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
+    if prior_turns:
+        messages.extend(prior_turns)
+    messages.extend([
         {"role": "user", "content": user_message},
         {"role": "system", "content": CONSTITUTION},
-    ]
+    ])
     tool_invocations: list[dict] = []
 
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -396,19 +411,30 @@ async def call_ollama_blocking(
         return final, tool_invocations
 
 
-async def stream_ollama(model: str, system: str, user_message: str) -> AsyncIterator[str]:
-    """Yield token chunks as they arrive from ollama's NDJSON stream."""
+async def stream_ollama(
+    model: str,
+    system: str,
+    user_message: str,
+    prior_turns: list[dict] | None = None,
+) -> AsyncIterator[str]:
+    """Yield token chunks as they arrive from ollama's NDJSON stream.
+
+    v0.6.1: prior_turns inserted between system prompt and the new user
+    message (same shape as the blocking path)."""
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
+    if prior_turns:
+        messages.extend(prior_turns)
+    messages.extend([
+        {"role": "user", "content": user_message},
+        {"role": "system", "content": CONSTITUTION},
+    ])
     async with httpx.AsyncClient(timeout=120.0) as client:
         async with client.stream(
             "POST",
             f"{OLLAMA_URL}/api/chat",
             json={
                 "model": model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user_message},
-                    {"role": "system", "content": CONSTITUTION},
-                ],
+                "messages": messages,
                 "stream": True,
                 "options": {"temperature": 0.4},
             },
@@ -449,6 +475,8 @@ async def health() -> dict[str, Any]:
             out["models_available"] = [m["name"] for m in tags]
     except Exception as e:
         out["ollama"] = f"unreachable: {e}"
+    # v0.6.1: surface conversation-memory backend health
+    out["conversation_memory"] = await conversation.health()
     return out
 
 
@@ -556,19 +584,15 @@ async def preview_context(
     return out
 
 
-async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, str, list[dict], list[dict], dict]:
+async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, str, list[dict], list[dict], dict, list[dict]]:
     """Shared resolution path for both /chat and /chat/stream.
 
     Returns (context, level, system, model, persona_slug, augmented_user_message,
-    retrieved_chunks, tools_list, tool_ctx). The last two are new in v0.6.0b:
-    the filtered tools list and the identity packet handlers will see.
+    retrieved_chunks, tools_list, tool_ctx, prior_turns). The last in v0.6.1:
+    the prior conversation turns (oldest first, capped at MAX_TURNS) — empty
+    list if no conversation_id, no memory, or UID-mismatch.
 
-    The augmented_user_message has retrieved reference material (if any)
-    prepended ahead of req.message, per Nancy review — retrieved context
-    lives in the user-turn, not the system prompt.
-
-    Async because rag retrieval involves a synchronous embed+psycopg call
-    that we wrap in asyncio.to_thread to avoid blocking the event loop.
+    Async because rag retrieval + Redis fetch involve I/O.
     """
     if metrics.shutting_down:
         raise HTTPException(status_code=503, detail="orchestrator is shutting down")
@@ -611,7 +635,15 @@ async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, 
         "role": req.role,
     }
 
-    return context, level, system, model, persona_slug, augmented_user_message, retrieved, tools_list, tool_ctx
+    # v0.6.1 (formerly v0.5.0b): fetch prior conversation turns from Redis.
+    # Empty list if no conversation_id, Redis down, or UID-mismatch.
+    # This is augmentation only — chat MUST function without it.
+    prior_turns = await conversation.fetch_prior_turns(
+        req.conversation_id or "", req.user_uid
+    )
+
+    return (context, level, system, model, persona_slug, augmented_user_message,
+            retrieved, tools_list, tool_ctx, prior_turns)
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -624,24 +656,34 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
     metrics.in_flight += 1
     try:
         (context, level, system, model, persona_slug, augmented_msg,
-         retrieved, tools_list, tool_ctx) = await _resolve_request(req)
+         retrieved, tools_list, tool_ctx, prior_turns) = await _resolve_request(req)
         persona = PERSONAS[persona_slug]
         log.info(
-            "chat: uid=%s house=%s persona=%s level=%d model=%s rag_hits=%d tools_visible=%d",
+            "chat: uid=%s house=%s persona=%s level=%d model=%s rag_hits=%d tools_visible=%d prior_turns=%d",
             req.user_uid, req.house, persona["name"], level, model,
-            len(retrieved), len(tools_list),
+            len(retrieved), len(tools_list), len(prior_turns),
         )
         try:
             content, tool_invocations = await call_ollama_blocking(
                 model, system, augmented_msg,
                 tool_ctx=tool_ctx if tools_list else None,
                 tools_list=tools_list if tools_list else None,
+                prior_turns=prior_turns,
             )
         except httpx.HTTPError as e:
             metrics.record_error("ollama_http")
             raise HTTPException(status_code=502, detail=f"ollama upstream: {e}")
         latency = time.time() - t0
         metrics.record_chat(persona_slug, level, latency)
+
+        # v0.6.1: persist this turn to Redis if conversation_id provided.
+        # Store the ORIGINAL user message (not augmented_msg with the RAG
+        # block prepended) — RAG context is for this turn only; future
+        # turns should see the verbatim student message.
+        if req.conversation_id and content:
+            await conversation.append_turns(
+                req.conversation_id, req.user_uid, req.message, content,
+            )
         thinking_payload = None
         if req.show_thinking:
             # Per Nancy 2026-05-24: tool_invocations + tools_visible can
@@ -652,6 +694,7 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
             # (those are about their own session) but not the tool detail.
             thinking_payload = dict(context)
             thinking_payload["rag_chunks"] = retrieved
+            thinking_payload["prior_turn_count"] = len(prior_turns)
             if req.role in ("instructor", "operator"):
                 thinking_payload["tool_invocations"] = tool_invocations
                 thinking_payload["tools_visible"] = [t["function"]["name"] for t in tools_list]
@@ -685,9 +728,10 @@ async def chat_stream(
     # Streaming path does NOT yet pass tools — tool support during SSE is
     # v0.6.0c (the ollama stream API emits tool_calls as a single message
     # which complicates the SSE forwarding shape). Unpack but ignore the
-    # tools_list/tool_ctx for now.
+    # tools_list/tool_ctx for now. prior_turns IS passed to stream_ollama
+    # in v0.6.1 so streamed conversations can use memory.
     (context, level, system, model, persona_slug, augmented_msg,
-     retrieved, _tools_list, _tool_ctx) = await _resolve_request(req)
+     retrieved, _tools_list, _tool_ctx, prior_turns) = await _resolve_request(req)
     persona = PERSONAS[persona_slug]
 
     async def event_gen() -> AsyncIterator[str]:
@@ -702,11 +746,12 @@ async def chat_stream(
                 "model": model,
                 "rag_hits": len(retrieved),
                 "rag_titles": [c["title"] for c in retrieved],
+                "prior_turn_count": len(prior_turns),     # v0.6.1
             }
             yield f"data: {json.dumps(meta)}\n\n"
             full_content_chunks: list[str] = []
             try:
-                async for chunk in stream_ollama(model, system, augmented_msg):
+                async for chunk in stream_ollama(model, system, augmented_msg, prior_turns=prior_turns):
                     if await request.is_disconnected():
                         log.info("chat/stream: client disconnected mid-response")
                         break
@@ -718,6 +763,14 @@ async def chat_stream(
                 return
             latency = time.time() - t0
             metrics.record_chat(persona_slug, level, latency)
+            # v0.6.1: persist the full assistant response after the stream completes.
+            # The client uses req.message (verbatim student input); the assistant
+            # response is the concatenation of all yielded chunks.
+            if req.conversation_id and full_content_chunks:
+                assistant_full = "".join(full_content_chunks)
+                await conversation.append_turns(
+                    req.conversation_id, req.user_uid, req.message, assistant_full,
+                )
             yield f"data: {json.dumps({'type': 'done', 'latency_ms': int(latency * 1000)})}\n\n"
         finally:
             metrics.in_flight -= 1
