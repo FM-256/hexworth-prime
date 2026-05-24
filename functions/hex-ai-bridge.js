@@ -30,7 +30,7 @@ const { defineSecret } = require('firebase-functions/params');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
 
-const hexAiUrl = defineSecret('HEX_AI_URL');                       // e.g. https://hex-ai.hexworth.com
+const hexAiUrl = defineSecret('HEX_AI_URL');                       // e.g. https://hex-ai.hexworth.tech
 const hexAiApiKey = defineSecret('HEX_AI_API_KEY');                // matches one entry in HEX_API_KEYS on hexclass
 const cfAccessClientId = defineSecret('CF_ACCESS_CLIENT_ID');      // optional — Cloudflare Access service token
 const cfAccessClientSecret = defineSecret('CF_ACCESS_CLIENT_SECRET'); // optional — paired with above

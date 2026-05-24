@@ -117,7 +117,7 @@ firebase functions:secrets:set HEX_AI_API_KEY
 
 # And the orchestrator URL (will be the Cloudflare Tunnel public hostname)
 firebase functions:secrets:set HEX_AI_URL
-#   (e.g., https://hex-ai.hexworth.com)
+#   (e.g., https://hex-ai.hexworth.tech)
 
 # Cloudflare Access service-token credentials (optional — only when
 # CF Access policy is in place per the deploy runbook step 2)

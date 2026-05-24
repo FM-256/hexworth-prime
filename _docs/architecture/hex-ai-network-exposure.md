@@ -44,10 +44,10 @@ The orchestrator runs on `hexclass.lan` at `192.168.1.160` — a residential LAN
      - Validates Firebase Auth ID token from the user
      - Reads HEX_API_KEY from Secret Manager
      - Reads CF_SERVICE_TOKEN from Secret Manager (Cloudflare Access)
-     - POSTs to https://hex-ai.hexworth.com/chat
+     - POSTs to https://hex-ai.hexworth.tech/chat
        with CF-Access-Client-Id + CF-Access-Client-Secret + X-API-Key
    ↓
-[Cloudflare Tunnel → hex-ai.hexworth.com]
+[Cloudflare Tunnel → hex-ai.hexworth.tech]
    - Cloudflare Access validates service token (only Firebase CF allowed)
    - Routes to cloudflared on hexclass via tunnel
    ↓
@@ -60,7 +60,7 @@ The orchestrator runs on `hexclass.lan` at `192.168.1.160` — a residential LAN
 
 1. `cloudflared` installed on hexclass as systemd unit
 2. Tunnel created via `cloudflared tunnel create hex-ai`
-3. DNS: `hex-ai.hexworth.com` CNAME to the tunnel
+3. DNS: `hex-ai.hexworth.tech` CNAME to the tunnel
 4. Cloudflare Access policy: only Firebase CF service token allowed
 5. orchestrator stays bound to `127.0.0.1`; `cloudflared` is the only thing reaching it
 
