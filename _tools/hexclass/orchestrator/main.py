@@ -63,6 +63,11 @@ from pydantic import BaseModel, Field
 from personas import PERSONAS, COMMON_VOICE_RULE, resolve_persona
 from help_levels import LEVEL_DEFINITIONS, resolve_help_level
 from rag import retrieve as rag_retrieve, format_retrieved_context
+from tools import (
+    dispatch_tool_call,
+    filter_tools_for_context,
+    TOOL_REGISTRY,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -74,7 +79,10 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 DEFAULT_MODEL = os.environ.get("HEX_DEFAULT_MODEL", "qwen2.5:7b")
 ALLOWED_ORIGINS = os.environ.get("HEX_ALLOWED_ORIGINS", "*").split(",")
 HEX_ENV = os.environ.get("HEX_ENV", "development").lower()
-VERSION = "0.3.0"
+# Per-conversation cap on tool-call iterations. Prevents runaway loops
+# where the model keeps calling tools without producing a final text.
+MAX_TOOL_ITERATIONS = int(os.environ.get("HEX_MAX_TOOL_ITERATIONS", "3"))
+VERSION = "0.6.0b"
 
 # ── API-KEY AUTH ────────────────────────────────────────────────────────────
 # CSV in HEX_API_KEYS env var. Empty entries are filtered out so an
@@ -245,24 +253,126 @@ PERSONA:
 
 # ── OLLAMA CLIENT ──────────────────────────────────────────────────────────
 
-async def call_ollama_blocking(model: str, system: str, user_message: str) -> str:
-    """Block until the full response is back."""
+async def call_ollama_blocking(
+    model: str,
+    system: str,
+    user_message: str,
+    tool_ctx: dict | None = None,
+    tools_list: list[dict] | None = None,
+) -> tuple[str, list[dict]]:
+    """Run the chat + optional tool-call loop. Returns (final_text, tool_invocations).
+
+    `tools_list` is the per-request filtered tools (from filter_tools_for_context).
+    `tool_ctx` is the identity packet handlers will see (uid/role/persona_slug/help_level).
+    Both required together — passing one without the other is a programming error.
+
+    Loop semantics:
+      1. Send messages + tools to ollama
+      2. If response has tool_calls → dispatch each, append assistant + tool
+         messages, loop. If response is plain text → return it.
+      3. Hard cap at MAX_TOOL_ITERATIONS to prevent runaway loops. On cap
+         hit, ollama is re-prompted ONE more time without tools so the model
+         must produce text to wrap up.
+
+    Returns:
+      final_text: the assistant's final text response
+      tool_invocations: list of {name, ok, result|error, code} per call
+        (for telemetry + UI transparency)
+    """
+    if (tools_list is not None) != (tool_ctx is not None):
+        raise ValueError("call_ollama_blocking: tools_list and tool_ctx must be set together")
+
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_message},
+        {"role": "system", "content": CONSTITUTION},
+    ]
+    tool_invocations: list[dict] = []
+
     async with httpx.AsyncClient(timeout=120.0) as client:
-        r = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json={
+        for iteration in range(MAX_TOOL_ITERATIONS):
+            payload = {
                 "model": model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user_message},
-                    {"role": "system", "content": CONSTITUTION},
-                ],
+                "messages": messages,
                 "stream": False,
                 "options": {"temperature": 0.4},
-            },
+            }
+            if tools_list:
+                payload["tools"] = tools_list
+
+            r = await client.post(f"{OLLAMA_URL}/api/chat", json=payload)
+            r.raise_for_status()
+            msg = r.json().get("message", {})
+
+            tool_calls = msg.get("tool_calls", []) or []
+            content = (msg.get("content") or "").strip()
+
+            # No tool calls (or empty list) → this is the final answer.
+            if not tool_calls:
+                return content, tool_invocations
+
+            # Append the assistant message with its tool_calls intent.
+            messages.append({
+                "role": "assistant",
+                "content": content,
+                "tool_calls": tool_calls,
+            })
+
+            # Dispatch each tool call. Per-call failures become tool result
+            # messages so the model can react ("the tool returned an error,
+            # let me try a different approach") rather than crash the turn.
+            for tc in tool_calls:
+                fn = tc.get("function", {}) or {}
+                name = fn.get("name", "")
+                # Ollama may return arguments as dict or as JSON string.
+                args = fn.get("arguments", {}) or {}
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except json.JSONDecodeError:
+                        args = {}
+
+                result = await dispatch_tool_call(name, args, tool_ctx)
+                tool_invocations.append({
+                    "name": name,
+                    "ok": result["ok"],
+                    "result": result.get("result"),
+                    "error": result.get("error"),
+                    "code": result.get("code"),
+                })
+
+                # Tool response message — ollama uses role=tool for tool
+                # results. The content must be a string; encode JSON.
+                messages.append({
+                    "role": "tool",
+                    "content": json.dumps(result.get("result") if result["ok"] else {
+                        "error": result.get("error"),
+                        "code": result.get("code"),
+                    }),
+                })
+
+        # Hit MAX_TOOL_ITERATIONS — one more call WITHOUT tools to force
+        # the model to produce a text answer with whatever info it has.
+        log.warning(
+            "ollama tool loop hit cap (%d iterations); re-prompting without tools",
+            MAX_TOOL_ITERATIONS,
         )
+        r = await client.post(f"{OLLAMA_URL}/api/chat", json={
+            "model": model,
+            "messages": messages + [{
+                "role": "system",
+                "content": (
+                    "You have used the maximum tool-call budget for this turn. "
+                    "Produce a final text answer to the student based on the "
+                    "information already retrieved. Do NOT call more tools."
+                ),
+            }],
+            "stream": False,
+            "options": {"temperature": 0.4},
+        })
         r.raise_for_status()
-        return r.json().get("message", {}).get("content", "")
+        final = (r.json().get("message", {}).get("content") or "").strip()
+        return final, tool_invocations
 
 
 async def stream_ollama(model: str, system: str, user_message: str) -> AsyncIterator[str]:
@@ -425,13 +535,16 @@ async def preview_context(
     return out
 
 
-async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, str, list[dict]]:
+async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, str, list[dict], list[dict], dict]:
     """Shared resolution path for both /chat and /chat/stream.
 
     Returns (context, level, system, model, persona_slug, augmented_user_message,
-    retrieved_chunks). The augmented_user_message has retrieved reference
-    material (if any) prepended ahead of req.message, per Nancy review —
-    retrieved context lives in the user-turn, not the system prompt.
+    retrieved_chunks, tools_list, tool_ctx). The last two are new in v0.6.0b:
+    the filtered tools list and the identity packet handlers will see.
+
+    The augmented_user_message has retrieved reference material (if any)
+    prepended ahead of req.message, per Nancy review — retrieved context
+    lives in the user-turn, not the system prompt.
 
     Async because rag retrieval involves a synchronous embed+psycopg call
     that we wrap in asyncio.to_thread to avoid blocking the event loop.
@@ -467,7 +580,17 @@ async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, 
     reference_block = format_retrieved_context(retrieved)
     augmented_user_message = reference_block + req.message if reference_block else req.message
 
-    return context, level, system, model, persona_slug, augmented_user_message, retrieved
+    # v0.6.0b: filter the tool registry per this request's persona/level/role.
+    # The model never sees a tool it isn't allowed to call.
+    tools_list = filter_tools_for_context(persona_slug, level, req.role)
+    tool_ctx = {
+        "uid": req.user_uid,
+        "persona_slug": persona_slug,
+        "help_level": level,
+        "role": req.role,
+    }
+
+    return context, level, system, model, persona_slug, augmented_user_message, retrieved, tools_list, tool_ctx
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -479,16 +602,20 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
     t0 = time.time()
     metrics.in_flight += 1
     try:
-        context, level, system, model, persona_slug, augmented_msg, retrieved = (
-            await _resolve_request(req)
-        )
+        (context, level, system, model, persona_slug, augmented_msg,
+         retrieved, tools_list, tool_ctx) = await _resolve_request(req)
         persona = PERSONAS[persona_slug]
         log.info(
-            "chat: uid=%s house=%s persona=%s level=%d model=%s rag_hits=%d",
-            req.user_uid, req.house, persona["name"], level, model, len(retrieved),
+            "chat: uid=%s house=%s persona=%s level=%d model=%s rag_hits=%d tools_visible=%d",
+            req.user_uid, req.house, persona["name"], level, model,
+            len(retrieved), len(tools_list),
         )
         try:
-            content = await call_ollama_blocking(model, system, augmented_msg)
+            content, tool_invocations = await call_ollama_blocking(
+                model, system, augmented_msg,
+                tool_ctx=tool_ctx if tools_list else None,
+                tools_list=tools_list if tools_list else None,
+            )
         except httpx.HTTPError as e:
             metrics.record_error("ollama_http")
             raise HTTPException(status_code=502, detail=f"ollama upstream: {e}")
@@ -498,6 +625,8 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
         if req.show_thinking:
             thinking_payload = dict(context)
             thinking_payload["rag_chunks"] = retrieved
+            thinking_payload["tool_invocations"] = tool_invocations
+            thinking_payload["tools_visible"] = [t["function"]["name"] for t in tools_list]
         return ChatResponse(
             response=content.strip(),
             persona=persona_slug,
@@ -522,9 +651,12 @@ async def chat_stream(
 
     Same auth-before-work guarantee as /chat."""
     t0 = time.time()
-    context, level, system, model, persona_slug, augmented_msg, retrieved = (
-        await _resolve_request(req)
-    )
+    # Streaming path does NOT yet pass tools — tool support during SSE is
+    # v0.6.0c (the ollama stream API emits tool_calls as a single message
+    # which complicates the SSE forwarding shape). Unpack but ignore the
+    # tools_list/tool_ctx for now.
+    (context, level, system, model, persona_slug, augmented_msg,
+     retrieved, _tools_list, _tool_ctx) = await _resolve_request(req)
     persona = PERSONAS[persona_slug]
 
     async def event_gen() -> AsyncIterator[str]:

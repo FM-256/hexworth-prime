@@ -25,6 +25,7 @@ from .dispatch import dispatch_tool_call
 # Each module decorated with @register_tool puts itself into TOOL_REGISTRY at
 # import time. The list here is the authoritative source of "what tools exist".
 from . import _meta  # noqa: F401  — hex_ai_version
+from . import _kb    # noqa: F401  — search_knowledge_base (v0.6.0b)
 
 __all__ = [
     "TOOL_REGISTRY",
