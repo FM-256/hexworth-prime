@@ -84,7 +84,7 @@ HEX_ENV = os.environ.get("HEX_ENV", "development").lower()
 # Per-conversation cap on tool-call iterations. Prevents runaway loops
 # where the model keeps calling tools without producing a final text.
 MAX_TOOL_ITERATIONS = int(os.environ.get("HEX_MAX_TOOL_ITERATIONS", "3"))
-VERSION = "0.6.2"
+VERSION = "0.6.3"
 
 # ── API-KEY AUTH ────────────────────────────────────────────────────────────
 # CSV in HEX_API_KEYS env var. Empty entries are filtered out so an
@@ -425,11 +425,32 @@ async def stream_ollama(
     system: str,
     user_message: str,
     prior_turns: list[dict] | None = None,
-) -> AsyncIterator[str]:
-    """Yield token chunks as they arrive from ollama's NDJSON stream.
+    tool_ctx: dict | None = None,
+    tools_list: list[dict] | None = None,
+) -> AsyncIterator[tuple[str, Any]]:
+    """
+    Streaming with optional tool-call loop. Yields (event_type, payload):
+      ("token", str)             — token chunk to forward to client
+      ("tool_call_start", dict)  — {name, parameters} when a tool dispatch begins
+      ("tool_call_done", dict)   — {name, ok, code, error?} after dispatch returns
+      ("error", str)             — upstream error message
 
-    v0.6.1: prior_turns inserted between system prompt and the new user
-    message (same shape as the blocking path)."""
+    v0.6.0c-1: when tools_list is non-empty, the function buffers ollama's
+    response until it can detect whether the model emitted tool_calls
+    (no streamed tokens — single done message with tool_calls) or content
+    (streamed tokens). On tool_calls: dispatch them, append role=tool
+    messages, open a NEW upstream stream with the augmented messages,
+    and stream THAT response's tokens. Iterations bounded by
+    MAX_TOOL_ITERATIONS; on cap, a non-streaming final-answer call is
+    made WITHOUT tools and its content is yielded as a single token.
+
+    When tools_list is None or empty, behaves identically to v0.5.0a
+    (plain token streaming, no tool path).
+    """
+    if (tools_list is not None) != (tool_ctx is not None):
+        raise ValueError("stream_ollama: tools_list and tool_ctx must be set together")
+    use_tools = bool(tools_list)
+
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
     if prior_turns:
         messages.extend(prior_turns)
@@ -437,30 +458,122 @@ async def stream_ollama(
         {"role": "user", "content": user_message},
         {"role": "system", "content": CONSTITUTION},
     ])
+
     async with httpx.AsyncClient(timeout=120.0) as client:
-        async with client.stream(
-            "POST",
-            f"{OLLAMA_URL}/api/chat",
-            json={
+        for iteration in range(MAX_TOOL_ITERATIONS if use_tools else 1):
+            payload = {
                 "model": model,
                 "messages": messages,
                 "stream": True,
                 "options": {"temperature": 0.4},
-            },
-        ) as r:
+            }
+            if use_tools:
+                payload["tools"] = tools_list
+
+            buffered_content = ""
+            buffered_tool_calls: list[dict] = []
+            try:
+                async with client.stream(
+                    "POST", f"{OLLAMA_URL}/api/chat", json=payload,
+                ) as r:
+                    r.raise_for_status()
+                    async for line in r.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            obj = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        msg = obj.get("message", {}) or {}
+                        # Token chunks: stream out immediately. The model
+                        # streams tokens only when NOT calling tools.
+                        token = msg.get("content", "")
+                        if token:
+                            buffered_content += token
+                            yield ("token", token)
+                        # tool_calls: collect; processing happens after done.
+                        tcs = msg.get("tool_calls") or []
+                        if tcs:
+                            buffered_tool_calls.extend(tcs)
+                        if obj.get("done"):
+                            break
+            except httpx.HTTPError as e:
+                yield ("error", str(e))
+                return
+
+            # No tool_calls → the streamed content was the final answer.
+            if not buffered_tool_calls:
+                return
+
+            # Tool path: append the assistant tool_calls intent + each
+            # tool result, then loop. The yielded tool_call_start/done
+            # events let the UI show "Dr. Hex is looking up X..." between
+            # the meta event and the eventual tokens.
+            messages.append({
+                "role": "assistant",
+                "content": buffered_content,    # may be empty in tool-only case
+                "tool_calls": buffered_tool_calls,
+            })
+            for tc in buffered_tool_calls:
+                fn = tc.get("function", {}) or {}
+                name = fn.get("name", "")
+                args = fn.get("arguments", {}) or {}
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except json.JSONDecodeError:
+                        args = {}
+                yield ("tool_call_start", {"name": name, "parameters": args})
+                result = await dispatch_tool_call(name, args, tool_ctx)
+                yield ("tool_call_done", {
+                    "name": name,
+                    "ok": result["ok"],
+                    "code": result.get("code"),
+                    "error": result.get("error") if not result["ok"] else None,
+                })
+                # Same audit fire-and-forget as the blocking path
+                meta = TOOL_REGISTRY.get(name)
+                audit_rule = bool(meta and meta.exposure_rules.get("audit", True))
+                tool_audit.schedule_invocation(name, args, tool_ctx, result, audit_rule)
+                # Append tool result to messages for the re-prompt
+                messages.append({
+                    "role": "tool",
+                    "content": json.dumps(
+                        result.get("result") if result["ok"] else {
+                            "error": result.get("error"),
+                            "code": result.get("code"),
+                        },
+                        default=str,
+                    ),
+                })
+            # Loop continues — next iteration opens a fresh stream with
+            # the augmented messages array.
+
+        # Hit MAX_TOOL_ITERATIONS — force a final-answer call WITHOUT tools.
+        log.warning(
+            "stream tool loop hit cap (%d); re-prompting without tools",
+            MAX_TOOL_ITERATIONS,
+        )
+        try:
+            r = await client.post(f"{OLLAMA_URL}/api/chat", json={
+                "model": model,
+                "messages": messages + [{
+                    "role": "system",
+                    "content": (
+                        "You have used the maximum tool-call budget for this turn. "
+                        "Produce a final text answer based on the information "
+                        "already retrieved. Do NOT call more tools."
+                    ),
+                }],
+                "stream": False,
+                "options": {"temperature": 0.4},
+            })
             r.raise_for_status()
-            async for line in r.aiter_lines():
-                if not line.strip():
-                    continue
-                try:
-                    obj = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                content = obj.get("message", {}).get("content", "")
-                if content:
-                    yield content
-                if obj.get("done"):
-                    break
+            final = (r.json().get("message", {}).get("content") or "").strip()
+            if final:
+                yield ("token", final)
+        except httpx.HTTPError as e:
+            yield ("error", str(e))
 
 
 # ── ENDPOINTS ──────────────────────────────────────────────────────────────
@@ -734,13 +847,12 @@ async def chat_stream(
 
     Same auth-before-work guarantee as /chat."""
     t0 = time.time()
-    # Streaming path does NOT yet pass tools — tool support during SSE is
-    # v0.6.0c (the ollama stream API emits tool_calls as a single message
-    # which complicates the SSE forwarding shape). Unpack but ignore the
-    # tools_list/tool_ctx for now. prior_turns IS passed to stream_ollama
-    # in v0.6.1 so streamed conversations can use memory.
+    # v0.6.0c-1: streaming path now supports tools too. The orchestrator
+    # buffers ollama's first message to detect tool_calls vs tokens; if
+    # tool_calls, dispatches them (yielding tool_call_start/done SSE
+    # events) and opens a second upstream stream for the final tokens.
     (context, level, system, model, persona_slug, augmented_msg,
-     retrieved, _tools_list, _tool_ctx, prior_turns) = await _resolve_request(req)
+     retrieved, tools_list, tool_ctx, prior_turns) = await _resolve_request(req)
     persona = PERSONAS[persona_slug]
 
     async def event_gen() -> AsyncIterator[str]:
@@ -755,17 +867,32 @@ async def chat_stream(
                 "model": model,
                 "rag_hits": len(retrieved),
                 "rag_titles": [c["title"] for c in retrieved],
-                "prior_turn_count": len(prior_turns),     # v0.6.1
+                "prior_turn_count": len(prior_turns),
+                "tools_visible": len(tools_list),     # v0.6.0c-1 — count only
             }
             yield f"data: {json.dumps(meta)}\n\n"
             full_content_chunks: list[str] = []
             try:
-                async for chunk in stream_ollama(model, system, augmented_msg, prior_turns=prior_turns):
+                async for event_type, payload in stream_ollama(
+                    model, system, augmented_msg,
+                    prior_turns=prior_turns,
+                    tool_ctx=tool_ctx if tools_list else None,
+                    tools_list=tools_list if tools_list else None,
+                ):
                     if await request.is_disconnected():
                         log.info("chat/stream: client disconnected mid-response")
                         break
-                    full_content_chunks.append(chunk)
-                    yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
+                    if event_type == "token":
+                        full_content_chunks.append(payload)
+                        yield f"data: {json.dumps({'type': 'token', 'content': payload})}\n\n"
+                    elif event_type == "tool_call_start":
+                        yield f"data: {json.dumps({'type': 'tool_call_start', **payload})}\n\n"
+                    elif event_type == "tool_call_done":
+                        yield f"data: {json.dumps({'type': 'tool_call_done', **payload})}\n\n"
+                    elif event_type == "error":
+                        metrics.record_error("ollama_stream")
+                        yield f"data: {json.dumps({'type': 'error', 'error': payload})}\n\n"
+                        return
             except httpx.HTTPError as e:
                 metrics.record_error("ollama_stream")
                 yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"

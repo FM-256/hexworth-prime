@@ -250,6 +250,20 @@ export class HexAIClient {
                 callbacks.onMeta(event);
             } else if (event.type === 'token') {
                 callbacks.onToken(event.content || '');
+            } else if (event.type === 'tool_call_start' && callbacks.onToolCallStart) {
+                // v0.6.0c-1: Dr. Hex is dispatching a tool.
+                callbacks.onToolCallStart({
+                    name: event.name,
+                    parameters: event.parameters,
+                });
+            } else if (event.type === 'tool_call_done' && callbacks.onToolCallDone) {
+                // v0.6.0c-1: tool dispatch returned.
+                callbacks.onToolCallDone({
+                    name: event.name,
+                    ok: event.ok,
+                    code: event.code,
+                    error: event.error,
+                });
             } else if (event.type === 'done' && callbacks.onDone) {
                 callbacks.onDone(event);
             } else if (event.type === 'error') {

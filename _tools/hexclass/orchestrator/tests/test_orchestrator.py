@@ -56,7 +56,7 @@ def test_health_responds() -> None:
     data = json.loads(_http("GET", "/health"))
     assert data["orchestrator"] == "ok", f"orchestrator status: {data['orchestrator']}"
     assert data["ollama"] == "ok", f"ollama status: {data['ollama']}"
-    assert data["version"] == "0.6.2"
+    assert data["version"] == "0.6.3"
     print(f"  ✓ health (uptime {data['uptime_seconds']}s, {len(data.get('models_available', []))} models)")
 
 
