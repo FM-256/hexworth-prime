@@ -38,10 +38,12 @@ hex_ai:conv:<conversation_id>:meta → JSON {uid, created_iso, last_used_iso}
 | Bound | Value | Why |
 |---|---|---|
 | TTL after last write | 1800s (30 min) | Matches "class-period" semantic |
-| Max stored turns | 20 entries (10 user + 10 assistant) | qwen2.5:7b loses coherence past this |
+| Max stored AND retrieved turn entries | 10 (5 user + 5 assistant) | qwen2.5:7b loses coherence past this |
 | Per-Redis-call timeout | 1.5s | Sub-ms LAN; generous |
 
 All tunable via env vars: `HEX_CONV_TTL_S`, `HEX_CONV_MAX_TURNS`, `HEX_CONV_TIMEOUT_S`.
+
+**Nancy 2026-05-24 fix:** The first implementation had asymmetric caps (LTRIM stored 20 entries but LRANGE retrieved only 10). That silently dropped half the stored history on read — older turns were invisible. The renamed constant `MAX_TURN_ENTRIES` now bounds storage AND retrieval to the same N, so what's stored is what's retrievable.
 
 ## Identity flow (the security layer)
 
@@ -56,6 +58,21 @@ if stored_uid != uid:
 Test `test_uid_mismatch_yields_fresh_conversation` proves this end-to-end on hexclass.
 
 Conversation IDs in logs are redacted to first 8 characters (e.g. `c4f15ca7…`). Full IDs never appear in journal entries.
+
+### UUID format guard
+
+Per Nancy 2026-05-24, `conversation_id` is validated as UUID v4 format at TWO layers:
+
+1. **Pydantic boundary** in `ChatRequest` — `Field(..., pattern=r"^[0-9a-fA-F]{8}-...{12}$")`. Malformed IDs return HTTP 422 before any orchestrator work.
+2. **conversation.py defensive guard** — same regex, in case a future caller bypasses the Pydantic model.
+
+Closes a Redis-key-injection surface: IDs like `foo:bar` would otherwise collide with the `:meta` namespace; IDs containing path traversal characters could probe Redis key structure.
+
+Test `test_malformed_conversation_id_rejected` verifies the 422 boundary.
+
+### Known limitation — meta-expiry race
+
+There's a small TOCTOU window between the `GET :meta` (separate round-trip) and the pipeline write. If `:meta` expires between those two calls but the conversation list does not, a fresh write inherits an orphaned list whose old entries belong to no owner. NOT a security breach (UID-mismatch still gates reads), but a degraded-conversation possibility. Fix would require a Lua script for atomic check-then-append. Deferred — documented in `conversation.py` module docstring.
 
 ## Composing the ollama messages array
 
@@ -165,13 +182,14 @@ ai.currentConversationId();              // → 'c4f15ca7-...' or null
 
 `crypto.randomUUID()` is browser-standard since Chrome 92 / Safari 15.4 — Hexworth's modern-browser requirement covers this; no polyfill needed.
 
-## Test set (5/5 passing on hexclass)
+## Test set (6/6 passing on hexclass)
 
 | Test | Proves |
 |---|---|
 | `test_health_surfaces_redis_status` | `/health.conversation_memory.redis` reflects backend state |
 | `test_first_turn_has_zero_prior_turns` | New `conversation_id` → 0 prior turns |
 | `test_no_conversation_id_means_no_memory` | Omitting the field → 0 prior turns (independent) |
+| `test_malformed_conversation_id_rejected` | Non-UUID `conversation_id` (e.g. `foo:bar`) → HTTP 422 at Pydantic boundary |
 | `test_uid_mismatch_yields_fresh_conversation` | UID-match defense — different `user_uid` on same `conversation_id` sees no history |
 | `test_second_turn_sees_prior_turn` | **Load-bearing:** model recalls "purple" from turn 1 in turn 2 |
 

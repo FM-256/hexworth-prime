@@ -67,6 +67,7 @@ from tools import (
     dispatch_tool_call,
     filter_tools_for_context,
     TOOL_REGISTRY,
+    audit as tool_audit,    # v0.6.0c-3 fire-and-forget audit
 )
 import conversation
 
@@ -83,7 +84,7 @@ HEX_ENV = os.environ.get("HEX_ENV", "development").lower()
 # Per-conversation cap on tool-call iterations. Prevents runaway loops
 # where the model keeps calling tools without producing a final text.
 MAX_TOOL_ITERATIONS = int(os.environ.get("HEX_MAX_TOOL_ITERATIONS", "3"))
-VERSION = "0.6.1"
+VERSION = "0.6.2"
 
 # ── API-KEY AUTH ────────────────────────────────────────────────────────────
 # CSV in HEX_API_KEYS env var. Empty entries are filtered out so an
@@ -367,6 +368,14 @@ async def call_ollama_blocking(
                     "error": result.get("error"),
                     "code": result.get("code"),
                 })
+
+                # v0.6.0c-3 audit: fire-and-forget. The chat path does NOT
+                # block on the audit HTTP call. Respect each tool's
+                # exposure_rules.audit flag (operator-self probes like
+                # hex_ai_version set audit=False to save storage).
+                meta = TOOL_REGISTRY.get(name)
+                audit_rule = bool(meta and meta.exposure_rules.get("audit", True))
+                tool_audit.schedule_invocation(name, args, tool_ctx, result, audit_rule)
 
                 # Tool response message — ollama uses role=tool for tool
                 # results. The content must be a string; encode JSON.

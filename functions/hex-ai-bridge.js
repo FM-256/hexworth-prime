@@ -463,6 +463,105 @@ exports.hexAiChatStream = onRequest({
     }
 });
 
+/**
+ * hexAiToolCallback — fire-and-forget audit log sink for the orchestrator.
+ *
+ * v0.6.0c-3. The orchestrator posts a record after each tool dispatch
+ * (where the tool's exposure_rules.audit is True). This CF:
+ *   1. Validates X-API-Key (same shared secret as HEX_AI_API_KEYS on
+ *      the orchestrator — the orchestrator is the ONLY caller).
+ *   2. Writes the record to Firestore `tool_invocations` collection.
+ *   3. Returns 204 — orchestrator doesn't care about the response body.
+ *
+ * The CF is HTTP (not callable) because the orchestrator is not a
+ * Firebase-Auth-authenticated client; it speaks API-key. The same
+ * Cloudflare Access service-token pattern as the v0.5.0a deploy
+ * runbook MAY (operator's call) be put in front of this endpoint
+ * as defense-in-depth.
+ *
+ * Schema (write-only — students read their own via security rules):
+ *   tool_invocations/{auto}
+ *     uid            string    — student UID (from orchestrator's tool_ctx)
+ *     tool_name      string
+ *     parameters     map       — schema-validated tool params
+ *     persona        string    — persona slug active at call time
+ *     help_level     integer   — help level at call time
+ *     role           string    — student/instructor/operator
+ *     ok             boolean   — whether dispatch succeeded
+ *     result_summary string    — truncated result (~500 chars) or null
+ *     error          string    — error message or null
+ *     code           string    — dispatch error code or null
+ *     ts             timestamp — server-side serverTimestamp()
+ *     ts_iso         string    — orchestrator-side ISO timestamp (cross-check)
+ */
+exports.hexAiToolCallback = onRequest({
+    region: 'us-central1',
+    secrets: [hexAiApiKey],
+    timeoutSeconds: 10,
+    memory: '128MiB',
+}, async (req, res) => {
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+    // Validate X-API-Key (constant-time compare via crypto.timingSafeEqual
+    // would be ideal, but Firebase Functions Node 22 has it built-in).
+    const provided = req.headers['x-api-key'] || '';
+    const expected = hexAiApiKey.value();
+    if (!provided || !expected) {
+        res.status(401).json({ error: 'X-API-Key required' });
+        return;
+    }
+    // Buffer-equality with same-length check defeats timing oracle.
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) {
+        res.status(401).json({ error: 'Invalid X-API-Key' });
+        return;
+    }
+    const crypto = require('crypto');
+    if (!crypto.timingSafeEqual(a, b)) {
+        res.status(401).json({ error: 'Invalid X-API-Key' });
+        return;
+    }
+
+    const body = (req.body && typeof req.body === 'object') ? req.body : {};
+    const { uid, tool_name, parameters, persona, help_level, role, ok,
+            result_summary, error, code, ts_iso } = body;
+
+    // Minimal validation — the orchestrator is the trusted caller, but
+    // a malformed payload should still fail loud rather than write garbage.
+    if (typeof uid !== 'string' || !uid ||
+        typeof tool_name !== 'string' || !tool_name ||
+        typeof ok !== 'boolean') {
+        res.status(400).json({ error: 'invalid payload: uid + tool_name + ok required' });
+        return;
+    }
+
+    try {
+        await db.collection('tool_invocations').add({
+            uid,
+            tool_name,
+            parameters: (parameters && typeof parameters === 'object') ? parameters : {},
+            persona: persona || null,
+            help_level: typeof help_level === 'number' ? help_level : null,
+            role: role || null,
+            ok,
+            result_summary: typeof result_summary === 'string' ? result_summary : null,
+            error: typeof error === 'string' ? error : null,
+            code: typeof code === 'string' ? code : null,
+            ts: FieldValue.serverTimestamp(),
+            ts_iso: typeof ts_iso === 'string' ? ts_iso : null,
+        });
+    } catch (e) {
+        console.error('hexAiToolCallback: Firestore write failed:', e.message);
+        res.status(500).json({ error: 'Firestore write failed' });
+        return;
+    }
+
+    res.status(204).end();
+});
+
 exports.hexAiHealth = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
