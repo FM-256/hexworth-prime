@@ -12,6 +12,7 @@ import asyncio
 import os
 import sys
 import time
+import uuid
 
 # Make the test work both locally (parent dir is orchestrator/) and on
 # hexclass (where the module lives at /opt/hexclass/orchestrator). We
@@ -19,6 +20,12 @@ import time
 # resolves.
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
+
+
+def _unique_name(stem: str) -> str:
+    """Per Nancy 2026-05-23: ad-hoc test tools use UUID-suffixed names so
+    a test crash mid-flow can't pollute TOOL_REGISTRY for the next run."""
+    return f"_test_{stem}_{uuid.uuid4().hex[:8]}"
 
 from tools import (
     TOOL_REGISTRY,
@@ -99,50 +106,47 @@ def test_exposure_instructor_only_allows_instructor() -> None:
 
 
 def test_exposure_min_help_level_blocks_below_floor() -> None:
-    # Register an ad-hoc tool with min_help_level=4.
+    name = _unique_name("high_level")
     @register_tool(
-        name="_test_high_level_only",
+        name=name,
         description="test",
         parameters_schema={"type": "object", "properties": {}},
-        exposure_rules={"min_help_level": 4, "instructor_only": False},
+        exposure_rules={"min_help_level": 4, "instructor_only": False, "allowed_personas": None},
     )
     def fn(ctx):
         return {}
-    try:
-        # At help_level=2, the tool is invisible.
-        names = visible_tool_names(persona_slug="dr-hex", help_level=2, role="student")
-        assert "_test_high_level_only" not in names
-        # At help_level=4, visible.
-        names = visible_tool_names(persona_slug="dr-hex", help_level=4, role="student")
-        assert "_test_high_level_only" in names
-        print("  ✓ min_help_level filter works at boundary (level 2: blocked, 4: visible)")
-    finally:
-        TOOL_REGISTRY.pop("_test_high_level_only", None)
+    # At help_level=2, the tool is invisible.
+    names = visible_tool_names(persona_slug="dr-hex", help_level=2, role="student")
+    assert name not in names
+    # At help_level=4, visible.
+    names = visible_tool_names(persona_slug="dr-hex", help_level=4, role="student")
+    assert name in names
+    print("  ✓ min_help_level filter works at boundary (level 2: blocked, 4: visible)")
 
 
 def test_exposure_denied_personas() -> None:
+    name = _unique_name("deny_darkarts")
     @register_tool(
-        name="_test_deny_darkarts",
+        name=name,
         description="test",
         parameters_schema={"type": "object", "properties": {}},
         exposure_rules={
             "min_help_level": 0, "instructor_only": False,
+            "allowed_personas": None,         # all allowed except dark-arts
             "denied_personas": ["dark-arts"],
         },
     )
     def fn(ctx):
         return {}
-    try:
-        assert "_test_deny_darkarts" not in visible_tool_names("dark-arts", 5, "student")
-        assert "_test_deny_darkarts" in visible_tool_names("shield", 5, "student")
-        print("  ✓ denied_personas filter blocks dark-arts but not shield")
-    finally:
-        TOOL_REGISTRY.pop("_test_deny_darkarts", None)
+    assert name not in visible_tool_names("dark-arts", 5, "student")
+    assert name in visible_tool_names("shield", 5, "student")
+    print("  ✓ denied_personas filter blocks dark-arts but not shield")
 
 
 def test_exposure_allowed_personas_allowlist() -> None:
+    name = _unique_name("only_code")
     @register_tool(
-        name="_test_only_code",
+        name=name,
         description="test",
         parameters_schema={"type": "object", "properties": {}},
         exposure_rules={
@@ -152,13 +156,47 @@ def test_exposure_allowed_personas_allowlist() -> None:
     )
     def fn(ctx):
         return {}
-    try:
-        assert "_test_only_code" in visible_tool_names("code", 5, "student")
-        assert "_test_only_code" not in visible_tool_names("shield", 5, "student")
-        assert "_test_only_code" not in visible_tool_names("dr-hex", 5, "student")
-        print("  ✓ allowed_personas allowlist limits to {code} only")
-    finally:
-        TOOL_REGISTRY.pop("_test_only_code", None)
+    assert name in visible_tool_names("code", 5, "student")
+    assert name not in visible_tool_names("shield", 5, "student")
+    assert name not in visible_tool_names("dr-hex", 5, "student")
+    print("  ✓ allowed_personas allowlist limits to {code} only")
+
+
+def test_exposure_default_empty_allowlist_blocks_everyone() -> None:
+    """Per Nancy 2026-05-23: a tool that overrides ONLY min_help_level (forgets
+    allowed_personas) inherits the [] default — invisible. Without this fix,
+    such a tool would have been exposed to every persona."""
+    name = _unique_name("partial_rules")
+    @register_tool(
+        name=name,
+        description="test",
+        parameters_schema={"type": "object", "properties": {}},
+        exposure_rules={"min_help_level": 0},  # forgot allowed_personas
+    )
+    def fn(ctx):
+        return {}
+    # No persona at any help level sees this tool — partial rules = invisible.
+    for p in ["dr-hex", "shield", "code", "matrix", "dark-arts"]:
+        assert name not in visible_tool_names(p, 5, "student"), \
+            f"footgun! tool {name} should be invisible under partial rules but visible to {p}"
+    print("  ✓ partial exposure_rules (forgot allowed_personas) → invisible to everyone")
+
+
+def test_exposure_explicit_none_allows_all_personas() -> None:
+    """Author opts in to permissive shape with explicit allowed_personas=None."""
+    name = _unique_name("explicit_none")
+    @register_tool(
+        name=name,
+        description="test",
+        parameters_schema={"type": "object", "properties": {}},
+        exposure_rules={"min_help_level": 0, "allowed_personas": None},
+    )
+    def fn(ctx):
+        return {}
+    for p in ["dr-hex", "shield", "code"]:
+        assert name in visible_tool_names(p, 5, "student"), \
+            f"explicit allowed_personas=None should expose to {p}"
+    print("  ✓ explicit allowed_personas=None allows all personas (opt-in)")
 
 
 # ── dispatch ───────────────────────────────────────────────────────────────
@@ -205,22 +243,20 @@ def test_dispatch_rejects_unexpected_parameter() -> None:
 
 
 def test_dispatch_handler_crash_is_caught() -> None:
+    name = _unique_name("crash")
     @register_tool(
-        name="_test_crash",
+        name=name,
         description="always crashes",
         parameters_schema={"type": "object", "properties": {}},
-        exposure_rules={"min_help_level": 0, "instructor_only": False},
+        exposure_rules={"min_help_level": 0, "instructor_only": False, "allowed_personas": None},
     )
     def fn(ctx):
         raise RuntimeError("intentional test crash")
-    try:
-        r = asyncio.run(dispatch_tool_call("_test_crash", {}, _make_ctx()))
-        assert r["ok"] is False
-        assert r["code"] == "handler_crash"
-        assert "intentional test crash" in r["error"]
-        print(f"  ✓ handler crash caught, returns ok=False code=handler_crash")
-    finally:
-        TOOL_REGISTRY.pop("_test_crash", None)
+    r = asyncio.run(dispatch_tool_call(name, {}, _make_ctx()))
+    assert r["ok"] is False
+    assert r["code"] == "handler_crash"
+    assert "intentional test crash" in r["error"]
+    print(f"  ✓ handler crash caught, returns ok=False code=handler_crash")
 
 
 # ── ollama format ──────────────────────────────────────────────────────────
@@ -257,6 +293,8 @@ def main() -> int:
         test_exposure_min_help_level_blocks_below_floor,
         test_exposure_denied_personas,
         test_exposure_allowed_personas_allowlist,
+        test_exposure_default_empty_allowlist_blocks_everyone,
+        test_exposure_explicit_none_allows_all_personas,
         test_dispatch_unknown_tool_returns_error,
         test_dispatch_exposure_violation_blocks_disallowed_call,
         test_dispatch_success_for_instructor,

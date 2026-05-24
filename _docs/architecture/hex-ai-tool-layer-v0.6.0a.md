@@ -72,8 +72,14 @@ def hex_ai_version(ctx: dict) -> dict:
 |---|---|
 | `help_level < min_help_level` | Tool not shown |
 | `instructor_only and role != "instructor"` | Tool not shown |
-| `allowed_personas` set AND `persona not in allowed_personas` | Tool not shown |
+| `allowed_personas is not None AND persona not in allowed_personas` | Tool not shown |
 | `persona in denied_personas` | Tool not shown |
+
+### `allowed_personas` semantic (Nancy 2026-05-23)
+
+The default is `[]` (empty allowlist = invisible to everyone), NOT `None`. This closes a footgun: an author who provides partial `exposure_rules` and forgets `allowed_personas` would otherwise inherit a permissive default and expose the tool to every persona. With the empty-list default, partial rules fail safe — invisible.
+
+To make a tool persona-agnostic, the author must opt in explicitly: `"allowed_personas": None`. The `hex_ai_version` diagnostic tool does this because `instructor_only=True` is the actual gate; the `None` opt-in is the explicit "yes, I considered persona exposure and I want no allowlist constraint here."
 
 Result is sorted alphabetically — stable across requests for prompt caching.
 
@@ -128,19 +134,25 @@ This closes the "model crafts parameters that bypass identity" attack surface. T
 
 - **Wiring into `/chat`** — `main.py` doesn't import `tools` yet. Wiring happens in v0.6.0b.
 - **Real student-facing tools** — `_meta.py` ships one instructor-only tool to prove the chain. Real tools land in v0.6.0b+.
-- **Full JSON Schema validation** — no `jsonschema` dependency. Structural checks only (required keys, additionalProperties, basic type). Enough to catch obvious model misbehavior; not enough to validate `oneOf`/`pattern`/`enum`. Lands with v0.6.0b's first real tool.
+- **Full JSON Schema validation** — no `jsonschema` dependency. Structural checks only (required keys, additionalProperties, basic type). Enough to catch obvious model misbehavior; not enough to validate `oneOf`/`pattern`/`enum`. Lands with v0.6.0b's first real tool. **Note (Nancy 2026-05-23):** the v0.6.0 design doc §"Risks + mitigations" promised "jsonschema validation before execution" — this slice deliberately ships less. The full validator drops in v0.6.0b alongside the first real student-data tool, where the stricter validation actually matters.
+- **`returns_schema` field** — removed from `ToolMetadata` per Nancy review. The field was stored but never consulted; presence implied enforcement that didn't exist. Re-adding in v0.6.0d alongside actual handler-output validation.
 - **Audit trail** — `tool_invocations` Firestore writes are planned for v0.6.0e.
 - **`max_tool_calls` per conversation** — lands in v0.6.0b when there's a real call path.
 - **Result-shaping per help-level** — the `get_lab_hint_progression` tool (v0.6.0d) will introduce this pattern.
+- **Parallel tool dispatch** — current `dispatch_tool_call` handles one call. The design doc mentions "execute each tool (parallel where independent)" — that orchestration lands in v0.6.0b's `/chat` wiring, not in the scaffolding.
 
-## Test set (15/15 passing)
+## Test set (17/17 passing)
 
 | Group | Tests |
 |---|---|
 | Registry shape | registered-on-import, duplicate-name rejection, non-object-schema rejection |
-| Exposure filter | instructor_only blocks/allows correctly, min_help_level boundary, denied_personas, allowed_personas allowlist |
+| Exposure filter | instructor_only blocks/allows correctly, min_help_level boundary, denied_personas, allowed_personas allowlist, **partial-rules-fail-safe**, **explicit-None-opts-in** |
 | Dispatch | unknown_tool, exposure_violation, success, additionalProperties rejection, handler_crash |
 | Ollama format | shape verification, deterministic ordering |
+
+The two bolded tests landed after Nancy's [PAUSE] review surfaced the `allowed_personas` default footgun. They verify: (a) partial `exposure_rules` (missing `allowed_personas`) makes the tool invisible to every persona, (b) explicit `allowed_personas=None` opts in to the all-personas shape.
+
+Ad-hoc test tools use UUID-suffixed names (`_test_<stem>_<8hex>`) so a test crash mid-flow can't pollute `TOOL_REGISTRY` for the next run.
 
 Run on hexclass:
 
@@ -164,4 +176,4 @@ Per the design doc, the next slice (v0.6.0b) introduces the first real tool: `ge
 
 ---
 
-*Last Updated: 2026-05-23 · v0.6.0a scaffolding — 15/15 tests · Nancy review dispatched*
+*Last Updated: 2026-05-23 · v0.6.0a scaffolding — 17/17 tests · Nancy [PAUSE] review applied*

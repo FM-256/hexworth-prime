@@ -27,11 +27,16 @@ class ToolError(Exception):
 
 @dataclass
 class ToolMetadata:
-    """All facts about a single registered tool. Immutable after registration."""
+    """All facts about a single registered tool. Immutable after registration.
+
+    Note: `returns_schema` was present in v0.6.0a's first draft but removed
+    per Nancy review — there is no result-validation code path yet, so the
+    field was dead weight that gave tool authors a false promise of
+    enforcement. Re-adding in v0.6.0d alongside actual handler-output
+    validation."""
     name: str
     description: str
     parameters_schema: dict[str, Any]
-    returns_schema: dict[str, Any] | None
     exposure_rules: dict[str, Any]
     handler: Callable[..., Any]
     is_async: bool
@@ -55,10 +60,23 @@ TOOL_REGISTRY: dict[str, ToolMetadata] = {}
 
 
 def _default_exposure_rules() -> dict[str, Any]:
-    """The conservative default: visible to no one until rules are set."""
+    """The conservative default: visible to no one until rules are set.
+
+    Both `min_help_level` (high) AND `allowed_personas` (empty allowlist)
+    default to "block" — per Nancy review 2026-05-23, an asymmetric default
+    (one axis restrictive, the other permissive) creates a footgun: an
+    author who provides partial exposure_rules and forgets allowed_personas
+    silently gets a tool exposed to every persona.
+
+    Semantics of allowed_personas:
+        []     — explicit empty allowlist; no persona sees this tool
+        None   — explicit no-allowlist constraint; all personas allowed
+                 (must be passed EXPLICITLY by the tool author)
+        [...]  — only listed personas see this tool
+    """
     return {
-        "min_help_level": 99,        # deliberately high — silent unless overridden
-        "allowed_personas": None,    # None = "all allowed if min_help_level / other gates pass"
+        "min_help_level": 99,        # high — silent unless overridden
+        "allowed_personas": [],      # empty allowlist — invisible unless overridden
         "denied_personas": [],
         "instructor_only": False,
         "audit": True,               # default to auditing — safer than silent
@@ -70,7 +88,6 @@ def register_tool(
     name: str,
     description: str,
     parameters_schema: dict[str, Any],
-    returns_schema: dict[str, Any] | None = None,
     exposure_rules: dict[str, Any] | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
@@ -80,14 +97,17 @@ def register_tool(
         name              — the function name the model will use in tool_calls
         description       — what the tool does, shown to the model
         parameters_schema — JSON Schema dict for tool's input
-        returns_schema    — JSON Schema dict for tool's output (optional)
         exposure_rules    — per the design doc; defaults are deliberately
-                            restrictive (min_help_level=99 = invisible)
+                            restrictive (min_help_level=99 + empty allowlist
+                            = invisible to everyone unless overridden)
 
     The decorated function must accept `ctx` as the first parameter (a dict
     carrying uid, role, persona_slug, help_level — set by dispatch_tool_call).
     Additional parameters must match parameters_schema. The function may be
-    sync or async; dispatch awaits async functions and wraps sync ones.
+    sync or async; dispatch awaits async functions and wraps sync ones in
+    asyncio.to_thread. Sync handlers trigger a log.warning at registration
+    time (per Nancy review) — sync should only be used for pure-function
+    handlers like version probes; any I/O belongs in an async handler.
 
     Returns the original function unchanged (registration is the side effect).
     """
@@ -109,20 +129,26 @@ def register_tool(
                 f"register_tool({name!r}): parameters_schema must be a JSON Schema "
                 f"with type='object'; got {parameters_schema!r}"
             )
+        is_async = inspect.iscoroutinefunction(fn)
         TOOL_REGISTRY[name] = ToolMetadata(
             name=name,
             description=description,
             parameters_schema=parameters_schema,
-            returns_schema=returns_schema,
             exposure_rules=rules,
             handler=fn,
-            is_async=inspect.iscoroutinefunction(fn),
+            is_async=is_async,
         )
         log.info(
             "register_tool: %s (min_help_level=%d, instructor_only=%s, is_async=%s)",
-            name, rules["min_help_level"], rules["instructor_only"],
-            inspect.iscoroutinefunction(fn),
+            name, rules["min_help_level"], rules["instructor_only"], is_async,
         )
+        if not is_async:
+            log.warning(
+                "register_tool: %s is SYNC — only use sync for pure functions. "
+                "Tools that do I/O (Firestore, HTTP, file) must be async to avoid "
+                "blocking the event loop in asyncio.to_thread's bounded pool.",
+                name,
+            )
         return fn
 
     return decorator

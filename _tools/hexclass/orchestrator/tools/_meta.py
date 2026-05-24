@@ -28,16 +28,14 @@ from .registry import register_tool
         "properties": {},
         "additionalProperties": False,
     },
-    returns_schema={
-        "type": "object",
-        "properties": {
-            "version": {"type": "string"},
-            "tool_count": {"type": "integer"},
-        },
-    },
     exposure_rules={
         "min_help_level": 0,
         "instructor_only": True,
+        # Explicit None — the tool is visible to all personas (instructor_only
+        # already gates by role). Per Nancy 2026-05-23: allowed_personas
+        # defaults to [] (empty allowlist) for safety; tools that should be
+        # persona-agnostic must opt in to that shape explicitly.
+        "allowed_personas": None,
         "audit": False,         # operator-self probes, not worth audit storage
     },
 )

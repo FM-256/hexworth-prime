@@ -137,6 +137,12 @@ async def dispatch_tool_call(
     except ToolError as e:
         return {"ok": False, "error": str(e), "code": e.code}
     except Exception as e:
+        # NOTE: catching `Exception` (not `BaseException`) is intentional.
+        # `asyncio.CancelledError` and `KeyboardInterrupt` inherit from
+        # BaseException, NOT Exception, in Python 3.8+. They are deliberately
+        # left to propagate so the parent request can cancel cleanly. Do NOT
+        # widen this to `BaseException` "to be safe" — that would break the
+        # cancellation invariant.
         log.exception("tool %s raised unexpected exception", name)
         return {"ok": False, "error": f"handler crashed: {e}", "code": "handler_crash"}
 

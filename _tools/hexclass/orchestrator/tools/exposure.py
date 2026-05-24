@@ -19,7 +19,13 @@ from .registry import TOOL_REGISTRY, ToolMetadata
 
 
 def _is_visible(meta: ToolMetadata, persona_slug: str, help_level: int, role: str) -> bool:
-    """All four gates must pass. Any single failure → invisible."""
+    """All four gates must pass. Any single failure → invisible.
+
+    Per Nancy 2026-05-23: `allowed_personas` defaults to `[]` (empty allowlist
+    = no personas) rather than `None`. To make a tool visible to all personas,
+    the author must EXPLICITLY pass `allowed_personas=None` — opt-in to the
+    permissive shape rather than inheriting it.
+    """
     rules = meta.exposure_rules
 
     # Gate 1: help level floor.
@@ -30,7 +36,9 @@ def _is_visible(meta: ToolMetadata, persona_slug: str, help_level: int, role: st
     if rules.get("instructor_only", False) and role != "instructor":
         return False
 
-    # Gate 3: persona allowlist (when set). None = no allowlist constraint.
+    # Gate 3: persona allowlist.
+    #   None  → "no allowlist constraint" (must be explicit opt-in by author)
+    #   [...] → only listed personas allowed (empty list = no one)
     allowed = rules.get("allowed_personas")
     if allowed is not None and persona_slug not in allowed:
         return False
