@@ -17,7 +17,7 @@ Public API:
 This module is NOT yet imported by main.py — wiring the registry into the
 /chat pipeline is v0.6.0b's job.
 """
-from .registry import TOOL_REGISTRY, register_tool, ToolMetadata, ToolError
+from .registry import TOOL_REGISTRY, register_tool, ToolMetadata, ToolError, redact_uid
 from .exposure import filter_tools_for_context
 from .dispatch import dispatch_tool_call
 
@@ -36,4 +36,5 @@ __all__ = [
     "ToolError",
     "filter_tools_for_context",
     "dispatch_tool_call",
+    "redact_uid",
 ]

@@ -16,6 +16,15 @@ from typing import Any, Callable
 log = logging.getLogger("hex_ai.tools")
 
 
+def redact_uid(uid: str | None) -> str:
+    """Per Nancy review 2026-05-24 (item #10): user UIDs in logs are
+    redacted to first 8 chars + ellipsis. Matches conversation.py's
+    _redact_id pattern for consistency."""
+    if not uid:
+        return "<empty>"
+    return f"{uid[:8]}…" if len(uid) > 8 else uid
+
+
 class ToolError(Exception):
     """Raised by dispatch_tool_call for any failure: unknown tool, exposure
     violation, schema mismatch, handler exception. Distinct exception type

@@ -38,6 +38,8 @@ from typing import Any
 
 import httpx
 
+from .registry import redact_uid
+
 log = logging.getLogger("hex_ai.tools.audit")
 
 AUDIT_URL = os.environ.get("HEX_AI_AUDIT_URL", "")
@@ -111,11 +113,11 @@ async def write_invocation(
             if r.status_code >= 400:
                 log.warning(
                     "audit write returned %d for tool=%s uid=%s",
-                    r.status_code, tool_name, ctx.get("uid"),
+                    r.status_code, tool_name, redact_uid(ctx.get("uid")),
                 )
     except (httpx.HTTPError, asyncio.TimeoutError) as e:
         log.warning("audit write failed for tool=%s uid=%s: %s",
-                    tool_name, ctx.get("uid"), e)
+                    tool_name, redact_uid(ctx.get("uid")), e)
 
 
 def schedule_invocation(

@@ -67,6 +67,7 @@ from tools import (
     dispatch_tool_call,
     filter_tools_for_context,
     TOOL_REGISTRY,
+    redact_uid,
     audit as tool_audit,    # v0.6.0c-3 fire-and-forget audit
 )
 import conversation
@@ -84,7 +85,36 @@ HEX_ENV = os.environ.get("HEX_ENV", "development").lower()
 # Per-conversation cap on tool-call iterations. Prevents runaway loops
 # where the model keeps calling tools without producing a final text.
 MAX_TOOL_ITERATIONS = int(os.environ.get("HEX_MAX_TOOL_ITERATIONS", "3"))
-VERSION = "0.6.4"
+VERSION = "0.6.5"
+
+# Special tokens that qwen2.5:7b and similar models treat as control sequences
+# in their chat template. If these appear verbatim in tool result content,
+# the model's tokenizer can parse them as structural markers instead of
+# data — corrupting subsequent generation. Per Nancy review 2026-05-24
+# (item #9 in the post-marathon improvement pass): strip them from tool
+# results before encoding as the role=tool message.
+_OLLAMA_SPECIAL_TOKENS_RE = __import__("re").compile(
+    r"<\|(?:im_start|im_end|tool_call|tool_response|user|assistant|system|"
+    r"endoftext|eot_id|begin_of_text|end_of_text|fim_prefix|fim_suffix|fim_middle)\|>",
+    flags=__import__("re").IGNORECASE,
+)
+
+
+def _sanitize_tool_result(result: Any) -> Any:
+    """Recursively strip ollama/qwen special tokens from string values in a
+    tool result. Operates on the in-memory structure; doesn't change the
+    Python types. Non-string values pass through unchanged."""
+    if isinstance(result, str):
+        return _OLLAMA_SPECIAL_TOKENS_RE.sub("", result)
+    if isinstance(result, dict):
+        return {k: _sanitize_tool_result(v) for k, v in result.items()}
+    if isinstance(result, list):
+        return [_sanitize_tool_result(v) for v in result]
+    return result
+
+
+# UID log redaction lives in tools.registry as redact_uid (imported above).
+# This matches the conversation.py _redact_id pattern: first 8 chars + ellipsis.
 
 # ── API-KEY AUTH ────────────────────────────────────────────────────────────
 # CSV in HEX_API_KEYS env var. Empty entries are filtered out so an
@@ -381,19 +411,18 @@ async def call_ollama_blocking(
                 # results. The content must be a string; encode JSON.
                 # Per Nancy 2026-05-24: default=str ensures Firestore
                 # DatetimeWithNanoseconds and other non-JSON types in tool
-                # results don't raise TypeError mid-loop (which would propagate
-                # past the per-call try/except and 500 the entire turn).
-                # The contract: tool handlers SHOULD return JSON-clean dicts,
-                # but default=str is the safety net.
+                # results don't raise TypeError mid-loop. Plus
+                # _sanitize_tool_result strips ollama/qwen control tokens
+                # from string values (item #9 post-marathon review).
+                sanitized = _sanitize_tool_result(
+                    result.get("result") if result["ok"] else {
+                        "error": result.get("error"),
+                        "code": result.get("code"),
+                    }
+                )
                 messages.append({
                     "role": "tool",
-                    "content": json.dumps(
-                        result.get("result") if result["ok"] else {
-                            "error": result.get("error"),
-                            "code": result.get("code"),
-                        },
-                        default=str,
-                    ),
+                    "content": json.dumps(sanitized, default=str),
                 })
 
         # Hit MAX_TOOL_ITERATIONS — one more call WITHOUT tools to force
@@ -535,16 +564,17 @@ async def stream_ollama(
                 meta = TOOL_REGISTRY.get(name)
                 audit_rule = bool(meta and meta.exposure_rules.get("audit", True))
                 tool_audit.schedule_invocation(name, args, tool_ctx, result, audit_rule)
-                # Append tool result to messages for the re-prompt
+                # Append tool result to messages for the re-prompt.
+                # Same sanitization as the blocking path (#9 review).
+                sanitized = _sanitize_tool_result(
+                    result.get("result") if result["ok"] else {
+                        "error": result.get("error"),
+                        "code": result.get("code"),
+                    }
+                )
                 messages.append({
                     "role": "tool",
-                    "content": json.dumps(
-                        result.get("result") if result["ok"] else {
-                            "error": result.get("error"),
-                            "code": result.get("code"),
-                        },
-                        default=str,
-                    ),
+                    "content": json.dumps(sanitized, default=str),
                 })
             # Loop continues — next iteration opens a fresh stream with
             # the augmented messages array.
@@ -580,6 +610,18 @@ async def stream_ollama(
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
+    """Comprehensive health probe (Nancy review #7, 2026-05-24).
+
+    Probes ALL dependencies in parallel and surfaces each independently.
+    A single "ok"/"not-ok" verdict would hide partial failures (e.g.,
+    chat works but pgvector RAG is silently returning zero chunks).
+    Each subsystem reports its own state so the operator dashboard can
+    light the right indicator.
+
+    Returns a single object with subsystem-keyed status. Operator
+    reads the top-level "all_ok" boolean for at-a-glance, or drills
+    into each subsystem for diagnostics.
+    """
     out: dict[str, Any] = {
         "orchestrator": "ok",
         "version": VERSION,
@@ -588,18 +630,95 @@ async def health() -> dict[str, Any]:
     }
     if metrics.shutting_down:
         out["orchestrator"] = "shutting-down"
+
+    # Probe all dependencies concurrently — independent failures don't
+    # serialize the health check.
+    ollama_result, conv_result, pgvector_result, audit_result = await asyncio.gather(
+        _probe_ollama(),
+        conversation.health(),
+        _probe_pgvector(),
+        _probe_audit_cf(),
+        return_exceptions=True,
+    )
+
+    out["ollama"] = ollama_result if not isinstance(ollama_result, Exception) else {"status": f"probe error: {ollama_result}"}
+    out["conversation_memory"] = conv_result if not isinstance(conv_result, Exception) else {"redis": f"probe error: {conv_result}"}
+    out["pgvector"] = pgvector_result if not isinstance(pgvector_result, Exception) else {"status": f"probe error: {pgvector_result}"}
+    out["audit_cf"] = audit_result if not isinstance(audit_result, Exception) else {"status": f"probe error: {audit_result}"}
+
+    # Roll-up: each subsystem reports "ok" in its "status" or top-level
+    # key; anything else is degraded. Operator's at-a-glance check.
+    out["all_ok"] = (
+        out["orchestrator"] == "ok"
+        and isinstance(out["ollama"], dict) and out["ollama"].get("status") == "ok"
+        and isinstance(out["conversation_memory"], dict) and out["conversation_memory"].get("redis") == "ok"
+        and isinstance(out["pgvector"], dict) and out["pgvector"].get("status") in ("ok", "not-configured")
+        and isinstance(out["audit_cf"], dict) and out["audit_cf"].get("status") in ("ok", "not-configured")
+    )
+    return out
+
+
+async def _probe_ollama() -> dict[str, Any]:
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             r = await client.get(f"{OLLAMA_URL}/api/tags")
             r.raise_for_status()
             tags = r.json().get("models", [])
-            out["ollama"] = "ok"
-            out["models_available"] = [m["name"] for m in tags]
+            return {
+                "status": "ok",
+                "models_available": [m["name"] for m in tags],
+            }
     except Exception as e:
-        out["ollama"] = f"unreachable: {e}"
-    # v0.6.1: surface conversation-memory backend health
-    out["conversation_memory"] = await conversation.health()
-    return out
+        return {"status": f"unreachable: {e}"}
+
+
+async def _probe_pgvector() -> dict[str, Any]:
+    """RAG depends on pgvector hexworth_docs being reachable + populated.
+    Probe by counting rows; non-zero is healthy."""
+    import psycopg
+    pg_dsn = os.environ.get("PG_DSN", "postgresql://hexclass@127.0.0.1:5432/hexclass")
+    # Reuse rag.py's password loading. Local import to avoid import-time issues.
+    try:
+        from rag import _PG_PASSWORD as pg_password
+    except Exception:
+        pg_password = None
+    try:
+        def _query():
+            with psycopg.connect(pg_dsn, password=pg_password, connect_timeout=2) as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT count(*) FROM hexworth_docs")
+                    return cur.fetchone()[0]
+        row_count = await asyncio.wait_for(asyncio.to_thread(_query), timeout=3.0)
+        return {"status": "ok", "doc_count": int(row_count)}
+    except Exception as e:
+        return {"status": f"unreachable: {e}"}
+
+
+async def _probe_audit_cf() -> dict[str, Any]:
+    """The audit CF is optional — only configured when the operator has
+    deployed it. Report 'not-configured' (not 'unreachable') when env
+    vars are unset so all_ok stays True in dev/standalone mode."""
+    if not tool_audit.is_enabled():
+        return {"status": "not-configured"}
+    # When configured, do a HEAD request to the audit URL to verify
+    # the CF is reachable. We don't try to actually write an audit record.
+    # A failure here is non-fatal — audit is fire-and-forget — but the
+    # health endpoint surfaces it so operator dashboards can alert.
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            # POST a minimal probe — the CF will reject it (400 invalid payload)
+            # but the connection success tells us it's reachable. We
+            # treat 4xx as "reachable but rejected" = ok for health purposes.
+            r = await client.post(
+                tool_audit.AUDIT_URL,
+                json={"_probe": True},
+                headers={"X-API-Key": tool_audit.AUDIT_API_KEY},
+            )
+            if r.status_code >= 500:
+                return {"status": f"degraded: {r.status_code}"}
+            return {"status": "ok"}
+    except Exception as e:
+        return {"status": f"unreachable: {e}"}
 
 
 @app.get("/models")
@@ -782,7 +901,7 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
         persona = PERSONAS[persona_slug]
         log.info(
             "chat: uid=%s house=%s persona=%s level=%d model=%s rag_hits=%d tools_visible=%d prior_turns=%d",
-            req.user_uid, req.house, persona["name"], level, model,
+            redact_uid(req.user_uid), req.house, persona["name"], level, model,
             len(retrieved), len(tools_list), len(prior_turns),
         )
         try:

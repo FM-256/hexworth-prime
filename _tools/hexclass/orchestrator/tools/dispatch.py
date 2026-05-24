@@ -28,7 +28,7 @@ import logging
 from typing import Any
 
 from .exposure import _is_visible
-from .registry import TOOL_REGISTRY, ToolError, ToolMetadata
+from .registry import TOOL_REGISTRY, ToolError, ToolMetadata, redact_uid
 
 log = logging.getLogger("hex_ai.tools.dispatch")
 
@@ -147,5 +147,5 @@ async def dispatch_tool_call(
         return {"ok": False, "error": f"handler crashed: {e}", "code": "handler_crash"}
 
     log.info("tool dispatched: name=%s uid=%s persona=%s level=%d",
-             name, ctx.get("uid"), ctx.get("persona_slug"), ctx.get("help_level"))
+             name, redact_uid(ctx.get("uid")), ctx.get("persona_slug"), ctx.get("help_level"))
     return {"ok": True, "result": result}

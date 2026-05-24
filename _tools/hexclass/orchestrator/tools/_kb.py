@@ -27,7 +27,7 @@ import asyncio
 import logging
 from typing import Any
 
-from .registry import register_tool
+from .registry import register_tool, redact_uid
 
 log = logging.getLogger("hex_ai.tools.kb")
 
@@ -85,7 +85,7 @@ async def search_knowledge_base(ctx: dict[str, Any], query: str, max_results: in
 
     log.info(
         "search_knowledge_base: uid=%s query=%r k=%d → %d chunks",
-        ctx.get("uid"), query[:80], k, len(chunks),
+        redact_uid(ctx.get("uid")), query[:80], k, len(chunks),
     )
 
     return {
