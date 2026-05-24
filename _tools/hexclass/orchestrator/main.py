@@ -70,6 +70,10 @@ from tools import (
     redact_uid,
     audit as tool_audit,    # v0.6.0c-3 fire-and-forget audit
 )
+from tools.error_sanitizer import (
+    sanitize_tool_error_for_model,
+    sanitize_tool_error_for_browser,
+)
 import conversation
 
 logging.basicConfig(
@@ -409,17 +413,20 @@ async def call_ollama_blocking(
 
                 # Tool response message — ollama uses role=tool for tool
                 # results. The content must be a string; encode JSON.
-                # Per Nancy 2026-05-24: default=str ensures Firestore
-                # DatetimeWithNanoseconds and other non-JSON types in tool
-                # results don't raise TypeError mid-loop. Plus
-                # _sanitize_tool_result strips ollama/qwen control tokens
-                # from string values (item #9 post-marathon review).
-                sanitized = _sanitize_tool_result(
-                    result.get("result") if result["ok"] else {
-                        "error": result.get("error"),
-                        "code": result.get("code"),
-                    }
+                # Two-stage sanitization (Nancy 2026-05-24):
+                #   1. sanitize_tool_error_for_model — replaces the raw
+                #      error string on ok=False with a code-mapped safe
+                #      message. The original error string never reaches
+                #      the model context (defense against drhex-q-leak).
+                #      Audit log still gets the raw `result` separately.
+                #   2. _sanitize_tool_result — strips ollama/qwen control
+                #      tokens from any string values (item #9 review).
+                # Order matters: error-shape first, then token-scrub.
+                safe_for_model = (
+                    result.get("result") if result["ok"]
+                    else sanitize_tool_error_for_model(result)
                 )
+                sanitized = _sanitize_tool_result(safe_for_model)
                 messages.append({
                     "role": "tool",
                     "content": json.dumps(sanitized, default=str),
@@ -554,24 +561,31 @@ async def stream_ollama(
                         args = {}
                 yield ("tool_call_start", {"name": name, "parameters": args})
                 result = await dispatch_tool_call(name, args, tool_ctx)
+                # SSE event to the browser — sanitize the error to a
+                # minimal display string. Raw error strings (Firebase
+                # console URLs, stack traces) must not reach client JS
+                # via the wire even if the current consumer doesn't
+                # render them (drhex-q-leak defense, Nancy 2026-05-24).
+                browser_safe = sanitize_tool_error_for_browser(result)
                 yield ("tool_call_done", {
                     "name": name,
-                    "ok": result["ok"],
-                    "code": result.get("code"),
-                    "error": result.get("error") if not result["ok"] else None,
+                    "ok": browser_safe["ok"],
+                    "code": browser_safe.get("code"),
+                    "error": browser_safe.get("error") if not browser_safe["ok"] else None,
                 })
-                # Same audit fire-and-forget as the blocking path
+                # Same audit fire-and-forget as the blocking path.
+                # Audit gets the ORIGINAL `result` — operator must still
+                # see the raw Firestore/handler error in tool_invocations.
                 meta = TOOL_REGISTRY.get(name)
                 audit_rule = bool(meta and meta.exposure_rules.get("audit", True))
                 tool_audit.schedule_invocation(name, args, tool_ctx, result, audit_rule)
                 # Append tool result to messages for the re-prompt.
-                # Same sanitization as the blocking path (#9 review).
-                sanitized = _sanitize_tool_result(
-                    result.get("result") if result["ok"] else {
-                        "error": result.get("error"),
-                        "code": result.get("code"),
-                    }
+                # Same two-stage sanitization as the blocking path.
+                safe_for_model = (
+                    result.get("result") if result["ok"]
+                    else sanitize_tool_error_for_model(result)
                 )
+                sanitized = _sanitize_tool_result(safe_for_model)
                 messages.append({
                     "role": "tool",
                     "content": json.dumps(sanitized, default=str),
