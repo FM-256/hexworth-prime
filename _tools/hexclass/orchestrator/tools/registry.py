@@ -56,6 +56,13 @@ class ToolMetadata:
 # Process-global registry. Read by callers via tools.TOOL_REGISTRY; written
 # only by @register_tool. Convention: do not mutate from outside the registry
 # module — tests can patch a fresh dict if they need isolation.
+#
+# Invariant (Nancy 2026-05-24): APPEND-ONLY AFTER STARTUP. The orchestrator
+# does not currently support deregistration or hot-reload of tools. The
+# dispatch path re-reads TOOL_REGISTRY via _is_visible() on every call;
+# concurrent deregistration would create a TOCTOU window where filter_tools_for_context
+# included a tool that dispatch then refused. If hot-reload becomes a need,
+# snapshot the registry at request start and use the snapshot through dispatch.
 TOOL_REGISTRY: dict[str, ToolMetadata] = {}
 
 
@@ -73,6 +80,17 @@ def _default_exposure_rules() -> dict[str, Any]:
         None   — explicit no-allowlist constraint; all personas allowed
                  (must be passed EXPLICITLY by the tool author)
         [...]  — only listed personas see this tool
+
+    Semantics of audit (Nancy 2026-05-24):
+        True   — intent: every invocation written to Firestore
+                 tool_invocations collection for instructor review.
+                 As of v0.6.0b the WRITE PATH IS NOT IMPLEMENTED —
+                 invocations land in the in-memory tool_invocations
+                 list and (for instructor/operator role) the
+                 show_thinking response. Firestore audit log lands
+                 in v0.6.0c-3 via the CF callback.
+        False  — explicit "do not audit" (e.g. operator-self probes
+                 like hex_ai_version where audit storage isn't worth it)
     """
     return {
         "min_help_level": 99,        # high — silent unless overridden

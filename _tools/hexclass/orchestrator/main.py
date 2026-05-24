@@ -308,7 +308,19 @@ async def call_ollama_blocking(
             content = (msg.get("content") or "").strip()
 
             # No tool calls (or empty list) → this is the final answer.
+            # Per Nancy 2026-05-24: guard against the "empty content + no
+            # tool_calls" failure mode where a confused local model
+            # silently returns "" — this would 200 the request with a
+            # blank body, worse UX than a logged error. Log + metric;
+            # caller can decide whether to retry.
             if not tool_calls:
+                if not content:
+                    log.warning(
+                        "ollama returned empty content + no tool_calls "
+                        "(iteration %d, model=%s, messages=%d)",
+                        iteration, model, len(messages),
+                    )
+                    metrics.record_error("ollama_empty_response")
                 return content, tool_invocations
 
             # Append the assistant message with its tool_calls intent.
@@ -343,12 +355,21 @@ async def call_ollama_blocking(
 
                 # Tool response message — ollama uses role=tool for tool
                 # results. The content must be a string; encode JSON.
+                # Per Nancy 2026-05-24: default=str ensures Firestore
+                # DatetimeWithNanoseconds and other non-JSON types in tool
+                # results don't raise TypeError mid-loop (which would propagate
+                # past the per-call try/except and 500 the entire turn).
+                # The contract: tool handlers SHOULD return JSON-clean dicts,
+                # but default=str is the safety net.
                 messages.append({
                     "role": "tool",
-                    "content": json.dumps(result.get("result") if result["ok"] else {
-                        "error": result.get("error"),
-                        "code": result.get("code"),
-                    }),
+                    "content": json.dumps(
+                        result.get("result") if result["ok"] else {
+                            "error": result.get("error"),
+                            "code": result.get("code"),
+                        },
+                        default=str,
+                    ),
                 })
 
         # Hit MAX_TOOL_ITERATIONS — one more call WITHOUT tools to force
@@ -623,10 +644,20 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
         metrics.record_chat(persona_slug, level, latency)
         thinking_payload = None
         if req.show_thinking:
+            # Per Nancy 2026-05-24: tool_invocations + tools_visible can
+            # leak internal error strings (e.g., "handler crashed: connection
+            # refused to pgvector") and timing data. Gate the sensitive
+            # fields behind instructor/operator role. Students with
+            # show_thinking=true still get rag_chunks + context fields
+            # (those are about their own session) but not the tool detail.
             thinking_payload = dict(context)
             thinking_payload["rag_chunks"] = retrieved
-            thinking_payload["tool_invocations"] = tool_invocations
-            thinking_payload["tools_visible"] = [t["function"]["name"] for t in tools_list]
+            if req.role in ("instructor", "operator"):
+                thinking_payload["tool_invocations"] = tool_invocations
+                thinking_payload["tools_visible"] = [t["function"]["name"] for t in tools_list]
+            else:
+                # Students see only that tools WERE used, not which or what they returned
+                thinking_payload["tool_calls_made"] = len(tool_invocations)
         return ChatResponse(
             response=content.strip(),
             persona=persona_slug,
