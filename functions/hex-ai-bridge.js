@@ -27,8 +27,12 @@
  */
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
+
+// firebase-admin is initialized by index.js (initializeApp() at module load)
+// before this file is required, so getFirestore() is safe to call at module scope.
+const db = getFirestore();
 
 const hexAiUrl = defineSecret('HEX_AI_URL');                       // e.g. https://hex-ai.hexworth.tech
 const hexAiApiKey = defineSecret('HEX_AI_API_KEY');                // matches one entry in HEX_API_KEYS on hexclass
@@ -99,7 +103,6 @@ const cfOptions = {
 async function deriveFailedAttempts(uid, missionId) {
     if (!missionId) return 0;
     try {
-        const db = getFirestore();
         const since = new Date(Date.now() - FAILED_ATTEMPTS_WINDOW_MS);
 
         const [attemptsSnap, capturesSnap] = await Promise.all([
@@ -498,7 +501,7 @@ exports.hexAiToolCallback = onRequest({
     region: 'us-central1',
     secrets: [hexAiApiKey],
     timeoutSeconds: 10,
-    memory: '128MiB',
+    memory: '256MiB',
 }, async (req, res) => {
     if (req.method !== 'POST') {
         res.status(405).json({ error: 'Method not allowed' });
