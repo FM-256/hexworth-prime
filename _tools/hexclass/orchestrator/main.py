@@ -84,7 +84,7 @@ HEX_ENV = os.environ.get("HEX_ENV", "development").lower()
 # Per-conversation cap on tool-call iterations. Prevents runaway loops
 # where the model keeps calling tools without producing a final text.
 MAX_TOOL_ITERATIONS = int(os.environ.get("HEX_MAX_TOOL_ITERATIONS", "3"))
-VERSION = "0.6.3"
+VERSION = "0.6.4"
 
 # ── API-KEY AUTH ────────────────────────────────────────────────────────────
 # CSV in HEX_API_KEYS env var. Empty entries are filtered out so an

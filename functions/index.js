@@ -8455,3 +8455,4 @@ exports.hexAiChat             = _hexAiBridge.hexAiChat;
 exports.hexAiChatStream       = _hexAiBridge.hexAiChatStream;
 exports.hexAiHealth           = _hexAiBridge.hexAiHealth;
 exports.hexAiToolCallback     = _hexAiBridge.hexAiToolCallback;   // v0.6.0c-3 audit sink
+exports.hexAiToolDispatch     = _hexAiBridge.hexAiToolDispatch;   // v0.6.0c-2 Firestore-backed tools

@@ -562,6 +562,157 @@ exports.hexAiToolCallback = onRequest({
     res.status(204).end();
 });
 
+/**
+ * hexAiToolDispatch — runs Firestore-backed tool handlers on behalf of
+ * the orchestrator (v0.6.0c-2).
+ *
+ * Why this is a separate CF from the chat path:
+ *   Tools that touch Firestore (get_student_progress, future progress
+ *   variants, etc.) need Admin SDK access. The orchestrator on hexclass
+ *   intentionally does NOT have firebase-admin + service-account JSON.
+ *   Per the v0.6.0c design (Path B): orchestrator dispatches the tool
+ *   by name + parameters; CF runs the Admin SDK query; result returns
+ *   to orchestrator; orchestrator passes back to ollama in the tool
+ *   loop. Same X-API-Key as the chat path authenticates the call.
+ *
+ * Request shape (orchestrator → CF):
+ *   POST /hexAiToolDispatch
+ *   X-API-Key: <shared secret>
+ *   body: {
+ *     tool: "get_student_progress",
+ *     parameters: { mission_id: "..." },
+ *     ctx: { uid, persona_slug, help_level, role }
+ *   }
+ *
+ * Response (CF → orchestrator):
+ *   200 + { ok: true, result: {...} } on success
+ *   400 + { ok: false, error: "...", code: "..." } on validation failure
+ *   404 + { ok: false, error: "unknown tool", code: "unknown_tool" }
+ *   500 + { ok: false, error: "...", code: "handler_crash" }
+ *
+ * Identity: ctx.uid comes from the orchestrator's authenticated user
+ * session (which itself came from request.auth.uid in hexAiChat). The
+ * CF re-validates: the X-API-Key proves the orchestrator is the caller;
+ * ctx.uid is what the orchestrator believes the user is. Trust chain
+ * is X-API-Key (CF<->orchestrator) + Firebase ID token (browser->CF).
+ */
+const TOOL_DISPATCH_HANDLERS = {
+    // Each handler: async (parameters, ctx) → result object
+    // Errors thrown propagate as 500 + handler_crash to the orchestrator.
+    'get_student_progress': async (parameters, ctx) => {
+        const missionId = parameters.mission_id;
+        if (typeof missionId !== 'string' || !missionId) {
+            const err = new Error('mission_id is required');
+            err.code = 'schema_required';
+            throw err;
+        }
+        const uid = ctx.uid;
+        const sinceMs = Date.now() - 30 * 60 * 1000;
+        const since = new Date(sinceMs);
+
+        // Recent attempts (last 30 min) on this mission.
+        const attemptsSnap = await db.collection(`users/${uid}/flag_attempts`)
+            .where('boxId', '==', missionId)
+            .where('timestamp', '>=', since)
+            .get();
+        // All captures (no time bound — student keeps progress).
+        const capturesSnap = await db.collection(`users/${uid}/flag_captures`)
+            .where('boxId', '==', missionId)
+            .get();
+        // Flag registry — to know total count for this mission.
+        const registryDoc = await db.doc(`flag_registry/${missionId}`).get();
+        const flagsInRegistry = registryDoc.exists
+            ? Object.keys(registryDoc.data().flags || {}).length
+            : null;
+
+        const capturedFlagIds = new Set(
+            capturesSnap.docs.map(d => d.data().flagId).filter(Boolean)
+        );
+        const attemptedFlagIds = new Set();
+        let lastAttemptMs = 0;
+        for (const doc of attemptsSnap.docs) {
+            const data = doc.data();
+            if (data.flagId && data.flagId !== '__scan__') {
+                attemptedFlagIds.add(data.flagId);
+            }
+            const ts = data.timestamp;
+            const ms = ts && ts.toMillis ? ts.toMillis() : 0;
+            if (ms > lastAttemptMs) lastAttemptMs = ms;
+        }
+        // Failed-uncaptured = attempted in last 30m but not captured.
+        const failedUncapturedFlagIds = [...attemptedFlagIds].filter(
+            id => !capturedFlagIds.has(id)
+        );
+
+        return {
+            mission_id: missionId,
+            flags_captured: capturedFlagIds.size,
+            flags_total: flagsInRegistry,         // null if mission not in registry
+            failed_attempts_recent: failedUncapturedFlagIds.length,
+            last_attempt_iso: lastAttemptMs ? new Date(lastAttemptMs).toISOString() : null,
+        };
+    },
+};
+
+exports.hexAiToolDispatch = onRequest({
+    region: 'us-central1',
+    secrets: [hexAiApiKey],
+    timeoutSeconds: 30,
+    memory: '256MiB',
+}, async (req, res) => {
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+    // Same X-API-Key check as hexAiToolCallback (constant-time compare).
+    const provided = req.headers['x-api-key'] || '';
+    const expected = hexAiApiKey.value();
+    if (!provided || !expected) {
+        res.status(401).json({ ok: false, error: 'X-API-Key required', code: 'auth' });
+        return;
+    }
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) {
+        res.status(401).json({ ok: false, error: 'Invalid X-API-Key', code: 'auth' });
+        return;
+    }
+    const crypto = require('crypto');
+    if (!crypto.timingSafeEqual(a, b)) {
+        res.status(401).json({ ok: false, error: 'Invalid X-API-Key', code: 'auth' });
+        return;
+    }
+
+    const body = (req.body && typeof req.body === 'object') ? req.body : {};
+    const { tool, parameters, ctx } = body;
+
+    if (typeof tool !== 'string' || !tool) {
+        res.status(400).json({ ok: false, error: 'tool required', code: 'schema_required' });
+        return;
+    }
+    if (!ctx || typeof ctx !== 'object' || typeof ctx.uid !== 'string' || !ctx.uid) {
+        res.status(400).json({ ok: false, error: 'ctx.uid required', code: 'schema_required' });
+        return;
+    }
+    const handler = TOOL_DISPATCH_HANDLERS[tool];
+    if (!handler) {
+        res.status(404).json({ ok: false, error: `unknown tool: ${tool}`, code: 'unknown_tool' });
+        return;
+    }
+
+    try {
+        const result = await handler(parameters || {}, ctx);
+        res.json({ ok: true, result });
+    } catch (e) {
+        console.error(`hexAiToolDispatch ${tool} crashed:`, e.message);
+        res.status(e.code ? 400 : 500).json({
+            ok: false,
+            error: e.message || String(e),
+            code: e.code || 'handler_crash',
+        });
+    }
+});
+
 exports.hexAiHealth = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
