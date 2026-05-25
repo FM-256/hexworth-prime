@@ -8458,3 +8458,4 @@ exports.hexAiToolCallback     = _hexAiBridge.hexAiToolCallback;   // v0.6.0c-3 a
 exports.hexAiToolDispatch     = _hexAiBridge.hexAiToolDispatch;   // v0.6.0c-2 Firestore-backed tools
 exports.hexAiSecurityEvent    = _hexAiBridge.hexAiSecurityEvent;  // cyber-hardening 2026-05-25 — defense-layer event sink
 exports.hexAiAmbientState     = _hexAiBridge.hexAiAmbientState;   // mood-ring 2026-05-25 — button state computer
+exports.hexAiEngagementEvent  = _hexAiBridge.hexAiEngagementEvent; // TELEMETRY-001 2026-05-25 — post-intervention engagement
