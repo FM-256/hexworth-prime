@@ -95,7 +95,41 @@ Document explicit acceptances here. Examples:
 |---|---|
 | 1-2 students (closed alpha) | Architecture + Forensics + Adversarial verification |
 | 5-20 students (one class) | + Load testing + Per-class onboarding + Incident runbook |
-| 50+ students (multiple classes) | + Documented rollback + Student/instructor docs + SLO defined |
+| 50+ students (multiple classes) | + Documented rollback + Student/instructor docs + SLO defined + multi-instance ollama or queueing |
+
+## ⚠️ Load-test finding (2026-05-25, file gap #9 closed)
+
+**Single-GPU capacity is 1-2 concurrent students.** Tested 5
+concurrent users for 60s on the Arc Pro B60 / qwen2.5:7b setup:
+- 2/7 requests succeeded
+- 5/7 hit the 60s ollama timeout (HTTP 502)
+- p95 wall latency 50.2s (essentially at the timeout)
+- 28.6% success rate
+
+Each inference holds the GPU for 28-50s. The orchestrator
+serializes onto ollama correctly — the bottleneck is single-model-
+single-GPU, not orchestrator overhead.
+
+**Concrete capacity:**
+- Sequential 1-1: works as designed (~28-50s response)
+- 2 concurrent: marginal, p95 brushes the 60s ceiling
+- 3+ concurrent: most requests will 502
+
+**Mitigations before scaling past 2 concurrent:**
+1. Multi-instance ollama (additional GPU(s), load balancer)
+2. Request queueing with student-visible "X students ahead of you"
+3. Smaller / faster model variant for low-help-level responses
+4. Async chat (student submits, gets notification when ready)
+
+**Implication for cohort sizing:** a 20-student class will see
+constant timeouts during active-help windows (e.g., right before a
+deadline). For now Dr. Hex is ready for **1-2 concurrent students**
+which means **closed alpha cohort or asynchronous use** — not full
+class concurrent.
+
+Load test harness: `_tools/hexclass/orchestrator/tests/load_test.py`
+with 3 modes (concurrent / burst / ramp). Report files written to
+`/tmp/loadtest_*.{json,md}`.
 
 ## Today's state
 
