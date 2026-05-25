@@ -76,9 +76,20 @@ from tools.error_sanitizer import (
 )
 from tools.request_filter import (
     detect_encoding_bypass,
+    detect_jailbreak,
+    normalize_for_llm,
     hash_for_log,
     CANNED_REFUSAL as ENCODING_BYPASS_REFUSAL,
+    JAILBREAK_REFUSAL,
 )
+from tools.rate_limit import (
+    check_rate_limit,
+    record_filter_hit,
+    is_locked_out,
+    lockout_remaining_s,
+    LOCKOUT_REFUSAL,
+)
+from tools.output_filter import scrub_flags_from_output
 import conversation
 
 logging.basicConfig(
@@ -238,9 +249,33 @@ metrics = Metrics()
 
 class ChatRequest(BaseModel):
     user_uid: str = Field(..., description="Hexworth user UID")
-    message: str = Field(..., description="Student/operator question")
-    house: str | None = Field(None)
-    mission_id: str | None = Field(None)
+    # Length cap: 2000 chars. Real student questions are well under 500.
+    # Anything above 2000 is prompt-stuffing (push system prompt out of
+    # context window via long-message attack). CF bridge caps at 4000;
+    # orchestrator is the load-bearing gate so we enforce the tighter
+    # bound here too. drhex-q-policy (student-resistance hardening
+    # 2026-05-25).
+    message: str = Field(..., max_length=2000, description="Student/operator question (<= 2000 chars)")
+    # Input validation (student-hardening 2026-05-25): `house` and
+    # `mission_id` previously accepted arbitrary strings and were used
+    # in Firestore queries / log messages. Now whitelisted at the API
+    # boundary so malformed values are rejected with a clean 422.
+    # House list maintained here as the source-of-truth for orchestrator-
+    # accepted values; updating it requires a redeploy. Cert-track
+    # houses (aplus-core1, aws-ccp, etc.) are NOT in this list because
+    # Dr. Hex routes them via persona_slug fallback to the same
+    # archetype handling.
+    house: str | None = Field(
+        None,
+        pattern=r"^(?:web|shield|forge|script|cloud|code|key|eye|dark-arts|matrix|divergent|ai)$",
+        description="One of the 12 archetype houses or null",
+    )
+    mission_id: str | None = Field(
+        None,
+        max_length=64,
+        pattern=r"^[a-zA-Z0-9_\-]+$",
+        description="Lab / box / mission identifier (alphanum + hyphen/underscore, <= 64 chars)",
+    )
     role: Literal["student", "instructor", "operator", "anonymous"] = "student"
     failed_attempts: int = 0
     hint_used_recently: bool = False
@@ -932,14 +967,68 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
     t0 = time.time()
     metrics.in_flight += 1
     try:
+        # ── Student-resistance pre-LLM gates (student hardening 2026-05-25) ──
+        # Run BEFORE _resolve_request so rejected calls don't burn RAG embed,
+        # tool filtering, or any other expensive work.
+        is_instructor = req.role in ("instructor", "operator")
+
+        # Lockout: per-uid auto-expiring counter of filter hits. After 5
+        # hits in 60min, this uid's /chat is paused for the remainder.
+        # Auto-clears via TTL; no operator-unlock required.
+        locked, lockout_count = await is_locked_out(req.user_uid)
+        if locked:
+            remaining = await lockout_remaining_s(req.user_uid)
+            log.warning(
+                "lockout: blocking uid_hash=%s count=%d remaining_s=%d",
+                hash_for_log(req.user_uid), lockout_count, remaining,
+            )
+            # Use a default persona/level for the lockout refusal
+            # (we don't bother resolving the full request).
+            return ChatResponse(
+                response=LOCKOUT_REFUSAL,
+                persona=req.house or "code",
+                persona_name="Dr. Hex",
+                help_level=2,
+                help_level_label="Directional",
+                model="filter:lockout",
+                latency_ms=int((time.time() - t0) * 1000),
+                context_packet=None,
+            )
+
+        # Rate limit: per-uid sliding 1h window. 50/hr students, 200/hr
+        # instructors. On exceed: 429 with retry_after_s.
+        rl_allowed, rl_retry, rl_count = await check_rate_limit(
+            req.user_uid, is_instructor=is_instructor,
+        )
+        if not rl_allowed:
+            log.warning(
+                "rate_limit: 429 uid_hash=%s count=%d retry_after=%ds",
+                hash_for_log(req.user_uid), rl_count, rl_retry,
+            )
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "rate_limit_exceeded",
+                    "retry_after_s": rl_retry,
+                    "limit_per_hour": 200 if is_instructor else 50,
+                },
+            )
+
         (context, level, system, model, persona_slug, augmented_msg,
          retrieved, tools_list, tool_ctx, prior_turns) = await _resolve_request(req)
         persona = PERSONAS[persona_slug]
         log.info(
-            "chat: uid=%s house=%s persona=%s level=%d model=%s rag_hits=%d tools_visible=%d prior_turns=%d",
+            "chat: uid=%s house=%s persona=%s level=%d model=%s rag_hits=%d tools_visible=%d prior_turns=%d rl_count=%d",
             redact_uid(req.user_uid), req.house, persona["name"], level, model,
-            len(retrieved), len(tools_list), len(prior_turns),
+            len(retrieved), len(tools_list), len(prior_turns), rl_count,
         )
+        # Normalize the message NFKC + zero-width strip BEFORE either
+        # filter runs. NFKD-stripped version is used inside the filters
+        # for matching; this NFKC-normalized version goes on to the LLM
+        # so adversarial homoglyphs ("İgnore your instructions") can't
+        # reach the model even if the filter regex misses them.
+        req.message = normalize_for_llm(req.message)
+
         # Encoding-bypass DoS defense (drhex-q-policy, observation
         # DEfP4bXreXA8Il2wg8Wh): short-circuit known attack shapes
         # BEFORE ollama is called. Imperative-anchored detection so
@@ -948,9 +1037,12 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
         # 60s ollama timeout (below) bounds unbounded vectors.
         bypass_hit, bypass_pid = detect_encoding_bypass(req.message)
         if bypass_hit:
+            # Record the hit toward the lockout threshold (student-
+            # hardening 2026-05-25). 5 hits in 60min → lockout.
+            hit_count = await record_filter_hit(req.user_uid)
             log.warning(
-                "filter: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s",
-                hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid,
+                "filter: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d",
+                hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid, hit_count,
             )
             metrics.record_chat(persona_slug, level, time.time() - t0)
             return ChatResponse(
@@ -960,6 +1052,28 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                 help_level=level,
                 help_level_label=LEVEL_DEFINITIONS[level]["label"],
                 model="filter:request_filter",
+                latency_ms=int((time.time() - t0) * 1000),
+                context_packet=None,
+            )
+
+        # Generic jailbreak detection — "ignore previous instructions",
+        # DAN-style overrides, inline system-prompt forgery. Same
+        # lockout-counter integration as encoding bypass.
+        jb_hit, jb_pid = detect_jailbreak(req.message)
+        if jb_hit:
+            hit_count = await record_filter_hit(req.user_uid)
+            log.warning(
+                "filter: jailbreak blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d",
+                hash_for_log(req.user_uid), hash_for_log(req.message, 32), jb_pid, hit_count,
+            )
+            metrics.record_chat(persona_slug, level, time.time() - t0)
+            return ChatResponse(
+                response=JAILBREAK_REFUSAL,
+                persona=persona_slug,
+                persona_name=persona["name"],
+                help_level=level,
+                help_level_label=LEVEL_DEFINITIONS[level]["label"],
+                model="filter:jailbreak",
                 latency_ms=int((time.time() - t0) * 1000),
                 context_packet=None,
             )
@@ -1001,13 +1115,27 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
             else:
                 # Students see only that tools WERE used, not which or what they returned
                 thinking_payload["tool_calls_made"] = len(tool_invocations)
+        # Last-line defense (student hardening 2026-05-25): scrub
+        # flag-shaped strings from the model output before returning
+        # to the student. Threshold 10 chars inside braces — based on
+        # the flag_registry audit (real flags min=11). Teaching examples
+        # ("FLAG{example}", 7 chars) pass through. At help_level=5
+        # (instructor), no scrubbing applies.
+        scrubbed_text, was_scrubbed, scrubbed_matches = scrub_flags_from_output(
+            content.strip(), help_level=level,
+        )
+        if was_scrubbed:
+            log.warning(
+                "output_filter: scrubbed flag-shaped output uid_hash=%s level=%d matches=%d",
+                hash_for_log(req.user_uid), level, len(scrubbed_matches),
+            )
         return ChatResponse(
-            response=content.strip(),
+            response=scrubbed_text,
             persona=persona_slug,
             persona_name=persona["name"],
             help_level=level,
             help_level_label=LEVEL_DEFINITIONS[level]["label"],
-            model=model,
+            model=model if not was_scrubbed else f"{model}+scrubbed",
             latency_ms=int(latency * 1000),
             context_packet=thinking_payload,
         )
@@ -1025,6 +1153,38 @@ async def chat_stream(
 
     Same auth-before-work guarantee as /chat."""
     t0 = time.time()
+    # ── Pre-LLM hardening gates (student-resistance 2026-05-25) ──
+    # Same lockout + rate-limit checks as /chat. Streaming path's
+    # output-scrub equivalent (token-stream pre-filter) is a known gap —
+    # the blocking path is the recommended student surface.
+    is_instructor = req.role in ("instructor", "operator")
+    locked, lockout_count = await is_locked_out(req.user_uid)
+    if locked:
+        log.warning(
+            "lockout/stream: blocking uid_hash=%s count=%d",
+            hash_for_log(req.user_uid), lockout_count,
+        )
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "conversation_locked", "message": LOCKOUT_REFUSAL},
+        )
+    rl_allowed, rl_retry, rl_count = await check_rate_limit(
+        req.user_uid, is_instructor=is_instructor,
+    )
+    if not rl_allowed:
+        log.warning(
+            "rate_limit/stream: 429 uid_hash=%s count=%d retry_after=%ds",
+            hash_for_log(req.user_uid), rl_count, rl_retry,
+        )
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "rate_limit_exceeded",
+                "retry_after_s": rl_retry,
+                "limit_per_hour": 200 if is_instructor else 50,
+            },
+        )
+
     # v0.6.0c-1: streaming path now supports tools too. The orchestrator
     # buffers ollama's first message to detect tool_calls vs tokens; if
     # tool_calls, dispatches them (yielding tool_call_start/done SSE
@@ -1054,14 +1214,30 @@ async def chat_stream(
             # filter as /chat — short-circuit known attack shapes before
             # opening the ollama stream so we don't pin GPU on a 60s
             # request we can refuse in microseconds.
+            # Normalize for LLM-bound text + filter detection
+            req.message = normalize_for_llm(req.message)
+
             bypass_hit, bypass_pid = detect_encoding_bypass(req.message)
             if bypass_hit:
+                # Record toward lockout threshold (5 hits / 60min → locked).
+                hit_count = await record_filter_hit(req.user_uid)
                 log.warning(
-                    "filter/stream: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s",
-                    hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid,
+                    "filter/stream: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d",
+                    hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid, hit_count,
                 )
                 yield f"data: {json.dumps({'type': 'token', 'content': ENCODING_BYPASS_REFUSAL})}\n\n"
                 yield f"data: {json.dumps({'type': 'done', 'latency_ms': int((time.time() - t0) * 1000), 'model': 'filter:request_filter'})}\n\n"
+                return
+
+            jb_hit, jb_pid = detect_jailbreak(req.message)
+            if jb_hit:
+                hit_count = await record_filter_hit(req.user_uid)
+                log.warning(
+                    "filter/stream: jailbreak blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d",
+                    hash_for_log(req.user_uid), hash_for_log(req.message, 32), jb_pid, hit_count,
+                )
+                yield f"data: {json.dumps({'type': 'token', 'content': JAILBREAK_REFUSAL})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'latency_ms': int((time.time() - t0) * 1000), 'model': 'filter:jailbreak'})}\n\n"
                 return
 
             full_content_chunks: list[str] = []
@@ -1076,7 +1252,31 @@ async def chat_stream(
                         log.info("chat/stream: client disconnected mid-response")
                         break
                     if event_type == "token":
+                        # Streaming output flag scan (student-hardening
+                        # 2026-05-25): each token chunk checked against
+                        # the flag-shape regex. On match: abort the
+                        # stream and emit an error event INSTEAD of the
+                        # offending chunk. The student sees nothing
+                        # past the abort point.
+                        #
+                        # Chunk-level buffering per Nancy: SSE events
+                        # are naturally delimited; we scan each event's
+                        # content + the accumulated tail (last 80
+                        # chars) so a flag that spans chunk boundaries
+                        # is still caught.
                         full_content_chunks.append(payload)
+                        if level < 5:  # only scan at non-instructor levels
+                            scan_window = ("".join(full_content_chunks[-3:]))[-200:]
+                            scanned, was_scrubbed, _ = scrub_flags_from_output(
+                                scan_window, help_level=level,
+                            )
+                            if was_scrubbed:
+                                log.warning(
+                                    "output_filter/stream: aborted on flag-shape uid_hash=%s level=%d",
+                                    hash_for_log(req.user_uid), level,
+                                )
+                                yield f"data: {json.dumps({'type': 'error', 'error': 'content_blocked'})}\n\n"
+                                return
                         yield f"data: {json.dumps({'type': 'token', 'content': payload})}\n\n"
                     elif event_type == "tool_call_start":
                         yield f"data: {json.dumps({'type': 'tool_call_start', **payload})}\n\n"

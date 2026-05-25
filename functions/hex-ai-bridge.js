@@ -208,8 +208,11 @@ exports.hexAiChat = onCall(cfOptions, async (request) => {
     if (!message) {
         throw new HttpsError('invalid-argument', 'message is required');
     }
-    if (message.length > 4000) {
-        throw new HttpsError('invalid-argument', 'message too long (max 4000 chars)');
+    // 2000 char cap, aligned with orchestrator (student-hardening
+    // 2026-05-25). Rejecting at the edge is cheaper than at the
+    // orchestrator. Real student questions are well under 500 chars.
+    if (message.length > 2000) {
+        throw new HttpsError('invalid-argument', 'message too long (max 2000 chars)');
     }
 
     // Derive role server-side from admin claim. Never trust the client.
@@ -381,8 +384,8 @@ exports.hexAiChatStream = onRequest({
     // Parse body (Firebase auto-parses JSON for onRequest).
     const data = (req.body && typeof req.body === 'object') ? req.body : {};
     const message = (data.message || '').toString().trim();
-    if (!message || message.length > 4000) {
-        res.status(400).json({ error: 'message required, <= 4000 chars' });
+    if (!message || message.length > 2000) {
+        res.status(400).json({ error: 'message required, <= 2000 chars' });
         return;
     }
 
