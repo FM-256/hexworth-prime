@@ -658,6 +658,220 @@ const TOOL_DISPATCH_HANDLERS = {
             last_attempt_iso: lastAttemptMs ? new Date(lastAttemptMs).toISOString() : null,
         };
     },
+
+    // ─── check_prerequisite (v0.6.0c-4) ──────────────────────────────
+    //
+    // Walks flag_registry/{mission_id}.flagOrder and the student's
+    // captures, returning the first uncaptured flag in canonical order.
+    // Used by the model to ground "what should I do next?" hints in
+    // the specific flag the student is currently working toward, not
+    // generic mission-level advice.
+    //
+    // Failure modes:
+    //   - mission not in flag_registry → has_ordering=false, ready_for_next=true,
+    //     model can still answer but won't be able to name a specific next flag
+    //   - flag_registry exists but no flagOrder field → same as above
+    //   - all flags captured → next_flag_id=null, ready_for_next=true,
+    //     mission_complete=true
+    'check_prerequisite': async (parameters, ctx) => {
+        const missionId = parameters.mission_id;
+        if (typeof missionId !== 'string' || !missionId) {
+            const err = new Error('mission_id is required');
+            err.code = 'schema_required';
+            throw err;
+        }
+        const uid = ctx.uid;
+
+        const [registryDoc, capturesSnap] = await Promise.all([
+            db.doc(`flag_registry/${missionId}`).get(),
+            db.collection(`users/${uid}/flag_captures`)
+                .where('boxId', '==', missionId)
+                .get(),
+        ]);
+
+        const capturedFlagIds = new Set(
+            capturesSnap.docs.map(d => d.data().flagId).filter(Boolean)
+        );
+
+        if (!registryDoc.exists) {
+            return {
+                mission_id: missionId,
+                has_ordering: false,
+                ready_for_next: true,
+                next_flag_id: null,
+                next_flag_index: null,
+                total_flags: null,
+                flags_captured: capturedFlagIds.size,
+                missing_prerequisites: [],
+                mission_complete: false,
+                reason: 'mission_not_in_flag_registry',
+            };
+        }
+
+        const registry = registryDoc.data() || {};
+        const flagOrder = Array.isArray(registry.flagOrder) ? registry.flagOrder : [];
+        const totalFlags = Object.keys(registry.flags || {}).length;
+
+        if (flagOrder.length === 0) {
+            // Mission exists but has no enforced ordering. All flags are
+            // independently accessible. The student is "ready" in the sense
+            // that nothing gates the next attempt.
+            return {
+                mission_id: missionId,
+                has_ordering: false,
+                ready_for_next: true,
+                next_flag_id: null,
+                next_flag_index: null,
+                total_flags: totalFlags,
+                flags_captured: capturedFlagIds.size,
+                missing_prerequisites: [],
+                mission_complete: capturedFlagIds.size >= totalFlags && totalFlags > 0,
+            };
+        }
+
+        // Walk flagOrder. First uncaptured flag is the next target.
+        let nextFlagId = null;
+        let nextFlagIndex = -1;
+        const missingPrereqs = [];
+        for (let i = 0; i < flagOrder.length; i++) {
+            const fid = flagOrder[i];
+            if (!capturedFlagIds.has(fid)) {
+                nextFlagId = fid;
+                nextFlagIndex = i;
+                break;
+            }
+        }
+
+        // ready_for_next is true if all flags before next_flag_index are captured.
+        // The walk above guarantees this — by construction the loop only stops
+        // at the first uncaptured. So this field is informational/explicit.
+        if (nextFlagId !== null) {
+            for (let i = 0; i < nextFlagIndex; i++) {
+                if (!capturedFlagIds.has(flagOrder[i])) {
+                    missingPrereqs.push(flagOrder[i]);
+                }
+            }
+        }
+
+        return {
+            mission_id: missionId,
+            has_ordering: true,
+            ready_for_next: missingPrereqs.length === 0,
+            next_flag_id: nextFlagId,                     // null if mission complete
+            next_flag_index: nextFlagId === null ? null : nextFlagIndex,
+            total_flags: totalFlags,
+            flags_captured: capturedFlagIds.size,
+            missing_prerequisites: missingPrereqs,
+            mission_complete: nextFlagId === null,
+        };
+    },
+
+    // ─── recent_house_activity (v0.6.0c-4) ───────────────────────────
+    //
+    // Lists missions in the student's house that they have touched
+    // (captured or attempted) within the last N days. Lets the model
+    // open a returning session with present-tense context.
+    //
+    // Result is capped at 20 missions sorted by last_touch desc, then
+    // mission_id asc as a stable tiebreak.
+    //
+    // The `house` parameter is used as a boxId-prefix filter — the
+    // ContentCatalog convention is that all box/lab IDs are prefixed
+    // with the house slug (e.g. eye-wireshark-training,
+    // script-bash-scripting). Filtering happens in memory after the
+    // Firestore reads because Firestore does not support startsWith.
+    'recent_house_activity': async (parameters, ctx) => {
+        const house = parameters.house;
+        if (typeof house !== 'string' || !house) {
+            const err = new Error('house is required');
+            err.code = 'schema_required';
+            throw err;
+        }
+        // Sanitize the house slug — only lowercase letters and hyphens.
+        // This is a defensive belt against a model-supplied prefix that
+        // could accidentally match too broadly.
+        if (!/^[a-z][a-z-]{0,20}$/.test(house)) {
+            const err = new Error('house must be a lowercase slug (a-z, hyphens)');
+            err.code = 'schema_type';
+            throw err;
+        }
+
+        const DAYS_MIN = 1;
+        const DAYS_MAX = 30;
+        const DAYS_DEFAULT = 7;
+        const TOP_K = 20;
+
+        let days = parameters.days;
+        if (typeof days !== 'number' || !Number.isFinite(days)) {
+            days = DAYS_DEFAULT;
+        }
+        days = Math.max(DAYS_MIN, Math.min(DAYS_MAX, Math.floor(days)));
+
+        const uid = ctx.uid;
+        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        const prefix = `${house}-`;
+
+        // Pull captures + attempts in parallel. Per-user subcollections
+        // have automatic single-field indexes — no composite index needed.
+        const [capturesSnap, attemptsSnap] = await Promise.all([
+            db.collection(`users/${uid}/flag_captures`)
+                .where('capturedAt', '>=', since)
+                .get(),
+            db.collection(`users/${uid}/flag_attempts`)
+                .where('timestamp', '>=', since)
+                .get(),
+        ]);
+
+        // Aggregate per mission_id. Track captured count, attempt count,
+        // and the latest timestamp across both collections.
+        const missions = new Map();   // missionId → { flags_captured, attempts, last_touch_ms }
+
+        const touch = (missionId, ts, kind) => {
+            if (!missionId || typeof missionId !== 'string') return;
+            if (!missionId.startsWith(prefix)) return;
+            let entry = missions.get(missionId);
+            if (!entry) {
+                entry = { flags_captured: 0, attempts: 0, last_touch_ms: 0 };
+                missions.set(missionId, entry);
+            }
+            if (kind === 'capture') entry.flags_captured++;
+            if (kind === 'attempt') entry.attempts++;
+            const ms = ts && ts.toMillis ? ts.toMillis() : 0;
+            if (ms > entry.last_touch_ms) entry.last_touch_ms = ms;
+        };
+
+        for (const doc of capturesSnap.docs) {
+            const d = doc.data();
+            touch(d.boxId, d.capturedAt, 'capture');
+        }
+        for (const doc of attemptsSnap.docs) {
+            const d = doc.data();
+            touch(d.boxId, d.timestamp, 'attempt');
+        }
+
+        // Sort by last_touch desc, mission_id asc as tiebreak.
+        const sorted = [...missions.entries()]
+            .map(([mission_id, v]) => ({
+                mission_id,
+                last_touch_iso: v.last_touch_ms ? new Date(v.last_touch_ms).toISOString() : null,
+                flags_captured: v.flags_captured,
+                attempts: v.attempts,
+            }))
+            .sort((a, b) => {
+                const at = a.last_touch_iso || '';
+                const bt = b.last_touch_iso || '';
+                if (at !== bt) return at < bt ? 1 : -1;  // desc
+                return a.mission_id < b.mission_id ? -1 : 1;
+            })
+            .slice(0, TOP_K);
+
+        return {
+            house,
+            days,
+            missions: sorted,
+            mission_count: sorted.length,
+        };
+    },
 };
 
 exports.hexAiToolDispatch = onRequest({

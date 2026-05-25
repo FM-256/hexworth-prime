@@ -281,6 +281,193 @@ def test_filter_deterministic_ordering() -> None:
     print(f"  ✓ filter ordering deterministic + alphabetical")
 
 
+# ── v0.6.0c-4 tools (check_prerequisite, recent_house_activity) ────────────
+#
+# These tools delegate to the Cloud Function dispatch endpoint. We test
+# (1) registration shape, (2) exposure rules match _progress.py for
+# consistency, (3) the "CF not configured" soft-fail path, and (4) the
+# defensive client-side clamp on `recent_house_activity.days`.
+#
+# We do NOT test the CF-side handler logic here — that lives in
+# functions/hex-ai-bridge.js and would need a CF integration harness.
+# The orchestrator-side test surface is the wrapper, which is mostly
+# "did the schema register correctly and does the fallback path work."
+
+
+def test_check_prerequisite_registered() -> None:
+    assert "check_prerequisite" in TOOL_REGISTRY, \
+        f"expected check_prerequisite in TOOL_REGISTRY, found: {list(TOOL_REGISTRY)}"
+    meta = TOOL_REGISTRY["check_prerequisite"]
+    assert meta.is_async, "check_prerequisite must be async (does CF I/O)"
+    # min_help_level 2 — Directional. Below that the model should be naming
+    # topics, not querying registry.
+    assert meta.exposure_rules["min_help_level"] == 2
+    # Matches _progress.py — same persona set for "progress-style" tools.
+    assert meta.exposure_rules["allowed_personas"] == \
+        ["dr-hex", "shield", "code", "script", "matrix"]
+    assert "dark-arts" in meta.exposure_rules["denied_personas"]
+    assert meta.exposure_rules["audit"] is True
+    # Schema: requires mission_id, disallows extras.
+    schema = meta.parameters_schema
+    assert "mission_id" in schema["properties"]
+    assert schema["required"] == ["mission_id"]
+    assert schema["additionalProperties"] is False
+    print(f"  ✓ check_prerequisite registered with correct shape")
+
+
+def test_recent_house_activity_registered() -> None:
+    assert "recent_house_activity" in TOOL_REGISTRY
+    meta = TOOL_REGISTRY["recent_house_activity"]
+    assert meta.is_async
+    assert meta.exposure_rules["min_help_level"] == 2
+    assert meta.exposure_rules["allowed_personas"] == \
+        ["dr-hex", "shield", "code", "script", "matrix"]
+    assert "dark-arts" in meta.exposure_rules["denied_personas"]
+    schema = meta.parameters_schema
+    assert "house" in schema["properties"]
+    assert "days" in schema["properties"]
+    assert schema["required"] == ["house"]   # days is optional
+    assert schema["properties"]["days"]["type"] == "integer"
+    assert schema["additionalProperties"] is False
+    print(f"  ✓ recent_house_activity registered with correct shape")
+
+
+def test_check_prerequisite_dark_arts_blocked() -> None:
+    """Defense-in-depth: a dark-arts student calling check_prerequisite
+    must be blocked at dispatch even if the tool list somehow leaked."""
+    r = asyncio.run(dispatch_tool_call(
+        "check_prerequisite",
+        {"mission_id": "test-mission"},
+        _make_ctx(persona="dark-arts", help_level=4, role="student"),
+    ))
+    assert r["ok"] is False
+    assert r["code"] == "exposure_violation"
+    print(f"  ✓ dark-arts blocked at dispatch (exposure_violation)")
+
+
+def test_check_prerequisite_below_help_floor_blocked() -> None:
+    """At help_level 1 the tool is invisible AND dispatch refuses."""
+    names = visible_tool_names("dr-hex", help_level=1, role="student")
+    assert "check_prerequisite" not in names
+    r = asyncio.run(dispatch_tool_call(
+        "check_prerequisite",
+        {"mission_id": "test-mission"},
+        _make_ctx(persona="dr-hex", help_level=1, role="student"),
+    ))
+    assert r["ok"] is False
+    assert r["code"] == "exposure_violation"
+    print(f"  ✓ help_level=1 invisible + dispatch refuses")
+
+
+def test_check_prerequisite_cf_unconfigured_soft_fail() -> None:
+    """When HEX_AI_TOOL_DISPATCH_URL is unset (test env default), the
+    handler returns a soft 'unavailable' result so the model can apologize
+    and continue rather than the chat path crashing."""
+    # Save + clear env to force the unconfigured path.
+    saved_url = os.environ.pop("HEX_AI_TOOL_DISPATCH_URL", None)
+    saved_key = os.environ.pop("HEX_AI_API_KEY", None)
+    # The module-level _is_enabled() reads os.environ at import time —
+    # reload won't help, but the function re-reads vars at call time
+    # via the module-scoped TOOL_DISPATCH_URL constant. Need to patch
+    # the constants directly for this test.
+    from tools import _progress as progmod
+    saved_url_const = progmod.TOOL_DISPATCH_URL
+    saved_key_const = progmod.API_KEY
+    progmod.TOOL_DISPATCH_URL = ""
+    progmod.API_KEY = ""
+    try:
+        r = asyncio.run(dispatch_tool_call(
+            "check_prerequisite",
+            {"mission_id": "test-mission"},
+            _make_ctx(persona="dr-hex", help_level=3, role="student"),
+        ))
+        # Soft-fail returns ok=True with available=False inside result.
+        assert r["ok"] is True, f"expected ok=True with soft-fail body, got {r}"
+        assert r["result"]["available"] is False
+        assert "not enabled" in r["result"]["reason"]
+        print(f"  ✓ CF-unconfigured soft-fail returns available=False")
+    finally:
+        progmod.TOOL_DISPATCH_URL = saved_url_const
+        progmod.API_KEY = saved_key_const
+        if saved_url is not None:
+            os.environ["HEX_AI_TOOL_DISPATCH_URL"] = saved_url
+        if saved_key is not None:
+            os.environ["HEX_AI_API_KEY"] = saved_key
+
+
+def test_recent_house_activity_days_clamping() -> None:
+    """The orchestrator's schema validator only checks integer type,
+    not bounds. The handler must clamp `days` to [1, 30] defensively
+    so the model can't request a 365-day window."""
+    from tools._house_activity import _DAYS_MIN, _DAYS_MAX, _DAYS_DEFAULT
+
+    # Direct handler invocation with CF disabled so we observe the
+    # clamped `days` echoed back in the soft-fail body.
+    from tools import _progress as progmod
+    saved_url_const = progmod.TOOL_DISPATCH_URL
+    saved_key_const = progmod.API_KEY
+    progmod.TOOL_DISPATCH_URL = ""
+    progmod.API_KEY = ""
+    try:
+        from tools._house_activity import recent_house_activity
+        # Above max — should clamp to 30.
+        r = asyncio.run(recent_house_activity(
+            _make_ctx(persona="dr-hex", help_level=3),
+            house="eye",
+            days=9999,
+        ))
+        assert r["days"] == _DAYS_MAX, f"days should clamp to {_DAYS_MAX}, got {r['days']}"
+        # Below min — should clamp to 1.
+        r = asyncio.run(recent_house_activity(
+            _make_ctx(persona="dr-hex", help_level=3),
+            house="eye",
+            days=0,
+        ))
+        assert r["days"] == _DAYS_MIN, f"days should clamp to {_DAYS_MIN}, got {r['days']}"
+        # Negative — should clamp to 1.
+        r = asyncio.run(recent_house_activity(
+            _make_ctx(persona="dr-hex", help_level=3),
+            house="eye",
+            days=-5,
+        ))
+        assert r["days"] == _DAYS_MIN
+        # Default — should use _DAYS_DEFAULT when not provided.
+        r = asyncio.run(recent_house_activity(
+            _make_ctx(persona="dr-hex", help_level=3),
+            house="eye",
+        ))
+        assert r["days"] == _DAYS_DEFAULT
+        print(f"  ✓ days clamped: 9999→{_DAYS_MAX}, 0→{_DAYS_MIN}, -5→{_DAYS_MIN}, default={_DAYS_DEFAULT}")
+    finally:
+        progmod.TOOL_DISPATCH_URL = saved_url_const
+        progmod.API_KEY = saved_key_const
+
+
+def test_recent_house_activity_schema_rejects_extra_param() -> None:
+    """The strict additionalProperties:false should catch a model that
+    invents a parameter like `house_filter` or `username`."""
+    r = asyncio.run(dispatch_tool_call(
+        "recent_house_activity",
+        {"house": "eye", "days": 7, "username": "leak-attempt"},
+        _make_ctx(persona="dr-hex", help_level=3, role="student"),
+    ))
+    assert r["ok"] is False
+    assert r["code"] == "schema_additional"
+    print(f"  ✓ extra parameter rejected (schema_additional)")
+
+
+def test_new_tools_visible_to_dr_hex_at_level_2() -> None:
+    """Smoke: both new tools show up in the dr-hex student's tool list
+    at help_level=2. Below 2 they should be absent."""
+    names = visible_tool_names("dr-hex", help_level=2, role="student")
+    assert "check_prerequisite" in names
+    assert "recent_house_activity" in names
+    names_low = visible_tool_names("dr-hex", help_level=1, role="student")
+    assert "check_prerequisite" not in names_low
+    assert "recent_house_activity" not in names_low
+    print(f"  ✓ both tools visible at L2, hidden at L1")
+
+
 # ── runner ─────────────────────────────────────────────────────────────────
 
 def main() -> int:
@@ -302,6 +489,15 @@ def main() -> int:
         test_dispatch_handler_crash_is_caught,
         test_ollama_format_shape,
         test_filter_deterministic_ordering,
+        # v0.6.0c-4 — check_prerequisite + recent_house_activity
+        test_check_prerequisite_registered,
+        test_recent_house_activity_registered,
+        test_check_prerequisite_dark_arts_blocked,
+        test_check_prerequisite_below_help_floor_blocked,
+        test_check_prerequisite_cf_unconfigured_soft_fail,
+        test_recent_house_activity_days_clamping,
+        test_recent_house_activity_schema_rejects_extra_param,
+        test_new_tools_visible_to_dr_hex_at_level_2,
     ]
     failed = 0
     print(f"Running {len(tests)} tool-registry tests")

@@ -241,3 +241,66 @@ async def record_tool_call(conversation_id: str | None) -> int:
         return count
     except Exception:
         return 0
+
+
+# ─── Per-user 7-day behavioral score (cyber-tier 2026-05-25) ────────
+# Tracks filter hits per uid across a 7-day rolling window. Used to
+# escalate stricter limits on users with attack history — even if
+# they reset their lockout via auto-expiry, the 7-day score persists.
+#
+# Score thresholds:
+#   0–4   : normal
+#   5–14  : elevated (rate_limit_cap halved → 25/hr)
+#   15+   : suspicious (rate_limit_cap quartered → 12/hr, all responses
+#                       routed through the streaming output scan,
+#                       conv_lock threshold reduced to 2 hits)
+
+BEHAVIOR_WINDOW_S = int(os.environ.get("HEX_BEHAVIOR_WINDOW_S", "604800"))  # 7 days
+BEHAVIOR_ELEVATED_THRESHOLD = int(os.environ.get("HEX_BEHAVIOR_ELEVATED", "5"))
+BEHAVIOR_SUSPICIOUS_THRESHOLD = int(os.environ.get("HEX_BEHAVIOR_SUSPICIOUS", "15"))
+
+
+async def record_behavioral_hit(uid: str) -> int:
+    """Increment the 7-day behavioral score for this uid. Returns new
+    score. Called on every filter hit (encoding bypass, jailbreak,
+    honeypot, etc.) — independent of the 60-min lockout counter."""
+    if not uid:
+        return 0
+    key = f"hex_ai:behavior:{uid}"
+    try:
+        count = int(await _client().incr(key))
+        if count == 1:
+            await _client().expire(key, BEHAVIOR_WINDOW_S)
+        return count
+    except Exception as e:
+        log.warning("rate_limit: behavioral hit redis failure: %s", e)
+        return 0
+
+
+async def get_behavioral_tier(uid: str) -> tuple[str, int]:
+    """Returns (tier, current_score). tier in {'normal','elevated','suspicious'}."""
+    if not uid:
+        return ("normal", 0)
+    key = f"hex_ai:behavior:{uid}"
+    try:
+        val = await _client().get(key)
+        count = int(val) if val else 0
+        if count >= BEHAVIOR_SUSPICIOUS_THRESHOLD:
+            return ("suspicious", count)
+        if count >= BEHAVIOR_ELEVATED_THRESHOLD:
+            return ("elevated", count)
+        return ("normal", count)
+    except Exception:
+        return ("normal", 0)
+
+
+def adjusted_rate_limit_cap(base_cap: int, tier: str) -> int:
+    """Apply behavioral-tier multipliers to the per-hour rate cap.
+    Defense-in-depth: a user with 15+ filter hits in 7 days gets
+    /4 throughput. They can still use the system but at a rate that
+    makes brute-force discovery impractical."""
+    if tier == "suspicious":
+        return max(1, base_cap // 4)
+    if tier == "elevated":
+        return max(1, base_cap // 2)
+    return base_cap

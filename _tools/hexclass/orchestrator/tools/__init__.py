@@ -24,10 +24,13 @@ from .dispatch import dispatch_tool_call
 # Import side-effect-registering modules so tools self-register on package load.
 # Each module decorated with @register_tool puts itself into TOOL_REGISTRY at
 # import time. The list here is the authoritative source of "what tools exist".
-from . import _meta      # noqa: F401  — hex_ai_version
-from . import _kb        # noqa: F401  — search_knowledge_base (v0.6.0b)
-from . import _progress  # noqa: F401  — get_student_progress (v0.6.0c-2)
-from . import audit      # noqa: F401  — fire-and-forget audit write (v0.6.0c-3)
+from . import _meta            # noqa: F401  — hex_ai_version
+from . import _kb              # noqa: F401  — search_knowledge_base (v0.6.0b)
+from . import _progress        # noqa: F401  — get_student_progress (v0.6.0c-2)
+from . import audit            # noqa: F401  — fire-and-forget audit write (v0.6.0c-3)
+from . import _prereq          # noqa: F401  — check_prerequisite (v0.6.0c-4)
+from . import _house_activity  # noqa: F401  — recent_house_activity (v0.6.0c-4)
+from . import _honeypot        # noqa: F401  — honeypot tools (cyber-tier 2026-05-25)
 
 __all__ = [
     "TOOL_REGISTRY",

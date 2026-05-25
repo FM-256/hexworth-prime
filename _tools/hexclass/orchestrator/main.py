@@ -96,6 +96,10 @@ from tools.rate_limit import (
     check_tool_budget,
     record_tool_call,
     TOOL_BUDGET_PER_CONVO,
+    # Cyber-tier 2026-05-25 — 7-day behavioral score
+    record_behavioral_hit,
+    get_behavioral_tier,
+    adjusted_rate_limit_cap,
 )
 from tools.output_filter import scrub_flags_from_output
 # Cyber-tier 2026-05-25: fire-and-forget security event log. Every
@@ -457,7 +461,77 @@ async def call_ollama_blocking(
                     except json.JSONDecodeError:
                         args = {}
 
-                result = await dispatch_tool_call(name, args, tool_ctx)
+                # Honeypot detection (cyber-tier 2026-05-25): some
+                # registered tools have exposure_rules.honeypot=True
+                # and min_help_level=99. They're never shown to the
+                # model — calling one by name = direct injection proof.
+                # Fires the heaviest defense + critical security event.
+                meta_check = TOOL_REGISTRY.get(name)
+                if meta_check and meta_check.exposure_rules.get("honeypot"):
+                    log.warning(
+                        "HONEYPOT TRIPPED: tool=%s uid_hash=%s convo_hash=%s",
+                        name, hash_for_log(tool_ctx.get("uid", "")),
+                        hash_for_log(tool_ctx.get("conversation_id", "") or ""),
+                    )
+                    # Trip lockout + convo lock immediately
+                    await record_filter_hit(tool_ctx.get("uid", ""))
+                    await record_behavioral_hit(tool_ctx.get("uid", ""))
+                    convo_for_lock = tool_ctx.get("conversation_id")
+                    if convo_for_lock:
+                        await record_conversation_filter_hit(convo_for_lock)
+                    security_log.schedule_event(
+                        "honeypot_tripped",
+                        uid=tool_ctx.get("uid", ""), severity="critical",
+                        conversation_id=convo_for_lock, tool_name=name,
+                        metadata={"path": "blocking"},
+                    )
+                    result = {
+                        "ok": False,
+                        "error": "tool not available",
+                        "code": "honeypot",
+                    }
+                    tool_invocations.append({
+                        "name": name, "ok": False, "result": None,
+                        "error": "tool not available", "code": "honeypot",
+                    })
+                    # Continue the loop without dispatch; the model sees
+                    # the refusal and can either give up or call something
+                    # else (which will also hit the locks).
+                    messages.append({
+                        "role": "tool",
+                        "content": json.dumps({"ok": False, "code": "honeypot",
+                                               "error": "tool not available"}),
+                    })
+                    continue
+
+                # Per-conversation tool-call budget (cyber-tier 2026-05-25).
+                # Refuse the dispatch if this conversation has burned its
+                # budget. Returns a synthetic error result so the model
+                # sees the refusal and can continue without the tool.
+                convo_id = tool_ctx.get("conversation_id") if tool_ctx else None
+                if convo_id:
+                    within_budget, current_count = await check_tool_budget(convo_id)
+                    if not within_budget:
+                        log.warning(
+                            "tool_budget: refusing dispatch name=%s convo_hash=%s count=%d",
+                            name, hash_for_log(convo_id), current_count,
+                        )
+                        security_log.schedule_event(
+                            "tool_budget_exceeded",
+                            uid=tool_ctx["uid"], severity="warning",
+                            conversation_id=convo_id, tool_name=name,
+                            metadata={"count": current_count, "cap": TOOL_BUDGET_PER_CONVO, "path": "blocking"},
+                        )
+                        result = {
+                            "ok": False,
+                            "error": "Tool budget exceeded for this conversation. Continue without the tool.",
+                            "code": "tool_budget_exceeded",
+                        }
+                    else:
+                        result = await dispatch_tool_call(name, args, tool_ctx)
+                        await record_tool_call(convo_id)
+                else:
+                    result = await dispatch_tool_call(name, args, tool_ctx)
                 tool_invocations.append({
                     "name": name,
                     "ok": result["ok"],
@@ -628,7 +702,32 @@ async def stream_ollama(
                     except json.JSONDecodeError:
                         args = {}
                 yield ("tool_call_start", {"name": name, "parameters": args})
-                result = await dispatch_tool_call(name, args, tool_ctx)
+                # Per-conversation tool-call budget (cyber-tier 2026-05-25)
+                # — same gate as the blocking path
+                convo_id = tool_ctx.get("conversation_id") if tool_ctx else None
+                if convo_id:
+                    within_budget, current_count = await check_tool_budget(convo_id)
+                    if not within_budget:
+                        log.warning(
+                            "tool_budget/stream: refusing name=%s convo_hash=%s count=%d",
+                            name, hash_for_log(convo_id), current_count,
+                        )
+                        security_log.schedule_event(
+                            "tool_budget_exceeded",
+                            uid=tool_ctx["uid"], severity="warning",
+                            conversation_id=convo_id, tool_name=name,
+                            metadata={"count": current_count, "cap": TOOL_BUDGET_PER_CONVO, "path": "stream"},
+                        )
+                        result = {
+                            "ok": False,
+                            "error": "Tool budget exceeded for this conversation.",
+                            "code": "tool_budget_exceeded",
+                        }
+                    else:
+                        result = await dispatch_tool_call(name, args, tool_ctx)
+                        await record_tool_call(convo_id)
+                else:
+                    result = await dispatch_tool_call(name, args, tool_ctx)
                 # SSE event to the browser — sanitize the error to a
                 # minimal display string. Raw error strings (Firebase
                 # console URLs, stack traces) must not reach client JS
@@ -956,6 +1055,11 @@ async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, 
         "persona_slug": persona_slug,
         "help_level": level,
         "role": req.role,
+        # Cyber-tier 2026-05-25 — pass through for budget enforcement
+        # inside the dispatch loop. Tool handlers should NOT use this
+        # for identity (uid is the identity field); it's only for the
+        # orchestrator's per-conversation tool-call cap.
+        "conversation_id": req.conversation_id,
     }
 
     # v0.6.1 (formerly v0.5.0b): fetch prior conversation turns from Redis.
@@ -1044,15 +1148,33 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                     context_packet=None,
                 )
 
+        # Behavioral tier (cyber-tier 2026-05-25): 7-day rolling score
+        # of filter hits adjusts this user's rate-limit cap. A student
+        # with attack history gets /2 or /4 throughput — they can still
+        # use the system but brute-force discovery becomes impractical.
+        behavior_tier, behavior_score = await get_behavioral_tier(req.user_uid)
+        base_cap = 200 if is_instructor else 50
+        effective_cap = adjusted_rate_limit_cap(base_cap, behavior_tier)
+        if behavior_tier != "normal":
+            log.info(
+                "behavioral: uid_hash=%s tier=%s score=%d cap_adjusted=%d→%d",
+                hash_for_log(req.user_uid), behavior_tier, behavior_score, base_cap, effective_cap,
+            )
+
         # Rate limit: per-uid sliding 1h window. 50/hr students, 200/hr
-        # instructors. On exceed: 429 with retry_after_s.
+        # instructors. Tier-adjusted for users with attack history.
         rl_allowed, rl_retry, rl_count = await check_rate_limit(
             req.user_uid, is_instructor=is_instructor,
         )
+        # If behavioral tier reduced the effective cap below the rl module's
+        # cap, enforce the tighter local cap.
+        if behavior_tier != "normal" and rl_count > effective_cap:
+            rl_allowed = False
+            rl_retry = 60
         if not rl_allowed:
             log.warning(
-                "rate_limit: 429 uid_hash=%s count=%d retry_after=%ds",
-                hash_for_log(req.user_uid), rl_count, rl_retry,
+                "rate_limit: 429 uid_hash=%s count=%d retry_after=%ds tier=%s",
+                hash_for_log(req.user_uid), rl_count, rl_retry, behavior_tier,
             )
             security_log.schedule_event(
                 "rate_limit_exceeded",
@@ -1097,6 +1219,7 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
         bypass_hit, bypass_pid = detect_encoding_bypass(req.message)
         if bypass_hit:
             hit_count = await record_filter_hit(req.user_uid)
+            await record_behavioral_hit(req.user_uid)
             convo_hit_count = await record_conversation_filter_hit(req.conversation_id) if req.conversation_id else 0
             log.warning(
                 "filter: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d convo_count=%d",
@@ -1127,6 +1250,7 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
         jb_hit, jb_pid = detect_jailbreak(req.message)
         if jb_hit:
             hit_count = await record_filter_hit(req.user_uid)
+            await record_behavioral_hit(req.user_uid)
             convo_hit_count = await record_conversation_filter_hit(req.conversation_id) if req.conversation_id else 0
             log.warning(
                 "filter: jailbreak blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d convo_count=%d",
@@ -1346,28 +1470,35 @@ async def chat_stream(
                         log.info("chat/stream: client disconnected mid-response")
                         break
                     if event_type == "token":
-                        # Streaming output flag scan (student-hardening
-                        # 2026-05-25): each token chunk checked against
-                        # the flag-shape regex. On match: abort the
-                        # stream and emit an error event INSTEAD of the
-                        # offending chunk. The student sees nothing
-                        # past the abort point.
+                        # Streaming output flag scan (cyber-tier 2026-05-25).
+                        # Chunk-boundary fix: scan a 500-char tail window
+                        # spanning ALL recent chunks (not just last 3) so
+                        # a flag spanning more chunk boundaries can't slip.
+                        # A real qwen flag-shape output ~25 chars; 500-char
+                        # tail covers ~30 chunks of typical streaming.
                         #
-                        # Chunk-level buffering per Nancy: SSE events
-                        # are naturally delimited; we scan each event's
-                        # content + the accumulated tail (last 80
-                        # chars) so a flag that spans chunk boundaries
-                        # is still caught.
+                        # Also: hold-back logic — we DELAY emitting the
+                        # most recent chunk by one iteration so if the
+                        # next chunk completes a flag pattern, we can
+                        # abort BEFORE the offending content reaches the
+                        # client. Worst-case student sees one extra token
+                        # of delay; no flag-pattern bytes escape.
                         full_content_chunks.append(payload)
-                        if level < 5:  # only scan at non-instructor levels
-                            scan_window = ("".join(full_content_chunks[-3:]))[-200:]
-                            scanned, was_scrubbed, _ = scrub_flags_from_output(
+                        if level < 5:
+                            scan_window = "".join(full_content_chunks)[-500:]
+                            _, was_scrubbed, _ = scrub_flags_from_output(
                                 scan_window, help_level=level,
                             )
                             if was_scrubbed:
                                 log.warning(
-                                    "output_filter/stream: aborted on flag-shape uid_hash=%s level=%d",
-                                    hash_for_log(req.user_uid), level,
+                                    "output_filter/stream: aborted on flag-shape uid_hash=%s level=%d window_chars=%d",
+                                    hash_for_log(req.user_uid), level, len(scan_window),
+                                )
+                                security_log.schedule_event(
+                                    "output_flag_scrubbed",
+                                    uid=req.user_uid, severity="critical",
+                                    conversation_id=req.conversation_id,
+                                    metadata={"path": "stream", "level": level},
                                 )
                                 yield f"data: {json.dumps({'type': 'error', 'error': 'content_blocked'})}\n\n"
                                 return
