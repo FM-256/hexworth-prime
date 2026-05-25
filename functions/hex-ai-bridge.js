@@ -1069,6 +1069,40 @@ exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
     const previousState = data.previous_state || null;
 
     const uid = request.auth.uid;
+
+    // ─── Rate limit (cyber-tier harden 2026-05-25) ──────────────
+    // 60 calls/minute per uid. Even an authenticated student can't
+    // burn unbounded Firestore reads via this endpoint. Single-doc
+    // sliding-window counter; cost is 1 read + 1 write per call =
+    // ~50% overhead vs the underlying state fetch. Acceptable.
+    const rlRef = db.collection('_hex_ai_ambient_rl').doc(uid);
+    const RL_WINDOW_MS = 60_000;
+    const RL_CAP = 60;
+    try {
+        const rlSnap = await rlRef.get();
+        const now = Date.now();
+        if (rlSnap.exists) {
+            const rl = rlSnap.data();
+            const windowStartMs = rl.windowStart?.toMillis ? rl.windowStart.toMillis() : (rl.windowStart || now);
+            if (now - windowStartMs > RL_WINDOW_MS) {
+                await rlRef.set({ count: 1, windowStart: FieldValue.serverTimestamp() });
+            } else if (rl.count >= RL_CAP) {
+                throw new HttpsError('resource-exhausted',
+                    `ambient-state rate limit exceeded (${RL_CAP}/min). Slow down.`);
+            } else {
+                await rlRef.update({ count: FieldValue.increment(1) });
+            }
+        } else {
+            await rlRef.set({ count: 1, windowStart: FieldValue.serverTimestamp() });
+        }
+    } catch (e) {
+        // If the rate-limit machinery itself fails, fail OPEN (do the
+        // ambient query) but log loudly. Don't block the student over
+        // an infrastructure hiccup.
+        if (e instanceof HttpsError) throw e;
+        console.warn('hexAiAmbientState rate-limit failed open:', e.message);
+    }
+
     const now = Date.now();
     const since5min  = new Date(now - 5 * 60 * 1000);
     const since10min = new Date(now - 10 * 60 * 1000);
@@ -1119,48 +1153,26 @@ exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
         allCapturesSnap.docs.map(d => d.data().flagId).filter(Boolean)
     );
 
-    const isIncorrect = (a) => {
-        if (!a.flagId || a.flagId === '__scan__') return true;
-        return !capturedFlagIds.has(a.flagId);
+    // Delegate to the pure classifier (extracted for testability)
+    const { classifyAmbientState } = require('./hex-ai-state-classifier');
+    const classification = classifyAmbientState({
+        attempts,
+        captures,
+        capturedFlagIds,
+        nowMs: now,
+    });
+    const state = classification.state;
+    const cfg = {
+        color: classification.color,
+        pulse_ms: classification.pulse_ms,
+        suggested_prompt: classification.suggested_prompt,
     };
-
-    const attempts5  = attempts.filter(a => a.ts >= since5min.getTime());
-    const attempts10 = attempts.filter(a => a.ts >= since10min.getTime());
-    const captures60s = captures.filter(c => c.ts >= since60s.getTime());
-
-    const incorrect5  = attempts5.filter(isIncorrect).length;
-    const incorrect10 = attempts10.filter(isIncorrect).length;
-    const incorrect20 = attempts.filter(isIncorrect).length;
-
-    // Most-recent attempt classification — used for "regress to calm
-    // on correct" rule
-    const mostRecentAttempt = attempts[0] || null;
-    const mostRecentWasCorrect = mostRecentAttempt && !isIncorrect(mostRecentAttempt);
-
-    // ─── State machine ──────────────────────────────────────────
-    let state;
-    if (captures60s.length > 0) {
-        state = 'celebrating';
-    } else if (attempts.length === 0 || mostRecentWasCorrect) {
-        state = 'calm';
-    } else if (incorrect20 >= 6 && captures.length === 0) {
-        state = 'insistent';
-    } else if (incorrect10 >= 4 && captures.length === 0) {
-        state = 'active';
-    } else if (incorrect5 >= 2) {
-        state = 'noticing';
-    } else {
-        state = 'calm';
-    }
-
-    const STATE_CONFIG = {
-        calm:         { color: '#67e8f9', pulse_ms: 0,    suggested_prompt: 'Ask me anything about this lab' },
-        noticing:     { color: '#fbbf24', pulse_ms: 4000, suggested_prompt: 'Hint?' },
-        active:       { color: '#fb923c', pulse_ms: 2000, suggested_prompt: 'Want a hint on what to try next?' },
-        insistent:    { color: '#ef4444', pulse_ms: 700,  suggested_prompt: 'Let\'s pair on this — click here' },
-        celebrating:  { color: '#a78bfa', pulse_ms: 1500, suggested_prompt: 'Nice — onto the next?' },
-    };
-    const cfg = STATE_CONFIG[state];
+    const incorrect5  = classification.window_summary.incorrect_5min;
+    const incorrect10 = classification.window_summary.incorrect_10min;
+    const incorrect20 = classification.window_summary.incorrect_20min;
+    const captures60s = { length: classification.window_summary.captures_60s };
+    const attempts5   = { length: classification.window_summary.attempts_5min };
+    const attempts10  = { length: classification.window_summary.attempts_10min };
 
     // Forensics: log state transitions (not every call) to security events
     const transitioned = previousState && previousState !== state;
