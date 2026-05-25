@@ -2382,6 +2382,7 @@
             <a href="analytics-v2-status.html" style="padding:5px 12px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);border-radius:6px;color:#c084fc;text-decoration:none;font-size:0.78rem;margin-left:8px;transition:background 0.2s;" onmouseover="this.style.background='rgba(168,85,247,0.2)'" onmouseout="this.style.background='rgba(168,85,247,0.1)'">Analytics v2 Status</a>
             <a href="epaper-boards.html" style="padding:5px 12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;color:#f59e0b;text-decoration:none;font-size:0.78rem;margin-left:8px;transition:background 0.2s;" onmouseover="this.style.background='rgba(245,158,11,0.2)'" onmouseout="this.style.background='rgba(245,158,11,0.1)'">ePaper Boards</a>
             <a href="c2-pairing-codes.html" style="padding:5px 12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:6px;color:#4ade80;text-decoration:none;font-size:0.78rem;margin-left:8px;transition:background 0.2s;" onmouseover="this.style.background='rgba(34,197,94,0.2)'" onmouseout="this.style.background='rgba(34,197,94,0.1)'">C2 Pairing Codes</a>
+            <a href="dr-hex-quality.html" style="padding:5px 12px;background:rgba(244,114,182,0.1);border:1px solid rgba(244,114,182,0.3);border-radius:6px;color:#f472b6;text-decoration:none;font-size:0.78rem;margin-left:8px;transition:background 0.2s;" onmouseover="this.style.background='rgba(244,114,182,0.2)'" onmouseout="this.style.background='rgba(244,114,182,0.1)'">Dr. Hex Quality</a>
             <div class="ac-title">
                 <svg class="ac-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
@@ -2766,6 +2767,23 @@
                     <div class="ac-card-title">Scan Freshness</div>
                     <div id="qlHeartbeatBanner">
                         <div class="ac-loading"><div class="ac-spinner"></div>Reading scan heartbeat...</div>
+                    </div>
+                </div>
+
+                <!-- ── Section 0b: Dr. Hex AI Response Quality ─────────
+                     Reads dr_hex_quality_observations collection — operator-
+                     flagged AI response-quality issues (drhex-q-rag-relevance,
+                     drhex-q-leak, etc.). Distinct from EduScan content quality
+                     below; this measures the AI tutor's behavior, not lab
+                     HTML correctness. Full dashboard at dr-hex-quality.html.
+                     Schema + taxonomy: _docs/operations/dr-hex-quality-log.md -->
+                <div class="ac-card" id="qlDrHexCard">
+                    <div class="ac-card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>Dr. Hex AI Response Quality</span>
+                        <a href="dr-hex-quality.html" style="font-size:0.72rem;color:#f472b6;text-decoration:none;padding:3px 10px;border:1px solid rgba(244,114,182,0.3);border-radius:4px;">Open full dashboard &rarr;</a>
+                    </div>
+                    <div id="qlDrHexBody" style="margin-top:0.75rem;">
+                        <div class="ac-loading"><div class="ac-spinner"></div>Counting Dr. Hex quality observations...</div>
                     </div>
                 </div>
 
@@ -4365,7 +4383,7 @@
             if (panelName === 'handlers') loadHandlerData();
             if (panelName === 'health') loadHealthData();
             if (panelName === 'planning') loadPlanning();
-            if (panelName === 'quality') loadQualityData();
+            if (panelName === 'quality') { loadQualityData(); loadDrHexQualityCounts(); }
             if (panelName === 'spellbook') loadSpellbook();
             if (panelName === 'tasks') loadTasks();
             if (panelName === 'roles') loadRolesList();
@@ -8242,6 +8260,86 @@
         // bar, and findings table from published Nexus scan results.
         let _qlFirestoreReport = null;
 
+        // ── loadDrHexQualityCounts ────────────────────────────────────
+        // Reads dr_hex_quality_observations collection and renders a
+        // per-category breakdown inside the qlDrHexBody container. This
+        // is the Dr. Hex AI response-quality surface (drhex-q-* codes),
+        // distinct from EduScan content-quality findings below.
+        //
+        // Schema + taxonomy: _docs/operations/dr-hex-quality-log.md
+        // Full dashboard: /admin/dr-hex-quality.html
+        //
+        // Soft-fails: if Firestore is unreachable or rules deny, shows a
+        // muted "—" and a link to the full dashboard. Counts are read-only;
+        // status changes happen in the full dashboard, not here.
+        async function loadDrHexQualityCounts() {
+            const body = document.getElementById('qlDrHexBody');
+            if (!body) return;
+            if (!db && typeof initFirestore === 'function') {
+                await initFirestore();
+            }
+            if (!db || !_firestoreModule) {
+                body.innerHTML = '<div style="color:var(--ac-text-muted);font-size:0.85rem;">Firestore not ready — open the full dashboard for live data.</div>';
+                return;
+            }
+            const { collection, query, orderBy, limit, getDocs } = _firestoreModule;
+            try {
+                // Fetch up to 200 most-recent observations — same cap idea
+                // as the dashboard, scaled slightly higher because we're
+                // summarising not listing. Status breakdown comes from
+                // client-side aggregation.
+                const snap = await getDocs(query(
+                    collection(db, 'dr_hex_quality_observations'),
+                    orderBy('flaggedAt', 'desc'),
+                    limit(200)
+                ));
+                const byStatus = { open: 0, triaged: 0, fixing: 0, fixed: 0, wontfix: 0, duplicate: 0 };
+                const byCategory = {};
+                let openMostRecent = null;
+                for (const d of snap.docs) {
+                    const x = d.data();
+                    if (byStatus[x.status] !== undefined) byStatus[x.status]++;
+                    byCategory[x.category] = (byCategory[x.category] || 0) + 1;
+                    if (x.status === 'open' && !openMostRecent && x.flaggedAt) {
+                        openMostRecent = x.flaggedAt.toDate().toISOString().slice(0, 16).replace('T', ' ');
+                    }
+                }
+                const total = snap.size;
+
+                // Escape utility — same defense-in-depth as the dashboard.
+                const esc = s => String(s == null ? '' : s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+                // Stat strip
+                const stats = `
+                    <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+                        <div><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;color:${byStatus.open > 0 ? '#fbbf24' : '#4ade80'};">${byStatus.open}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Open</div></div>
+                        <div><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;color:#818cf8;">${byStatus.triaged}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Triaged</div></div>
+                        <div><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;color:#38bdf8;">${byStatus.fixing}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Fixing</div></div>
+                        <div><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;color:#4ade80;">${byStatus.fixed}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Fixed</div></div>
+                        <div><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;color:#a0a0a0;">${byStatus.wontfix + byStatus.duplicate}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Wontfix/Dup</div></div>
+                        <div><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;">${total}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Total (last 200)</div></div>
+                    </div>
+                `;
+                // By-category breakdown
+                const catRows = Object.entries(byCategory)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, n]) => `<tr><td style="padding:0.25rem 0.5rem;font-family:ui-monospace,monospace;font-size:0.82rem;">${esc(cat)}</td><td style="padding:0.25rem 0.5rem;font-family:ui-monospace,monospace;text-align:right;">${n}</td></tr>`)
+                    .join('');
+                const catTable = catRows
+                    ? `<table style="width:100%;font-size:0.85rem;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:0.25rem 0.5rem;font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Category</th><th style="text-align:right;padding:0.25rem 0.5rem;font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Count</th></tr></thead><tbody>${catRows}</tbody></table>`
+                    : '<div style="color:var(--ac-text-muted);font-size:0.85rem;font-style:italic;">No observations logged yet.</div>';
+                const recencyNote = openMostRecent
+                    ? `<div style="margin-top:0.5rem;font-size:0.75rem;color:var(--ac-text-muted);">Most recent open observation: ${esc(openMostRecent)} UTC</div>`
+                    : '';
+                body.innerHTML = stats + catTable + recencyNote;
+            } catch (e) {
+                console.error('[AdminConsole] Dr. Hex quality count fetch failed:', e);
+                body.innerHTML = `<div style="color:var(--ac-text-muted);font-size:0.85rem;">Could not load counts (${e.code || e.message || 'unknown'}). <a href="dr-hex-quality.html" style="color:#f472b6;">Open full dashboard &rarr;</a></div>`;
+            }
+        }
+
         // ── loadQualityData ───────────────────────────────────────────
         // Entry point called by switchPanel('quality').
         // Priority: 1) Firestore _quality_reports/latest
@@ -8345,6 +8443,7 @@
             document.getElementById('qlSummaryBar').innerHTML = '';
             document.getElementById('qlFilterBar').style.display = 'none';
             loadQualityData();
+            loadDrHexQualityCounts();
             showToast('Quality data reloaded', 'success');
         };
 

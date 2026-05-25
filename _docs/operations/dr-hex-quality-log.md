@@ -72,10 +72,23 @@ Schema:
 | `notes` | string\|null | Free-form |
 | `originalObservationId` | string\|null | If `status: duplicate`, points at the original |
 | `fixCommit` | string\|null | When fixed, set to the commit hash that addressed it |
+| `statusChangedBy` | string\|null | UID of last operator to change `status`. Required by rules on any update that mutates `status`. |
+| `statusChangedAt` | timestamp\|null | When `status` was last changed. Required by rules on any update that mutates `status`. |
 
 Security: admin-only read/write per `firestore.rules`. No delete (append-only —
 fix the issue, don't erase the record). The CLI helper uses Admin SDK
-which bypasses rules; client writes (future flag button) hit the rules.
+which bypasses rules; client writes (dashboard, flag button) hit the rules.
+
+**Audit trail enforcement (Nancy 2026-05-24):** any update that changes
+`status` must also write `statusChangedBy == auth.uid` and a
+`statusChangedAt` timestamp. The rule blocks status changes that omit
+these fields. Updates that don't touch `status` (e.g., notes edit) are
+unaffected.
+
+**Re-open path:** to undo a misclick on `wontfix` or `duplicate`, change
+`status` back to `open` — this triggers the audit-field requirement, so
+the unintended close is preserved in the change history rather than
+silently erased.
 
 ## Intake recipe (v1 — CLI)
 

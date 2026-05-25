@@ -806,9 +806,15 @@ service cloud.firestore {
     // taxonomy in _docs/operations/dr-hex-quality-log.md.
     //
     // Admin-only — these are operator observations of how the AI behaved,
-    // not student-visible data. Today written by the flag-quality.js CLI
-    // (admin SDK bypasses these rules). When the test-page flag button
-    // ships, it will write client-side via these rules.
+    // not student-visible data. Written by the flag-quality.js CLI (admin
+    // SDK bypasses these rules) and by the admin dashboard at
+    // /admin/dr-hex-quality.html (client-side via these rules).
+    //
+    // Audit trail: any update that CHANGES the status field must set
+    // statusChangedBy (the admin's uid) and statusChangedAt (timestamp).
+    // Updates that don't touch status (e.g., notes edit) are unaffected.
+    // Nancy review 2026-05-24: "you can always answer 'who last touched
+    // this and when' without a schema migration later."
     match /dr_hex_quality_observations/{docId} {
       allow read: if isAdmin();
       allow create: if isAdmin()
@@ -816,7 +822,15 @@ service cloud.firestore {
         && request.resource.data.category is string
         && request.resource.data.observation is string
         && request.resource.data.flaggedBy == request.auth.uid;
-      allow update: if isAdmin();
+      allow update: if isAdmin() && (
+        // No-change-to-status: any field-only edit is fine.
+        request.resource.data.status == resource.data.status ||
+        // Status change requires audit fields on the same write.
+        (
+          request.resource.data.statusChangedBy == request.auth.uid &&
+          request.resource.data.statusChangedAt is timestamp
+        )
+      );
       allow delete: if false;   // append-only — fix the issue, don't erase the record
     }
   }
