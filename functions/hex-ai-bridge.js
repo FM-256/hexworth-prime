@@ -719,6 +719,88 @@ exports.hexAiToolDispatch = onRequest({
     }
 });
 
+/**
+ * hexAiSecurityEvent — fire-and-forget security event sink.
+ *
+ * Parallel to hexAiToolCallback but for defense-layer events
+ * (encoding_bypass_blocked, jailbreak_blocked, rate_limit_exceeded,
+ * lockout_triggered, output_flag_scrubbed, tool_budget_exceeded,
+ * convo_locked). Writes to dr_hex_security_events Firestore
+ * collection for postmortem analysis. Schema documented in
+ * _docs/operations/dr-hex-security-events.md (TODO doc).
+ *
+ * Auth: X-API-Key only (orchestrator is the trusted caller).
+ *
+ * Frequently-filterable fields are promoted to top-level Firestore
+ * columns (Nancy 2026-05-25). The free-form metadata map is for
+ * catch-all details.
+ */
+exports.hexAiSecurityEvent = onRequest({
+    region: 'us-central1',
+    secrets: [hexAiApiKey],
+    timeoutSeconds: 10,
+    memory: '128MiB',
+}, async (req, res) => {
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+    // X-API-Key constant-time compare (same pattern as hexAiToolCallback).
+    const provided = req.headers['x-api-key'] || '';
+    const expected = hexAiApiKey.value();
+    if (!provided || !expected) {
+        res.status(401).json({ error: 'X-API-Key required' });
+        return;
+    }
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) {
+        res.status(401).json({ error: 'Invalid X-API-Key' });
+        return;
+    }
+    const crypto = require('crypto');
+    if (!crypto.timingSafeEqual(a, b)) {
+        res.status(401).json({ error: 'Invalid X-API-Key' });
+        return;
+    }
+
+    const body = (req.body && typeof req.body === 'object') ? req.body : {};
+    const {
+        event_type, severity, uid_hash, msg_hash, conversation_id_hash,
+        pattern_id, lockout_count, tool_name, latency_ms, metadata, ts_iso,
+    } = body;
+
+    if (typeof event_type !== 'string' || !event_type) {
+        res.status(400).json({ error: 'event_type required' });
+        return;
+    }
+    // Severity allowlist — operator queries depend on a small set
+    const ALLOWED_SEVERITY = new Set(['info', 'warning', 'critical']);
+    const sev = ALLOWED_SEVERITY.has(severity) ? severity : 'warning';
+
+    try {
+        await db.collection('dr_hex_security_events').add({
+            event_type,
+            severity: sev,
+            uid_hash: typeof uid_hash === 'string' ? uid_hash : null,
+            msg_hash: typeof msg_hash === 'string' ? msg_hash : null,
+            conversation_id_hash: typeof conversation_id_hash === 'string' ? conversation_id_hash : null,
+            pattern_id: typeof pattern_id === 'string' ? pattern_id : null,
+            lockout_count: typeof lockout_count === 'number' ? lockout_count : null,
+            tool_name: typeof tool_name === 'string' ? tool_name : null,
+            latency_ms: typeof latency_ms === 'number' ? latency_ms : null,
+            metadata: (metadata && typeof metadata === 'object') ? metadata : {},
+            ts: FieldValue.serverTimestamp(),
+            ts_iso: typeof ts_iso === 'string' ? ts_iso : null,
+        });
+    } catch (e) {
+        console.error('hexAiSecurityEvent: Firestore write failed:', e.message);
+        res.status(500).json({ error: 'Firestore write failed' });
+        return;
+    }
+    res.status(204).end();
+});
+
 exports.hexAiHealth = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');

@@ -88,8 +88,19 @@ from tools.rate_limit import (
     is_locked_out,
     lockout_remaining_s,
     LOCKOUT_REFUSAL,
+    # Cyber-tier 2026-05-25 — conversation-level abuse tracking
+    record_conversation_filter_hit,
+    is_conversation_locked,
+    CONVO_LOCK_THRESHOLD,
+    # Cyber-tier 2026-05-25 — tool-call budget per conversation
+    check_tool_budget,
+    record_tool_call,
+    TOOL_BUDGET_PER_CONVO,
 )
 from tools.output_filter import scrub_flags_from_output
+# Cyber-tier 2026-05-25: fire-and-forget security event log. Every
+# defense-layer hit produces a Firestore record for postmortem.
+from tools import security_log
 import conversation
 
 logging.basicConfig(
@@ -982,8 +993,13 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                 "lockout: blocking uid_hash=%s count=%d remaining_s=%d",
                 hash_for_log(req.user_uid), lockout_count, remaining,
             )
-            # Use a default persona/level for the lockout refusal
-            # (we don't bother resolving the full request).
+            security_log.schedule_event(
+                "lockout_triggered",
+                uid=req.user_uid, severity="critical",
+                conversation_id=req.conversation_id,
+                lockout_count=lockout_count,
+                metadata={"remaining_s": remaining},
+            )
             return ChatResponse(
                 response=LOCKOUT_REFUSAL,
                 persona=req.house or "code",
@@ -995,6 +1011,39 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                 context_packet=None,
             )
 
+        # Conversation-level abuse tracking (cyber-tier 2026-05-25). A
+        # student spreading attacks across many turns of one conversation
+        # eventually trips this even if no single turn hits the per-uid
+        # lockout. 3+ filter hits in 60min → conversation locked.
+        if req.conversation_id:
+            convo_locked, convo_count = await is_conversation_locked(req.conversation_id)
+            if convo_locked:
+                log.warning(
+                    "convo_lock: blocking convo_hash=%s count=%d",
+                    hash_for_log(req.conversation_id), convo_count,
+                )
+                security_log.schedule_event(
+                    "convo_locked",
+                    uid=req.user_uid, severity="critical",
+                    conversation_id=req.conversation_id,
+                    lockout_count=convo_count,
+                    metadata={"threshold": CONVO_LOCK_THRESHOLD},
+                )
+                return ChatResponse(
+                    response=(
+                        "This conversation has been flagged for too many "
+                        "blocked requests. Start a new conversation and "
+                        "stay within the guidelines."
+                    ),
+                    persona=req.house or "code",
+                    persona_name="Dr. Hex",
+                    help_level=2,
+                    help_level_label="Directional",
+                    model="filter:convo_locked",
+                    latency_ms=int((time.time() - t0) * 1000),
+                    context_packet=None,
+                )
+
         # Rate limit: per-uid sliding 1h window. 50/hr students, 200/hr
         # instructors. On exceed: 429 with retry_after_s.
         rl_allowed, rl_retry, rl_count = await check_rate_limit(
@@ -1004,6 +1053,16 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
             log.warning(
                 "rate_limit: 429 uid_hash=%s count=%d retry_after=%ds",
                 hash_for_log(req.user_uid), rl_count, rl_retry,
+            )
+            security_log.schedule_event(
+                "rate_limit_exceeded",
+                uid=req.user_uid, severity="warning",
+                conversation_id=req.conversation_id,
+                metadata={
+                    "count": rl_count,
+                    "retry_after_s": rl_retry,
+                    "is_instructor": is_instructor,
+                },
             )
             raise HTTPException(
                 status_code=429,
@@ -1037,12 +1096,18 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
         # 60s ollama timeout (below) bounds unbounded vectors.
         bypass_hit, bypass_pid = detect_encoding_bypass(req.message)
         if bypass_hit:
-            # Record the hit toward the lockout threshold (student-
-            # hardening 2026-05-25). 5 hits in 60min → lockout.
             hit_count = await record_filter_hit(req.user_uid)
+            convo_hit_count = await record_conversation_filter_hit(req.conversation_id) if req.conversation_id else 0
             log.warning(
-                "filter: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d",
-                hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid, hit_count,
+                "filter: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d convo_count=%d",
+                hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid, hit_count, convo_hit_count,
+            )
+            security_log.schedule_event(
+                "encoding_bypass_blocked",
+                uid=req.user_uid, severity="warning", msg=req.message,
+                conversation_id=req.conversation_id,
+                pattern_id=bypass_pid, lockout_count=hit_count,
+                metadata={"convo_hit_count": convo_hit_count},
             )
             metrics.record_chat(persona_slug, level, time.time() - t0)
             return ChatResponse(
@@ -1062,9 +1127,17 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
         jb_hit, jb_pid = detect_jailbreak(req.message)
         if jb_hit:
             hit_count = await record_filter_hit(req.user_uid)
+            convo_hit_count = await record_conversation_filter_hit(req.conversation_id) if req.conversation_id else 0
             log.warning(
-                "filter: jailbreak blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d",
-                hash_for_log(req.user_uid), hash_for_log(req.message, 32), jb_pid, hit_count,
+                "filter: jailbreak blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d convo_count=%d",
+                hash_for_log(req.user_uid), hash_for_log(req.message, 32), jb_pid, hit_count, convo_hit_count,
+            )
+            security_log.schedule_event(
+                "jailbreak_blocked",
+                uid=req.user_uid, severity="critical", msg=req.message,
+                conversation_id=req.conversation_id,
+                pattern_id=jb_pid, lockout_count=hit_count,
+                metadata={"convo_hit_count": convo_hit_count},
             )
             metrics.record_chat(persona_slug, level, time.time() - t0)
             return ChatResponse(
@@ -1128,6 +1201,12 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
             log.warning(
                 "output_filter: scrubbed flag-shaped output uid_hash=%s level=%d matches=%d",
                 hash_for_log(req.user_uid), level, len(scrubbed_matches),
+            )
+            security_log.schedule_event(
+                "output_flag_scrubbed",
+                uid=req.user_uid, severity="critical",
+                conversation_id=req.conversation_id,
+                metadata={"match_count": len(scrubbed_matches), "level": level},
             )
         return ChatResponse(
             response=scrubbed_text,
@@ -1219,11 +1298,18 @@ async def chat_stream(
 
             bypass_hit, bypass_pid = detect_encoding_bypass(req.message)
             if bypass_hit:
-                # Record toward lockout threshold (5 hits / 60min → locked).
                 hit_count = await record_filter_hit(req.user_uid)
+                convo_hit_count = await record_conversation_filter_hit(req.conversation_id) if req.conversation_id else 0
                 log.warning(
-                    "filter/stream: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d",
-                    hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid, hit_count,
+                    "filter/stream: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d convo_count=%d",
+                    hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid, hit_count, convo_hit_count,
+                )
+                security_log.schedule_event(
+                    "encoding_bypass_blocked",
+                    uid=req.user_uid, severity="warning", msg=req.message,
+                    conversation_id=req.conversation_id,
+                    pattern_id=bypass_pid, lockout_count=hit_count,
+                    metadata={"convo_hit_count": convo_hit_count, "path": "stream"},
                 )
                 yield f"data: {json.dumps({'type': 'token', 'content': ENCODING_BYPASS_REFUSAL})}\n\n"
                 yield f"data: {json.dumps({'type': 'done', 'latency_ms': int((time.time() - t0) * 1000), 'model': 'filter:request_filter'})}\n\n"
@@ -1232,9 +1318,17 @@ async def chat_stream(
             jb_hit, jb_pid = detect_jailbreak(req.message)
             if jb_hit:
                 hit_count = await record_filter_hit(req.user_uid)
+                convo_hit_count = await record_conversation_filter_hit(req.conversation_id) if req.conversation_id else 0
                 log.warning(
-                    "filter/stream: jailbreak blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d",
-                    hash_for_log(req.user_uid), hash_for_log(req.message, 32), jb_pid, hit_count,
+                    "filter/stream: jailbreak blocked uid_hash=%s msg_hash=%s pattern=%s lockout_count=%d convo_count=%d",
+                    hash_for_log(req.user_uid), hash_for_log(req.message, 32), jb_pid, hit_count, convo_hit_count,
+                )
+                security_log.schedule_event(
+                    "jailbreak_blocked",
+                    uid=req.user_uid, severity="critical", msg=req.message,
+                    conversation_id=req.conversation_id,
+                    pattern_id=jb_pid, lockout_count=hit_count,
+                    metadata={"convo_hit_count": convo_hit_count, "path": "stream"},
                 )
                 yield f"data: {json.dumps({'type': 'token', 'content': JAILBREAK_REFUSAL})}\n\n"
                 yield f"data: {json.dumps({'type': 'done', 'latency_ms': int((time.time() - t0) * 1000), 'model': 'filter:jailbreak'})}\n\n"

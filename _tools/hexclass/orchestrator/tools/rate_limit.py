@@ -163,3 +163,81 @@ async def lockout_remaining_s(uid: str) -> int:
         return max(0, ttl) if ttl > 0 else 0
     except Exception:
         return 0
+
+
+# ─── Conversation-level abuse tracking (cyber-tier 2026-05-25) ───────
+# Per-conversation_id counter of filter hits. After CONVO_LOCK_THRESHOLD
+# hits, the conversation itself is locked (subsequent /chat with this
+# conversation_id is refused) — independent of the per-uid lockout.
+# Closes the multi-turn-drift attack where a student spreads probes
+# across many turns of one conversation.
+
+CONVO_LOCK_THRESHOLD = int(os.environ.get("HEX_CONVO_LOCK_THRESHOLD", "3"))
+CONVO_LOCK_WINDOW_S = int(os.environ.get("HEX_CONVO_LOCK_WINDOW_S", "3600"))
+
+
+async def record_conversation_filter_hit(conversation_id: str) -> int:
+    """Increment the per-conversation filter-hit counter."""
+    if not conversation_id:
+        return 0
+    key = f"hex_ai:convo_hits:{conversation_id}"
+    try:
+        count = int(await _client().incr(key))
+        if count == 1:
+            await _client().expire(key, CONVO_LOCK_WINDOW_S)
+        return count
+    except Exception as e:
+        log.warning("rate_limit: convo_hit redis failure: %s", e)
+        return 0
+
+
+async def is_conversation_locked(conversation_id: str) -> tuple[bool, int]:
+    """Returns (locked, count). Locked at CONVO_LOCK_THRESHOLD+."""
+    if not conversation_id:
+        return (False, 0)
+    key = f"hex_ai:convo_hits:{conversation_id}"
+    try:
+        val = await _client().get(key)
+        count = int(val) if val else 0
+        return (count >= CONVO_LOCK_THRESHOLD, count)
+    except Exception:
+        return (False, 0)
+
+
+# ─── Tool-call budget per conversation (cyber-tier 2026-05-25) ───────
+# Cap N tool calls per conversation_id. Students fishing the tool
+# surface by spamming variations get cut off. Conversations without
+# an ID (independent /chat calls) get a per-uid+rolling-hour cap
+# instead so the defense doesn't disappear when conversation_id is null.
+
+TOOL_BUDGET_PER_CONVO = int(os.environ.get("HEX_TOOL_BUDGET_PER_CONVO", "10"))
+
+
+async def check_tool_budget(conversation_id: str | None) -> tuple[bool, int]:
+    """Returns (within_budget, current_count). Caller MUST call
+    record_tool_call() after a successful dispatch (so we don't
+    pre-emptively count attempts that don't reach dispatch)."""
+    if not conversation_id:
+        return (True, 0)
+    key = f"hex_ai:tool_budget:{conversation_id}"
+    try:
+        val = await _client().get(key)
+        count = int(val) if val else 0
+        return (count < TOOL_BUDGET_PER_CONVO, count)
+    except Exception:
+        return (True, 0)
+
+
+async def record_tool_call(conversation_id: str | None) -> int:
+    """Increment tool-call count for this conversation. Returns new
+    count. TTL aligns with the conversation memory TTL (30 min)."""
+    if not conversation_id:
+        return 0
+    key = f"hex_ai:tool_budget:{conversation_id}"
+    try:
+        count = int(await _client().incr(key))
+        if count == 1:
+            await _client().expire(key, 1800)
+        return count
+    except Exception:
+        return 0

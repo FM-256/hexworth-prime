@@ -45,6 +45,25 @@ import re
 
 FLAG_PATTERN = re.compile(r"FLAG\{[^}]{10,}\}", re.IGNORECASE)
 
+# Bare-string flag patterns (cyber-tier 2026-05-25):
+# 794 of 910 flags in flag_registry are NOT in FLAG{...} format —
+# they're raw alphanumeric values. Catching these by regex without
+# false-positive on normal English is hard. We use shape heuristics:
+#  - HEX_ / HEXWORTH_ / CTF_ prefix + 8+ alphanumeric
+#  - Long random-looking strings: 16+ chars with mixed case + digit
+#    AND no English word at length >= 5
+#
+# This list grows as new flag schemas are added. False positives are
+# preferable to leaks at this layer — the canned refusal is graceful.
+_BARE_FLAG_PATTERNS = [
+    # Common CTF flag prefixes
+    re.compile(r"\b(?:HEX|HEXWORTH|CTF|FLAG|HW)[_\-]\w{8,}\b"),
+    # Long mixed-case+digit string without English (heuristic)
+    # Match 20+ chars, must contain digit, must contain letter,
+    # cannot contain space (a flag wouldn't have spaces)
+    re.compile(r"\b(?=\w*\d)(?=\w*[A-Za-z])[A-Za-z0-9_\-]{20,}\b"),
+]
+
 CANNED_REFUSAL = (
     "I noticed my response was about to share a flag value directly — "
     "I can't do that, even by accident. Run the lab and the flag will "
@@ -63,12 +82,22 @@ def scrub_flags_from_output(
 
     If `help_level >= 5` or no match: passthrough.
     Otherwise: returns the canned refusal and the list of matched
-    flag-shaped substrings (for audit logging — do NOT log to log
-    aggregators that might end up student-visible).
+    flag-shaped substrings.
+
+    Two-layer detection (cyber-tier 2026-05-25):
+     1. Braced FLAG{...} format with 10+ chars inside (real-flag minimum)
+     2. Bare-string patterns (HEX_xxxx, HEXWORTH_xxxx, 20+ char mixed
+        alphanumeric strings with both digits and letters)
+
+    False positives on (2) are accepted as graceful degradation —
+    the canned refusal is benign to a legitimate student.
     """
     if not response_text or help_level >= 5:
         return (response_text or "", False, [])
-    matches = FLAG_PATTERN.findall(response_text)
+    matches: list[str] = []
+    matches.extend(FLAG_PATTERN.findall(response_text))
+    for pat in _BARE_FLAG_PATTERNS:
+        matches.extend(pat.findall(response_text))
     if not matches:
         return (response_text, False, [])
     return (CANNED_REFUSAL, True, matches)
