@@ -58,6 +58,10 @@ import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, StreamingResponse
+
+# STABILITY-001 Phase 1 + LAB-SKILL-MAP-001 — voice linter + skill map loader
+from voice_linter import lint_response
+from skill_map_loader import maybe_load_skill_map
 from pydantic import BaseModel, Field
 
 from personas import PERSONAS, COMMON_VOICE_RULE, resolve_persona
@@ -1332,6 +1336,48 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                 conversation_id=req.conversation_id,
                 metadata={"match_count": len(scrubbed_matches), "level": level},
             )
+
+        # ── STABILITY-001 Phase 1: voice linter (observe-only) ────────────
+        # Run the voice_linter on the (post-scrub) response text and emit
+        # any findings as observations. We do NOT block or regenerate in
+        # this initial deploy — we observe false-positive rates first.
+        # Switch to block-on-violation once production data justifies it.
+        # Spec: _docs/operations/dr-hex-production-stability.md §2
+        try:
+            lint_skill_map = None
+            if req.mission_id:
+                _sm = maybe_load_skill_map(req.mission_id)
+                if _sm is not None:
+                    lint_skill_map = _sm.to_linter_skill_map()
+            lint_result = lint_response(
+                scrubbed_text,
+                session_state=None,  # fresh per-request for v1; session tracking is Phase 2
+                lab_skill_map=lint_skill_map,
+            )
+            for v in lint_result.violations:
+                log.warning(
+                    "voice_linter: %s %s uid_hash=%s mission=%s msg='%s'",
+                    v.severity, v.code, hash_for_log(req.user_uid),
+                    req.mission_id or "-", v.message,
+                )
+                security_log.schedule_event(
+                    f"voice_linter_{v.code}",
+                    uid=req.user_uid,
+                    severity="warning" if v.severity == "WARN" else "critical",
+                    conversation_id=req.conversation_id,
+                    metadata={
+                        "code": v.code,
+                        "severity": v.severity,
+                        "message": v.message[:300],
+                        "excerpt": (v.excerpt or "")[:120],
+                        "mission_id": req.mission_id,
+                        "skill_map_loaded": lint_skill_map is not None,
+                    },
+                )
+        except Exception as exc:
+            # Voice linter must never crash the chat path. Log + continue.
+            log.error("voice_linter crashed (continuing): %s", exc)
+
         return ChatResponse(
             response=scrubbed_text,
             persona=persona_slug,

@@ -24,19 +24,42 @@ import yaml
 # ─── repo path discovery ─────────────────────────────────────────────────
 
 
-def _repo_root() -> Path:
-    """Find the hexworth-prime repo root by walking up from this file."""
+def _repo_root() -> Optional[Path]:
+    """Find the hexworth-prime repo root by walking up from this file.
+
+    Returns None if the repo layout can't be found (e.g. running from a
+    deployed-only directory like /opt/hexclass/orchestrator without the
+    rest of the repo). Callers must check for None and degrade gracefully.
+    """
     here = Path(__file__).resolve()
     for parent in [here, *here.parents]:
         if (parent / "_app" / "lab-skill-maps").is_dir():
             return parent
-    raise RuntimeError(
-        "Could not locate hexworth-prime repo root (no _app/lab-skill-maps directory found in ancestors of skill_map_loader.py)"
-    )
+    return None
 
 
-def skill_maps_dir() -> Path:
-    return _repo_root() / "_app" / "lab-skill-maps"
+def skill_maps_dir() -> Optional[Path]:
+    """Resolve the lab-skill-maps directory.
+
+    Resolution order:
+      1. HEX_SKILL_MAPS_DIR env var (deployed-orchestrator override)
+      2. <repo>/_app/lab-skill-maps (dev / local runs)
+      3. None if neither exists
+
+    When None is returned, every public load function degrades gracefully
+    (load_skill_map raises FileNotFoundError, maybe_load_skill_map and
+    list_all_skill_maps return [] / None).
+    """
+    env_override = os.environ.get("HEX_SKILL_MAPS_DIR")
+    if env_override:
+        p = Path(env_override)
+        if p.is_dir():
+            return p
+        return None
+    root = _repo_root()
+    if root is None:
+        return None
+    return root / "_app" / "lab-skill-maps"
 
 
 # ─── types ───────────────────────────────────────────────────────────────
@@ -254,9 +277,17 @@ def _validate_skill_map(data: dict, source: str) -> LabSkillMap:
 def load_skill_map(lab_id: str) -> LabSkillMap:
     """Load and validate the Skill Map for the given lab_id.
 
-    Raises FileNotFoundError if the YAML file does not exist,
-    SkillMapValidationError if the file is malformed."""
-    path = skill_maps_dir() / f"{lab_id}.yaml"
+    Raises FileNotFoundError if the YAML file does not exist (or if no
+    skill-maps directory is configured), SkillMapValidationError if the
+    file is malformed.
+    """
+    d = skill_maps_dir()
+    if d is None:
+        raise FileNotFoundError(
+            f"No Skill Map for '{lab_id}': skill-maps directory not configured "
+            f"(set HEX_SKILL_MAPS_DIR env var or run from inside the repo)"
+        )
+    path = d / f"{lab_id}.yaml"
     if not path.is_file():
         raise FileNotFoundError(f"No Skill Map found for lab_id '{lab_id}' (expected {path})")
     with open(path, "r", encoding="utf-8") as f:
@@ -287,10 +318,12 @@ def list_all_skill_maps() -> list[LabSkillMap]:
     """Walk the skill-maps directory and return every parseable map.
 
     Used by the EduScan validator and by the bootstrap audit script.
-    Logs (but does not raise on) individual failures."""
+    Logs (but does not raise on) individual failures. Returns empty list
+    if no skill-maps directory is configured.
+    """
     out: list[LabSkillMap] = []
     d = skill_maps_dir()
-    if not d.is_dir():
+    if d is None or not d.is_dir():
         return out
     for entry in sorted(d.iterdir()):
         if entry.suffix.lower() not in (".yaml", ".yml"):
