@@ -1222,6 +1222,65 @@ exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
     };
 });
 
+// ── TELEMETRY-001: hexAiEngagementEvent ───────────────────────────────────
+// Receives client-side engagement beacons from HexAIChatPanel.js. The
+// client emits events like intervention_sent, tab_closed, walkthrough_opened,
+// downvote_response, external_ai_signal. The CF writes them to the
+// dr_hex_engagement_events Firestore collection where the post-intervention
+// engagement classifier joins them with flag_attempts/flag_captures.
+//
+// Auth: Firebase Auth required (callable). No API key — this is client-facing.
+// Severity gate: input validation rejects unexpected event_types so a
+// malicious client can't pollute the collection.
+//
+// Spec: _docs/operations/dr-hex-production-stability.md §5
+exports.hexAiEngagementEvent = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    const ALLOWED_EVENTS = new Set([
+        'intervention_sent',
+        'tab_closed',
+        'walkthrough_opened',
+        'downvote_response',
+        'downvote_response_cleared',
+        'external_ai_signal',
+        'subsequent_chat_message',
+    ]);
+    const data = request.data || {};
+    const eventType = data.event_type;
+    if (typeof eventType !== 'string' || !ALLOWED_EVENTS.has(eventType)) {
+        throw new HttpsError('invalid-argument', 'event_type missing or not in allowlist');
+    }
+    const uid = request.auth.uid;
+    // uid_hash for privacy — same hashing convention as security events
+    const crypto = require('crypto');
+    const uid_hash = crypto.createHash('sha256').update(uid).digest('hex').slice(0, 16);
+    const conv = typeof data.conversation_id === 'string' ? data.conversation_id : null;
+    const conv_hash = conv
+        ? crypto.createHash('sha256').update(conv).digest('hex').slice(0, 16)
+        : null;
+    // Cap fields to defend against payload bloat
+    const cap = (s, n = 200) => (typeof s === 'string' ? s.slice(0, n) : null);
+    try {
+        await db.collection('dr_hex_engagement_events').add({
+            event_type: eventType,
+            uid_hash,
+            conversation_id_hash: conv_hash,
+            mission_id: cap(data.mission_id, 200),
+            house: cap(data.house, 60),
+            intervention_id: cap(data.intervention_id, 64),
+            metadata: (data.metadata && typeof data.metadata === 'object') ? data.metadata : {},
+            ts: FieldValue.serverTimestamp(),
+            ts_iso: typeof data.ts_iso === 'string' ? data.ts_iso.slice(0, 40) : null,
+        });
+        return { ok: true };
+    } catch (err) {
+        console.error('[hexAiEngagementEvent] write failed:', err);
+        throw new HttpsError('internal', 'Failed to persist engagement event.');
+    }
+});
+
 exports.hexAiHealth = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');

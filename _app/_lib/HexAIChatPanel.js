@@ -32,6 +32,35 @@ const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const functions = getFunctions(app, 'us-central1');
 const chatFn = httpsCallable(functions, 'hexAiChat');
+const engagementFn = httpsCallable(functions, 'hexAiEngagementEvent');
+
+// ── TELEMETRY-001: post-intervention engagement instrumentation ───────────
+// Emit engagement events to the server so we can answer: "did the student
+// continue productive work AFTER Dr. Hex intervened?" — the production-truth
+// metric from dr-hex-constitution.md §7 + dr-hex-production-stability.md §5.
+//
+// Beacons fail silently when the receiving CF is not deployed yet. The
+// instrumentation is wired so the data starts flowing the moment the
+// hexAiEngagementEvent CF lands in production.
+async function _sendEngagementEvent(eventType, payload = {}) {
+    try {
+        if (!auth.currentUser) return;
+        await engagementFn({
+            event_type: eventType,
+            mission_id: payload.mission_id || null,
+            house: payload.house || null,
+            intervention_id: payload.intervention_id || null,
+            conversation_id: payload.conversation_id || null,
+            metadata: payload.metadata || {},
+            ts_iso: new Date().toISOString(),
+        });
+    } catch (err) {
+        // Silent — receiving CF may not be deployed yet. Don't spam users.
+        if (typeof console !== 'undefined' && console.debug) {
+            console.debug('[hex-ai engagement beacon dropped]', eventType, err?.code || err?.message);
+        }
+    }
+}
 
 const STYLE = `
     :host {
@@ -81,6 +110,24 @@ const STYLE = `
     .msg.user { background: #2a3a5a; align-self: flex-end; }
     .msg.ai   { background: #1a1a24; align-self: flex-start; border: 1px solid #2a2a3a; }
     .msg.ai .meta { font-size: 0.72rem; color: #8a8a9a; margin-top: 6px; }
+    .msg.ai .downvote-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+        font-size: 0.74rem;
+        color: #6a6a7a;
+    }
+    .msg.ai .downvote-btn {
+        background: none;
+        border: none;
+        color: #6a6a7a;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font: inherit;
+    }
+    .msg.ai .downvote-btn:hover { background: #2a2a3a; color: #c0c0d0; }
+    .msg.ai .downvote-btn.active { color: #ef4444; background: #2a1a1a; }
     .msg.thinking { color: #8a8a9a; font-style: italic; }
     footer {
         padding: 12px 16px;
@@ -129,6 +176,12 @@ class HexAIChatPanel extends HTMLElement {
         this._missionId = null;
         this._house = null;
         this._inFlight = false;
+        // TELEMETRY-001: track the most recent intervention so subsequent
+        // events (downvote, walkthrough_opened, tab_closed) can be joined
+        // to it server-side.
+        this._lastInterventionId = null;
+        this._lastInterventionTs = 0;
+        this._beforeUnloadHandler = null;
     }
 
     connectedCallback() {
@@ -147,6 +200,55 @@ class HexAIChatPanel extends HTMLElement {
         const initial = (ctx.initialPrompt || '').trim();
         if (initial && initial !== 'Ask me anything about this lab') {
             this.shadowRoot.querySelector('textarea').value = initial;
+        }
+
+        // TELEMETRY-001: tab_closed beacon. Fires when the student leaves
+        // the page after Dr. Hex has intervened in this session. Helps
+        // catch the "abandoned" outcome — see Constitution §19.1 premortem.
+        this._beforeUnloadHandler = () => {
+            if (this._lastInterventionId) {
+                const sinceMs = Date.now() - this._lastInterventionTs;
+                // Only emit if the intervention happened relatively recently
+                // (≤ 10 min) — otherwise the leaving is not tied to it.
+                if (sinceMs <= 10 * 60 * 1000) {
+                    _sendEngagementEvent('tab_closed', {
+                        mission_id: this._missionId,
+                        house: this._house,
+                        intervention_id: this._lastInterventionId,
+                        conversation_id: this._convId,
+                        metadata: { since_intervention_ms: sinceMs },
+                    });
+                }
+            }
+        };
+        window.addEventListener('beforeunload', this._beforeUnloadHandler);
+
+        // TELEMETRY-001: walkthrough_opened beacon. Document-level link
+        // listener catches clicks on links pointing to walkthrough docs.
+        // Best-effort — students who right-click → "open in new tab" are
+        // not counted, but that's fine; the metric is directional.
+        document.addEventListener('click', this._handleDocClick = (e) => {
+            const a = e.target && e.target.closest && e.target.closest('a[href]');
+            if (!a) return;
+            const href = a.getAttribute('href') || '';
+            if (/walkthrough|solution[s]?\//i.test(href)) {
+                _sendEngagementEvent('walkthrough_opened', {
+                    mission_id: this._missionId,
+                    house: this._house,
+                    intervention_id: this._lastInterventionId,
+                    conversation_id: this._convId,
+                    metadata: { href },
+                });
+            }
+        }, true);
+    }
+
+    disconnectedCallback() {
+        if (this._beforeUnloadHandler) {
+            window.removeEventListener('beforeunload', this._beforeUnloadHandler);
+        }
+        if (this._handleDocClick) {
+            document.removeEventListener('click', this._handleDocClick, true);
         }
     }
 
@@ -216,6 +318,54 @@ class HexAIChatPanel extends HTMLElement {
             meta.className = 'meta';
             meta.textContent = `${data.persona_name || 'Dr. Hex'} · ${data.help_level_label || ''} · ${Math.round((data.latency_ms || 0) / 1000)}s`;
             aiNode.appendChild(meta);
+
+            // TELEMETRY-001: intervention_sent + downvote UI.
+            const interventionId = crypto.randomUUID();
+            this._lastInterventionId = interventionId;
+            this._lastInterventionTs = Date.now();
+            _sendEngagementEvent('intervention_sent', {
+                mission_id: this._missionId,
+                house: this._house,
+                intervention_id: interventionId,
+                conversation_id: this._convId,
+                metadata: {
+                    help_level_label: data.help_level_label || null,
+                    response_length: (data.response || '').length,
+                    latency_ms: data.latency_ms || null,
+                },
+            });
+
+            // Downvote button — UI element to surface explicit student dissatisfaction.
+            const row = document.createElement('div');
+            row.className = 'downvote-row';
+            row.innerHTML = `<button type="button" class="downvote-btn" aria-label="Mark this response as unhelpful">unhelpful?</button>`;
+            const btn = row.querySelector('button');
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('active');
+                const active = btn.classList.contains('active');
+                _sendEngagementEvent(active ? 'downvote_response' : 'downvote_response_cleared', {
+                    mission_id: this._missionId,
+                    house: this._house,
+                    intervention_id: interventionId,
+                    conversation_id: this._convId,
+                });
+            });
+            aiNode.appendChild(row);
+
+            // Best-effort external_ai_signal: detect a copy of Dr. Hex's
+            // own response text. Students who copy the AI's answer to paste
+            // somewhere else (likely another AI) are a directional signal.
+            // The aiNode listener is removed when aiNode is GC'd with the
+            // panel.
+            aiNode.addEventListener('copy', () => {
+                _sendEngagementEvent('external_ai_signal', {
+                    mission_id: this._missionId,
+                    house: this._house,
+                    intervention_id: interventionId,
+                    conversation_id: this._convId,
+                    metadata: { signal: 'copied_dr_hex_response' },
+                });
+            });
         } catch (err) {
             thinkingNode.remove();
             const code = err.code || 'error';
