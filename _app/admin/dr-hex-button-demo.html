@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dr. Hex Mood-Ring Button — Demo (Admin)</title>
+    <link rel="icon" type="image/png" href="/assets/images/icons/hex-icon.webp">
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0d0d12;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        header { border-bottom: 1px solid #2a2a3a; padding-bottom: 16px; margin-bottom: 24px; }
+        h1 { margin: 0 0 4px; font-size: 1.4rem; }
+        .controls { background: #15151c; border: 1px solid #2a2a3a; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .controls h2 { margin: 0 0 10px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; color: #b0b0c0; }
+        button { background: #2a2a3a; color: #e0e0e0; border: 1px solid #3a3a4a; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; cursor: pointer; margin-right: 6px; margin-bottom: 6px; }
+        button:hover { background: #3a3a4a; }
+        button.danger { background: #4a2a2a; border-color: #6a3a3a; color: #ffacac; }
+        .auth-status { padding: 12px 16px; background: #2a2a3a; border-radius: 6px; margin-bottom: 16px; }
+        .log { background: #0d0d12; border: 1px solid #2a2a3a; border-radius: 6px; padding: 12px; font-family: ui-monospace, monospace; font-size: 0.82rem; max-height: 240px; overflow-y: auto; }
+        .log .ts { color: #8a8a9a; }
+        .log .l { color: #a0a0c0; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Dr. Hex Mood-Ring Button — Demo</h1>
+        <p style="color:#8a8a9a;margin:4px 0">Drive the floating button through its states by clicking the test buttons below. Real student traffic would drive these state changes via lab activity.</p>
+    </header>
+
+    <div id="auth-status" class="auth-status">Checking authentication…</div>
+
+    <div class="controls">
+        <h2>Lab simulation controls</h2>
+        <p style="font-size:0.85rem;color:#8a8a9a">Mission ID: <code>demo-mission-button</code></p>
+        <button id="simulate-attempt">Submit "incorrect" attempt</button>
+        <button id="simulate-capture">Submit successful capture (celebrate)</button>
+        <button id="simulate-reset" class="danger">Clear all attempts (reset)</button>
+        <button id="fetch-state">Manually re-fetch state</button>
+        <div style="margin-top:12px;font-size:0.85rem;color:#a0a0a0">Watch the floating button (bottom-right) — it should change color + pulse based on state.</div>
+    </div>
+
+    <div class="controls">
+        <h2>Activity log</h2>
+        <div id="log" class="log"></div>
+    </div>
+
+    <hex-ai-button mission-id="demo-mission-button" house="code"></hex-ai-button>
+
+    <script type="module">
+        import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged }
+            from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+        import { getFirestore, collection, addDoc, deleteDoc, query, where, getDocs, serverTimestamp, Timestamp }
+            from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M",
+            authDomain: "hexworth-prime.firebaseapp.com",
+            projectId: "hexworth-prime",
+            storageBucket: "hexworth-prime.firebasestorage.app",
+            messagingSenderId: "11726236962",
+            appId: "1:11726236962:web:1829ea0839f2587121497b"
+        };
+        const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const MISSION = 'demo-mission-button';
+
+        const $ = id => document.getElementById(id);
+        function log(msg) {
+            const ts = new Date().toLocaleTimeString();
+            $('log').insertAdjacentHTML('beforeend',
+                `<div><span class="ts">${ts}</span> <span class="l">${msg}</span></div>`);
+            $('log').scrollTop = $('log').scrollHeight;
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                $('auth-status').textContent = `Signed in as ${user.email}`;
+            } else {
+                $('auth-status').innerHTML = '<button id="signin">Sign in with Google</button>';
+                document.getElementById('signin').onclick = () =>
+                    signInWithPopup(auth, new GoogleAuthProvider()).catch(console.error);
+            }
+        });
+
+        $('simulate-attempt').addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) { log('not signed in'); return; }
+            await addDoc(collection(db, `users/${user.uid}/flag_attempts`), {
+                boxId: MISSION,
+                flagId: `demo-flag-${Math.floor(Math.random()*1e6)}`,
+                sessionId: 'demo-session',
+                timestamp: serverTimestamp(),
+            });
+            log('logged incorrect attempt');
+            // Trigger the button's event-driven refetch
+            window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+        });
+
+        $('simulate-capture').addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) { log('not signed in'); return; }
+            await addDoc(collection(db, `users/${user.uid}/flag_captures`), {
+                boxId: MISSION,
+                flagId: 'demo-flag-correct',
+                sessionId: 'demo-session',
+                capturedAt: serverTimestamp(),
+            });
+            log('logged capture');
+            window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+        });
+
+        $('simulate-reset').addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) { log('not signed in'); return; }
+            const aSnap = await getDocs(query(collection(db, `users/${user.uid}/flag_attempts`),
+                where('boxId', '==', MISSION)));
+            for (const d of aSnap.docs) await deleteDoc(d.ref);
+            const cSnap = await getDocs(query(collection(db, `users/${user.uid}/flag_captures`),
+                where('boxId', '==', MISSION)));
+            for (const d of cSnap.docs) await deleteDoc(d.ref);
+            log(`cleared ${aSnap.size} attempts + ${cSnap.size} captures`);
+            window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+        });
+
+        $('fetch-state').addEventListener('click', () => {
+            window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+            log('triggered manual state fetch');
+        });
+    </script>
+    <script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>

@@ -1015,6 +1015,201 @@ exports.hexAiSecurityEvent = onRequest({
     res.status(204).end();
 });
 
+/**
+ * hexAiAmbientState — server-side state computer for the floating
+ * Dr. Hex mood-ring button (v1, 2026-05-25).
+ *
+ * Reads recent flag_attempts + flag_captures for the calling student
+ * filtered by boxId == missionId, classifies recent activity into a
+ * state {calm | noticing | active | insistent | celebrating}, returns
+ * the state + color + pulse_ms + a state-appropriate suggested prompt.
+ *
+ * Architectural decisions (Nancy review 2026-05-25):
+ *  - Event-driven, not polled. Client fetches on page load + after each
+ *    lab attempt-submit event. State literally can't change between
+ *    attempts so polling is redundant.
+ *  - Per-mission scoping. Both attempt collections are filtered by
+ *    boxId server-side. Cross-lab contamination impossible.
+ *  - State transitions write to dr_hex_security_events as
+ *    'ambient_state_changed' so instructors get forensic visibility.
+ *    Mood ring is for student; events are for instructor.
+ *  - Drops gate_attempts + activation_attempts from v1 — neither has
+ *    a mission_id field. Schema change is its own piece of work.
+ *
+ * Auth: requires signed-in Firebase user (onCall). The user_uid is
+ * derived from request.auth.uid (never client-supplied) so cross-user
+ * peeking is structurally impossible.
+ *
+ * Request (callable):
+ *   { mission_id: "lab-py-01", previous_state: "calm" | null }
+ *
+ * Response:
+ *   {
+ *     state: "calm" | "noticing" | "active" | "insistent" | "celebrating",
+ *     color: "#hex",
+ *     pulse_ms: 0 | 4000 | 2000 | 1000 | 700,   // 0 = no pulse
+ *     suggested_prompt: "...",
+ *     transitioned: true | false,
+ *     window_summary: {
+ *       attempts_5min: int, incorrect_5min: int,
+ *       attempts_10min: int, incorrect_10min: int,
+ *       captures_60s: int, captures_20min: int,
+ *     }
+ *   }
+ */
+exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    const data = request.data || {};
+    const missionId = (data.mission_id || '').toString().trim();
+    if (!missionId || !/^[a-zA-Z0-9_\-]{1,64}$/.test(missionId)) {
+        throw new HttpsError('invalid-argument', 'mission_id required (alphanum/_/- ≤64)');
+    }
+    const previousState = data.previous_state || null;
+
+    const uid = request.auth.uid;
+    const now = Date.now();
+    const since5min  = new Date(now - 5 * 60 * 1000);
+    const since10min = new Date(now - 10 * 60 * 1000);
+    const since20min = new Date(now - 20 * 60 * 1000);
+    const since60s   = new Date(now - 60 * 1000);
+
+    // Read both attempt collections in parallel, scoped per-mission.
+    const [attemptsSnap, capturesSnap] = await Promise.all([
+        db.collection(`users/${uid}/flag_attempts`)
+            .where('boxId', '==', missionId)
+            .where('timestamp', '>=', since20min)
+            .orderBy('timestamp', 'desc')
+            .limit(50)
+            .get(),
+        db.collection(`users/${uid}/flag_captures`)
+            .where('boxId', '==', missionId)
+            .where('capturedAt', '>=', since20min)
+            .orderBy('capturedAt', 'desc')
+            .limit(20)
+            .get(),
+    ]);
+
+    const attempts = attemptsSnap.docs.map(d => ({
+        ts: d.data().timestamp?.toMillis ? d.data().timestamp.toMillis() : 0,
+        flagId: d.data().flagId,
+    })).filter(a => a.ts > 0);
+
+    const captures = capturesSnap.docs.map(d => ({
+        ts: d.data().capturedAt?.toMillis ? d.data().capturedAt.toMillis() : 0,
+        flagId: d.data().flagId,
+    })).filter(c => c.ts > 0);
+
+    // An "incorrect attempt" = a flag_attempts entry whose flagId was
+    // never captured (captures with that flagId for this mission).
+    // For attempts with no flagId or flagId='__scan__', count as incorrect
+    // (no progress signal). Captures-set covers all of mission history,
+    // not just the 20-min window — a successful capture at any prior
+    // point disqualifies subsequent attempts on that flagId from
+    // counting as incorrect.
+    //
+    // To keep this read-light, we also pull ALL captures (mission-wide)
+    // separately. This is a small additional read; tradeoff acceptable.
+    const allCapturesSnap = await db.collection(`users/${uid}/flag_captures`)
+        .where('boxId', '==', missionId)
+        .limit(50)
+        .get();
+    const capturedFlagIds = new Set(
+        allCapturesSnap.docs.map(d => d.data().flagId).filter(Boolean)
+    );
+
+    const isIncorrect = (a) => {
+        if (!a.flagId || a.flagId === '__scan__') return true;
+        return !capturedFlagIds.has(a.flagId);
+    };
+
+    const attempts5  = attempts.filter(a => a.ts >= since5min.getTime());
+    const attempts10 = attempts.filter(a => a.ts >= since10min.getTime());
+    const captures60s = captures.filter(c => c.ts >= since60s.getTime());
+
+    const incorrect5  = attempts5.filter(isIncorrect).length;
+    const incorrect10 = attempts10.filter(isIncorrect).length;
+    const incorrect20 = attempts.filter(isIncorrect).length;
+
+    // Most-recent attempt classification — used for "regress to calm
+    // on correct" rule
+    const mostRecentAttempt = attempts[0] || null;
+    const mostRecentWasCorrect = mostRecentAttempt && !isIncorrect(mostRecentAttempt);
+
+    // ─── State machine ──────────────────────────────────────────
+    let state;
+    if (captures60s.length > 0) {
+        state = 'celebrating';
+    } else if (attempts.length === 0 || mostRecentWasCorrect) {
+        state = 'calm';
+    } else if (incorrect20 >= 6 && captures.length === 0) {
+        state = 'insistent';
+    } else if (incorrect10 >= 4 && captures.length === 0) {
+        state = 'active';
+    } else if (incorrect5 >= 2) {
+        state = 'noticing';
+    } else {
+        state = 'calm';
+    }
+
+    const STATE_CONFIG = {
+        calm:         { color: '#67e8f9', pulse_ms: 0,    suggested_prompt: 'Ask me anything about this lab' },
+        noticing:     { color: '#fbbf24', pulse_ms: 4000, suggested_prompt: 'Hint?' },
+        active:       { color: '#fb923c', pulse_ms: 2000, suggested_prompt: 'Want a hint on what to try next?' },
+        insistent:    { color: '#ef4444', pulse_ms: 700,  suggested_prompt: 'Let\'s pair on this — click here' },
+        celebrating:  { color: '#a78bfa', pulse_ms: 1500, suggested_prompt: 'Nice — onto the next?' },
+    };
+    const cfg = STATE_CONFIG[state];
+
+    // Forensics: log state transitions (not every call) to security events
+    const transitioned = previousState && previousState !== state;
+    if (transitioned) {
+        try {
+            await db.collection('dr_hex_security_events').add({
+                event_type: 'ambient_state_changed',
+                severity: state === 'insistent' ? 'warning' : 'info',
+                uid_hash: require('crypto').createHash('sha256').update(uid).digest('hex').slice(0, 16),
+                msg_hash: null,
+                conversation_id_hash: null,
+                pattern_id: null,
+                lockout_count: null,
+                tool_name: null,
+                latency_ms: null,
+                metadata: {
+                    mission_id: missionId,
+                    from_state: previousState,
+                    to_state: state,
+                    incorrect_5min: incorrect5,
+                    incorrect_10min: incorrect10,
+                    incorrect_20min: incorrect20,
+                    captures_60s: captures60s.length,
+                },
+                ts: FieldValue.serverTimestamp(),
+                ts_iso: new Date().toISOString(),
+            });
+        } catch (e) {
+            console.warn('hexAiAmbientState: state-change event log failed:', e.message);
+        }
+    }
+
+    return {
+        state,
+        color: cfg.color,
+        pulse_ms: cfg.pulse_ms,
+        suggested_prompt: cfg.suggested_prompt,
+        transitioned,
+        window_summary: {
+            attempts_5min: attempts5.length,
+            incorrect_5min: incorrect5,
+            attempts_10min: attempts10.length,
+            incorrect_10min: incorrect10,
+            captures_60s: captures60s.length,
+            captures_20min: captures.length,
+        },
+    };
+});
+
 exports.hexAiHealth = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
