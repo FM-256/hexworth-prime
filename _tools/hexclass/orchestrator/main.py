@@ -74,6 +74,11 @@ from tools.error_sanitizer import (
     sanitize_tool_error_for_model,
     sanitize_tool_error_for_browser,
 )
+from tools.request_filter import (
+    detect_encoding_bypass,
+    hash_for_log,
+    CANNED_REFUSAL as ENCODING_BYPASS_REFUSAL,
+)
 import conversation
 
 logging.basicConfig(
@@ -339,7 +344,12 @@ async def call_ollama_blocking(
     ])
     tool_invocations: list[dict] = []
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    # 60s ollama ceiling (was 120s) — drhex-q-policy DoS finding
+    # 2026-05-25. Adversarial-suite latency data: p95 of legit requests
+    # is 49s, max non-timeout 49s. 60s gives 22% headroom while halving
+    # the DoS surface for unbounded-length / clever-rephrasing attacks
+    # that the request_filter regex misses.
+    async with httpx.AsyncClient(timeout=60.0) as client:
         for iteration in range(MAX_TOOL_ITERATIONS):
             payload = {
                 "model": model,
@@ -495,7 +505,12 @@ async def stream_ollama(
         {"role": "system", "content": CONSTITUTION},
     ])
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    # 60s ollama ceiling (was 120s) — drhex-q-policy DoS finding
+    # 2026-05-25. Adversarial-suite latency data: p95 of legit requests
+    # is 49s, max non-timeout 49s. 60s gives 22% headroom while halving
+    # the DoS surface for unbounded-length / clever-rephrasing attacks
+    # that the request_filter regex misses.
+    async with httpx.AsyncClient(timeout=60.0) as client:
         for iteration in range(MAX_TOOL_ITERATIONS if use_tools else 1):
             payload = {
                 "model": model,
@@ -918,6 +933,29 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
             redact_uid(req.user_uid), req.house, persona["name"], level, model,
             len(retrieved), len(tools_list), len(prior_turns),
         )
+        # Encoding-bypass DoS defense (drhex-q-policy, observation
+        # DEfP4bXreXA8Il2wg8Wh): short-circuit known attack shapes
+        # BEFORE ollama is called. Imperative-anchored detection so
+        # legitimate "what is base64?" curriculum questions pass through.
+        # Coverage is incomplete by design — this is one layer; the
+        # 60s ollama timeout (below) bounds unbounded vectors.
+        bypass_hit, bypass_pid = detect_encoding_bypass(req.message)
+        if bypass_hit:
+            log.warning(
+                "filter: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s",
+                hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid,
+            )
+            metrics.record_chat(persona_slug, level, time.time() - t0)
+            return ChatResponse(
+                response=ENCODING_BYPASS_REFUSAL,
+                persona=persona_slug,
+                persona_name=persona["name"],
+                help_level=level,
+                help_level_label=LEVEL_DEFINITIONS[level]["label"],
+                model="filter:request_filter",
+                latency_ms=int((time.time() - t0) * 1000),
+                context_packet=None,
+            )
         try:
             content, tool_invocations = await call_ollama_blocking(
                 model, system, augmented_msg,
@@ -1004,6 +1042,21 @@ async def chat_stream(
                 "tools_visible": len(tools_list),     # v0.6.0c-1 — count only
             }
             yield f"data: {json.dumps(meta)}\n\n"
+
+            # Encoding-bypass DoS defense for the streaming path. Same
+            # filter as /chat — short-circuit known attack shapes before
+            # opening the ollama stream so we don't pin GPU on a 60s
+            # request we can refuse in microseconds.
+            bypass_hit, bypass_pid = detect_encoding_bypass(req.message)
+            if bypass_hit:
+                log.warning(
+                    "filter/stream: encoding-bypass blocked uid_hash=%s msg_hash=%s pattern=%s",
+                    hash_for_log(req.user_uid), hash_for_log(req.message, 32), bypass_pid,
+                )
+                yield f"data: {json.dumps({'type': 'token', 'content': ENCODING_BYPASS_REFUSAL})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'latency_ms': int((time.time() - t0) * 1000), 'model': 'filter:request_filter'})}\n\n"
+                return
+
             full_content_chunks: list[str] = []
             try:
                 async for event_type, payload in stream_ollama(
