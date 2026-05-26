@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 4 Lecture Companion | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 16px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 28px 36px 78px; overflow: hidden;
+            animation: slideIn 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(28px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .slide-inner { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 18px; }
+
+        /* progress + nav */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #a855f7 0%, #06b6d4 100%);
+            transition: width 0.45s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+            background: rgba(2, 8, 20, 0.95); border-top: 1px solid rgba(168, 85, 247, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 9px 24px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(168, 85, 247, 0.15); color: #c084fc; border-color: #a855f7; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.84rem; padding: 9px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.84rem; min-width: 100px; text-align: center; }
+
+        #complete-btn { display: none; background: #a855f7; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        #complete-btn:hover { background: #c084fc; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(168, 85, 247, 0.35); }
+
+        /* typography */
+        .slide-meta { font-size: 0.78rem; color: #a855f7; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; opacity: 0.8; }
+        .slide-title { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; text-align: center; line-height: 1.18; }
+        .slide-title .accent        { color: #a855f7; }
+        .slide-title .accent-cyan   { color: #06b6d4; }
+        .slide-title .accent-gold   { color: #eab308; }
+        .slide-title .accent-red    { color: #ef4444; }
+        .slide-title .accent-green  { color: #22c55e; }
+        .slide-title .accent-blue   { color: #3b82f6; }
+        .slide-subtitle { font-size: 1.05rem; color: #94a3b8; text-align: center; max-width: 880px; margin: 0 auto; }
+
+        /* hero title slide */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 3rem; font-weight: 900; color: #f1f5f9; line-height: 1.12; letter-spacing: -0.01em; }
+        .title-hero .big-title .accent { color: #a855f7; }
+        .title-hero .lead { font-size: 1.2rem; color: #94a3b8; max-width: 720px; }
+        .title-meta-row { display: flex; gap: 32px; justify-content: center; margin-top: 12px; font-size: 0.85rem; color: #64748b; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* cards */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 16px 18px; border-left: 3px solid #a855f7;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        .slide.active .card:nth-child(1) { animation-delay: 0.18s; }
+        .slide.active .card:nth-child(2) { animation-delay: 0.32s; }
+        .slide.active .card:nth-child(3) { animation-delay: 0.46s; }
+        .slide.active .card:nth-child(4) { animation-delay: 0.60s; }
+
+        .card .card-label { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.9rem; color: #94a3b8; line-height: 1.5; }
+        .card.c-purple { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.04); }
+        .card.c-blue   { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.04); }
+        .card.c-red    { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.04); }
+        .card.c-gold   { border-left-color: #eab308; background: rgba(234, 179, 8, 0.04); }
+        .card.c-cyan   { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.04); }
+        .card.c-green  { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.04); }
+        .card.c-orange { border-left-color: #f97316; background: rgba(249, 115, 22, 0.04); }
+
+        /* callouts */
+        .scenario-strip {
+            background: rgba(168, 85, 247, 0.06); border-left: 3px solid #a855f7;
+            border-radius: 0 8px 8px 0; padding: 12px 18px;
+            font-size: 0.95rem; color: #e9d5ff; font-style: italic; line-height: 1.55;
+        }
+        .box { border-radius: 8px; padding: 14px 18px; font-size: 0.92rem; }
+        .box-blue   { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green  { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red    { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold   { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-purple { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.75; }
+
+        /* agenda rows */
+        .agenda-row {
+            display: grid; grid-template-columns: 60px 1fr auto; gap: 18px;
+            align-items: center; padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            border-left: 3px solid #a855f7;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        .agenda-num { font-size: 1.8rem; font-weight: 800; color: #a855f7; text-align: center; opacity: 0.7; }
+        .agenda-text { display: flex; flex-direction: column; gap: 2px; }
+        .agenda-text .agenda-title { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+        .agenda-text .agenda-sub   { font-size: 0.85rem; color: #94a3b8; }
+        .slide.active .agenda-row:nth-child(1) { animation-delay: 0.20s; }
+        .slide.active .agenda-row:nth-child(2) { animation-delay: 0.36s; }
+        .slide.active .agenda-row:nth-child(3) { animation-delay: 0.52s; }
+        .slide.active .agenda-row:nth-child(4) { animation-delay: 0.68s; }
+
+        /* diagram */
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 6px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+
+        /* animations */
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+        /* fact rows */
+        .summary-facts { display: flex; flex-direction: column; gap: 8px; }
+        .fact-row { display: flex; gap: 14px; align-items: baseline; font-size: 0.95rem; opacity: 0; animation: cardIn 0.45s ease-out forwards; }
+        .fact-num  { font-size: 0.85rem; font-weight: 800; color: #a855f7; min-width: 26px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.55; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #a855f7; background: rgba(168, 85, 247, 0.08); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; }
+        .slide.active .fact-row:nth-child(1)  { animation-delay: 0.14s; }
+        .slide.active .fact-row:nth-child(2)  { animation-delay: 0.24s; }
+        .slide.active .fact-row:nth-child(3)  { animation-delay: 0.34s; }
+        .slide.active .fact-row:nth-child(4)  { animation-delay: 0.44s; }
+        .slide.active .fact-row:nth-child(5)  { animation-delay: 0.54s; }
+        .slide.active .fact-row:nth-child(6)  { animation-delay: 0.64s; }
+        .slide.active .fact-row:nth-child(7)  { animation-delay: 0.74s; }
+        .slide.active .fact-row:nth-child(8)  { animation-delay: 0.84s; }
+        .slide.active .fact-row:nth-child(9)  { animation-delay: 0.94s; }
+        .slide.active .fact-row:nth-child(10) { animation-delay: 1.04s; }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 12px; } .slide-title { font-size: 1.7rem; } .title-hero .big-title { font-size: 2.2rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-2, .card-grid-4 { grid-template-columns: 1fr; } .slide-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Week 4 Lecture Companion | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:5.26%"></div>
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Lecture Companion &nbsp;|&nbsp; Week 4 of 8 &nbsp;|&nbsp; CompTIA SY0-701</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Who Gets In.<br>
+                <span class="accent">How You Know. What You Do.</span>
+            </div>
+            <div class="lead">
+                Authentication and identity management, risk governance, and incident response. Four domains that answer the three most consequential questions in security operations: who is allowed, how are risks decided, and what happens when controls fail.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>~40 min</span>
+            <span>4 sub-topics</span>
+            <span>Lecture pace</span>
+        </div>
+        <div class="scenario-strip" style="margin-top:14px;">
+            This deck is the instructor companion. The four drilldown decks (Authentication, Identity Management, Risk Governance, Incident Response) hold the mechanism detail. This deck holds the throughline &mdash; how identity, governance, and response form one coherent system, and what a working analyst carries out of Week 4 into any security role.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 2 — WEEK AHEAD ============ -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19 &nbsp;|&nbsp; The Week Ahead</div>
+        <div class="slide-title">Four Sub-Topics, <span class="accent">One Control Layer</span></div>
+        <div class="slide-subtitle">Week 4 is the identity and governance week. Every decision here answers a structural question that the Week 3 architecture assumed was already solved.</div>
+
+        <div class="agenda-row">
+            <div class="agenda-num">01</div>
+            <div class="agenda-text">
+                <div class="agenda-title">Authentication &amp; Access Protocols</div>
+                <div class="agenda-sub">MFA factors, SSO, SAML 2.0, OAuth 2.0, OIDC, Kerberos, LDAP/AD. The mechanism that proves who is at the door.</div>
+            </div>
+        </div>
+        <div class="agenda-row">
+            <div class="agenda-num">02</div>
+            <div class="agenda-text">
+                <div class="agenda-title">Identity and Account Management</div>
+                <div class="agenda-sub">Least privilege, RBAC, ABAC, PAM, account lifecycle. The rules that decide what an authenticated identity is allowed to do.</div>
+            </div>
+        </div>
+        <div class="agenda-row">
+            <div class="agenda-num">03</div>
+            <div class="agenda-text">
+                <div class="agenda-title">Risk Management &amp; Governance</div>
+                <div class="agenda-sub">Risk quantification, NIST CSF 2.0, NIST RMF, ISO 27001, HIPAA, GDPR. The framework that decides which risks the organization accepts, transfers, or treats.</div>
+            </div>
+        </div>
+        <div class="agenda-row">
+            <div class="agenda-num">04</div>
+            <div class="agenda-text">
+                <div class="agenda-title">Incident Response &amp; Recovery</div>
+                <div class="agenda-sub">NIST SP 800-61 lifecycle, CSIRT, forensic preservation, BCP/DR. The response machinery that runs when authentication, identity, and governance controls have failed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3 — THE AUTHENTICATION PROBLEM ============ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19 &nbsp;|&nbsp; Topic 1: Authentication</div>
+        <div class="slide-title">The <span class="accent-red">Authentication Problem</span> Is Unsolved</div>
+        <div class="slide-subtitle">Authentication has one job: prove that the entity claiming an identity is actually that entity. Every authentication failure in history is a variation of the same problem: the proof was insufficient.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 165" width="720" height="165" xmlns="http://www.w3.org/2000/svg">
+                <!-- Problem column -->
+                <rect x="10" y="10" width="220" height="145" rx="8" fill="rgba(239,68,68,0.04)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,3"/>
+                <text x="120" y="30" text-anchor="middle" fill="#ef4444" font-family="Segoe UI" font-size="11" font-weight="700" opacity="0.85">THE FAILURES</text>
+
+                <rect x="22" y="40" width="196" height="28" rx="4" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="0.8"/>
+                <text x="120" y="53" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9" font-weight="700">Credential Stuffing</text>
+                <text x="120" y="63" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Reused passwords + breach databases</text>
+
+                <rect x="22" y="76" width="196" height="28" rx="4" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="0.8"/>
+                <text x="120" y="89" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9" font-weight="700">Phishing / AiTM</text>
+                <text x="120" y="99" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Steal session token, bypass MFA</text>
+
+                <rect x="22" y="112" width="196" height="28" rx="4" fill="rgba(239,68,68,0.07)" stroke="#ef4444" stroke-width="0.8"/>
+                <text x="120" y="125" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9" font-weight="700">MFA Fatigue / Push Bombing</text>
+                <text x="120" y="135" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Flood push approvals until user accepts</text>
+
+                <!-- Arrow -->
+                <polygon points="238,82 260,75 260,89" fill="#a855f7" opacity="0.7"/>
+
+                <!-- Solution column -->
+                <rect x="268" y="10" width="440" height="145" rx="8" fill="rgba(168,85,247,0.04)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="488" y="30" text-anchor="middle" fill="#a855f7" font-family="Segoe UI" font-size="11" font-weight="700" opacity="0.85">THE SPECTRUM OF MITIGATIONS</text>
+
+                <!-- Factor row: know -->
+                <rect x="280" y="40" width="120" height="28" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="340" y="52" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">Something You Know</text>
+                <text x="340" y="63" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Password, PIN &mdash; weakest alone</text>
+
+                <rect x="412" y="40" width="120" height="28" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="472" y="52" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="9" font-weight="700">Something You Have</text>
+                <text x="472" y="63" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">TOTP, FIDO2 key, smart card</text>
+
+                <rect x="544" y="40" width="120" height="28" rx="4" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="604" y="52" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="9" font-weight="700">Something You Are</text>
+                <text x="604" y="63" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Biometric &mdash; cannot be rotated</text>
+
+                <!-- MFA row -->
+                <rect x="280" y="80" width="384" height="28" rx="4" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="472" y="93" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="10" font-weight="700">MFA: Require 2+ factors from different categories</text>
+                <text x="472" y="105" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Credential theft alone no longer sufficient for access</text>
+
+                <!-- FIDO2 row -->
+                <rect x="280" y="118" width="186" height="28" rx="4" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="373" y="130" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="9" font-weight="700">FIDO2 / Passkeys</text>
+                <text x="373" y="141" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Phishing-resistant by design. AiTM cannot steal</text>
+
+                <rect x="476" y="118" width="186" height="28" rx="4" fill="rgba(249,115,22,0.08)" stroke="#f97316" stroke-width="1"/>
+                <text x="569" y="130" text-anchor="middle" fill="#fed7aa" font-family="Segoe UI" font-size="9" font-weight="700">Number Matching / Context</text>
+                <text x="569" y="141" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Defeats push bombing &mdash; user must confirm code</text>
+            </svg>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">The structural insight for Week 4</div>
+            Authentication failures are not configuration errors &mdash; they are architectural choices that made the proof too weak for the threat environment. Week 4's authentication domain is about choosing the right proof for the threat model, not about adding controls until something sticks. NIST SP 800-63B Digital Identity Guidelines defines assurance levels (AAL1/AAL2/AAL3) to match proof strength to risk.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 4 — MFA MECHANISMS AND HIERARCHY ============ -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">MFA Mechanism <span class="accent">Hierarchy</span></div>
+        <div class="slide-subtitle">Not all MFA is equal. The mechanism determines the attack surface. Choosing MFA means choosing which attacks you are still vulnerable to.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">SMS OTP &mdash; Weakest</div>
+                <div class="card-desc">One-time code delivered by SMS. Vulnerable to SIM-swap attacks, SS7 interception, and social engineering of carrier support staff. NIST SP 800-63B classifies SMS OTP as a restricted authenticator (AAL1 only) specifically because of SS7 protocol weaknesses. Still better than password-alone; still phishable through real-time proxy attacks.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">TOTP (RFC 6238) &mdash; Moderate</div>
+                <div class="card-desc">Time-based one-time password generated by an authenticator app (Google Authenticator, Authy, Microsoft Authenticator). HMAC-SHA1 over the current 30-second time window. Not phishing-resistant: an adversary-in-the-middle site can relay the code in real time before it expires. Defeated by real-time AiTM phishing kits (Evilginx2, Modlishka).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">FIDO2 / WebAuthn &mdash; Strongest</div>
+                <div class="card-desc">Public-key cryptography bound to the origin domain (rpId). The authenticator signs a challenge from the specific relying party. A phishing site at <code>login.bank-secure.com</code> cannot receive a valid FIDO2 assertion intended for <code>bank.com</code> &mdash; the origin binding makes relay impossible. NIST SP 800-63B classifies hardware FIDO2 as AAL3.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The exam question the drilldown deck answers in depth</div>
+            Why is FIDO2 phishing-resistant when TOTP is not? The answer is origin binding. TOTP generates a code the user types; that code can be relayed. FIDO2 generates a signature over a challenge that includes the relying party's origin; the signature is cryptographically invalid for any origin other than the one it was generated for. The attacker cannot relay what they cannot forge.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 5 — SSO AND FEDERATED IDENTITY ============ -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">SSO and <span class="accent-cyan">Federated Identity</span></div>
+        <div class="slide-subtitle">Single sign-on reduces authentication friction. Federated identity extends that trust across organizational boundaries. The trade-off in both cases is blast radius: one compromised session reaches everything the identity is authorized to access.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 150" width="720" height="150" xmlns="http://www.w3.org/2000/svg">
+                <!-- IdP -->
+                <rect x="10" y="55" width="130" height="40" rx="6" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="75" y="72" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="11" font-weight="700">Identity Provider</text>
+                <text x="75" y="86" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Okta / Azure AD / Ping</text>
+
+                <!-- Assertion arrow right -->
+                <line x1="140" y1="75" x2="210" y2="75" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+                <text x="175" y="70" text-anchor="middle" fill="#a855f7" font-family="Segoe UI" font-size="8" font-weight="700">SAML Assertion</text>
+                <text x="175" y="82" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="7">/ OIDC token</text>
+
+                <!-- SP 1 -->
+                <rect x="218" y="20" width="110" height="32" rx="5" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="273" y="33" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">Salesforce</text>
+                <text x="273" y="44" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Service Provider 1</text>
+
+                <!-- SP 2 -->
+                <rect x="218" y="60" width="110" height="32" rx="5" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="273" y="73" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="9" font-weight="700">Confluence</text>
+                <text x="273" y="84" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Service Provider 2</text>
+
+                <!-- SP 3 -->
+                <rect x="218" y="100" width="110" height="32" rx="5" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1"/>
+                <text x="273" y="113" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="9" font-weight="700">AWS Console</text>
+                <text x="273" y="124" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Service Provider 3</text>
+
+                <!-- Lines from IdP arrow to SPs -->
+                <line x1="210" y1="36" x2="218" y2="36" stroke="#3b82f6" stroke-width="0.8" opacity="0.5"/>
+                <line x1="210" y1="76" x2="218" y2="76" stroke="#06b6d4" stroke-width="0.8" opacity="0.5"/>
+                <line x1="210" y1="116" x2="218" y2="116" stroke="#22c55e" stroke-width="0.8" opacity="0.5"/>
+                <line x1="210" y1="36" x2="210" y2="116" stroke="#a855f7" stroke-width="0.8" opacity="0.3"/>
+
+                <!-- Session token note -->
+                <rect x="370" y="55" width="150" height="40" rx="6" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1" stroke-dasharray="4,2"/>
+                <text x="445" y="71" text-anchor="middle" fill="#fde68a" font-family="Segoe UI" font-size="9" font-weight="700">One session cookie</text>
+                <text x="445" y="84" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Valid for all SPs until expiry</text>
+
+                <!-- Blast radius note -->
+                <rect x="540" y="30" width="170" height="90" rx="6" fill="rgba(239,68,68,0.05)" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,2"/>
+                <text x="625" y="48" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9" font-weight="700">BLAST RADIUS</text>
+                <text x="625" y="62" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Credential compromise</text>
+                <text x="625" y="74" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">= access to ALL SPs</text>
+                <text x="625" y="90" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="8">Session hijack = same.</text>
+                <text x="625" y="102" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Strong IdP auth is critical.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">SAML 2.0: XML Assertions</div>
+                <div class="card-desc">Exchanges signed XML assertions between IdP and SP. SP-initiated flow: user hits SP, SP redirects to IdP with AuthnRequest, IdP authenticates, returns signed Assertion to SP via HTTP POST. The assertion contains attributes (email, role) the SP uses for authorization. Signature validation is mandatory; skipping it breaks the trust chain.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">OAuth 2.0 + OIDC: Token Flow</div>
+                <div class="card-desc">OAuth 2.0 is an authorization framework (delegated access), not an authentication protocol. OIDC adds the ID Token (JWT) to provide authentication on top of OAuth 2.0. The ID Token contains identity claims (sub, email, iss, iat, exp). Authorization Code + PKCE is the recommended flow for web and native apps. Use OIDC for authentication; use OAuth 2.0 scopes for resource access.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Kerberos: Ticket-Based Enterprise</div>
+                <div class="card-desc">Active Directory's native authentication protocol. KDC issues TGT at login; client exchanges TGT for service tickets to specific services without re-entering credentials. Tickets are time-bounded (default 10 hours). Kerberoasting targets service account SPNs to extract ticket hashes for offline cracking. Pass-the-Ticket attacks replay stolen tickets from memory.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 6 — IDENTITY ACCESS CONTROL MODEL ============ -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19 &nbsp;|&nbsp; Topic 2: Identity Management</div>
+        <div class="slide-title">Access Control <span class="accent">Models: How Permissions Are Decided</span></div>
+        <div class="slide-subtitle">Authentication answers "who is this." Access control answers "what are they allowed to do." The model determines the mechanism, the audit surface, and the failure mode when over-permissioning occurs.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 130" width="720" height="130" xmlns="http://www.w3.org/2000/svg">
+                <!-- DAC -->
+                <rect x="10" y="20" width="158" height="90" rx="7" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="89" y="40" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="11" font-weight="700">DAC</text>
+                <text x="89" y="55" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Resource owner decides</text>
+                <text x="89" y="68" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">ACLs on files/objects</text>
+                <text x="89" y="82" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Linux chmod / NTFS ACL</text>
+                <text x="89" y="98" text-anchor="middle" fill="#ef4444" font-family="Segoe UI" font-size="8" font-style="italic">Risk: delegation creep</text>
+
+                <!-- MAC -->
+                <rect x="180" y="20" width="158" height="90" rx="7" fill="rgba(234,179,8,0.05)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="259" y="40" text-anchor="middle" fill="#fde68a" font-family="Segoe UI" font-size="11" font-weight="700">MAC</text>
+                <text x="259" y="55" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Policy-defined labels</text>
+                <text x="259" y="68" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Bell-LaPadula: no read up</text>
+                <text x="259" y="82" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">SELinux / MLS / gov systems</text>
+                <text x="259" y="98" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="8" font-style="italic">Strong confidentiality</text>
+
+                <!-- RBAC -->
+                <rect x="350" y="20" width="158" height="90" rx="7" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="429" y="40" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="11" font-weight="700">RBAC</text>
+                <text x="429" y="55" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Permissions to roles</text>
+                <text x="429" y="68" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">User assigned to role</text>
+                <text x="429" y="82" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">AD groups / IAM roles</text>
+                <text x="429" y="98" text-anchor="middle" fill="#eab308" font-family="Segoe UI" font-size="8" font-style="italic">Risk: privilege creep</text>
+
+                <!-- ABAC -->
+                <rect x="520" y="20" width="190" height="90" rx="7" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="615" y="40" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="11" font-weight="700">ABAC</text>
+                <text x="615" y="55" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Attribute-based policies</text>
+                <text x="615" y="68" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">if dept=Finance AND time=business</text>
+                <text x="615" y="80" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">hours then allow &rarr; deny</text>
+                <text x="615" y="98" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="8" font-style="italic">Flexible, complex to audit</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Least Privilege Is Not a Configuration</div>
+                <div class="card-desc">Least privilege means each identity has exactly the permissions required to perform its function, no more. The failure mode is privilege creep: over time, roles accumulate permissions that were temporarily granted and never revoked. Access reviews (quarterly or triggered by role change) are the operational control that enforces least privilege across the account lifecycle.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PAM: Privileged Access Management</div>
+                <div class="card-desc">Privileged accounts (domain admin, root, service accounts with broad permissions) require elevated controls: vaulted credentials rotated after every use, just-in-time provisioning (access granted only for the duration of the task), session recording, and approval workflows. CyberArk, BeyondTrust, and HashiCorp Vault are common PAM platforms. Without PAM, compromised admin credentials have no expiry and no visibility.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 7 — ACCOUNT LIFECYCLE ============ -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19</div>
+        <div class="slide-title">Account Lifecycle: <span class="accent-red">Joiner, Mover, Leaver</span></div>
+        <div class="slide-subtitle">Identity management is only as strong as the process that handles transitions. The majority of insider threat cases and post-breach forensic findings involve accounts that should have been deprovisioned or modified and were not.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Joiner: Provisioning</div>
+                <div class="card-desc">New employee. Account created with a role-appropriate baseline set of permissions. Process must be driven by HRIS data, not manual IT requests, to prevent over-provisioning. User receives least-privilege access for their role on day one. No "copy user A's permissions to user B" &mdash; that propagates every permission A ever accumulated, including ones they should not have had.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Mover: Transfer / Promotion</div>
+                <div class="card-desc">Employee changes role or department. The correct action is: revoke old-role permissions, add new-role permissions. The common failure: add new-role permissions without revoking old ones. Result: the user accumulates permissions from every role they have ever held. This is privilege creep at scale and is the source of most over-privileged user accounts found in incident investigations.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Leaver: Deprovisioning</div>
+                <div class="card-desc">Employee terminates. Account must be disabled (not just password-reset) within hours of departure, ideally triggered by HRIS termination event with no manual step required. Disabled means: AD account disabled, active sessions revoked (IdP session invalidation, Kerberos ticket expiry), email rerouted, MFA devices deregistered. Orphan accounts &mdash; active accounts with no current user &mdash; are a primary attack vector for initial access via credential spray.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A 2023 vetting study of enterprise AD environments found that 23% of active user accounts belonged to former employees who had been terminated. Those accounts retained full access to file shares, internal applications, and email. The accounts had not been audited because the deprovisioning process was manual and dependent on HR notifying IT by email. Automation is the only reliable fix.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 8 — RISK FUNDAMENTALS ============ -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19 &nbsp;|&nbsp; Topic 3: Risk Governance</div>
+        <div class="slide-title">Risk Is a <span class="accent-gold">Formula, Not a Feeling</span></div>
+        <div class="slide-subtitle">Risk management is the discipline of making defensible decisions about uncertainty. The language is precise: threat, vulnerability, likelihood, impact. Conflating them produces unreliable risk assessments.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 120" width="720" height="120" xmlns="http://www.w3.org/2000/svg">
+                <!-- Risk formula -->
+                <rect x="10" y="20" width="700" height="80" rx="8" fill="rgba(234,179,8,0.04)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="360" y="42" text-anchor="middle" fill="#fde68a" font-family="Segoe UI" font-size="13" font-weight="800">Risk = Likelihood x Impact</text>
+                <text x="360" y="60" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">Where Likelihood = f(Threat, Vulnerability) and Impact = f(Asset Value, Business Consequence)</text>
+
+                <!-- Expanded components -->
+                <rect x="30"  y="70" width="140" height="22" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="100" y="85" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9" font-weight="700">THREAT: external / internal agent</text>
+
+                <rect x="188" y="70" width="150" height="22" rx="4" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1"/>
+                <text x="263" y="85" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="9" font-weight="700">VULNERABILITY: exploitable weakness</text>
+
+                <rect x="352" y="70" width="150" height="22" rx="4" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1"/>
+                <text x="427" y="85" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="9" font-weight="700">LIKELIHOOD: probability of exploitation</text>
+
+                <rect x="516" y="70" width="180" height="22" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="606" y="85" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">IMPACT: consequence to the organization</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Quantitative: ALE = AV x EF x ARO</div>
+                <div class="card-desc"><strong>Asset Value (AV):</strong> dollar value of the asset. <strong>Exposure Factor (EF):</strong> percentage of asset value lost in a single incident. <strong>Annualized Rate of Occurrence (ARO):</strong> expected frequency per year. <strong>Single Loss Expectancy (SLE):</strong> AV x EF. <strong>Annualized Loss Expectancy (ALE):</strong> SLE x ARO. If a $500,000 database (AV) has a 40% exposure factor and a 0.25 ARO: SLE = $200,000, ALE = $50,000/year. Any control costing less than $50,000/year is economically justified.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Qualitative: Risk Matrix</div>
+                <div class="card-desc">Rates likelihood and impact on ordinal scales (Low/Medium/High or 1-5). Produces a heat map that communicates risk priorities to executives without requiring financial estimates. Faster to produce than ALE; less precise. Useful when asset values are difficult to quantify (reputation, regulatory standing). Both methods are valid; the organization's risk appetite and regulatory context determine which to use. ISO 27005 covers both approaches.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 9 — RISK TREATMENT + GOVERNANCE FRAMEWORKS ============ -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19</div>
+        <div class="slide-title">Risk Treatment and <span class="accent-gold">Governance Frameworks</span></div>
+        <div class="slide-subtitle">Once a risk is quantified, it must be treated. The organization chooses a response. The governance framework defines the process, the controls catalog, and the audit evidence requirements.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Four Risk Treatment Options</div>
+                <div class="card-desc">
+                    <strong>Mitigate (Reduce):</strong> apply a control that reduces likelihood or impact. Patching a critical CVE is mitigation.<br>
+                    <strong>Transfer (Share):</strong> shift financial consequence to another party. Cyber insurance, indemnification clauses.<br>
+                    <strong>Avoid (Eliminate):</strong> stop the activity that creates the risk. Do not collect certain data if its protection cost exceeds its business value.<br>
+                    <strong>Accept (Retain):</strong> document the residual risk and carry it. Risk acceptance must be signed by the risk owner, time-bounded, and re-evaluated at each review cycle. Unreviewed acceptances are audit findings.
+                </div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Framework Landscape</div>
+                <div class="card-desc">
+                    <strong>NIST CSF 2.0:</strong> six functions (Govern, Identify, Protect, Detect, Respond, Recover). Voluntary framework. Governs-function added in v2.0 to anchor risk management at the executive level.<br>
+                    <strong>NIST RMF (SP 800-37):</strong> six-step process: Categorize, Select, Implement, Assess, Authorize, Monitor. Mandatory for U.S. federal systems.<br>
+                    <strong>ISO/IEC 27001:2022:</strong> ISMS standard. Certifiable. Annex A has 93 controls across four themes (Organizational, People, Physical, Technological).<br>
+                    <strong>HIPAA Security Rule:</strong> administrative, physical, technical safeguards for ePHI. Required risk analysis and risk management program with documented findings.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What distinguishes a compliance posture from a security posture</div>
+            A compliance posture demonstrates adherence to a framework's requirements. A security posture reduces actual risk. The two are correlated but not identical: an organization can be SOC 2 compliant and breach-prone simultaneously if the framework controls are implemented at the letter but not the spirit. The NIST CSF's Govern function (added in version 2.0) explicitly addresses this by requiring executive accountability for risk tolerance, not just control checklists. Source: NIST Cybersecurity Framework 2.0, February 2024.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10 — BIA AND CONTINUITY ============ -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">Business Impact Analysis: <span class="accent-gold">Putting Numbers on Downtime</span></div>
+        <div class="slide-subtitle">BIA answers the question governance cannot answer alone: what does it actually cost when a system is unavailable? Those numbers drive BCP, DR architecture, and recovery investment decisions.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 130" width="720" height="130" xmlns="http://www.w3.org/2000/svg">
+                <!-- Timeline axis -->
+                <line x1="40" y1="75" x2="700" y2="75" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+
+                <!-- Incident marker -->
+                <rect x="40" y="55" width="2" height="40" fill="#ef4444"/>
+                <text x="41" y="50" text-anchor="middle" fill="#ef4444" font-family="Segoe UI" font-size="9" font-weight="700">INCIDENT</text>
+
+                <!-- MTD -->
+                <rect x="500" y="55" width="2" height="40" fill="#ef4444" stroke-dasharray="3,2"/>
+                <text x="501" y="50" text-anchor="middle" fill="#ef4444" font-family="Segoe UI" font-size="9" font-weight="700">MTD</text>
+                <text x="501" y="100" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Max Tolerable</text>
+                <text x="501" y="111" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Downtime</text>
+
+                <!-- RTO marker -->
+                <rect x="350" y="58" width="2" height="30" fill="#a855f7"/>
+                <text x="351" y="52" text-anchor="middle" fill="#a855f7" font-family="Segoe UI" font-size="9" font-weight="700">RTO</text>
+                <text x="220" y="88" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Recovery window</text>
+                <text x="220" y="100" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">(must be &lt; MTD)</text>
+                <line x1="40" y1="84" x2="350" y2="84" stroke="#a855f7" stroke-width="1" stroke-dasharray="4,2"/>
+                <text x="195" y="96" text-anchor="middle" fill="#a855f7" font-family="Segoe UI" font-size="8" font-weight="700">RTO target window</text>
+
+                <!-- RPO: data loss arrow going left from incident -->
+                <line x1="40" y1="65" x2="40" y2="65" stroke="#06b6d4" stroke-width="0"/>
+                <rect x="40" y="60" width="150" height="12" rx="3" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="0.8"/>
+                <text x="115" y="70" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="8" font-weight="700">RPO: max acceptable data loss window</text>
+                <text x="115" y="115" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Backup frequency must match RPO</text>
+
+                <!-- Labels -->
+                <text x="370" y="118" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">RTO must be achieved BEFORE MTD is reached.</text>
+                <text x="370" y="129" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">MTD is the business decision; RTO is the technical target; RPO drives backup architecture.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">MTD vs. RTO Relationship</div>
+                <div class="card-desc">MTD (Maximum Tolerable Downtime) is how long the business can survive without the system before catastrophic loss occurs. RTO (Recovery Time Objective) is the target time to restore functionality. RTO must be less than MTD &mdash; if it is not, no technically achievable recovery window keeps the business viable. The gap between RTO and MTD is your operational margin.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RPO and Backup Architecture</div>
+                <div class="card-desc">RPO (Recovery Point Objective) defines the maximum acceptable data loss measured in time. An RPO of 4 hours means you can afford to lose up to 4 hours of transactions. That drives backup frequency: continuous replication for RPO of minutes; daily snapshots for RPO of 24 hours. RPO is a business decision. Backup frequency and replication architecture are the technical implementation of that decision.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">BCP vs. DRP</div>
+                <div class="card-desc">BCP (Business Continuity Plan) covers all critical business functions: how operations continue when infrastructure is unavailable. DRP (Disaster Recovery Plan) is the technical subset: how IT systems are restored. BCP is the broader document; DRP is invoked within BCP for infrastructure events. Both require testing: tabletop exercises, simulation drills, and full DR failover tests at defined intervals. NIST SP 800-34 provides the federal continuity planning guide.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 11 — IR LIFECYCLE ============ -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19 &nbsp;|&nbsp; Topic 4: Incident Response</div>
+        <div class="slide-title">The IR Lifecycle: <span class="accent-red">NIST SP 800-61 Six Phases</span></div>
+        <div class="slide-subtitle">Incident response is not improvisation. It is a documented process executed under pressure. Every deviation from the process during an active incident adds to dwell time and reduces the quality of forensic evidence.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 80" width="720" height="80" xmlns="http://www.w3.org/2000/svg">
+                <!-- Phase boxes -->
+                <rect x="10"  y="18" width="102" height="44" rx="6" fill="rgba(59,130,246,0.10)"  stroke="#3b82f6"  stroke-width="1.5"/>
+                <text x="61"  y="37" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="10" font-weight="700">1. Preparation</text>
+                <text x="61"  y="52" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Plan · Tools · CSIRT</text>
+
+                <polygon points="112,40 124,34 124,46" fill="#a855f7" opacity="0.7"/>
+
+                <rect x="124" y="18" width="102" height="44" rx="6" fill="rgba(234,179,8,0.08)"    stroke="#eab308" stroke-width="1.5"/>
+                <text x="175" y="37" text-anchor="middle" fill="#fde68a" font-family="Segoe UI" font-size="10" font-weight="700">2. Detection</text>
+                <text x="175" y="52" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Identify · Triage</text>
+
+                <polygon points="226,40 238,34 238,46" fill="#a855f7" opacity="0.7"/>
+
+                <rect x="238" y="18" width="102" height="44" rx="6" fill="rgba(239,68,68,0.08)"    stroke="#ef4444" stroke-width="1.5"/>
+                <text x="289" y="37" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="10" font-weight="700">3. Containment</text>
+                <text x="289" y="52" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Isolate · Preserve</text>
+
+                <polygon points="340,40 352,34 352,46" fill="#a855f7" opacity="0.7"/>
+
+                <rect x="352" y="18" width="102" height="44" rx="6" fill="rgba(249,115,22,0.08)"   stroke="#f97316" stroke-width="1.5"/>
+                <text x="403" y="37" text-anchor="middle" fill="#fed7aa" font-family="Segoe UI" font-size="10" font-weight="700">4. Eradication</text>
+                <text x="403" y="52" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Remove · Remediate</text>
+
+                <polygon points="454,40 466,34 466,46" fill="#a855f7" opacity="0.7"/>
+
+                <rect x="466" y="18" width="102" height="44" rx="6" fill="rgba(34,197,94,0.08)"   stroke="#22c55e" stroke-width="1.5"/>
+                <text x="517" y="37" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="10" font-weight="700">5. Recovery</text>
+                <text x="517" y="52" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">Restore · Monitor</text>
+
+                <polygon points="568,40 580,34 580,46" fill="#a855f7" opacity="0.7"/>
+
+                <rect x="580" y="18" width="130" height="44" rx="6" fill="rgba(168,85,247,0.10)"  stroke="#a855f7" stroke-width="1.5"/>
+                <text x="645" y="37" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="10" font-weight="700">6. Lessons Learned</text>
+                <text x="645" y="52" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">PIR · Playbook update</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Containment: The Critical Decision</div>
+                <div class="card-desc"><strong>Isolation vs. Shutdown:</strong> disconnecting a compromised host from the network preserves volatile memory evidence (running processes, network connections, encryption keys in RAM). Shutdown destroys it. In most cases, isolate first, image later. <strong>Exception:</strong> if the system is actively exfiltrating data, the network impact of continued operation may justify immediate shutdown. Document the decision and rationale at the time it is made.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Evidence Preservation: Order of Volatility</div>
+                <div class="card-desc">Forensic collection follows volatility order: most volatile first. CPU registers and cache (nanoseconds) &rarr; RAM contents (seconds to minutes) &rarr; network state and ARP cache &rarr; running processes &rarr; disk (persistent). Tools: <strong>Volatility 3</strong> for memory forensics, <strong>FTK Imager</strong> for disk imaging, <strong>Velociraptor</strong> for live response at scale. A forensic image is a bit-for-bit copy with cryptographic hash verification (SHA-256 of the image). Chain of custody documentation starts at collection.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 12 — WHAT CONTAINMENT LOOKS LIKE ============ -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title">Containment <span class="accent-red">in Practice</span></div>
+        <div class="slide-subtitle">Containment has three phases: short-term (stop bleeding), long-term (hold the line while eradicating), and the intelligence question (do you let the attacker persist briefly to gather attribution data?).</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Short-Term Containment</div>
+                <div class="card-desc">Immediate network isolation of confirmed-compromised hosts. Options: VLAN isolation (quarantine VLAN with no inter-VLAN routing), NAC quarantine (802.1X places host in restricted segment), firewall host isolation (ACL denies all traffic except forensic collection source). Cloud: revoke IAM role, snapshot instance before termination, place security group allowing only forensic access. Speed over precision &mdash; contain first, verify scope second.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Long-Term Containment</div>
+                <div class="card-desc">Patching the entry vector, resetting compromised credentials, placing enhanced monitoring on adjacent systems. The goal is maintaining business operations while the full scope is determined and eradication proceeds. Long-term containment acknowledges that eradication may take days to weeks in complex environments. A rebuilt "clean" system that shares the same unpatched network path as the compromised system is not contained.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">The Deception Option</div>
+                <div class="card-desc">Allowing a compromised system to remain briefly monitored (with data exfiltration blocked) can yield attribution data, C2 infrastructure, and full attack path mapping. This is a deliberate intelligence-gathering decision that requires senior authorization, legal review, and documented risk acceptance. Never done without explicit approval chain. Source: NIST SP 800-61r3, Section 3.3 Containment, Eradication, and Recovery.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The forensic evidence trap most teams fall into</div>
+            Reimaging a compromised system immediately destroys all forensic evidence. The correct sequence is: contain &rarr; image &rarr; hash verification &rarr; chain of custody &rarr; then reimage. If a P0 incident requires immediate system recovery that will destroy evidence, that trade-off must be documented with an authorized decision-maker's signature at the time it is made, not reconstructed after the fact.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 13 — LESSONS LEARNED AND THE PIR ============ -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">Lessons Learned: <span class="accent">The Phase Most Teams Skip</span></div>
+        <div class="slide-subtitle">An incident that does not produce documented findings, root cause analysis, and playbook updates is an investment in the same breach happening again. The post-incident review is where organizational security actually improves.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Post-Incident Review (PIR) Structure</div>
+                <div class="card-desc">Conducted within 2 weeks of incident closure. Attendees: IR team, affected business owners, relevant technical leads. Not a blame assignment exercise. Outputs: (1) timeline of attacker actions, (2) timeline of defender actions, (3) root cause statement, (4) gap analysis between what detection should have caught and what it actually caught, (5) specific, owned, time-bounded remediation actions. Generic action items ("improve monitoring") that are not owned and dated are equivalent to no action item.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Playbook Updates Are Mandatory, Not Optional</div>
+                <div class="card-desc">Every incident surfaces at least one gap in the existing IR playbook: a procedure that did not exist, a tool that was not available, a communication step that was missing, or a decision path that was ambiguous under pressure. That gap must be closed before the next incident. Playbook currency is an audit criterion under NIST SP 800-61r3. An IR playbook that has not been updated in 12 months is evidence that lessons learned is not being practiced.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            The U.S. Office of Personnel Management breach (2014-2015): OPM had experienced a 2014 intrusion that should have triggered a lessons-learned cycle including improved monitoring and network segmentation. The improvements were not fully implemented when a second attacker entered through a similar vector in 2015 and exfiltrated security clearance data for 21.5 million individuals. The second breach was partially enabled by the first breach's lessons not being acted on. Source: U.S. House Oversight Committee report on the OPM data breach, September 2016.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 14 — DIGITAL FORENSICS PRIMER ============ -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">Digital Forensics: <span class="accent-cyan">Evidence That Holds Up</span></div>
+        <div class="slide-subtitle">Forensics is not about finding what happened. It is about collecting evidence in a manner that withstands legal scrutiny. How you collect is as important as what you collect.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Legal Admissibility Requirements</div>
+                <div class="card-desc">Evidence must be: <strong>relevant</strong> (directly related to the matter), <strong>reliable</strong> (collected with validated tools, documented process), <strong>authentic</strong> (provably from the source claimed), and <strong>complete</strong> (no selective collection that misrepresents the full picture). Chain of custody documentation tracks every person who accessed the evidence and every action taken, from collection through court. A gap in chain of custody is a defense attorney's tool to challenge admissibility.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Memory Forensics</div>
+                <div class="card-desc">RAM contains: running processes and their arguments, network connections and their sockets, encryption keys loaded in memory, injected code that is not on disk (fileless malware), and recently accessed file handles. Volatility 3 (open source) is the standard analysis framework. Key plugins: <code>windows.pslist</code> (process list), <code>windows.netscan</code> (network connections), <code>windows.malfind</code> (injected code detection). Memory dump must precede any host action that modifies RAM state.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Disk and Network Artifacts</div>
+                <div class="card-desc"><strong>Disk:</strong> NTFS timestamps ($MFT), prefetch files (evidence of execution), Windows Event Logs (Security, System, Application, PowerShell), browser history, registry hives (run keys, UserAssist, ShimCache). <strong>Network:</strong> NetFlow records (source, destination, bytes, duration &mdash; no payload), full PCAP (packet content &mdash; where retention is legal), DNS query logs, proxy access logs. Network artifacts survive host reimaging. Collect them independently and in parallel with host forensics.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The difference between incident response forensics and legal forensics</div>
+            IR forensics optimizes for speed &mdash; find the attacker, contain the breach, determine scope. Legal forensics optimizes for admissibility &mdash; preserve evidence with documented chain of custody for potential litigation or prosecution. An IR team should default to legal forensics standards even when no prosecution is planned, because the organization cannot predict at collection time whether it will need evidence to be admissible later.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 15 — THE FOUR DOMAINS CONNECTED ============ -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19 &nbsp;|&nbsp; Synthesis</div>
+        <div class="slide-title">How the <span class="accent">Four Domains</span> Form One System</div>
+        <div class="slide-subtitle">These are not independent topics. Authentication, identity, governance, and response form a chain. A break in any link propagates to all the others.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 155" width="720" height="155" xmlns="http://www.w3.org/2000/svg">
+                <!-- Layer 1: Authentication -->
+                <rect x="10" y="10" width="700" height="135" rx="12" fill="rgba(168,85,247,0.03)" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3"/>
+                <text x="360" y="28" text-anchor="middle" fill="#a855f7" font-family="Segoe UI" font-size="10" font-weight="700">AUTHENTICATION &amp; ACCESS PROTOCOLS &mdash; proves who is at the door</text>
+
+                <!-- Layer 2: Identity -->
+                <rect x="40" y="36" width="640" height="100" rx="10" fill="rgba(59,130,246,0.03)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <text x="360" y="52" text-anchor="middle" fill="#3b82f6" font-family="Segoe UI" font-size="10" font-weight="700">IDENTITY MANAGEMENT &mdash; decides what an authenticated identity can reach</text>
+
+                <!-- Layer 3: Governance -->
+                <rect x="80" y="60" width="560" height="66" rx="8" fill="rgba(234,179,8,0.03)" stroke="#eab308" stroke-width="1.5" stroke-dasharray="3,3"/>
+                <text x="360" y="76" text-anchor="middle" fill="#eab308" font-family="Segoe UI" font-size="10" font-weight="700">RISK GOVERNANCE &mdash; sets the acceptable risk posture for all controls above</text>
+
+                <!-- Layer 4: IR -->
+                <rect x="130" y="84" width="460" height="34" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="360" y="99" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="10" font-weight="700">INCIDENT RESPONSE &mdash; executes when authentication, identity, and governance have failed</text>
+                <text x="360" y="112" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Detection &rarr; Containment &rarr; Eradication &rarr; Recovery &rarr; Lessons Learned</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Authentication Fails &rarr; Identity Management Fails</div>
+                <div class="card-desc">If authentication can be bypassed (credential stuffing, pass-the-hash, AiTM), identity management cannot save you. An attacker with a valid session token has all the permissions that identity was granted. Identity management controls only what a successfully authenticated identity can reach &mdash; it has no mechanism to detect that the identity was stolen.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Governance Defines the Blast Radius</div>
+                <div class="card-desc">A risk governance program that approved over-permissive RBAC roles, accepted password-only authentication for high-value systems, or deferred deprovisioning automation defines the blast radius before the incident begins. IR works within whatever governance established. The fastest IR playbook cannot recover data that governance allowed to be over-exposed to begin with.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 16 — EXAM ANCHOR: DECISION FRAMEWORK ============ -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19 &nbsp;|&nbsp; Exam Anchor</div>
+        <div class="slide-title">Week 4 <span class="accent">Decision Framework</span></div>
+        <div class="slide-subtitle">SY0-701 performance-based questions for Week 4 domains center on selecting the right control or protocol for a described scenario. Run this chain.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">Authentication Scenario Decisions</div>
+                <div class="card-desc"><strong>Need phishing-resistant MFA:</strong> FIDO2/WebAuthn or smart card (AAL3).<br>
+                <strong>Need to defeat push bombing:</strong> number-matching MFA or FIDO2.<br>
+                <strong>Cross-org SSO with XML assertions:</strong> SAML 2.0.<br>
+                <strong>Delegated API access (not authentication):</strong> OAuth 2.0.<br>
+                <strong>Authentication over OAuth:</strong> OIDC (adds ID Token).<br>
+                <strong>Enterprise Windows authentication:</strong> Kerberos via AD.<br>
+                <strong>Wireless user auth without PSK:</strong> 802.1X + RADIUS + EAP.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Risk and Governance Scenario Decisions</div>
+                <div class="card-desc"><strong>Dollar-value risk calculation:</strong> ALE = SLE x ARO.<br>
+                <strong>Federal system risk framework:</strong> NIST RMF (SP 800-37).<br>
+                <strong>Voluntary cross-sector framework:</strong> NIST CSF 2.0.<br>
+                <strong>Certifiable ISMS standard:</strong> ISO/IEC 27001.<br>
+                <strong>Healthcare ePHI requirements:</strong> HIPAA Security Rule.<br>
+                <strong>EU personal data protection:</strong> GDPR.<br>
+                <strong>Residual risk handling:</strong> accept (signed, time-bounded, reviewed).</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Incident Response Scenario Decisions</div>
+                <div class="card-desc"><strong>IR lifecycle source document:</strong> NIST SP 800-61r3.<br>
+                <strong>Compromised host: isolate or shut down?</strong> Isolate (preserves memory).<br>
+                <strong>Evidence collection order:</strong> most volatile first (RAM before disk).<br>
+                <strong>Memory forensics tooling:</strong> Volatility 3.<br>
+                <strong>Who is on the IR team:</strong> CSIRT (Computer Security Incident Response Team).<br>
+                <strong>After the incident:</strong> PIR within 2 weeks, playbook update mandatory.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Identity Management Scenario Decisions</div>
+                <div class="card-desc"><strong>Employee transfers role:</strong> revoke old, add new &mdash; not additive.<br>
+                <strong>Inherited permissions between users:</strong> wrong; use role-based baseline.<br>
+                <strong>Admin credential vaulting:</strong> PAM platform (just-in-time, session recording).<br>
+                <strong>MAC model for classified systems:</strong> Bell-LaPadula (no read up, no write down).<br>
+                <strong>Fine-grained conditional access:</strong> ABAC (attribute-based).<br>
+                <strong>Quarterly access reviews:</strong> least-privilege enforcement, prevents privilege creep.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 17 — IN-CLASS TASK INTRO ============ -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19 &nbsp;|&nbsp; In-Class Task</div>
+        <div class="slide-title">In-Class Task: <span class="accent-gold">Breach at Veridian Financial</span></div>
+        <div class="slide-subtitle">You have read the four domains. Now respond to an active incident. This 35-minute structured exercise applies authentication analysis, identity audit, risk decision-making, and IR execution simultaneously.</div>
+
+        <div class="box box-gold" style="margin-bottom:14px;">
+            <div class="box-label">Scenario brief</div>
+            Veridian Financial Group, a mid-size investment firm, has detected anomalous behavior. The SOC has raised an incident. The CISO has activated the CSIRT. You are the lead analyst. You must determine how the attacker got in, what they accessed, make a containment decision, and document your risk acceptance for the response trade-offs you make &mdash; all while the incident clock is running.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Task 1 (10 min): Authentication Forensics</div>
+                <div class="card-desc">The attacker bypassed MFA. Analyze the authentication logs provided. Determine which MFA mechanism was in use, which attack technique defeats it, and what MFA upgrade would have prevented this breach. Cite NIST SP 800-63B assurance level for your recommendation.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Task 2 (10 min): Identity Blast Radius Audit</div>
+                <div class="card-desc">A compromised service account has been identified. Using the permissions table provided, determine: (1) what this account can reach, (2) what RBAC violations exist (over-permissioned roles), and (3) what emergency deprovisioning actions must be taken in what order.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Task 3 (10 min): Containment Decision + Risk Register</div>
+                <div class="card-desc">Three affected systems have been identified. You must decide: isolate or shut down, and in what order. Then enter the incident as a new risk register entry: threat, vulnerability, likelihood, impact, treatment decision, residual risk, owner, review date.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Access the in-class task worksheet at: <strong>Labs &gt; PIS In-Class Task &gt; W4 Breach at Veridian Financial</strong>. Groups of 3-4. One risk register entry per group. Present containment decision and rationale in the last 5 minutes.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 18 — LOOKING AHEAD ============ -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19 &nbsp;|&nbsp; Looking Ahead</div>
+        <div class="slide-title">Week 4 <span class="accent">Closes the Loop</span></div>
+        <div class="slide-subtitle">Week 4 is the last domain week. The remaining weeks apply everything: the final lab, capstone practical, and comprehensive written exam draw from all eight weeks of domains simultaneously.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-purple">
+                <div class="card-label">What Week 4 Completed</div>
+                <div class="card-desc">The PIS curriculum now covers all SY0-701 domain areas: W1 (foundations, threats), W2 (attacks, cryptography), W3 (network architecture, wireless, PKI, SecOps), W4 (authentication, identity, risk, IR). Every lab from L07 through L12 integrates multiple domains. The capstone lab (L12: Full Facility Inspection) and the Patient Zero practical examine you across all of them simultaneously.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Final Preparation</div>
+                <div class="card-desc">Complete Week 4 Quiz (20 questions, 70% to pass). Complete CTF labs L10, L11, L12. Review drilldown decks for any sub-topic that was thin in lecture. For the final: the written exam (Part 1) tests knowledge recall and scenario decisions across all domains. Patient Zero (Part 2) is a 7-phase practical that simulates a complete incident from phishing to attribution to remediation &mdash; the full IR lifecycle under time pressure.</div>
+            </div>
+        </div>
+
+        <div class="box box-purple" style="text-align:center;">
+            <div class="box-label">Before the final</div>
+            Complete <strong>Week 4 Quiz</strong>, then all three remaining CTF labs. Labs L10, L11, L12 are integrated: L10 tests authentication controls, L11 runs an IR scenario, L12 is the capstone across all domains. Do them in order &mdash; each one builds the context the next one requires.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 19 — END ============ -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 19</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">End of Week 4</span></div>
+            <div class="lead">Authentication is the proof. Identity is the scope. Governance is the policy behind the scope. Response is what happens when all three fail. Know the mechanism behind each. Know when each one breaks. That is the practitioner's knowledge.</div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Drilldown Decks</div>
+                <div class="card-desc">Authentication &amp; Access Protocols &middot; Identity Management &middot; Risk Governance &middot; Incident Response. 35 slides each.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Week 4 Quiz</div>
+                <div class="card-desc">20 questions across all four sub-topics. 70% to pass. Multiple attempts allowed.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">CTF Labs</div>
+                <div class="card-desc">L10: Dual-Integrity Access &middot; L11: Containment Breach &middot; L12: Full Facility Inspection (Capstone).</div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:14px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ============ NAV ============ -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 19</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Track the currently displayed slide (1-based). */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 19;
+
+    /**
+     * goToSlide(n)
+     * Deactivates the current slide, activates slide n, updates the
+     * progress bar width, counter text, and prev/next button states.
+     * Shows the Mark Complete button only on the final slide.
+     */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        /* Show the completion button only when the student reaches the last slide. */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation: ArrowRight advances, ArrowLeft goes back. */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize on the first slide. */
+    goToSlide(1);
+</script>
+
+<script>
+    /**
+     * completeModule()
+     * Called by the Mark Complete button on the final slide.
+     * Delegates to ModuleProgress (loaded via component script tag above)
+     * which writes the completion record to Firestore and redirects to the course index.
+     */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w4-lecture', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access control: must run first to gate unauthorized users before any content renders. -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress and achievement tracking loaded before content so completion calls succeed. -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>W4 In-Class Task: Breach at Veridian Financial | PIS</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 16px; line-height: 1.5;
+        }
+
+        /* Each .slide is hidden by default; .active makes it visible with entrance animation. */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 28px 36px 78px; overflow: hidden;
+            animation: slideIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.99); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 16px; }
+
+        /* Progress bar at the top of the viewport; width is set dynamically by JS. */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #a855f7 0%, #06b6d4 100%);
+            transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed navigation bar at the bottom of the viewport. */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+            background: rgba(2, 8, 20, 0.95); border-top: 1px solid rgba(168, 85, 247, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 9px 24px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(168, 85, 247, 0.12); color: #c084fc; border-color: #a855f7; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.84rem; padding: 9px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.84rem; min-width: 100px; text-align: center; }
+
+        /* Mark Complete button: hidden until the final slide is reached. */
+        #complete-btn { display: none; background: #a855f7; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        #complete-btn:hover { background: #c084fc; transform: translateY(-1px); }
+
+        /* Typography */
+        .slide-meta { font-size: 0.78rem; color: #a855f7; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; opacity: 0.85; }
+        .slide-title { font-size: 2rem; font-weight: 800; color: #f1f5f9; text-align: center; line-height: 1.18; }
+        .slide-title .accent        { color: #a855f7; }
+        .slide-title .accent-blue   { color: #3b82f6; }
+        .slide-title .accent-cyan   { color: #06b6d4; }
+        .slide-title .accent-red    { color: #ef4444; }
+        .slide-title .accent-green  { color: #22c55e; }
+        .slide-title .accent-gold   { color: #eab308; }
+        .slide-subtitle { font-size: 1.0rem; color: #94a3b8; text-align: center; max-width: 880px; margin: 0 auto; }
+
+        /* Hero slide layout */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 2.8rem; font-weight: 900; color: #f1f5f9; line-height: 1.12; }
+        .title-hero .big-title .accent { color: #a855f7; }
+        .title-hero .lead { font-size: 1.1rem; color: #94a3b8; max-width: 720px; }
+        .title-meta-row { display: flex; gap: 32px; justify-content: center; margin-top: 12px; font-size: 0.85rem; color: #64748b; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 16px 18px; border-left: 3px solid #a855f7;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        /* Staggered entrance delays for up to four cards per slide. */
+        .slide.active .card:nth-child(1) { animation-delay: 0.18s; }
+        .slide.active .card:nth-child(2) { animation-delay: 0.30s; }
+        .slide.active .card:nth-child(3) { animation-delay: 0.42s; }
+        .slide.active .card:nth-child(4) { animation-delay: 0.54s; }
+
+        .card .card-label { font-size: 1.0rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.88rem; color: #94a3b8; line-height: 1.5; }
+        /* Color variants: border + tinted background per accent hue. */
+        .card.c-purple { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.04); }
+        .card.c-blue   { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.04); }
+        .card.c-cyan   { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.04); }
+        .card.c-red    { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.04); }
+        .card.c-green  { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.04); }
+        .card.c-gold   { border-left-color: #eab308; background: rgba(234, 179, 8, 0.04); }
+        .card.c-orange { border-left-color: #f97316; background: rgba(249, 115, 22, 0.04); }
+
+        /* Callout boxes: colored border + light tinted background. */
+        .box { border-radius: 8px; padding: 14px 18px; font-size: 0.92rem; }
+        .box-purple { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; }
+        .box-blue   { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-red    { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold   { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-green  { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.8; }
+
+        /* Scenario scenario-strip: italic callout with left accent border. */
+        .scenario-strip {
+            background: rgba(168, 85, 247, 0.06); border-left: 3px solid #a855f7;
+            border-radius: 0 8px 8px 0; padding: 12px 18px;
+            font-size: 0.95rem; color: #e9d5ff; line-height: 1.55;
+        }
+
+        /* Task step rows: numbered step + content, used in walkthrough slides. */
+        .step-row {
+            display: grid; grid-template-columns: 52px 1fr; gap: 16px;
+            align-items: start; padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            border-left: 3px solid #a855f7;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        .step-num {
+            font-size: 1.6rem; font-weight: 800; color: #a855f7; opacity: 0.65;
+            text-align: center; line-height: 1;
+        }
+        .step-content .step-title { font-size: 1.0rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .step-content .step-desc  { font-size: 0.88rem; color: #94a3b8; line-height: 1.55; }
+        .step-content .step-hint  { font-size: 0.82rem; color: #64748b; margin-top: 6px; font-style: italic; }
+        /* Staggered entrance delays for step rows. */
+        .slide.active .step-row:nth-child(1) { animation-delay: 0.20s; }
+        .slide.active .step-row:nth-child(2) { animation-delay: 0.36s; }
+        .slide.active .step-row:nth-child(3) { animation-delay: 0.52s; }
+        .slide.active .step-row:nth-child(4) { animation-delay: 0.68s; }
+        .slide.active .step-row:nth-child(5) { animation-delay: 0.84s; }
+
+        /* Deliverable checklist: square checkbox + text, used on the working session slide. */
+        .checklist { display: flex; flex-direction: column; gap: 8px; }
+        .check-item {
+            display: flex; align-items: baseline; gap: 12px;
+            font-size: 0.9rem; color: #cbd5e1;
+            opacity: 0; animation: cardIn 0.4s ease-out forwards;
+        }
+        .check-box {
+            width: 18px; height: 18px; border: 2px solid rgba(168, 85, 247, 0.4);
+            border-radius: 4px; flex-shrink: 0; margin-top: 2px;
+        }
+        /* Staggered entrance delays for checklist items. */
+        .slide.active .check-item:nth-child(1) { animation-delay: 0.16s; }
+        .slide.active .check-item:nth-child(2) { animation-delay: 0.26s; }
+        .slide.active .check-item:nth-child(3) { animation-delay: 0.36s; }
+        .slide.active .check-item:nth-child(4) { animation-delay: 0.46s; }
+        .slide.active .check-item:nth-child(5) { animation-delay: 0.56s; }
+        .slide.active .check-item:nth-child(6) { animation-delay: 0.66s; }
+        .slide.active .check-item:nth-child(7) { animation-delay: 0.76s; }
+        .slide.active .check-item:nth-child(8) { animation-delay: 0.86s; }
+
+        /* SVG diagram centering wrapper. */
+        .diagram { display: flex; justify-content: center; align-items: center; }
+        .diagram svg { max-width: 100%; height: auto; }
+
+        /* Responsive overrides for small viewports. */
+        @media (max-height: 720px) { .slide-inner { gap: 10px; } .slide-title { font-size: 1.65rem; } .title-hero .big-title { font-size: 2.2rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+<!-- Visually hidden H1 for screen readers and SEO. -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">W4 In-Class Task: Breach at Veridian Financial | PIS</h1>
+
+<!-- Progress bar: initial width set to first-of-12 percentage. -->
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">In-Class Task &nbsp;|&nbsp; Week 4 &nbsp;|&nbsp; CIS2350C</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Breach at<br>
+                <span class="accent">Veridian Financial</span>
+            </div>
+            <div class="lead">
+                A simulated incident response exercise. You are the lead analyst on the CSIRT at Veridian Financial Group. An anomaly has been escalated to a confirmed incident. You have 35 minutes to determine how the attacker got in, audit the blast radius, make a containment decision, and document the risk.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>35 minutes</span>
+            <span>Groups of 3-4</span>
+            <span>Present last 5 min</span>
+        </div>
+        <div class="scenario-strip" style="margin-top:14px;">
+            This is not a quiz. There is no single correct containment decision. You will be evaluated on whether your decisions follow defensible security reasoning anchored in the NIST SP 800-61r3 IR lifecycle &mdash; not whether your answer matches a template.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 2 — SCENARIO BRIEF ============ -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12 &nbsp;|&nbsp; Scenario</div>
+        <div class="slide-title"><span class="accent">Veridian</span> Financial Group</div>
+        <div class="slide-subtitle">Read the full brief before starting any task. Decisions you make on Task 1 affect Tasks 2 and 3.</div>
+
+        <div class="box box-purple" style="margin-bottom:14px;">
+            <div class="box-label">Organization profile</div>
+            Veridian Financial Group is a mid-size investment advisory firm with 340 employees, two offices (Tampa and Atlanta), and a hybrid infrastructure: on-premises Active Directory (Windows Server 2022, domain <code style="font-size:0.85em;">veridian.local</code>), Microsoft Azure AD for cloud SSO, and a Salesforce CRM accessible via SAML 2.0 federation. Employees authenticate via Azure AD with TOTP-based MFA (Microsoft Authenticator push notifications). The firm is subject to SEC Regulation S-P (safeguarding client financial data) and SOC 2 Type II requirements.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">What the SOC Detected</div>
+                <div class="card-desc">At 02:14 UTC, the SIEM fired a high-severity alert: a service account (<code style="font-size:0.82em;">svc-reporting</code>) authenticated successfully to Azure AD from IP 45.33.32.156 (a DigitalOcean VPS in the Netherlands, not a known office or VPN egress). Within 6 minutes, the account queried the Salesforce API and exported 4,200 client contact and account records. The export completed at 02:20 UTC. Azure AD logs show the service account's last legitimate activity was 11 days ago from Tampa office IP.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">What Was in Place</div>
+                <div class="card-desc">Azure AD Conditional Access policies: MFA required for all user accounts. Service accounts are excluded from Conditional Access (a documented exception approved 14 months ago to avoid breaking automated reporting jobs). The <code style="font-size:0.82em;">svc-reporting</code> account has a long-lived client secret stored in the firm's password manager. The account has: Salesforce API access (read + export), SharePoint read access to the Finance team site, and Exchange read access to a shared mailbox. No PAM platform is deployed. Service account credentials are rotated annually.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Current State at Incident Activation</div>
+                <div class="card-desc">CSIRT has been activated. The SIEM alert is confirmed. The Salesforce export has already completed &mdash; data exfiltration is a past event, not ongoing. The <code style="font-size:0.82em;">svc-reporting</code> account is still active in Azure AD. Three other systems are potentially in scope: the password manager (how the credential was likely obtained), the SharePoint Finance site (was it accessed?), and the Exchange shared mailbox (same question). Logs for all three are available for your review.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3 — TASK OVERVIEW ============ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12 &nbsp;|&nbsp; Task Overview</div>
+        <div class="slide-title">Three Tasks, <span class="accent">35 Minutes</span></div>
+        <div class="slide-subtitle">Do them in order. Task 1 determines what the attacker could use. Task 2 determines what they actually reached. Task 3 is the response.</div>
+
+        <div class="step-row">
+            <div class="step-num">01</div>
+            <div class="step-content">
+                <div class="step-title">Authentication Forensics (10 min)</div>
+                <div class="step-desc">Analyze the authentication failure that allowed this breach. Which MFA mechanism was in use? Which attack technique defeats it? What architecture change would have prevented or significantly complicated this access?</div>
+                <div class="step-hint">Relevant concepts: TOTP vs. FIDO2, AiTM proxy attacks, service account Conditional Access exclusions, NIST SP 800-63B assurance levels.</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">02</div>
+            <div class="step-content">
+                <div class="step-title">Identity Blast Radius Audit (10 min)</div>
+                <div class="step-desc">Using the permissions table on the next slide, map every resource the <code style="font-size:0.88em;">svc-reporting</code> account can reach. Identify RBAC violations (over-permissioned roles). List the emergency deprovisioning actions in priority order.</div>
+                <div class="step-hint">Relevant concepts: least privilege, RBAC over-permissioning, service account hygiene, PAM just-in-time access, account deprovisioning order.</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">03</div>
+            <div class="step-content">
+                <div class="step-title">Containment Decision + Risk Register Entry (10 min)</div>
+                <div class="step-desc">The exfiltration has already occurred. Make a containment decision for each of the three in-scope systems. Then create a risk register entry for this incident: threat, vulnerability, likelihood, impact, treatment, residual risk, owner, review date.</div>
+                <div class="step-hint">Relevant concepts: NIST SP 800-61r3 containment phases, isolation vs. shutdown decision, risk register fields, risk treatment options (mitigate/transfer/avoid/accept).</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">04</div>
+            <div class="step-content">
+                <div class="step-title">Group Presentation (5 min)</div>
+                <div class="step-desc">One spokesperson presents the authentication failure analysis, one RBAC violation finding, and the containment decision for the highest-priority system. Instructor will ask one clarifying question per group. Other groups may challenge.</div>
+                <div class="step-hint">Be ready to defend: why the MFA mechanism failed (mechanistically, not just that "it was weak"), and why your containment priority order is what it is.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 4 — TASK 1: AUTHENTICATION FORENSICS ============ -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12 &nbsp;|&nbsp; Task 1</div>
+        <div class="slide-title">Task 1: <span class="accent-red">Authentication Forensics</span></div>
+        <div class="slide-subtitle">The attacker authenticated as <code>svc-reporting</code> from a foreign IP with no MFA challenge. Understand why before recommending a fix. A recommendation without a mechanism is not a security decision.</div>
+
+        <div class="box box-red" style="margin-bottom:12px;">
+            <div class="box-label">The authentication log extract you are analyzing</div>
+            <div style="font-family:'Courier New',monospace; font-size:0.82rem; line-height:1.7; color:#fca5a5;">
+                2026-05-25T02:14:03Z | AuthEvent | svc-reporting@veridian.com<br>
+                &nbsp;&nbsp;auth_method: client_credentials (OAuth 2.0 client_secret)<br>
+                &nbsp;&nbsp;source_ip: 45.33.32.156 | geo: NL | asn: DigitalOcean<br>
+                &nbsp;&nbsp;conditional_access_policy: EXCLUDED (service account exemption)<br>
+                &nbsp;&nbsp;mfa_required: false | mfa_method: N/A<br>
+                &nbsp;&nbsp;result: SUCCESS<br>
+                2026-05-25T02:14:09Z | SalesforceAPIEvent | svc-reporting<br>
+                &nbsp;&nbsp;action: soql_query | records_returned: 4,200<br>
+                &nbsp;&nbsp;query: SELECT Id,Name,Phone,Email,AccountId FROM Contact<br>
+                2026-05-25T02:20:11Z | SalesforceAPIEvent | svc-reporting<br>
+                &nbsp;&nbsp;action: bulk_export | format: CSV | bytes: 1,847,392
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Question A: Why No MFA?</div>
+                <div class="card-desc">The account authenticated via OAuth 2.0 client_credentials flow. This flow authenticates the application (client_id + client_secret), not a human user. Conditional Access MFA policies apply to interactive user sign-ins. Client credentials flow is a non-interactive machine-to-machine flow that bypasses interactive sign-in policies. The Conditional Access exemption is therefore redundant here &mdash; this flow would bypass the MFA policy regardless. Confirm this understanding in your written answer.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Question B: How Was the Secret Obtained?</div>
+                <div class="card-desc">The <code style="font-size:0.82em;">svc-reporting</code> client secret was stored in the firm's shared password manager. Identify two plausible vectors by which an attacker could have exfiltrated the secret, given that: (1) the password manager is cloud-hosted, (2) multiple employees have access to the shared vault containing this secret, (3) the secret was last rotated 10 months ago. You do not have password manager logs &mdash; reason from the attack surface.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Question C: The Architectural Fix</div>
+                <div class="card-desc">Recommend the architectural change that eliminates the credential-theft attack surface for service account machine-to-machine authentication. Your recommendation must: (1) name the specific Azure mechanism, (2) explain why it removes the need for a stored client secret, (3) state the NIST SP 800-63B assurance level equivalent (AAL1/AAL2/AAL3) for your recommendation. Do not recommend "rotate secrets more frequently" &mdash; that is a procedural mitigation, not an architectural fix.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 5 — TASK 1: REFERENCE ============ -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12 &nbsp;|&nbsp; Task 1 Reference</div>
+        <div class="slide-title">Task 1 <span class="accent-red">Reference: Authentication Mechanism Comparison</span></div>
+        <div class="slide-subtitle">Use this to verify your understanding of the attack surface and to anchor your architectural recommendation. Not rules to copy &mdash; constraints to reason against.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Why Client Secrets Are Structurally Weak</div>
+                <div class="card-desc">An OAuth 2.0 client_secret is a symmetric shared secret: anyone who holds it can authenticate as the application. Unlike a password, there is no second factor requirement in the client_credentials flow. The secret must be stored somewhere accessible to the automation (password manager, environment variable, secrets manager). Every location where the secret is readable is an attack surface. Rotation reduces the exposure window; it does not eliminate the exposure surface.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Workload Identity Federation (the architectural fix)</div>
+                <div class="card-desc">Azure Workload Identity Federation allows an external identity (an Azure-managed identity, a GitHub Actions workflow, a Kubernetes service account) to authenticate to Azure AD using a short-lived federated token rather than a stored secret. No client secret is issued or stored. There is nothing to exfiltrate. The token is bound to the specific workload and is valid for minutes. Source: Microsoft Azure AD workload identity federation documentation (docs.microsoft.com/azure/active-directory/develop/workload-identity-federation).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Conditional Access and Non-Interactive Flows</div>
+                <div class="card-desc">Azure AD Conditional Access policies that require MFA apply to interactive user authentication flows (Authorization Code, Device Code). The client_credentials flow is non-interactive &mdash; there is no user browser session, no redirect, no challenge prompt. Conditional Access MFA enforcement does not apply to this flow by design. A Conditional Access exemption for a service account is therefore not the cause of this breach &mdash; it is a red herring. The root cause is client secret issuance for a machine-to-machine flow.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Common mistake to avoid</div>
+            Recommending "enable MFA for service accounts" is architecturally incorrect. Service accounts use non-interactive flows because there is no human to approve a push notification. The correct recommendation is to eliminate the shared secret entirely by using certificate-based authentication (X.509 client certificate) or workload identity federation, both of which use asymmetric cryptography where the private key never leaves the service's controlled environment.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 6 — TASK 2: IDENTITY BLAST RADIUS ============ -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12 &nbsp;|&nbsp; Task 2</div>
+        <div class="slide-title">Task 2: <span class="accent-blue">Identity Blast Radius Audit</span></div>
+        <div class="slide-subtitle">Before you can contain, you must know what is reachable. Use the permissions table below to map the full blast radius of the compromised account and identify every RBAC violation.</div>
+
+        <div class="box box-blue" style="margin-bottom:12px;">
+            <div class="box-label">svc-reporting permissions as of incident activation (from Azure AD / Salesforce admin)</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; font-size:0.82rem;">
+                <div style="color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">System</div>
+                <div style="color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Permission</div>
+                <div style="color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Business Justification on File</div>
+
+                <div style="color:#cbd5e1;">Salesforce CRM</div>
+                <div style="color:#fca5a5;">Read + Bulk Export (all objects)</div>
+                <div style="color:#64748b;">Generate weekly client activity reports</div>
+
+                <div style="color:#cbd5e1;">SharePoint (Finance site)</div>
+                <div style="color:#fca5a5;">Read (all libraries including Tax Docs)</div>
+                <div style="color:#ef4444; font-style:italic;">No justification on file</div>
+
+                <div style="color:#cbd5e1;">Exchange (Shared Mailbox: ops@veridian.com)</div>
+                <div style="color:#fca5a5;">Read + Send As</div>
+                <div style="color:#ef4444; font-style:italic;">No justification on file</div>
+
+                <div style="color:#cbd5e1;">Azure AD (Directory)</div>
+                <div style="color:#fca5a5;">Read (User, Group objects)</div>
+                <div style="color:#64748b;">Required for user lookup in reports</div>
+
+                <div style="color:#cbd5e1;">Password Manager (Vault)</div>
+                <div style="color:#fca5a5;">Read (service account vault)</div>
+                <div style="color:#64748b;">Access its own client secret for rotation</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Part A: Blast Radius Map</div>
+                <div class="card-desc">
+                    For each permission row: state what an attacker can exfiltrate or abuse with that access. Be specific:
+                    <ol style="margin-top:8px; padding-left:18px; line-height:1.9; color:#94a3b8; font-size:0.85rem;">
+                        <li>Salesforce: what data categories were exposed?</li>
+                        <li>SharePoint Finance: what data categories were potentially accessible?</li>
+                        <li>Exchange Send As: what attack does this enable?</li>
+                        <li>Azure AD Directory Read: what reconnaissance does this enable?</li>
+                        <li>Password Manager Read: what is the second-order risk?</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Part B: RBAC Violations and Deprovisioning Order</div>
+                <div class="card-desc">
+                    Identify each permission that violates least-privilege for the stated purpose (weekly Salesforce reporting). Then list emergency deprovisioning actions in priority order:
+                    <ol style="margin-top:8px; padding-left:18px; line-height:1.9; color:#94a3b8; font-size:0.85rem;">
+                        <li>Which permission do you revoke first, and why?</li>
+                        <li>Which system do you isolate from this account immediately?</li>
+                        <li>After revocation: what must be rotated or invalidated?</li>
+                        <li>What access review does this incident trigger platform-wide?</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 7 — TASK 2: REFERENCE ============ -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12 &nbsp;|&nbsp; Task 2 Reference</div>
+        <div class="slide-title">Task 2 <span class="accent-blue">Reference: Identity Audit Anchor Points</span></div>
+        <div class="slide-subtitle">Use these to calibrate your specificity and validate your RBAC violation findings. Not answers to copy &mdash; the reasoning model to apply.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Least Privilege for Service Accounts</div>
+                <div class="card-desc">A service account that generates weekly Salesforce reports needs: Salesforce API read access scoped to the specific objects the report queries (Contact, Opportunity &mdash; not all objects). It does not need SharePoint, Exchange, or Azure AD Directory read. Those permissions were added incrementally without a least-privilege review and represent classic privilege creep. The principle: each service account's permission set should be derivable from its documented purpose, with no permissions that cannot be traced to a specific function.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Exchange Send As: The Business Email Compromise Risk</div>
+                <div class="card-desc">Send As permission on a shared mailbox allows the account to send email that appears to come from <code style="font-size:0.82em;">ops@veridian.com</code>. An attacker with this permission can: impersonate the firm's operations team to clients, send fraudulent wire transfer instructions, or reset external service credentials by controlling the reply-to address. This is a Business Email Compromise (BEC) attack surface. A service account that generates reports has no legitimate need for Send As on any mailbox.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Deprovisioning Priority Logic</div>
+                <div class="card-desc">Revocation priority follows blast radius x active risk: (1) Revoke Exchange Send As immediately &mdash; BEC attacks can cause irreversible financial or reputational damage with a single sent email. (2) Revoke Salesforce bulk export &mdash; ongoing exfiltration risk even though the first export is complete. (3) Revoke SharePoint and Azure AD Directory &mdash; reconnaissance risk. (4) Rotate the client secret &mdash; invalidates any copies the attacker holds. (5) Audit the password manager vault for other entries accessible to the same attacker session.</div>
+            </div>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">The second-order risk from Password Manager Read access</div>
+            The attacker authenticated using a secret they obtained from the password manager. If <code style="font-size:0.88em;">svc-reporting</code> had read access to a vault that contained other service account secrets (a common pattern when a service manages its own rotation), the attacker may have exfiltrated all secrets in that vault, not just the one used for initial access. The password manager audit log must be reviewed for API calls from the attacker's source IP and for any vault exports that occurred in the same window as the Salesforce breach.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 8 — TASK 3: CONTAINMENT DECISION ============ -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12 &nbsp;|&nbsp; Task 3</div>
+        <div class="slide-title">Task 3: <span class="accent-purple">Containment Decision + Risk Register</span></div>
+        <div class="slide-subtitle">The data exfiltration is complete. Containment now means: stop further access, preserve evidence, and document the risk posture accurately. Every decision has a trade-off. Document the trade-off, not just the decision.</div>
+
+        <div class="step-row">
+            <div class="step-num">A</div>
+            <div class="step-content">
+                <div class="step-title">Containment Decision for Each In-Scope System</div>
+                <div class="step-desc">
+                    Three systems require a containment decision. For each one, state the action and the reason:
+                    <strong>1. Azure AD / svc-reporting account:</strong> disable or leave active for monitoring?
+                    <strong>2. Salesforce CRM:</strong> revoke API access only, or isolate the entire org from external API calls?
+                    <strong>3. Password Manager vault:</strong> lock the vault, rotate all secrets it contains, or both?
+                </div>
+                <div class="step-hint">There is no universally correct answer. State your decision, your reasoning, and the residual risk you accept with each choice. A decision to leave the account active for intelligence gathering requires documented authorization.</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">B</div>
+            <div class="step-content">
+                <div class="step-title">Risk Register Entry for This Incident</div>
+                <div class="step-desc">
+                    Create a new risk register entry using these fields: <strong>Threat:</strong> the agent and action. <strong>Vulnerability:</strong> the exploited weakness. <strong>Likelihood (post-incident):</strong> how likely is recurrence before mitigation? <strong>Impact:</strong> business consequence (financial, regulatory, reputational). <strong>Treatment:</strong> which option (mitigate/transfer/avoid/accept) and the specific control. <strong>Residual Risk:</strong> what risk remains after treatment is applied. <strong>Owner:</strong> named role. <strong>Review Date:</strong> when will residual risk be reassessed?
+                </div>
+                <div class="step-hint">Use qualitative ratings (Low/Medium/High/Critical) for likelihood and impact. The treatment must reference a specific control, not a generic action like "improve security."</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">C</div>
+            <div class="step-content">
+                <div class="step-title">Regulatory Notification Assessment</div>
+                <div class="step-desc">Veridian is subject to SEC Regulation S-P. The Salesforce export included 4,200 client contact and account records. Determine: (1) Does this breach trigger an SEC Reg S-P notification obligation? (2) What is the notification window under Reg S-P 2023 amendments? (3) Who at Veridian must be notified internally before any external notification is sent?</div>
+                <div class="step-hint">SEC Reg S-P was amended in 2023. The amended rule requires covered institutions to notify affected customers within 30 days of detecting a breach of customer information. Internal notification chain typically runs: CISO &rarr; General Counsel &rarr; CEO &rarr; Board (Audit Committee).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 9 — TASK 3: REFERENCE ============ -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12 &nbsp;|&nbsp; Task 3 Reference</div>
+        <div class="slide-title">Task 3 <span class="accent-purple">Reference: Containment + Risk Register Anchor Points</span></div>
+        <div class="slide-subtitle">Do not copy these examples directly. Use them to calibrate the precision of your decisions and identify gaps in your own analysis.</div>
+
+        <div class="card-grid">
+            <div class="card c-purple">
+                <div class="card-label">Example: svc-reporting Containment Decision</div>
+                <div class="card-desc">
+                    <strong>Recommended action:</strong> disable the account immediately in Azure AD, revoke all active OAuth tokens.<br>
+                    <strong>Reasoning:</strong> Exfiltration is complete. There is no ongoing attacker action to monitor. The intelligence value of leaving the account active (understanding the attacker's next move) is outweighed by the risk of a second export window or lateral movement using the Azure AD Directory Read access.<br>
+                    <strong>Residual risk from disabling:</strong> attacker is aware of detection and may pivot to other credentials obtained from the password manager.
+                </div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Example: Risk Register Entry</div>
+                <div class="card-desc">
+                    <strong>Threat:</strong> External threat actor using stolen OAuth client secret.<br>
+                    <strong>Vulnerability:</strong> Service account using long-lived client secret with no MFA, Conditional Access exclusion, and over-permissioned RBAC.<br>
+                    <strong>Likelihood (post-incident, pre-remediation):</strong> High &mdash; secret may still be held by attacker if not rotated.<br>
+                    <strong>Impact:</strong> High &mdash; client PII exported; SEC Reg S-P notification obligation triggered; reputational risk with investment clients.<br>
+                    <strong>Treatment:</strong> Mitigate &mdash; migrate to Workload Identity Federation (eliminates client secret); implement PAM for remaining service accounts; quarterly RBAC review.<br>
+                    <strong>Residual Risk:</strong> Medium (post-migration) &mdash; federation token misconfiguration is possible.<br>
+                    <strong>Owner:</strong> CISO.<br>
+                    <strong>Review Date:</strong> 90 days post-remediation.
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">SEC Reg S-P 2023: What You Need to Know</div>
+                <div class="card-desc">The SEC amended Regulation S-P in May 2023 (effective September 2023 for larger institutions). Key obligations: (1) Customer notification within 30 days of detecting a breach of customer information, unless law enforcement requests delay. (2) Covered information: non-public personal information about customers of broker-dealers, investment advisers, and investment companies. (3) The notice must describe the incident, the type of information involved, and the steps customers can take to protect themselves. Source: SEC Release No. 34-97141, May 16, 2023.</div>
+            </div>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">The containment decision the exam tests on NIST SP 800-61r3</div>
+            When exfiltration is already complete, containment shifts from "stop the data leaving" to "stop further access and preserve evidence of what left." The correct NIST SP 800-61r3 framing: (1) short-term containment = disable the account and revoke tokens (stop active access), (2) long-term containment = remediate the vulnerability (migrate to workload identity, fix RBAC), (3) do not skip directly to recovery (reimaging, rotating secrets) without preserving evidence of the attack path for the PIR and potential regulatory investigation.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10 — WORKING SESSION ============ -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12 &nbsp;|&nbsp; Working Session</div>
+        <div class="slide-title">Working Session &mdash; <span class="accent">25 Minutes</span></div>
+        <div class="slide-subtitle">Use this slide as your reference during the work session. Instructor circulates.</div>
+
+        <div class="box box-purple" style="margin-bottom:12px;">
+            <div class="box-label">Time allocation (instructor paces with verbal cues)</div>
+            <div style="display:grid; grid-template-columns:80px 1fr; gap:6px; font-size:0.88rem; margin-top:6px;">
+                <div style="color:#c084fc; font-weight:700;">0:00</div><div style="color:#cbd5e1;">Begin Task 1 (authentication forensics). Written analysis.</div>
+                <div style="color:#c084fc; font-weight:700;">10:00</div><div style="color:#cbd5e1;">Begin Task 2 (identity blast radius + RBAC violations). Written analysis.</div>
+                <div style="color:#c084fc; font-weight:700;">20:00</div><div style="color:#cbd5e1;">Begin Task 3 (containment decisions + risk register + Reg S-P). Written entries.</div>
+                <div style="color:#c084fc; font-weight:700;">30:00</div><div style="color:#cbd5e1;">Stop work. Prep spokesperson. One key finding per task.</div>
+                <div style="color:#c084fc; font-weight:700;">31:00</div><div style="color:#cbd5e1;">Presentations begin. ~5 min per group.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Task 1 Checklist</div>
+                <div class="card-desc">
+                    <div class="checklist">
+                        <div class="check-item"><div class="check-box"></div>MFA mechanism identified (TOTP push)</div>
+                        <div class="check-item"><div class="check-box"></div>Why client_credentials bypasses MFA explained</div>
+                        <div class="check-item"><div class="check-box"></div>Two credential exfiltration vectors named</div>
+                        <div class="check-item"><div class="check-box"></div>Architectural fix: Workload Identity Federation</div>
+                        <div class="check-item"><div class="check-box"></div>Why secret rotation is not the fix explained</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Task 2 Checklist</div>
+                <div class="card-desc">
+                    <div class="checklist">
+                        <div class="check-item"><div class="check-box"></div>All 5 permissions mapped to blast radius</div>
+                        <div class="check-item"><div class="check-box"></div>Exchange Send As BEC risk identified</div>
+                        <div class="check-item"><div class="check-box"></div>Permissions without justification flagged</div>
+                        <div class="check-item"><div class="check-box"></div>Deprovisioning order stated with rationale</div>
+                        <div class="check-item"><div class="check-box"></div>Password manager second-order risk addressed</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Task 3 Checklist</div>
+                <div class="card-desc">
+                    <div class="checklist">
+                        <div class="check-item"><div class="check-box"></div>Containment decision per system + reasoning</div>
+                        <div class="check-item"><div class="check-box"></div>Residual risk for each decision stated</div>
+                        <div class="check-item"><div class="check-box"></div>Risk register entry: all 8 fields complete</div>
+                        <div class="check-item"><div class="check-box"></div>Treatment names a specific control, not generic</div>
+                        <div class="check-item"><div class="check-box"></div>SEC Reg S-P: notification obligation + window</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 11 — DISCUSSION: DEFEND YOUR DECISIONS ============ -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12 &nbsp;|&nbsp; Discussion Prompts</div>
+        <div class="slide-title">Defend Your <span class="accent">Decisions</span></div>
+        <div class="slide-subtitle">Instructor will ask one of these per group. Other groups may challenge. These are the real trade-off questions a security practitioner faces during and after an incident.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The Intelligence Trade-off</div>
+                <div class="card-desc">Your team recommends disabling the <code>svc-reporting</code> account immediately. One team member argues for leaving it active for 24 hours to gather intelligence on the attacker's next move. What authorizations are required before you can legally and ethically pursue that option? What is the specific risk of leaving it active that must be weighed against the intelligence value?</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Conditional Access Exclusion Accountability</div>
+                <div class="card-desc">The service account was excluded from Conditional Access 14 months ago. That exclusion was "documented and approved." Who approved it? What should the approval process have required? Would a proper risk acceptance form have changed the outcome? Describe what a well-designed exception process would have included.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">The Architectural vs. Procedural Distinction</div>
+                <div class="card-desc">Your risk register entry lists "migrate to Workload Identity Federation" as the treatment. The CISO asks: "What do we do in the next 90 days before migration is complete?" Describe a procedural compensating control that reduces likelihood during the remediation window, and explain why it is only a temporary measure and not a permanent fix for the underlying architectural flaw.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">SEC Reg S-P Notification Scope</div>
+                <div class="card-desc">The exported data contained client names, phone numbers, emails, and account IDs. Does this constitute "non-public personal information" under Reg S-P? The clients have not yet been notified. The CISO wants to delay notification until the forensic investigation is complete to avoid panicking clients. Under the amended Reg S-P 2023 rule, what is the legal position of delaying notification beyond 30 days?</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">RBAC Accountability After the Incident</div>
+                <div class="card-desc">The SharePoint Finance site access and the Exchange Send As permission had no justification on file. Who is responsible for that gap: the system owner who provisioned it, the security team that should have reviewed it, or the access review process that should have caught it? What structural change ensures permissions without justification cannot persist past the next review cycle?</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 12 — DEBRIEF + TAKEAWAYS ============ -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12 &nbsp;|&nbsp; Debrief</div>
+        <div class="slide-title">Task <span class="accent">Debrief</span></div>
+        <div class="slide-subtitle">Every control failure in this incident was a known class of failure. None of them required novel attacker capability. The lessons are architectural, not tactical.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Authentication: What Most Groups Got Right</div>
+                <div class="card-desc">The client_credentials flow bypasses MFA by design &mdash; this is not a configuration error, it is how the protocol works. Recognizing that the Conditional Access exclusion is irrelevant to the attack path is the key insight. The fix (Workload Identity Federation or X.509 client certificate) eliminates the shared secret entirely. "Rotate more often" treats the symptom; eliminating the secret treats the cause.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Identity: The RBAC Insight</div>
+                <div class="card-desc">Permissions accumulate over time without a forcing function to remove them. The Exchange Send As access had no justification and was never caught by an access review because Veridian did not have a regular access review process. Least privilege is not a one-time provisioning decision &mdash; it is an ongoing operational process. Quarterly access reviews with mandatory justification for every permission are the control that prevents this class of finding.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Response: The Risk Register Is Not Optional</div>
+                <div class="card-desc">A risk register entry created during incident response with an incomplete treatment or a generic remediation action is a compliance artifact, not a risk management document. The treatment must name a specific control, an owner, and a review date. Residual risk must be quantified, even qualitatively. When the next audit comes, the question is not "did you document it" but "did you act on it."</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What carries into the final</div>
+            The Final Part 1 (written) and Patient Zero practical (Part 2) draw on all eight weeks simultaneously. Week 4 contributes authentication mechanism analysis, RBAC violation identification, and IR lifecycle execution. The Patient Zero scenario includes an authentication failure in Phase 1, identity-based lateral movement in Phase 3, and a risk register requirement in the synthesis phase. The reasoning you practiced today is the reasoning the final tests under pressure.
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ============ NAV ============ -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Track the currently displayed slide (1-based). */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    /**
+     * goToSlide(n)
+     * Deactivates the current slide, activates slide n, updates the
+     * progress bar width, counter text, and prev/next button states.
+     * Shows the Mark Complete button only on the final slide.
+     */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        /* Show the completion button only when the student reaches the last slide. */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation: ArrowRight advances, ArrowLeft goes back. */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize on the first slide. */
+    goToSlide(1);
+</script>
+
+<script>
+    /**
+     * completeModule()
+     * Called by the Mark Complete button on the final slide.
+     * Delegates to ModuleProgress (loaded via component script tag above)
+     * which writes the completion record to Firestore and redirects to the course index.
+     */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w4-inclass-task', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility enhancements: focus management and ARIA live region for slide changes. -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
