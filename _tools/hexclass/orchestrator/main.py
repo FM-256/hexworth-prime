@@ -1683,6 +1683,47 @@ async def chat_stream(
     return StreamingResponse(event_gen(), media_type="text/event-stream")
 
 
+# ── STARTUP WARMUP ─────────────────────────────────────────────────────────
+
+@app.on_event("startup")
+async def warmup_ollama() -> None:
+    """Pre-warm ollama by firing a no-op prompt at boot.
+
+    Without this, the first student of the day pays the model-load tax
+    (~5-15 s on Vulkan when qwen2.5:7b is paged in from disk). This
+    fire-and-forget warmup eliminates that cold-start spike. The warmup
+    is best-effort — if ollama is unavailable at boot, the orchestrator
+    starts anyway and the first real request will pay the model-load
+    cost on its own (same as today's behavior).
+
+    Toggle off with HEX_OLLAMA_WARMUP=0 (e.g. during local dev when
+    ollama isn't running).
+    """
+    if os.environ.get("HEX_OLLAMA_WARMUP", "1") == "0":
+        log.info("startup: ollama warmup disabled via HEX_OLLAMA_WARMUP=0")
+        return
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=5.0)) as client:
+            log.info("startup: warming ollama model %s", DEFAULT_MODEL)
+            t0 = time.time()
+            resp = await client.post(
+                f"{OLLAMA_URL}/api/chat",
+                json={
+                    "model": DEFAULT_MODEL,
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "stream": False,
+                    "options": {"num_predict": 1, "temperature": 0.0},
+                },
+            )
+            if resp.status_code == 200:
+                log.info("startup: ollama warmup complete in %.1fs", time.time() - t0)
+            else:
+                log.warning("startup: ollama warmup non-200 (%d)", resp.status_code)
+    except Exception as e:
+        log.warning("startup: ollama warmup failed (orchestrator starts anyway): %s", e)
+
+
 # ── GRACEFUL SHUTDOWN ──────────────────────────────────────────────────────
 
 @app.on_event("shutdown")
