@@ -151,6 +151,32 @@ const STYLE = `
     .msg.ai .downvote-btn:hover { background: #2a2a3a; color: #c0c0d0; }
     .msg.ai .downvote-btn.active { color: #ef4444; background: #2a1a1a; }
     .msg.thinking { color: #8a8a9a; font-style: italic; }
+    .suggested-row {
+        padding: 0.4rem 16px 0;
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+    .suggested-row .chip {
+        background: #1e1e2a;
+        border: 1px solid #3a3a4a;
+        border-radius: 999px;
+        padding: 0.3rem 0.75rem;
+        font-size: 0.78rem;
+        color: #c0c0d0;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.78rem;
+    }
+    .suggested-row .chip:hover {
+        background: #2a2a3a;
+        border-color: #5a5ae4;
+        color: #e0e0e0;
+    }
+    .suggested-row .chip:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
     footer {
         padding: 12px 16px;
         border-top: 1px solid #2a2a3a;
@@ -213,6 +239,7 @@ class HexAIChatPanel extends HTMLElement {
         // 2026-05-26: capture the button's current mood-ring state so we can
         // pick the matching mascot variant for the panel header.
         this._initialState = ctx.state || 'calm';
+        this._initialPromptForChip = (ctx.initialPrompt || '').trim();
         // Mood-ring color matching for the header mascot background
         const STATE_BG = {
             calm: '#67e8f9', noticing: '#fbbf24', active: '#fb923c',
@@ -285,6 +312,25 @@ class HexAIChatPanel extends HTMLElement {
         }
     }
 
+    // Suggested-prompt chips for first-touch student. Picks up the
+    // state-specific suggested_prompt from the button + adds a couple
+    // generic starter moves. Chips disappear after first send (no
+    // re-suggestion mid-conversation — would feel pushy).
+    _suggestedPrompts() {
+        if (this._chipsConsumed) return null;
+        const fromState = this._initialPromptForChip || '';
+        // Generic fallback chips when no state-specific prompt
+        const GENERIC = [
+            "Where did I get stuck?",
+            "What should I try next?",
+        ];
+        if (fromState && fromState !== 'Ask me anything about this lab') {
+            // Use the state-specific prompt + one generic
+            return [fromState, GENERIC[1]];
+        }
+        return GENERIC;
+    }
+
     _render() {
         this.shadowRoot.innerHTML = `
             <style>${STYLE}</style>
@@ -297,6 +343,10 @@ class HexAIChatPanel extends HTMLElement {
                 <button class="close-btn" aria-label="Close chat">×</button>
             </header>
             <div class="messages" role="log" aria-live="polite"></div>
+            ${this._suggestedPrompts() ? `
+            <div class="suggested-row" id="suggested-row">
+                ${this._suggestedPrompts().map(p => `<button type="button" class="chip">${escapeHtml(p)}</button>`).join('')}
+            </div>` : ''}
             <footer>
                 <textarea
                     aria-label="Type your question for Dr. Hex"
@@ -318,6 +368,18 @@ class HexAIChatPanel extends HTMLElement {
                 this._send();
             }
         });
+        // Suggested-prompt chips — click pre-fills + sends immediately.
+        const chips = this.shadowRoot.querySelectorAll('.suggested-row .chip');
+        for (const chip of chips) {
+            chip.addEventListener('click', () => {
+                if (this._inFlight) return;
+                ta.value = chip.textContent;
+                this._chipsConsumed = true;
+                const row = this.shadowRoot.querySelector('.suggested-row');
+                if (row) row.remove();
+                this._send();
+            });
+        }
         ta.focus();
     }
 
