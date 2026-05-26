@@ -38,6 +38,9 @@
 | `032744d5f` | docs: page-context fix report |
 | `18a74c09a` | fix(eduscan): swap strip order so script-blocks come before comment-strip |
 | `28b15b771` | feat: orchestrator log includes page_path + fallback Skill Map |
+| `1134d6353` | docs(dr-hex): session changelog 2026-05-25 → 2026-05-26 |
+| `41b7e1c39` | fix(dr-hex): apply Karl + Nancy v1.1 review findings (4 high-priority) |
+| `f27a15148` | feat(confluence): add 'update' subcommand for in-place page edits |
 
 ## Production deploys this session
 
@@ -56,6 +59,7 @@
 | 2026-05-26 00:35 | hosting | chat panel sends page_path |
 | 2026-05-26 01:24 | orchestrator restart | log-line + fallback skill map |
 | 2026-05-26 01:30 | hosting | strip-order fix + log line clean deploy |
+| 2026-05-26 01:55 | confluence pages | Karl+Nancy fixes pushed to Constitution/Voice Guide/Stability v2 |
 
 All deploys verified via the smoke gate. Browser content-leak smoke
 10/10 PASS on every hosting deploy. Authenticated chat smoke 15/15 PASS
@@ -117,6 +121,33 @@ corpus rescan: 0 critical+high findings, no regressions.
 | [Dr. Hex Button — Platform-Wide Rollout](https://hexworth.atlassian.net/wiki/spaces/KBA/pages/19431445) | 19431445 |
 | [Dr. Hex Page-Context Fix (2026-05-26)](https://hexworth.atlassian.net/wiki/spaces/KBA/pages/19824642) | 19824642 |
 
+## Adversarial review applied (Karl + Nancy, 2026-05-26)
+
+**Karl DENY (1)** — `arXiv:2402.10962` was cited as "Le et al. Persona
+Drift". Actual is "Li et al. Instruction (In)Stability in Language
+Model Dialogs". URL + N=8 fact correct; attribution was falsifiable.
+Fixed in `production-stability.md` §1 + §9.
+
+**Nancy HIGH (4)** — applied in commit `41b7e1c39`:
+- **§8.1 humility frequency contradiction** — added precedence:
+  context-triggers WIN over per-session cap. "Are you sure?" probing
+  handled (silent re-check, no auto-fire of correction trigger).
+- **§9.4.1 NEW — frustration → distress transition criterion**.
+  Explicit trigger list (self-harm language, resigned course-quitting,
+  life-difficulty mentions alongside lab, hopelessness, crisis-line/
+  therapist/medication mentions). ANY single trigger flips to §9.3 for
+  the rest of the session. Borderline cases default to the safer
+  interpretation. Highest-consequence Nancy finding (safety, not
+  pedagogy).
+- **Voice Guide §11 self-identification** — now says *"I'm Dr. Hex —
+  the Hexworth Prime AI tutor (a language model)..."* so Constitution
+  §3.4 MUST (identify as AI) is satisfied in isolated reading.
+
+**Nancy MEDIUM (3) — deferred to v1.2** (task #209):
+- §16.1 lived-experience grammar gap ("I've seen", "I've been watching")
+- §3.7 demonstrated-effort definition (different approaches vs perms)
+- §9.2 prompt injection embedded inside legitimate lab questions
+
 ## Open follow-ups (need observation data first)
 
 - **#206 v1.2 design items from Codex critique** — explicit rule
@@ -124,15 +155,17 @@ corpus rescan: 0 critical+high findings, no regressions.
   collaborative-curiosity authority erosion threshold, graceful
   orchestration failure mode. Production telemetry needed before
   refining.
+- **#209 v1.2 Nancy MEDIUM items** — see above.
 - **Per-lab Skill Map authoring for high-traffic labs** — fallback
   covers the worst-case leak; per-lab specifics give targeted
   protection. Best done by lab authors who know each lab's pedagogy.
 - **Instructor-view dashboard for engagement metrics** — surfaces
   intervention_sent count, downvote rate, abandoned ratio per lab.
-  Turns telemetry into something instructors can act on.
-- **Nancy + Karl reviews on the Constitution + Voice Guide v1.1**
-  — now that they're stable, dispatch adversarial review for any
-  final refinements before v1.2 design pass.
+  Turns telemetry into something instructors can act on. Pending
+  this session.
+- **Adversarial probe re-run against v1.1 production orchestrator**
+  — in flight now. Compares pre-v1.1 baseline against post-Vulkan/
+  voice_linter/fallback-skill-map/page-context world.
 
 ## Memory + CLAUDE.md updates
 
