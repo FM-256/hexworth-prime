@@ -1,10 +1,11 @@
 /**
- * HexAIChatPanel — student-facing chat panel for Dr. Hex (v1, 2026-05-25)
+ * HexAIChatPanel — student-facing chat panel for Dr. Hex (v2, 2026-05-26)
  *
- * Opens as a side-panel overlay. Reuses the orchestrator's /chat
- * blocking path via the existing hexAiChat callable function (NOT
- * the streaming HTTP endpoint — keeps the chat panel simple; v2
- * can swap in streaming for incremental token reveal).
+ * Opens as a side-panel overlay. Uses the orchestrator's /chat/stream
+ * HTTP endpoint via the hexAiChatStream Cloud Function (CF) — tokens
+ * reveal incrementally. Perceived latency drops from ~5–25 s
+ * full-response to ~1–3 s first-token. The blocking hexAiChat
+ * callable remains as a fallback when SSE fails.
  *
  * Conversation memory: a single conversation_id is minted per page
  * load (UUID v4) and persisted in sessionStorage so re-opening the
@@ -31,8 +32,15 @@ const firebaseConfig = {
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const functions = getFunctions(app, 'us-central1');
-const chatFn = httpsCallable(functions, 'hexAiChat');
+const chatFn = httpsCallable(functions, 'hexAiChat');   // fallback path
 const engagementFn = httpsCallable(functions, 'hexAiEngagementEvent');
+
+// Streaming endpoint — same project, same region. Matches the
+// HexAI.js _streamUrl() pattern. Production runs through the
+// hosting rewrite at /__/functions/hexAiChatStream so the Bearer
+// token Authorization survives CF Access. Falls back to the direct
+// CF URL if the rewrite is unreachable.
+const STREAM_URL = '/__/functions/hexAiChatStream';
 
 // ── TELEMETRY-001: post-intervention engagement instrumentation ───────────
 // Emit engagement events to the server so we can answer: "did the student
@@ -402,27 +410,101 @@ class HexAIChatPanel extends HTMLElement {
         this._appendMessage('user', msg);
         const thinkingNode = this._appendMessage('thinking', 'Dr. Hex is thinking…');
 
+        // v2 streaming path — incrementally append tokens to aiNode.
+        // Falls back to blocking hexAiChat on stream failure so a CF
+        // Access rewrite glitch doesn't kill the chat entirely.
+        let aiNode = null;
+        let responseText = '';
+        let metaInfo = {
+            persona_name: 'Dr. Hex',
+            help_level_label: '',
+            help_level: null,
+            latency_ms: 0,
+            model: null,
+        };
         try {
-            const result = await chatFn({
+            const idToken = await auth.currentUser.getIdToken();
+            const body = JSON.stringify({
                 message: msg,
-                house: this._house || undefined,
-                mission_id: this._missionId || undefined,
+                house: this._house || null,
+                mission_id: this._missionId || null,
+                hint_used_recently: false,
                 conversation_id: this._convId,
-                // 2026-05-26: send page location so Dr. Hex always knows
-                // WHERE the student is — even on house/course landing
-                // pages where no mission_id is set. Dr. Hex was previously
-                // blind on those pages and would say things like "I don't
-                // know which lab you're on."
                 page_path: window.location.pathname,
                 page_title: document.title,
             });
-            const data = result.data;
-            thinkingNode.remove();
-            const aiNode = this._appendMessage('ai', data.response || '(no response)');
+            const response = await fetch(STREAM_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                    'Accept': 'text/event-stream',
+                },
+                body,
+            });
+            if (response.status === 401) throw new Error('auth');
+            if (!response.ok) throw new Error(`stream-${response.status}`);
+
+            // Parse SSE inline — same shape as HexAI.js askDrHexStream.
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            const processEvent = (block) => {
+                const line = block.split('\n').find(l => l.startsWith('data: '));
+                if (!line) return;
+                let event;
+                try { event = JSON.parse(line.slice(6)); } catch (_) { return; }
+                if (event.type === 'meta') {
+                    metaInfo.persona_name = event.persona_name || 'Dr. Hex';
+                    metaInfo.help_level_label = event.help_level_label || '';
+                    metaInfo.help_level = event.help_level ?? null;
+                    metaInfo.model = event.model || null;
+                    if (!aiNode) {
+                        thinkingNode.remove();
+                        aiNode = this._appendMessage('ai', '');
+                    }
+                } else if (event.type === 'token') {
+                    if (!aiNode) {
+                        thinkingNode.remove();
+                        aiNode = this._appendMessage('ai', '');
+                    }
+                    responseText += event.content || '';
+                    aiNode.textContent = responseText;
+                    aiNode.scrollIntoView({ block: 'end' });
+                } else if (event.type === 'done') {
+                    metaInfo.latency_ms = event.latency_ms || 0;
+                } else if (event.type === 'error') {
+                    throw new Error(event.error || 'stream-error');
+                }
+            };
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                let idx;
+                while ((idx = buffer.indexOf('\n\n')) !== -1) {
+                    processEvent(buffer.slice(0, idx));
+                    buffer = buffer.slice(idx + 2);
+                }
+            }
+            // Flush trailing buffer (Nancy v0.5.0a fix)
+            if (buffer.trim()) processEvent(buffer);
+
+            if (!aiNode) {
+                // Stream completed without producing any tokens — fallback.
+                thinkingNode.remove();
+                aiNode = this._appendMessage('ai', '(no response)');
+            }
+            const data = {
+                response: responseText || '(no response)',
+                persona_name: metaInfo.persona_name,
+                help_level_label: metaInfo.help_level_label,
+                latency_ms: metaInfo.latency_ms,
+            };
             // Append metadata footer
             const meta = document.createElement('div');
             meta.className = 'meta';
-            meta.textContent = `${data.persona_name || 'Dr. Hex'} · ${data.help_level_label || ''} · ${Math.round((data.latency_ms || 0) / 1000)}s`;
+            meta.textContent = `${data.persona_name} · ${data.help_level_label} · ${Math.round((data.latency_ms || 0) / 1000)}s`;
             aiNode.appendChild(meta);
 
             // TELEMETRY-001: intervention_sent + downvote UI.
