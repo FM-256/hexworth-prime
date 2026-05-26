@@ -274,12 +274,30 @@ def _validate_skill_map(data: dict, source: str) -> LabSkillMap:
 # ─── public API ──────────────────────────────────────────────────────────
 
 
+# Per-request mtime-keyed cache for parsed Skill Maps.
+#
+# Without this, the orchestrator re-reads + re-parses YAML on every chat
+# turn — a wasted 1-20 ms per request (OS page cache hides most of it,
+# but 7-map production + planned 1500+ adds up). Keying on (path, mtime)
+# means a newly-promoted Skill Map is picked up automatically on its
+# next request without restarting the orchestrator.
+#
+# Dict-based not @lru_cache because mtime changes invalidate; the cache
+# is bounded only by the number of unique lab_ids served (~7 today,
+# capped at ~2500 even in the most-promoted future state).
+_skill_map_cache: dict[tuple[str, int], LabSkillMap] = {}
+
+
 def load_skill_map(lab_id: str) -> LabSkillMap:
     """Load and validate the Skill Map for the given lab_id.
 
     Raises FileNotFoundError if the YAML file does not exist (or if no
     skill-maps directory is configured), SkillMapValidationError if the
     file is malformed.
+
+    Cached by (resolved-path, mtime_ns). Re-reads when the file is
+    modified — operators promoting a Skill Map from _drafts/ get the
+    new content on the next request without restarting the orchestrator.
     """
     d = skill_maps_dir()
     if d is None:
@@ -290,9 +308,16 @@ def load_skill_map(lab_id: str) -> LabSkillMap:
     path = d / f"{lab_id}.yaml"
     if not path.is_file():
         raise FileNotFoundError(f"No Skill Map found for lab_id '{lab_id}' (expected {path})")
+    mtime_ns = path.stat().st_mtime_ns
+    cache_key = (str(path), mtime_ns)
+    cached = _skill_map_cache.get(cache_key)
+    if cached is not None:
+        return cached
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    return _validate_skill_map(data, source=path.name)
+    parsed = _validate_skill_map(data, source=path.name)
+    _skill_map_cache[cache_key] = parsed
+    return parsed
 
 
 def maybe_load_skill_map(lab_id: str) -> Optional[LabSkillMap]:
