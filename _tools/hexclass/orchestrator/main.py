@@ -1241,8 +1241,10 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
          retrieved, tools_list, tool_ctx, prior_turns) = await _resolve_request(req)
         persona = PERSONAS[persona_slug]
         log.info(
-            "chat: uid=%s house=%s persona=%s level=%d model=%s rag_hits=%d tools_visible=%d prior_turns=%d rl_count=%d",
-            redact_uid(req.user_uid), req.house, persona["name"], level, model,
+            "chat: uid=%s house=%s mission=%s path=%s persona=%s level=%d model=%s rag_hits=%d tools_visible=%d prior_turns=%d rl_count=%d",
+            redact_uid(req.user_uid), req.house, req.mission_id or "-",
+            req.page_path or "-",
+            persona["name"], level, model,
             len(retrieved), len(tools_list), len(prior_turns), rl_count,
         )
         # Normalize the message NFKC + zero-width strip BEFORE either
@@ -1387,6 +1389,26 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                 _sm = maybe_load_skill_map(req.mission_id)
                 if _sm is not None:
                     lint_skill_map = _sm.to_linter_skill_map()
+            # 2026-05-26: fallback Skill Map applied to EVERY chat when no
+            # per-lab map is loaded. Provides baseline anti-leak protection
+            # without per-lab authoring (2431 labs would take weeks).
+            # Per-lab maps still take precedence — this only fills gaps.
+            if lint_skill_map is None:
+                from voice_linter import LabSkillMap as _LSM
+                lint_skill_map = _LSM(
+                    lab_id="__fallback__",
+                    flag_values=[],
+                    walkthrough_text="",
+                    forbidden_disclosures=[
+                        # Generic anti-disclosure patterns. Catches the
+                        # worst-case "Dr. Hex leaks the answer" failures
+                        # even on labs we haven't authored a map for.
+                        "the flag is FLAG{",
+                        "the answer is FLAG{",
+                        "the solution is FLAG{",
+                    ],
+                    allowed_help_levels=[0, 1, 2, 3, 4, 5],
+                )
             lint_result = lint_response(
                 scrubbed_text,
                 session_state=None,  # fresh per-request for v1; session tracking is Phase 2
