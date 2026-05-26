@@ -75,17 +75,40 @@ LEVELS_BY_SUFFIX = {
 }
 
 
-def derive_lab_id(filename: str) -> str | None:
+def derive_lab_id(path: Path) -> str | None:
+    """lab_id from filename suffix OR (for directory-style labs) parent dir name."""
+    filename = path.name
     for suffix in LAB_SUFFIXES:
         if filename.endswith(suffix):
             return filename[: -len(suffix)]
+    # Directory-style lab: index.html under */labs/<name>/ etc.
+    if filename == "index.html":
+        parent = path.parent.name
+        for segment in path.parts[:-2]:
+            if segment in ("labs", "boxes", "applets", "exams"):
+                if parent and parent not in ("labs", "boxes", "applets", "exams"):
+                    return parent
     return None
 
 
-def derive_lab_suffix(filename: str) -> str | None:
+def derive_lab_suffix(path: Path) -> str | None:
+    """Returns the LAB_SUFFIXES key OR a synthetic key for directory-style labs."""
+    filename = path.name
     for suffix in LAB_SUFFIXES:
         if filename.endswith(suffix):
             return suffix
+    if filename == "index.html":
+        # Map directory-style labs to a suffix for the heuristic tables.
+        # Use the parent-of-parent directory's last segment to classify.
+        for i, segment in enumerate(path.parts[:-2]):
+            if segment == "labs":
+                return ".lab.html"
+            if segment == "boxes":
+                return ".box.html"
+            if segment == "applets":
+                return ".applet.html"
+            if segment == "exams":
+                return ".exam.html"
     return None
 
 
@@ -169,9 +192,20 @@ def walk_labs(root: Path):
         name = p.name
         if any(name.endswith(s) for s in SKIP_SUFFIXES):
             continue
-        if not any(name.endswith(s) for s in LAB_SUFFIXES):
+        # Case 1: filename has a lab suffix (key-aes.lab.html, pis-final.exam.html)
+        if any(name.endswith(s) for s in LAB_SUFFIXES):
+            yield p
             continue
-        yield p
+        # Case 2: directory-style lab — index.html inside */labs/<lab-name>/
+        # or */boxes/<box-name>/ etc. Lab_id derived from parent dir name.
+        if name == "index.html":
+            parts = p.parts
+            # Look for /labs/<name>/index.html or /boxes/<name>/index.html
+            for i, segment in enumerate(parts[:-2]):
+                if segment in ("labs", "boxes", "applets", "exams") and i + 2 < len(parts):
+                    # parts[i+1] = lab name, parts[i+2] = "index.html"
+                    yield p
+                    break
 
 
 def main() -> int:
@@ -202,7 +236,7 @@ def main() -> int:
 
     for root in (APP / "houses", APP / "dispatch"):
         for p in walk_labs(root):
-            lab_id = derive_lab_id(p.name)
+            lab_id = derive_lab_id(p)
             if not lab_id:
                 skipped_no_id += 1
                 continue
@@ -210,7 +244,7 @@ def main() -> int:
                 skipped_existing += 1
                 continue
 
-            suffix = derive_lab_suffix(p.name)
+            suffix = derive_lab_suffix(p)
             try:
                 content = p.read_text(encoding="utf-8", errors="ignore")
             except Exception:
