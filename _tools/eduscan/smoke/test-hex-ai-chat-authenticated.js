@@ -24,7 +24,9 @@
 const puppeteer = require('puppeteer');
 const https = require('https');
 
-const URL = 'https://hexworth-prime.web.app/houses/matrix/adv-linux/index.html';
+// First CLI arg overrides the target URL — lets the same smoke validate
+// the rollout on any deployed lab page.
+const URL = process.argv[2] || 'https://hexworth-prime.web.app/houses/matrix/adv-linux/index.html';
 const TEST_SUFFIX = Math.random().toString(36).slice(2, 8);
 const TEST_EMAIL = `drhex-smoke-${TEST_SUFFIX}@hexworth-smoke.local`;
 // Password policy: ≤10 chars, must include uppercase. Build a compliant random one.
