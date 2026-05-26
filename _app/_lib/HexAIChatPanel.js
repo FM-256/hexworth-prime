@@ -87,7 +87,29 @@ const STYLE = `
         align-items: center;
         justify-content: space-between;
     }
-    h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+    h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #f0f0f5;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    h2 img.panel-mascot {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #67e8f9;
+        padding: 3px;
+        flex-shrink: 0;
+    }
+    h2 .header-house {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #8a8a9a;
+        letter-spacing: 0.02em;
+    }
     button.close-btn {
         background: none;
         border: none;
@@ -256,7 +278,11 @@ class HexAIChatPanel extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>${STYLE}</style>
             <header>
-                <h2>Dr. Hex${this._house ? ` · ${escapeHtml(this._house)}` : ''}</h2>
+                <h2>
+                    <img class="panel-mascot" src="/assets/images/icons/dr-hex-calm.svg" alt="" aria-hidden="true">
+                    <span>Dr. Hex</span>
+                    ${this._house ? `<span class="header-house">· ${escapeHtml(this._house)}</span>` : ''}
+                </h2>
                 <button class="close-btn" aria-label="Close chat">×</button>
             </header>
             <div class="messages" role="log" aria-live="polite"></div>
