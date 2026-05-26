@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 3 Lecture Companion | Principles of Information Security</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 16px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 28px 36px 78px; overflow: hidden;
+            animation: slideIn 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(28px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .slide-inner { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 18px; }
+
+        /* progress + nav */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+            transition: width 0.45s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+            background: rgba(2, 8, 20, 0.95); border-top: 1px solid rgba(59, 130, 246, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 9px 24px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: #3b82f6; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.84rem; padding: 9px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.84rem; min-width: 100px; text-align: center; }
+
+        #complete-btn { display: none; background: #3b82f6; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        #complete-btn:hover { background: #60a5fa; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35); }
+
+        /* typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; opacity: 0.8; }
+        .slide-title { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; text-align: center; line-height: 1.18; }
+        .slide-title .accent       { color: #3b82f6; }
+        .slide-title .accent-cyan  { color: #06b6d4; }
+        .slide-title .accent-gold  { color: #eab308; }
+        .slide-title .accent-red   { color: #ef4444; }
+        .slide-title .accent-green { color: #22c55e; }
+        .slide-subtitle { font-size: 1.05rem; color: #94a3b8; text-align: center; max-width: 880px; margin: 0 auto; }
+
+        /* hero title slide */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 3rem; font-weight: 900; color: #f1f5f9; line-height: 1.12; letter-spacing: -0.01em; }
+        .title-hero .big-title .accent { color: #3b82f6; }
+        .title-hero .lead { font-size: 1.2rem; color: #94a3b8; max-width: 720px; }
+        .title-meta-row { display: flex; gap: 32px; justify-content: center; margin-top: 12px; font-size: 0.85rem; color: #64748b; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* cards */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 16px 18px; border-left: 3px solid #3b82f6;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        .slide.active .card:nth-child(1) { animation-delay: 0.18s; }
+        .slide.active .card:nth-child(2) { animation-delay: 0.32s; }
+        .slide.active .card:nth-child(3) { animation-delay: 0.46s; }
+        .slide.active .card:nth-child(4) { animation-delay: 0.60s; }
+
+        .card .card-label { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.9rem; color: #94a3b8; line-height: 1.5; }
+        .card.c-blue   { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.04); }
+        .card.c-red    { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.04); }
+        .card.c-gold   { border-left-color: #eab308; background: rgba(234, 179, 8, 0.04); }
+        .card.c-cyan   { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.04); }
+        .card.c-green  { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.04); }
+        .card.c-purple { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.04); }
+        .card.c-orange { border-left-color: #f97316; background: rgba(249, 115, 22, 0.04); }
+
+        /* callouts */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.06); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 12px 18px;
+            font-size: 0.95rem; color: #bfdbfe; font-style: italic; line-height: 1.55;
+        }
+        .box { border-radius: 8px; padding: 14px 18px; font-size: 0.92rem; }
+        .box-blue   { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green  { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-red    { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold   { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-purple { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.75; }
+
+        /* agenda rows */
+        .agenda-row {
+            display: grid; grid-template-columns: 60px 1fr auto; gap: 18px;
+            align-items: center; padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            border-left: 3px solid #3b82f6;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        .agenda-num { font-size: 1.8rem; font-weight: 800; color: #3b82f6; text-align: center; opacity: 0.7; }
+        .agenda-text { display: flex; flex-direction: column; gap: 2px; }
+        .agenda-text .agenda-title { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+        .agenda-text .agenda-sub   { font-size: 0.85rem; color: #94a3b8; }
+        .slide.active .agenda-row:nth-child(1) { animation-delay: 0.20s; }
+        .slide.active .agenda-row:nth-child(2) { animation-delay: 0.36s; }
+        .slide.active .agenda-row:nth-child(3) { animation-delay: 0.52s; }
+        .slide.active .agenda-row:nth-child(4) { animation-delay: 0.68s; }
+
+        /* diagram */
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 6px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+
+        /* animations */
+        @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        @keyframes expandOut { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes flowRight { 0% { transform: translateX(-6px); opacity: 0.3; } 50% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(6px); opacity: 0.3; } }
+
+        /* fact rows */
+        .summary-facts { display: flex; flex-direction: column; gap: 8px; }
+        .fact-row { display: flex; gap: 14px; align-items: baseline; font-size: 0.95rem; opacity: 0; animation: cardIn 0.45s ease-out forwards; }
+        .fact-num  { font-size: 0.85rem; font-weight: 800; color: #3b82f6; min-width: 26px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; line-height: 1.55; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #3b82f6; background: rgba(59, 130, 246, 0.08); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; }
+        .slide.active .fact-row:nth-child(1)  { animation-delay: 0.14s; }
+        .slide.active .fact-row:nth-child(2)  { animation-delay: 0.24s; }
+        .slide.active .fact-row:nth-child(3)  { animation-delay: 0.34s; }
+        .slide.active .fact-row:nth-child(4)  { animation-delay: 0.44s; }
+        .slide.active .fact-row:nth-child(5)  { animation-delay: 0.54s; }
+        .slide.active .fact-row:nth-child(6)  { animation-delay: 0.64s; }
+        .slide.active .fact-row:nth-child(7)  { animation-delay: 0.74s; }
+        .slide.active .fact-row:nth-child(8)  { animation-delay: 0.84s; }
+        .slide.active .fact-row:nth-child(9)  { animation-delay: 0.94s; }
+        .slide.active .fact-row:nth-child(10) { animation-delay: 1.04s; }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 12px; } .slide-title { font-size: 1.7rem; } .title-hero .big-title { font-size: 2.2rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-2, .card-grid-4 { grid-template-columns: 1fr; } .slide-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Week 3 Lecture Companion | Principles of Information Security</h1>
+
+<div id="progress-bar" style="width:5.26%"></div>
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Lecture Companion &nbsp;|&nbsp; Week 3 of 8 &nbsp;|&nbsp; CompTIA SY0-701</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Defend the<br>
+                <span class="accent">Perimeter. Then Go Deeper.</span>
+            </div>
+            <div class="lead">
+                Network architecture, wireless and cloud controls, PKI, and security operations. Four domains that describe where the line is, who controls the key, and who is watching the wire.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>19 Slides</span>
+            <span>~40 min</span>
+            <span>4 sub-topics</span>
+            <span>Lecture pace</span>
+        </div>
+        <div class="scenario-strip" style="margin-top:14px;">
+            This deck is the instructor companion. The 4 textbook decks (Network Architecture, Wireless &amp; Cloud, PKI, Security Operations) hold the drilldown. This deck holds the throughline &mdash; how the four surfaces form one coherent defensive posture, and what a working analyst carries from this week into the field.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 2 — WEEK AHEAD ============ -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 19 &nbsp;|&nbsp; The Week Ahead</div>
+        <div class="slide-title">Four Sub-Topics, <span class="accent">One Defensive Posture</span></div>
+        <div class="slide-subtitle">Week 3 is the architecture week. Every decision this week has a structural consequence that outlives any single patch.</div>
+
+        <div class="agenda-row">
+            <div class="agenda-num">01</div>
+            <div class="agenda-text">
+                <div class="agenda-title">Network Architecture &amp; Segmentation</div>
+                <div class="agenda-sub">Firewalls, DMZ, VPN, NAT, zero-trust. How you shape the network determines what an attacker can reach.</div>
+            </div>
+        </div>
+        <div class="agenda-row">
+            <div class="agenda-num">02</div>
+            <div class="agenda-text">
+                <div class="agenda-title">Wireless &amp; Cloud Security</div>
+                <div class="agenda-sub">WPA3, RADIUS, rogue AP detection, shared responsibility model. The perimeter now extends to devices you do not own.</div>
+            </div>
+        </div>
+        <div class="agenda-row">
+            <div class="agenda-num">03</div>
+            <div class="agenda-text">
+                <div class="agenda-title">PKI &amp; Certificate Management</div>
+                <div class="agenda-sub">CA hierarchy, X.509, CRL, OCSP, digital signatures. The mechanism that lets two strangers trust each other over an untrusted network.</div>
+            </div>
+        </div>
+        <div class="agenda-row">
+            <div class="agenda-num">04</div>
+            <div class="agenda-text">
+                <div class="agenda-title">Security Operations</div>
+                <div class="agenda-sub">SIEM, IDS/IPS, SOAR, vulnerability management, threat hunting, EDR. The instruments that tell you the perimeter is holding &mdash; or that it has already failed.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3 — THE NETWORK IS NOT A PERIMETER ============ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 19 &nbsp;|&nbsp; Topic 1: Network Architecture</div>
+        <div class="slide-title">The Network Is <span class="accent-red">Not a Perimeter</span></div>
+        <div class="slide-subtitle">The perimeter model assumes: everything outside is hostile, everything inside is trusted. Both assumptions have been false for decades.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 180" width="720" height="180" xmlns="http://www.w3.org/2000/svg">
+                <!-- Old model -->
+                <rect x="20" y="20" width="300" height="140" rx="8" fill="rgba(239,68,68,0.04)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,3"/>
+                <text x="170" y="42" text-anchor="middle" fill="#ef4444" font-family="Segoe UI" font-size="11" font-weight="700" opacity="0.8">OLD MODEL</text>
+                <text x="170" y="60" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">Firewall = the line</text>
+                <rect x="40" y="70" width="100" height="30" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="90" y="90" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="10">TRUSTED INSIDE</text>
+                <rect x="180" y="70" width="100" height="30" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+                <text x="230" y="90" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="10">HOSTILE OUTSIDE</text>
+                <line x1="140" y1="85" x2="180" y2="85" stroke="#ef4444" stroke-width="2"/>
+                <text x="160" y="80" text-anchor="middle" fill="#ef4444" font-family="Segoe UI" font-size="14" font-weight="900">&#9646;</text>
+                <text x="170" y="125" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="9" font-style="italic">VPN users, cloud workloads,</text>
+                <text x="170" y="137" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="9" font-style="italic">BYOD, and supply-chain</text>
+                <text x="170" y="149" text-anchor="middle" fill="#ef4444" font-family="Segoe UI" font-size="9" font-style="italic">all blew this up.</text>
+
+                <!-- Arrow -->
+                <polygon points="350,90 380,80 380,100" fill="#06b6d4" opacity="0.7"/>
+
+                <!-- New model -->
+                <rect x="390" y="20" width="310" height="140" rx="8" fill="rgba(6,182,212,0.04)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="545" y="42" text-anchor="middle" fill="#06b6d4" font-family="Segoe UI" font-size="11" font-weight="700" opacity="0.8">ZERO TRUST MODEL</text>
+                <text x="545" y="58" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="10">No implicit trust. Verify every request. Limit blast radius.</text>
+                <!-- Zones -->
+                <rect x="410" y="68" width="80" height="26" rx="4" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="450" y="85" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">IDENTITY</text>
+                <rect x="500" y="68" width="80" height="26" rx="4" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>
+                <text x="540" y="85" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="9" font-weight="700">DEVICE</text>
+                <rect x="590" y="68" width="80" height="26" rx="4" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>
+                <text x="630" y="85" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="9" font-weight="700">NETWORK</text>
+                <rect x="410" y="104" width="80" height="26" rx="4" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1"/>
+                <text x="450" y="121" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="9" font-weight="700">APP</text>
+                <rect x="500" y="104" width="80" height="26" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+                <text x="540" y="121" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9" font-weight="700">DATA</text>
+                <rect x="590" y="104" width="80" height="26" rx="4" fill="rgba(249,115,22,0.1)" stroke="#f97316" stroke-width="1"/>
+                <text x="630" y="121" text-anchor="middle" fill="#fed7aa" font-family="Segoe UI" font-size="9" font-weight="700">WORKLOAD</text>
+                <text x="545" y="148" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Each plane is authenticated independently.</text>
+                <text x="545" y="158" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Breach one &mdash; you breach one, not everything.</text>
+            </svg>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The architectural shift that Week 3 is built on</div>
+            <strong>Zero trust is not a product.</strong> It is an architectural principle: every access request is evaluated regardless of where it originates. NIST SP 800-207 defines the seven tenets. The practical question is always: <em>what is the smallest unit of access that accomplishes the task?</em> That answer drives segmentation, firewall rules, VPN scope, and every other decision in this week.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 4 — FIREWALL DECISION LOGIC ============ -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 19</div>
+        <div class="slide-title">Firewall <span class="accent">Decision Logic</span></div>
+        <div class="slide-subtitle">A firewall is a policy enforcement point. What makes it useful is not what it blocks &mdash; it is what the rules say and in what order they are evaluated.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Packet Filter (L3/L4)</div>
+                <div class="card-desc">Evaluates IP address, port, and protocol. Fast. Stateless. Cannot see session state. Easily bypassed by fragmentation and spoofed source addresses. Generation one &mdash; still in every router.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Stateful Inspection</div>
+                <div class="card-desc">Tracks connection state. Knows whether a packet belongs to an established session. Blocks unsolicited inbound packets even on allowed ports. Standard in all modern firewalls (iptables, Windows Firewall, ASA).</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Next-Generation (NGFW)</div>
+                <div class="card-desc">Adds application identification, SSL/TLS inspection, user identity, and threat intelligence feeds. Operates at L7. Can block Dropbox uploads while allowing Dropbox downloads on the same TCP/443 flow.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The rule that decides everything</div>
+            Firewall rules are evaluated <strong>top-down, first match wins.</strong> An overly permissive rule at position 1 renders every rule below it irrelevant for that traffic class. The correct default-deny design places the explicit-deny any/any at the bottom as a catch-all, never at the top. The <em>implicit</em> deny is enforced by the platform when no rule matches; the <em>explicit</em> deny gives you a log entry.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 5 — DMZ AND SEGMENTATION ============ -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 19</div>
+        <div class="slide-title">The <span class="accent">DMZ</span> and Network Segmentation</div>
+        <div class="slide-subtitle">Segmentation is damage limitation. An adversary who breaches the web server should reach the web server &mdash; nothing else.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 150" width="720" height="150" xmlns="http://www.w3.org/2000/svg">
+                <!-- Internet -->
+                <rect x="10" y="55" width="90" height="40" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="55" y="73" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="11" font-weight="700">INTERNET</text>
+                <text x="55" y="87" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">untrusted</text>
+
+                <!-- FW1 -->
+                <polygon points="110,65 130,75 110,85" fill="#3b82f6"/>
+                <text x="120" y="103" text-anchor="middle" fill="#3b82f6" font-family="Segoe UI" font-size="9">FW-1</text>
+
+                <!-- DMZ -->
+                <rect x="140" y="40" width="200" height="70" rx="6" fill="rgba(234,179,8,0.04)" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <text x="240" y="58" text-anchor="middle" fill="#fde68a" font-family="Segoe UI" font-size="10" font-weight="700">DMZ</text>
+                <rect x="155" y="65" width="70" height="26" rx="4" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1"/>
+                <text x="190" y="83" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="9">Web Server</text>
+                <rect x="255" y="65" width="70" height="26" rx="4" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1"/>
+                <text x="290" y="83" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="9">Mail Relay</text>
+
+                <!-- FW2 -->
+                <polygon points="350,65 370,75 350,85" fill="#3b82f6"/>
+                <text x="360" y="103" text-anchor="middle" fill="#3b82f6" font-family="Segoe UI" font-size="9">FW-2</text>
+
+                <!-- Internal -->
+                <rect x="380" y="20" width="320" height="110" rx="6" fill="rgba(59,130,246,0.04)" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="540" y="38" text-anchor="middle" fill="#60a5fa" font-family="Segoe UI" font-size="10" font-weight="700">INTERNAL NETWORK (VLANS)</text>
+                <rect x="395" y="48" width="80" height="26" rx="4" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="435" y="65" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9">Workstations</text>
+                <rect x="490" y="48" width="80" height="26" rx="4" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>
+                <text x="530" y="65" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="9">Corp Servers</text>
+                <rect x="585" y="48" width="100" height="26" rx="4" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1"/>
+                <text x="635" y="65" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="9">DB Tier (isolated)</text>
+                <text x="540" y="108" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="9">Each VLAN has separate ACLs. DB tier has no</text>
+                <text x="540" y="120" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="9">direct path from DMZ.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">DMZ Principle</div>
+                <div class="card-desc">Public-facing services live in a network zone where inbound internet traffic is permitted but outbound access to internal networks is blocked. Compromise the web server: reach the web server zone, nothing behind FW-2.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">VLAN Segmentation</div>
+                <div class="card-desc">Logical separation within the internal network. Workstations, servers, printers, and IoT on separate VLANs with inter-VLAN routing controlled by ACLs. Lateral movement requires crossing a controlled boundary at each step.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 6 — VPN AND ZERO TRUST TRADE-OFF ============ -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 19</div>
+        <div class="slide-title">VPN vs. <span class="accent-cyan">Zero Trust Network Access</span></div>
+        <div class="slide-subtitle">VPN solved remote access for a perimeter model. ZTNA solves remote access when there is no perimeter. They answer different threat models.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">VPN (Traditional)</div>
+                <div class="card-desc"><strong>Model:</strong> authenticated tunnel to the network edge. <strong>Result:</strong> once connected, user has network-level access to everything the network reaches. <strong>Risk:</strong> credential compromise = full internal network access. Lateral movement is trivial from a VPN-connected compromised host. <strong>Protocol:</strong> IPSec (IKEv2) or SSL/TLS VPN.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">ZTNA (Zero Trust Network Access)</div>
+                <div class="card-desc"><strong>Model:</strong> per-application proxy. Identity + device posture evaluated per request. <strong>Result:</strong> authenticated user accesses the specific application, not the network. <strong>Risk:</strong> credential compromise = access to that application only. No network-level visibility. <strong>Example:</strong> Cloudflare Access, Zscaler ZPA, Google BeyondCorp.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">The architectural question for every organization</div>
+            VPN + MFA is not the same as zero trust, but it is far cheaper to deploy today. The transition from VPN to ZTNA is a 2-5 year architecture shift, not a product swap. For the exam: know that ZTNA enforces <strong>least-privilege at the application layer</strong>, while VPN enforces it (imperfectly) at the network layer. The blast radius of a VPN breach is the network; the blast radius of a ZTNA breach is one application.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 7 — WIRELESS SECURITY ============ -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 19 &nbsp;|&nbsp; Topic 2: Wireless &amp; Cloud</div>
+        <div class="slide-title">Wireless Security: <span class="accent-gold">WPA3 and the Authentication Stack</span></div>
+        <div class="slide-subtitle">WPA3 fixed the two structural failures of WPA2: offline dictionary attacks against the 4-way handshake, and forward secrecy.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">WPA2 Weakness</div>
+                <div class="card-desc">The 4-way handshake can be captured passively. An attacker with a capture can run an offline dictionary attack at GPU speed with no network interaction. <strong>KRACK (2017)</strong> demonstrated key reinstallation against the WPA2 handshake across all implementations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">WPA3: SAE Handshake</div>
+                <div class="card-desc">Simultaneous Authentication of Equals (SAE) replaces the pre-shared key exchange with a Dragonfly key exchange derived from IEEE 802.11-2016. Each session negotiates a fresh key. A captured handshake cannot be dictionary-attacked offline. Forward secrecy is structural.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">802.1X / RADIUS for Enterprise</div>
+                <div class="card-desc">Pre-shared keys do not scale to enterprise. 802.1X + RADIUS separates authentication (who is this user?) from the access point. EAP-TLS issues per-user certificates; EAP-PEAP wraps MSCHAPv2 in a TLS tunnel. Revoke a user in AD, revoke their wireless access.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A hospital deploys WPA2-Personal with a shared passphrase across all 300 APs. A departing employee knows the key. The hospital has no revocation mechanism &mdash; the key must be rotated on every AP and every device simultaneously. 802.1X + RADIUS eliminates this problem: disable the user account, access stops immediately.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 8 — CLOUD SHARED RESPONSIBILITY ============ -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 19</div>
+        <div class="slide-title">Cloud: <span class="accent">Shared Responsibility</span></div>
+        <div class="slide-subtitle">The cloud provider secures the infrastructure. You secure what you put on it. The line shifts based on the service model. Misunderstanding the line is how buckets get exposed.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 180" width="720" height="180" xmlns="http://www.w3.org/2000/svg">
+                <!-- Headers -->
+                <text x="90"  y="18" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="11" font-weight="700">IaaS</text>
+                <text x="270" y="18" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="11" font-weight="700">PaaS</text>
+                <text x="450" y="18" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="11" font-weight="700">SaaS</text>
+                <text x="630" y="18" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="10">Responsibility</text>
+
+                <!-- Rows: Customer vs Provider -->
+                <!-- IaaS: Customer owns apps, OS, network config, data -->
+                <rect x="20" y="25" width="140" height="22" rx="3" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="90" y="40" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9">Data + Apps + OS + Net config</text>
+                <rect x="200" y="25" width="140" height="22" rx="3" fill="rgba(59,130,246,0.07)" stroke="#3b82f6" stroke-width="0.5"/>
+                <text x="270" y="40" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="9">Data + Apps</text>
+                <rect x="380" y="25" width="140" height="22" rx="3" fill="rgba(59,130,246,0.03)" stroke="#3b82f6" stroke-width="0.5"/>
+                <text x="450" y="40" text-anchor="middle" fill="#475569" font-family="Segoe UI" font-size="9">Data only</text>
+                <text x="630" y="40" text-anchor="middle" fill="#60a5fa" font-family="Segoe UI" font-size="9" font-weight="700">CUSTOMER</text>
+
+                <rect x="20"  y="52" width="140" height="22" rx="3" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="0.5"/>
+                <text x="90"  y="67" text-anchor="middle" fill="#475569" font-family="Segoe UI" font-size="9">Hypervisor + physical</text>
+                <rect x="200" y="52" width="140" height="22" rx="3" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>
+                <text x="270" y="67" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="9">Runtime + OS + Hypervisor + physical</text>
+                <rect x="380" y="52" width="140" height="22" rx="3" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>
+                <text x="450" y="67" text-anchor="middle" fill="#bbf7d0" font-family="Segoe UI" font-size="9">Everything else</text>
+                <text x="630" y="67" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="9" font-weight="700">PROVIDER</text>
+
+                <!-- Separator line -->
+                <line x1="20" y1="82" x2="700" y2="82" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+
+                <!-- The gap examples -->
+                <text x="360" y="100" text-anchor="middle" fill="#eab308" font-family="Segoe UI" font-size="10" font-weight="700">Common Misconfigurations That Live in the Customer Zone</text>
+                <rect x="20"  y="110" width="200" height="55" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1"/>
+                <text x="120" y="127" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9" font-weight="700">S3 / Blob Storage Exposure</text>
+                <text x="120" y="143" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Public-read buckets. Provider</text>
+                <text x="120" y="154" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">cannot stop you from setting this.</text>
+
+                <rect x="260" y="110" width="200" height="55" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1"/>
+                <text x="360" y="127" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9" font-weight="700">Over-permissive IAM Roles</text>
+                <text x="360" y="143" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Admin roles assigned to Lambda</text>
+                <text x="360" y="154" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">functions, EC2 instances, etc.</text>
+
+                <rect x="500" y="110" width="200" height="55" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1"/>
+                <text x="600" y="127" text-anchor="middle" fill="#fca5a5" font-family="Segoe UI" font-size="9" font-weight="700">Unencrypted Data at Rest</text>
+                <text x="600" y="143" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">EBS volumes, RDS snapshots</text>
+                <text x="600" y="154" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">without encryption enabled.</text>
+            </svg>
+        </div>
+
+        <div class="box box-red" style="margin-top:6px;">
+            <div class="box-label">The gap that produces most cloud breaches</div>
+            The provider secures the <em>infrastructure</em>. You configure <em>what runs on it</em>. The Capital One breach (2019) was a misconfigured WAF and an over-permissive EC2 role &mdash; the AWS infrastructure was fully intact. The attacker lived entirely in the customer zone. Knowing where your responsibility begins and ends is the first cloud security control.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 9 — WHY PKI EXISTS ============ -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 19 &nbsp;|&nbsp; Topic 3: PKI</div>
+        <div class="slide-title">Why <span class="accent-gold">PKI</span> Exists</div>
+        <div class="slide-subtitle">Asymmetric cryptography solves encryption. PKI solves the question that asymmetric cryptography creates: how do you know whose public key you are actually holding?</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Problem Without PKI</div>
+                <div class="card-desc">Alice wants to send an encrypted message to Bob. She needs Bob's public key. How does she know the public key she downloaded is actually Bob's and not an attacker performing a man-in-the-middle? Without a trusted third party, there is no answer. This is the <strong>key distribution problem</strong>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">PKI's Answer</div>
+                <div class="card-desc">A Certificate Authority (CA) vouches for the binding: <em>"this public key belongs to this entity, verified as of this date, until this expiry."</em> The vouching is a digital signature on an X.509 certificate. If you trust the CA, you trust all bindings the CA has signed. The trust is transitive.</div>
+            </div>
+        </div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 100" width="720" height="100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Root CA -->
+                <rect x="290" y="8" width="140" height="34" rx="6" fill="rgba(234,179,8,0.1)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="360" y="24" text-anchor="middle" fill="#fde68a" font-family="Segoe UI" font-size="11" font-weight="700">ROOT CA</text>
+                <text x="360" y="37" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Offline · self-signed · trust anchor</text>
+                <line x1="360" y1="42" x2="360" y2="55" stroke="#eab308" stroke-width="1.5" opacity="0.5"/>
+                <!-- Intermediate CA -->
+                <rect x="290" y="55" width="140" height="34" rx="6" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="360" y="71" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="11" font-weight="700">INTERMEDIATE CA</text>
+                <text x="360" y="84" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Online · issues leaf certs to servers / users</text>
+                <!-- Leaf certs -->
+                <line x1="290" y1="72" x2="160" y2="90" stroke="#06b6d4" stroke-width="1" opacity="0.4"/>
+                <line x1="430" y1="72" x2="560" y2="90" stroke="#06b6d4" stroke-width="1" opacity="0.4"/>
+                <rect x="80"  y="88" width="160" height="10" rx="3" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="0.8"/>
+                <text x="160" y="97" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="8">server.corp.example.com</text>
+                <rect x="480" y="88" width="160" height="10" rx="3" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="0.8"/>
+                <text x="560" y="97" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="8">vpn.corp.example.com</text>
+            </svg>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Why the root CA is kept offline</div>
+            If an attacker compromises the root CA's private key, they can sign certificates for any domain and be trusted by every browser. The root CA is therefore kept air-gapped. It signs only intermediate CA certificates. If an intermediate is compromised, it is revoked. The root CA trust anchor remains intact.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10 — CERTIFICATE LIFECYCLE ============ -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 19</div>
+        <div class="slide-title">Certificate <span class="accent">Lifecycle</span> and Revocation</div>
+        <div class="slide-subtitle">A certificate has a beginning, an end, and an emergency exit. The emergency exit is revocation. Knowing when revocation fails is critical for incident response.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Issuance: CSR Flow</div>
+                <div class="card-desc">1. Generate RSA/EC key pair on the server. 2. Send Certificate Signing Request (CSR) &mdash; contains public key + entity info &mdash; to the CA. 3. CA validates domain control (DV), organization (OV), or extended validation (EV). 4. CA issues signed X.509 cert. Private key never leaves the server.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Revocation: CRL vs OCSP</div>
+                <div class="card-desc"><strong>CRL</strong> (Certificate Revocation List): a signed list of serial numbers the CA has revoked. Downloaded periodically &mdash; can be hours stale. <strong>OCSP</strong> (Online Certificate Status Protocol): a real-time query to the CA's responder. <strong>OCSP Stapling</strong>: the server caches the OCSP response and includes it in the TLS handshake, eliminating the OCSP privacy leak and latency.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Revocation Failure Modes</div>
+                <div class="card-desc">Browsers soft-fail OCSP by default (if the responder is unreachable, the cert is accepted). Most browsers have abandoned real-time OCSP for CRLite / pre-loaded revocation sets. The gap between compromise and revocation propagation is an exposure window an attacker can exploit.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            DigiNotar (2011): a Dutch CA was compromised. Attackers issued fraudulent certificates for google.com, *.google.com, and other high-value domains. Google discovered the certificates through Certificate Transparency logs. DigiNotar's root was removed from all major trust stores within days &mdash; an unprecedented industry response that effectively ended the CA as a business. <strong>Source: Comodo and DigiNotar breach analysis, ENISA 2011 report.</strong>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 11 — SIEM ============ -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 19 &nbsp;|&nbsp; Topic 4: Security Operations</div>
+        <div class="slide-title">SIEM: <span class="accent">Correlation at Scale</span></div>
+        <div class="slide-subtitle">A SIEM does not detect threats. It collects evidence across data sources and lets you write rules that identify threat patterns across that evidence.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 130" width="720" height="130" xmlns="http://www.w3.org/2000/svg">
+                <!-- Data sources -->
+                <rect x="10"  y="20" width="90" height="24" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="55"  y="36" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">Firewall Logs</text>
+                <rect x="10"  y="52" width="90" height="24" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="55"  y="68" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">Auth Events</text>
+                <rect x="10"  y="84" width="90" height="24" rx="4" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+                <text x="55"  y="100" text-anchor="middle" fill="#bfdbfe" font-family="Segoe UI" font-size="9" font-weight="700">Endpoint EDR</text>
+
+                <!-- Arrows to SIEM -->
+                <line x1="100" y1="32" x2="200" y2="65" stroke="#3b82f6" stroke-width="1" opacity="0.5"/>
+                <line x1="100" y1="64" x2="200" y2="65" stroke="#3b82f6" stroke-width="1" opacity="0.5"/>
+                <line x1="100" y1="96" x2="200" y2="65" stroke="#3b82f6" stroke-width="1" opacity="0.5"/>
+
+                <!-- SIEM box -->
+                <rect x="200" y="44" width="140" height="44" rx="8" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="270" y="64" text-anchor="middle" fill="#cffafe" font-family="Segoe UI" font-size="13" font-weight="700">SIEM</text>
+                <text x="270" y="80" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">Normalize · Correlate · Alert</text>
+
+                <!-- Arrow to SOC -->
+                <polygon points="345,66 365,60 365,72" fill="#a855f7"/>
+
+                <!-- Correlation engine -->
+                <rect x="370" y="44" width="140" height="44" rx="8" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="440" y="62" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="11" font-weight="700">Correlation Rules</text>
+                <text x="440" y="78" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">5 failed logins + VPN from</text>
+                <text x="440" y="88" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">new country = alert</text>
+
+                <!-- Arrow to analyst -->
+                <polygon points="515,66 535,60 535,72" fill="#eab308"/>
+
+                <!-- Analyst / SOAR -->
+                <rect x="540" y="44" width="170" height="44" rx="8" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="625" y="60" text-anchor="middle" fill="#fef9c3" font-family="Segoe UI" font-size="11" font-weight="700">SOC Analyst / SOAR</text>
+                <text x="625" y="76" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">Triage &rarr; Investigate &rarr; Contain</text>
+                <text x="625" y="86" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="8">SOAR automates tier-1 response</text>
+
+                <!-- More sources -->
+                <rect x="115" y="108" width="90" height="18" rx="3" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="0.5"/>
+                <text x="160" y="120" text-anchor="middle" fill="#64748b" font-family="Segoe UI" font-size="8">DNS, Proxy, IDS/IPS, Cloud APIs...</text>
+                <line x1="160" y1="108" x2="200" y2="80" stroke="#3b82f6" stroke-width="0.8" stroke-dasharray="2,2" opacity="0.4"/>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Normalization is the hard part</div>
+                <div class="card-desc">Firewall logs use different timestamp formats, field names, and severity scales than DNS logs, than endpoint EDR, than cloud APIs. Before correlation is possible, every source must be parsed into a common schema (e.g., CEF, ECS). Parsing failures are silent &mdash; the event simply never gets ingested.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Detection-to-Response gap</div>
+                <div class="card-desc">A SIEM generates alerts. An analyst has to triage, investigate, and respond. The gap between an alert firing and a containment action is where the breach expands. SOAR (Security Orchestration, Automation, and Response) automates tier-1 responses &mdash; isolate host, disable account, block IP &mdash; in seconds instead of hours.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 12 — IDS/IPS ============ -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 19</div>
+        <div class="slide-title">IDS vs. IPS: <span class="accent">Detection vs. Prevention</span></div>
+        <div class="slide-subtitle">IDS watches and reports. IPS watches and acts. The tradeoff is false positive risk: a misconfigured IPS blocks legitimate traffic; a misconfigured IDS only misses threats.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">IDS (Intrusion Detection System)</div>
+                <div class="card-desc"><strong>Mode: passive.</strong> Traffic is mirrored (SPAN port) to the IDS sensor. Detects and alerts. Does not interrupt traffic. A false positive produces a false alert. Network impact: zero. Deployment: low-risk; good for initial calibration and visibility in sensitive environments.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">IPS (Intrusion Prevention System)</div>
+                <div class="card-desc"><strong>Mode: inline.</strong> Sits in the traffic path. Can block, drop, or reset connections. A false positive drops legitimate traffic. Network impact: adds latency; becomes a single point of failure if it fails closed. Deployment: requires tuned signature confidence before going inline.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Signature-Based Detection</div>
+                <div class="card-desc">Matches traffic against known attack patterns. Fast. Accurate for known threats. Blind to zero-days and obfuscated variants. Must be kept current &mdash; a signature set that is 30 days stale misses any CVE published in those 30 days.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Anomaly-Based Detection</div>
+                <div class="card-desc">Establishes a behavioral baseline; alerts on deviations. Can detect novel attacks. Produces far more false positives during normal operational variability (backups, patch cycles, end-of-quarter traffic spikes). Useful as a signal source, not a sole detection mechanism.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">For the analyst: placement matters as much as mode</div>
+            Network IDS/IPS at the perimeter misses encrypted lateral movement inside the network. Host-based IDS (HIDS) catches it, but at the cost of per-endpoint overhead. Modern EDR subsumes most HIDS functions while adding memory inspection, process telemetry, and automated containment. NIST SP 800-94 provides the reference guidance on IDS/IPS deployment.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 13 — VULNERABILITY MANAGEMENT ============ -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 19</div>
+        <div class="slide-title">Vulnerability Management: <span class="accent-gold">Not Patching, Managing</span></div>
+        <div class="slide-subtitle">Vulnerability management is the continuous process of identifying, classifying, prioritizing, and remediating weaknesses before an attacker exploits them.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Discovery: Scan Scope</div>
+                <div class="card-desc">Authenticated scans (credentialed) find more than unauthenticated scans. Unauthenticated sees what an external attacker sees. Authenticated sees what the OS-level configuration actually exposes. Tools: Nessus Professional, Qualys VMDR, Rapid7 InsightVM. NIST recommends authenticated scanning per SP 800-40.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Prioritization: CVSS + Context</div>
+                <div class="card-desc">CVSS 3.1 scores a vulnerability on a 0-10 scale across base, temporal, and environmental vectors. A CVSS 9.8 on an air-gapped system is lower priority than a CVSS 7.0 on your public-facing authentication endpoint. Context: exposure + exploitability in <em>your</em> environment &gt; raw CVSS score.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Remediation: Patch, Compensate, Accept</div>
+                <div class="card-desc">Not every vulnerability can be patched immediately. A legacy ICS controller with no patch available requires a compensating control (network isolation, allowlisting). Risk acceptance must be documented and time-bounded. Unpatched critical CVEs with no compensating control and no documented acceptance are an audit failure.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">CISA KEV: the prioritization shortcut</div>
+            CISA's Known Exploited Vulnerabilities catalog lists CVEs where active exploitation has been observed. Federal agencies are required to patch KEV entries within defined windows (CISA BOD 22-01). In practice, any CVE in the KEV catalog with an asset in your environment is your highest patch priority, regardless of CVSS score.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 14 — THREAT HUNTING ============ -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 19</div>
+        <div class="slide-title">Threat <span class="accent-cyan">Hunting</span></div>
+        <div class="slide-subtitle">Threat hunting assumes the adversary is already inside. It is the proactive search for evidence of compromise that automated detection has not flagged.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Hypothesis-Driven</div>
+                <div class="card-desc">A hunt starts with a hypothesis: "An attacker with domain admin credentials would use LSASS memory dumping before lateral movement." The hunter then queries telemetry for the specific behavior &mdash; not an alert, a deliberate search. MITRE ATT&amp;CK T1003.001 is the TTP reference for LSASS dumping.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">IOC vs. TTP</div>
+                <div class="card-desc">IOC (Indicator of Compromise): an IP, domain, hash &mdash; point-in-time and easily rotated by the attacker. TTP (Technique, Tactic, Procedure): behavioral patterns like "scheduled task for persistence" or "living off the land with certutil." Hunting for TTPs catches adversaries who have rotated their IOCs.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Data Sources</div>
+                <div class="card-desc">Process creation logs (Sysmon Event ID 1), network connections (Event ID 3), PowerShell script block logging, DNS query logs, EDR telemetry. A hunt is only as good as the data available. Gaps in logging = gaps in hunt coverage.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            SolarWinds (2020): the SUNBURST backdoor was present in production environments for 8-14 months before detection. Automated detection missed it because the malware mimicked legitimate SolarWinds behavior. Manual threat hunting through network traffic eventually surfaced anomalous beacon patterns. The lesson: if an adversary is patient enough, they will evade signature-based detection indefinitely.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 15 — THE FOUR DOMAINS CONNECTED ============ -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 19 &nbsp;|&nbsp; Synthesis</div>
+        <div class="slide-title">How the <span class="accent">Four Domains</span> Connect</div>
+        <div class="slide-subtitle">These are not four separate topics. They are four layers of a single defensive architecture. A gap in any one layer propagates to all the others.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 160" width="720" height="160" xmlns="http://www.w3.org/2000/svg">
+                <!-- Outer: Network Architecture -->
+                <rect x="10" y="10" width="700" height="140" rx="12" fill="rgba(59,130,246,0.03)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5,3"/>
+                <text x="360" y="26" text-anchor="middle" fill="#3b82f6" font-family="Segoe UI" font-size="10" font-weight="700">NETWORK ARCHITECTURE &amp; SEGMENTATION — shapes the attack surface</text>
+
+                <!-- Layer 2: Wireless/Cloud -->
+                <rect x="40" y="34" width="640" height="110" rx="10" fill="rgba(234,179,8,0.03)" stroke="#eab308" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <text x="360" y="50" text-anchor="middle" fill="#eab308" font-family="Segoe UI" font-size="10" font-weight="700">WIRELESS &amp; CLOUD — extends and diffuses the perimeter</text>
+
+                <!-- Layer 3: PKI -->
+                <rect x="80" y="58" width="560" height="74" rx="8" fill="rgba(6,182,212,0.03)" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="3,3"/>
+                <text x="360" y="72" text-anchor="middle" fill="#06b6d4" font-family="Segoe UI" font-size="10" font-weight="700">PKI — authenticates entities on the extended perimeter</text>
+
+                <!-- Layer 4: SecOps -->
+                <rect x="130" y="80" width="460" height="44" rx="8" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="360" y="96" text-anchor="middle" fill="#e9d5ff" font-family="Segoe UI" font-size="10" font-weight="700">SECURITY OPERATIONS — detects and responds when the other layers fail</text>
+                <text x="360" y="113" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI" font-size="9">SIEM · IDS/IPS · EDR · SOAR · Threat Hunting</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Architecture Fails &rarr; SecOps is Your Last Line</div>
+                <div class="card-desc">A misconfigured firewall, an exposed S3 bucket, or a revoked certificate that clients still trust are architectural failures. When they happen, SIEM alerts and threat hunting are the only path to detection before the attacker achieves their objective.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">SecOps Fails &rarr; Architecture Buys Time</div>
+                <div class="card-desc">A SIEM that is misconfigured or under-resourced will miss events. But an attacker who compromises one VLAN and cannot reach the database tier is still contained. Defense in depth means each layer independently limits damage.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 16 — EXAM ANCHOR: DECISION FRAMEWORK ============ -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 19 &nbsp;|&nbsp; Exam Anchor</div>
+        <div class="slide-title">Week 3 <span class="accent">Decision Framework</span></div>
+        <div class="slide-subtitle">SY0-701 performance-based questions test decisions, not definitions. For every Week 3 scenario, run this chain.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Scenario: Network Control Selection</div>
+                <div class="card-desc"><strong>Q1:</strong> Is this about restricting traffic between zones? &rarr; Firewall + VLAN/ACL.<br><strong>Q2:</strong> Is this about authenticating remote users with least privilege? &rarr; ZTNA over VPN.<br><strong>Q3:</strong> Is this about hiding internal IP structure from the internet? &rarr; NAT.<br><strong>Q4:</strong> Do you need connection state awareness? &rarr; Stateful, not packet filter.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Scenario: Certificate or PKI Problem</div>
+                <div class="card-desc"><strong>Q1:</strong> Browser says "certificate not trusted." &rarr; Missing intermediate CA, or root CA not in trust store.<br><strong>Q2:</strong> Certificate was valid, then compromised. &rarr; Revoke via CRL/OCSP; propagation delay is the exposure window.<br><strong>Q3:</strong> Two systems need to authenticate each other. &rarr; Mutual TLS (mTLS), both present certificates.<br><strong>Q4:</strong> Certificate for wildcard *.example.com &rarr; covers all subdomains, not sub-subdomains.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Scenario: Wireless Selection</div>
+                <div class="card-desc"><strong>Personal (home):</strong> WPA3-Personal (SAE). <strong>Enterprise (&gt;10 users):</strong> WPA3-Enterprise + 802.1X + RADIUS. <strong>Rogue AP detected:</strong> WIPS is the automated response; port security or NAC to prevent connection. <strong>Evil twin attack:</strong> 802.1X with EAP-TLS (certificate-based) is resistant; PEAP/MSCHAPv2 is not.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Scenario: SecOps Tool Selection</div>
+                <div class="card-desc"><strong>Need centralized log correlation:</strong> SIEM.<br><strong>Need to automate tier-1 response:</strong> SOAR.<br><strong>Need real-time traffic blocking in-path:</strong> IPS.<br><strong>Need endpoint memory &amp; process telemetry:</strong> EDR.<br><strong>Need to find attacker already inside:</strong> Threat hunting.<br><strong>Need to assess patch exposure across 10,000 hosts:</strong> Vulnerability scanner.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 17 — IN-CLASS TASK INTRO ============ -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 19 &nbsp;|&nbsp; In-Class Task</div>
+        <div class="slide-title">In-Class Task: <span class="accent-gold">Containment Architecture Review</span></div>
+        <div class="slide-subtitle">You have read the four domains. Now apply them. This 35-minute structured activity builds the reasoning pattern the exam tests.</div>
+
+        <div class="box box-gold" style="margin-bottom:14px;">
+            <div class="box-label">Scenario brief</div>
+            MedCore Regional Medical Center is deploying a new EHR (Electronic Health Record) system. The system has three tiers: a web front-end (patient portal), an application server, and a database. MedCore also runs a guest Wi-Fi network for patients and visitors. The CISO has asked your team to design the network architecture and security controls for this deployment.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Task 1 (10 min): Architecture</div>
+                <div class="card-desc">Draw the network segmentation. Identify which zones each tier lives in, what controls sit between zones, and how remote clinical staff connect. Use DMZ, VLAN, and firewall concepts from the lecture.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Task 2 (10 min): Wireless + PKI</div>
+                <div class="card-desc">Specify the wireless authentication method for clinical staff vs. patient Wi-Fi. Describe what certificates are needed, who issues them, and how revocation works when a staff member leaves.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Task 3 (10 min): SecOps</div>
+                <div class="card-desc">Identify three log sources you would ingest into SIEM, one SIEM correlation rule you would write for this environment, and the first automated response action your SOAR should take when the rule fires.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Access the in-class task worksheet at: <strong>Labs &gt; PIS In-Class Task &gt; W3 Containment Architecture Review</strong>. Groups of 3-4. One architecture diagram per group. Present findings in the last 5 minutes.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 18 — RECAP ============ -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 19 &nbsp;|&nbsp; Looking Ahead</div>
+        <div class="slide-title">Looking Ahead to <span class="accent">Week 4</span></div>
+        <div class="slide-subtitle">Week 3 was the architecture and operations layer. Week 4 is the identity and governance layer: who gets in, how we know it is really them, and what happens when something goes wrong.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Authentication &amp; Identity Management</div>
+                <div class="card-desc">MFA factors, SSO architectures, federated identity (SAML, OAuth 2.0, OIDC), directory services (Active Directory, LDAP). Week 3's PKI is the trust mechanism that underlies certificate-based authentication in Week 4.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Incident Response &amp; Risk Governance</div>
+                <div class="card-desc">NIST SP 800-61 incident response lifecycle, risk assessment, BIA, BCP/DRP. Week 3's SecOps is the detection engine; Week 4's IR is the response playbook that runs when detection fires.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="text-align:center;">
+            <div class="box-label">Before class next week</div>
+            Complete the <strong>Week 3 Quiz</strong> (20 questions, 70% to pass) and finish the three CTF labs (L07, L08, L09). Read the drilldown deck for any sub-topic that felt thin in lecture.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 19 — END ============ -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 19</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">End of Week 3</span></div>
+            <div class="lead">The perimeter is a concept, not a line. Every certificate is a claim. Every alert is a question. Build the architecture to slow the adversary down, then build the operations to catch them while they are slowing down.</div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Drilldown Decks</div>
+                <div class="card-desc">Network Architecture &middot; Wireless &amp; Cloud &middot; PKI &middot; Security Operations. 35 slides each.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Week 3 Quiz</div>
+                <div class="card-desc">20 questions across all four sub-topics. 70% to pass. Multiple attempts allowed.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">CTF Labs</div>
+                <div class="card-desc">L07: Lab Isolation Protocol &middot; L08: Clearance Forge &middot; L09: Outbreak Detection.</div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:14px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ============ NAV ============ -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 19</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 19;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w3-lecture', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

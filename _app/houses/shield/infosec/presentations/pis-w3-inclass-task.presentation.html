@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>W3 In-Class Task: Containment Architecture Review | PIS</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020814 0%, #030d1a 50%, #040f1e 100%);
+            color: #e2e8f0; font-size: 16px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 28px 36px 78px; overflow: hidden;
+            animation: slideIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.99); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .slide-inner { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 16px; }
+
+        /* progress + nav */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #eab308 0%, #f97316 100%);
+            transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+            background: rgba(2, 8, 20, 0.95); border-top: 1px solid rgba(234, 179, 8, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 9px 24px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(234, 179, 8, 0.12); color: #fde68a; border-color: #eab308; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.84rem; padding: 9px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.84rem; min-width: 100px; text-align: center; }
+
+        #complete-btn { display: none; background: #eab308; color: #000; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        #complete-btn:hover { background: #fde68a; transform: translateY(-1px); }
+
+        /* typography */
+        .slide-meta { font-size: 0.78rem; color: #eab308; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; opacity: 0.85; }
+        .slide-title { font-size: 2rem; font-weight: 800; color: #f1f5f9; text-align: center; line-height: 1.18; }
+        .slide-title .accent       { color: #eab308; }
+        .slide-title .accent-blue  { color: #3b82f6; }
+        .slide-title .accent-cyan  { color: #06b6d4; }
+        .slide-title .accent-red   { color: #ef4444; }
+        .slide-title .accent-green { color: #22c55e; }
+        .slide-subtitle { font-size: 1.0rem; color: #94a3b8; text-align: center; max-width: 880px; margin: 0 auto; }
+
+        /* hero */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 2.8rem; font-weight: 900; color: #f1f5f9; line-height: 1.12; }
+        .title-hero .big-title .accent { color: #eab308; }
+        .title-hero .lead { font-size: 1.1rem; color: #94a3b8; max-width: 720px; }
+        .title-meta-row { display: flex; gap: 32px; justify-content: center; margin-top: 12px; font-size: 0.85rem; color: #64748b; }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* cards */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 16px 18px; border-left: 3px solid #eab308;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .slide.active .card:nth-child(1) { animation-delay: 0.18s; }
+        .slide.active .card:nth-child(2) { animation-delay: 0.30s; }
+        .slide.active .card:nth-child(3) { animation-delay: 0.42s; }
+        .slide.active .card:nth-child(4) { animation-delay: 0.54s; }
+
+        .card .card-label { font-size: 1.0rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.88rem; color: #94a3b8; line-height: 1.5; }
+        .card.c-gold   { border-left-color: #eab308; background: rgba(234, 179, 8, 0.04); }
+        .card.c-blue   { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.04); }
+        .card.c-cyan   { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.04); }
+        .card.c-red    { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.04); }
+        .card.c-green  { border-left-color: #22c55e; background: rgba(34, 197, 94, 0.04); }
+        .card.c-purple { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.04); }
+        .card.c-orange { border-left-color: #f97316; background: rgba(249, 115, 22, 0.04); }
+
+        /* callout boxes */
+        .box { border-radius: 8px; padding: 14px 18px; font-size: 0.92rem; }
+        .box-gold   { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-blue   { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-cyan   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-red    { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-green  { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #bbf7d0; }
+        .box-purple { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.8; }
+
+        .scenario-strip {
+            background: rgba(234, 179, 8, 0.06); border-left: 3px solid #eab308;
+            border-radius: 0 8px 8px 0; padding: 12px 18px;
+            font-size: 0.95rem; color: #fde68a; line-height: 1.55;
+        }
+
+        /* timer badge */
+        .timer-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.35);
+            color: #fde68a; font-size: 0.82rem; font-weight: 700;
+            padding: 5px 14px; border-radius: 20px; letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .timer-badge img { width: 14px; height: 14px; opacity: 0.85; filter: sepia(1) saturate(3) hue-rotate(10deg); }
+
+        /* task step rows */
+        .step-row {
+            display: grid; grid-template-columns: 52px 1fr; gap: 16px;
+            align-items: start; padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            border-left: 3px solid #eab308;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        .step-num {
+            font-size: 1.6rem; font-weight: 800; color: #eab308; opacity: 0.65;
+            text-align: center; line-height: 1;
+        }
+        .step-content .step-title { font-size: 1.0rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .step-content .step-desc  { font-size: 0.88rem; color: #94a3b8; line-height: 1.55; }
+        .step-content .step-hint  { font-size: 0.82rem; color: #64748b; margin-top: 6px; font-style: italic; }
+        .slide.active .step-row:nth-child(1) { animation-delay: 0.20s; }
+        .slide.active .step-row:nth-child(2) { animation-delay: 0.36s; }
+        .slide.active .step-row:nth-child(3) { animation-delay: 0.52s; }
+        .slide.active .step-row:nth-child(4) { animation-delay: 0.68s; }
+        .slide.active .step-row:nth-child(5) { animation-delay: 0.84s; }
+
+        /* deliverable checklist */
+        .checklist { display: flex; flex-direction: column; gap: 8px; }
+        .check-item {
+            display: flex; align-items: baseline; gap: 12px;
+            font-size: 0.9rem; color: #cbd5e1;
+            opacity: 0; animation: cardIn 0.4s ease-out forwards;
+        }
+        .check-box {
+            width: 18px; height: 18px; border: 2px solid rgba(234, 179, 8, 0.4);
+            border-radius: 4px; flex-shrink: 0; margin-top: 2px;
+        }
+        .slide.active .check-item:nth-child(1) { animation-delay: 0.16s; }
+        .slide.active .check-item:nth-child(2) { animation-delay: 0.26s; }
+        .slide.active .check-item:nth-child(3) { animation-delay: 0.36s; }
+        .slide.active .check-item:nth-child(4) { animation-delay: 0.46s; }
+        .slide.active .check-item:nth-child(5) { animation-delay: 0.56s; }
+        .slide.active .check-item:nth-child(6) { animation-delay: 0.66s; }
+        .slide.active .check-item:nth-child(7) { animation-delay: 0.76s; }
+        .slide.active .check-item:nth-child(8) { animation-delay: 0.86s; }
+
+        /* diagram */
+        .diagram { display: flex; justify-content: center; align-items: center; }
+        .diagram svg { max-width: 100%; height: auto; }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 10px; } .slide-title { font-size: 1.65rem; } .title-hero .big-title { font-size: 2.2rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">W3 In-Class Task: Containment Architecture Review | PIS</h1>
+
+<div id="progress-bar" style="width:8.33%"></div>
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">In-Class Task &nbsp;|&nbsp; Week 3 &nbsp;|&nbsp; CIS2350C</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Containment<br>
+                <span class="accent">Architecture Review</span>
+            </div>
+            <div class="lead">
+                A simulated architectural design exercise. You are the security team at MedCore Regional Medical Center. A new EHR system is going live. The CISO needs your architecture, your wireless design, your certificate plan, and your detection logic. In 35 minutes.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>12 Slides</span>
+            <span>35 minutes</span>
+            <span>Groups of 3-4</span>
+            <span>Present last 5 min</span>
+        </div>
+        <div class="scenario-strip" style="margin-top:14px;">
+            This is not a quiz. There is no single correct answer for the architecture diagram. You will be evaluated on whether your design decisions follow defensible security reasoning &mdash; not whether your diagram matches a template.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 2 — SCENARIO BRIEF ============ -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 12 &nbsp;|&nbsp; Scenario</div>
+        <div class="slide-title"><span class="accent">MedCore</span> Regional Medical Center</div>
+        <div class="slide-subtitle">Read the full brief before starting any task. Decisions you make on Task 1 will affect Tasks 2 and 3.</div>
+
+        <div class="box box-gold" style="margin-bottom:14px;">
+            <div class="box-label">Organization profile</div>
+            MedCore Regional Medical Center operates a 450-bed hospital, 12 outpatient clinics, and approximately 2,200 staff. The hospital is subject to HIPAA requirements. Clinical staff access the EHR from workstations on the hospital LAN and from remote locations via personal and hospital-issued laptops.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">New System: EHR Deployment</div>
+                <div class="card-desc"><strong>Tier 1 (Web):</strong> Patient portal &mdash; accessible from the internet. Patients log in to view records and schedule appointments.<br><strong>Tier 2 (App):</strong> EHR application server &mdash; contains business logic, HL7 FHIR API. No direct internet access.<br><strong>Tier 3 (DB):</strong> Database cluster &mdash; contains protected health information (PHI). Strictest isolation required.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Existing Network Elements</div>
+                <div class="card-desc">MedCore already has: a core network switch, a perimeter firewall, internet connection (1 Gbps), Active Directory (Windows Server 2022), a RADIUS server (FreeRADIUS), and an existing PKI (internal CA: <code>medcore-ca.medcore.local</code>). You build on top of these &mdash; you do not replace them.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Threat Concerns (from CISO brief)</div>
+                <div class="card-desc">1. Ransomware. The last major regional hospital breach used lateral movement from a compromised workstation to the EHR database in under 4 hours.<br>2. Credential theft. Clinical staff reuse passwords and click phishing links at above-average rates.<br>3. Rogue access points. The building has poor physical security in waiting areas.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3 — TASK OVERVIEW ============ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 12 &nbsp;|&nbsp; Task Overview</div>
+        <div class="slide-title">Three Tasks, <span class="accent">35 Minutes</span></div>
+        <div class="slide-subtitle">Each task builds on the last. Do them in order. A rushed Task 1 will produce a broken Task 2.</div>
+
+        <div class="step-row">
+            <div class="step-num">01</div>
+            <div class="step-content">
+                <div class="step-title">Network Architecture Diagram (10 min)</div>
+                <div class="step-desc">Sketch the network segmentation for the EHR deployment. Identify zones, firewalls between them, and how the three tiers are placed. Include remote clinical staff access. Use a whiteboard or paper &mdash; not a description, a diagram.</div>
+                <div class="step-hint">Relevant concepts: DMZ, VLANs, firewall placement, ZTNA vs. VPN for remote access, NAT at the internet boundary.</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">02</div>
+            <div class="step-content">
+                <div class="step-title">Wireless + Certificate Design (12 min)</div>
+                <div class="step-desc">Specify the wireless architecture for clinical staff and patient/visitor Wi-Fi. Then describe the certificate infrastructure needed for the EHR &mdash; which systems need certs, what the CA chain looks like, and how you handle revocation.</div>
+                <div class="step-hint">Relevant concepts: WPA3-Enterprise + 802.1X + RADIUS for staff, WPA3-Personal or captive portal for patients, SSID isolation, X.509 certificate chain, OCSP or CRL for revocation.</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">03</div>
+            <div class="step-content">
+                <div class="step-title">Security Operations Design (8 min)</div>
+                <div class="step-desc">Identify three specific log sources you would ingest into a SIEM for this environment. Write one correlation rule. Describe one automated SOAR response action.</div>
+                <div class="step-hint">Relevant concepts: Windows Security Event logs, firewall logs, authentication logs, SIEM correlation, SOAR playbooks, IDS placement.</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">04</div>
+            <div class="step-content">
+                <div class="step-title">Group Presentation (5 min)</div>
+                <div class="step-desc">One spokesperson presents the architecture diagram and one key decision from each task. Instructor will ask one clarifying question per group. Other groups may challenge.</div>
+                <div class="step-hint">Be ready to defend why your remote clinical access design is ZTNA over VPN (or VPN over ZTNA), and what your blast radius limitation is in each case.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 4 — TASK 1: ARCHITECTURE ============ -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 12 &nbsp;|&nbsp; Task 1</div>
+        <div class="slide-title">Task 1: <span class="accent-blue">Network Architecture Diagram</span></div>
+        <div class="slide-subtitle">Draw a network diagram placing all three EHR tiers, all firewalls, all network zones, and the remote access path. Be specific about what is blocked between zones.</div>
+
+        <div class="scenario-strip" style="margin-bottom:12px;">
+            <strong>Start here:</strong> The internet boundary and the hospital's existing perimeter firewall are given. Everything you draw inside that firewall is your decision.
+        </div>
+
+        <div class="box box-blue" style="margin-bottom:12px;">
+            <div class="box-label">Required elements in your diagram</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px; font-size:0.88rem;">
+                <div>1. Internet zone (external)</div>
+                <div>2. DMZ zone (with web tier in it or not &mdash; your call, justify it)</div>
+                <div>3. Application tier placement and which zone it is in</div>
+                <div>4. Database tier placement and isolation mechanism</div>
+                <div>5. Firewall positions (at minimum: internet-to-DMZ, DMZ-to-app, app-to-DB)</div>
+                <div>6. Remote clinical staff access path (label the technology)</div>
+                <div>7. Guest / patient Wi-Fi network and its isolation from clinical systems</div>
+                <div>8. At least one VLAN label on the internal clinical network</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Decision to Justify: Remote Access</div>
+                <div class="card-desc">Clinical staff access EHR from home and from clinic sites. You must choose a remote access architecture. VPN places them on the hospital network. ZTNA gives them per-application access. Which do you choose, and what is the security justification?</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Ransomware Constraint</div>
+                <div class="card-desc">CISO said ransomware moved workstation to EHR database in 4 hours in a previous incident. Your diagram must make that lateral movement path more expensive &mdash; if workstations are compromised, the attacker must cross at least two controlled boundaries to reach PHI. Label those boundaries.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 5 — TASK 1: REFERENCE CONCEPTS ============ -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 12 &nbsp;|&nbsp; Task 1 Reference</div>
+        <div class="slide-title">Task 1 <span class="accent-blue">Reference: Zone Decision Matrix</span></div>
+        <div class="slide-subtitle">Use this as a constraint checklist. If your diagram violates any row, you need a documented exception and compensating control.</div>
+
+        <div class="box box-blue" style="margin-bottom:12px;">
+            <div class="box-label">Zone placement rules (NIST SP 800-41 / industry standard)</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; font-size:0.82rem;">
+                <div style="color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">System</div>
+                <div style="color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Zone</div>
+                <div style="color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Why</div>
+
+                <div style="color:#cbd5e1;">Web tier (patient portal)</div>
+                <div style="color:#fde68a;">DMZ</div>
+                <div style="color:#64748b;">Internet-accessible; must be isolated from internal systems</div>
+
+                <div style="color:#cbd5e1;">App server (EHR logic)</div>
+                <div style="color:#bfdbfe;">Internal (app VLAN)</div>
+                <div style="color:#64748b;">Not internet-accessible; isolated from workstations by firewall</div>
+
+                <div style="color:#cbd5e1;">Database (PHI)</div>
+                <div style="color:#bbf7d0;">Restricted (DB VLAN)</div>
+                <div style="color:#64748b;">No path from DMZ or workstation VLANs; app server only</div>
+
+                <div style="color:#cbd5e1;">Clinical workstations</div>
+                <div style="color:#bfdbfe;">Internal (workstation VLAN)</div>
+                <div style="color:#64748b;">Cannot reach DB tier directly; must go through app server</div>
+
+                <div style="color:#cbd5e1;">Patient Wi-Fi</div>
+                <div style="color:#fca5a5;">Guest (isolated)</div>
+                <div style="color:#64748b;">No path to any clinical VLAN; internet-only or captive portal</div>
+
+                <div style="color:#cbd5e1;">Remote clinical (VPN or ZTNA)</div>
+                <div style="color:#fde68a;">Controlled entry point</div>
+                <div style="color:#64748b;">Must land in a restricted access zone, not full internal access</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Common mistake to avoid</div>
+            Placing the EHR application server in the DMZ because it is "semi-public." The app server is never internet-accessible &mdash; only the web tier is. The web tier proxies requests to the app server across a controlled firewall boundary. If the app server is in the DMZ, a compromised web server has direct access to the EHR business logic and its database connection string.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 6 — TASK 2: WIRELESS + PKI ============ -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 12 &nbsp;|&nbsp; Task 2</div>
+        <div class="slide-title">Task 2: <span class="accent-cyan">Wireless + Certificate Design</span></div>
+        <div class="slide-subtitle">Two separate SSIDs. Two separate authentication models. One shared PKI infrastructure. Design both, then connect them through the CA chain.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Part A: Clinical Staff Wireless</div>
+                <div class="card-desc">
+                    Answer these questions in writing:
+                    <ol style="margin-top:8px; padding-left:18px; line-height:1.8; color:#94a3b8; font-size:0.85rem;">
+                        <li>Which WPA3 mode? (Personal or Enterprise) &mdash; justify.</li>
+                        <li>What authenticates the user: password, certificate, or both?</li>
+                        <li>What is the role of RADIUS in this design?</li>
+                        <li>If a nurse is terminated at 9:00 AM, how quickly is wireless access revoked, and what triggers it?</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Part B: Patient / Visitor Wi-Fi</div>
+                <div class="card-desc">
+                    Answer these questions in writing:
+                    <ol style="margin-top:8px; padding-left:18px; line-height:1.8; color:#94a3b8; font-size:0.85rem;">
+                        <li>Shared passphrase, open + captive portal, or WPA3-Personal with a public key? Justify.</li>
+                        <li>How is this SSID isolated from the clinical VLAN? (L2 or L3 isolation?)</li>
+                        <li>Can a patient device ARP-scan the clinical network? Why or why not?</li>
+                        <li>Where does rogue AP detection sit in this design?</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-blue">
+                <div class="card-label">Part C: EHR Certificate Chain</div>
+                <div class="card-desc">
+                    MedCore has an internal CA (<code style="font-size:0.82em;">medcore-ca.medcore.local</code>). The patient portal is internet-accessible. Answer:
+                    <ol style="margin-top:8px; padding-left:18px; line-height:1.8; color:#94a3b8; font-size:0.85rem;">
+                        <li>Does the patient portal use the internal CA or a public CA? Why?</li>
+                        <li>Does the app server &rarr; DB connection use TLS? Who issues those certs?</li>
+                        <li>Do clinical staff need personal certificates? For what purpose?</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Part D: Revocation Plan</div>
+                <div class="card-desc">
+                    When a server certificate is compromised or a staff member certificate is revoked:
+                    <ol style="margin-top:8px; padding-left:18px; line-height:1.8; color:#94a3b8; font-size:0.85rem;">
+                        <li>What revocation mechanism does MedCore use &mdash; CRL, OCSP, or both?</li>
+                        <li>What is the maximum time between revocation and a client discovering the cert is revoked?</li>
+                        <li>If a server cert is compromised, what else must be revoked or rotated?</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 7 — TASK 2: REFERENCE ============ -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 12 &nbsp;|&nbsp; Task 2 Reference</div>
+        <div class="slide-title">Task 2 <span class="accent-cyan">Reference: Wireless + Certificate Anchor Points</span></div>
+        <div class="slide-subtitle">Use these to check your design decisions. Not rules to copy &mdash; constraints to reason against.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Clinical Wireless: 802.1X Pattern</div>
+                <div class="card-desc">WPA3-Enterprise + 802.1X: client sends identity to AP, AP forwards to RADIUS, RADIUS validates against AD. EAP-TLS (certificate-based) is more secure than EAP-PEAP (password-based) because there is no password to phish. Termination revokes AD account &rarr; RADIUS rejects authentication &rarr; access denied. No manual key rotation needed.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Patient Wireless: Isolation Requirement</div>
+                <div class="card-desc">VLAN separation is L2 isolation. The patient SSID maps to a VLAN that has no inter-VLAN routing to clinical VLANs. A patient device gets a guest DHCP subnet (e.g., 10.99.0.0/24). The inter-VLAN routing table has no route from the guest VLAN to the clinical VLANs. ARP is confined to the guest VLAN. Wireless isolation (client isolation) prevents patient-to-patient attacks on the same SSID.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Internet-Facing Certificate Rule</div>
+                <div class="card-desc">The patient portal is publicly accessible. Patients' browsers do not have MedCore's internal CA in their trust store. The patient portal certificate must come from a publicly trusted CA (Let's Encrypt, DigiCert, Sectigo, etc.). Internal systems (app-to-DB TLS, staff EAP-TLS certs) can use the internal CA because the internal CA is in the trust store of MedCore-managed devices.</div>
+            </div>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">The revocation timing problem &mdash; think through this</div>
+            If a server certificate is compromised at 2:00 PM and the CRL is distributed on a 12-hour schedule, clients will not know about the revocation until as late as 2:00 AM. OCSP provides near-real-time status but requires clients to query the OCSP responder on every connection. OCSP Stapling moves that query to the server, eliminating client privacy leakage and the latency penalty. For MedCore's internet-facing portal: what is the acceptable exposure window? That answer drives the revocation mechanism choice.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 8 — TASK 3: SECOPS DESIGN ============ -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 12 &nbsp;|&nbsp; Task 3</div>
+        <div class="slide-title">Task 3: <span class="accent-blue">Security Operations Design</span></div>
+        <div class="slide-subtitle">Detection is not a product. It is a set of decisions about what data to collect, what patterns to watch for, and what to do when the pattern fires.</div>
+
+        <div class="step-row">
+            <div class="step-num">A</div>
+            <div class="step-content">
+                <div class="step-title">Three SIEM Log Sources</div>
+                <div class="step-desc">Name three specific log sources you would ingest into the SIEM for this environment. Be specific: not "logs" but "Windows Security Event Log ID 4625 (failed logon) from all Domain Controllers." For each source, state what threat it helps detect.</div>
+                <div class="step-hint">Think about: authentication failures, network traffic anomalies, database access patterns, wireless authentication events.</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">B</div>
+            <div class="step-content">
+                <div class="step-title">One Correlation Rule</div>
+                <div class="step-desc">Write one SIEM correlation rule that detects a realistic threat to the EHR environment. Use this format: IF [condition 1] AND [condition 2] WITHIN [time window] THEN alert [severity] AND [action]. The rule must reference specific log fields from your three sources.</div>
+                <div class="step-hint">Examples of threats to detect: failed auth burst + successful auth (brute force), EHR access from new device + VPN from unusual geography, large data export from DB tier at 3 AM.</div>
+            </div>
+        </div>
+        <div class="step-row">
+            <div class="step-num">C</div>
+            <div class="step-content">
+                <div class="step-title">One SOAR Response Action</div>
+                <div class="step-desc">For the correlation rule you wrote, define one automated response action a SOAR platform would take immediately when the rule fires &mdash; before a human analyst reviews the alert. State what the action does, what system it affects, and what the analyst must do next.</div>
+                <div class="step-hint">Examples: disable the AD account, isolate the endpoint from the clinical VLAN, block the source IP at the perimeter firewall, create an incident ticket with full event context.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 9 — TASK 3: REFERENCE ============ -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 12 &nbsp;|&nbsp; Task 3 Reference</div>
+        <div class="slide-title">Task 3 <span class="accent-blue">Reference: Log Sources + Correlation Patterns</span></div>
+        <div class="slide-subtitle">Do not copy these examples directly. Use them to calibrate your specificity level and identify gaps in your own design.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Example Log Sources</div>
+                <div class="card-desc">
+                    <strong>1.</strong> Windows Security Event ID 4625 (failed logon) from all Domain Controllers and EHR workstations.<br>
+                    <strong>2.</strong> Palo Alto firewall session logs: source IP, destination IP, port, bytes transferred &mdash; filtered for traffic crossing from workstation VLAN to DB VLAN.<br>
+                    <strong>3.</strong> FreeRADIUS authentication logs: username, MAC address, AP MAC, timestamp, result (accept/reject).
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Example Correlation Rule</div>
+                <div class="card-desc">
+                    IF Windows Event 4625 count &gt; 10 for same username<br>
+                    WITHIN 5 minutes<br>
+                    AND followed by Windows Event 4624 (successful logon) for same username<br>
+                    AND source IP is not in <code style="font-size:0.8em;">known-clinical-subnet</code><br>
+                    THEN alert CRITICAL<br>
+                    AND label as possible brute-force &rarr; credential success.
+                </div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Example SOAR Action</div>
+                <div class="card-desc">
+                    On alert fire:<br>
+                    1. Disable the AD account via LDAP write call.<br>
+                    2. Log the action with timestamp and alert ID.<br>
+                    3. Create an incident ticket in ServiceNow with full event context (source IP, username, logon timeline).<br>
+                    4. Notify on-call SOC analyst via PagerDuty.<br>
+                    Analyst responsibility: confirm whether this is a true positive before re-enabling the account.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Placement reminder for IDS/IPS in this environment</div>
+            A network IPS placed on the workstation VLAN to app VLAN boundary detects lateral movement attempts crossing that boundary. A host-based IDS on the database server catches queries that look like data exfiltration (e.g., a single connection pulling 50,000 rows from the PHI table in under 60 seconds). Both are useful; neither replaces the other.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10 — GROUP WORK SPACE ============ -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 12 &nbsp;|&nbsp; Working Session</div>
+        <div class="slide-title">Working Session &mdash; <span class="accent">25 Minutes</span></div>
+        <div class="slide-subtitle">Use this slide as your reference during the work session. Instructor circulates.</div>
+
+        <div class="box box-gold" style="margin-bottom:12px;">
+            <div class="box-label">Time allocation (instructor paces with verbal cues)</div>
+            <div style="display:grid; grid-template-columns:80px 1fr; gap:6px; font-size:0.88rem; margin-top:6px;">
+                <div style="color:#fde68a; font-weight:700;">0:00</div><div style="color:#cbd5e1;">Begin Task 1 (network diagram). Whiteboard or paper.</div>
+                <div style="color:#fde68a; font-weight:700;">10:00</div><div style="color:#cbd5e1;">Begin Task 2 (wireless + PKI). Written answers.</div>
+                <div style="color:#fde68a; font-weight:700;">22:00</div><div style="color:#cbd5e1;">Begin Task 3 (SecOps). Written answers.</div>
+                <div style="color:#fde68a; font-weight:700;">30:00</div><div style="color:#cbd5e1;">Stop work. Prep spokesperson. One key decision per task.</div>
+                <div style="color:#fde68a; font-weight:700;">31:00</div><div style="color:#cbd5e1;">Presentations begin. ~5 min per group.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Task 1 Checklist</div>
+                <div class="card-desc">
+                    <div class="checklist">
+                        <div class="check-item"><div class="check-box"></div>Web tier placed in DMZ</div>
+                        <div class="check-item"><div class="check-box"></div>App tier isolated from DMZ</div>
+                        <div class="check-item"><div class="check-box"></div>DB tier in restricted zone</div>
+                        <div class="check-item"><div class="check-box"></div>Remote access technology labeled</div>
+                        <div class="check-item"><div class="check-box"></div>Guest Wi-Fi isolated</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Task 2 Checklist</div>
+                <div class="card-desc">
+                    <div class="checklist">
+                        <div class="check-item"><div class="check-box"></div>Clinical: WPA3-Enterprise + 802.1X + RADIUS</div>
+                        <div class="check-item"><div class="check-box"></div>Patient: isolation mechanism specified</div>
+                        <div class="check-item"><div class="check-box"></div>Patient portal cert: public CA</div>
+                        <div class="check-item"><div class="check-box"></div>Internal TLS: internal CA</div>
+                        <div class="check-item"><div class="check-box"></div>Revocation mechanism + timing stated</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Task 3 Checklist</div>
+                <div class="card-desc">
+                    <div class="checklist">
+                        <div class="check-item"><div class="check-box"></div>3 log sources with specific fields</div>
+                        <div class="check-item"><div class="check-box"></div>Each source mapped to a threat</div>
+                        <div class="check-item"><div class="check-box"></div>Correlation rule: IF / AND / WITHIN / THEN</div>
+                        <div class="check-item"><div class="check-box"></div>SOAR action: specific system + action</div>
+                        <div class="check-item"><div class="check-box"></div>Analyst next step defined</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 11 — DISCUSSION: DEFEND YOUR DECISIONS ============ -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 12 &nbsp;|&nbsp; Discussion Prompts</div>
+        <div class="slide-title">Defend Your <span class="accent">Decisions</span></div>
+        <div class="slide-subtitle">Instructor will ask one of these per group. Other groups may challenge. These are not gotcha questions &mdash; they are the real trade-off questions a security architect faces.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Remote Access Trade-off</div>
+                <div class="card-desc">You chose VPN or ZTNA for remote clinical staff. What is the blast radius if a clinician's credential is stolen and used by an attacker? Walk through what the attacker can reach in each design. Which is more forgiving of credential compromise?</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Certificate vs. Password for Wireless</div>
+                <div class="card-desc">EAP-TLS uses per-user certificates. EAP-PEAP uses passwords inside a TLS tunnel. MedCore's clinical staff reuse passwords at above-average rates (from the CISO brief). Does that fact change your EAP choice? What is the cost of the more secure option?</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">SOAR Automation Risk</div>
+                <div class="card-desc">Your SOAR immediately disables the AD account when the brute-force rule fires. A false positive means a nurse cannot access the EHR during a medical emergency. How do you tune the rule to minimize false positives without making the detection so narrow it misses real attacks?</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Rogue AP Response</div>
+                <div class="card-desc">The WIPS detects a rogue AP in the radiology waiting room matching the clinical SSID name (evil twin). What is the automated response, if any? What must a human do? What is the evidence you need to take the AP physically offline?</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Scope of SIEM</div>
+                <div class="card-desc">Your three log sources cover authentication, network, and wireless. An attacker who already has valid credentials and legitimate network access will not trigger any of those rules. What fourth log source would catch authorized but anomalous EHR access &mdash; and what correlation rule would you write for it?</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 12 — DEBRIEF + TAKEAWAYS ============ -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 12 &nbsp;|&nbsp; Debrief</div>
+        <div class="slide-title">Task <span class="accent">Debrief</span></div>
+        <div class="slide-subtitle">Security architecture is not a single answer. It is a set of documented decisions, each with a rationale and a known residual risk. That is what you practiced today.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Architecture: What Most Groups Got Right</div>
+                <div class="card-desc">Three-tier isolation with firewall boundaries between each tier. Guest VLAN isolation. The debate over ZTNA vs. VPN is healthy &mdash; both are defensible if the access scope is correctly limited. The wrong answer is "VPN that gives full internal access with no further segmentation."</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Wireless + PKI: The Key Insight</div>
+                <div class="card-desc">The patient portal needs a public CA cert because patients' browsers ship with public CAs, not MedCore's internal CA. Internal systems use the internal CA because MedCore manages those trust stores via Group Policy. Mixing up which CA issues which cert breaks either browser trust or internal certificate validation.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">SecOps: The Hardest Part Is Specificity</div>
+                <div class="card-desc">Vague rules produce vague alerts produce alert fatigue. A rule that fires on "suspicious activity" is useless. A rule that fires on "&gt;10 Event 4625 for the same account within 5 minutes, followed by Event 4624 from a non-enrolled device" is actionable. Specificity is the work.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">What carries into Week 4</div>
+            Authentication is the mechanism that makes all of this work. Firewalls, VLANs, 802.1X, TLS &mdash; every control depends on a reliable answer to "who is this?" Week 4 (Authentication &amp; Identity Management, Risk Governance) is the machinery behind that answer. The architecture you designed today assumes authentication works. Week 4 describes how to make that assumption defensible.
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ============ NAV ============ -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Infosec</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 12</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 12;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('shield', 'pis-w3-inclass-task', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
