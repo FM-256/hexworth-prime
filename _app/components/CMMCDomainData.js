@@ -198,7 +198,7 @@ const CMMCDomainData = {
         ],
         resources: [
             { title: 'NIST SP 800-171 Rev 2 — Section 3.5', url: 'https://csrc.nist.gov/publications/detail/sp/800-171/rev-2/final' },
-            { title: 'NIST SP 800-63B — Digital Identity Guidelines', url: 'https://pages.nist.gov/800-63-3/sp800-63b.html' },
+            { title: 'NIST SP 800-63B-4 — Digital Identity Guidelines (2025)', url: 'https://pages.nist.gov/800-63-4/sp800-63b.html' },
             { title: 'CISA MFA Guidance', url: 'https://www.cisa.gov/MFA' }
         ],
         relatedDomains: ['AC', 'AU', 'SC']
