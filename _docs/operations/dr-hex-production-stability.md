@@ -22,14 +22,21 @@ The system prompt holds the voice for the first several turns; after
 that, accumulated context exerts gravity on the model and posture drifts
 unless we actively counteract it.
 
-The research literature confirms this. Le et al. (2024) "Measuring and
-Controlling Persona Drift in Language Model Dialogs" used an
-experimental window of N=8 conversation rounds and observed measurable
-persona-adherence decline within that window across the models tested.
-([arXiv:2402.10962](https://arxiv.org/abs/2402.10962)) — The N=8 was
-their experimental setup, not a deployment-proven threshold; treat 8
-turns as a *defensible starting baseline* for Dr. Hex, not as ground
-truth. We instrument and adjust in production.
+The research literature confirms this. Li et al. (2024) "Measuring and
+Controlling Instruction (In)Stability in Language Model Dialogs" used
+an experimental window of N=8 conversation rounds and observed
+measurable instruction-adherence decline within that window across the
+models tested.
+([arXiv:2402.10962](https://arxiv.org/abs/2402.10962)) — Note the paper
+specifically measures *instruction* drift (whether the model continues
+following an initial system directive across turns), which is one
+component of the broader behavioral drift problem we care about. The
+verbosity / friendliness / rhetorical-balancing drift modes listed
+above are not all from this single source; they are the empirically-
+observed failure shapes across many deployed AI tutors. The N=8 was
+the paper's experimental window, not a deployment-proven threshold;
+treat 8 turns as a *defensible starting baseline* for Dr. Hex, not as
+ground truth. We instrument and adjust in production.
 
 This track has three components:
 
@@ -309,7 +316,8 @@ input to v1.2 of the Constitution. The loop closes.
 - `dr-hex-quality-log.md` — where stylistic warnings and drift scores land
 - `dr-hex-adversarial-probe.md` — the red-team suite that complements
   drift detection
-- [arXiv:2402.10962](https://arxiv.org/abs/2402.10962) — Le et al.,
-  "Measuring and Controlling Persona Drift in Language Model Dialogs"
+- [arXiv:2402.10962](https://arxiv.org/abs/2402.10962) — Li et al.,
+  "Measuring and Controlling Instruction (In)Stability in Language
+  Model Dialogs"
 - Task **STABILITY-001** — this engineering track
 - Task **TELEMETRY-001** — the post-intervention engagement instrumentation
