@@ -57,6 +57,14 @@ function walk(dir, out = []) {
     return out;
 }
 
+// Lab-page = filename suffix matches a graded artifact, OR content
+// includes one of the known engine/structural markers. The suffix check
+// catches authored lab files that don't pull in the standard engine
+// scripts (key-aes.lab.html etc.).
+const LAB_FILE_SUFFIXES = [
+    '.lab.html', '.box.html', '.quiz.html', '.applet.html',
+    '.module.html', '.tool.html', '.exam.html',
+];
 function isLabPage(content, filepath) {
     if (filepath.includes('/admin/')) return false;
     if (filepath.includes('/_archive/') || filepath.includes('/_drafts/')) return false;
@@ -64,6 +72,8 @@ function isLabPage(content, filepath) {
         filepath.includes('/_app/houses/') ||
         filepath.includes('/_app/dispatch/');
     if (!inLabDir) return false;
+    const base = path.basename(filepath);
+    if (LAB_FILE_SUFFIXES.some(s => base.endsWith(s))) return true;
     const indicators = [
         /ContentCatalog\.js/,
         /id="lab-engine"|id="box-engine"|id="quiz-shell"/,
