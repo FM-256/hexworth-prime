@@ -37,6 +37,31 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+# Zero-false-positive-risk BLOCK codes promoted to enforce-mode. If any
+# of these fires on a Dr. Hex response, the orchestrator replaces the
+# response with VOICE_LINTER_REFUSAL rather than serving the offending
+# content. The other BLOCK codes (help_level_present, no_fake_casual)
+# stay in observe-only mode until their FP rate is characterized in
+# production.
+ENFORCE_BLOCK_CODES = frozenset({
+    "no_emoji",
+    "no_flag_value",
+    "no_walkthrough_paste",
+    "no_forbidden_disclosure",
+    "no_lived_experience",
+})
+
+# Canned refusal returned when an enforce-mode BLOCK fires.
+# Matches the LOCKOUT_REFUSAL / JAILBREAK_REFUSAL idiom — calm, terse,
+# Constitution-aligned. Does not name the specific violation (avoids
+# teaching the attack).
+VOICE_LINTER_REFUSAL = (
+    "Something in my response didn't pass my own check. Try rephrasing "
+    "the question, or work through the lab step-by-step and ask me about "
+    "the specific output you're seeing."
+)
+
+
 # ─── public types ────────────────────────────────────────────────────────
 
 

@@ -1377,12 +1377,16 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                 metadata={"match_count": len(scrubbed_matches), "level": level},
             )
 
-        # ── STABILITY-001 Phase 1: voice linter (observe-only) ────────────
-        # Run the voice_linter on the (post-scrub) response text and emit
-        # any findings as observations. We do NOT block or regenerate in
-        # this initial deploy — we observe false-positive rates first.
-        # Switch to block-on-violation once production data justifies it.
+        # ── STABILITY-001 Phase 1+2: voice linter ─────────────────────────
+        # Phase 1 (observe-only): every check emits findings to telemetry.
+        # Phase 2 (enforce-mode, 2026-05-26): zero-FP-risk BLOCK codes
+        # (no_emoji, no_flag_value, no_walkthrough_paste, no_lived_experience,
+        # no_forbidden_disclosure) trigger a refusal — the offending response
+        # is replaced with VOICE_LINTER_REFUSAL before reaching the student.
+        # Other BLOCK codes (help_level_present, no_fake_casual) stay
+        # observe-only until their FP rate is characterized in production.
         # Spec: _docs/operations/dr-hex-production-stability.md §2
+        voice_linter_refusal_fired = False
         try:
             lint_skill_map = None
             if req.mission_id:
@@ -1414,26 +1418,56 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                 session_state=None,  # fresh per-request for v1; session tracking is Phase 2
                 lab_skill_map=lint_skill_map,
             )
+            from voice_linter import ENFORCE_BLOCK_CODES, VOICE_LINTER_REFUSAL
             for v in lint_result.violations:
-                log.warning(
-                    "voice_linter: %s %s uid_hash=%s mission=%s msg='%s'",
-                    v.severity, v.code, hash_for_log(req.user_uid),
-                    req.mission_id or "-", v.message,
-                )
-                security_log.schedule_event(
-                    f"voice_linter_{v.code}",
-                    uid=req.user_uid,
-                    severity="warning" if v.severity == "WARN" else "critical",
-                    conversation_id=req.conversation_id,
-                    metadata={
-                        "code": v.code,
-                        "severity": v.severity,
-                        "message": v.message[:300],
-                        "excerpt": (v.excerpt or "")[:120],
-                        "mission_id": req.mission_id,
-                        "skill_map_loaded": lint_skill_map is not None,
-                    },
-                )
+                # 2026-05-26: Phase 2 enforce-mode for zero-FP-risk codes.
+                # If any of those fires we replace the response BEFORE the
+                # student sees the offending content. Other codes still
+                # log but the original response goes through.
+                if v.severity == "BLOCK" and v.code in ENFORCE_BLOCK_CODES and not voice_linter_refusal_fired:
+                    voice_linter_refusal_fired = True
+                    log.warning(
+                        "voice_linter: ENFORCE %s uid_hash=%s mission=%s — response REPLACED with refusal",
+                        v.code, hash_for_log(req.user_uid), req.mission_id or "-",
+                    )
+                    security_log.schedule_event(
+                        f"voice_linter_enforce_{v.code}",
+                        uid=req.user_uid,
+                        severity="critical",
+                        conversation_id=req.conversation_id,
+                        metadata={
+                            "code": v.code,
+                            "enforce": True,
+                            "original_length": len(scrubbed_text),
+                            "excerpt": (v.excerpt or "")[:120],
+                            "mission_id": req.mission_id,
+                            "skill_map_loaded": lint_skill_map is not None,
+                        },
+                    )
+                else:
+                    log.warning(
+                        "voice_linter: %s %s uid_hash=%s mission=%s msg='%s'",
+                        v.severity, v.code, hash_for_log(req.user_uid),
+                        req.mission_id or "-", v.message,
+                    )
+                    security_log.schedule_event(
+                        f"voice_linter_{v.code}",
+                        uid=req.user_uid,
+                        severity="warning" if v.severity == "WARN" else "critical",
+                        conversation_id=req.conversation_id,
+                        metadata={
+                            "code": v.code,
+                            "severity": v.severity,
+                            "message": v.message[:300],
+                            "excerpt": (v.excerpt or "")[:120],
+                            "mission_id": req.mission_id,
+                            "skill_map_loaded": lint_skill_map is not None,
+                        },
+                    )
+
+            # If an enforce-mode code fired, swap in the refusal text.
+            if voice_linter_refusal_fired:
+                scrubbed_text = VOICE_LINTER_REFUSAL
         except Exception as exc:
             # Voice linter must never crash the chat path. Log + continue.
             log.error("voice_linter crashed (continuing): %s", exc)
@@ -1444,7 +1478,7 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
             persona_name=persona["name"],
             help_level=level,
             help_level_label=LEVEL_DEFINITIONS[level]["label"],
-            model=model if not was_scrubbed else f"{model}+scrubbed",
+            model=model if (not was_scrubbed and not voice_linter_refusal_fired) else f"{model}+{'scrubbed' if was_scrubbed else ''}{'+linter_refusal' if voice_linter_refusal_fired else ''}",
             latency_ms=int(latency * 1000),
             context_packet=thinking_payload,
         )
