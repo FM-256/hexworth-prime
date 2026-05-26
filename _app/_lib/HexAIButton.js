@@ -104,7 +104,15 @@ class HexAIButton extends HTMLElement {
                     justify-content: center;
                     padding: 0;
                     position: relative;
-                    overflow: visible;
+                    overflow: hidden;
+                }
+                button.dr-hex-fab img.mascot {
+                    width: 86%;
+                    height: 86%;
+                    object-fit: contain;
+                    pointer-events: none;
+                    /* SVG is centered in a square viewBox; scale to fill the
+                       circular button while keeping aspect ratio. */
                 }
                 button.dr-hex-fab:hover {
                     transform: scale(1.06);
@@ -174,7 +182,7 @@ class HexAIButton extends HTMLElement {
                 aria-label="Dr. Hex AI tutor — state: calm. Click to chat."
                 title="Ask Dr. Hex"
                 style="--hex-bg: #67e8f9;"
-            >🤖</button>
+            ><img class="mascot" src="/assets/images/icons/dr-hex-hooded-figure.svg" alt="" aria-hidden="true"></button>
             <span class="dr-hex-label">Ask Dr. Hex</span>
         `;
     }
