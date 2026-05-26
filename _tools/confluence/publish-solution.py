@@ -266,6 +266,38 @@ def cmd_publish(creds, md_file, parent_id, title):
     return result
 
 
+def cmd_update(creds, page_id, md_file, title=None):
+    """Update an existing Confluence page in place. Bumps version by 1.
+
+    Title is optional — keep the existing title if omitted. The space
+    is derived from the existing page (cannot be moved here)."""
+    with open(md_file) as f:
+        md = f.read()
+    storage = md_to_storage(md)
+    current = req(creds, f"/wiki/rest/api/content/{page_id}",
+                  params={"expand": "version,space"})
+    new_version = current["version"]["number"] + 1
+    new_title = title or current["title"]
+    body = {
+        "id": page_id,
+        "type": "page",
+        "title": new_title,
+        "space": {"key": current["space"]["key"]},
+        "version": {"number": new_version},
+        "body": {
+            "storage": {
+                "value": storage,
+                "representation": "storage"
+            }
+        }
+    }
+    result = req(creds, f"/wiki/rest/api/content/{page_id}",
+                 method="PUT", body=body)
+    print(f"Updated page id={result['id']} title={result['title']} version={new_version}")
+    print(f"URL: {creds['site']}/wiki{result['_links']['webui']}")
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -275,6 +307,11 @@ def main():
     pp.add_argument("md_file")
     pp.add_argument("--parent", required=True)
     pp.add_argument("--title", required=True)
+    up = sub.add_parser("update")
+    up.add_argument("page_id")
+    up.add_argument("md_file")
+    up.add_argument("--title", required=False,
+                    help="Optional new title — keeps existing if omitted")
 
     args = parser.parse_args()
     creds = load_creds()
@@ -285,6 +322,8 @@ def main():
         cmd_space_tree(creds)
     elif args.cmd == "publish":
         cmd_publish(creds, args.md_file, args.parent, args.title)
+    elif args.cmd == "update":
+        cmd_update(creds, args.page_id, args.md_file, args.title)
 
 
 if __name__ == "__main__":
