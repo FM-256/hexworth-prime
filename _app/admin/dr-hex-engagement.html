@@ -203,6 +203,31 @@
             <div class="kpi-grid" id="outcome-grid"></div>
         </section>
 
+        <section id="student-timeline-section" style="display:none">
+            <h2>Student session timeline</h2>
+            <p style="margin: 0 0 1rem; color: #8a8a9a; font-size: 0.85rem;">
+                Per-mission rollup for the filtered student. Each row is one mission/lab; rows
+                are sorted with the most-recent session first. Click a row to expand the
+                event sequence for that mission.
+            </p>
+            <table id="timeline-table">
+                <thead>
+                    <tr>
+                        <th>Mission</th>
+                        <th>House</th>
+                        <th>First seen</th>
+                        <th>Last seen</th>
+                        <th>Duration</th>
+                        <th>Interventions</th>
+                        <th>Outcome</th>
+                    </tr>
+                </thead>
+                <tbody id="timeline-body">
+                    <tr><td colspan="7" class="empty-state">Filter by uid_hash to load.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
         <section>
             <h2>Recent events (latest 50)</h2>
             <table id="events-table">
@@ -313,6 +338,7 @@
         renderHouses(events);
         renderOutcomes(events);
         renderRecent(events.slice(0, 50));
+        renderStudentTimeline(events);
     }
     // Also allow clicking a uid_hash in the recent-events table to filter.
     // Wired up in renderRecent() below.
@@ -341,6 +367,7 @@
             renderHouses(events);
             renderOutcomes(events);
             renderRecent(events.slice(0, 50));
+            renderStudentTimeline(events);
             const filtered = events.length !== allEvents.length ? ` (filtered from ${allEvents.length})` : '';
             staleInd.textContent = `${events.length} events${filtered} · fetched ${new Date().toLocaleTimeString()}`;
         } catch (e) {
@@ -505,6 +532,106 @@
                 <td class="mono">${iid}</td>
             </tr>`;
         }).join('');
+    }
+
+    // Per-student mission rollup. Visible only when uid_hash filter is set.
+    // Same outcome classification as the global outcome KPIs (Productive /
+    // Stuck-but-engaged / Handoff / Abandoned / Bypassed), but per-mission
+    // so the operator can see the student's pattern across labs.
+    function renderStudentTimeline(events) {
+        const section = document.getElementById('student-timeline-section');
+        const tbody = document.getElementById('timeline-body');
+        const filterActive = uidFilter.value.trim() !== '';
+        if (!filterActive) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = '';
+        if (events.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No events for this student in the selected window.</td></tr>';
+            return;
+        }
+        // Group by mission_id; events without a mission go to "(none)".
+        const byMission = new Map();
+        for (const e of events) {
+            const m = e.mission_id || '(none)';
+            if (!byMission.has(m)) byMission.set(m, []);
+            byMission.get(m).push(e);
+        }
+        // For each mission, derive first/last seen, intervention count, and
+        // outcome (using the same classification as the global outcome grid).
+        const rows = [];
+        for (const [mission, evList] of byMission.entries()) {
+            const sorted = evList.slice().sort((a, b) => {
+                const ta = a.ts?.toMillis ? a.ts.toMillis() : new Date(a.ts_iso || 0).getTime();
+                const tb = b.ts?.toMillis ? b.ts.toMillis() : new Date(b.ts_iso || 0).getTime();
+                return ta - tb;
+            });
+            const first = sorted[0];
+            const last = sorted[sorted.length - 1];
+            const ms = (e) => e.ts?.toMillis ? e.ts.toMillis() : new Date(e.ts_iso || 0).getTime();
+            const firstT = ms(first), lastT = ms(last);
+            const durationMs = lastT - firstT;
+            const interventions = sorted.filter(x => x.event_type === 'intervention_sent');
+            const downvotes = sorted.filter(x => x.event_type === 'downvote_response');
+            const walkthroughs = sorted.filter(x => x.event_type === 'walkthrough_opened');
+            const tabsClosed = sorted.filter(x => x.event_type === 'tab_closed');
+            const externalAi = sorted.filter(x => x.event_type === 'external_ai_signal');
+            // Outcome resolution (in priority order):
+            //   bypassed if external_ai within 5 min of any intervention
+            //   abandoned if tab_closed within 2 min of last intervention
+            //   handoff if walkthrough opened within 10 min of an intervention
+            //   stuck if interventions exist + downvotes >= 1
+            //   productive if interventions exist + no downvotes + no abandonment signal
+            //   (none) if no interventions
+            let outcome = '(none)';
+            let outcomeKlass = '';
+            if (interventions.length === 0) {
+                outcome = '(no interventions)';
+            } else {
+                const lastIntervT = ms(interventions[interventions.length - 1]);
+                const bypassed = externalAi.some(x => ms(x) - lastIntervT < 5 * 60 * 1000 && ms(x) >= lastIntervT);
+                const abandoned = tabsClosed.some(x => ms(x) - lastIntervT < 2 * 60 * 1000 && ms(x) >= lastIntervT);
+                const handed = walkthroughs.some(x => ms(x) - lastIntervT < 10 * 60 * 1000 && ms(x) >= lastIntervT);
+                if (bypassed) { outcome = 'Bypassed (external AI)'; outcomeKlass = 'bad'; }
+                else if (abandoned) { outcome = 'Abandoned (tab closed)'; outcomeKlass = 'bad'; }
+                else if (handed) { outcome = 'Handoff (walkthrough)'; outcomeKlass = 'warning'; }
+                else if (downvotes.length) { outcome = 'Stuck-but-engaged'; outcomeKlass = 'warning'; }
+                else { outcome = 'Productive'; outcomeKlass = 'good'; }
+            }
+            const house = sorted.find(x => x.house)?.house || '-';
+            rows.push({
+                mission, house,
+                firstT, lastT, durationMs,
+                interventions: interventions.length,
+                outcome, outcomeKlass,
+            });
+        }
+        rows.sort((a, b) => b.lastT - a.lastT);
+        const fmtTime = (t) => t ? new Date(t).toLocaleString() : '?';
+        const fmtDur = (ms) => {
+            if (ms <= 0) return '0s';
+            const s = Math.floor(ms / 1000);
+            if (s < 60) return s + 's';
+            const m = Math.floor(s / 60);
+            if (m < 60) return m + 'm ' + (s % 60) + 's';
+            return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+        };
+        const klassToBg = {
+            good: 'background: rgba(74, 222, 128, 0.15); color: #4ade80;',
+            warning: 'background: rgba(245, 158, 11, 0.15); color: #f59e0b;',
+            bad: 'background: rgba(248, 113, 113, 0.15); color: #f87171;',
+            '': 'background: rgba(154, 160, 212, 0.12); color: #9aa0d4;',
+        };
+        tbody.innerHTML = rows.map(r => `<tr>
+            <td class="mono" style="word-break:break-all">${r.mission}</td>
+            <td>${r.house}</td>
+            <td class="mono" style="font-size:0.78rem">${fmtTime(r.firstT)}</td>
+            <td class="mono" style="font-size:0.78rem">${fmtTime(r.lastT)}</td>
+            <td>${fmtDur(r.durationMs)}</td>
+            <td>${r.interventions}</td>
+            <td><span class="pill" style="${klassToBg[r.outcomeKlass] || klassToBg['']}">${r.outcome}</span></td>
+        </tr>`).join('');
     }
 </script>
 </body>
