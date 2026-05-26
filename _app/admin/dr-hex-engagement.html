@@ -164,8 +164,15 @@
                 </label>
                 <button id="refresh-btn">Refresh</button>
                 <span class="stale" id="stale-ind"></span>
+                <label style="margin-left: 1rem;">Student filter:&nbsp;
+                    <input id="uid-filter" type="text" placeholder="uid_hash (e.g. 04b11e3f...)" style="width: 220px; background: #0d0d12; color: #e0e0e0; border: 1px solid #3a3a4a; padding: 0.45rem 0.6rem; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 0.82rem;">
+                </label>
+                <button id="clear-filter" style="display:none">Clear</button>
                 <div class="spacer"></div>
                 <span class="stale">From <code>dr_hex_engagement_events</code></span>
+            </div>
+            <div id="filter-indicator" style="display:none; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: #2a2a3a; border-radius: 6px; font-size: 0.85rem; color: #c0c0d0;">
+                <strong>Filtered:</strong> showing events for uid_hash <code id="active-filter-display"></code> only.
             </div>
 
             <h2>Headline metrics</h2>
@@ -203,6 +210,7 @@
                     <tr>
                         <th>When</th>
                         <th>Event</th>
+                        <th>Student</th>
                         <th>House</th>
                         <th>Mission</th>
                         <th>Help Level</th>
@@ -210,7 +218,7 @@
                     </tr>
                 </thead>
                 <tbody id="events-body">
-                    <tr><td colspan="6" class="empty-state">Loading…</td></tr>
+                    <tr><td colspan="7" class="empty-state">Loading…</td></tr>
                 </tbody>
             </table>
         </section>
@@ -273,6 +281,46 @@
     windowSelect.addEventListener('change', refresh);
     refreshBtn.addEventListener('click', refresh);
 
+    const uidFilter = document.getElementById('uid-filter');
+    const clearFilter = document.getElementById('clear-filter');
+    const filterIndicator = document.getElementById('filter-indicator');
+    const activeFilterDisplay = document.getElementById('active-filter-display');
+
+    function applyFilter(events) {
+        const f = uidFilter.value.trim();
+        if (!f) {
+            filterIndicator.style.display = 'none';
+            clearFilter.style.display = 'none';
+            return events;
+        }
+        filterIndicator.style.display = '';
+        clearFilter.style.display = '';
+        activeFilterDisplay.textContent = f;
+        // Match by prefix to allow truncated uid_hashes (real UID hashes are
+        // 16 chars but operators often paste shorter prefixes from logs).
+        return events.filter(e => (e.uid_hash || '').startsWith(f));
+    }
+
+    // Re-render-only-no-refetch when the filter changes
+    let lastFetchedEvents = [];
+    uidFilter.addEventListener('input', () => rerender());
+    clearFilter.addEventListener('click', () => { uidFilter.value = ''; rerender(); });
+    function rerender() {
+        if (!lastFetchedEvents.length) return;
+        const hours = parseInt(windowSelect.value, 10);
+        const events = applyFilter(lastFetchedEvents);
+        renderKpis(events, hours);
+        renderHouses(events);
+        renderOutcomes(events);
+        renderRecent(events.slice(0, 50));
+    }
+    // Also allow clicking a uid_hash in the recent-events table to filter.
+    // Wired up in renderRecent() below.
+    window._setUidFilter = (uid) => {
+        uidFilter.value = uid;
+        rerender();
+    };
+
     async function refresh() {
         refreshBtn.disabled = true;
         staleInd.textContent = 'fetching…';
@@ -286,12 +334,15 @@
                 limit(2000),
             );
             const snap = await getDocs(q);
-            const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            lastFetchedEvents = allEvents;
+            const events = applyFilter(allEvents);
             renderKpis(events, hours);
             renderHouses(events);
             renderOutcomes(events);
             renderRecent(events.slice(0, 50));
-            staleInd.textContent = `${events.length} events · fetched ${new Date().toLocaleTimeString()}`;
+            const filtered = events.length !== allEvents.length ? ` (filtered from ${allEvents.length})` : '';
+            staleInd.textContent = `${events.length} events${filtered} · fetched ${new Date().toLocaleTimeString()}`;
         } catch (e) {
             console.error(e);
             staleInd.textContent = `error: ${e.message}`;
@@ -429,7 +480,7 @@
     function renderRecent(events) {
         const tbody = document.getElementById('events-body');
         if (events.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No events in this window.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No events in this window.</td></tr>`;
             return;
         }
         tbody.innerHTML = events.map(e => {
@@ -439,9 +490,15 @@
             const evClass = `pill-${ev.replace(/[^a-z_]/g, '')}`;
             const helpLevel = e.metadata?.help_level_label || '-';
             const iid = e.intervention_id ? e.intervention_id.slice(0, 8) : '-';
+            const uid = e.uid_hash || '';
+            const uidShort = uid ? uid.slice(0, 8) : '-';
+            const uidCell = uid
+                ? `<span class="mono" style="color:#9aa0d4;cursor:pointer;text-decoration:underline" onclick="window._setUidFilter('${uid}')" title="Filter to this student">${uidShort}</span>`
+                : '-';
             return `<tr>
                 <td class="mono">${when}</td>
                 <td><span class="pill ${evClass}">${ev}</span></td>
+                <td>${uidCell}</td>
                 <td>${e.house || '-'}</td>
                 <td class="path">${e.mission_id || '-'}</td>
                 <td>${helpLevel}</td>
