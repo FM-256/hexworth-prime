@@ -37,10 +37,10 @@ const engagementFn = httpsCallable(functions, 'hexAiEngagementEvent');
 
 // Streaming endpoint — same project, same region. Matches the
 // HexAI.js _streamUrl() pattern. Production runs through the
-// hosting rewrite at /__/functions/hexAiChatStream so the Bearer
+// hosting rewrite at /api/hex-ai/stream so the Bearer
 // token Authorization survives CF Access. Falls back to the direct
 // CF URL if the rewrite is unreachable.
-const STREAM_URL = '/__/functions/hexAiChatStream';
+const STREAM_URL = '/api/hex-ai/stream';
 
 // ── TELEMETRY-001: post-intervention engagement instrumentation ───────────
 // Emit engagement events to the server so we can answer: "did the student
