@@ -100,7 +100,7 @@ const STYLE = `
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        background: #67e8f9;
+        background: var(--panel-mascot-bg, #67e8f9);
         padding: 3px;
         flex-shrink: 0;
     }
@@ -210,6 +210,17 @@ class HexAIChatPanel extends HTMLElement {
         const ctx = this._ctx || {};
         this._missionId = ctx.missionId || null;
         this._house = ctx.house || null;
+        // 2026-05-26: capture the button's current mood-ring state so we can
+        // pick the matching mascot variant for the panel header.
+        this._initialState = ctx.state || 'calm';
+        // Mood-ring color matching for the header mascot background
+        const STATE_BG = {
+            calm: '#67e8f9', noticing: '#fbbf24', active: '#fb923c',
+            insistent: '#ef4444', celebrating: '#a78bfa',
+        };
+        // Set as inline style so it applies even though Shadow DOM blocks
+        // inherited CSS custom properties from the outer page.
+        this.style.setProperty('--panel-mascot-bg', STATE_BG[this._initialState] || STATE_BG.calm);
         // Persist conversation per page-session
         const key = `hex_ai_conv_id_${this._missionId || 'global'}`;
         let stored = sessionStorage.getItem(key);
@@ -279,7 +290,7 @@ class HexAIChatPanel extends HTMLElement {
             <style>${STYLE}</style>
             <header>
                 <h2>
-                    <img class="panel-mascot" src="/assets/images/icons/dr-hex-calm.svg" alt="" aria-hidden="true">
+                    <img class="panel-mascot" src="/assets/images/icons/dr-hex-${this._initialState}.svg" alt="" aria-hidden="true">
                     <span>Dr. Hex</span>
                     ${this._house ? `<span class="header-house">· ${escapeHtml(this._house)}</span>` : ''}
                 </h2>

@@ -270,6 +270,9 @@ class HexAIButton extends HTMLElement {
                 missionId: this._missionId,
                 house: this._house,
                 initialPrompt: this._suggestedPrompt || '',
+                // 2026-05-26: pass the current mood-ring state so the chat
+                // panel header can mirror the mascot eye color.
+                state: this._state || 'calm',
                 onAttemptSubmitted: () => {
                     // After student submits a message via the chat panel,
                     // the button could refresh state — but chat msgs don't
