@@ -25,6 +25,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <Preferences.h>
@@ -201,14 +202,39 @@ static void renderSetupScreen(const String& apName) {
 }
 
 // ─── WiFi connect ───────────────────────────────────────────
-static bool connectWiFi(uint32_t timeoutMs = 20000) {
-    if (g_ssid.length() == 0) return false;
-    Serial.printf("[wifi] connecting to %s ... ", g_ssid.c_str());
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(g_ssid.c_str(), g_pass.c_str());
+//
+// Uses WiFiMulti so the device can roam between the operator's
+// primary network (provisioned via captive portal, stored in NVS)
+// and a compile-time fallback network (e.g. the classroom WiFi
+// defined in secrets.h via FALLBACK_WIFI_SSID/FALLBACK_WIFI_PASSWORD).
+// WiFiMulti picks the visible AP with the strongest RSSI, so the
+// device "just works" at home and on campus without re-provisioning.
+//
+static WiFiMulti g_wifiMulti;
 
+static bool connectWiFi(uint32_t timeoutMs = 20000) {
+    WiFi.mode(WIFI_STA);
+
+    bool anyConfigured = false;
+    if (g_ssid.length() > 0) {
+        g_wifiMulti.addAP(g_ssid.c_str(), g_pass.c_str());
+        Serial.printf("[wifi] primary AP registered: %s\n", g_ssid.c_str());
+        anyConfigured = true;
+    }
+#if defined(FALLBACK_WIFI_SSID) && defined(FALLBACK_WIFI_PASSWORD)
+    g_wifiMulti.addAP(FALLBACK_WIFI_SSID, FALLBACK_WIFI_PASSWORD);
+    Serial.printf("[wifi] fallback AP registered: %s\n", FALLBACK_WIFI_SSID);
+    anyConfigured = true;
+#endif
+
+    if (!anyConfigured) {
+        Serial.println("[wifi] no APs configured (NVS empty, no compile-time fallback)");
+        return false;
+    }
+
+    Serial.print("[wifi] connecting (WiFiMulti strongest-RSSI) ... ");
     uint32_t start = millis();
-    while (WiFi.status() != WL_CONNECTED) {
+    while (g_wifiMulti.run() != WL_CONNECTED) {
         if (millis() - start > timeoutMs) {
             Serial.println("TIMEOUT");
             return false;
@@ -216,7 +242,8 @@ static bool connectWiFi(uint32_t timeoutMs = 20000) {
         delay(250);
         Serial.print(".");
     }
-    Serial.printf(" OK (IP %s, RSSI %d)\n",
+    Serial.printf(" OK on %s (IP %s, RSSI %d)\n",
+                  WiFi.SSID().c_str(),
                   WiFi.localIP().toString().c_str(),
                   WiFi.RSSI());
     return true;
