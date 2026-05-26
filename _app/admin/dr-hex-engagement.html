@@ -311,6 +311,13 @@
     const filterIndicator = document.getElementById('filter-indicator');
     const activeFilterDisplay = document.getElementById('active-filter-display');
 
+    // Privacy guard (Nancy correction 2026-05-26):
+    //   Minimum 4-char prefix before the filter resolves to a result set.
+    //   1-char prefix on a 16-char hex hash exposes ~1/16 of students
+    //   (~125 at typical population), a meaningful disclosure during
+    //   screen-share or shoulder-surf triage. 4-char prefix narrows to
+    //   ~1/65536 — effectively a single match.
+    const MIN_FILTER_LEN = 4;
     function applyFilter(events) {
         const f = uidFilter.value.trim();
         if (!f) {
@@ -318,17 +325,30 @@
             clearFilter.style.display = 'none';
             return events;
         }
+        if (f.length < MIN_FILTER_LEN) {
+            filterIndicator.style.display = '';
+            clearFilter.style.display = '';
+            activeFilterDisplay.textContent = `${f} (need ${MIN_FILTER_LEN}+ chars)`;
+            return [];   // Show nothing — no progressive disclosure
+        }
         filterIndicator.style.display = '';
         clearFilter.style.display = '';
         activeFilterDisplay.textContent = f;
         // Match by prefix to allow truncated uid_hashes (real UID hashes are
         // 16 chars but operators often paste shorter prefixes from logs).
+        // 4+ char minimum enforced above.
         return events.filter(e => (e.uid_hash || '').startsWith(f));
     }
 
-    // Re-render-only-no-refetch when the filter changes
+    // Re-render-only-no-refetch when the filter changes. Debounce to 250ms so
+    // partially-typed prefixes don't trigger rapid-fire rerenders (also
+    // smoothes the visible-on-each-keystroke disclosure that Nancy flagged).
     let lastFetchedEvents = [];
-    uidFilter.addEventListener('input', () => rerender());
+    let filterDebounceT = null;
+    uidFilter.addEventListener('input', () => {
+        if (filterDebounceT) clearTimeout(filterDebounceT);
+        filterDebounceT = setTimeout(() => rerender(), 250);
+    });
     clearFilter.addEventListener('click', () => { uidFilter.value = ''; rerender(); });
     function rerender() {
         if (!lastFetchedEvents.length) return;
@@ -577,26 +597,69 @@
             const walkthroughs = sorted.filter(x => x.event_type === 'walkthrough_opened');
             const tabsClosed = sorted.filter(x => x.event_type === 'tab_closed');
             const externalAi = sorted.filter(x => x.event_type === 'external_ai_signal');
-            // Outcome resolution (in priority order):
-            //   bypassed if external_ai within 5 min of any intervention
-            //   abandoned if tab_closed within 2 min of last intervention
-            //   handoff if walkthrough opened within 10 min of an intervention
-            //   stuck if interventions exist + downvotes >= 1
-            //   productive if interventions exist + no downvotes + no abandonment signal
-            //   (none) if no interventions
+            // Outcome resolution — Nancy [PAUSE] correction 2026-05-26.
+            //
+            // Iterate ALL interventions, not just the last. A mission with three
+            // interventions where the FIRST was bypassed and the third was clean
+            // should still show "Bypassed". Worst-case wins (badness rolls up).
+            //
+            // Time windows use metadata.since_intervention_ms when present
+            // (server-derived, clock-skew-immune) and fall back to client-side
+            // timestamp subtraction. Matches the global renderOutcomes() and
+            // renderHouses() pattern for cross-section consistency.
+            //
+            // "Open" is a new outcome state for missions where the last
+            // intervention is recent (<10 min ago at fetch time) with no
+            // follow-on event — distinguishes "unresolved-and-active" from
+            // "Productive". Prevents the failure mode where an admin treats a
+            // live intervention as a success.
+            //
+            // Priority (worst first):
+            //   Bypassed (external_ai within 5 min after ANY intervention)
+            //   Abandoned (tab_closed within 2 min after ANY intervention)
+            //   Stuck-but-engaged (any downvote_response)
+            //   Handoff (walkthrough_opened within 10 min after ANY intervention)
+            //   Open (last intervention <10 min ago, no follow-on)
+            //   Productive (interventions present, all follow-on signals positive)
+            //   (no interventions) if zero interventions
             let outcome = '(none)';
             let outcomeKlass = '';
+            const sinceMs = (e, lastTs) => {
+                // Prefer server-derived metadata.since_intervention_ms when
+                // present; falls back to client-side timestamp subtraction.
+                if (typeof e.metadata?.since_intervention_ms === 'number') {
+                    return e.metadata.since_intervention_ms;
+                }
+                return ms(e) - lastTs;
+            };
+            const matchesAnyIntervention = (followon, windowMs) => {
+                // True if any intervention has THIS follow-on event within
+                // windowMs after it. Tests each intervention, not just the last.
+                for (const iv of interventions) {
+                    const ivT = ms(iv);
+                    const delta = sinceMs(followon, ivT);
+                    if (delta >= 0 && delta < windowMs) return true;
+                }
+                return false;
+            };
             if (interventions.length === 0) {
                 outcome = '(no interventions)';
             } else {
+                const bypassed = externalAi.some(x => matchesAnyIntervention(x, 5 * 60 * 1000));
+                const abandoned = tabsClosed.some(x => matchesAnyIntervention(x, 2 * 60 * 1000));
+                const handed = walkthroughs.some(x => matchesAnyIntervention(x, 10 * 60 * 1000));
                 const lastIntervT = ms(interventions[interventions.length - 1]);
-                const bypassed = externalAi.some(x => ms(x) - lastIntervT < 5 * 60 * 1000 && ms(x) >= lastIntervT);
-                const abandoned = tabsClosed.some(x => ms(x) - lastIntervT < 2 * 60 * 1000 && ms(x) >= lastIntervT);
-                const handed = walkthroughs.some(x => ms(x) - lastIntervT < 10 * 60 * 1000 && ms(x) >= lastIntervT);
+                const ageMs = Date.now() - lastIntervT;
+                // Has anything happened after the last intervention?
+                const hasFollowOn = sorted.some(x =>
+                    x.event_type !== 'intervention_sent' && ms(x) > lastIntervT);
                 if (bypassed) { outcome = 'Bypassed (external AI)'; outcomeKlass = 'bad'; }
                 else if (abandoned) { outcome = 'Abandoned (tab closed)'; outcomeKlass = 'bad'; }
-                else if (handed) { outcome = 'Handoff (walkthrough)'; outcomeKlass = 'warning'; }
                 else if (downvotes.length) { outcome = 'Stuck-but-engaged'; outcomeKlass = 'warning'; }
+                else if (handed) { outcome = 'Handoff (walkthrough)'; outcomeKlass = 'warning'; }
+                else if (!hasFollowOn && ageMs < 10 * 60 * 1000) {
+                    outcome = 'Open (unresolved)'; outcomeKlass = 'warning';
+                }
                 else { outcome = 'Productive'; outcomeKlass = 'good'; }
             }
             const house = sorted.find(x => x.house)?.house || '-';
