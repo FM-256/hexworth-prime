@@ -62,13 +62,28 @@ class HTMLValidator {
         // Strip template placeholders before validation
         content = this.stripTemplates(content);
 
+        // ORDER MATTERS: script blocks BEFORE comments. JS code inside
+        // <script>...</script> can contain text that LOOKS like an HTML
+        // comment start — e.g. `'<!--')){' inside a string literal that
+        // simulates a partial HTML snippet for a teaching exercise. If
+        // stripComments runs first, that fake `<!--` is treated as a
+        // real HTML comment start and the non-greedy regex eats forward
+        // until the next `-->`, swallowing a real `</script>` along the
+        // way and breaking the tag-balance count. Strip-script-first
+        // removes the entire JS body from consideration, so comment-
+        // stripping can't reach into JS strings.
+        //
+        // Bug discovered 2026-05-25 during the platform-wide Dr. Hex
+        // button rollout: shield-web-security-headers-lab.applet.html
+        // produced a false HTML-001 critical finding after a benign
+        // <script src="..."></script> was appended to the end of the
+        // file. Direct call to checkCriticalUnclosedTags returned 0
+        // issues, but the full validate() pipeline reported HTML-001
+        // because of the strip-order interaction. Task #207.
+        content = this.stripScriptBlocks(content);
+
         // Strip HTML comments to avoid false positives from commented-out code
         content = this.stripComments(content);
-
-        // Strip <script>/<style> blocks before tag-balance checks. Inline JS
-        // template literals (e.g. `const html = \`<div>...\`;`) inflate FP
-        // rate ~5x without this. Applies to both CI and strict paths.
-        content = this.stripScriptBlocks(content);
 
         const issues = [];
 
