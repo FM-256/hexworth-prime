@@ -623,6 +623,23 @@ Cross-references the XREF-002 report; the difference (XREF-002 LIVE but no shape
 
 ---
 
+## Standalone Audits
+
+These run on-demand outside the EduScan main pipeline. Promotion to a full validator depends on FP-rate evaluation; until then they live as targeted spot-checks.
+
+### NIST standard supersession audit
+
+Scans the codebase for references to NIST Special Publications that use a withdrawn or stale revision qualifier. Catches the class of bug where a slide cites "NIST SP 800-63B" after the standard has been replaced by SP 800-63B-4 (which actually happened in PIS W4 — caught by Karl 2026-05-25 and remediated platform-wide).
+
+```bash
+node _tools/eduscan/nist-standard-supersession-audit.js          # human-readable
+node _tools/eduscan/nist-standard-supersession-audit.js --json   # machine-readable
+```
+
+Extend the SUPERSESSION_TABLE in the script when the next NIST revision drift surfaces (CSF 2.0 → 3.0, future SP revisions). Each entry needs `bareRefRegex`, `currentRevisionRegex` (to skip already-correct lines), and a `note` shown in the report.
+
+---
+
 ## Auto-Fix Tools
 
 ### Fix Broken LearningPaths References
