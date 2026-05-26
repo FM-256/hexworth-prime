@@ -313,6 +313,22 @@ class ChatRequest(BaseModel):
         None,
         pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
     )
+    # 2026-05-26: page_path + page_title so Dr. Hex always knows WHERE the
+    # student is, even on house/course landing pages where mission_id is
+    # null. The chat panel sets these from window.location.pathname and
+    # document.title. Length-capped at 200 chars by the CF bridge already;
+    # we cap again here for defense in depth. Path pattern is restrictive
+    # enough to reject prompt injection via URL-shaped strings while
+    # accepting all real Hexworth paths.
+    page_path: str | None = Field(
+        None,
+        max_length=200,
+        pattern=r"^/[A-Za-z0-9_\-./]*$",
+    )
+    page_title: str | None = Field(
+        None,
+        max_length=200,
+    )
 
 
 class ChatResponse(BaseModel):
@@ -337,6 +353,13 @@ def build_context_packet(req: ChatRequest) -> dict:
         "mission_id": req.mission_id,
         "failed_attempts": req.failed_attempts,
         "hint_used_recently": req.hint_used_recently,
+        # 2026-05-26: page location so Dr. Hex knows WHERE the student is
+        # even when mission_id is null (house landings, course landings,
+        # admin pages, etc.). Bug discovered live when a student on the
+        # matrix landing got responses like "I don't know which lab you
+        # are on" — see commit log + Confluence rollout doc.
+        "page_path": req.page_path,
+        "page_title": req.page_title,
     }
 
 
@@ -350,6 +373,21 @@ def compose_system_prompt(persona: dict, help_level_suffix: str, context: dict) 
         context_lines.append(f"- Student is currently in: {context['house']} house")
     if context.get("mission_id"):
         context_lines.append(f"- Active mission/lab: {context['mission_id']}")
+    # 2026-05-26: page-location context. ALWAYS include when available,
+    # even on house-landing pages where mission_id is null. Without this,
+    # Dr. Hex was sounding location-blind ("I don't know which lab you're
+    # on"). The model now has at minimum a URL path + page title to work
+    # with, which is enough to say "you're on the Matrix house index" vs
+    # "you're on the Advanced Linux Administration course landing."
+    if context.get("page_title") or context.get("page_path"):
+        title = context.get("page_title") or ""
+        path = context.get("page_path") or ""
+        if title and path:
+            context_lines.append(f"- Page: \"{title}\" ({path})")
+        elif title:
+            context_lines.append(f"- Page: \"{title}\"")
+        else:
+            context_lines.append(f"- Page: {path}")
     if context.get("role") and context["role"] != "student":
         context_lines.append(f"- Operator role: {context['role']}")
     if context.get("failed_attempts", 0) > 0:

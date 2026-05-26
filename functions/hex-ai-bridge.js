@@ -248,6 +248,14 @@ exports.hexAiChat = onCall(cfOptions, async (request) => {
         // request's request.auth.uid).
         conversation_id: typeof data.conversation_id === 'string'
             ? data.conversation_id : null,
+        // 2026-05-26: page_path + page_title so Dr. Hex always knows
+        // WHERE the student is, even on landing pages with no mission_id.
+        // Sanitize length to defend against payload bloat (and keep prompt
+        // budget bounded — long titles would burn tokens).
+        page_path: typeof data.page_path === 'string'
+            ? data.page_path.slice(0, 200) : null,
+        page_title: typeof data.page_title === 'string'
+            ? data.page_title.slice(0, 200) : null,
     };
 
     const orch = await postToOrchestrator(hexAiUrl.value(), body);
@@ -401,6 +409,11 @@ exports.hexAiChatStream = onRequest({
         // v0.6.1: conversation_id passthrough for streaming path too
         conversation_id: typeof data.conversation_id === 'string'
             ? data.conversation_id : null,
+        // 2026-05-26: page_path + page_title for orchestrator location context
+        page_path: typeof data.page_path === 'string'
+            ? data.page_path.slice(0, 200) : null,
+        page_title: typeof data.page_title === 'string'
+            ? data.page_title.slice(0, 200) : null,
     };
 
     // Open the upstream SSE stream from the orchestrator.

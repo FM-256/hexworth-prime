@@ -309,6 +309,13 @@ class HexAIChatPanel extends HTMLElement {
                 house: this._house || undefined,
                 mission_id: this._missionId || undefined,
                 conversation_id: this._convId,
+                // 2026-05-26: send page location so Dr. Hex always knows
+                // WHERE the student is — even on house/course landing
+                // pages where no mission_id is set. Dr. Hex was previously
+                // blind on those pages and would say things like "I don't
+                // know which lab you're on."
+                page_path: window.location.pathname,
+                page_title: document.title,
             });
             const data = result.data;
             thinkingNode.remove();
