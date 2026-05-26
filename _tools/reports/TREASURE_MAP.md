@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-05-17 1:23:15 PM
+                    Scanned: 2026-05-26 12:30:35 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,17 +10,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5077 |
-| Directories | 1207 |
-| Content Files | 5077 |
-| Scan Duration | 2688ms |
+| Files Scanned | 5091 |
+| Directories | 1216 |
+| Content Files | 5091 |
+| Scan Duration | 497ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2300 |
-| html | 1500 |
+| presentation | 2304 |
+| html | 1510 |
 | lab | 587 |
 | quiz | 487 |
 | applet | 203 |
@@ -29,8 +29,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 3601 |
-| Available | 3556 |
+| Total Modules | 3611 |
+| Available | 3566 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 1 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 25 |
-| Warning | 2296 |
+| Suspect | 27 |
+| Warning | 2300 |
 | Info | 681 |
-| **Total** | **12538** |
+| **Total** | **12558** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3565 |
+| Ready | 3569 |
 | Not Ready | 12 |
-| Unknown | 1500 |
+| Unknown | 1510 |
 
 
 ## FILE HIERARCHY
@@ -60,14 +60,19 @@
 
 ```
 📁 _app [root]
+├── 📁 _lib
 ├── 📄 about.html
 ├── 📄 accept-invite.html
 ├── 📁 admin
+│   ├── 📄 ai-chat-test.html
 │   ├── 📄 analytics-v2-status.html
 │   ├── 📄 audit-tool.html
 │   ├── 📄 c2-pairing-codes.html
 │   ├── 📄 console.html
 │   ├── 📄 course-tree.html
+│   ├── 📄 dr-hex-button-demo.html
+│   ├── 📄 dr-hex-engagement.html
+│   ├── 📄 dr-hex-quality.html
 │   ├── 📄 epaper-boards.html
 │   └── 📁 scripts
 ├── 📁 announcements
@@ -2797,7 +2802,15 @@
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 eth-l09-the-gig [labs]
 │   │   │   │   │   └── 📍 index.html
-│   │   │   │   └── 📁 eth-l10-the-code [labs]
+│   │   │   │   ├── 📁 eth-l10-the-code [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l11-carpenter-tracking [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l12-section-230 [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 eth-l13-therac-25 [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   └── 📁 eth-l14-the-reckoning [labs]
 │   │   │   │       └── 📍 index.html
 │   │   │   ├── 📁 presentations [presentations]
 │   │   │   │   ├── 📊 eth-01-overview.presentation.html
@@ -4932,6 +4945,8 @@
 │   │   │   │   └── 📄 pis-midterm.exam.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 📁 pis-final-patient-zero [labs]
+│   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 pis-l01-specimen-classification [labs]
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 pis-l02-human-vector-drill [labs]
@@ -4954,7 +4969,9 @@
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 pis-l11-containment-breach [labs]
 │   │   │   │   │   └── 📍 index.html
-│   │   │   │   └── 📁 pis-l12-full-facility-inspection [labs]
+│   │   │   │   ├── 📁 pis-l12-full-facility-inspection [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   └── 📁 pis-m2-vault-breach [labs]
 │   │   │   │       └── 📍 index.html
 │   │   │   ├── 📄 pis-r1.html
 │   │   │   ├── 📄 pis-r2.html
@@ -4973,6 +4990,8 @@
 │   │   │   │   ├── 📊 pis-w2-device-security.presentation.html
 │   │   │   │   ├── 📊 pis-w2-lecture.presentation.html
 │   │   │   │   ├── 📊 pis-w2-network-attacks.presentation.html
+│   │   │   │   ├── 📊 pis-w3-inclass-task.presentation.html
+│   │   │   │   ├── 📊 pis-w3-lecture.presentation.html
 │   │   │   │   ├── 📊 pis-w3-network-architecture.presentation.html
 │   │   │   │   ├── 📊 pis-w3-pki.presentation.html
 │   │   │   │   ├── 📊 pis-w3-security-operations.presentation.html
@@ -4980,6 +4999,8 @@
 │   │   │   │   ├── 📊 pis-w4-authentication.presentation.html
 │   │   │   │   ├── 📊 pis-w4-identity-management.presentation.html
 │   │   │   │   ├── 📊 pis-w4-incident-response.presentation.html
+│   │   │   │   ├── 📊 pis-w4-inclass-task.presentation.html
+│   │   │   │   ├── 📊 pis-w4-lecture.presentation.html
 │   │   │   │   └── 📊 pis-w4-risk-governance.presentation.html
 │   │   │   └── 📁 quizzes [quizzes]
 │   │   │       ├── ❓ pis-w1.quiz.html
@@ -5783,6 +5804,8 @@
 │       │   └── 📍 index.html
 │       └── 📁 cryptography
 │           └── 📍 index.html
+├── 📁 lab-skill-maps
+│   └── 📁 _drafts
 ├── 📄 lobby.html
 ├── 📄 login.html
 ├── 📁 oasis
@@ -9017,6 +9040,8 @@
 | pis-w2-device-security.presentation | presentation | ✓ | 0 |
 | pis-w2-lecture.presentation | presentation | ✓ | 0 |
 | pis-w2-network-attacks.presentation | presentation | ✓ | 0 |
+| pis-w3-inclass-task.presentation | presentation | ✓ | 0 |
+| pis-w3-lecture.presentation | presentation | ✓ | 0 |
 | pis-w3-network-architecture.presentation | presentation | ✓ | 0 |
 | pis-w3-pki.presentation | presentation | ✓ | 0 |
 | pis-w3-security-operations.presentation | presentation | ✓ | 0 |
@@ -9024,6 +9049,8 @@
 | pis-w4-authentication.presentation | presentation | ✓ | 0 |
 | pis-w4-identity-management.presentation | presentation | ✓ | 0 |
 | pis-w4-incident-response.presentation | presentation | ✓ | 0 |
+| pis-w4-inclass-task.presentation | presentation | ✓ | 0 |
+| pis-w4-lecture.presentation | presentation | ✓ | 0 |
 | pis-w4-risk-governance.presentation | presentation | ✓ | 0 |
 | pis-w1-quiz | quiz | ✓ | 0 |
 | pis-w2-quiz | quiz | ✓ | 0 |
@@ -10002,7 +10029,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (25) — heuristic, needs review
+### SUSPECT (27) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -10025,7 +10052,15 @@
   Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `admin/ai-chat-test.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
   File: `admin/console.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `admin/dr-hex-quality.html`
   Fix: Remove console.log or replace with proper logging
 
 **[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
@@ -10104,7 +10139,7 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (2296)
+### WARNING (2300)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -17003,6 +17038,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w3-inclass-task.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w3-lecture.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/presentations/pis-w3-network-architecture.presentation.html`
   Fix: Add entry to content-registry.js
 
@@ -17028,6 +17071,14 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/presentations/pis-w4-incident-response.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w4-inclass-task.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/infosec/presentations/pis-w4-lecture.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -20528,7 +20579,7 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 3168 of 3601 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3178 of 3611 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
@@ -21880,7 +21931,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (2246)
+### Unregistered Content (2250)
 
 | Path | Type | House |
 |------|------|-------|
@@ -23601,6 +23652,8 @@
 | houses/shield/infosec/presentations/pis-w2-device-security.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w2-lecture.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w2-network-attacks.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w3-inclass-task.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w3-lecture.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w3-network-architecture.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w3-pki.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w3-security-operations.presentation.html | presentation | shield |
@@ -23608,6 +23661,8 @@
 | houses/shield/infosec/presentations/pis-w4-authentication.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w4-identity-management.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w4-incident-response.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w4-inclass-task.presentation.html | presentation | shield |
+| houses/shield/infosec/presentations/pis-w4-lecture.presentation.html | presentation | shield |
 | houses/shield/infosec/presentations/pis-w4-risk-governance.presentation.html | presentation | shield |
 | houses/shield/infosec/quizzes/pis-w1.quiz.html | quiz | shield |
 | houses/shield/infosec/quizzes/pis-w2.quiz.html | quiz | shield |
