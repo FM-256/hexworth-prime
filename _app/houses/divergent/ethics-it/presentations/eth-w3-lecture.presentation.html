@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 3 Lecture: When Code Reaches People | Ethics in IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d0810 0%, #150e18 50%, #1a0c20 100%);
+            background-size: 250% 250%;
+            animation: bgPan 32s ease-in-out infinite;
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+        .slide {
+            display: none; position: absolute; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* nav + progress */
+        #progress-bar {
+            position: absolute; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #ff00ff 0%, #a855f7 50%, #ff00ff 100%);
+            background-size: 200% 100%;
+            animation: shimmer 4s linear infinite;
+            transition: width 0.4s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(13, 8, 16, 0.95);
+            border-top: 1px solid rgba(255, 0, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.04); color: #94a3b8;
+            border: 1px solid rgba(255, 0, 255, 0.18);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(255, 0, 255, 0.10); color: #ff00ff; border-color: #ff00ff;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #ff00ff; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.5px;
+        }
+        #complete-btn:hover { background: #ff66ff; transform: translateY(-1px); }
+
+        /* typography */
+        .slide-meta {
+            font-size: 0.78rem; color: #ff00ff; letter-spacing: 0.08em;
+            text-transform: uppercase; text-align: center;
+            position: relative; padding-bottom: 4px;
+        }
+        .slide-meta::after {
+            content: ""; position: absolute; left: 50%; bottom: 0;
+            width: 80px; height: 2.5px; margin-left: -40px;
+            background: linear-gradient(90deg, transparent, #ff00ff, transparent);
+            transform-origin: center; transform: scaleX(0);
+        }
+        .slide.active .slide-meta::after { animation: slideUnderline 1.4s ease-out 1.00s forwards; }
+        .slide-title { font-size: 1.85rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #ff00ff; display: inline-block; animation: accentBreathe 3.2s ease-in-out infinite; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+        .slide-title .accent-amber { color: #f59e0b; }
+        .slide-title .accent-red { color: #ef4444; }
+        .slide-subtitle { font-size: 0.96rem; color: #94a3b8; text-align: center; max-width: 880px; margin: 0 auto; }
+        .scenario-strip {
+            background: rgba(255, 0, 255, 0.06); border-left: 3px solid #ff00ff;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #f5d5f5; font-style: italic;
+        }
+
+        /* boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-magenta { background: rgba(255, 0, 255, 0.07); border: 1px solid rgba(255, 0, 255, 0.30); color: #f5d5f5; }
+        .box-green   { background: rgba(58, 181, 119, 0.07); border: 1px solid rgba(58, 181, 119, 0.32); color: #d1fae5; }
+        .box-red     { background: rgba(239, 68, 68, 0.07); border: 1px solid rgba(239, 68, 68, 0.30); color: #fee2e2; }
+        .box-cyan    { background: rgba(6, 182, 212, 0.07); border: 1px solid rgba(6, 182, 212, 0.30); color: #cffafe; }
+        .box-amber   { background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.30); color: #fef3c7; }
+        .box-purple  { background: rgba(168, 85, 247, 0.07); border: 1px solid rgba(168, 85, 247, 0.30); color: #ede9fe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.85; }
+
+        /* cover */
+        .cover-hero {
+            display: flex; flex-direction: column; align-items: center; gap: 18px;
+            text-align: center;
+        }
+        .cover-eyebrow { font-size: 0.82rem; letter-spacing: 0.2em; color: #ff00ff; text-transform: uppercase; font-weight: 700; }
+        .cover-title {
+            font-size: 3.2rem; font-weight: 800; line-height: 1.05;
+            background: linear-gradient(90deg, #f1f5f9 0%, #ff00ff 50%, #a855f7 100%);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+        .cover-subtitle { font-size: 1.15rem; color: #cbd5e1; max-width: 760px; line-height: 1.5; }
+        .cover-tagline {
+            font-size: 0.92rem; color: #94a3b8; font-style: italic;
+            border-top: 1px solid rgba(255, 0, 255, 0.18);
+            border-bottom: 1px solid rgba(255, 0, 255, 0.18);
+            padding: 10px 30px; margin-top: 8px; max-width: 760px;
+        }
+        .cover-meta-row {
+            display: flex; gap: 26px; justify-content: center;
+            font-size: 0.82rem; color: #64748b; margin-top: 12px;
+        }
+        .cover-meta-row span { border-left: 2px solid #2a1a30; padding-left: 26px; }
+        .cover-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* character analysis (thanos-grid: 2-column) */
+        .thanos-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+            align-items: stretch;
+        }
+        .thanos-portrait {
+            background: rgba(255, 0, 255, 0.04); border: 1px solid rgba(255, 0, 255, 0.18);
+            border-radius: 10px; padding: 16px;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .thanos-portrait .character-label {
+            font-size: 0.72rem; color: #ff00ff; letter-spacing: 0.18em;
+            text-transform: uppercase; font-weight: 700;
+        }
+        .thanos-portrait .character-name {
+            font-size: 1.3rem; font-weight: 800; color: #f1f5f9;
+        }
+        .thanos-portrait .character-tagline {
+            font-size: 0.82rem; color: #cbd5e1; font-style: italic;
+            border-left: 2px solid #ff00ff; padding-left: 10px;
+        }
+        .character-image {
+            display: block;
+            width: 100%; max-height: 200px;
+            object-fit: contain; object-position: center center;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 0, 255, 0.30);
+            background: rgba(255, 255, 255, 0.02);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45),
+                        0 0 24px rgba(255, 0, 255, 0.08);
+            opacity: 0;
+            animation: charEnter 1.0s ease-out 0.4s forwards, charFloat 7.5s ease-in-out 1.5s infinite;
+        }
+        @keyframes charEnter {
+            0%   { opacity: 0; transform: scale(1.03); filter: blur(3px); }
+            100% { opacity: 1; transform: scale(1);    filter: blur(0); }
+        }
+        @keyframes charFloat {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-5px); }
+        }
+        .character-quote {
+            font-size: 0.86rem; color: #f5d5f5; line-height: 1.5;
+            background: rgba(168, 85, 247, 0.08);
+            border-radius: 6px; padding: 8px 12px;
+            font-style: italic;
+        }
+        .character-quote::before { content: "\201C"; font-size: 1.4rem; color: #ff00ff; line-height: 0; vertical-align: -0.4em; margin-right: 4px; }
+        .character-quote::after  { content: "\201D"; font-size: 1.4rem; color: #ff00ff; line-height: 0; vertical-align: -0.4em; margin-left: 4px; }
+        .character-verdict {
+            font-size: 0.86rem; color: #cbd5e1; line-height: 1.5;
+        }
+        .character-verdict strong { color: #f1f5f9; }
+
+        /* analysis rows */
+        .analysis-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .analysis-row {
+            display: grid; grid-template-columns: 130px 1fr; gap: 12px;
+            font-size: 0.86rem; align-items: baseline;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 10px 14px; border-radius: 6px;
+            border-left: 3px solid #ff00ff;
+        }
+        .analysis-row.analysis-flaw { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.04); }
+        .analysis-row.analysis-good { border-left-color: #3ab577; background: rgba(58, 181, 119, 0.04); }
+        .analysis-row.analysis-cyan { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.04); }
+        .analysis-row.analysis-amber { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.04); }
+        .analysis-label {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: #ff00ff;
+        }
+        .analysis-row.analysis-flaw .analysis-label { color: #ef4444; }
+        .analysis-row.analysis-good .analysis-label { color: #3ab577; }
+        .analysis-row.analysis-cyan .analysis-label { color: #06b6d4; }
+        .analysis-row.analysis-amber .analysis-label { color: #f59e0b; }
+        .analysis-text { color: #cbd5e1; line-height: 1.45; }
+        .analysis-text strong { color: #f1f5f9; }
+
+        /* card grids */
+        .card-grid     { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .card-grid-4   { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .card-grid-5   { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+            padding: 14px 16px; border-left: 3px solid #ff00ff;
+        }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.45; }
+        .card .card-anchor { font-size: 0.74rem; color: #ff00ff; font-style: italic; margin-top: 6px; }
+        .card.c-magenta { border-left-color: #ff00ff; }
+        .card.c-green   { border-left-color: #3ab577; }
+        .card.c-red     { border-left-color: #ef4444; }
+        .card.c-cyan    { border-left-color: #06b6d4; }
+        .card.c-amber   { border-left-color: #f59e0b; }
+        .card.c-purple  { border-left-color: #a855f7; }
+        .card.c-blue    { border-left-color: #3b82f6; }
+
+        /* framework recap chips */
+        .framework-chip {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 12px 10px; text-align: center; border-top: 3px solid #ff00ff;
+            display: flex; flex-direction: column; gap: 6px;
+            align-items: center;
+        }
+        .framework-chip.fc-util { border-top-color: #ff00ff; }
+        .framework-chip.fc-deont { border-top-color: #06b6d4; }
+        .framework-chip.fc-virtue { border-top-color: #f59e0b; }
+        .framework-chip.fc-contract { border-top-color: #3ab577; }
+        .framework-chip.fc-ends { border-top-color: #a855f7; }
+        .framework-chip .fc-character {
+            font-size: 0.82rem; font-weight: 700; color: #f1f5f9;
+        }
+        .framework-chip .fc-name {
+            font-size: 0.72rem; color: #94a3b8; letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .framework-chip .fc-anchor {
+            font-size: 0.72rem; color: #cbd5e1; line-height: 1.4;
+            font-style: italic;
+        }
+
+        /* in-class dilemma stage */
+        .dilemma-prompt {
+            background: rgba(255, 0, 255, 0.06);
+            border-left: 4px solid #ff00ff;
+            padding: 14px 18px; border-radius: 0 10px 10px 0;
+            font-size: 0.94rem; color: #f5d5f5;
+        }
+        .dilemma-frameworks {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+            margin-top: 10px;
+        }
+        .dilemma-fw {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px; padding: 10px;
+            font-size: 0.78rem;
+        }
+        .dilemma-fw .dilemma-fw-label {
+            font-weight: 700; font-size: 0.72rem; letter-spacing: 0.08em;
+            text-transform: uppercase; margin-bottom: 4px;
+        }
+        .dilemma-fw .dilemma-fw-text { color: #cbd5e1; line-height: 1.4; }
+        .dilemma-fw.fw-util { border-top: 2px solid #ff00ff; }
+        .dilemma-fw.fw-util .dilemma-fw-label { color: #ff00ff; }
+        .dilemma-fw.fw-deont { border-top: 2px solid #06b6d4; }
+        .dilemma-fw.fw-deont .dilemma-fw-label { color: #06b6d4; }
+        .dilemma-fw.fw-virtue { border-top: 2px solid #f59e0b; }
+        .dilemma-fw.fw-virtue .dilemma-fw-label { color: #f59e0b; }
+        .dilemma-fw.fw-contract { border-top: 2px solid #3ab577; }
+        .dilemma-fw.fw-contract .dilemma-fw-label { color: #3ab577; }
+        .dilemma-fw.fw-ends { border-top: 2px solid #a855f7; }
+        .dilemma-fw.fw-ends .dilemma-fw-label { color: #a855f7; }
+        .facilitator-note {
+            background: rgba(58, 181, 119, 0.04);
+            border-left: 3px solid #3ab577;
+            padding: 10px 14px; border-radius: 0 6px 6px 0;
+            font-size: 0.82rem; color: #d1fae5;
+            margin-top: 8px;
+        }
+        .facilitator-note strong { color: #6ee7b7; }
+
+        /* animations */
+        @keyframes bgPan { 0%, 100% { background-position: 0% 0%; } 50% { background-position: 100% 100%; } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        @keyframes accentBreathe {
+            0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 0, 255, 0.35)); transform: scale(1); }
+            50% { filter: drop-shadow(0 0 24px rgba(255, 0, 255, 0.85)); transform: scale(1.025); }
+        }
+        @keyframes slideFromLeft {
+            0% { opacity: 0; transform: translateX(-40px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideFromRight {
+            0% { opacity: 0; transform: translateX(40px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideFromBelow {
+            0% { opacity: 0; transform: translateY(30px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes cardPopIn {
+            0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+            60% { opacity: 1; transform: scale(1.03) translateY(-3px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes boxSwoop {
+            0% { opacity: 0; transform: translateY(35px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes slideUnderline {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        /* slide-active entrances */
+        .slide.active .slide-meta     { animation: slideFromBelow 1.0s cubic-bezier(0.16, 1, 0.3, 1)    0.20s backwards; }
+        .slide.active .slide-title    { animation: slideFromLeft  1.4s cubic-bezier(0.34, 1.56, 0.64, 1) 1.10s backwards; }
+        .slide.active .slide-subtitle { animation: slideFromRight 1.2s cubic-bezier(0.22, 1, 0.36, 1)   2.20s backwards; }
+        .slide.active .cover-title    { animation: cardPopIn 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.30s backwards; }
+        .slide.active .cover-subtitle { animation: fadeUp 1.1s ease-out 1.80s backwards; }
+        .slide.active .cover-tagline  { animation: fadeUp 1.0s ease-out 2.70s backwards; }
+        .slide.active .cover-meta-row { animation: fadeUp 0.9s ease-out 3.40s backwards; }
+        .slide.active .box,
+        .slide.active .thanos-grid,
+        .slide.active .scenario-strip,
+        .slide.active .dilemma-prompt,
+        .slide.active .facilitator-note {
+            animation: boxSwoop 1.1s cubic-bezier(0.16, 1, 0.3, 1) 3.60s backwards;
+        }
+        .slide.active .card-grid > *,
+        .slide.active .card-grid-4 > *,
+        .slide.active .card-grid-5 > *,
+        .slide.active .analysis-grid > *,
+        .slide.active .dilemma-frameworks > * {
+            animation: cardPopIn 1.0s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        .slide.active .card-grid > *:nth-child(1),
+        .slide.active .card-grid-4 > *:nth-child(1),
+        .slide.active .card-grid-5 > *:nth-child(1),
+        .slide.active .analysis-grid > *:nth-child(1),
+        .slide.active .dilemma-frameworks > *:nth-child(1) { animation-delay: 3.70s; }
+        .slide.active .card-grid > *:nth-child(2),
+        .slide.active .card-grid-4 > *:nth-child(2),
+        .slide.active .card-grid-5 > *:nth-child(2),
+        .slide.active .analysis-grid > *:nth-child(2),
+        .slide.active .dilemma-frameworks > *:nth-child(2) { animation-delay: 4.10s; }
+        .slide.active .card-grid > *:nth-child(3),
+        .slide.active .card-grid-4 > *:nth-child(3),
+        .slide.active .card-grid-5 > *:nth-child(3),
+        .slide.active .analysis-grid > *:nth-child(3),
+        .slide.active .dilemma-frameworks > *:nth-child(3) { animation-delay: 4.50s; }
+        .slide.active .card-grid-4 > *:nth-child(4),
+        .slide.active .card-grid-5 > *:nth-child(4),
+        .slide.active .analysis-grid > *:nth-child(4),
+        .slide.active .dilemma-frameworks > *:nth-child(4) { animation-delay: 4.90s; }
+        .slide.active .card-grid-5 > *:nth-child(5),
+        .slide.active .analysis-grid > *:nth-child(n+5),
+        .slide.active .dilemma-frameworks > *:nth-child(5) { animation-delay: 5.30s; }
+
+        /* hover lifts */
+        .card, .thanos-portrait, .analysis-row, .framework-chip, .dilemma-fw {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        box-shadow 0.3s ease-out, border-color 0.3s ease-out;
+        }
+        .card:hover, .framework-chip:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 28px rgba(255, 0, 255, 0.30);
+        }
+        .thanos-portrait:hover { transform: translateY(-4px) scale(1.01); }
+        .analysis-row:hover { transform: translateX(6px); }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 10px; } .slide-title { font-size: 1.5rem; } .cover-title { font-size: 2.2rem; } }
+        @media (max-width: 900px) {
+            .thanos-grid { grid-template-columns: 1fr; }
+            .card-grid, .card-grid-4, .card-grid-5, .dilemma-frameworks { grid-template-columns: 1fr; }
+            .slide-title { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Week 3 Lecture: When Code Reaches People | Ethics in IT</h1>
+
+<div id="progress-bar" style="width:6.7%"></div>
+
+<!-- ====== SLIDE 1 COVER ====== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="cover-hero">
+            <div class="cover-eyebrow">Week 3 Lecture Companion &middot; Ethics in IT</div>
+            <div class="cover-title">When Code Reaches People</div>
+            <div class="cover-subtitle">
+                Week 3's real cases (Therac-25, Boeing 737 MAX, COMPAS) dissected through the frameworks you met in Week 1. Software safety, commercial pressure, algorithmic fairness.
+            </div>
+            <div class="cover-tagline">
+                Three system failures. Engineers who could have said no. Names on every line of code that reached a human.
+            </div>
+            <div class="cover-meta-row">
+                <span>15 Slides</span>
+                <span>~50 min</span>
+                <span>3 cases &times; 2 lenses each</span>
+                <span>In-class assignment included</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 2 FIVE FRAMEWORKS RECAP ====== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 15 &middot; Recap from Week 2</div>
+        <div class="slide-title">The <span class="accent">Five Frameworks</span>, Back at Work</div>
+        <div class="slide-subtitle">Same five frameworks. Harder cases. Software that kills, algorithms that judge.</div>
+
+        <div class="card-grid-5">
+            <div class="framework-chip fc-util">
+                <div class="fc-character">Thanos</div>
+                <div class="fc-name">Utilitarianism</div>
+                <div class="fc-anchor">Greatest good for the greatest number.</div>
+            </div>
+            <div class="framework-chip fc-deont">
+                <div class="fc-character">Captain America</div>
+                <div class="fc-name">Deontology</div>
+                <div class="fc-anchor">Duty regardless of consequence.</div>
+            </div>
+            <div class="framework-chip fc-virtue">
+                <div class="fc-character">Uncle Iroh</div>
+                <div class="fc-name">Virtue Ethics</div>
+                <div class="fc-anchor">What would a good person do?</div>
+            </div>
+            <div class="framework-chip fc-contract">
+                <div class="fc-character">Tony vs Steve</div>
+                <div class="fc-name">Social Contract</div>
+                <div class="fc-anchor">Negotiated rules for shared power.</div>
+            </div>
+            <div class="framework-chip fc-ends">
+                <div class="fc-character">Itachi / Ozymandias</div>
+                <div class="fc-name">Ends Justify Means</div>
+                <div class="fc-anchor">The math that wins, at terrible cost.</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">The shift this week</div>
+            <strong>Week 2 was about rights.</strong> Whose property, whose privacy, whose voice. <strong>Week 3 is about responsibility.</strong> Who owns what software does at scale. Same protocol: run two frameworks, find the disagreement, defend the synthesis. The cases are harder because the harm is built into the code, not negotiated in a courtroom afterward.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 3 THREE W3 CASES AGENDA ====== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 15 &middot; Three W3 Cases</div>
+        <div class="slide-title">Three <span class="accent">Software Failures</span>, Three Lessons</div>
+        <div class="slide-subtitle">Every Week 3 topic has a defining case where engineers had options and the wrong one shipped.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Case 1 &middot; Software Safety</div>
+                <div class="card-desc"><strong>Therac-25 (1985 to 1987).</strong> Medical linear accelerator. Race condition plus removed hardware interlocks. At least six patients delivered massive radiation overdoses. Three deaths attributed.</div>
+                <div class="card-anchor">Lenses: Walter White vs Tony Stark</div>
+            </div>
+            <div class="card c-amber">
+                <div class="card-label">Case 2 &middot; Commercial Pressure</div>
+                <div class="card-desc"><strong>Boeing 737 MAX MCAS (2018 to 2019).</strong> Single-sensor anti-stall system, hidden from airlines and regulators. Lion Air 610 and Ethiopian 302 crashes. 346 dead. Worldwide fleet grounded 20 months.</div>
+                <div class="card-anchor">Lenses: Ozymandias vs Uncle Iroh</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Case 3 &middot; Algorithmic Fairness</div>
+                <div class="card-desc"><strong>COMPAS in criminal sentencing (2016 to present).</strong> Risk-assessment scoring used in pretrial, probation, sentencing across the United States. ProPublica showed disparate false-positive rates by race. The Wisconsin Supreme Court upheld its use.</div>
+                <div class="card-anchor">Lenses: Light Yagami vs Captain America</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">The pattern, applied three times</div>
+            For each case: a setup slide that gives you the facts. Then a dual-lens slide that runs two frameworks at each other. Then a synthesis slide for what the IT professional carries away.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 4 THERAC-25 SETUP ====== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 15 &middot; Case 1: Software Safety</div>
+        <div class="slide-title">Therac-25: <span class="accent-red">When Software Killed</span></div>
+        <div class="slide-subtitle">The first famous software fatality. The bug that defined safety engineering as a discipline.</div>
+
+        <div class="scenario-strip">
+            The Therac-25 was a medical linear accelerator (used to treat cancer with high-energy X-ray or electron beams) built by Atomic Energy of Canada Limited starting in 1982. Between June 1985 and January 1987, at least six patients received radiation overdoses of approximately 100 times the intended dose. Three patients died from the injuries. A race condition in the operator console software, combined with the deliberate removal of hardware interlocks present on prior models (because the software "had been proven safe"), allowed the machine to fire its high-power electron beam without the metal target in place. AECL initially denied software involvement. The bug was eventually traced and documented by Nancy Leveson and Clark Turner in <a href="http://sunnyday.mit.edu/papers/therac.pdf" target="_blank" rel="noopener">"An Investigation of the Therac-25 Accidents" (IEEE Computer, July 1993)</a>.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The technical failure</div>
+                <div class="card-desc">A race condition between the operator entering treatment parameters and the magnet positioning system. If parameters were edited within 8 seconds of a prior treatment, the software allowed a 25 MeV electron beam to fire without the metal target rotated into position. The patient received a full-power beam, not the attenuated therapeutic dose.</div>
+            </div>
+            <div class="card c-amber">
+                <div class="card-label">The institutional failure</div>
+                <div class="card-desc">Prior models (Therac-6, Therac-20) had hardware interlocks (independent circuits that physically prevented unsafe states). The Therac-25 designers removed them, relying instead on software checks. When the software failed, nothing else stopped the machine. The hardware was the redundancy. The redundancy was deleted.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The professional failure</div>
+                <div class="card-desc">After the first overdose at Kennestone (1985), AECL told other hospitals the machine "could not have done what was reported." Five more patients were injured before AECL acknowledged the bug. Reports were dismissed because the dosimeter readouts (driven by the same software) showed normal values. Engineers trusted their own output more than the patient's burn.</div>
+            </div>
+        </div>
+
+        <div class="box box-amber">
+            <div class="box-label">The framing question for the next slide</div>
+            Two frameworks. <strong>Walter White says: the math justified shipping. The machine works most of the time. Recalls cost millions.</strong> <strong>Tony Stark says: I built this. It killed people. I own that. The redesign starts now.</strong> One engineer descends. One atones. Which arc is the working professional's posture?
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 5 THERAC-25 TWO LENSES ====== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 15 &middot; Therac-25 &times; Two Lenses</div>
+        <div class="slide-title">Walter White vs <span class="accent-cyan">Tony Stark</span></div>
+        <div class="slide-subtitle">Two engineers. One rationalizes the harm. One owns it and rebuilds.</div>
+
+        <div class="thanos-grid">
+            <div class="thanos-portrait">
+                <div class="character-label">Lens 1 &middot; Utilitarian Drift</div>
+                <div class="character-name">Walter White</div>
+                <div class="character-tagline">"I am the one who knocks."</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/walter-white.png"
+                     alt="Walter White from Breaking Bad"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">I did it for my family. I did it for the patients we DO help. The math works out if you don't get sentimental.</p>
+                <p class="character-verdict">
+                    <strong>Walter's verdict on Therac-25:</strong> The machine cures thousands of cancer patients a year. A handful of incidents are tragic, but the aggregate good is enormous. Recall costs $40M and slows treatment for everyone in the queue. The rational, utilitarian move is to ship the software patch quietly, advise operators of the timing issue, and keep the machines running. He started as a chemist who took a small shortcut. He ended as the danger himself. The Therac engineers walked that path one rationalization at a time.
+                </p>
+            </div>
+
+            <div class="thanos-portrait" style="border-color: rgba(6, 182, 212, 0.30); background: rgba(6, 182, 212, 0.04);">
+                <div class="character-label" style="color: #06b6d4;">Lens 2 &middot; Engineering Responsibility</div>
+                <div class="character-name">Tony Stark</div>
+                <div class="character-tagline">"I shouldn't be alive, unless it was for a reason."</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/tony-stark.jpg"
+                     alt="Tony Stark / Iron Man"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">I had my eyes opened. I came to realize I had more to offer this world than making things that blow up.</p>
+                <p class="character-verdict">
+                    <strong>Tony's verdict on Therac-25:</strong> Stark Industries made weapons that killed Americans. When Tony saw what he had built, he shut down the weapons division, took the personal financial hit, and rebuilt from first principles. That is the engineering posture for the Therac-25 team after the first overdose at Kennestone: stop production, recall every unit, restore the hardware interlocks, publish the failure analysis, and rebuild trust through visible accountability. The cost is real. So is the cost of the next patient on the table.
+                </p>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The disagreement IS the lesson</div>
+            <strong>Both arcs are real careers.</strong> The Therac team chose Walter White's path: keep operating, quietly patch, deny in public. By the time they pivoted to Tony Stark's path (full recall, redesign, hardware interlocks restored), three patients were dead. The cost of the late pivot was the cost of the harm that accrued during the denial. Source: Leveson and Turner, <a href="http://sunnyday.mit.edu/papers/therac.pdf" target="_blank" rel="noopener">IEEE Computer 1993</a>.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 6 THERAC-25 TAKEAWAY ====== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 15 &middot; Therac-25: Takeaway</div>
+        <div class="slide-title">Therac-25: Where This Leaves <span class="accent-cyan">You</span></div>
+        <div class="slide-subtitle">Two engineers, one defensible posture for the working IT professional.</div>
+
+        <div class="analysis-grid">
+            <div class="analysis-row analysis-good">
+                <div class="analysis-label">Default Posture</div>
+                <div class="analysis-text"><strong>Tony Stark wins.</strong> In safety-critical software (medical devices, aviation, industrial control, anything that can hurt a human if it misbehaves), the engineer's name is on every line of code that touches the human. Responsibility does not end at "QA signed off." It ends at "the patient walked out."</div>
+            </div>
+            <div class="analysis-row analysis-flaw">
+                <div class="analysis-label">When Walter Has a Point</div>
+                <div class="analysis-text"><strong>Triage contexts only.</strong> When the alternative is no treatment at all (third-world ICU with one machine, battlefield medicine), partial safety can beat zero coverage. But that bar is HIGH and the analysis must be explicit and visible to the patient. "Quietly patch and don't tell" is not triage. It is rationalization.</div>
+            </div>
+            <div class="analysis-row analysis-amber">
+                <div class="analysis-label">The Gray Zone</div>
+                <div class="analysis-text"><strong>"Safe enough to ship" is the ethical work.</strong> Code review depth, regression coverage, fail-safe defaults, hardware interlocks, ALL of it is defining where "safe enough" sits. Defining that line BEFORE you ship is engineering. Re-defining it AFTER the incident is litigation.</div>
+            </div>
+            <div class="analysis-row analysis-flaw">
+                <div class="analysis-label">Code Anchor</div>
+                <div class="analysis-text"><strong>ACM Code 1.2:</strong> "Avoid harm." Direct and uncompromising. <strong>IEEE Code 1:</strong> "Hold paramount the safety, health, and welfare of the public." The Therac team violated both. The fact that the cancer patients DID need the treatment did not relieve the obligation to ensure the machine could not kill them.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 7 BOEING 737 MAX SETUP ====== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 15 &middot; Case 2: Commercial Pressure</div>
+        <div class="slide-title">Boeing 737 MAX: <span class="accent-amber">346 People</span></div>
+        <div class="slide-subtitle">MCAS killed Lion Air 610 and Ethiopian 302. Boeing knew. The FAA was told what Boeing wanted them to be told.</div>
+
+        <div class="scenario-strip">
+            The Boeing 737 MAX entered service in 2017. To compete with the Airbus A320neo, Boeing fitted larger, more fuel-efficient engines to a re-positioned mount that changed the aircraft's pitch behavior at high angle of attack. To compensate, Boeing added MCAS (Maneuvering Characteristics Augmentation System), a software function that automatically trimmed the horizontal stabilizer nose-down to prevent stall. MCAS was driven by a single angle-of-attack sensor (with no redundancy in the early implementation), could trim repeatedly without pilot acknowledgment, and was not disclosed to airlines as a system requiring pilot training, in order to preserve "common type rating" with the 737 NG and avoid recertification costs. Lion Air 610 crashed October 29, 2018 (189 dead) and Ethiopian Airlines 302 crashed March 10, 2019 (157 dead). The worldwide fleet was grounded for 20 months. See <a href="https://www.ntsb.gov/safety/safety-recs/RecLetters/A-19-39.pdf" target="_blank" rel="noopener">NTSB Safety Recommendation A-19-39 (September 19, 2019)</a> for the technical analysis.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The technical hazard</div>
+                <div class="card-desc">MCAS could trim the stabilizer the full available range (2.5 degrees per cycle), repeat the input, and resist pilot pushback on the yoke. With a single failed AoA sensor reading high, MCAS would aggressively command nose-down. Pilots had seconds to diagnose an undocumented system and find the cutout switches before the aircraft was unrecoverable.</div>
+            </div>
+            <div class="card c-amber">
+                <div class="card-label">The commercial deception</div>
+                <div class="card-desc">Boeing internal communications (released by the House Transportation Committee in 2020) showed engineers and test pilots privately criticizing MCAS. Boeing pressed the FAA to omit MCAS from pilot training requirements. Southwest's $1M-per-plane rebate clause depended on no new simulator training. The math behind "don't disclose" was: avoid recertification, preserve the order book, hit the delivery quota.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The regulatory rot</div>
+                <div class="card-desc">FAA had delegated significant safety certification to Boeing's own engineers under the Organization Designation Authorization program. The agency that should have caught MCAS was, on paper, Boeing employees wearing FAA hats. After the crashes, both Congress and DOT's Inspector General documented that the FAA had functionally outsourced the oversight that would have prevented this.</div>
+            </div>
+        </div>
+
+        <div class="box box-amber">
+            <div class="box-label">The framing question for the next slide</div>
+            Two frameworks. <strong>Ozymandias says: the survival of Boeing as a US manufacturer was the larger plan; some deaths in the long tail were the price.</strong> <strong>Uncle Iroh says: deception is the harm. A person of good character does not hide MCAS from the pilots who fly the plane.</strong> One says the means justify the ends. The other says the means ARE the ends.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 8 737 MAX TWO LENSES ====== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 15 &middot; 737 MAX &times; Two Lenses</div>
+        <div class="slide-title">Ozymandias vs <span class="accent-amber">Uncle Iroh</span></div>
+        <div class="slide-subtitle">Utilitarian math when you hide the inputs. Virtue ethics when you cannot.</div>
+
+        <div class="thanos-grid">
+            <div class="thanos-portrait">
+                <div class="character-label">Lens 1 &middot; Hidden Utilitarianism</div>
+                <div class="character-name">Ozymandias / Adrian Veidt</div>
+                <div class="character-tagline">"I did it thirty-five minutes ago."</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/ozymandias.png"
+                     alt="Adrian Veidt / Ozymandias from Watchmen"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">The math is unforgiving. To save billions, sometimes one must accept the death of millions. The plan is everything.</p>
+                <p class="character-verdict">
+                    <strong>Ozymandias's verdict on the 737 MAX:</strong> Boeing was losing market share to Airbus. The 737 MAX with a clean common-type rating preserved tens of thousands of US manufacturing jobs, the supplier ecosystem, the national strategic capability to build commercial airliners. Disclosing MCAS would have triggered Level D simulator training, killed the Southwest deal, and let Airbus take the decade. The 346 paid for the survival of an industry. This is the utilitarian argument AT ITS WORST: it ONLY works when the truth is hidden. Once the public knows what Boeing knew, the math collapses.
+                </p>
+            </div>
+
+            <div class="thanos-portrait" style="border-color: rgba(245, 158, 11, 0.30); background: rgba(245, 158, 11, 0.04);">
+                <div class="character-label" style="color: #f59e0b;">Lens 2 &middot; Virtue Ethics</div>
+                <div class="character-name">Uncle Iroh</div>
+                <div class="character-tagline">"Pride is not the opposite of shame, but its source."</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/iroh.jpg"
+                     alt="Uncle Iroh, the Dragon of the West"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">There is nothing wrong with letting people who love you help you.</p>
+                <p class="character-verdict">
+                    <strong>Iroh's verdict on the 737 MAX:</strong> A person of good character does not deceive the pilots who trust the airplane. The right move was: tell the FAA. Tell Southwest. Negotiate the training cost. Take the financial hit. Slow the rollout. The market would have absorbed the delay because the alternative (a future crash that came out anyway) was worse for Boeing than the cost of disclosure ever could have been. The 346 deaths were not a tradeoff. They were a consequence of cowardice that did not even achieve its stated goal: the company nearly collapsed AND lost the orders AND the executives lost their jobs AND people died. Deception fails on its own terms.
+                </p>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The disagreement IS the lesson</div>
+            <strong>The Ozymandias frame fails as soon as you remove the deception assumption.</strong> Hidden utilitarianism is the most common engineering rationalization, and it is the most fragile one. The minute the truth comes out (and in software, the truth always comes out, because the crash logs are public), the entire utilitarian argument inverts. The 346 deaths were not a price paid for value created. They were the cost of a decision that produced negative value on every dimension: regulatory, financial, reputational, human. Source: <a href="https://www.ntsb.gov/safety/safety-recs/RecLetters/A-19-39.pdf" target="_blank" rel="noopener">NTSB A-19-39, September 2019</a>.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 9 737 MAX TAKEAWAY ====== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 15 &middot; 737 MAX: Takeaway</div>
+        <div class="slide-title">737 MAX: Where This Leaves <span class="accent-amber">You</span></div>
+        <div class="slide-subtitle">When the org pressures you to ship something the engineering says is unsafe.</div>
+
+        <div class="analysis-grid">
+            <div class="analysis-row analysis-good">
+                <div class="analysis-label">Default Posture</div>
+                <div class="analysis-text"><strong>Iroh wins.</strong> Withholding safety-relevant information from regulators, customers, or end users is a violation of duty regardless of competitive pressure. The deception itself is the harm. The harm-to-people is a downstream consequence of the harm-to-truth.</div>
+            </div>
+            <div class="analysis-row analysis-flaw">
+                <div class="analysis-label">When Ozymandias Has a Point</div>
+                <div class="analysis-text"><strong>Almost never.</strong> The "competitive pressure justifies it" frame is the most common pre-disaster rationalization in tech and aviation. Mistrust it when you hear yourself thinking it. If your utilitarian argument requires the public not to know, your utilitarian argument is broken.</div>
+            </div>
+            <div class="analysis-row analysis-amber">
+                <div class="analysis-label">The Gray Zone</div>
+                <div class="analysis-text"><strong>Internal escalation is the first defense.</strong> Most engineers will never blow a whistle. They WILL be in design reviews where commercial pressure compresses safety analysis. Knowing how to escalate (in writing, to a named person, with a date) is the working skill. Whistleblowing is downstream of bureaucratic failure, not a replacement for it.</div>
+            </div>
+            <div class="analysis-row analysis-flaw">
+                <div class="analysis-label">Code Anchor</div>
+                <div class="analysis-text"><strong>ACM Code 1.3:</strong> "Be honest and trustworthy." <strong>IEEE Code 3:</strong> "Be honest and realistic in stating claims or estimates based on available data." Boeing's MCAS disclosure to the FAA failed both. The estimate of "no new pilot training required" was not honest, and the data was withheld from the people who would have caught the dishonesty.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 10 COMPAS SETUP ====== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 15 &middot; Case 3: Algorithmic Fairness</div>
+        <div class="slide-title">COMPAS: <span class="accent-purple">When Software Sentences</span></div>
+        <div class="slide-subtitle">A risk-assessment algorithm used in pretrial, probation, and sentencing across the United States. ProPublica showed the bias. The Wisconsin Supreme Court upheld its use anyway.</div>
+
+        <div class="scenario-strip">
+            COMPAS (Correctional Offender Management Profiling for Alternative Sanctions), built by Northpointe (later Equivant), is a proprietary risk-assessment tool used by judges and probation officers across the United States. It produces scores from 1 to 10 estimating the defendant's risk of reoffending. In May 2016, <a href="https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing" target="_blank" rel="noopener">ProPublica's "Machine Bias" investigation</a> analyzed COMPAS scores for over 7,000 arrestees in Broward County, Florida. Among defendants who did not reoffend within two years, Black defendants were almost twice as likely as White defendants to be labeled high risk (the false-positive rate was 45% for Black, 23% for White). Northpointe disputed the methodology. Two months later, the Wisconsin Supreme Court decided <a href="https://www.wicourts.gov/sc/opinion/DisplayDocument.pdf?content=pdf&seqNo=171690" target="_blank" rel="noopener">State v. Loomis (881 N.W.2d 749, Wis. 2016)</a>, upholding the use of COMPAS in sentencing on the condition that judges receive written cautions about the tool's limitations. COMPAS remains in use across many jurisdictions.
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">The tool</div>
+                <div class="card-desc">COMPAS uses 137 questions to score defendants on risk of failure-to-appear, general recidivism, and violent recidivism. The full questionnaire and weighting algorithm are trade secrets. Race is not an input. Many of the inputs (employment history, neighborhood, family criminal history) are correlated with race in the source data.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The finding</div>
+                <div class="card-desc">ProPublica's analysis: Black defendants who did NOT reoffend were 45% likely to have been labeled high-risk. White defendants who did NOT reoffend were 23% likely to have been labeled high-risk. Equal error rate would have given equal false-positive rates. The algorithm was differentially wrong by race.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The persistence</div>
+                <div class="card-desc">Wisconsin v. Loomis upheld COMPAS use with judicial cautions. The defendant could not examine the algorithm (trade secret), could not contest individual feature weights, but could be sentenced partly on its output. Eric Loomis received six years; the trial judge cited COMPAS in the sentencing decision. COMPAS is still used widely.</div>
+            </div>
+        </div>
+
+        <div class="box box-amber">
+            <div class="box-label">The framing question for the next slide</div>
+            Two frameworks. <strong>Light Yagami says: I built a system to make justice more consistent. Race is not an input, so the system cannot be racist. Disparate outcomes mean disparate underlying populations.</strong> <strong>Captain America says: outcomes are the measure of justice. If the algorithm produces different false-positive rates by race, the algorithm IS the injustice, no matter what inputs it used.</strong> One defines fairness as input-blindness. The other defines it as outcome-equality.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 11 COMPAS TWO LENSES ====== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 15 &middot; COMPAS &times; Two Lenses</div>
+        <div class="slide-title">Light Yagami vs <span class="accent-cyan">Captain America</span></div>
+        <div class="slide-subtitle">"My system can't be unjust, race isn't an input" vs "outcomes are what we promised."</div>
+
+        <div class="thanos-grid">
+            <div class="thanos-portrait">
+                <div class="character-label">Lens 1 &middot; Corrupted Idealism</div>
+                <div class="character-name">Light Yagami / Kira</div>
+                <div class="character-tagline">"I will create the new world."</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/light-yagami.jpg"
+                     alt="Light Yagami from Death Note"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">I'll create a world where only people I deem righteous can live in peace.</p>
+                <p class="character-verdict">
+                    <strong>Light's verdict on COMPAS:</strong> The system makes justice consistent. Judges varied wildly before, with race correlated to sentencing through human bias. An algorithm with structured inputs and validated weights removes that variance. Race is explicitly not an input. If outcomes differ across groups, that reflects the underlying populations differing on the risk-relevant factors. Critics demanding outcome-equality are demanding the algorithm encode race AS race, which is the actual discrimination. The algorithm is neutral. The world it measures is not. This is precisely how COMPAS designers defended it. It is the most internally consistent defense of algorithmic governance ever written. It is also wrong, in exactly the way Light is wrong: the SYSTEM that decides who is "righteous" is the system that becomes the injustice.
+                </p>
+            </div>
+
+            <div class="thanos-portrait" style="border-color: rgba(6, 182, 212, 0.30); background: rgba(6, 182, 212, 0.04);">
+                <div class="character-label" style="color: #06b6d4;">Lens 2 &middot; Duty to Fairness</div>
+                <div class="character-name">Captain America</div>
+                <div class="character-tagline">"The price of freedom is high. It always has been."</div>
+                <img class="character-image"
+                     src="assets/lecture-characters/cap-civil-war.png"
+                     alt="Captain America"
+                     loading="lazy" decoding="async">
+                <p class="character-quote">When you can do the things that I can, but you don't, and then the bad things happen, they happen because of you.</p>
+                <p class="character-verdict">
+                    <strong>Cap's verdict on COMPAS:</strong> The promise we make to defendants in the criminal justice system is equal treatment under the law. The promise is OUTCOME-LEVEL fairness, not input-level neutrality. If a tool produces a 45% false-positive rate for one group and a 23% false-positive rate for another, the tool has broken the promise. The defense that race was not an input is the algorithm's lie. The MATH the algorithm uses to defend itself IS the injustice. The duty is not to build an algorithm that satisfies the algorithm's own definition of fairness. The duty is to build one that satisfies the defendant's right to equal treatment, measured in outcomes.
+                </p>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">The disagreement IS the lesson</div>
+            <strong>This is the hard one.</strong> Light's argument is internally consistent and mathematically defensible. Cap's argument is internally consistent and morally defensible. They are NOT compatible: a deep result in fairness theory (Chouldechova 2017, Kleinberg-Mullainathan-Raghavan 2017) shows that "calibration" (Light's frame) and "equal false-positive rates" (Cap's frame) cannot both be satisfied when base rates differ across groups. You must CHOOSE which definition of fairness you are encoding, and you must DEFEND that choice. Source: <a href="https://www.propublica.org/article/machine-bias-risk-assessments-in-criminal-sentencing" target="_blank" rel="noopener">ProPublica "Machine Bias" (May 2016)</a> and <a href="https://www.wicourts.gov/sc/opinion/DisplayDocument.pdf?content=pdf&seqNo=171690" target="_blank" rel="noopener">State v. Loomis (Wis. 2016)</a>.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 12 COMPAS TAKEAWAY ====== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 15 &middot; COMPAS: Takeaway</div>
+        <div class="slide-title">COMPAS: Where This Leaves <span class="accent-cyan">You</span></div>
+        <div class="slide-subtitle">When the algorithm makes a decision that used to be a person's.</div>
+
+        <div class="analysis-grid">
+            <div class="analysis-row analysis-good">
+                <div class="analysis-label">Default Posture</div>
+                <div class="analysis-text"><strong>Cap wins on consequential decisions.</strong> When the algorithm makes a decision that materially affects a person's life (sentencing, hiring, lending, healthcare access), the deployment-level outcomes ARE the fairness measure. Input neutrality is necessary but not sufficient. Audit the outputs by group. Publish the audit.</div>
+            </div>
+            <div class="analysis-row analysis-flaw">
+                <div class="analysis-label">When Light Has a Point</div>
+                <div class="analysis-text"><strong>Calibration matters too.</strong> Light is not entirely wrong: a tool that is well-calibrated (its score predicts reoffense at the same rate regardless of group) IS doing real work. The error is treating calibration as the COMPLETE fairness story. Calibration plus disparate false-positive rates is exactly the COMPAS pattern. You have to pick which one you protect.</div>
+            </div>
+            <div class="analysis-row analysis-amber">
+                <div class="analysis-label">The Gray Zone</div>
+                <div class="analysis-text"><strong>Fairness is mathematically multi-dimensional.</strong> Equalized odds, demographic parity, calibration, individual fairness, counterfactual fairness, ALL of these are valid definitions. They are mutually incompatible in most realistic distributions. Picking which to satisfy is the ethical choice that has to be made BEFORE training, in the open, with stakeholders who can object.</div>
+            </div>
+            <div class="analysis-row analysis-flaw">
+                <div class="analysis-label">Code Anchor</div>
+                <div class="analysis-text"><strong>ACM Code 1.4:</strong> "Be fair and take action not to discriminate." <strong>IEEE Code 8:</strong> "Treat all persons fairly, including avoiding discrimination based on race, religion, gender..." Note the word "treat" in both. The codes refer to outcomes, not inputs. The COMPAS defense (race wasn't an input) does not satisfy the codes' fairness requirement.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 13 SYNTHESIS ====== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 15 &middot; Synthesis</div>
+        <div class="slide-title">When Frameworks <span class="accent">Disagree About Software</span></div>
+        <div class="slide-subtitle">The pattern across all three cases. Software changes the math because software changes the scale.</div>
+
+        <div class="card-grid">
+            <div class="card c-magenta">
+                <div class="card-label">Pattern 1 &middot; Scale changes the math</div>
+                <div class="card-desc">Therac-25 was six patients. The 737 MAX was 346. COMPAS is millions of sentencing decisions. Software-mediated harm is not a one-off bad decision. It is a bad decision REPLICATED. The framework that says "the math justifies it" must account for the replication. Usually it does not.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Pattern 2 &middot; Hidden utilitarianism fails</div>
+                <div class="card-desc">All three cases share a structure: a utilitarian argument that ONLY works while the public does not know. Therac's bug was hidden. MCAS was hidden. COMPAS's weights are still hidden. When the truth surfaces (and software always leaves a paper trail), the utilitarian argument inverts. Whatever your framework, it must survive disclosure.</div>
+            </div>
+            <div class="card c-amber">
+                <div class="card-label">Pattern 3 &middot; Outcomes over inputs</div>
+                <div class="card-desc">In all three cases, the engineering defense focused on intent (the inputs, the math, the QA process). The harm was measured in outcomes (patients killed, planes crashed, defendants mis-sentenced). The professional posture has to be: audit outcomes. The intent does not relieve the responsibility for the result.</div>
+            </div>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">The repeatable decision protocol (refined for software)</div>
+            <strong>1.</strong> What is the actual decision, not the rationalization? <strong>2.</strong> Run it through at least two frameworks. <strong>3.</strong> Imagine the decision becomes public knowledge tomorrow. Does the utilitarian argument still hold? <strong>4.</strong> What does the outcome audit (by group, by demographic, by user class) say? <strong>5.</strong> If you cannot defend this to future you, your peers, the press, AND the family of the harmed person, redesign.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 14 IN-CLASS ASSIGNMENT ====== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 15 &middot; In-Class Assignment</div>
+        <div class="slide-title">Your <span class="accent-red">Dual-Lens</span> Software Case Analysis</div>
+        <div class="slide-subtitle">Pick a real software-ethics case we did NOT cover. Run it through two frameworks. 20 minutes, pair-share.</div>
+
+        <div class="dilemma-prompt">
+            <strong>Your task:</strong> Pick one software-ethics case from the list below. With your partner: name two frameworks that would give DIFFERENT verdicts. Sketch each framework's verdict, then write the defensible synthesis. Whiteboard or paper; 15 min pair work plus 5 min table report-out.
+        </div>
+
+        <div class="dilemma-frameworks">
+            <div class="dilemma-fw fw-util">
+                <div class="dilemma-fw-label">Utilitarianism</div>
+                <div class="dilemma-fw-text">Thanos. Greatest good for the greatest number. Sum the consequences.</div>
+            </div>
+            <div class="dilemma-fw fw-deont">
+                <div class="dilemma-fw-label">Deontology</div>
+                <div class="dilemma-fw-text">Cap. Duty regardless of outcome. Rules over results.</div>
+            </div>
+            <div class="dilemma-fw fw-virtue">
+                <div class="dilemma-fw-label">Virtue Ethics</div>
+                <div class="dilemma-fw-text">Iroh. What would a person of good character do?</div>
+            </div>
+            <div class="dilemma-fw fw-contract">
+                <div class="dilemma-fw-label">Social Contract</div>
+                <div class="dilemma-fw-text">Civil War. Negotiated rules between people with shared stakes.</div>
+            </div>
+            <div class="dilemma-fw fw-ends">
+                <div class="dilemma-fw-label">Ends-Justify-Means</div>
+                <div class="dilemma-fw-text">Ozymandias / Itachi. The math that wins, paid for by the math-doer.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Case Options (pick one)</div>
+                <div class="card-desc"><strong>Software safety:</strong> Toyota unintended acceleration (2009 to 2010) &middot; Knight Capital algorithm meltdown (2012) &middot; Healthcare.gov rollout (2013). <strong>Commercial pressure:</strong> Volkswagen Dieselgate emissions defeat device &middot; Equifax breach (2017) &middot; Tesla Autopilot fatality investigations. <strong>Algorithmic fairness:</strong> Amazon AI hiring tool (scrapped 2018) &middot; Apple Card credit limit allegations &middot; Optum healthcare algorithm bias (Obermeyer 2019). <strong>Privacy / autonomy:</strong> Cambridge Analytica (2018) &middot; OPM data breach (2015) &middot; IBM Watson for Oncology overpromise.</div>
+            </div>
+            <div class="card c-magenta">
+                <div class="card-label">Required Anchors (your output must hit all five)</div>
+                <div class="card-desc"><strong>1.</strong> One-sentence case summary. <strong>2.</strong> Framework A verdict (which character, what it would say). <strong>3.</strong> Framework B verdict (different character). <strong>4.</strong> Where the two frameworks disagree (the actual ethical question). <strong>5.</strong> Defensible synthesis: which framework dominates here, and why?</div>
+            </div>
+            <div class="card c-amber">
+                <div class="card-label">Format &middot; Time</div>
+                <div class="card-desc"><strong>15 minutes</strong> pair work (whiteboard or paper sketch is fine). <strong>5 minutes</strong> table report-out: one pair shares their case plus which frameworks they ran plus the synthesis. No grading during class; instructor may collect for follow-up.</div>
+            </div>
+        </div>
+
+        <div class="facilitator-note">
+            <strong>Facilitator anchor:</strong> The depth check is anchor 4 ("where they disagree"). Strong students will name a real tension; weak students will pick two frameworks that both happen to agree. If a pair reports both frameworks giving the same verdict, push back: they have either picked a soft case or they are collapsing the analysis. Force the disagreement before they synthesize. The software-flavored variation: push pairs to articulate WHO BEARS THE COST under each framework. Engineers? Users? Shareholders? Future patients? That's the move that separates Week 2 case work from Week 3 case work.
+        </div>
+    </div>
+</section>
+
+<!-- ====== SLIDE 15 LOOKING AHEAD ====== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 15 &middot; Looking Ahead</div>
+        <div class="slide-title">Looking Ahead to <span class="accent">Week 4</span></div>
+        <div class="slide-subtitle">Week 3 was about what software does at scale. Week 4 is about who holds the people who build it accountable.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Codes of Ethics, Deep Dive</div>
+                <div class="card-desc">ACM Code 2018 revision. IEEE Code. Why both exist, where they differ, when each applies. The codes you cited in this week's takeaways become the textbook for Week 4. We will read them as ENGINEERING DOCUMENTS, not as moral aspirations.</div>
+            </div>
+            <div class="card c-amber">
+                <div class="card-label">IT Organizations and the Profession</div>
+                <div class="card-desc">Software does not have a licensing body the way medicine and civil engineering do. Why not? What replaces it? Professional associations, certifications, employer-side standards, voluntary codes. The institutional architecture of being a professional in an unlicensed profession.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Social Media Ethics</div>
+                <div class="card-desc">Platform-as-publisher, algorithmic amplification, content moderation at scale, attention economy. The cases you already saw (Section 230, COMPAS, surveillance capitalism) feed into one synthesis: what does responsible platform governance look like?</div>
+            </div>
+        </div>
+
+        <div class="box box-magenta">
+            <div class="box-label">Before class next week</div>
+            Complete the <strong>Week 3 Quiz</strong>. Review the topic decks (Software Ethics / IT Impact) for any case that felt thin in your pair work. <strong>Read the ACM Code of Ethics (2018 revision) and the IEEE Code of Ethics in full</strong> before Week 4. They are short. We will use them as the curriculum, not the citation.
+        </div>
+
+        <div style="text-align: center; margin-top: 14px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- nav -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Ethics in IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 15</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 15;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('divergent', 'eth-w3-lecture', { returnUrl: '../index.html' });
+        }
+    }
+
+    goToSlide(1);
+</script>
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
