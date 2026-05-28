@@ -2478,6 +2478,7 @@
 
         // Map non-house path keys to their parent house for filtering
         const PATH_HOUSE_MAP = {
+            'adv-linux': 'matrix',
             'ai-builder': 'ai',
             'ai-foundations': 'ai',
             'ai-security': 'ai',
