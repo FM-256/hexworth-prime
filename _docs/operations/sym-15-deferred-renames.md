@@ -10,15 +10,24 @@ Each is distinct content sharing a key. Fix pattern: rename non-canonical to
 identity-derived key + add `copyLegacyKey` shim. Naming choices below are
 my proposals; approve as-is or override.
 
-### 1. `dark-arts/dark-arts-index`
-Files (neither is the actual house index — both compete for the key):
+### 1. `dark-arts/dark-arts-index` — RESOLVED 2026-05-28
+
+Files (neither is the actual house index — both competed for the key):
 - `_app/dark-arts/vault/index.html` ("The Vault")
 - `_app/houses/dark-arts/tools/ctf-leaderboard/index.html` ("CTF Leaderboard")
 
-**Proposed:** rename BOTH to identity-derived keys, cross-credit from the legacy key
-- vault → `dark-arts-vault-index`
-- ctf-leaderboard → `dark-arts-ctf-leaderboard`
-- copyLegacyKey: `('dark-arts', 'dark-arts-index', 'dark-arts-vault-index')` and `('dark-arts', 'dark-arts-index', 'dark-arts-ctf-leaderboard')`
+**What actually happened:**
+1. Commit `4bc5a070a` shipped the rename half of this plan: `tools/ctf-leaderboard/index.html` was renamed from `dark-arts-index` to `dark-arts-ctf-leaderboard`, with cross-credit shim.
+2. That rename ALSO collided with a third file the original plan didn't account for: `_app/dark-arts/ctf-leaderboard.applet.html` (canonical, ContentCatalog entry `'dark-arts-ctf-leaderboard'`, category `vault-tools`, linked from the actual vault hub).
+3. Between then and 2026-05-28, `tools/ctf-leaderboard/index.html` became corrupted (file got committed with a Python wrapper script around its HTML output instead of just the rendered HTML — `# Save a full, ready-to-use compact version` Python comment at line 1, `html = r"""..."""` wrap, `with open(path, "w") ... f.write(html)` Python tail).
+
+**Resolution applied 2026-05-28:** Archived `tools/ctf-leaderboard/index.html` and its course-tree JSON (per the "archive, never delete" rule). The canonical `_app/dark-arts/ctf-leaderboard.applet.html` is now the sole owner of the `dark-arts-ctf-leaderboard` key.
+
+- `_app/houses/dark-arts/tools/ctf-leaderboard/index.html` → `_app/houses/dark-arts/tools/ctf-leaderboard/_archive/index.html` (via `git mv`)
+- `_app/data/course-trees/dark-arts--tools--ctf-leaderboard.json` → `_app/data/course-trees/_archive/dark-arts--tools--ctf-leaderboard.json` (via `git mv`)
+- `_app/data/course-trees/manifest.json` — removed the entry pointing at the archived course-tree JSON
+- Sibling `_app/houses/dark-arts/tools/ctf-leaderboard/dark-arts-sample.tool.html` is untouched (it's catalog-registered as `'dark-arts-sample'`, unrelated to this collision)
+- The vault portion (`_app/dark-arts/vault/index.html` → `dark-arts-vault-index`) was already handled in `4bc5a070a`
 
 ### 2. `script/script-lab`
 Files (two CLH course labs sharing a generic key):
