@@ -2726,6 +2726,362 @@ class LearningPaths {
             ]
         },
 
+        // Advanced Linux Administration (CTS4321C), Matrix House course path.
+        // Registered 2026-05-28 to close FLOW-001 unchained-content findings on ALA
+        // presentations and quizzes (19 files). Includes the full 38-module pedagogical
+        // chain (reviews, presentations, labs, quizzes, exams) for consumers that
+        // traverse the full progression.
+        'adv-linux': {
+            name: 'Advanced Linux Administration (CTS4321C)',
+            description: 'Production Linux administration: CLI mastery, systemd, networking, hardening, DNS, automation, file integrity, and performance analysis. 12 CTF labs across 4 weeks.',
+            icon: '/assets/images/icons/icon-terminal.webp',
+            color: '#00ff41',
+            courseHref: 'houses/matrix/adv-linux/index.html',
+            modules: [
+                {
+                    id: 'ala-r1',
+                    title: 'ALA-R1: Cell Navigation',
+                    type: 'review',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/matrix/adv-linux/ala-r1.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ala-r2',
+                    title: 'ALA-R2: Access Control',
+                    type: 'review',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/matrix/adv-linux/ala-r2.html',
+                    prerequisites: ['ala-r1']
+                },
+                {
+                    id: 'ala-r3',
+                    title: 'ALA-R3: Process Authority',
+                    type: 'review',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/matrix/adv-linux/ala-r3.html',
+                    prerequisites: ['ala-r2']
+                },
+                {
+                    id: 'ala-r4',
+                    title: 'ALA-R4: Grid Basics',
+                    type: 'review',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/matrix/adv-linux/ala-r4.html',
+                    prerequisites: ['ala-r3']
+                },
+                {
+                    id: 'ala-r5',
+                    title: 'ALA-R5: Signal Processing',
+                    type: 'review',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/matrix/adv-linux/ala-r5.html',
+                    prerequisites: ['ala-r4']
+                },
+                {
+                    id: 'ala-w1-cli',
+                    title: 'Advanced CLI Operations',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w1-cli-operations.presentation.html',
+                    prerequisites: ['ala-r5']
+                },
+                {
+                    id: 'ala-w1-systemd',
+                    title: 'Service Authority: systemd Deep Dive',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w1-systemd.presentation.html',
+                    prerequisites: ['ala-w1-cli']
+                },
+                {
+                    id: 'ala-w1-network-config',
+                    title: 'Grid Interface Configuration',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w1-network-config.presentation.html',
+                    prerequisites: ['ala-w1-systemd']
+                },
+                {
+                    id: 'ala-w1-network-diag',
+                    title: 'Grid Diagnostics',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w1-network-diag.presentation.html',
+                    prerequisites: ['ala-w1-network-config']
+                },
+                {
+                    id: 'ala-l01',
+                    title: 'ALA-L01: Dead Cell Recovery',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l01-dead-cell-recovery/index.html',
+                    prerequisites: ['ala-w1-network-diag']
+                },
+                {
+                    id: 'ala-l02',
+                    title: 'ALA-L02: Grid Handshake',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l02-grid-handshake/index.html',
+                    prerequisites: ['ala-l01']
+                },
+                {
+                    id: 'ala-l03',
+                    title: 'ALA-L03: Signal in the Noise',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l03-signal-in-the-noise/index.html',
+                    prerequisites: ['ala-l02']
+                },
+                {
+                    id: 'ala-w1-quiz',
+                    title: 'Week 1 Quiz: CLI Operations and Networking',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/matrix/adv-linux/quizzes/ala-w1.quiz.html',
+                    prerequisites: ['ala-l03']
+                },
+                {
+                    id: 'ala-w2-firewalls',
+                    title: 'Perimeter Shield: Linux Firewalls',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w2-firewalls.presentation.html',
+                    prerequisites: ['ala-w1-quiz']
+                },
+                {
+                    id: 'ala-w2-authentication',
+                    title: 'Dual-Lock Protocol: Authentication Hardening',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w2-authentication.presentation.html',
+                    prerequisites: ['ala-w2-firewalls']
+                },
+                {
+                    id: 'ala-w2-antivirus',
+                    title: 'Threat Sentinel: ClamAV',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w2-antivirus.presentation.html',
+                    prerequisites: ['ala-w2-authentication']
+                },
+                {
+                    id: 'ala-w2-packages',
+                    title: 'Grid Armory: Package Management',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w2-packages.presentation.html',
+                    prerequisites: ['ala-w2-antivirus']
+                },
+                {
+                    id: 'ala-l04',
+                    title: 'ALA-L04: Lockdown Protocol',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l04-lockdown-protocol/index.html',
+                    prerequisites: ['ala-w2-packages']
+                },
+                {
+                    id: 'ala-l05',
+                    title: 'ALA-L05: The Insider',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l05-the-insider/index.html',
+                    prerequisites: ['ala-l04']
+                },
+                {
+                    id: 'ala-l06',
+                    title: 'ALA-L06: Field Assembly',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l06-field-assembly/index.html',
+                    prerequisites: ['ala-l05']
+                },
+                {
+                    id: 'ala-w2-quiz',
+                    title: 'Week 2 Quiz: Hardening and Package Management',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/matrix/adv-linux/quizzes/ala-w2.quiz.html',
+                    prerequisites: ['ala-l06']
+                },
+                {
+                    id: 'ala-midterm',
+                    title: 'ALA Midterm Exam',
+                    type: 'exam',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/matrix/adv-linux/exams/ala-midterm.exam.html',
+                    prerequisites: ['ala-w2-quiz']
+                },
+                {
+                    id: 'ala-w3-dns-fundamentals',
+                    title: 'DNS Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w3-dns-fundamentals.presentation.html',
+                    prerequisites: ['ala-midterm']
+                },
+                {
+                    id: 'ala-w3-bind-deployment',
+                    title: 'BIND9 Deployment',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w3-bind-deployment.presentation.html',
+                    prerequisites: ['ala-w3-dns-fundamentals']
+                },
+                {
+                    id: 'ala-w3-bash-scripting',
+                    title: 'Bash Scripting Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w3-bash-scripting.presentation.html',
+                    prerequisites: ['ala-w3-bind-deployment']
+                },
+                {
+                    id: 'ala-w3-automation',
+                    title: 'Linux Automation',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w3-automation.presentation.html',
+                    prerequisites: ['ala-w3-bash-scripting']
+                },
+                {
+                    id: 'ala-l07',
+                    title: 'ALA-L07: Name Authority',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l07-name-authority/index.html',
+                    prerequisites: ['ala-w3-automation']
+                },
+                {
+                    id: 'ala-l08',
+                    title: 'ALA-L08: The Night Shift',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l08-the-night-shift/index.html',
+                    prerequisites: ['ala-l07']
+                },
+                {
+                    id: 'ala-l09',
+                    title: 'ALA-L09: Poisoned Records',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l09-poisoned-records/index.html',
+                    prerequisites: ['ala-l08']
+                },
+                {
+                    id: 'ala-w3-quiz',
+                    title: 'Week 3 Quiz: DNS and Automation',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/matrix/adv-linux/quizzes/ala-w3.quiz.html',
+                    prerequisites: ['ala-l09']
+                },
+                {
+                    id: 'ala-w4-file-integrity',
+                    title: 'File Integrity and Auditing',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w4-file-integrity.presentation.html',
+                    prerequisites: ['ala-w3-quiz']
+                },
+                {
+                    id: 'ala-w4-performance',
+                    title: 'Linux Performance Analysis',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w4-performance.presentation.html',
+                    prerequisites: ['ala-w4-file-integrity']
+                },
+                {
+                    id: 'ala-w4-log-management',
+                    title: 'Log Management',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/matrix/adv-linux/presentations/ala-w4-log-management.presentation.html',
+                    prerequisites: ['ala-w4-performance']
+                },
+                {
+                    id: 'ala-l10',
+                    title: 'ALA-L10: Ghost in the Cell',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l10-ghost-in-the-cell/index.html',
+                    prerequisites: ['ala-w4-log-management']
+                },
+                {
+                    id: 'ala-l11',
+                    title: 'ALA-L11: Flatline',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l11-flatline/index.html',
+                    prerequisites: ['ala-l10']
+                },
+                {
+                    id: 'ala-l12',
+                    title: 'ALA-L12: Full Cell Audit',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/matrix/adv-linux/labs/ala-l12-full-cell-audit/index.html',
+                    prerequisites: ['ala-l11']
+                },
+                {
+                    id: 'ala-w4-quiz',
+                    title: 'Week 4 Quiz: Filesystem and Performance',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/matrix/adv-linux/quizzes/ala-w4.quiz.html',
+                    prerequisites: ['ala-l12']
+                },
+                {
+                    id: 'ala-final',
+                    title: 'ALA Final Exam',
+                    type: 'exam',
+                    difficulty: 'advanced',
+                    duration: '60 min',
+                    href: 'houses/matrix/adv-linux/exams/ala-final.exam.html',
+                    prerequisites: ['ala-w4-quiz']
+                }
+            ]
+        },
         // OpenStack Cloud Platform — Cloud House
         'openstack': {
             name: 'OpenStack Cloud Platform',
