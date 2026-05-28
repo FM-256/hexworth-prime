@@ -6,12 +6,37 @@
 
 const fs = require('fs');
 const path = require('path');
+const NamingValidator = require('./syntax/naming.js');
 
 class ValidatorOrchestrator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.registryPath = options.registryPath || './_app/config/content-registry.js';
         this.registry = null;
+        // Optional rootPath for ContentCatalog parsing (REG-001 catalog-aware
+        // skip). Default mirrors registryPath base.
+        this.rootPath = options.rootPath || './_app';
+        // Lazily-loaded catalog href set, populated on first
+        // isContentRegistered() call. Cached for the rest of the scan.
+        this._catalogHrefs = null;
+        this._catalogHrefsLoaded = false;
+    }
+
+    /**
+     * Lazy-load the ContentCatalog href set. Returns Set<string> of normalized
+     * paths relative to rootPath. Used by isContentRegistered() to count
+     * catalog-registered files as registered alongside legacy content-registry.
+     *
+     * Reuses NamingValidator.buildCatalogHrefSet() to keep parsing/resolver
+     * logic in one place. See decision rationale in
+     * NamingValidator.checkHousePrefix() docstring.
+     */
+    _getCatalogHrefs() {
+        if (!this._catalogHrefsLoaded) {
+            this._catalogHrefs = NamingValidator.buildCatalogHrefSet(this.rootPath);
+            this._catalogHrefsLoaded = true;
+        }
+        return this._catalogHrefs;
     }
 
     /**
@@ -220,33 +245,60 @@ class ValidatorOrchestrator {
     }
 
     /**
-     * Check if content is registered
+     * Check if content is registered.
+     *
+     * Treats a file as registered if it's listed in EITHER:
+     *   - The legacy content-registry.js (this.registry, the original
+     *     check)
+     *   - ContentCatalog.js (new platform canonical registry, parsed via
+     *     NamingValidator.buildCatalogHrefSet())
+     *
+     * Rationale (2026-05-28 marathon): content-registry.js has 1462
+     * entries but is no longer the canonical source for new courses
+     * (ALA, PIS, ETH, CSE, CSP all have 0 entries there). New content
+     * registers via ContentCatalog.js. Without this union check,
+     * REG-001 fires ~2251 times platform-wide on legitimately-registered
+     * files. Catalog-orphans (truly not in either registry) still fire
+     * — those are the actual bug class.
      */
     isContentRegistered(item) {
-        if (!this.registry) return null;
-
-        // Check by path
         const normalizedPath = this.normalizePath(item.path);
-        for (const entry of this.registry.entries) {
-            if (entry.path && this.normalizePath(entry.path) === normalizedPath) {
-                return true;
-            }
 
-            // Check component paths (presentation, applet, lab, quiz, etc.)
-            if (entry.componentPaths) {
-                for (const cp of entry.componentPaths) {
-                    if (this.normalizePath(cp) === normalizedPath) {
-                        return true;
+        // Check legacy registry first (preserves original semantics)
+        if (this.registry) {
+            for (const entry of this.registry.entries) {
+                if (entry.path && this.normalizePath(entry.path) === normalizedPath) {
+                    return true;
+                }
+                // Check component paths (presentation, applet, lab, quiz, etc.)
+                if (entry.componentPaths) {
+                    for (const cp of entry.componentPaths) {
+                        if (this.normalizePath(cp) === normalizedPath) {
+                            return true;
+                        }
                     }
                 }
             }
         }
 
-        // Check by id patterns
-        const possibleIds = this.generatePossibleIds(item);
-        for (const id of possibleIds) {
-            if (this.registry.ids.includes(id)) {
-                return true;
+        // Catalog-aware fallback: file is registered if it's in ContentCatalog.
+        // Use item.path directly (NOT normalizedPath): the catalog set is
+        // keyed on full 'houses/{house}/...' paths, while this.normalizePath
+        // strips 'houses/' and lowercases. Mismatching the two formats here
+        // would cause every catalog-aware lookup to silently miss.
+        const catalogHrefs = this._getCatalogHrefs();
+        if (catalogHrefs && catalogHrefs.has(item.path)) {
+            return true;
+        }
+
+        // Check by id patterns (legacy registry only — ContentCatalog id
+        // matching is implicit via the href set check above)
+        if (this.registry && this.registry.ids) {
+            const possibleIds = this.generatePossibleIds(item);
+            for (const id of possibleIds) {
+                if (this.registry.ids.includes(id)) {
+                    return true;
+                }
             }
         }
 
