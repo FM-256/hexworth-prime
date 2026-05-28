@@ -388,10 +388,22 @@ class NamingValidator {
     /**
      * Check overall naming convention compliance
      * Expected format: {house}-{name}.{type}.html or {house}-{name}-{type}.html
+     *
+     * MUST mirror checkHousePrefix's catalog-aware skip. NAME-001 is the
+     * umbrella check that fires when NAME-003 (prefix) doesn't fire. If we
+     * skip NAME-003 for catalog-registered files without also skipping
+     * NAME-001 here, the convention check fires on the same files at HIGH
+     * severity. Bug discovered 2026-05-28 post-deploy: ~1198 files unmasked
+     * NAME-001 after the NAME-003 catalog-aware skip landed in 820286853.
      */
     checkNamingConvention(filename, filePath, house, detectedType) {
         // Only validate files in house directories with detected type
         if (!house || !detectedType) {
+            return null;
+        }
+
+        // Catalog-aware skip: mirrors checkHousePrefix. See docstring above.
+        if (this.catalogHrefs && this.catalogHrefs.has(filePath)) {
             return null;
         }
 
