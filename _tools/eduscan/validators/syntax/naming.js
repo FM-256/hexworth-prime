@@ -16,6 +16,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const vm = require('vm');
 
 // Valid house prefixes (all 12 houses including AI and secret/special)
 const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'dark-arts', 'matrix', 'divergent'];
@@ -93,6 +94,14 @@ class NamingValidator {
         this.verbose = options.verbose || false;
         this.rootPath = options.rootPath || './_app';
         this.strictMode = options.strictMode || false; // If true, validate ALL files
+        // Optional Set of file paths (relative to rootPath, e.g.
+        // 'houses/matrix/adv-linux/ala-r1.html') that are registered in
+        // ContentCatalog.js. Files in this set get NAME-003 skipped because
+        // their identity is established via the catalog id, making the
+        // filename convention informational rather than authoritative.
+        // If null/undefined, falls back to today's strict-prefix behavior
+        // (used by `tests/run.js` against synthetic fixtures).
+        this.catalogHrefs = options.catalogHrefs || null;
     }
 
     /**
@@ -238,11 +247,30 @@ class NamingValidator {
     }
 
     /**
-     * Check if filename has proper house prefix
+     * Check if filename has proper house prefix.
+     *
+     * If the file is registered in ContentCatalog.js (this.catalogHrefs Set,
+     * populated by the caller), this check is skipped: the catalog id is the
+     * authoritative identity, and the filename convention is informational.
+     * The 1913 platform-wide NAME-003 fires include 1251 catalog-registered
+     * files that follow course-prefix convention (e.g., `ala-`, `pis-`, `eth-`)
+     * rather than house-prefix; those are intentional content with established
+     * identity. The remaining 662 catalog-orphans still fire — those are the
+     * actual bug class (typo'd/draft files that should either be catalogued
+     * or renamed). Decided 2026-05-28 after two Nancy review rounds; see
+     * `_docs/operations/name-003-catalog-aware-skip.md` (TODO).
      */
     checkHousePrefix(filename, filePath, house, detectedType) {
         // Only validate files in house directories
         if (!house) {
+            return null;
+        }
+
+        // Catalog-aware skip: this.catalogHrefs holds normalized paths
+        // (e.g., 'houses/matrix/adv-linux/ala-r1.html'). The scanner already
+        // passes filePath in that form (relative to rootPath, no leading
+        // '_app/' or '../').
+        if (this.catalogHrefs && this.catalogHrefs.has(filePath)) {
             return null;
         }
 
@@ -506,6 +534,65 @@ class NamingValidator {
                 duration: Date.now() - startTime
             }
         };
+    }
+
+    /**
+     * Build the Set of catalog-registered href paths (relative to rootPath)
+     * by parsing ContentCatalog.js. Pass the result into the constructor as
+     * `catalogHrefs` to enable the NAME-003 skip for catalog-registered files.
+     *
+     * Centralized here so the scanner (syntax/index.js), the fixer
+     * (fixers/naming-fixer.js), and any future caller share one
+     * implementation; otherwise they drift and the fixer proposes renames
+     * the scanner suppresses (Nancy review afac09a... HIGH #3).
+     *
+     * Returns null if the catalog can't be loaded — callers should fall back
+     * to today's strict-prefix behavior in that case.
+     */
+    static buildCatalogHrefSet(rootPath) {
+        const catalogPath = path.resolve(rootPath, 'components', 'ContentCatalog.js');
+        if (!fs.existsSync(catalogPath)) return null;
+        try {
+            const code = fs.readFileSync(catalogPath, 'utf8');
+            const context = vm.createContext({ window: {} });
+            vm.runInContext(code, context);
+            const catalog = context.window.ContentCatalog;
+            if (!catalog || !catalog.HOUSES || !catalog.MODULES) return null;
+            const set = new Set();
+            for (const mod of catalog.MODULES) {
+                const house = catalog.HOUSES[mod.house];
+                if (!house || !mod.href) continue;
+                const resolved = NamingValidator._resolveCatalogHref(house.basePath, mod.href);
+                if (resolved && resolved.endsWith('.html')) set.add(resolved);
+            }
+            return set;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolve a catalog module's href into a path relative to rootPath.
+     *
+     * The catalog has two href styles in active use:
+     *   - Style A (cloud, eye, etc.):  'quizzes/cloud-cse-06.quiz.html'
+     *                                   relative to the house's basePath
+     *   - Style B (matrix, dark-arts): '../houses/matrix/adv-linux/.../index.html'
+     *                                   path-from-root with a stray leading '..'
+     *                                   (carryover from when the catalog lived
+     *                                   in a different directory)
+     * Both must resolve to the same `houses/{house}/...` form so the Set
+     * lookup against scanner file paths matches.
+     */
+    static _resolveCatalogHref(basePath, href) {
+        if (!href) return null;
+        if (href.startsWith('../') || href.startsWith('/')) {
+            return href.replace(/^(\.\.\/)+/, '').replace(/^\//, '');
+        }
+        if (href.startsWith('houses/')) {
+            return href;
+        }
+        return (basePath || '').replace(/\/?$/, '/') + href;
     }
 }
 

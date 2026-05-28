@@ -86,7 +86,12 @@ class SyntaxValidator {
         });
         this.namingValidator = new NamingValidator({
             verbose: this.verbose,
-            rootPath: this.rootPath
+            rootPath: this.rootPath,
+            // Suppresses NAME-003 for catalog-registered files. See
+            // NamingValidator.checkHousePrefix() docstring for rationale.
+            // Two-Nancy-review decision 2026-05-28; ~1251 of 1913 platform
+            // findings now skip, leaving the 662 actual catalog-orphans firing.
+            catalogHrefs: NamingValidator.buildCatalogHrefSet(this.rootPath)
         });
         this.heuristicsValidator = new HeuristicsValidator({
             verbose: this.verbose,

@@ -30,7 +30,12 @@ class NamingFixer {
         // Initialize components
         this.namingValidator = new NamingValidator({
             verbose: this.verbose,
-            rootPath: this.rootPath
+            rootPath: this.rootPath,
+            // MUST stay aligned with the scanner (validators/syntax/index.js).
+            // Without this, the fixer would propose renames for catalog-
+            // registered files that the scanner now skips (Nancy review
+            // afac09a... HIGH #3 — fixer-scanner divergence risk).
+            catalogHrefs: NamingValidator.buildCatalogHrefSet(this.rootPath)
         });
 
         this.renameMapper = new RenameMapper({
