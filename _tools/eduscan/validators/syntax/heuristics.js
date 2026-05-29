@@ -47,6 +47,12 @@
  * - HEUR-030: Course-hub tenant-leak — _app/houses/<h>/<c>/index.html has <a id="dashboardBtn"> but is missing the canonical TenantRouter rewrite IIFE. Tenant students clicking Dashboard leak to the house index (main hex) instead of their tenant dashboard. Detection requires BOTH `getElementById('dashboardBtn')` AND `TenantRouter.getUrl` present; if either is absent the rewriter isn't wired. HIGH (tenant-isolation breach). Canonical pattern: _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button").
  * - HEUR-COMPLETE-QUIZ-PCT: ModuleProgress.completeQuiz() called with raw `score` count instead of `pct` percentage. The function internally evaluates `score >= passingScore` so a 12/15 score (80%) is checked as `12 >= 70 = false` and completion never persists. Fires when (a) file computes `var pct = Math.round(...)`, AND (b) 3rd arg of completeQuiz is a bare identifier that is NOT pct/percent/percentage/integer-literal/Math.round expression. HIGH (completion silently fails).
  * - HEUR-RESULT-BUTTON-STANDARD: Quiz results-card uses pre-standard buttons — `<button onclick="restartQuiz()">Try Again</button>` or `<a class="btn-hub">Back to <Course> Hub</a>`. New standard is `[Review Answers]` (calls showReviewAnswers()) + `[Return to Hub]`. Mixed state (Review Answers present alongside old buttons) also flags. MEDIUM (UX drift, no grading bug).
+ * - HEUR-031: Empty slide-text wrapper. Slide page has `<div class="slide-text">` with <20 chars of non-whitespace content. Class of bug: depth-tracking regex during a slide rebuild missed the matching `</div>` boundary when slide-content had no nested divs, leaving the text wrapper empty. Caught on WSA m01 slides 6, 17, 20 (2026-05-29). CRITICAL: literal lost content. Detection: scan for `<div class="slide-text">...</div>` blocks; strip tags + whitespace; flag if <20 chars remain.
+ * - HEUR-032: Broken webp icon reference. HTML references `/assets/images/icons/icon-NAME.webp` where the file does not exist on disk. Common typo source: plurality (`icon-gears` vs `icon-gear`) or synonyms (`icon-checklist` vs `icon-checkbox`). Caught on WSA m01 (2026-05-29). HIGH: visible broken-image fallback in the UI. Detection: extract every `icon-*.webp` ref from HTML, resolve against `_app/assets/images/icons/`, flag any miss.
+ * - HEUR-033: SVG width-% keyframe overflow. CSS `@keyframes` definition contains `width: 100%` or similar percentage, and the animation class is applied to a `<rect>` or `<line>` inside an inline `<svg>`. SVG percentage widths resolve to the viewBox root, not the parent container, so the animated element overflows the intended bounds. Caught on WSA m01 slide 23 progress bars (2026-05-29). MEDIUM (visual overflow). Detection: pair `@keyframes` with `width: \d+%` against `class="ANIM" ... <rect|line` in svg blocks. Fix is `transform: scaleX()` with `transform-origin` set.
+ * - HEUR-034: Infinite opacity 0→1 keyframe causes flicker. `@keyframes` definition starts at `opacity: 0` and ends at `opacity: 1`, AND the applying class declares `animation: ... infinite`. Creates a fade-in / fade-out flicker loop because each cycle resets opacity to 0. Caught on WSA m01 slides 17 and 26 drop-in animations (2026-05-29). MEDIUM (UX issue). Detection: parse `@keyframes` for `0%.*opacity:\s*0` AND `100%.*opacity:\s*1`; check applying class for `animation: ... infinite`.
+ * - HEUR-035: Em-dash character in content. Per user style preference (memory `feedback_no_em_dashes`), the em-dash character (U+2014) should not appear in HTML content. Common alternatives: comma, colon, or period depending on grammar. Detection: count `—` characters outside `<style>`, `<script>`, and `code-block`/`pre` contexts. Going-forward enforcement only — legacy content allowlisted by file path.
+ * - HEUR-036: has-visual class without SVG visual. Slide has `class="slide has-visual"` but its `<div class="slide-visual">` is empty or contains no `<svg>` element. Indicates a partially-built slide where the visual half is missing — companion bug to HEUR-031 (empty text wrapper). Detection: find each `class="...slide.*has-visual..."` block; check that the slide-visual child contains an `<svg`. MEDIUM (incomplete slide).
  */
 
 const fs = require('fs');
@@ -204,6 +210,12 @@ class HeuristicsValidator {
         issues.push(...this.checkDashboardBtnTenantRewrite(file));
         issues.push(...this.checkCompleteQuizPctArg(file));
         issues.push(...this.checkResultButtonStandard(file));
+        issues.push(...this.checkEmptySlideText(file));
+        issues.push(...this.checkBrokenIconRefs(file));
+        issues.push(...this.checkSvgWidthPercentKeyframe(file));
+        issues.push(...this.checkInfiniteOpacityFlicker(file));
+        issues.push(...this.checkEmDashContent(file));
+        issues.push(...this.checkHasVisualWithoutSvg(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -3669,6 +3681,246 @@ class HeuristicsValidator {
 
     getLineNumber(content, position) {
         return content.substring(0, position).split('\n').length;
+    }
+
+    /**
+     * HEUR-031: Empty slide-text wrapper. Slide page has
+     * <div class="slide-text">...</div> with <20 chars of non-whitespace
+     * content. The wrapper exists structurally but the text half of the
+     * Venn-diagram slide design got lost during an edit.
+     */
+    checkEmptySlideText(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+        if (!content.includes('class="slide-text"')) return issues;
+
+        // Match each <div class="slide-text">...</div>, depth-aware via greedy
+        // match of inner content up to the next </div> at sibling depth. Since
+        // .slide-text wraps text only (no nested divs in practice), the simple
+        // first-</div> match is correct.
+        const re = /<div class="slide-text">([\s\S]*?)<\/div>\s*<div class="slide-visual"/g;
+        let m;
+        while ((m = re.exec(content)) !== null) {
+            // Strip tags + whitespace to count actual text/code content
+            const stripped = m[1].replace(/<[^>]+>/g, '').replace(/\s/g, '');
+            if (stripped.length < 20) {
+                issues.push({
+                    code: 'HEUR-031',
+                    severity: 'critical',
+                    category: 'heuristic',
+                    message: `Empty slide-text wrapper (${stripped.length} chars of actual content). Text half of the slide is missing.`,
+                    file: file.path,
+                    line: this.getLineNumber(content, m.index),
+                    fix: 'Restore the original text content inside the <div class="slide-text"> wrapper. Compare to a known-good slide pattern or to a prior commit.'
+                });
+            }
+        }
+        return issues;
+    }
+
+    /**
+     * HEUR-032: Broken webp icon reference. HTML cites
+     * /assets/images/icons/icon-NAME.webp where NAME.webp does not exist
+     * on disk under _app/assets/images/icons/. Caused visible broken-image
+     * fallback in slide titles (icon-checklist vs icon-checkbox).
+     */
+    checkBrokenIconRefs(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        const refs = [...content.matchAll(/\/assets\/images\/icons\/(icon-[a-z0-9-]+\.webp)/gi)];
+        if (refs.length === 0) return issues;
+
+        const iconsDir = path.resolve(this.rootPath, 'assets/images/icons');
+        const seen = new Set();
+        for (const r of refs) {
+            const name = r[1];
+            if (seen.has(name)) continue;
+            seen.add(name);
+            const absPath = path.join(iconsDir, name);
+            if (!fs.existsSync(absPath)) {
+                issues.push({
+                    code: 'HEUR-032',
+                    severity: 'high',
+                    category: 'heuristic',
+                    message: `Icon file does not exist: ${name} (referenced in this file but not present in _app/assets/images/icons/).`,
+                    file: file.path,
+                    line: this.getLineNumber(content, r.index),
+                    fix: `Check the icons directory for the closest match (singular vs plural, synonyms). Common fixes: icon-checklist → icon-checkbox; icon-gears → icon-gear.`
+                });
+            }
+        }
+        return issues;
+    }
+
+    /**
+     * HEUR-033: SVG width-% keyframe overflow. @keyframes contains
+     * width: <num>% or width: 100%, and the applying class is used on
+     * a <rect> or <line> inside an inline <svg>. SVG percentage widths
+     * resolve to viewBox root, not the parent container, so the animated
+     * element overflows. Fix is transform: scaleX with transform-origin.
+     */
+    checkSvgWidthPercentKeyframe(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+        if (!content.includes('<svg')) return issues;
+
+        // Find @keyframes blocks that animate width to a percentage
+        const kfRe = /@keyframes\s+([a-zA-Z0-9_-]+)\s*\{([\s\S]*?)\}\s*(?=@keyframes|\.|\/\*|<\/style>)/g;
+        const offendingKeyframes = [];
+        let m;
+        while ((m = kfRe.exec(content)) !== null) {
+            const body = m[2];
+            if (/width:\s*\d+%/.test(body)) {
+                offendingKeyframes.push(m[1]);
+            }
+        }
+        if (offendingKeyframes.length === 0) return issues;
+
+        // For each offending keyframe, find any class that applies it
+        // (animation: KFNAME ...) then check if that class is used on
+        // an SVG <rect>/<line> element.
+        for (const kfName of offendingKeyframes) {
+            // Find classes that use this keyframe name
+            const classRe = new RegExp('\\.([a-zA-Z0-9_-]+)\\s*\\{[^}]*animation:[^}]*\\b' + kfName + '\\b[^}]*\\}', 'g');
+            let cm;
+            while ((cm = classRe.exec(content)) !== null) {
+                const className = cm[1];
+                // Now look for <rect|<line ... class="...className..." inside an svg
+                const svgUsageRe = new RegExp('<(rect|line)\\b[^>]*class="[^"]*\\b' + className + '\\b[^"]*"', 'g');
+                let svgMatch;
+                while ((svgMatch = svgUsageRe.exec(content)) !== null) {
+                    issues.push({
+                        code: 'HEUR-033',
+                        severity: 'medium',
+                        category: 'heuristic',
+                        message: `SVG <${svgMatch[1]}> uses class .${className} whose @keyframes ${kfName} animates width to a percentage. Width % on SVG primitives resolves to viewBox root, not container — element overflows.`,
+                        file: file.path,
+                        line: this.getLineNumber(content, svgMatch.index),
+                        fix: `Change the @keyframes to use transform: scaleX(0) → scaleX(1) instead of width 0 → 100%. Add transform-origin: left and transform-box: fill-box to the class.`
+                    });
+                }
+            }
+        }
+        return issues;
+    }
+
+    /**
+     * HEUR-034: Infinite opacity 0→1 keyframe causes flicker.
+     * @keyframes starts at opacity: 0 and ends at opacity: 1, AND the
+     * applying class declares animation: ... infinite. Each loop resets
+     * opacity to 0 then fades back in — visible flicker on every cycle.
+     */
+    checkInfiniteOpacityFlicker(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        const kfRe = /@keyframes\s+([a-zA-Z0-9_-]+)\s*\{([\s\S]*?)\}\s*(?=@keyframes|\.|\/\*|<\/style>)/g;
+        const fadeInKeyframes = [];
+        let m;
+        while ((m = kfRe.exec(content)) !== null) {
+            const body = m[2];
+            // Match 0% { ... opacity: 0 ... } and 100% { ... opacity: 1 ... }
+            // Allow either keyword "from"/"to" or "0%"/"100%".
+            const startsZero = /(?:from|0%)\s*\{[^}]*opacity:\s*0(?:\b|[^.\d])/.test(body);
+            const endsOne = /(?:to|100%)\s*\{[^}]*opacity:\s*1(?:\b|[^.\d])/.test(body);
+            if (startsZero && endsOne) {
+                fadeInKeyframes.push(m[1]);
+            }
+        }
+        if (fadeInKeyframes.length === 0) return issues;
+
+        for (const kfName of fadeInKeyframes) {
+            const classRe = new RegExp('\\.([a-zA-Z0-9_-]+)\\s*\\{[^}]*animation:[^}]*\\b' + kfName + '\\b[^}]*\\binfinite\\b[^}]*\\}', 'g');
+            let cm;
+            while ((cm = classRe.exec(content)) !== null) {
+                const className = cm[1];
+                issues.push({
+                    code: 'HEUR-034',
+                    severity: 'medium',
+                    category: 'heuristic',
+                    message: `Class .${className} applies @keyframes ${kfName} (opacity 0 → 1) with animation: infinite. Each loop resets opacity to 0 causing a fade-in/fade-out flicker.`,
+                    file: file.path,
+                    line: this.getLineNumber(content, cm.index),
+                    fix: `Change animation timing to 'forwards' instead of 'infinite' so the animation runs once and stays in its end state. Add 'opacity: 0' to the class as initial state.`
+                });
+            }
+        }
+        return issues;
+    }
+
+    /**
+     * HEUR-035: Em-dash character in content. Per user style preference,
+     * the em-dash (U+2014) should not appear in HTML text content.
+     * Skips <style>, <script>, and code-block contexts where it may be
+     * intentional. Going-forward enforcement — legacy content can be
+     * allowlisted via per-rule allowlist if needed.
+     */
+    checkEmDashContent(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        // Strip <style>, <script>, and elements with class containing "code-block" or pre tags
+        const stripped = content
+            .replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/<script[\s\S]*?<\/script>/gi, '')
+            .replace(/<pre[\s\S]*?<\/pre>/gi, '')
+            .replace(/<div class="code-block"[\s\S]*?<\/div>/gi, '')
+            .replace(/<code[\s\S]*?<\/code>/gi, '');
+
+        if (!stripped.includes('—')) return issues;
+        const count = (stripped.match(/—/g) || []).length;
+
+        // Find first occurrence position (in original content) for line number
+        const firstPos = content.indexOf('—');
+        issues.push({
+            code: 'HEUR-035',
+            severity: 'low',
+            category: 'heuristic',
+            message: `Em-dash character (—) used ${count} time(s) in content. Per style preference, use commas, colons, or periods instead.`,
+            file: file.path,
+            line: this.getLineNumber(content, firstPos),
+            fix: `Replace " — " (em-dash with surrounding spaces) with ", " (comma) for clause separation, or ": " (colon) when introducing an explanation.`
+        });
+        return issues;
+    }
+
+    /**
+     * HEUR-036: has-visual class without SVG visual. Slide has
+     * class="slide has-visual" but the inner <div class="slide-visual">
+     * contains no <svg> element. Companion to HEUR-031 (empty text);
+     * indicates a partially-built slide where the visual half is missing.
+     */
+    checkHasVisualWithoutSvg(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+        if (!content.includes('has-visual')) return issues;
+
+        // Find each slide with has-visual class and check its slide-visual child
+        const slideRe = /<div class="slide(?:\s+active)?\s+has-visual"[^>]*data-slide="(\d+)"[\s\S]*?<div class="slide-visual">([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/g;
+        let m;
+        while ((m = slideRe.exec(content)) !== null) {
+            const slideNum = m[1];
+            const visualInner = m[2];
+            if (!/<svg\b/i.test(visualInner)) {
+                issues.push({
+                    code: 'HEUR-036',
+                    severity: 'medium',
+                    category: 'heuristic',
+                    message: `Slide ${slideNum} has class "has-visual" but its <div class="slide-visual"> contains no <svg> element. Visual half of the slide is missing.`,
+                    file: file.path,
+                    line: this.getLineNumber(content, m.index),
+                    fix: `Add an inline <svg> visualization inside the .slide-visual wrapper, or remove the has-visual class if the slide is intentionally text-only.`
+                });
+            }
+        }
+        return issues;
     }
 }
 
