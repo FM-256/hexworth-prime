@@ -3285,6 +3285,48 @@ class LearningPaths {
             description: 'AZ-800 Windows Server Administration: installation, AD DS, storage, virtualization, networking, and security',
             icon: '/assets/images/icons/icon-desktop.webp',
             color: '#06b6d4',
+            // Keiser course alignment (added 2026-05-28). Source syllabus:
+            // /home/eq/hexworth-shared/Raw sources/Faculty docs/CTS1328C MS Managing and Maintaining Server Operating Systems.docx
+            courseCode: 'CTS1328C',
+            courseTitle: 'Managing and Maintaining Server Operating Systems',
+            creditHours: 3.0,
+            weeks: 4,
+            textbook: {
+                title: 'Hands-On Microsoft Windows Server 2019, 3rd Edition',
+                author: 'Eckert',
+                isbn: '9780357436158',
+            },
+            // 6 Course Objectives lifted verbatim from the syllabus. Modules
+            // reference these by id via the `co` field below (e.g. `co: [1]`).
+            courseObjectives: [
+                { id: 1, text: 'Demonstrate the installation, configuration, and maintenance of a server environment by successful deployment.' },
+                { id: 2, text: 'Successfully manage storage and file systems by demonstrating a well-designed and properly configured highly available storage solution and file services.' },
+                { id: 3, text: 'Implement and configure virtualization solutions by demonstrating the successful deployment of a virtualized server/client environment.' },
+                { id: 4, text: 'Deployment of highly available resources by the implementation of server clustering, failover clustering, and virtual machines.' },
+                { id: 5, text: 'Demonstrate environment stability by implementing server monitoring techniques and backup strategies.' },
+                { id: 6, text: 'Explain and demonstrate containers by implementing Nano Server image deployment.' },
+            ],
+            // Student Learning Outcomes (program level, per syllabus). SLO #4
+            // is not listed in the CTS1328C syllabus (belongs to a different
+            // concentration) so it is intentionally omitted here.
+            slos: [
+                { id: 'SLO1', text: 'Students will articulate and evaluate the needs for business-based technology practices within organizational objectives.' },
+                { id: 'SLO2', text: 'Students will support the technology environment to maintain and advance organizational communications.' },
+                { id: 'SLO3', text: 'Students can identify and explain differences between technical and human-based technical issues and provide solutions to those issues.' },
+                { id: 'SLO5', text: 'Students can configure, secure, and troubleshoot issues to alleviate network risk and provide optimal/required network performance.' },
+                { id: 'SLO6', text: 'Students will apply best practices and techniques to document complex configurations.' },
+            ],
+            // Grading rubric from syllabus. Totals 100. Instructor gradebook
+            // owns the actual implementation; this is canonical reference only.
+            gradingRubric: {
+                quizzes: 15,
+                homework: 10,
+                labs: 30,
+                final: 20,
+                postTest: 5,
+                professionalism: 10,
+                discussions: 10,
+            },
             modules: [
                 // Phase 1: Foundation & Core Services
                 {
@@ -3294,7 +3336,15 @@ class LearningPaths {
                     difficulty: 'beginner',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html',
-                    prerequisites: []
+                    prerequisites: [],
+                    // Syllabus alignment: Week 1 covers COs 1 and 2 per the
+                    // syllabus topical outline. M01 (server install +
+                    // configuration) maps to CO 1; storage/file systems
+                    // belong in m03. M01 also touches SLO #5 (configure +
+                    // troubleshoot for optimal network performance).
+                    co: [1],
+                    slo: ['SLO5'],
+                    syllabusWeek: 1,
                 },
                 {
                     id: 'wsa-module02',
@@ -3303,7 +3353,10 @@ class LearningPaths {
                     difficulty: 'beginner',
                     duration: '50 min',
                     href: 'houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module01']
+                    prerequisites: ['wsa-module01'],
+                    co: [1],
+                    slo: ["SLO5"],
+                    syllabusWeek: 1,
                 },
                 {
                     id: 'wsa-module03',
@@ -3312,7 +3365,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module02']
+                    prerequisites: ['wsa-module02'],
+                    co: [2],
+                    slo: ["SLO5"],
+                    syllabusWeek: 1,
                 },
                 {
                     id: 'wsa-module04',
@@ -3321,7 +3377,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '50 min',
                     href: 'houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module03']
+                    prerequisites: ['wsa-module03'],
+                    co: [3],
+                    slo: ["SLO5"],
+                    syllabusWeek: 2,
                 },
                 {
                     id: 'wsa-module05',
@@ -3330,7 +3389,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module04']
+                    prerequisites: ['wsa-module04'],
+                    co: [6],
+                    slo: ["SLO5"],
+                    syllabusWeek: 4,
                 },
                 {
                     id: 'wsa-module06',
@@ -3339,7 +3401,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module05']
+                    prerequisites: ['wsa-module05'],
+                    co: [4],
+                    slo: ["SLO5"],
+                    syllabusWeek: 2,
                 },
                 {
                     id: 'wsa-module07',
@@ -3348,7 +3413,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module06']
+                    prerequisites: ['wsa-module06'],
+                    co: [5],
+                    slo: ["SLO5","SLO6"],
+                    syllabusWeek: 3,
                 },
                 {
                     id: 'wsa-module08',
@@ -3357,7 +3425,9 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module07']
+                    prerequisites: ['wsa-module07'],
+                    co: [],
+                    slo: ["SLO5"],
                 },
                 {
                     id: 'wsa-module09',
@@ -3366,7 +3436,9 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module08']
+                    prerequisites: ['wsa-module08'],
+                    co: [],
+                    slo: ["SLO5"],
                 },
                 {
                     id: 'wsa-module10',
@@ -3375,7 +3447,10 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '50 min',
                     href: 'houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module09']
+                    prerequisites: ['wsa-module09'],
+                    co: [1],
+                    slo: ["SLO5"],
+                    syllabusWeek: 1,
                 },
                 // Phase 2: Advanced Services & Operations
                 {
@@ -3385,7 +3460,9 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module10']
+                    prerequisites: ['wsa-module10'],
+                    co: [],
+                    slo: ["SLO5"],
                 },
                 {
                     id: 'wsa-module12',
@@ -3394,7 +3471,9 @@ class LearningPaths {
                     difficulty: 'intermediate',
                     duration: '40 min',
                     href: 'houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module11']
+                    prerequisites: ['wsa-module11'],
+                    co: [],
+                    slo: ["SLO5"],
                 },
                 {
                     id: 'wsa-module13',
@@ -3403,7 +3482,9 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module12']
+                    prerequisites: ['wsa-module12'],
+                    co: [],
+                    slo: ["SLO5"],
                 },
                 {
                     id: 'wsa-module14',
@@ -3412,7 +3493,9 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module13']
+                    prerequisites: ['wsa-module13'],
+                    co: [],
+                    slo: ["SLO5"],
                 },
                 {
                     id: 'wsa-module15',
@@ -3421,7 +3504,10 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '40 min',
                     href: 'houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module14']
+                    prerequisites: ['wsa-module14'],
+                    co: [1],
+                    slo: ["SLO5"],
+                    syllabusWeek: 1,
                 },
                 {
                     id: 'wsa-module16',
@@ -3430,7 +3516,10 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module15']
+                    prerequisites: ['wsa-module15'],
+                    co: [5],
+                    slo: ["SLO5"],
+                    syllabusWeek: 3,
                 },
                 {
                     id: 'wsa-module17',
@@ -3439,7 +3528,9 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module16']
+                    prerequisites: ['wsa-module16'],
+                    co: [],
+                    slo: ["SLO5"],
                 },
                 {
                     id: 'wsa-module18',
@@ -3448,7 +3539,9 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '50 min',
                     href: 'houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module17']
+                    prerequisites: ['wsa-module17'],
+                    co: [],
+                    slo: ["SLO6"],
                 },
                 {
                     id: 'wsa-module19',
@@ -3457,7 +3550,9 @@ class LearningPaths {
                     difficulty: 'advanced',
                     duration: '45 min',
                     href: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html',
-                    prerequisites: ['wsa-module18']
+                    prerequisites: ['wsa-module18'],
+                    co: [],
+                    slo: ["SLO5"],
                 },
                 // Capstone
                 {
