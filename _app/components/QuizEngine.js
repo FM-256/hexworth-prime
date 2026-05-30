@@ -425,6 +425,14 @@ class QuizEngine {
                 }
             }
 
+            // AI-19+AI-20: record one mood-ring lab attempt per quiz
+            // completion (correct = passed). Per-question recording is
+            // intentionally skipped to preserve QC-8 anti-cheat (do not
+            // expose per-question correctness mid-quiz). The mood-ring
+            // signal we care about for quizzes is "student retaking
+            // after a fail", captured by recording each completion.
+            this._recordHexLabAttempt(results);
+
             // Callback
             if (this.config.onComplete) {
                 try {
@@ -517,6 +525,9 @@ class QuizEngine {
                     } catch (e) { /* non-critical */ }
                 }
 
+                // AI-19+AI-20: mood-ring attempt record (server-graded path)
+                this._recordHexLabAttempt(results);
+
                 if (this.config.onComplete) {
                     try { this.config.onComplete(results); } catch (e) { /* non-critical */ }
                 }
@@ -547,6 +558,9 @@ class QuizEngine {
                             results.progressResult = this.progressResult;
                         } catch (e) { /* non-critical */ }
                     }
+                    // AI-19+AI-20: mood-ring attempt record (server-grade-failed local fallback)
+                    this._recordHexLabAttempt(results);
+
                     if (this.config.onComplete) {
                         try { this.config.onComplete(results); } catch (e) { /* non-critical */ }
                     }
@@ -1121,6 +1135,32 @@ class QuizEngine {
      */
     saveQuizStats(stats) {
         localStorage.setItem('hexworth_quiz_stats', JSON.stringify(stats));
+    }
+
+    /**
+     * AI-19+AI-20: record one lab_attempts entry per quiz completion so
+     * the Dr. Hex mood-ring picks up "student retaking a failed quiz"
+     * as a struggle signal. Per-question recording is deliberately
+     * skipped to preserve QC-8 anti-cheat (no mid-quiz correctness
+     * exposure).
+     *
+     * window.__hexLabRecord is set by /_lib/HexAILabAttempt.js, which is
+     * imported on every page that mounts <hex-ai-button>. If absent
+     * (e.g. quiz page without the button), this is a silent no-op.
+     * recordLabAttempt itself swallows failures, so this can never
+     * disrupt the quiz UX.
+     */
+    _recordHexLabAttempt(results) {
+        try {
+            if (typeof window === 'undefined' || !window.__hexLabRecord) return;
+            // Mission ID = the quiz's moduleId (matches the
+            // <hex-ai-button mission-id="..."> on the same page).
+            const missionId = this.config.moduleId;
+            if (!missionId) return;
+            window.__hexLabRecord(missionId, 'quiz', !!(results && results.passed));
+        } catch (e) {
+            // Never disrupt the quiz path. Mood-ring is a side-channel.
+        }
     }
 }
 
