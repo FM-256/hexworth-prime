@@ -158,6 +158,92 @@ const STYLE = `
     }
     .msg.ai .downvote-btn:hover { background: #2a2a3a; color: #c0c0d0; }
     .msg.ai .downvote-btn.active { color: #ef4444; background: #2a1a1a; }
+    /* AI-21: admin-only quality-flag button sits in the same downvote-row */
+    .msg.ai .flag-btn {
+        background: none;
+        border: none;
+        color: #8a6a3a;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font: inherit;
+    }
+    .msg.ai .flag-btn:hover { background: #2a2a3a; color: #ffaa00; }
+    /* AI-21: quality-observation modal, admin-only inline overlay */
+    .flag-modal-backdrop {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.7);
+        display: none;
+        align-items: center; justify-content: center;
+        z-index: 50;
+    }
+    .flag-modal-backdrop.show { display: flex; }
+    .flag-modal {
+        background: #15151c;
+        border: 1px solid #2a2a3a;
+        border-radius: 8px;
+        padding: 1rem 1.1rem;
+        width: calc(100% - 32px);
+        max-width: 420px;
+        max-height: 90vh;
+        overflow-y: auto;
+        color: #e0e0e0;
+        display: flex; flex-direction: column; gap: 0.6rem;
+    }
+    .flag-modal h3 { margin: 0 0 0.2rem; font-size: 0.95rem; }
+    .flag-modal label { font-size: 0.78rem; color: #b0b0c0; }
+    .flag-modal select, .flag-modal textarea, .flag-modal input {
+        background: #0d0d12;
+        border: 1px solid #2a2a3a;
+        color: #e0e0e0;
+        border-radius: 4px;
+        padding: 6px 8px;
+        font: inherit;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .flag-modal textarea { min-height: 70px; resize: vertical; }
+    .flag-modal .preview {
+        font-size: 0.72rem;
+        color: #8a8a9a;
+        background: #0d0d12;
+        border: 1px solid #2a2a3a;
+        border-radius: 4px;
+        padding: 6px 8px;
+        max-height: 80px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .flag-modal .actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+    .flag-modal .actions button {
+        background: #2a2a3a; color: #e0e0e0;
+        border: 1px solid #3a3a4a;
+        border-radius: 4px;
+        padding: 0.4rem 0.8rem;
+        font: inherit;
+        cursor: pointer;
+    }
+    .flag-modal .actions button.primary { background: #3a5a8a; border-color: #4a6a9a; }
+    .flag-modal .actions button:hover { background: #3a3a4a; }
+    .flag-modal .actions button.primary:hover { background: #4a6a9a; }
+    .flag-modal .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .flag-toast {
+        position: absolute;
+        bottom: 16px; left: 50%; transform: translateX(-50%);
+        background: #1a1a24;
+        border: 1px solid #2a2a3a;
+        color: #e0e0e0;
+        padding: 0.5rem 0.9rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        opacity: 0;
+        transition: opacity 200ms ease;
+        z-index: 60;
+        pointer-events: none;
+    }
+    .flag-toast.show { opacity: 1; }
+    .flag-toast.error { border-color: #ef4444; color: #ef4444; }
     .msg.thinking { color: #8a8a9a; font-style: italic; }
     .suggested-row {
         padding: 0.4rem 16px 0;
@@ -238,6 +324,15 @@ class HexAIChatPanel extends HTMLElement {
         this._lastInterventionId = null;
         this._lastInterventionTs = 0;
         this._beforeUnloadHandler = null;
+        // AI-21: track the most recent user-query and AI-response so the
+        // admin flag-this-response modal can pre-fill the dedup key
+        // (studentQueryFirst60) and the modelResponseFirst200 field.
+        this._lastUserMessage = '';
+        this._lastResponseText = '';
+        this._lastResponseMeta = null;
+        // Admin check is async; result cached here. Modal button is hidden
+        // until this resolves true.
+        this._isAdmin = false;
     }
 
     connectedCallback() {
@@ -290,6 +385,19 @@ class HexAIChatPanel extends HTMLElement {
             }
         };
         window.addEventListener('beforeunload', this._beforeUnloadHandler);
+
+        // AI-21: determine admin status once on mount. Used to gate the
+        // flag-this-response button. Admins are identified by the
+        // custom claim `admin === true` on their Firebase Auth token.
+        // Non-admins never see the button; even if they did, the rules
+        // on dr_hex_quality_observations block their writes.
+        if (auth.currentUser) {
+            auth.currentUser.getIdTokenResult().then(t => {
+                this._isAdmin = !!(t && t.claims && t.claims.admin === true);
+            }).catch(() => {
+                this._isAdmin = false;
+            });
+        }
 
         // TELEMETRY-001: walkthrough_opened beacon. Document-level link
         // listener catches clicks on links pointing to walkthrough docs.
@@ -363,6 +471,36 @@ class HexAIChatPanel extends HTMLElement {
                 ></textarea>
                 <button class="send-btn" type="button">Send</button>
             </footer>
+            <!-- AI-21: admin-only quality-observation flag modal. Hidden
+                 until openFlagModal() called from a flag-btn click. -->
+            <div class="flag-modal-backdrop" id="flag-backdrop">
+                <div class="flag-modal" role="dialog" aria-labelledby="flag-modal-title">
+                    <h3 id="flag-modal-title">Flag this response</h3>
+                    <label for="flag-category">Category</label>
+                    <select id="flag-category">
+                        <option value="drhex-q-rag-relevance">drhex-q-rag-relevance · off-topic retrieval</option>
+                        <option value="drhex-q-rag-coverage">drhex-q-rag-coverage · missing corpus</option>
+                        <option value="drhex-q-help-ceiling">drhex-q-help-ceiling · disclosure too loose (SECURITY)</option>
+                        <option value="drhex-q-help-floor">drhex-q-help-floor · disclosure too tight</option>
+                        <option value="drhex-q-persona-drift">drhex-q-persona-drift · voice broke contract</option>
+                        <option value="drhex-q-hallucination">drhex-q-hallucination · invented facts</option>
+                        <option value="drhex-q-leak">drhex-q-leak · real internal detail exposed</option>
+                        <option value="drhex-q-tool">drhex-q-tool · wrong/missed tool call</option>
+                        <option value="drhex-q-policy">drhex-q-policy · exposure rule miscall</option>
+                    </select>
+                    <label for="flag-notes">Notes (one line)</label>
+                    <input type="text" id="flag-notes" placeholder="What's wrong with this response?" maxlength="500">
+                    <label>Student query (dedup key, first 60 chars)</label>
+                    <div class="preview" id="flag-query-preview"></div>
+                    <label>Model response (first 200 chars)</label>
+                    <div class="preview" id="flag-response-preview"></div>
+                    <div class="actions">
+                        <button type="button" id="flag-cancel">Cancel</button>
+                        <button type="button" class="primary" id="flag-submit">Flag</button>
+                    </div>
+                </div>
+            </div>
+            <div class="flag-toast" id="flag-toast" role="status"></div>
         `;
         const closeBtn = this.shadowRoot.querySelector('button.close-btn');
         const sendBtn = this.shadowRoot.querySelector('button.send-btn');
@@ -408,6 +546,9 @@ class HexAIChatPanel extends HTMLElement {
         this._inFlight = true;
         this._setSendButtonDisabled(true);
         this._appendMessage('user', msg);
+        // AI-21: remember the last student query so the flag-this-response
+        // modal can pre-fill its dedup key (studentQueryFirst60).
+        this._lastUserMessage = msg;
         const thinkingNode = this._appendMessage('thinking', 'Dr. Hex is thinking…');
 
         // v2 streaming path — incrementally append tokens to aiNode.
@@ -507,6 +648,17 @@ class HexAIChatPanel extends HTMLElement {
             meta.textContent = `${data.persona_name} · ${data.help_level_label} · ${Math.round((data.latency_ms || 0) / 1000)}s`;
             aiNode.appendChild(meta);
 
+            // AI-21: capture the response text + metadata so the flag
+            // modal can pre-fill (without re-walking the DOM).
+            this._lastResponseText = data.response || '';
+            this._lastResponseMeta = {
+                persona_name: data.persona_name || null,
+                help_level_label: data.help_level_label || null,
+                help_level: data.help_level != null ? data.help_level : null,
+                tool_invocation_doc_ids: Array.isArray(data.tool_invocation_doc_ids)
+                    ? data.tool_invocation_doc_ids : [],
+            };
+
             // TELEMETRY-001: intervention_sent + downvote UI.
             const interventionId = crypto.randomUUID();
             this._lastInterventionId = interventionId;
@@ -538,6 +690,20 @@ class HexAIChatPanel extends HTMLElement {
                     conversation_id: this._convId,
                 });
             });
+            // AI-21: admin-only flag button, opens the quality-observation
+            // modal that writes to dr_hex_quality_observations. Hidden for
+            // non-admins; even if shown the rules block their writes.
+            if (this._isAdmin) {
+                const flagBtn = document.createElement('button');
+                flagBtn.type = 'button';
+                flagBtn.className = 'flag-btn';
+                flagBtn.setAttribute('aria-label', 'Flag this response (admin)');
+                flagBtn.textContent = 'flag…';
+                flagBtn.addEventListener('click', () => {
+                    this._openFlagModal();
+                });
+                row.appendChild(flagBtn);
+            }
             aiNode.appendChild(row);
 
             // Best-effort external_ai_signal: detect a copy of Dr. Hex's
@@ -585,6 +751,90 @@ class HexAIChatPanel extends HTMLElement {
     _close() {
         if (_panelInstance === this) _panelInstance = null;
         this.remove();
+    }
+
+    // ─── AI-21: flag-this-response modal ─────────────────────────────
+    _openFlagModal() {
+        const backdrop = this.shadowRoot.getElementById('flag-backdrop');
+        if (!backdrop) return;
+        // Pre-fill the preview boxes from the most recent exchange.
+        const queryPreview = this.shadowRoot.getElementById('flag-query-preview');
+        const responsePreview = this.shadowRoot.getElementById('flag-response-preview');
+        const queryFirst60 = (this._lastUserMessage || '').slice(0, 60);
+        const responseFirst200 = (this._lastResponseText || '').slice(0, 200);
+        queryPreview.textContent = queryFirst60 || '(empty)';
+        responsePreview.textContent = responseFirst200 || '(empty)';
+        const noteInput = this.shadowRoot.getElementById('flag-notes');
+        noteInput.value = '';
+        const cancelBtn = this.shadowRoot.getElementById('flag-cancel');
+        const submitBtn = this.shadowRoot.getElementById('flag-submit');
+        submitBtn.disabled = false;
+        backdrop.classList.add('show');
+        const close = () => backdrop.classList.remove('show');
+        cancelBtn.onclick = close;
+        // Click-outside-to-cancel
+        backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+        submitBtn.onclick = async () => {
+            submitBtn.disabled = true;
+            const category = this.shadowRoot.getElementById('flag-category').value;
+            const notes = noteInput.value.trim();
+            try {
+                await this._submitFlag({
+                    category,
+                    notes,
+                    studentQueryFirst60: queryFirst60,
+                    modelResponseFirst200: responseFirst200,
+                });
+                this._flagToast('Flagged.');
+                close();
+            } catch (e) {
+                console.error('[AI-21 flag submit failed]', e);
+                this._flagToast('Flag failed: ' + (e?.message || 'unknown'), true);
+                submitBtn.disabled = false;
+            }
+        };
+    }
+
+    async _submitFlag({ category, notes, studentQueryFirst60, modelResponseFirst200 }) {
+        if (!auth.currentUser) throw new Error('not signed in');
+        // Lazy-load Firestore SDK only when first needed. Most students
+        // never open this modal; not paying the kb on every panel mount.
+        const [
+            { getFirestore, collection, addDoc, serverTimestamp },
+        ] = await Promise.all([
+            import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js'),
+        ]);
+        const db = getFirestore(app);
+        const meta = this._lastResponseMeta || {};
+        const doc = {
+            category,
+            observation: notes || `${category} on query: "${studentQueryFirst60}"`,
+            studentQueryFirst60,
+            modelResponseFirst200,
+            conversationId: this._convId || null,
+            missionId: this._missionId || null,
+            toolInvocationDocIds: Array.isArray(meta.tool_invocation_doc_ids)
+                ? meta.tool_invocation_doc_ids : [],
+            persona: meta.persona_name || null,
+            helpLevel: meta.help_level != null ? meta.help_level : null,
+            status: 'open',
+            priority: null,
+            flaggedBy: auth.currentUser.uid,
+            flaggedAt: serverTimestamp(),
+            notes: notes || null,
+            originalObservationId: null,
+            fixCommit: null,
+        };
+        await addDoc(collection(db, 'dr_hex_quality_observations'), doc);
+    }
+
+    _flagToast(msg, isError) {
+        const t = this.shadowRoot.getElementById('flag-toast');
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.toggle('error', !!isError);
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2400);
     }
 }
 
