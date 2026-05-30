@@ -1122,8 +1122,15 @@ exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
     const since20min = new Date(now - 20 * 60 * 1000);
     const since60s   = new Date(now - 60 * 1000);
 
-    // Read both attempt collections in parallel, scoped per-mission.
-    const [attemptsSnap, capturesSnap] = await Promise.all([
+    // Read three attempt sources in parallel, scoped per-mission.
+    // - flag_attempts + flag_captures: CTF-style boxes (arena, dispatch)
+    // - lab_attempts: AI-20 educational labs (Key house pattern)
+    //
+    // lab_attempts lives in its own collection per Nancy 2026-05-30 to
+    // avoid (a) ctfFlagsCaptured count inflation, (b) recent_house_activity
+    // tool contamination, (c) deriveFailedAttempts gaming vector.
+    // See hexAiRecordLabAttempt above for the full rationale.
+    const [attemptsSnap, capturesSnap, labAttemptsSnap] = await Promise.all([
         db.collection(`users/${uid}/flag_attempts`)
             .where('boxId', '==', missionId)
             .where('timestamp', '>=', since20min)
@@ -1136,17 +1143,47 @@ exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
             .orderBy('capturedAt', 'desc')
             .limit(20)
             .get(),
+        db.collection(`users/${uid}/lab_attempts`)
+            .where('missionId', '==', missionId)
+            .where('timestamp', '>=', since20min)
+            .orderBy('timestamp', 'desc')
+            .limit(50)
+            .get(),
     ]);
 
+    // Project flag_attempts into {ts, flagId} for the classifier.
     const attempts = attemptsSnap.docs.map(d => ({
         ts: d.data().timestamp?.toMillis ? d.data().timestamp.toMillis() : 0,
         flagId: d.data().flagId,
     })).filter(a => a.ts > 0);
 
+    // Project flag_captures into {ts, flagId} for the classifier.
     const captures = capturesSnap.docs.map(d => ({
         ts: d.data().capturedAt?.toMillis ? d.data().capturedAt.toMillis() : 0,
         flagId: d.data().flagId,
     })).filter(c => c.ts > 0);
+
+    // Project lab_attempts into the classifier's same shape with
+    // synthetic flagIds. Every lab attempt becomes an entry in `attempts`
+    // (so it counts toward incorrect-attempt windows). On correct=true the
+    // SAME synthetic flagId also lands in `captures` (so the celebrating
+    // state fires) and in the capturedFlagIds set (so the same lab
+    // exercise won't count as incorrect after a correct submission).
+    const labFlagIdFor = (missionId, exerciseId) => `lab:${missionId}:${exerciseId}`;
+    for (const d of labAttemptsSnap.docs) {
+        const row = d.data();
+        const ts = row.timestamp?.toMillis ? row.timestamp.toMillis() : 0;
+        if (!ts) continue;
+        const fid = labFlagIdFor(row.missionId, row.exerciseId || '');
+        attempts.push({ ts, flagId: fid });
+        if (row.correct === true) {
+            captures.push({ ts, flagId: fid });
+        }
+    }
+    // Re-sort attempts + captures most-recent-first since we pushed lab
+    // entries in collection order, not the merged timeline.
+    attempts.sort((a, b) => b.ts - a.ts);
+    captures.sort((a, b) => b.ts - a.ts);
 
     // An "incorrect attempt" = a flag_attempts entry whose flagId was
     // never captured (captures with that flagId for this mission).
@@ -1158,13 +1195,27 @@ exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
     //
     // To keep this read-light, we also pull ALL captures (mission-wide)
     // separately. This is a small additional read; tradeoff acceptable.
-    const allCapturesSnap = await db.collection(`users/${uid}/flag_captures`)
-        .where('boxId', '==', missionId)
-        .limit(50)
-        .get();
+    //
+    // We ALSO include all-time correct lab_attempts for this mission so a
+    // lab exercise correctly solved >20min ago still doesn't count as
+    // "incorrect" in a fresh attempt within the window.
+    const [allCapturesSnap, allLabCorrectSnap] = await Promise.all([
+        db.collection(`users/${uid}/flag_captures`)
+            .where('boxId', '==', missionId)
+            .limit(50)
+            .get(),
+        db.collection(`users/${uid}/lab_attempts`)
+            .where('missionId', '==', missionId)
+            .where('correct', '==', true)
+            .limit(50)
+            .get(),
+    ]);
     const capturedFlagIds = new Set(
         allCapturesSnap.docs.map(d => d.data().flagId).filter(Boolean)
     );
+    for (const d of allLabCorrectSnap.docs) {
+        capturedFlagIds.add(labFlagIdFor(d.data().missionId, d.data().exerciseId || ''));
+    }
 
     // Delegate to the pure classifier (extracted for testability)
     const { classifyAmbientState } = require('./hex-ai-state-classifier');
@@ -1292,6 +1343,101 @@ exports.hexAiEngagementEvent = onCall(cfOptions, async (request) => {
         console.error('[hexAiEngagementEvent] write failed:', err);
         throw new HttpsError('internal', 'Failed to persist engagement event.');
     }
+});
+
+/**
+ * hexAiRecordLabAttempt, AI-20 record-lab-attempt for the mood-ring
+ * data path on Key-house educational labs (and any other house that
+ * follows the same client-side-validation pattern).
+ *
+ * Architecture decision (Nancy adversarial review 2026-05-30):
+ *   Writes to a SEPARATE collection users/{uid}/lab_attempts, NOT to
+ *   flag_attempts/flag_captures. Rationale:
+ *     1. flag_captures has a `ctfFlagsCaptured` counter sync side-effect
+ *        (4 paths in index.js). Reusing it would inflate the CTF metric
+ *        for every Key-lab exercise.
+ *     2. hexAiToolDispatch's recent_house_activity tool reads
+ *        flag_captures and would surface synthetic lab "captures" as
+ *        CTF activity to Dr. Hex's model context.
+ *     3. deriveFailedAttempts (this file, ~L103) reads flag_attempts and
+ *        excludes flagIds present in flag_captures. A student gaming
+ *        correct=true here would suppress their own help-level
+ *        escalation, reintroducing the gaming vector the v0.4.0 patch
+ *        closed by moving failed_attempts derivation server-side.
+ *
+ *   The separate collection isolates lab telemetry from CTF telemetry.
+ *   A student gaming correct=true can only mess with their OWN mood-ring
+ *   state. flag_captures, ctfFlagsCaptured, recent_house_activity, and
+ *   deriveFailedAttempts all stay clean.
+ *
+ * The classifier in hex-ai-state-classifier.js is unchanged. The merge
+ * happens in hexAiAmbientState (this file) before the classifier call.
+ *
+ * Request (callable):
+ *   { mission_id: "key-hmac", exercise_id: "1", correct: true }
+ *
+ * Response:
+ *   { ok: true, recorded: { mission_id, exercise_id, correct } }
+ */
+exports.hexAiRecordLabAttempt = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    const data = request.data || {};
+    const missionId = (data.mission_id || '').toString().trim();
+    const exerciseId = (data.exercise_id || '').toString().trim();
+    if (!missionId || !/^[a-zA-Z0-9_\-]{1,64}$/.test(missionId)) {
+        throw new HttpsError('invalid-argument', 'mission_id required (alphanum/_/- <=64)');
+    }
+    if (!exerciseId || !/^[a-zA-Z0-9_\-]{1,32}$/.test(exerciseId)) {
+        throw new HttpsError('invalid-argument', 'exercise_id required (alphanum/_/- <=32)');
+    }
+    if (typeof data.correct !== 'boolean') {
+        throw new HttpsError('invalid-argument', 'correct must be boolean');
+    }
+
+    const uid = request.auth.uid;
+
+    // Rate limit: 30/min. Lower than ambient state (60) because lab
+    // submissions happen at human-typing pace. A burst above this is
+    // either a bug in a lab page or a deliberate ping-flood; both
+    // deserve a back-off.
+    const rlRef = db.collection('_hex_ai_record_rl').doc(uid);
+    const RL_WINDOW_MS = 60_000;
+    const RL_CAP = 30;
+    try {
+        const rlSnap = await rlRef.get();
+        const now = Date.now();
+        if (rlSnap.exists) {
+            const rl = rlSnap.data();
+            const windowStartMs = rl.windowStart?.toMillis ? rl.windowStart.toMillis() : (rl.windowStart || now);
+            if (now - windowStartMs > RL_WINDOW_MS) {
+                await rlRef.set({ count: 1, windowStart: FieldValue.serverTimestamp() });
+            } else if (rl.count >= RL_CAP) {
+                throw new HttpsError('resource-exhausted',
+                    `recordLabAttempt rate limit exceeded (${RL_CAP}/min). Slow down.`);
+            } else {
+                await rlRef.update({ count: FieldValue.increment(1) });
+            }
+        } else {
+            await rlRef.set({ count: 1, windowStart: FieldValue.serverTimestamp() });
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        console.warn('hexAiRecordLabAttempt rate-limit failed open:', e.message);
+    }
+
+    await db.collection(`users/${uid}/lab_attempts`).add({
+        missionId,
+        exerciseId,
+        correct: data.correct,
+        timestamp: FieldValue.serverTimestamp(),
+    });
+
+    return {
+        ok: true,
+        recorded: { mission_id: missionId, exercise_id: exerciseId, correct: data.correct },
+    };
 });
 
 exports.hexAiHealth = onCall(cfOptions, async (request) => {
