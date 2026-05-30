@@ -1276,5 +1276,37 @@ echo "✓ Metadata: ${INPUT_FILE}.metadata"</pre>
          Docs: _docs/operations/dr-hex-button-integration.md           ── -->
     <hex-ai-button mission-id="key-aes" house="key"></hex-ai-button>
     <script type="module" src="/_lib/HexAIButton.js"></script>
+    <!-- AI-19+AI-20: register the lab-attempt recorder + best-effort
+         auto-hook for markComplete-style global functions. Labs that
+         do not define those globals fall back to chat-entry-only mode
+         (mood-ring stays calm; button still opens the chat panel). -->
+    <script type="module">
+        import { recordLabAttempt } from '/_lib/HexAILabAttempt.js';
+        window.__hexLabRecord = recordLabAttempt;
+        const _missionId = document.querySelector('hex-ai-button')?.getAttribute('mission-id');
+        function _hexHook(fnName) {
+            const orig = window[fnName];
+            if (typeof orig !== 'function' || orig.__hexHooked) return;
+            const wrapped = function () {
+                const ret = orig.apply(this, arguments);
+                try {
+                    if (_missionId) {
+                        const exerciseId = (arguments[0] != null) ? String(arguments[0]) : 'lab';
+                        recordLabAttempt(_missionId, exerciseId, true);
+                    }
+                } catch (e) { /* never disrupt the lab UX */ }
+                return ret;
+            };
+            wrapped.__hexHooked = true;
+            window[fnName] = wrapped;
+        }
+        // Hook on next tick so the page's classic inline script has
+        // already hoisted its globals onto window.
+        setTimeout(() => {
+            _hexHook('markComplete');
+            _hexHook('markCompleteBtn');
+            _hexHook('completeExercise');
+        }, 0);
+    </script>
 </body>
 </html>
