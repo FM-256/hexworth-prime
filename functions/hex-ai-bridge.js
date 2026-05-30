@@ -1029,6 +1029,131 @@ exports.hexAiSecurityEvent = onRequest({
 });
 
 /**
+ * hexAiQualityObservation, AI-26 sink for voice_linter findings that
+ * map to dr_hex_quality_observations categories. Parallel to
+ * hexAiSecurityEvent: same X-API-Key auth, same orchestrator-callable
+ * shape, different target collection.
+ *
+ * Voice_linter findings already flow to dr_hex_security_events via
+ * hexAiSecurityEvent (for forensics). This CF gives the orchestrator a
+ * second path that emits to dr_hex_quality_observations (for the
+ * operator quality dashboard). The two writes are independent so a
+ * Firestore failure on one does not block the other.
+ *
+ * Dedup is deliberately NOT done here. The CLI flag-quality.js does
+ * dedup-before-write, but this is automated emission and we want
+ * every fire to land. Operators reconcile duplicates by marking
+ * status='duplicate' in the dashboard.
+ *
+ * Required body fields:
+ *   category    (string, one of the drhex-q-* codes)
+ *   observation (string, one-line description)
+ *   studentQueryFirst60 (string, first 60 chars of the student query)
+ *   modelResponseFirst200 (string, first 200 chars of the response)
+ *
+ * Optional body fields:
+ *   conversationId, missionId, persona, helpLevel, priority,
+ *   toolInvocationDocIds, flaggedBySource, notes
+ */
+exports.hexAiQualityObservation = onRequest({
+    region: 'us-central1',
+    secrets: [hexAiApiKey],
+    timeoutSeconds: 10,
+    memory: '128MiB',
+}, async (req, res) => {
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+    }
+    const provided = req.headers['x-api-key'] || '';
+    const expected = hexAiApiKey.value();
+    if (!provided || !expected) {
+        res.status(401).json({ error: 'X-API-Key required' });
+        return;
+    }
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) {
+        res.status(401).json({ error: 'Invalid X-API-Key' });
+        return;
+    }
+    const crypto = require('crypto');
+    if (!crypto.timingSafeEqual(a, b)) {
+        res.status(401).json({ error: 'Invalid X-API-Key' });
+        return;
+    }
+
+    const body = (req.body && typeof req.body === 'object') ? req.body : {};
+    const {
+        category, observation, studentQueryFirst60, modelResponseFirst200,
+        conversationId, missionId, persona, helpLevel, priority,
+        toolInvocationDocIds, flaggedBySource, notes,
+    } = body;
+
+    // Required-field validation. Reject early on missing or wrong-typed.
+    const VALID_CATEGORIES = new Set([
+        'drhex-q-rag-relevance',
+        'drhex-q-rag-coverage',
+        'drhex-q-help-ceiling',
+        'drhex-q-help-floor',
+        'drhex-q-persona-drift',
+        'drhex-q-hallucination',
+        'drhex-q-leak',
+        'drhex-q-tool',
+        'drhex-q-policy',
+    ]);
+    if (!VALID_CATEGORIES.has(category)) {
+        res.status(400).json({ error: 'category must be one of the drhex-q-* codes' });
+        return;
+    }
+    if (typeof observation !== 'string' || !observation.trim()) {
+        res.status(400).json({ error: 'observation required' });
+        return;
+    }
+    if (typeof studentQueryFirst60 !== 'string') {
+        res.status(400).json({ error: 'studentQueryFirst60 required (string)' });
+        return;
+    }
+    if (typeof modelResponseFirst200 !== 'string') {
+        res.status(400).json({ error: 'modelResponseFirst200 required (string)' });
+        return;
+    }
+    const VALID_PRIORITY = new Set(['P0', 'P1', 'P2', 'P3']);
+    const safePriority = VALID_PRIORITY.has(priority) ? priority : null;
+
+    // Use a distinct flaggedBy id so the dashboard can filter
+    // automated emissions vs operator-flagged ones if it wants to.
+    const flaggedBy = typeof flaggedBySource === 'string' && flaggedBySource
+        ? `auto:${flaggedBySource.slice(0, 32)}`
+        : 'auto:voice_linter';
+
+    try {
+        const docRef = await db.collection('dr_hex_quality_observations').add({
+            category,
+            observation: observation.slice(0, 500),
+            studentQueryFirst60: studentQueryFirst60.slice(0, 60),
+            modelResponseFirst200: modelResponseFirst200.slice(0, 200),
+            conversationId: typeof conversationId === 'string' ? conversationId : null,
+            missionId: typeof missionId === 'string' ? missionId : null,
+            toolInvocationDocIds: Array.isArray(toolInvocationDocIds) ? toolInvocationDocIds : [],
+            persona: typeof persona === 'string' ? persona : null,
+            helpLevel: typeof helpLevel === 'number' ? helpLevel : null,
+            status: 'open',
+            priority: safePriority,
+            flaggedBy,
+            flaggedAt: FieldValue.serverTimestamp(),
+            notes: typeof notes === 'string' ? notes.slice(0, 500) : null,
+            originalObservationId: null,
+            fixCommit: null,
+        });
+        res.status(200).json({ ok: true, id: docRef.id });
+    } catch (e) {
+        console.error('hexAiQualityObservation: Firestore write failed:', e.message);
+        res.status(500).json({ error: 'Firestore write failed' });
+    }
+});
+
+/**
  * hexAiAmbientState — server-side state computer for the floating
  * Dr. Hex mood-ring button (v1, 2026-05-25).
  *

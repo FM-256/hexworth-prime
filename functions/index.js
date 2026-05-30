@@ -8457,6 +8457,7 @@ exports.hexAiHealth           = _hexAiBridge.hexAiHealth;
 exports.hexAiToolCallback     = _hexAiBridge.hexAiToolCallback;   // v0.6.0c-3 audit sink
 exports.hexAiToolDispatch     = _hexAiBridge.hexAiToolDispatch;   // v0.6.0c-2 Firestore-backed tools
 exports.hexAiSecurityEvent    = _hexAiBridge.hexAiSecurityEvent;  // cyber-hardening 2026-05-25 — defense-layer event sink
+exports.hexAiQualityObservation = _hexAiBridge.hexAiQualityObservation; // AI-26 2026-05-30, voice_linter to dr_hex_quality_observations sink
 exports.hexAiAmbientState     = _hexAiBridge.hexAiAmbientState;   // mood-ring 2026-05-25 — button state computer
 exports.hexAiRecordLabAttempt = _hexAiBridge.hexAiRecordLabAttempt; // AI-20 2026-05-30, lab_attempts data path for educational-lab mood-ring
 exports.hexAiEngagementEvent  = _hexAiBridge.hexAiEngagementEvent; // TELEMETRY-001 2026-05-25 — post-intervention engagement

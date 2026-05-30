@@ -109,6 +109,10 @@ from tools.output_filter import scrub_flags_from_output
 # Cyber-tier 2026-05-25: fire-and-forget security event log. Every
 # defense-layer hit produces a Firestore record for postmortem.
 from tools import security_log
+# AI-26 2026-05-30: fire-and-forget quality observation log. Voice_linter
+# findings get a parallel write to dr_hex_quality_observations so they
+# surface on /admin/dr-hex-quality.html (operator dashboard).
+from tools import quality_log
 import conversation
 
 logging.basicConfig(
@@ -1430,6 +1434,9 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                 lab_skill_map=lint_skill_map,
             )
             from voice_linter import ENFORCE_BLOCK_CODES, VOICE_LINTER_REFUSAL
+            # AI-26 2026-05-30: extract the student query so quality_log can
+            # carry the dedup key (studentQueryFirst60). Falls back to empty.
+            _ql_student_query = (req.message or "")
             for v in lint_result.violations:
                 # 2026-05-26: Phase 2 enforce-mode for zero-FP-risk codes.
                 # If any of those fires we replace the response BEFORE the
@@ -1455,6 +1462,21 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                             "skill_map_loaded": lint_skill_map is not None,
                         },
                     )
+                    # AI-26: also surface to operator quality dashboard.
+                    # Enforce-mode fire is a P0/P1 incident: the model
+                    # generated forbidden content; we refused it. The
+                    # observation captures what would have leaked.
+                    quality_log.schedule_for_voice_linter(
+                        code=v.code,
+                        observation=f"ENFORCE: {v.message}",
+                        student_query_first60=_ql_student_query,
+                        model_response_first200=scrubbed_text or "",
+                        conversation_id=req.conversation_id,
+                        mission_id=req.mission_id,
+                        persona=persona_slug,
+                        help_level=lint_result.help_level if hasattr(lint_result, "help_level") else None,
+                        notes=f"voice_linter enforce-mode fired; response replaced with refusal. excerpt='{(v.excerpt or '')[:120]}'",
+                    )
                 else:
                     log.warning(
                         "voice_linter: %s %s uid_hash=%s mission=%s msg='%s'",
@@ -1474,6 +1496,21 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                             "mission_id": req.mission_id,
                             "skill_map_loaded": lint_skill_map is not None,
                         },
+                    )
+                    # AI-26: also surface to operator quality dashboard
+                    # for codes that map to a drhex-q-* category. Codes
+                    # without a mapping (e.g. WARN-tier stylistic noise)
+                    # are silently dropped by the mapping table.
+                    quality_log.schedule_for_voice_linter(
+                        code=v.code,
+                        observation=v.message,
+                        student_query_first60=_ql_student_query,
+                        model_response_first200=scrubbed_text or "",
+                        conversation_id=req.conversation_id,
+                        mission_id=req.mission_id,
+                        persona=persona_slug,
+                        help_level=lint_result.help_level if hasattr(lint_result, "help_level") else None,
+                        notes=f"voice_linter observe-only fire. severity={v.severity} excerpt='{(v.excerpt or '')[:120]}'",
                     )
 
             # If an enforce-mode code fired, swap in the refusal text.
