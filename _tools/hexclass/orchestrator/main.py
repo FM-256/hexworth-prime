@@ -113,6 +113,9 @@ from tools import security_log
 # findings get a parallel write to dr_hex_quality_observations so they
 # surface on /admin/dr-hex-quality.html (operator dashboard).
 from tools import quality_log
+# AI-27 2026-05-30: voice-drift detector (post-session sampler). Pure
+# scoring + threshold check; emission goes through quality_log above.
+import drift_detector
 import conversation
 
 logging.basicConfig(
@@ -1130,6 +1133,88 @@ async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, 
             retrieved, tools_list, tool_ctx, prior_turns)
 
 
+# AI-27: per-conversation drift-detection sliding window. In-memory, lost
+# on restart. Keyed by conversation_id. Each value is a deque of recent
+# ResponseMetrics. Bounded both per-conversation (last N) and globally
+# (last M conversations) to cap memory.
+import collections as _collections
+_DRIFT_WINDOW_MAX_RESPONSES = drift_detector.SESSION_WINDOW_RESPONSES
+_DRIFT_WINDOW_MAX_CONVERSATIONS = 5000
+_drift_buffers: dict[str, _collections.deque] = {}
+# Track conversation insertion order for global LRU eviction.
+_drift_buffer_order: _collections.deque[str] = _collections.deque(maxlen=_DRIFT_WINDOW_MAX_CONVERSATIONS)
+# Suppress repeated drift observations for the same conversation within
+# a cooldown window so the dashboard doesn't fill with duplicates.
+_drift_last_emit_ts: dict[str, float] = {}
+_DRIFT_EMIT_COOLDOWN_S = 600.0  # 10 min
+
+
+def _drift_track_response(
+    *,
+    conversation_id: str | None,
+    response_text: str,
+    request: ChatRequest,
+    persona_slug: str | None,
+    help_level: int | None,
+) -> None:
+    """AI-27: score the just-emitted response, append to the per-conversation
+    sliding window, and emit a drhex-q-persona-drift observation via
+    quality_log if the session drift_score has breached its threshold.
+
+    Pure-function detector + best-effort emission. Never blocks the chat
+    response. Cooldowns prevent duplicate emissions for the same
+    conversation."""
+    if not conversation_id:
+        # Without a stable conversation_id we can't aggregate a session.
+        return
+    metrics = drift_detector.score_response(response_text)
+    buf = _drift_buffers.get(conversation_id)
+    if buf is None:
+        buf = _collections.deque(maxlen=_DRIFT_WINDOW_MAX_RESPONSES)
+        _drift_buffers[conversation_id] = buf
+        _drift_buffer_order.append(conversation_id)
+        # Global LRU: when a new conversation pushes us past the max,
+        # the deque drops an old conversation_id; clean its buffer too.
+        if len(_drift_buffers) > _DRIFT_WINDOW_MAX_CONVERSATIONS:
+            # Find any conversation_id still in _drift_buffers but no
+            # longer in _drift_buffer_order, and reap it.
+            order_set = set(_drift_buffer_order)
+            stale = [k for k in _drift_buffers if k not in order_set]
+            for k in stale:
+                _drift_buffers.pop(k, None)
+                _drift_last_emit_ts.pop(k, None)
+    buf.append(metrics)
+    score = drift_detector.session_drift_score(list(buf))
+    if not score.should_emit:
+        return
+    now = time.monotonic()
+    last = _drift_last_emit_ts.get(conversation_id, 0.0)
+    if (now - last) < _DRIFT_EMIT_COOLDOWN_S:
+        return
+    _drift_last_emit_ts[conversation_id] = now
+    quality_log.schedule_observation(
+        category="drhex-q-persona-drift",
+        observation=drift_detector.format_drift_observation(score),
+        student_query_first60=request.message or "",
+        model_response_first200=response_text or "",
+        conversation_id=conversation_id,
+        mission_id=request.mission_id,
+        persona=persona_slug,
+        help_level=help_level,
+        priority="P3",
+        flagged_by_source="drift_detector",
+        notes=(
+            f"AI-27 drift detector. n={score.n_responses} "
+            f"avg_wc={score.avg_word_count:.0f} "
+            f"praise={score.praise_density_per_100w:.2f}/100w "
+            f"hedge={score.hedging_density_per_100w:.2f}/100w "
+            f"rhetoric={score.rhetorical_balancing_per_100w:.2f}/100w "
+            f"emo={score.emotional_per_100w:.2f}/100w "
+            f"help_absent_rate={score.help_level_absent_rate:.2f}"
+        ),
+    )
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatResponse:
     """Blocking pipeline. Use /chat/stream for token-by-token UX.
@@ -1519,6 +1604,21 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
         except Exception as exc:
             # Voice linter must never crash the chat path. Log + continue.
             log.error("voice_linter crashed (continuing): %s", exc)
+
+        # AI-27: drift detector. Score this response, append to the
+        # per-conversation sliding window, and emit an observation if
+        # session drift_score has breached its threshold. Pure-function
+        # detector + best-effort emission; never blocks the response.
+        try:
+            _drift_track_response(
+                conversation_id=req.conversation_id,
+                response_text=scrubbed_text or "",
+                request=req,
+                persona_slug=persona_slug,
+                help_level=level,
+            )
+        except Exception as exc:
+            log.error("drift_detector crashed (continuing): %s", exc)
 
         return ChatResponse(
             response=scrubbed_text,
