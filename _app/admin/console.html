@@ -8298,6 +8298,13 @@
                 const byStatus = { open: 0, triaged: 0, fixing: 0, fixed: 0, wontfix: 0, duplicate: 0 };
                 const byCategory = {};
                 let openMostRecent = null;
+                // AI-23: also track the OLDEST open observation (longest unaddressed),
+                // and count fixes that landed in the last 7 days, so the operator
+                // can see "are we paying off the queue?" at a glance.
+                let oldestOpenMs = null;
+                let fixesLast7d = 0;
+                const nowMs = Date.now();
+                const sevenDaysAgoMs = nowMs - 7 * 24 * 60 * 60 * 1000;
                 for (const d of snap.docs) {
                     const x = d.data();
                     if (byStatus[x.status] !== undefined) byStatus[x.status]++;
@@ -8305,8 +8312,27 @@
                     if (x.status === 'open' && !openMostRecent && x.flaggedAt) {
                         openMostRecent = x.flaggedAt.toDate().toISOString().slice(0, 16).replace('T', ' ');
                     }
+                    if (x.status === 'open' && x.flaggedAt) {
+                        const ms = x.flaggedAt.toDate().getTime();
+                        if (oldestOpenMs == null || ms < oldestOpenMs) oldestOpenMs = ms;
+                    }
+                    // statusChangedAt drives "fixed in window?" because flaggedAt is
+                    // when it was reported, not when it was closed.
+                    if (x.status === 'fixed' && x.statusChangedAt) {
+                        const ms = x.statusChangedAt.toDate().getTime();
+                        if (ms >= sevenDaysAgoMs) fixesLast7d++;
+                    }
                 }
                 const total = snap.size;
+                // Format "longest open" as a relative duration in d/h/m for the strip.
+                let longestOpenStr = '-';
+                if (oldestOpenMs != null) {
+                    const ageMs = nowMs - oldestOpenMs;
+                    const ageHours = ageMs / (1000 * 60 * 60);
+                    if (ageHours >= 48) longestOpenStr = `${Math.floor(ageHours / 24)}d`;
+                    else if (ageHours >= 1) longestOpenStr = `${Math.floor(ageHours)}h`;
+                    else longestOpenStr = `${Math.floor(ageMs / (1000 * 60))}m`;
+                }
 
                 // Escape utility — same defense-in-depth as the dashboard.
                 const esc = s => String(s == null ? '' : s)
@@ -8322,6 +8348,8 @@
                         <div><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;color:#4ade80;">${byStatus.fixed}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Fixed</div></div>
                         <div><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;color:#a0a0a0;">${byStatus.wontfix + byStatus.duplicate}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Wontfix/Dup</div></div>
                         <div><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;">${total}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Total (last 200)</div></div>
+                        <div title="Time since the oldest open observation was first flagged"><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;color:${oldestOpenMs && (nowMs - oldestOpenMs) > 7 * 24 * 60 * 60 * 1000 ? '#fb923c' : '#a0a0a0'};">${longestOpenStr}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Longest open</div></div>
+                        <div title="Observations transitioned to status=fixed in the last 7 days"><div style="font-size:1.5rem;font-weight:600;font-family:ui-monospace,monospace;color:#4ade80;">${fixesLast7d}</div><div style="font-size:0.7rem;color:var(--ac-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Fixes / 7d</div></div>
                     </div>
                 `;
                 // By-category breakdown
