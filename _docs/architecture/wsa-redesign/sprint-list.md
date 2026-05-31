@@ -170,7 +170,7 @@ Each item gets ticked off as primary completes it. Operator can verify any item 
 | C5 | ✓ done | d5374b82c — m19-troubleshooting-migration 16 slides |
 | E1 | ✓ done | Full validator pass — 19/19 modules, 348 slides, 1 outlier fixed (87ecee05e) |
 | E2 | n/a | Minimal new citations added — Karl not needed (no claim-bearing text) |
-| E3 | dispatched | adversarial-reviewer running on m01 + m02 (background) |
+| E3 | ✓ done | Nancy returned BLOCKED (6 findings); all addressed in commits 6d6e2afff (m01+m02) + 25736d0f7 (m03+m04 round 2). Verdict-addressing summary: 4 dup-SVG pairs in m02 got bespoke replacements; 1 final m02 dup got bespoke; m03+m04 continuation pairs got "→ continued" badge per cookbook revision. |
 | E4 | ✓ done | Sibling lab/quiz links all resolve; cross-module nav via hub (not inline) — confirmed intentional |
 | F1 | ✓ done | Preview deployed — https://hexworth-prime--wsa-redesign-m01-gfcnf961.web.app (expires 2026-06-06) |
 | F2 | operator action | Operator visual review on preview |
