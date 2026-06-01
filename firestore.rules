@@ -859,5 +859,63 @@ service cloud.firestore {
       );
       allow delete: if false;   // append-only — fix the issue, don't erase the record
     }
+
+    // ─── PIS Live Kahoot ─────────────────────────────────────────────────
+    // kahoot_rooms/{code} — host creates and drives the room; players join
+    // with anonymous auth. Room code is a 6-digit numeric string.
+    //
+    // Players subcollection: each player owns their own doc (uid == playerId).
+    // Host can read/delete any player doc (kick). No server-side scoring —
+    // client submits its own score; scores are not used for grading, only
+    // classroom leaderboard display.
+    match /kahoot_rooms/{code} {
+      // Any authenticated user (including anonymous players) can read room metadata.
+      // Players need status + currentQuestionIdx + questions array.
+      allow read:   if request.auth != null;
+
+      // Only a non-anonymous, logged-in tenant user can create a room (the host).
+      allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.hostUid == request.auth.uid;
+
+      // Only the host (identified by hostUid field) can update room state.
+      // This gates question advance, reveal, and finished writes.
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.hostUid;
+
+      // Host can delete the room when the session is over.
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.hostUid;
+
+      match /players/{playerId} {
+        // Any authenticated user can read the players subcollection
+        // (needed for leaderboard display on all clients).
+        allow read: if request.auth != null;
+
+        // Player creates their own doc on join (anonymous uid must match document id).
+        allow create: if request.auth != null
+                      && request.auth.uid == playerId;
+
+        // Player updates their own doc (answer submission, score update).
+        // Field whitelist + score cap blocks the trivial console exploit
+        // (UID-authenticated player writes score: 9999999 to own doc).
+        // Cap: 20 questions x (1000 base + 200 streak bonus) = 24,000 max
+        //      theoretical legit score; 25,000 ceiling allows headroom.
+        allow update: if request.auth != null
+                      && request.auth.uid == playerId
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['score', 'streak', 'bestStreak',
+                                   'correctCount', 'wrongCount',
+                                   'lastAnswerIdx', 'lastAnswerTimeMs',
+                                   'lastAnswerCorrect'])
+                      && request.resource.data.score is number
+                      && request.resource.data.score >= 0
+                      && request.resource.data.score <= 25000;
+
+        // Host can delete a player doc (kick player from room).
+        allow delete: if request.auth != null
+                      && request.auth.uid == get(/databases/$(database)/documents/kahoot_rooms/$(code)).data.hostUid;
+      }
+    }
   }
 }

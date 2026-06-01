@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- AccessGuard must run first; blocks non-sorted users immediately -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth.js bootstraps Firebase app + full tenant auth for the host -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <!-- kahoot-firebase.js defers to the existing FirebaseAuth session and adds Firestore -->
+    <script src="kahoot-firebase.js"></script>
+    <!-- QR code library (davidshimjs/qrcodejs, vendored) -->
+    <script src="../../../../components/qrcode.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host Live Kahoot: PIS (Hexworth Prime)</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-megaphone.webp">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --shield-primary:   #3b82f6;
+            --shield-secondary: #60a5fa;
+            --shield-dim:       rgba(59, 130, 246, 0.12);
+            --shield-glow:      rgba(59, 130, 246, 0.3);
+            --bg:               #0a0a0f;
+            --bg-card:          #12121a;
+            --text:             #e0e0e0;
+            --text-dim:         #8b949e;
+            --border:           rgba(255,255,255,0.08);
+            --blue:             #3b82f6;
+            --gold:             #ffcc00;
+            --red:              #ef4444;
+            --green:            #10b981;
+            --btn-blue:         #3b82f6;
+            --btn-red:          #ef4444;
+            --btn-gold:         #f59e0b;
+            --btn-green:        #10b981;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px;
+            background: rgba(10,10,15,0.94); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge {
+            font-size: 11px; padding: 3px 10px; border-radius: 4px;
+            background: var(--shield-dim); color: var(--shield-primary);
+            font-weight: 700; letter-spacing: 1px;
+        }
+        .header h1 { font-size: 15px; font-weight: 600; }
+        .back-link {
+            font-size: 13px; color: var(--shield-primary); font-weight: 600;
+            text-decoration: none; padding: 6px 14px; border-radius: 6px;
+            border: 1px solid rgba(59, 130, 246, 0.25); transition: all 0.2s;
+        }
+        .back-link:hover { background: var(--shield-dim); }
+
+        /* ── Screens ── */
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        /* ── Idle Screen ── */
+        .idle-wrap { max-width: 600px; margin: 0 auto; padding: 64px 24px; text-align: center; }
+        .idle-wrap h2 { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+        .idle-wrap p  { font-size: 15px; color: var(--text-dim); margin-bottom: 32px; max-width: 440px; margin-left: auto; margin-right: auto; }
+        .create-btn {
+            display: inline-block; padding: 18px 48px;
+            background: linear-gradient(135deg, var(--shield-primary), #7c3aed);
+            border: none; border-radius: 10px; color: #fff;
+            font-size: 18px; font-weight: 800; cursor: pointer;
+            transition: all 0.2s; letter-spacing: 0.5px;
+        }
+        .create-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px var(--shield-glow); }
+        .create-btn:disabled { opacity: 0.55; transform: none; cursor: not-allowed; }
+
+        /* ── Lobby Screen ── */
+        .lobby-wrap { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+        .lobby-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 28px; flex-wrap: wrap; }
+
+        /* QR + code display */
+        .qr-block {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 24px; text-align: center; min-width: 240px;
+        }
+        .qr-block .qr-label {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1.5px; margin-bottom: 10px;
+        }
+        #qrCanvas { margin: 0 auto 14px; display: block; }
+        .join-url { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; word-break: break-all; }
+        .room-code-display {
+            font-size: 52px; font-weight: 900; letter-spacing: 10px;
+            color: var(--gold); font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 20px rgba(255,204,0,0.25);
+        }
+        .room-code-label {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1.5px; margin-top: 6px;
+        }
+
+        /* Player list */
+        .players-block {
+            flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 24px; min-width: 260px;
+        }
+        .players-block h3 {
+            font-size: 13px; color: var(--shield-primary); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 16px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .player-count-badge {
+            background: var(--shield-dim); color: var(--shield-primary);
+            font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 20px;
+        }
+        #playerList {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            min-height: 60px; align-content: flex-start;
+        }
+        .player-chip {
+            background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 20px; padding: 5px 14px; font-size: 13px;
+            font-weight: 600; color: var(--text);
+            animation: chipIn 0.25s ease-out;
+        }
+        @keyframes chipIn {
+            from { transform: scale(0.7); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        .lobby-empty { color: var(--text-dim); font-size: 13px; font-style: italic; }
+
+        .start-game-btn {
+            display: block; width: 100%; padding: 16px;
+            background: linear-gradient(135deg, var(--shield-primary), #7c3aed);
+            border: none; border-radius: 10px; color: #fff;
+            font-size: 16px; font-weight: 800; cursor: pointer;
+            transition: all 0.2s; margin-top: 20px;
+        }
+        .start-game-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 20px var(--shield-glow); }
+        .start-game-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        /* ── Live Game Screen ── */
+        .live-wrap { max-width: 1200px; margin: 0 auto; padding: 16px 24px; }
+
+        /* Top bar with room info + controls */
+        .live-topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+        }
+        .live-stat {
+            display: flex; flex-direction: column; align-items: center;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 8px 16px; min-width: 80px;
+        }
+        .live-stat-lbl { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+        .live-stat-val { font-size: 20px; font-weight: 800; color: var(--gold); }
+        .live-stat-val.blue  { color: var(--blue); }
+        .live-stat-val.green { color: var(--green); }
+
+        .host-controls { display: flex; gap: 8px; }
+        .host-btn {
+            padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s; border: 1px solid;
+        }
+        .host-btn-pause {
+            background: rgba(245,158,11,0.1); color: #f59e0b;
+            border-color: rgba(245,158,11,0.3);
+        }
+        .host-btn-pause:hover  { background: rgba(245,158,11,0.2); }
+        .host-btn-pause.paused { background: rgba(245,158,11,0.25); color: #fbbf24; }
+        .host-btn-skip {
+            background: rgba(96,165,250,0.1); color: #60a5fa;
+            border-color: rgba(96,165,250,0.3);
+        }
+        .host-btn-skip:hover { background: rgba(96,165,250,0.2); }
+
+        /* Question display */
+        .question-area {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px 28px; margin-bottom: 16px;
+            min-height: 110px; display: flex; flex-direction: column;
+            justify-content: center; text-align: center;
+        }
+        .question-counter {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1.5px; margin-bottom: 10px;
+        }
+        .question-text { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.4; }
+
+        /* Timer */
+        .timer-label {
+            text-align: center; font-size: 13px; color: var(--text-dim);
+            margin-bottom: 14px; font-weight: 600;
+        }
+        .timer-label span { font-size: 18px; color: var(--gold); font-weight: 800; }
+        .timer-wrap {
+            position: relative; height: 10px; background: rgba(255,255,255,0.08);
+            border-radius: 5px; margin-bottom: 16px; overflow: hidden;
+        }
+        .timer-fill {
+            position: absolute; left: 0; top: 0; height: 100%;
+            border-radius: 5px;
+        }
+
+        /* Answer grid (4 colored buttons) */
+        .answer-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 12px; margin-bottom: 16px;
+        }
+        .answer-btn {
+            display: flex; align-items: center; gap: 14px;
+            padding: 18px 20px; border-radius: 10px; border: 2px solid transparent;
+            font-size: 15px; font-weight: 600; color: #fff;
+            min-height: 72px; text-align: left; pointer-events: none;
+            /* Host display is read-only; no clicks allowed */
+        }
+        .answer-shape { width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .answer-shape svg { width: 36px; height: 36px; }
+        .answer-text { flex: 1; line-height: 1.35; }
+
+        .answer-btn.btn-a { background: rgba(59,130,246,0.18);  border-color: rgba(59,130,246,0.4); }
+        .answer-btn.btn-b { background: rgba(239,68,68,0.18);   border-color: rgba(239,68,68,0.4);  }
+        .answer-btn.btn-c { background: rgba(245,158,11,0.18);  border-color: rgba(245,158,11,0.4); }
+        .answer-btn.btn-d { background: rgba(16,185,129,0.18);  border-color: rgba(16,185,129,0.4); }
+
+        /* Reveal state overlays on answer buttons */
+        .answer-btn.reveal-correct { background: rgba(16,185,129,0.35)  !important; border-color: #10b981  !important; }
+        .answer-btn.reveal-wrong   { background: rgba(239,68,68,0.10)   !important; border-color: rgba(239,68,68,0.2)  !important; filter: brightness(0.65); }
+
+        /* Live answer progress bar per-option */
+        .answer-count {
+            margin-left: auto; font-size: 13px; font-weight: 800;
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* Pause overlay */
+        .pause-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            z-index: 300; align-items: center; justify-content: center;
+        }
+        .pause-overlay.active { display: flex; }
+        .pause-card {
+            background: var(--bg-card); border: 2px solid var(--shield-primary);
+            border-radius: 16px; padding: 40px 48px; text-align: center;
+        }
+        .pause-card h3 { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .pause-card p  { color: var(--text-dim); font-size: 14px; margin-bottom: 20px; }
+        .pause-resume-btn {
+            padding: 12px 28px; border: none; border-radius: 8px;
+            background: var(--shield-primary); color: #fff; font-size: 14px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .pause-resume-btn:hover { filter: brightness(1.12); }
+
+        /* ── Reveal Screen ── */
+        .reveal-wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
+        .reveal-top {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 24px 28px; margin-bottom: 16px; text-align: center;
+        }
+        .reveal-correct-label {
+            font-size: 13px; text-transform: uppercase; letter-spacing: 2px;
+            color: var(--green); margin-bottom: 8px; font-weight: 700;
+        }
+        .reveal-answer-text { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+        .reveal-exp {
+            font-size: 14px; color: var(--text-dim); line-height: 1.6;
+            padding: 12px 16px; background: rgba(59,130,246,0.06);
+            border-left: 3px solid var(--shield-primary); border-radius: 0 8px 8px 0;
+            text-align: left; margin-top: 12px;
+        }
+
+        /* Per-player leaderboard in reveal */
+        .leaderboard {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 20px 24px; margin-bottom: 16px;
+        }
+        .leaderboard h3 {
+            font-size: 13px; color: var(--shield-primary); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 14px;
+        }
+        .lb-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 8px 0; border-bottom: 1px solid var(--border);
+        }
+        .lb-row:last-child { border-bottom: none; }
+        .lb-rank   { font-size: 16px; font-weight: 800; color: var(--text-dim); width: 28px; flex-shrink: 0; }
+        .lb-name   { flex: 1; font-size: 14px; font-weight: 600; }
+        .lb-score  { font-size: 16px; font-weight: 800; color: var(--gold); }
+        .lb-delta  { font-size: 12px; font-weight: 700; color: var(--green); min-width: 48px; text-align: right; }
+
+        .next-q-btn {
+            display: block; width: 100%; padding: 16px;
+            background: linear-gradient(135deg, var(--shield-primary), #7c3aed);
+            border: none; border-radius: 10px; color: #fff;
+            font-size: 15px; font-weight: 800; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .next-q-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--shield-glow); }
+
+        /* ── Final Screen ── */
+        .final-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.92); z-index: 400;
+            align-items: center; justify-content: center; padding: 24px;
+            overflow-y: auto;
+        }
+        .final-overlay.active { display: flex; }
+        .final-modal {
+            background: #0e0e18; border: 2px solid var(--shield-primary);
+            border-radius: 18px; max-width: 680px; width: 100%;
+            padding: 44px 40px 36px; text-align: center;
+            box-shadow: 0 0 60px var(--shield-glow), 0 0 120px rgba(59,130,246,0.12);
+            animation: modalIn 0.3s ease-out;
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to   { transform: scale(1);    opacity: 1; }
+        }
+        .final-modal h2  { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+        .final-sub       { font-size: 13px; color: var(--text-dim); margin-bottom: 24px; }
+        .final-lb        { width: 100%; margin-bottom: 28px; }
+        .final-lb-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; border-radius: 8px; margin-bottom: 6px;
+        }
+        .final-lb-row.rank-1 { background: rgba(255,204,0,0.08); border: 1px solid rgba(255,204,0,0.2); }
+        .final-lb-row.rank-2 { background: rgba(192,192,192,0.06); border: 1px solid rgba(192,192,192,0.15); }
+        .final-lb-row.rank-3 { background: rgba(205,127,50,0.06); border: 1px solid rgba(205,127,50,0.15); }
+        .final-lb-row.rank-n { background: rgba(255,255,255,0.02); border: 1px solid var(--border); }
+        .final-rank { font-size: 18px; font-weight: 900; width: 32px; flex-shrink: 0; }
+        .rank-1 .final-rank { color: var(--gold); }
+        .rank-2 .final-rank { color: #c0c0c0; }
+        .rank-3 .final-rank { color: #cd7f32; }
+        .rank-n .final-rank { color: var(--text-dim); }
+        .final-name  { flex: 1; font-size: 14px; font-weight: 700; text-align: left; }
+        .final-score { font-size: 18px; font-weight: 800; color: var(--gold); }
+        .final-grade-tag {
+            font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 700;
+            margin-left: 8px;
+        }
+        .grade-s { background: rgba(255,204,0,0.15);  color: var(--gold); }
+        .grade-a { background: rgba(59,130,246,0.15); color: var(--blue); }
+        .grade-b { background: rgba(96,165,250,0.15); color: #93c5fd; }
+        .grade-c { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .grade-f { background: rgba(239,68,68,0.15);  color: var(--red); }
+
+        .final-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+        .final-btn {
+            padding: 12px 24px; border-radius: 8px; font-size: 13px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s; border: 1px solid;
+            text-decoration: none; display: inline-flex; align-items: center;
+        }
+        .final-btn-primary  { background: var(--shield-primary); color: #fff; border-color: var(--shield-primary); }
+        .final-btn-primary:hover  { filter: brightness(1.12); }
+        .final-btn-secondary { background: transparent; color: var(--shield-primary); border-color: rgba(59,130,246,0.35); }
+        .final-btn-secondary:hover { background: var(--shield-dim); }
+
+        /* Answered tally (live, shows during question) */
+        .answered-tally {
+            text-align: center; font-size: 13px; color: var(--text-dim); margin-bottom: 10px;
+        }
+        .answered-tally span { color: var(--shield-primary); font-weight: 700; }
+
+        /* ── Responsive ── */
+        @media (max-width: 700px) {
+            .lobby-header       { flex-direction: column; }
+            .answer-grid        { grid-template-columns: 1fr; }
+            .answer-btn         { min-height: 60px; font-size: 14px; }
+            .question-text      { font-size: 17px; }
+            .final-modal        { padding: 28px 20px; }
+            .room-code-display  { font-size: 36px; letter-spacing: 6px; }
+            .live-topbar        { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <span class="header-badge">PIS-LIVE</span>
+            <h1>Host Live Kahoot</h1>
+        </div>
+        <a href="../index.html" class="back-link">&larr; Principles of Information Security</a>
+    </header>
+
+    <!-- ════════════════════════════════════════════════
+         SCREEN 1: Idle (before room creation)
+    ════════════════════════════════════════════════ -->
+    <div id="screenIdle" class="screen active">
+        <div class="idle-wrap">
+            <img src="/assets/images/icons/icon-megaphone.webp" alt="" width="56" height="56"
+                 style="border-radius:12px;margin-bottom:20px;">
+            <h2>Live Classroom Kahoot</h2>
+            <p>Create a room, display the QR code or 6-digit code on the projector, and let students join from their phones at <strong>hexworth.com/join</strong>. All 20 PIS questions sync in real time.</p>
+            <button class="create-btn" id="createRoomBtn" onclick="createRoom()">Create Room</button>
+            <div id="createError" style="color:var(--red);font-size:13px;margin-top:14px;display:none;"></div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         SCREEN 2: Lobby (waiting for players)
+    ════════════════════════════════════════════════ -->
+    <div id="screenLobby" class="screen">
+        <div class="lobby-wrap">
+            <div class="lobby-header">
+                <!-- QR code block -->
+                <div class="qr-block">
+                    <div class="qr-label">Scan to join</div>
+                    <div id="qrCanvas" style="width:200px;height:200px;"></div>
+                    <div class="join-url" id="joinUrl"></div>
+                    <div class="room-code-display" id="roomCodeDisplay"></div>
+                    <div class="room-code-label">Room Code</div>
+                </div>
+
+                <!-- Player list block -->
+                <div class="players-block">
+                    <h3>
+                        Players Joined
+                        <span class="player-count-badge" id="playerCountBadge">0</span>
+                    </h3>
+                    <div id="playerList">
+                        <span class="lobby-empty">Waiting for players...</span>
+                    </div>
+                    <button class="start-game-btn" id="startGameBtn"
+                            onclick="startLiveGame()" disabled>
+                        Start Game (0 players)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         SCREEN 3: Live question
+    ════════════════════════════════════════════════ -->
+    <div id="screenLive" class="screen">
+        <div class="live-wrap">
+            <!-- Top stats bar -->
+            <div class="live-topbar">
+                <div class="live-stat">
+                    <div class="live-stat-lbl">Question</div>
+                    <div class="live-stat-val blue" id="liveQCounter">1/20</div>
+                </div>
+                <div class="live-stat">
+                    <div class="live-stat-lbl">Players</div>
+                    <div class="live-stat-val green" id="livePlayerCount">0</div>
+                </div>
+                <div class="live-stat">
+                    <div class="live-stat-lbl">Room</div>
+                    <div class="live-stat-val blue" id="liveRoomCode">------</div>
+                </div>
+                <div class="host-controls">
+                    <button class="host-btn host-btn-pause" id="pauseBtn" onclick="togglePause()">Pause</button>
+                    <button class="host-btn host-btn-skip" onclick="skipToReveal()">Skip</button>
+                </div>
+            </div>
+
+            <!-- Question card -->
+            <div class="question-area">
+                <div class="question-counter" id="liveQuestionCounter">QUESTION 1 OF 20</div>
+                <div class="question-text" id="liveQuestionText">Loading...</div>
+            </div>
+
+            <!-- Answered tally -->
+            <div class="answered-tally" id="answeredTally">
+                <span id="answeredCount">0</span> of <span id="totalPlayers">0</span> answered
+            </div>
+
+            <!-- Timer -->
+            <div class="timer-label">Time remaining: <span id="timerLabel">30</span>s</div>
+            <div class="timer-wrap">
+                <div class="timer-fill" id="timerFill" style="width:100%;background:var(--shield-primary);"></div>
+            </div>
+
+            <!-- Answer grid (host view, read-only) -->
+            <div class="answer-grid" id="liveAnswerGrid">
+                <!-- Populated by renderLiveQuestion() -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         SCREEN 4: Reveal (after each question)
+    ════════════════════════════════════════════════ -->
+    <div id="screenReveal" class="screen">
+        <div class="reveal-wrap">
+            <div class="reveal-top">
+                <div class="reveal-correct-label">Correct Answer</div>
+                <div class="reveal-answer-text" id="revealAnswerText"></div>
+                <div class="reveal-exp" id="revealExp"></div>
+            </div>
+
+            <!-- Leaderboard snapshot after this question -->
+            <div class="leaderboard">
+                <h3>Leaderboard</h3>
+                <div id="leaderboardRows">
+                    <!-- Populated by showReveal() -->
+                </div>
+            </div>
+
+            <button class="next-q-btn" id="nextQBtn" onclick="advanceToNextQuestion()">Next Question</button>
+        </div>
+    </div>
+
+    <!-- Pause overlay -->
+    <div class="pause-overlay" id="pauseOverlay">
+        <div class="pause-card">
+            <h3>Game Paused</h3>
+            <p>Timer is holding. Click Resume when ready.</p>
+            <button class="pause-resume-btn" onclick="togglePause()">Resume</button>
+        </div>
+    </div>
+
+    <!-- Final leaderboard modal -->
+    <div class="final-overlay" id="finalOverlay">
+        <div class="final-modal">
+            <h2>Game Complete</h2>
+            <div class="final-sub" id="finalSub">All 20 questions answered</div>
+            <table class="final-lb" id="finalLeaderboard"></table>
+            <div class="final-actions">
+                <a href="../index.html" class="final-btn final-btn-secondary">Back to Hub</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ================================================================
+           QUESTION BANK
+           Identical to pis-kahoot.review.html: 20 questions, 5 per week.
+           opts[ans] is the correct option index (0-based).
+           ================================================================ */
+        var QUESTIONS = [
+            /* ── WEEK 1: Security Fundamentals + Threats ── */
+            {
+                week: 1, srcIdx: 0,
+                q: "Which component of the CIA Triad ensures that data is only accessible to authorized users?",
+                opts: ["Confidentiality", "Availability", "Integrity", "Non-repudiation"],
+                ans: 0,
+                exp: "Confidentiality prevents unauthorized disclosure of information. Controls include encryption, access control lists, and need-to-know policies."
+            },
+            {
+                week: 1, srcIdx: 2,
+                q: "Which type of threat actor is most likely motivated by financial gain and typically operates as part of an organized criminal syndicate?",
+                opts: ["Hacktivist", "Nation-state", "Cybercriminal", "Script kiddie"],
+                ans: 2,
+                exp: "Cybercriminals are motivated primarily by financial gain. They often work in organized groups and conduct ransomware attacks, fraud, and data theft."
+            },
+            {
+                week: 1, srcIdx: 3,
+                q: "What term describes the combination of all potential attack vectors an attacker could use to compromise a system?",
+                opts: ["Threat landscape", "Risk register", "Vulnerability window", "Attack surface"],
+                ans: 3,
+                exp: "The attack surface is the total set of points where an attacker can attempt to enter, extract data from, or disrupt a system. Reducing it is a core security principle."
+            },
+            {
+                week: 1, srcIdx: 6,
+                q: "A CDC analyst discovers that a bioterrorism threat database is inaccessible due to a DDoS attack during an outbreak response. Which CIA component is violated?",
+                opts: ["Confidentiality", "Availability", "Integrity", "Accountability"],
+                ans: 1,
+                exp: "Availability ensures systems are accessible when needed. A DDoS attack disrupts availability, which in critical infrastructure like public health systems can have life-safety implications."
+            },
+            {
+                week: 1, srcIdx: 10,
+                q: "Which term describes a security strategy that employs multiple overlapping layers of controls so that if one layer fails, others remain?",
+                opts: ["Least privilege", "Defense in depth", "Zero trust", "Separation of duties"],
+                ans: 1,
+                exp: "Defense in depth layers multiple security controls (physical, technical, administrative) so no single point of failure can compromise the entire system."
+            },
+            /* ── WEEK 2: Attacks + Cryptography ── */
+            {
+                week: 2, srcIdx: 0,
+                q: "An attacker calls a hospital's IT help desk, impersonates a physician, and convinces the technician to reset their password without verification. This is an example of:",
+                opts: ["Pretexting", "Phishing", "Vishing", "Tailgating"],
+                ans: 0,
+                exp: "Pretexting is fabricating a scenario (pretext) to manipulate a victim into providing access or information. Impersonating a physician to reset credentials is a classic pretexting attack."
+            },
+            {
+                week: 2, srcIdx: 1,
+                q: "Which type of malware encrypts the victim's files and demands payment for the decryption key?",
+                opts: ["Ransomware", "Rootkit", "Spyware", "Worm"],
+                ans: 0,
+                exp: "Ransomware encrypts victim data and demands a ransom, typically in cryptocurrency, for the decryption key. It is one of the most financially damaging malware categories."
+            },
+            {
+                week: 2, srcIdx: 2,
+                q: "A worm propagates across a hospital network, consuming bandwidth and crashing patient monitoring systems. Which characteristic distinguishes a worm from a virus?",
+                opts: [
+                    "Worms require user interaction to spread; viruses do not",
+                    "Worms encrypt data; viruses delete data",
+                    "Worms self-replicate across networks without requiring a host file; viruses attach to host files",
+                    "Worms target firmware; viruses target RAM"
+                ],
+                ans: 2,
+                exp: "Worms self-replicate and spread autonomously across networks without needing to attach to a host file. Viruses require a host file and typically require user action to trigger."
+            },
+            {
+                week: 2, srcIdx: 3,
+                q: "Which symmetric encryption algorithm uses a 128, 192, or 256-bit key and is the current US federal standard?",
+                opts: ["DES", "3DES", "RC4", "AES"],
+                ans: 3,
+                exp: "AES (Advanced Encryption Standard) was adopted by NIST in 2001 as the federal standard. It supports 128, 192, and 256-bit key sizes and is used in TLS, disk encryption, and Wi-Fi security."
+            },
+            {
+                week: 2, srcIdx: 6,
+                q: "Which hashing algorithm produces a 256-bit digest and is widely used in TLS certificates and code signing?",
+                opts: ["MD5", "SHA-256", "SHA-1", "RIPEMD-128"],
+                ans: 1,
+                exp: "SHA-256 (part of the SHA-2 family) produces a 256-bit hash and is the current standard for TLS certificates and code signing. MD5 and SHA-1 are considered cryptographically broken."
+            },
+            /* ── WEEK 3: Network Defense + PKI ── */
+            {
+                week: 3, srcIdx: 0,
+                q: "A stateful firewall differs from a stateless packet filter because it:",
+                opts: [
+                    "Tracks the state of active connections and allows only packets belonging to established sessions",
+                    "Blocks all inbound traffic by default",
+                    "Inspects application-layer content for malware signatures",
+                    "Operates at Layer 7 of the OSI model"
+                ],
+                ans: 0,
+                exp: "A stateful firewall maintains a connection state table and only allows packets that are part of an established, legitimate session. Stateless filters inspect each packet in isolation against rules."
+            },
+            {
+                week: 3, srcIdx: 1,
+                q: "Which device detects suspicious network traffic and generates alerts but does not actively block the traffic?",
+                opts: ["IDS", "WAF", "IPS", "UTM"],
+                ans: 0,
+                exp: "An IDS (Intrusion Detection System) passively monitors and alerts. An IPS (Intrusion Prevention System) actively blocks threats inline. Both are important layers of network defense."
+            },
+            {
+                week: 3, srcIdx: 3,
+                q: "Which VPN protocol encapsulates traffic in IPSec and is considered the most secure for site-to-site connections?",
+                opts: ["PPTP", "WireGuard", "SSL/TLS VPN", "L2TP/IPSec"],
+                ans: 3,
+                exp: "L2TP/IPSec pairs L2TP tunneling with IPSec encryption/authentication, providing strong security for site-to-site VPNs. PPTP is deprecated. SSL VPNs are common for remote access."
+            },
+            {
+                week: 3, srcIdx: 5,
+                q: "What is a Certificate Authority (CA) in a PKI?",
+                opts: [
+                    "A hardware device that generates encryption keys",
+                    "A server that stores encrypted private keys",
+                    "A protocol for distributing public keys over a network",
+                    "A trusted entity that issues, signs, and revokes digital certificates"
+                ],
+                ans: 3,
+                exp: "A CA is the trust anchor in a PKI. It verifies the identity of certificate requestors and signs certificates with its private key, allowing others to verify them using the CA's public key."
+            },
+            {
+                week: 3, srcIdx: 10,
+                q: "Which network security zone is designed to host public-facing services (web, email, DNS) while isolating them from the internal network?",
+                opts: ["VLAN", "DMZ (Demilitarized Zone)", "Intranet", "Air-gapped network"],
+                ans: 1,
+                exp: "A DMZ sits between the internet and the internal network, typically protected by two firewalls. Public services run here, limiting the blast radius if they are compromised."
+            },
+            /* ── WEEK 4: Auth + Governance + IR ── */
+            {
+                week: 4, srcIdx: 0,
+                q: "Multi-factor authentication (MFA) requires users to present factors from at least two of the three categories. Which answer correctly lists all three categories?",
+                opts: [
+                    "Something you know, something you have, something you are",
+                    "Something you know, something you have, something you feel",
+                    "Username, password, PIN",
+                    "Smart card, biometric, IP address"
+                ],
+                ans: 0,
+                exp: "The three authentication factors are: something you know (password, PIN), something you have (token, smart card), and something you are (biometric). MFA requires at least two different categories."
+            },
+            {
+                week: 4, srcIdx: 1,
+                q: "Which access control model grants or denies access based on sensitivity labels assigned to subjects and objects?",
+                opts: [
+                    "Mandatory Access Control (MAC)",
+                    "Role-Based Access Control (RBAC)",
+                    "Discretionary Access Control (DAC)",
+                    "Attribute-Based Access Control (ABAC)"
+                ],
+                ans: 0,
+                exp: "MAC uses classification labels (e.g., Top Secret, Secret, Unclassified). Access is determined by policy, not the data owner. It is common in government and military environments."
+            },
+            {
+                week: 4, srcIdx: 2,
+                q: "After a data breach at a federal health agency, the CISO initiates the incident response process. According to NIST SP 800-61, what is the correct order of IR phases?",
+                opts: [
+                    "Detection, Containment, Eradication, Recovery, Lessons Learned",
+                    "Identification, Containment, Eradication, Recovery, Reporting",
+                    "Preparation, Detection and Analysis, Containment, Eradication and Recovery, Post-Incident Activity",
+                    "Triage, Isolation, Remediation, Reporting, Closure"
+                ],
+                ans: 2,
+                exp: "NIST SP 800-61 defines four IR phases: Preparation; Detection and Analysis; Containment, Eradication, and Recovery; Post-Incident Activity (lessons learned). This is the authoritative framework."
+            },
+            {
+                week: 4, srcIdx: 3,
+                q: "A security policy requires that no single employee can both approve and execute financial transactions. This implements which security principle?",
+                opts: ["Least privilege", "Job rotation", "Defense in depth", "Separation of duties"],
+                ans: 3,
+                exp: "Separation of duties (SoD) divides critical tasks between multiple people, preventing any one individual from having enough access to commit fraud or make critical errors undetected."
+            },
+            {
+                week: 4, srcIdx: 9,
+                q: "What is the purpose of a Security Information and Event Management (SIEM) system?",
+                opts: [
+                    "To provide two-factor authentication for privileged accounts",
+                    "To encrypt data at rest across all endpoints",
+                    "To aggregate, correlate, and analyze security log data from multiple sources for threat detection",
+                    "To enforce network access policies based on device posture"
+                ],
+                ans: 2,
+                exp: "A SIEM collects logs from firewalls, IDS, endpoints, and applications, correlates events across sources, and generates alerts for suspected security incidents, enabling centralized visibility."
+            }
+        ];
+
+        /* ================================================================
+           GAME CONFIGURATION
+           ================================================================ */
+        var TIMER_SECONDS   = 30;
+        var MAX_PTS         = 1000;
+        var MIN_PTS         = 500;
+        var STREAK_BONUS    = 200;
+        var TOTAL_QUESTIONS = QUESTIONS.length; /* 20 */
+
+        /* SVG shapes: A=triangle(blue), B=diamond(red), C=circle(gold), D=square(green) */
+        var SHAPES = [
+            '<svg viewBox="0 0 36 36" width="28" height="28"><polygon points="18,3 35,33 1,33" fill="#3b82f6"/></svg>',
+            '<svg viewBox="0 0 36 36" width="28" height="28"><rect x="5" y="5" width="26" height="26" fill="#ef4444" transform="rotate(45 18 18)"/></svg>',
+            '<svg viewBox="0 0 36 36" width="28" height="28"><circle cx="18" cy="18" r="15" fill="#f59e0b"/></svg>',
+            '<svg viewBox="0 0 36 36" width="28" height="28"><rect x="3" y="3" width="30" height="30" rx="4" fill="#10b981"/></svg>'
+        ];
+        var BTN_CLASSES = ['btn-a', 'btn-b', 'btn-c', 'btn-d'];
+
+        /* ================================================================
+           HOST STATE
+           ================================================================ */
+        var roomCode        = null;   /* 6-digit string e.g. "483921" */
+        var roomDocRef      = null;   /* Firestore document reference */
+        var players         = {};     /* uid -> {nickname, score, streak, correctCount, lastAnswerIdx, lastAnswerCorrect} */
+        var prevScores      = {};     /* uid -> score snapshot before current question (for delta display) */
+        var currentQIdx     = 0;      /* current question index 0-19 */
+        var questionActive  = false;
+        var timerPaused     = false;
+        var pauseStartMs    = 0;
+        var totalPausedMs   = 0;
+        var timerRAF        = null;
+        var questionStartMs = 0;      /* local timestamp when question began */
+        var playersUnsub    = null;   /* Firestore onSnapshot unsubscribe fn for players */
+        var roomUnsub       = null;   /* Firestore onSnapshot unsubscribe fn for room */
+        var heartbeatTimer  = null;   /* setInterval id for host heartbeat (10s cadence) */
+
+        /* ================================================================
+           UTILITIES
+           ================================================================ */
+
+        /** Safely escape HTML content for insertion via innerHTML */
+        function escText(str) {
+            var d = document.createElement('span');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        /** Show a single screen by id, hide all others */
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(function(s) {
+                s.classList.remove('active');
+            });
+            document.getElementById(id).classList.add('active');
+        }
+
+        /**
+         * Generate a 6-digit room code as a zero-padded string.
+         * Range: 100000-999999 (avoids leading-zero ambiguity in UI).
+         * Collision strategy: if the Firestore doc already exists,
+         * createRoom() re-generates until it finds a free slot
+         * (handled in the create flow below).
+         */
+        function generateRoomCode() {
+            return String(100000 + Math.floor(Math.random() * 900000));
+        }
+
+        /* ================================================================
+           ROOM CREATION
+           ================================================================ */
+
+        /**
+         * Called when instructor clicks "Create Room".
+         * 1. Wait for KahootFirebase to be ready
+         * 2. Generate a 6-digit code and verify it is not already in use
+         * 3. Write the room document to Firestore
+         * 4. Render the QR code and lobby screen
+         * 5. Attach a real-time listener for players subcollection
+         */
+        async function createRoom() {
+            var btn = document.getElementById('createRoomBtn');
+            var errEl = document.getElementById('createError');
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+            errEl.style.display = 'none';
+
+            var ok = await KahootFirebase.isReady();
+            if (!ok) {
+                btn.disabled = false;
+                btn.textContent = 'Create Room';
+                errEl.textContent = 'Firebase connection failed. Refresh and try again.';
+                errEl.style.display = '';
+                return;
+            }
+
+            var db    = KahootFirebase.db;
+            var auth  = KahootFirebase.auth;
+            var fs    = window.firebaseFirestore;
+            var hostUid = auth.currentUser ? auth.currentUser.uid : null;
+
+            if (!hostUid) {
+                btn.disabled = false;
+                btn.textContent = 'Create Room';
+                errEl.textContent = 'Not signed in. Refresh the page.';
+                errEl.style.display = '';
+                return;
+            }
+
+            /* Find a free room code (max 5 attempts) */
+            var code = null;
+            for (var attempt = 0; attempt < 5; attempt++) {
+                var candidate = generateRoomCode();
+                var snap = await fs.getDoc(fs.doc(db, 'kahoot_rooms', candidate));
+                if (!snap.exists()) {
+                    code = candidate;
+                    break;
+                }
+            }
+
+            if (!code) {
+                btn.disabled = false;
+                btn.textContent = 'Create Room';
+                errEl.textContent = 'Could not allocate a room code. Try again.';
+                errEl.style.display = '';
+                return;
+            }
+
+            /* Write the room document */
+            roomCode = code;
+            var ref  = fs.doc(db, 'kahoot_rooms', roomCode);
+            roomDocRef = ref;
+
+            try {
+                await fs.setDoc(ref, {
+                    hostUid:             hostUid,
+                    status:              'lobby',
+                    currentQuestionIdx:  0,
+                    questionStartedAt:   null,
+                    revealStartedAt:     null,
+                    createdAt:           fs.serverTimestamp(),
+                    questions:           QUESTIONS.map(function(q) {
+                        return { q: q.q, opts: q.opts, ans: q.ans, exp: q.exp };
+                    })
+                });
+            } catch (e) {
+                /* Roll back the in-memory room handle so the post-return
+                   wrapper does NOT persist a roomCode that was never
+                   successfully written to Firestore. */
+                roomCode   = null;
+                roomDocRef = null;
+                btn.disabled = false;
+                btn.textContent = 'Create Room';
+                errEl.textContent = 'Firestore write failed: ' + e.message;
+                errEl.style.display = '';
+                return;
+            }
+
+            /* Render QR + code */
+            var joinUrl = 'https://hexworth.com/join?code=' + roomCode;
+            document.getElementById('joinUrl').textContent = joinUrl;
+            document.getElementById('roomCodeDisplay').textContent = roomCode;
+            document.getElementById('liveRoomCode').textContent = roomCode;
+
+            /* QR code (qrcodejs: target element id, options).
+               Gracefully fall back to text-only if the script failed to
+               load; the 6-digit code + join URL are already visible
+               above, so the instructor can still read them aloud. */
+            var qrEl = document.getElementById('qrCanvas');
+            qrEl.innerHTML = '';
+            if (typeof QRCode !== 'undefined') {
+                try {
+                    new QRCode(qrEl, {
+                        text:            joinUrl,
+                        width:           200,
+                        height:          200,
+                        colorDark:       '#ffffff',
+                        colorLight:      '#12121a',
+                        correctLevel:    QRCode.CorrectLevel.M
+                    });
+                } catch (e) {
+                    console.warn('[KahootHost] QRCode render failed:', e);
+                    qrEl.textContent = 'QR unavailable: use code ' + roomCode;
+                }
+            } else {
+                console.warn('[KahootHost] QRCode library not loaded');
+                qrEl.textContent = 'QR unavailable: use code ' + roomCode;
+            }
+
+            showScreen('screenLobby');
+
+            /* Attach real-time player listener */
+            _attachPlayerListener();
+        }
+
+        /* ================================================================
+           PLAYER LISTENER
+           Listens to kahoot_rooms/{code}/players subcollection.
+           Updates the lobby player chips and the start-game button.
+           Also used during live game to track answers.
+           ================================================================ */
+        function _attachPlayerListener() {
+            if (playersUnsub) playersUnsub();
+
+            var fs      = window.firebaseFirestore;
+            var db      = KahootFirebase.db;
+            var colRef  = fs.collection(db, 'kahoot_rooms', roomCode, 'players');
+
+            playersUnsub = fs.onSnapshot(colRef, function(snapshot) {
+                /* Rebuild the players map from the snapshot */
+                players = {};
+                snapshot.forEach(function(docSnap) {
+                    players[docSnap.id] = docSnap.data();
+                });
+                _updateLobbyUI();
+                _updateAnsweredTally();
+            }, function(err) {
+                console.error('[KahootHost] Player listener error:', err);
+            });
+        }
+
+        /** Refresh the lobby player chip list and start-button */
+        function _updateLobbyUI() {
+            var uids     = Object.keys(players);
+            var count    = uids.length;
+            var listEl   = document.getElementById('playerList');
+            var countBadge = document.getElementById('playerCountBadge');
+            var startBtn = document.getElementById('startGameBtn');
+
+            countBadge.textContent = count;
+
+            if (count === 0) {
+                listEl.innerHTML = '<span class="lobby-empty">Waiting for players...</span>';
+            } else {
+                listEl.innerHTML = '';
+                uids.forEach(function(uid) {
+                    var chip = document.createElement('div');
+                    chip.className = 'player-chip';
+                    chip.textContent = players[uid].nickname || 'Player';
+                    listEl.appendChild(chip);
+                });
+            }
+
+            startBtn.disabled     = count < 1;
+            startBtn.textContent  = count < 1
+                ? 'Start Game (0 players)'
+                : 'Start Game (' + count + ' player' + (count === 1 ? '' : 's') + ')';
+        }
+
+        /** Update "N of M answered" counter during live question */
+        function _updateAnsweredTally() {
+            if (!questionActive) return;
+            var uids       = Object.keys(players);
+            var total      = uids.length;
+            var answered   = uids.filter(function(uid) {
+                return players[uid].lastAnswerIdx !== null &&
+                       players[uid].lastAnswerIdx !== undefined;
+            }).length;
+
+            document.getElementById('answeredCount').textContent  = answered;
+            document.getElementById('totalPlayers').textContent   = total;
+            document.getElementById('livePlayerCount').textContent = total;
+
+            /* Per-option answer count overlays on the answer buttons */
+            var btns = document.querySelectorAll('#liveAnswerGrid .answer-btn');
+            btns.forEach(function(btn) {
+                var idx   = parseInt(btn.dataset.idx, 10);
+                var cnt   = uids.filter(function(uid) {
+                    return parseInt(players[uid].lastAnswerIdx, 10) === idx;
+                }).length;
+                var cntEl = btn.querySelector('.answer-count');
+                if (cntEl) cntEl.textContent = cnt > 0 ? cnt : '';
+            });
+
+            /* Auto-advance to reveal when all players have answered */
+            if (total > 0 && answered >= total && questionActive) {
+                _advanceToReveal();
+            }
+        }
+
+        /* ================================================================
+           START LIVE GAME
+           Writes status='live' + currentQuestionIdx=0 + questionStartedAt
+           to the room doc, triggering all player onSnapshot listeners.
+           ================================================================ */
+        async function startLiveGame() {
+            var fs = window.firebaseFirestore;
+
+            /* Snapshot current scores (all 0 at start) for delta display */
+            _snapshotScores();
+
+            /* Write game start to Firestore */
+            try {
+                await fs.updateDoc(roomDocRef, {
+                    status:             'live',
+                    currentQuestionIdx: 0,
+                    questionStartedAt:  fs.serverTimestamp(),
+                    hostLastSeenAt:     fs.serverTimestamp()
+                });
+            } catch (e) {
+                console.error('[KahootHost] startLiveGame updateDoc failed:', e);
+                return;
+            }
+
+            /* Start the heartbeat: writes hostLastSeenAt every 10s so players
+               can detect a stranded room when the instructor's laptop sleeps. */
+            _startHeartbeat();
+
+            currentQIdx = 0;
+            _renderLiveQuestion();
+            showScreen('screenLive');
+        }
+
+        /* ================================================================
+           HOST HEARTBEAT
+           Writes hostLastSeenAt every 10s during a live/reveal session so
+           the player page can detect host disconnect (stale > 60s) and
+           show a 'Host may be offline' banner instead of stranding the
+           class on a frozen question.
+           ================================================================ */
+        function _startHeartbeat() {
+            _stopHeartbeat();
+            heartbeatTimer = setInterval(function() {
+                if (!roomDocRef) { _stopHeartbeat(); return; }
+                fs.updateDoc(roomDocRef, { hostLastSeenAt: fs.serverTimestamp() })
+                  .catch(function(e) {
+                      console.warn('[KahootHost] heartbeat updateDoc failed:', e);
+                  });
+            }, 10000);
+        }
+        function _stopHeartbeat() {
+            if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+        }
+
+        /* ================================================================
+           RENDER LIVE QUESTION
+           Populates the question display on the host screen.
+           Starts the local timer (anchored to server timestamp for accuracy).
+           ================================================================ */
+        function _renderLiveQuestion() {
+            var q = QUESTIONS[currentQIdx];
+            questionActive = true;
+            timerPaused    = false;
+            totalPausedMs  = 0;
+            questionStartMs = Date.now();
+
+            /* Reset pause button */
+            var pauseBtn = document.getElementById('pauseBtn');
+            pauseBtn.textContent = 'Pause';
+            pauseBtn.classList.remove('paused');
+
+            /* Header stats */
+            document.getElementById('liveQCounter').textContent      = (currentQIdx + 1) + '/20';
+            document.getElementById('liveQuestionCounter').textContent = 'QUESTION ' + (currentQIdx + 1) + ' OF 20';
+            document.getElementById('liveQuestionText').textContent   = q.q;
+            document.getElementById('livePlayerCount').textContent    = Object.keys(players).length;
+            document.getElementById('answeredCount').textContent      = '0';
+            document.getElementById('totalPlayers').textContent       = Object.keys(players).length;
+
+            /* Answer buttons (read-only on host screen) */
+            var grid = document.getElementById('liveAnswerGrid');
+            grid.innerHTML = '';
+            for (var i = 0; i < q.opts.length; i++) {
+                var btn = document.createElement('div');
+                btn.className     = 'answer-btn ' + BTN_CLASSES[i];
+                btn.dataset.idx   = i;
+                btn.innerHTML     =
+                    '<div class="answer-shape">' + SHAPES[i] + '</div>' +
+                    '<span class="answer-text">' + escText(q.opts[i]) + '</span>' +
+                    '<span class="answer-count"></span>';
+                grid.appendChild(btn);
+            }
+
+            _startTimer();
+        }
+
+        /* ================================================================
+           TIMER (host-side)
+           Uses local Date.now() anchored to questionStartMs.
+           Drift vs. players is bounded by Firestore serverTimestamp; both
+           sides compute elapsed from the same server timestamp value.
+           ================================================================ */
+        function _startTimer() {
+            if (timerRAF) cancelAnimationFrame(timerRAF);
+            _animateTimer();
+        }
+
+        function _animateTimer() {
+            timerRAF = requestAnimationFrame(function() {
+                if (timerPaused || !questionActive) return;
+
+                var elapsed   = (Date.now() - questionStartMs - totalPausedMs) / 1000;
+                var remaining = Math.max(0, TIMER_SECONDS - elapsed);
+                var fraction  = remaining / TIMER_SECONDS;
+
+                /* Update fill bar */
+                var fill = document.getElementById('timerFill');
+                fill.style.width = (fraction * 100) + '%';
+
+                /* Color: green -> yellow -> red */
+                var r, g, b;
+                if (fraction > 0.5) {
+                    var t  = (1 - fraction) * 2;
+                    r = Math.round(59  + (245 - 59)  * t);
+                    g = Math.round(130 + (158 - 130) * t);
+                    b = Math.round(246 + (11  - 246) * t);
+                } else {
+                    var t2 = (0.5 - fraction) * 2;
+                    r = Math.round(245 + (239 - 245) * t2);
+                    g = Math.round(158 + (68  - 158) * t2);
+                    b = Math.round(11  + (68  - 11)  * t2);
+                }
+                fill.style.background = 'rgb(' + r + ',' + g + ',' + b + ')';
+
+                document.getElementById('timerLabel').textContent = Math.ceil(remaining);
+
+                if (remaining <= 0) {
+                    _advanceToReveal();
+                    return;
+                }
+
+                _animateTimer();
+            });
+        }
+
+        function _stopTimer() {
+            questionActive = false;
+            if (timerRAF) cancelAnimationFrame(timerRAF);
+            timerRAF = null;
+        }
+
+        /* ================================================================
+           PAUSE / RESUME
+           ================================================================ */
+        function togglePause() {
+            if (!questionActive && !timerPaused) return;
+
+            if (!timerPaused) {
+                timerPaused  = true;
+                pauseStartMs = Date.now();
+                document.getElementById('pauseBtn').textContent = 'Paused';
+                document.getElementById('pauseBtn').classList.add('paused');
+                document.getElementById('pauseOverlay').classList.add('active');
+            } else {
+                totalPausedMs += Date.now() - pauseStartMs;
+                timerPaused    = false;
+                document.getElementById('pauseBtn').textContent = 'Pause';
+                document.getElementById('pauseBtn').classList.remove('paused');
+                document.getElementById('pauseOverlay').classList.remove('active');
+                _animateTimer();
+            }
+        }
+
+        /* ================================================================
+           SKIP TO REVEAL (host manually skips question)
+           ================================================================ */
+        function skipToReveal() {
+            if (!questionActive) return;
+            _advanceToReveal();
+        }
+
+        /* ================================================================
+           ADVANCE TO REVEAL
+           Writes status='reveal' + revealStartedAt to Firestore.
+           Shows the reveal screen on the host display.
+           Called when timer expires, all players answer, or host skips.
+           ================================================================ */
+        async function _advanceToReveal() {
+            if (!questionActive) return; /* Guard against double-call */
+            _stopTimer();
+
+            var fs = window.firebaseFirestore;
+
+            /* Build a leaderboard snapshot from the host's in-memory players map
+               and write it into the room doc. Players can read rank directly
+               from their already-attached room snapshot instead of paying a
+               getDocs read per reveal. Saves ~30 reads per reveal per player. */
+            var leaderboard = Object.keys(players).map(function(uid) {
+                return {
+                    uid:      uid,
+                    nickname: players[uid].nickname || 'anon',
+                    score:    players[uid].score || 0
+                };
+            }).sort(function(a, b) { return b.score - a.score; });
+            /* Add 1-based rank with tie handling (same score = same rank) */
+            var prevScore = null, prevRank = 0;
+            for (var i = 0; i < leaderboard.length; i++) {
+                if (prevScore === null || leaderboard[i].score < prevScore) {
+                    leaderboard[i].rank = i + 1;
+                    prevScore = leaderboard[i].score;
+                    prevRank = i + 1;
+                } else {
+                    leaderboard[i].rank = prevRank;
+                }
+            }
+
+            try {
+                await fs.updateDoc(roomDocRef, {
+                    status:         'reveal',
+                    revealStartedAt: fs.serverTimestamp(),
+                    leaderboard:    leaderboard
+                });
+            } catch (e) {
+                console.error('[KahootHost] _advanceToReveal updateDoc failed:', e);
+            }
+
+            _showReveal();
+        }
+
+        /* ================================================================
+           SHOW REVEAL SCREEN
+           Highlights correct answer on the live question grid,
+           then shows the per-player leaderboard.
+           ================================================================ */
+        function _showReveal() {
+            var q = QUESTIONS[currentQIdx];
+
+            /* Highlight correct / wrong on live answer grid */
+            var btns = document.querySelectorAll('#liveAnswerGrid .answer-btn');
+            btns.forEach(function(btn) {
+                var idx = parseInt(btn.dataset.idx, 10);
+                if (idx === q.ans) {
+                    btn.classList.add('reveal-correct');
+                } else {
+                    btn.classList.add('reveal-wrong');
+                }
+            });
+
+            /* Reveal screen: correct answer text + explanation */
+            document.getElementById('revealAnswerText').textContent = q.opts[q.ans];
+            document.getElementById('revealExp').textContent        = q.exp;
+
+            /* Build leaderboard (sorted by score descending) */
+            var sorted    = _getSortedPlayers();
+            var lbEl      = document.getElementById('leaderboardRows');
+            lbEl.innerHTML = '';
+
+            if (sorted.length === 0) {
+                lbEl.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">No players yet.</div>';
+            } else {
+                sorted.slice(0, 10).forEach(function(entry, i) {
+                    var delta   = (entry.score || 0) - (prevScores[entry.uid] || 0);
+                    var row     = document.createElement('div');
+                    row.className = 'lb-row';
+                    row.innerHTML =
+                        '<span class="lb-rank">' + (i + 1) + '</span>' +
+                        '<span class="lb-name">' + escText(entry.nickname) + '</span>' +
+                        '<span class="lb-score">' + (entry.score || 0).toLocaleString() + '</span>' +
+                        '<span class="lb-delta">' + (delta > 0 ? '+' + delta : '') + '</span>';
+                    lbEl.appendChild(row);
+                });
+            }
+
+            /* Update the Next Question button label */
+            var nextBtn = document.getElementById('nextQBtn');
+            if (currentQIdx >= TOTAL_QUESTIONS - 1) {
+                nextBtn.textContent = 'Show Final Results';
+            } else {
+                nextBtn.textContent = 'Next Question (' + (currentQIdx + 2) + '/20)';
+            }
+
+            showScreen('screenReveal');
+        }
+
+        /* ================================================================
+           ADVANCE TO NEXT QUESTION
+           ================================================================ */
+        async function advanceToNextQuestion() {
+            currentQIdx++;
+
+            if (currentQIdx >= TOTAL_QUESTIONS) {
+                _showFinal();
+                return;
+            }
+
+            /* Snapshot scores before next question (for delta in next reveal) */
+            _snapshotScores();
+
+            var fs = window.firebaseFirestore;
+
+            try {
+                await fs.updateDoc(roomDocRef, {
+                    status:             'live',
+                    currentQuestionIdx:  currentQIdx,
+                    questionStartedAt:   fs.serverTimestamp(),
+                    revealStartedAt:     null
+                });
+            } catch (e) {
+                console.error('[KahootHost] advanceToNextQuestion updateDoc failed:', e);
+            }
+
+            _renderLiveQuestion();
+            showScreen('screenLive');
+        }
+
+        /* ================================================================
+           FINAL LEADERBOARD
+           ================================================================ */
+        async function _showFinal() {
+            /* Stop heartbeat — game is done, no more live state. */
+            _stopHeartbeat();
+            /* Write finished status */
+            var fs = window.firebaseFirestore;
+            try {
+                await fs.updateDoc(roomDocRef, { status: 'finished' });
+            } catch (e) {
+                console.error('[KahootHost] _showFinal status update failed:', e);
+            }
+
+            var sorted = _getSortedPlayers();
+            var tableEl = document.getElementById('finalLeaderboard');
+            tableEl.innerHTML = '';
+
+            if (sorted.length === 0) {
+                tableEl.innerHTML = '<tr><td style="color:var(--text-dim);text-align:center;padding:20px;">No players completed the game.</td></tr>';
+            } else {
+                sorted.forEach(function(entry, i) {
+                    var rank     = i + 1;
+                    var rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-n';
+                    var pct      = TOTAL_QUESTIONS > 0
+                        ? Math.round(((entry.correctCount || 0) / TOTAL_QUESTIONS) * 100)
+                        : 0;
+                    var gradeText, gradeClass;
+                    if (pct >= 90)      { gradeText = 'S'; gradeClass = 'grade-s'; }
+                    else if (pct >= 75) { gradeText = 'A'; gradeClass = 'grade-a'; }
+                    else if (pct >= 55) { gradeText = 'B'; gradeClass = 'grade-b'; }
+                    else if (pct >= 30) { gradeText = 'C'; gradeClass = 'grade-c'; }
+                    else                { gradeText = 'F'; gradeClass = 'grade-f'; }
+
+                    var row = document.createElement('tr');
+                    row.innerHTML =
+                        '<td>' +
+                        '<div class="final-lb-row ' + rankClass + '">' +
+                        '<span class="final-rank">' + rank + '</span>' +
+                        '<span class="final-name">' + escText(entry.nickname) + '</span>' +
+                        '<span class="final-score">' + (entry.score || 0).toLocaleString() + '</span>' +
+                        '<span class="final-grade-tag ' + gradeClass + '">' + gradeText + '</span>' +
+                        '</div></td>';
+                    tableEl.appendChild(row);
+                });
+            }
+
+            document.getElementById('finalSub').textContent =
+                'All 20 questions complete. ' + sorted.length + ' player' + (sorted.length === 1 ? '' : 's') + ' finished.';
+
+            document.getElementById('finalOverlay').classList.add('active');
+        }
+
+        /* ================================================================
+           HELPERS
+           ================================================================ */
+
+        /** Sort the players map into an array by score descending */
+        function _getSortedPlayers() {
+            return Object.keys(players).map(function(uid) {
+                return Object.assign({ uid: uid }, players[uid]);
+            }).sort(function(a, b) {
+                return (b.score || 0) - (a.score || 0);
+            });
+        }
+
+        /** Capture current scores for per-question delta display in reveal */
+        function _snapshotScores() {
+            prevScores = {};
+            Object.keys(players).forEach(function(uid) {
+                prevScores[uid] = players[uid].score || 0;
+            });
+        }
+
+        /* ================================================================
+           HOST RECOVERY
+           If host refreshes mid-game, try to re-attach to any active room
+           owned by this user. We check localStorage for a room code left
+           over from a previous session.
+           ================================================================ */
+        (function _attemptHostRecovery() {
+            /* Recovery is attempted after Firebase is ready */
+            KahootFirebase.isReady().then(function(ok) {
+                if (!ok) return;
+
+                var savedCode = localStorage.getItem('pis_kahoot_host_room');
+                if (!savedCode) return;
+
+                var fs      = window.firebaseFirestore;
+                var db      = KahootFirebase.db;
+                var auth    = KahootFirebase.auth;
+                var uid     = auth.currentUser ? auth.currentUser.uid : null;
+                if (!uid) return;
+
+                fs.getDoc(fs.doc(db, 'kahoot_rooms', savedCode)).then(function(snap) {
+                    if (!snap.exists()) {
+                        localStorage.removeItem('pis_kahoot_host_room');
+                        return;
+                    }
+                    var data = snap.data();
+                    if (data.hostUid !== uid) return; /* Not our room */
+                    if (data.status === 'finished')  return; /* Already done */
+
+                    /* Re-attach */
+                    roomCode    = savedCode;
+                    roomDocRef  = fs.doc(db, 'kahoot_rooms', savedCode);
+                    currentQIdx = data.currentQuestionIdx || 0;
+
+                    var joinUrl = 'https://hexworth.com/join?code=' + roomCode;
+                    document.getElementById('joinUrl').textContent    = joinUrl;
+                    document.getElementById('roomCodeDisplay').textContent = roomCode;
+                    document.getElementById('liveRoomCode').textContent    = roomCode;
+
+                    /* Rebuild QR */
+                    document.getElementById('qrCanvas').innerHTML = '';
+                    new QRCode(document.getElementById('qrCanvas'), {
+                        text:         joinUrl,
+                        width:        200,
+                        height:       200,
+                        colorDark:    '#ffffff',
+                        colorLight:   '#12121a',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+
+                    _attachPlayerListener();
+
+                    if (data.status === 'lobby') {
+                        showScreen('screenLobby');
+                    } else if (data.status === 'live') {
+                        _renderLiveQuestion();
+                        showScreen('screenLive');
+                    } else if (data.status === 'reveal') {
+                        _showReveal();
+                    }
+
+                    console.log('[KahootHost] Recovered room', roomCode, 'status:', data.status);
+                }).catch(function(e) {
+                    console.warn('[KahootHost] Recovery read failed:', e);
+                    localStorage.removeItem('pis_kahoot_host_room');
+                });
+            });
+        })();
+
+        /* ================================================================
+           PERSIST ROOM CODE ON CREATE
+           Save roomCode to localStorage whenever it is set, so
+           the recovery flow above can find it after a page refresh.
+           ================================================================ */
+        var _origCreateRoom = createRoom;
+        /* Wrap createRoom to persist the code after successful creation */
+        createRoom = async function() {
+            await _origCreateRoom();
+            if (roomCode) {
+                localStorage.setItem('pis_kahoot_host_room', roomCode);
+            }
+        };
+
+        /* Tear down listeners + heartbeat on tab close so we don't leak
+           snapshot subscriptions or keep the heartbeat writing after exit.
+           pagehide fires reliably on mobile background + tab close, while
+           beforeunload can be skipped by some browsers on navigation. */
+        window.addEventListener('pagehide', function() {
+            if (playersUnsub)   { try { playersUnsub();   } catch(_){} playersUnsub   = null; }
+            if (roomUnsub)      { try { roomUnsub();      } catch(_){} roomUnsub      = null; }
+            _stopHeartbeat();
+        });
+    </script>
+</body>
+</html>
