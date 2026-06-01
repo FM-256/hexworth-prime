@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- NO AccessGuard here: players are anonymous, no Hexworth login required -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Join Kahoot (Hexworth)</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-megaphone.webp">
+    <!-- Firebase SDK loaded via ESM inline; no external script deps needed -->
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --shield-primary:  #3b82f6;
+            --shield-dim:      rgba(59, 130, 246, 0.12);
+            --shield-glow:     rgba(59, 130, 246, 0.3);
+            --bg:              #0a0a0f;
+            --bg-card:         #12121a;
+            --text:            #e0e0e0;
+            --text-dim:        #8b949e;
+            --border:          rgba(255,255,255,0.08);
+            --gold:            #ffcc00;
+            --red:             #ef4444;
+            --green:           #10b981;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 0 0 40px;
+        }
+
+        /* ── Header strip ── */
+        .header {
+            background: rgba(10,10,15,0.96); backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(59,130,246,0.18);
+            padding: 12px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header-badge {
+            font-size: 11px; padding: 3px 10px; border-radius: 4px;
+            background: var(--shield-dim); color: var(--shield-primary);
+            font-weight: 700; letter-spacing: 1px;
+        }
+        .header-title { font-size: 15px; font-weight: 600; }
+
+        /* Stale-host banner — surfaces when the instructor's heartbeat
+           has gone quiet for 60+ seconds during a live/reveal session. */
+        .host-stale-banner {
+            background: rgba(248, 113, 113, 0.18);
+            border: 1px solid rgba(248, 113, 113, 0.55);
+            color: #fecaca;
+            padding: 10px 14px; margin: 0 16px 12px 16px;
+            border-radius: 8px; font-size: 13px; line-height: 1.4;
+            text-align: center;
+        }
+        .host-stale-banner[hidden] { display: none; }
+
+        /* ── Screens ── */
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        /* ── Join Screen ── */
+        .join-wrap {
+            max-width: 420px; margin: 0 auto; padding: 40px 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .join-logo {
+            width: 64px; height: 64px; border-radius: 14px;
+            margin-bottom: 20px;
+        }
+        .join-title {
+            font-size: 26px; font-weight: 800; color: #fff;
+            text-align: center; margin-bottom: 6px;
+        }
+        .join-sub {
+            font-size: 14px; color: var(--text-dim); text-align: center;
+            margin-bottom: 32px;
+        }
+        .field-wrap { width: 100%; margin-bottom: 16px; }
+        .field-label {
+            font-size: 12px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 6px; display: block;
+        }
+        .field-input {
+            width: 100%; padding: 16px 18px;
+            background: var(--bg-card); border: 1.5px solid var(--border);
+            border-radius: 10px; color: var(--text); font-size: 22px;
+            font-weight: 700; text-align: center; letter-spacing: 4px;
+            outline: none; transition: border-color 0.2s;
+            -webkit-appearance: none; appearance: none;
+        }
+        .field-input:focus { border-color: var(--shield-primary); }
+        .field-input.nickname-input {
+            font-size: 18px; font-weight: 600; letter-spacing: 1px; text-align: left;
+        }
+        .join-btn {
+            width: 100%; padding: 18px;
+            background: linear-gradient(135deg, var(--shield-primary), #7c3aed);
+            border: none; border-radius: 10px; color: #fff;
+            font-size: 17px; font-weight: 800; cursor: pointer;
+            transition: all 0.2s; margin-top: 4px;
+            touch-action: manipulation;
+        }
+        .join-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 20px var(--shield-glow); }
+        .join-btn:active:not(:disabled) { transform: translateY(0); }
+        .join-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        /* Error message */
+        .err-msg {
+            font-size: 13px; color: var(--red); text-align: center;
+            margin-top: 12px; min-height: 18px;
+        }
+
+        /* ── Waiting Screen ── */
+        .waiting-wrap {
+            max-width: 420px; margin: 0 auto; padding: 60px 20px;
+            text-align: center;
+        }
+        .waiting-code {
+            font-size: 52px; font-weight: 900; letter-spacing: 10px;
+            color: var(--gold); margin-bottom: 8px;
+        }
+        .waiting-name {
+            font-size: 18px; font-weight: 700; color: #fff;
+            margin-bottom: 8px;
+        }
+        .waiting-msg {
+            font-size: 14px; color: var(--text-dim); margin-bottom: 24px;
+        }
+        .pulse-dot {
+            display: inline-block; width: 10px; height: 10px;
+            background: var(--shield-primary); border-radius: 50%;
+            animation: pulseDot 1.4s ease-in-out infinite;
+            margin: 0 3px;
+        }
+        .pulse-dot:nth-child(2) { animation-delay: 0.2s; }
+        .pulse-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pulseDot {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40%            { transform: scale(1.0); opacity: 1; }
+        }
+
+        /* ── Live Game Screen ── */
+        .live-wrap { padding: 16px 16px 0; max-width: 520px; margin: 0 auto; }
+
+        /* Progress bar at top */
+        .q-progress {
+            height: 4px; background: rgba(255,255,255,0.08);
+            border-radius: 2px; margin-bottom: 14px; overflow: hidden;
+        }
+        .q-progress-fill {
+            height: 100%; background: var(--shield-primary);
+            border-radius: 2px; transition: width 0.5s;
+        }
+
+        .q-counter {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1.5px; text-align: center; margin-bottom: 10px;
+        }
+
+        /* Timer ring */
+        .timer-ring-wrap {
+            display: flex; justify-content: center; margin-bottom: 10px;
+        }
+        .timer-ring {
+            position: relative; width: 72px; height: 72px;
+        }
+        .timer-ring svg { transform: rotate(-90deg); }
+        .timer-ring-text {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 900; color: var(--gold);
+        }
+
+        /* Question text */
+        .question-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px 18px; margin-bottom: 14px;
+            text-align: center;
+        }
+        .question-card-text {
+            font-size: 17px; font-weight: 700; color: #fff; line-height: 1.4;
+        }
+
+        /* Answer buttons (large tap targets for phones) */
+        .answer-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            margin-bottom: 14px;
+        }
+        .answer-btn {
+            display: flex; align-items: center; gap: 10px;
+            padding: 20px 14px; border-radius: 12px;
+            border: 2px solid transparent; cursor: pointer;
+            font-size: 14px; font-weight: 700; color: #fff;
+            min-height: 80px; text-align: left;
+            transition: transform 0.1s, filter 0.1s;
+            touch-action: manipulation; -webkit-user-select: none; user-select: none;
+        }
+        .answer-btn:active:not(:disabled):not(.locked) {
+            transform: scale(0.96);
+        }
+        .answer-btn.btn-a { background: rgba(59,130,246,0.22);  border-color: rgba(59,130,246,0.45); }
+        .answer-btn.btn-b { background: rgba(239,68,68,0.22);   border-color: rgba(239,68,68,0.45);  }
+        .answer-btn.btn-c { background: rgba(245,158,11,0.22);  border-color: rgba(245,158,11,0.45); }
+        .answer-btn.btn-d { background: rgba(16,185,129,0.22);  border-color: rgba(16,185,129,0.45); }
+
+        .answer-btn.selected {
+            filter: brightness(1.25);
+            border-width: 3px;
+        }
+        .answer-btn.reveal-correct { background: rgba(16,185,129,0.4) !important; border-color: #10b981 !important; }
+        .answer-btn.reveal-wrong   { background: rgba(239,68,68,0.1) !important;  border-color: rgba(239,68,68,0.2) !important; filter: brightness(0.6); }
+        .answer-btn.locked { pointer-events: none; }
+
+        .answer-shape { width: 30px; height: 30px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .answer-shape svg { width: 30px; height: 30px; }
+        .answer-text { flex: 1; line-height: 1.3; font-size: 13px; }
+
+        /* Locked-in confirmation */
+        .locked-msg {
+            text-align: center; padding: 16px; font-size: 14px;
+            color: var(--text-dim); font-style: italic;
+        }
+
+        /* ── Reveal Screen (between questions) ── */
+        .reveal-wrap {
+            max-width: 420px; margin: 0 auto; padding: 32px 20px;
+            text-align: center;
+        }
+        .reveal-result {
+            font-size: 13px; text-transform: uppercase; letter-spacing: 2px;
+            font-weight: 700; margin-bottom: 6px;
+        }
+        .reveal-result.correct { color: var(--green); }
+        .reveal-result.wrong   { color: var(--red); }
+        .reveal-result.timeout { color: var(--text-dim); }
+        .reveal-pts {
+            font-size: 48px; font-weight: 900; color: var(--gold); margin-bottom: 4px;
+        }
+        .reveal-pts.zero { color: var(--text-dim); font-size: 36px; }
+        .reveal-streak {
+            font-size: 13px; color: var(--green); font-weight: 700; margin-bottom: 12px;
+        }
+        .reveal-rank-row {
+            display: flex; justify-content: center; gap: 28px;
+            margin: 16px 0 20px;
+        }
+        .reveal-stat { text-align: center; }
+        .reveal-stat-val { font-size: 26px; font-weight: 900; }
+        .reveal-stat-lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .waiting-next { font-size: 13px; color: var(--text-dim); font-style: italic; margin-top: 8px; }
+
+        /* ── Final Screen ── */
+        .final-wrap {
+            max-width: 420px; margin: 0 auto; padding: 48px 20px;
+            text-align: center;
+        }
+        .final-score-big {
+            font-size: 64px; font-weight: 900; color: var(--gold);
+            text-shadow: 0 0 24px rgba(255,204,0,0.3); margin-bottom: 4px;
+        }
+        .final-sub    { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; }
+        .final-stats  { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+        .final-stat   { text-align: center; }
+        .final-stat-num { font-size: 26px; font-weight: 900; }
+        .final-stat-lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .final-stat-num.green { color: var(--green); }
+        .final-stat-num.gold  { color: var(--gold);  }
+        .final-grade-chip {
+            font-size: 15px; font-weight: 700; padding: 10px 24px;
+            border-radius: 8px; display: inline-block; margin-bottom: 24px;
+        }
+        .grade-s { background: rgba(255,204,0,0.12);  color: var(--gold);  border: 1px solid rgba(255,204,0,0.3); }
+        .grade-a { background: rgba(59,130,246,0.12); color: #3b82f6;      border: 1px solid rgba(59,130,246,0.3); }
+        .grade-b { background: rgba(96,165,250,0.12); color: #93c5fd;      border: 1px solid rgba(96,165,250,0.3); }
+        .grade-c { background: rgba(245,158,11,0.12); color: #fbbf24;      border: 1px solid rgba(245,158,11,0.3); }
+        .grade-f { background: rgba(239,68,68,0.12);  color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+        .home-link {
+            display: inline-block; padding: 14px 28px; border-radius: 8px;
+            background: var(--shield-dim); color: var(--shield-primary);
+            border: 1px solid rgba(59,130,246,0.3); font-weight: 700;
+            font-size: 14px; text-decoration: none; transition: all 0.2s;
+        }
+        .home-link:hover { background: rgba(59,130,246,0.18); }
+
+        /* ── Responsive: taller answer buttons on small screens ── */
+        @media (max-width: 360px) {
+            .answer-grid { grid-template-columns: 1fr; }
+            .answer-btn  { min-height: 64px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <span class="header-badge">HEXWORTH</span>
+        <span class="header-title">Live Kahoot</span>
+    </header>
+
+    <!-- Stale-host banner, hidden by default. Shown when the host
+         heartbeat is more than 60s old during a live/reveal session. -->
+    <div id="hostStaleBanner" class="host-stale-banner" hidden>
+        Host may be offline. The instructor's screen is not responding. Wait or refresh.
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         SCREEN 1: Enter code + nickname
+    ════════════════════════════════════════════════ -->
+    <div id="screenJoin" class="screen active">
+        <div class="join-wrap">
+            <img class="join-logo" src="/assets/images/icons/icon-megaphone.webp" alt="">
+            <div class="join-title">Join Kahoot</div>
+            <div class="join-sub">Enter your 6-digit room code and a nickname to join.</div>
+
+            <div class="field-wrap" id="codeFieldWrap">
+                <label class="field-label" for="codeInput">Room Code</label>
+                <input type="tel" id="codeInput" class="field-input"
+                       maxlength="6" placeholder="000000"
+                       autocomplete="off" autocorrect="off" spellcheck="false">
+            </div>
+
+            <div class="field-wrap">
+                <label class="field-label" for="nicknameInput">Nickname (1-20 characters)</label>
+                <input type="text" id="nicknameInput" class="field-input nickname-input"
+                       maxlength="20" placeholder="Your name"
+                       autocomplete="off" autocorrect="off" spellcheck="false">
+            </div>
+
+            <button class="join-btn" id="joinBtn" onclick="joinRoom()">Join Room</button>
+            <div class="err-msg" id="joinErr"></div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         SCREEN 2: Waiting for host to start
+    ════════════════════════════════════════════════ -->
+    <div id="screenWaiting" class="screen">
+        <div class="waiting-wrap">
+            <div class="waiting-code" id="waitingCode"></div>
+            <div class="waiting-name" id="waitingName"></div>
+            <div class="waiting-msg">Waiting for the host to start the game...</div>
+            <div>
+                <span class="pulse-dot"></span>
+                <span class="pulse-dot"></span>
+                <span class="pulse-dot"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         SCREEN 3: Live question
+    ════════════════════════════════════════════════ -->
+    <div id="screenLive" class="screen">
+        <div class="live-wrap">
+            <!-- Progress bar (questions completed / 20) -->
+            <div class="q-progress">
+                <div class="q-progress-fill" id="qProgressFill" style="width:0%"></div>
+            </div>
+            <div class="q-counter" id="qCounter">QUESTION 1 OF 20</div>
+
+            <!-- Timer ring -->
+            <div class="timer-ring-wrap">
+                <div class="timer-ring">
+                    <svg width="72" height="72" viewBox="0 0 72 72">
+                        <!-- Background track -->
+                        <circle cx="36" cy="36" r="30"
+                                stroke="rgba(255,255,255,0.08)"
+                                stroke-width="6" fill="none"/>
+                        <!-- Animated arc -->
+                        <circle id="timerArc" cx="36" cy="36" r="30"
+                                stroke="#3b82f6" stroke-width="6" fill="none"
+                                stroke-dasharray="188.5" stroke-dashoffset="0"
+                                stroke-linecap="round"/>
+                    </svg>
+                    <div class="timer-ring-text" id="timerText">30</div>
+                </div>
+            </div>
+
+            <!-- Question card -->
+            <div class="question-card">
+                <div class="question-card-text" id="liveQuestion">Loading...</div>
+            </div>
+
+            <!-- Answer grid (4 buttons) -->
+            <div class="answer-grid" id="answerGrid">
+                <!-- Populated by _renderQuestion() -->
+            </div>
+
+            <!-- Shown after player taps an answer -->
+            <div class="locked-msg" id="lockedMsg" style="display:none;">
+                Locked in! Waiting for the reveal...
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         SCREEN 4: Between-question reveal
+    ════════════════════════════════════════════════ -->
+    <div id="screenReveal" class="screen">
+        <div class="reveal-wrap">
+            <div class="reveal-result" id="revealResult">Correct!</div>
+            <div class="reveal-pts" id="revealPts">+850</div>
+            <div class="reveal-streak" id="revealStreak" style="display:none;"></div>
+            <div class="reveal-rank-row">
+                <div class="reveal-stat">
+                    <div class="reveal-stat-val" id="revealScore" style="color:var(--gold)">0</div>
+                    <div class="reveal-stat-lbl">Score</div>
+                </div>
+                <div class="reveal-stat">
+                    <div class="reveal-stat-val" id="revealRank" style="color:var(--shield-primary)">#1</div>
+                    <div class="reveal-stat-lbl">Rank</div>
+                </div>
+            </div>
+            <div class="waiting-next" id="waitingNext">Waiting for host to advance...</div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         SCREEN 5: Final
+    ════════════════════════════════════════════════ -->
+    <div id="screenFinal" class="screen">
+        <div class="final-wrap">
+            <div class="final-score-big" id="finalScore">0</div>
+            <div class="final-sub" id="finalSub">Total points</div>
+            <div class="final-stats">
+                <div class="final-stat">
+                    <div class="final-stat-num green" id="finalCorrect">0</div>
+                    <div class="final-stat-lbl">Correct</div>
+                </div>
+                <div class="final-stat">
+                    <div class="final-stat-num gold" id="finalBestStreak">0</div>
+                    <div class="final-stat-lbl">Best Streak</div>
+                </div>
+            </div>
+            <div id="finalGradeChip"></div>
+            <br>
+            <a href="/" class="home-link">Back to Hexworth</a>
+        </div>
+    </div>
+
+    <script type="module">
+        /* ================================================================
+           FIREBASE SETUP
+           ESM import used here (join page has no FirebaseAuth.js).
+           Mirrors the pattern from lobby.html and arena/firebase-init.js.
+           ================================================================ */
+        import { initializeApp, getApps }
+            from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged, signInAnonymously }
+            from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+        import {
+            getFirestore,
+            doc, getDoc, setDoc, updateDoc,
+            collection, onSnapshot,
+            serverTimestamp
+        } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+
+        /* ── Firebase config (canonical, same as all other surfaces) ── */
+        const FIREBASE_CONFIG = {
+            apiKey:            "AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M",
+            authDomain:        "hexworth-prime.firebaseapp.com",
+            projectId:         "hexworth-prime",
+            storageBucket:     "hexworth-prime.firebasestorage.app",
+            messagingSenderId: "11726236962",
+            appId:             "1:11726236962:web:1829ea0839f2587121497b"
+        };
+
+        const app  = getApps().length > 0 ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        /* ================================================================
+           GAME CONFIG (mirrors host page constants)
+           ================================================================ */
+        const TIMER_SECONDS  = 30;
+        const MAX_PTS        = 1000;
+        const MIN_PTS        = 500;
+        const STREAK_BONUS   = 200;
+        const TOTAL_Q        = 20;
+
+        /* SVG shapes (same as host page) */
+        const SHAPES = [
+            '<svg viewBox="0 0 36 36" width="26" height="26"><polygon points="18,3 35,33 1,33" fill="#3b82f6"/></svg>',
+            '<svg viewBox="0 0 36 36" width="26" height="26"><rect x="5" y="5" width="26" height="26" fill="#ef4444" transform="rotate(45 18 18)"/></svg>',
+            '<svg viewBox="0 0 36 36" width="26" height="26"><circle cx="18" cy="18" r="15" fill="#f59e0b"/></svg>',
+            '<svg viewBox="0 0 36 36" width="26" height="26"><rect x="3" y="3" width="30" height="30" rx="4" fill="#10b981"/></svg>'
+        ];
+        const BTN_CLASSES = ['btn-a', 'btn-b', 'btn-c', 'btn-d'];
+
+        /* ================================================================
+           PLAYER STATE
+           ================================================================ */
+        let myCode          = null;   /* 6-digit room code string */
+        let myNickname      = null;   /* player's chosen nickname */
+        let myUid           = null;   /* firebase anonymous uid */
+        let playerDocRef    = null;   /* players/{uid} document reference */
+        let roomUnsub       = null;   /* Firestore room listener unsubscribe */
+        let playersUnsub    = null;   /* Firestore players listener unsubscribe */
+
+        /* Local score tracking (mirrors what Firestore holds) */
+        let myScore         = 0;
+        let myStreak        = 0;
+        let myBestStreak    = 0;
+        let myCorrectCount  = 0;
+        let myWrongCount    = 0;
+
+        /* Per-question locals */
+        let currentQIdx     = -1;    /* question index we are currently on */
+        let questionStartMs = 0;     /* timestamp when question became live (server-derived) */
+        let hasAnswered     = false;  /* whether player tapped an answer for current question */
+        let lastAnswerWasCorrect = null;  /* cached locally so reveal avoids an extra getDoc */
+        let timerRAF        = null;
+        let lastRoomStatus  = null;  /* last known room status */
+        let lastRevealIdx   = -1;    /* last question index we showed a reveal for */
+        let lastLeaderboard = null;  /* host-pushed leaderboard from last reveal */
+
+        /* ================================================================
+           UTILITY
+           ================================================================ */
+
+        /** Escape HTML to prevent XSS when building innerHTML */
+        function escText(str) {
+            const d = document.createElement('span');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        /** Show one screen and hide all others */
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        /**
+         * Read the ?code= URL param.
+         * Pre-fill the code input if present.
+         */
+        function _readUrlCode() {
+            const params = new URLSearchParams(window.location.search);
+            const code   = (params.get('code') || '').replace(/\D/g, '').slice(0, 6);
+            if (code) {
+                const inp = document.getElementById('codeInput');
+                if (inp) inp.value = code;
+            }
+        }
+
+        /* ================================================================
+           ANONYMOUS SIGN-IN
+           ================================================================ */
+
+        /**
+         * Wait for any persisted Firebase session to be restored,
+         * then sign in anonymously if no user is present.
+         * Returns the resolved user.
+         */
+        async function _ensureAnonymousUser() {
+            await new Promise(resolve => {
+                const unsub = onAuthStateChanged(auth, user => {
+                    unsub();
+                    resolve(user);
+                });
+            });
+            if (!auth.currentUser) {
+                await signInAnonymously(auth);
+            }
+            return auth.currentUser;
+        }
+
+        /* ================================================================
+           JOIN ROOM
+           Called when player taps "Join Room".
+           1. Validate inputs
+           2. Sign in anonymously
+           3. Verify room exists + is still in lobby/live status
+           4. Write players/{uid} doc
+           5. Attach room listener
+           ================================================================ */
+        async function joinRoom() {
+            const btn    = document.getElementById('joinBtn');
+            const errEl  = document.getElementById('joinErr');
+            const code   = (document.getElementById('codeInput').value || '').replace(/\D/g, '').trim();
+            const nick   = (document.getElementById('nicknameInput').value || '').trim();
+
+            /* Input validation */
+            if (code.length !== 6) {
+                errEl.textContent = 'Room code must be exactly 6 digits.';
+                return;
+            }
+            if (nick.length < 1 || nick.length > 20) {
+                errEl.textContent = 'Nickname must be 1 to 20 characters.';
+                return;
+            }
+
+            btn.disabled    = true;
+            btn.textContent = 'Joining...';
+            errEl.textContent = '';
+
+            /* Ensure we have a Firebase user */
+            let user;
+            try {
+                user = await _ensureAnonymousUser();
+            } catch (e) {
+                btn.disabled    = false;
+                btn.textContent = 'Join Room';
+                errEl.textContent = 'Sign-in failed. Check your connection.';
+                return;
+            }
+
+            myUid = user.uid;
+
+            /* Verify room exists and is accepting players */
+            let roomData;
+            try {
+                const roomSnap = await getDoc(doc(db, 'kahoot_rooms', code));
+                if (!roomSnap.exists()) {
+                    btn.disabled    = false;
+                    btn.textContent = 'Join Room';
+                    errEl.textContent = 'Room not found. Check the code.';
+                    return;
+                }
+                roomData = roomSnap.data();
+            } catch (e) {
+                btn.disabled    = false;
+                btn.textContent = 'Join Room';
+                errEl.textContent = 'Could not reach Firestore. Try again.';
+                return;
+            }
+
+            if (roomData.status === 'finished') {
+                btn.disabled    = false;
+                btn.textContent = 'Join Room';
+                errEl.textContent = 'This game has already ended.';
+                return;
+            }
+
+            /* Write player document */
+            myCode     = code;
+            myNickname = nick;
+            playerDocRef = doc(db, 'kahoot_rooms', code, 'players', myUid);
+
+            try {
+                await setDoc(playerDocRef, {
+                    nickname:         nick,
+                    score:            0,
+                    streak:           0,
+                    bestStreak:       0,
+                    correctCount:     0,
+                    wrongCount:       0,
+                    joinedAt:         serverTimestamp(),
+                    lastAnswerIdx:    null,
+                    lastAnswerTimeMs: 0,
+                    lastAnswerCorrect: null
+                });
+            } catch (e) {
+                btn.disabled    = false;
+                btn.textContent = 'Join Room';
+                errEl.textContent = 'Failed to join room: ' + e.message;
+                return;
+            }
+
+            /* Persist for refresh recovery */
+            localStorage.setItem('pis_kahoot_player_code', code);
+            localStorage.setItem('pis_kahoot_player_nick', nick);
+
+            /* Show waiting screen */
+            document.getElementById('waitingCode').textContent = code;
+            document.getElementById('waitingName').textContent = nick;
+            showScreen('screenWaiting');
+
+            /* Attach room listener: drives all subsequent transitions */
+            _attachRoomListener();
+        }
+
+        /* ================================================================
+           ROOM LISTENER
+           Single onSnapshot on kahoot_rooms/{code} that drives all
+           client-side state transitions.
+           ================================================================ */
+        function _attachRoomListener() {
+            if (roomUnsub) roomUnsub();
+
+            roomUnsub = onSnapshot(
+                doc(db, 'kahoot_rooms', myCode),
+                function(snap) {
+                    if (!snap.exists()) return;
+                    _handleRoomUpdate(snap.data());
+                },
+                function(err) {
+                    console.error('[JoinPage] Room listener error:', err);
+                }
+            );
+        }
+
+        /**
+         * Show / hide the stale-host banner. Called from _handleRoomUpdate on
+         * every snapshot. Considers the host stranded if status is live/reveal
+         * and hostLastSeenAt is older than 60 seconds.
+         */
+        function _checkHostFreshness(data) {
+            const banner = document.getElementById('hostStaleBanner');
+            if (!banner) return;
+            const status = data.status;
+            const ts = data.hostLastSeenAt;
+            const inActiveSession = (status === 'live' || status === 'reveal');
+            if (!inActiveSession || !ts) { banner.hidden = true; return; }
+            const ageMs = Date.now() - (ts.toMillis ? ts.toMillis() : 0);
+            banner.hidden = ageMs <= 60000;
+        }
+
+        /**
+         * Central state-machine driven by room document changes.
+         * status: 'lobby' | 'live' | 'reveal' | 'finished'
+         */
+        function _handleRoomUpdate(data) {
+            const status  = data.status;
+            const qIdx    = data.currentQuestionIdx || 0;
+            const qStart  = data.questionStartedAt; /* Firestore Timestamp or null */
+
+            lastRoomStatus = status;
+
+            /* Stale-host detection: if status is live/reveal but the host
+               heartbeat is more than 60s old, surface a banner so the class
+               isn't stranded on a frozen question when the laptop sleeps. */
+            _checkHostFreshness(data);
+
+            /* Cache host-pushed leaderboard so _computeMyRank reads it from
+               the already-attached room snapshot instead of paying a getDocs
+               per reveal (saves ~30 reads per reveal per player). */
+            if (Array.isArray(data.leaderboard)) {
+                lastLeaderboard = data.leaderboard;
+            }
+
+            if (status === 'live' && qIdx !== currentQIdx) {
+                /* New question started */
+                currentQIdx  = qIdx;
+                hasAnswered  = false;
+                lastAnswerWasCorrect = null;   /* reset cache for new question */
+
+                /* Compute questionStartMs from server timestamp for timer accuracy.
+                   Firestore Timestamp.toMillis() gives us the server time.
+                   We adjust by the local clock's current time to get a local equivalent. */
+                questionStartMs = qStart ? qStart.toMillis() : Date.now();
+
+                /* Fetch the question from the room doc's questions array */
+                const q = (data.questions || [])[qIdx];
+                if (q) {
+                    _renderQuestion(q, qIdx);
+                    showScreen('screenLive');
+                }
+
+            } else if (status === 'reveal' && qIdx === currentQIdx && qIdx !== lastRevealIdx) {
+                /* Host advanced to reveal for the question we're on */
+                lastRevealIdx = qIdx;
+                _stopTimer();
+                const q = (data.questions || [])[qIdx];
+                if (q) _showReveal(q);
+
+            } else if (status === 'finished') {
+                _stopTimer();
+                _showFinal();
+            }
+        }
+
+        /* ================================================================
+           RENDER QUESTION (player display)
+           ================================================================ */
+        function _renderQuestion(q, qIdx) {
+            /* Progress bar */
+            document.getElementById('qProgressFill').style.width =
+                ((qIdx / TOTAL_Q) * 100) + '%';
+            document.getElementById('qCounter').textContent =
+                'QUESTION ' + (qIdx + 1) + ' OF ' + TOTAL_Q;
+
+            /* Question text */
+            document.getElementById('liveQuestion').textContent = q.q;
+
+            /* Locked message: hide */
+            document.getElementById('lockedMsg').style.display = 'none';
+
+            /* Build answer buttons */
+            const grid = document.getElementById('answerGrid');
+            grid.innerHTML = '';
+            grid.style.display = 'grid'; /* Re-show grid (hidden during locked state) */
+
+            for (let i = 0; i < q.opts.length; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'answer-btn ' + BTN_CLASSES[i];
+                btn.dataset.idx = i;
+                btn.innerHTML =
+                    '<div class="answer-shape">' + SHAPES[i] + '</div>' +
+                    '<span class="answer-text">' + escText(q.opts[i]) + '</span>';
+                btn.addEventListener('click', () => _handleAnswerClick(i, q));
+                grid.appendChild(btn);
+            }
+
+            /* Start client-side timer */
+            _startTimer();
+        }
+
+        /* ================================================================
+           HANDLE ANSWER TAP
+           ================================================================ */
+        async function _handleAnswerClick(optIdx, q) {
+            if (hasAnswered) return; /* Only one answer per question */
+            hasAnswered = true;
+
+            /* Stop the timer immediately */
+            _stopTimer();
+
+            /* Compute elapsed (time from question start to now, minus any skew) */
+            const nowMs   = Date.now();
+            const elapsed = Math.min((nowMs - questionStartMs) / 1000, TIMER_SECONDS);
+
+            /* Determine correctness + points */
+            const correct  = (optIdx === q.ans);
+            let pts = 0;
+
+            if (correct) {
+                const fraction = Math.max(0, (TIMER_SECONDS - elapsed) / TIMER_SECONDS);
+                pts = Math.round(MIN_PTS + (MAX_PTS - MIN_PTS) * fraction);
+                myCorrectCount++;
+                myStreak++;
+                if (myStreak > myBestStreak) myBestStreak = myStreak;
+                if (myStreak >= 3) pts += STREAK_BONUS;
+                myScore += pts;
+            } else {
+                myWrongCount++;
+                myStreak = 0;
+            }
+
+            /* Visually highlight selection, then lock the grid */
+            const btns = document.querySelectorAll('#answerGrid .answer-btn');
+            btns.forEach(btn => {
+                btn.classList.add('locked');
+                if (parseInt(btn.dataset.idx, 10) === optIdx) {
+                    btn.classList.add('selected');
+                }
+            });
+
+            /* Show "Locked in" message */
+            document.getElementById('lockedMsg').style.display = '';
+
+            /* Cache locally for the reveal screen to avoid a wasteful getDoc
+               round-trip just to read back the value we already know. */
+            lastAnswerWasCorrect = correct;
+
+            /* Write answer to Firestore (player doc update) */
+            try {
+                await updateDoc(playerDocRef, {
+                    score:             myScore,
+                    streak:            myStreak,
+                    bestStreak:        myBestStreak,
+                    correctCount:      myCorrectCount,
+                    wrongCount:        myWrongCount,
+                    lastAnswerIdx:     optIdx,
+                    lastAnswerTimeMs:  Math.round(elapsed * 1000),
+                    lastAnswerCorrect: correct
+                });
+            } catch (e) {
+                console.error('[JoinPage] Answer write failed:', e);
+                /* Non-fatal: the reveal will still show when host advances */
+            }
+        }
+
+        /* ================================================================
+           SHOW REVEAL (between questions)
+           Called when room status transitions to 'reveal'.
+           ================================================================ */
+        async function _showReveal(q) {
+            /* If player didn't answer (timeout on their side), mark wrong */
+            if (!hasAnswered) {
+                myWrongCount++;
+                myStreak = 0;
+                try {
+                    await updateDoc(playerDocRef, {
+                        wrongCount: myWrongCount,
+                        streak:     myStreak
+                    });
+                } catch(e) { /* non-fatal */ }
+            }
+
+            /* Use the locally-cached result from _handleAnswerClick so we
+               don't pay a Firestore read just to look up what we already
+               wrote. lastAnswerWasCorrect is null only if the player
+               timed out without tapping anything. */
+            const lastCorrect = lastAnswerWasCorrect;
+
+            const resultStr = lastCorrect === true  ? 'correct'
+                            : lastCorrect === false ? 'wrong'
+                            : 'timeout';
+
+            /* Points earned this question (last delta) */
+            const ptsEarned = lastCorrect === true
+                ? (myScore - _prevScore)
+                : 0;
+
+            /* Result label */
+            const resultEl = document.getElementById('revealResult');
+            if (resultStr === 'correct') {
+                resultEl.textContent = 'Correct!';
+                resultEl.className   = 'reveal-result correct';
+            } else if (resultStr === 'wrong') {
+                resultEl.textContent = 'Wrong';
+                resultEl.className   = 'reveal-result wrong';
+            } else {
+                resultEl.textContent = 'Time Expired';
+                resultEl.className   = 'reveal-result timeout';
+            }
+
+            /* Points */
+            const ptsEl = document.getElementById('revealPts');
+            if (ptsEarned > 0) {
+                ptsEl.textContent = '+' + ptsEarned;
+                ptsEl.className   = 'reveal-pts';
+            } else {
+                ptsEl.textContent = '+0';
+                ptsEl.className   = 'reveal-pts zero';
+            }
+
+            /* Streak bonus indicator */
+            const streakEl = document.getElementById('revealStreak');
+            if (resultStr === 'correct' && myStreak >= 3) {
+                streakEl.textContent = myStreak + '-answer streak! +' + STREAK_BONUS + ' bonus';
+                streakEl.style.display = '';
+            } else {
+                streakEl.style.display = 'none';
+            }
+
+            /* Score + rank */
+            document.getElementById('revealScore').textContent = myScore.toLocaleString();
+
+            /* Compute rank from players snapshot */
+            const rank = await _computeMyRank();
+            document.getElementById('revealRank').textContent = '#' + rank;
+
+            showScreen('screenReveal');
+            _prevScore = myScore;
+        }
+
+        /* ================================================================
+           FINAL SCREEN
+           ================================================================ */
+        function _showFinal() {
+            const pct = Math.round((myCorrectCount / TOTAL_Q) * 100);
+
+            document.getElementById('finalScore').textContent       = myScore.toLocaleString();
+            document.getElementById('finalSub').textContent         = 'Final score out of ' + (TOTAL_Q * MAX_PTS).toLocaleString() + ' possible';
+            document.getElementById('finalCorrect').textContent      = myCorrectCount;
+            document.getElementById('finalBestStreak').textContent   = myBestStreak;
+
+            let gradeText, gradeClass;
+            if (pct >= 90)      { gradeText = 'S-RANK: Security Master';  gradeClass = 'grade-s'; }
+            else if (pct >= 75) { gradeText = 'A-RANK: Senior Analyst';   gradeClass = 'grade-a'; }
+            else if (pct >= 55) { gradeText = 'B-RANK: Practitioner';     gradeClass = 'grade-b'; }
+            else if (pct >= 30) { gradeText = 'C-RANK: Apprentice';       gradeClass = 'grade-c'; }
+            else                { gradeText = 'F-RANK: Back to Training'; gradeClass = 'grade-f'; }
+
+            document.getElementById('finalGradeChip').innerHTML =
+                '<div class="final-grade-chip ' + gradeClass + '">' + gradeText + '</div>';
+
+            /* Clean up listeners */
+            if (roomUnsub)    roomUnsub();
+            if (playersUnsub) playersUnsub();
+
+            showScreen('screenFinal');
+        }
+
+        /* ================================================================
+           RANK COMPUTATION
+           Reads the host-pushed leaderboard from the cached room snapshot.
+           Saves ~30 Firestore reads per reveal vs. a per-player getDocs.
+           Falls back to a one-shot getDocs only if the host has not yet
+           pushed a leaderboard (e.g., first reveal raced ahead of the write).
+           ================================================================ */
+        async function _computeMyRank() {
+            /* Primary path: read from the host's pushed leaderboard. */
+            if (Array.isArray(lastLeaderboard) && lastLeaderboard.length > 0) {
+                for (let i = 0; i < lastLeaderboard.length; i++) {
+                    if (lastLeaderboard[i].uid === myUid) {
+                        return lastLeaderboard[i].rank || (i + 1);
+                    }
+                }
+                /* myUid not in leaderboard: place at the end. */
+                return lastLeaderboard.length + 1;
+            }
+            /* Fallback: legacy getDocs path. Should only fire on the first
+               reveal if the host's leaderboard write hasn't propagated yet. */
+            try {
+                const { getDocs } = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+                const colSnap = await getDocs(collection(db, 'kahoot_rooms', myCode, 'players'));
+                const scores  = [];
+                colSnap.forEach(d => {
+                    scores.push({ uid: d.id, score: d.data().score || 0 });
+                });
+                scores.sort((a, b) => b.score - a.score);
+                const idx = scores.findIndex(e => e.uid === myUid);
+                return idx >= 0 ? idx + 1 : scores.length + 1;
+            } catch(e) {
+                return 1; /* Fail gracefully */
+            }
+        }
+
+        /* ================================================================
+           TIMER (player side)
+           Anchored to questionStartMs derived from Firestore serverTimestamp.
+           ================================================================ */
+        function _startTimer() {
+            if (timerRAF) cancelAnimationFrame(timerRAF);
+            _animateTimer();
+        }
+
+        function _animateTimer() {
+            timerRAF = requestAnimationFrame(() => {
+                if (hasAnswered) return; /* No need to animate once answered */
+
+                const elapsed   = (Date.now() - questionStartMs) / 1000;
+                const remaining = Math.max(0, TIMER_SECONDS - elapsed);
+                const fraction  = remaining / TIMER_SECONDS;
+
+                /* SVG ring: circumference = 2*pi*30 = 188.5 */
+                const circ   = 188.5;
+                const offset = circ * (1 - fraction);
+                const arc    = document.getElementById('timerArc');
+                if (arc) {
+                    arc.setAttribute('stroke-dashoffset', offset.toFixed(1));
+                    /* Color transition green -> yellow -> red */
+                    let r, g, b;
+                    if (fraction > 0.5) {
+                        const t = (1 - fraction) * 2;
+                        r = Math.round(59  + (245 - 59)  * t);
+                        g = Math.round(130 + (158 - 130) * t);
+                        b = Math.round(246 + (11  - 246) * t);
+                    } else {
+                        const t2 = (0.5 - fraction) * 2;
+                        r = Math.round(245 + (239 - 245) * t2);
+                        g = Math.round(158 + (68  - 158) * t2);
+                        b = Math.round(11  + (68  - 11)  * t2);
+                    }
+                    arc.setAttribute('stroke', `rgb(${r},${g},${b})`);
+                }
+
+                const txt = document.getElementById('timerText');
+                if (txt) txt.textContent = Math.ceil(remaining);
+
+                if (remaining <= 0) {
+                    /* Timer expired on player side; mark as wrong, wait for reveal */
+                    if (!hasAnswered) {
+                        hasAnswered  = true;
+                        myWrongCount++;
+                        myStreak = 0;
+                        updateDoc(playerDocRef, {
+                            wrongCount:        myWrongCount,
+                            streak:            myStreak,
+                            lastAnswerIdx:     null,
+                            lastAnswerCorrect: false
+                        }).catch(() => {});
+                        document.getElementById('lockedMsg').style.display  = '';
+                        document.getElementById('lockedMsg').textContent     = 'Time expired. Waiting for host...';
+                        const grid = document.getElementById('answerGrid');
+                        grid.querySelectorAll('.answer-btn').forEach(b => b.classList.add('locked'));
+                    }
+                    return;
+                }
+
+                _animateTimer();
+            });
+        }
+
+        function _stopTimer() {
+            if (timerRAF) cancelAnimationFrame(timerRAF);
+            timerRAF = null;
+        }
+
+        /* Track previous score for per-question delta */
+        let _prevScore = 0;
+
+        /* ================================================================
+           REFRESH RECOVERY
+           If page is refreshed, restore code + nickname from localStorage
+           and re-attach to an active room.
+           ================================================================ */
+        async function _attemptRecovery() {
+            const savedCode = localStorage.getItem('pis_kahoot_player_code');
+            const savedNick = localStorage.getItem('pis_kahoot_player_nick');
+            if (!savedCode || !savedNick) return false;
+
+            /* Pre-fill the join form as a convenience, but don't auto-join
+               without user confirmation; just surface the filled form */
+            const codeInp = document.getElementById('codeInput');
+            const nickInp = document.getElementById('nicknameInput');
+            if (codeInp) codeInp.value = savedCode;
+            if (nickInp) nickInp.value = savedNick;
+
+            /* Check if room is still active */
+            try {
+                const user = await _ensureAnonymousUser();
+                myUid = user.uid;
+
+                const roomSnap = await getDoc(doc(db, 'kahoot_rooms', savedCode));
+                if (!roomSnap.exists()) {
+                    localStorage.removeItem('pis_kahoot_player_code');
+                    localStorage.removeItem('pis_kahoot_player_nick');
+                    return false;
+                }
+                const roomData = roomSnap.data();
+                if (roomData.status === 'finished') return false;
+
+                /* Check if player doc still exists */
+                const pSnap = await getDoc(
+                    doc(db, 'kahoot_rooms', savedCode, 'players', myUid)
+                );
+                if (!pSnap.exists()) return false;
+
+                /* Re-attach */
+                const pData = pSnap.data();
+                myCode         = savedCode;
+                myNickname     = savedNick;
+                myScore        = pData.score        || 0;
+                myStreak       = pData.streak       || 0;
+                myBestStreak   = pData.bestStreak   || 0;
+                myCorrectCount = pData.correctCount || 0;
+                myWrongCount   = pData.wrongCount   || 0;
+                playerDocRef   = doc(db, 'kahoot_rooms', savedCode, 'players', myUid);
+
+                document.getElementById('waitingCode').textContent = savedCode;
+                document.getElementById('waitingName').textContent = savedNick;
+                showScreen('screenWaiting');
+                _attachRoomListener();
+                return true;
+            } catch(e) {
+                console.warn('[JoinPage] Recovery failed:', e);
+                return false;
+            }
+        }
+
+        /* ================================================================
+           INPUT LISTENERS
+           Allow pressing Enter on the code/nickname fields to submit.
+           ================================================================ */
+        document.getElementById('codeInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') joinRoom();
+        });
+        document.getElementById('nicknameInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') joinRoom();
+        });
+
+        /* Expose joinRoom to the onclick attribute */
+        window.joinRoom = joinRoom;
+
+        /* ================================================================
+           INITIALIZATION
+           ================================================================ */
+        _readUrlCode();
+
+        /* Try recovery first; if it fails, show the normal join form */
+        _attemptRecovery().then(recovered => {
+            if (!recovered) {
+                showScreen('screenJoin');
+            }
+        });
+
+        /* Tear down Firestore listeners on tab close so the snapshot
+           subscriptions don't leak past the page lifetime. pagehide fires
+           on mobile background + tab close more reliably than beforeunload. */
+        window.addEventListener('pagehide', function() {
+            if (roomUnsub)    { try { roomUnsub();    } catch(_){} roomUnsub    = null; }
+            if (playersUnsub) { try { playersUnsub(); } catch(_){} playersUnsub = null; }
+        });
+    </script>
+</body>
+</html>
