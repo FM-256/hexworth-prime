@@ -229,6 +229,55 @@
             border: 1px solid rgba(255,204,0,0.15);
         }
         .modal-answer.revealed { display: block; animation: fadeUp 0.3s ease-out; }
+
+        /* ── Daily Double theming ──────────────────────────────────────── */
+        .modal-overlay.is-daily-double .modal {
+            border-color: var(--gold);
+            box-shadow: 0 0 60px rgba(255, 204, 0, 0.35), 0 0 120px rgba(255, 204, 0, 0.18);
+            animation: ddPulse 0.45s ease-out;
+        }
+        @keyframes ddPulse {
+            0%   { transform: scale(0.7); opacity: 0; }
+            60%  { transform: scale(1.04); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-overlay.is-daily-double .modal-category {
+            color: var(--gold); font-weight: 800; font-size: 14px;
+            letter-spacing: 4px; text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
+        }
+        .modal-overlay.is-daily-double .modal-value {
+            color: #fff; font-size: 16px; letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .dd-wager-row {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; margin-bottom: 22px;
+        }
+        .dd-wager-label {
+            font-size: 14px; color: rgba(255,255,255,0.75);
+            font-weight: 600;
+        }
+        .dd-wager-dollar {
+            font-size: 26px; font-weight: 800; color: var(--gold);
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+        .dd-wager-input {
+            background: rgba(0,0,0,0.35); border: 2px solid var(--gold);
+            color: #fff; font-size: 26px; font-weight: 800;
+            padding: 8px 14px; border-radius: 8px; width: 140px;
+            text-align: center; font-family: 'Courier New', Courier, monospace;
+            outline: none;
+        }
+        .dd-wager-input:focus {
+            background: rgba(0,0,0,0.55);
+            box-shadow: 0 0 0 3px rgba(255, 204, 0, 0.25);
+        }
+        /* Hide spinner buttons on number inputs (Firefox + WebKit). */
+        .dd-wager-input::-webkit-outer-spin-button,
+        .dd-wager-input::-webkit-inner-spin-button {
+            -webkit-appearance: none; margin: 0;
+        }
+        .dd-wager-input[type=number] { -moz-appearance: textfield; }
         @keyframes fadeUp {
             from { transform: translateY(10px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
@@ -400,6 +449,7 @@
                 <li>Self-judge: mark correct to earn the value, or wrong to lose it</li>
                 <li>Higher values = harder clues, so start low if warming up</li>
                 <li>Build a streak of correct answers for bonus glory</li>
+                <li>One cell on the board is the <strong>Daily Double</strong>: revealed only when clicked. Wager any amount from $5 up to the higher of your current score or $500. Correct = win your wager, wrong = lose it.</li>
                 <li>Clear all 25 cells to see your final score and category breakdown</li>
             </ul>
         </div>
@@ -670,9 +720,21 @@
         let answerRevealed = false;
         let currentStreak = 0;
         let bestStreak = 0;
+        /* Daily Double — single cell per board, randomly placed.
+           dailyDoubleCat / dailyDoubleRow identify the hidden cell.
+           Picked at buildBoard() time, re-rolled on reset. */
+        let dailyDoubleCat = 0;
+        let dailyDoubleRow = 0;
+        let dailyDoubleFound = false;
 
         // Per-category scores: [earned, possible]
         const catScores = categories.map(() => ({ earned: 0, possible: 0, correct: 0, wrong: 0 }));
+
+        function rollDailyDouble() {
+            dailyDoubleCat = Math.floor(Math.random() * 5);
+            dailyDoubleRow = Math.floor(Math.random() * 5);
+            dailyDoubleFound = false;
+        }
 
         /* ================================================================
            BOARD RENDERING
@@ -683,6 +745,9 @@
             const headers = board.querySelectorAll('.cat-header');
             board.innerHTML = '';
             headers.forEach(h => board.appendChild(h));
+
+            // Re-roll the Daily Double location for this board.
+            rollDailyDouble();
 
             const values = [100, 200, 300, 400, 500];
             values.forEach((val, rowIdx) => {
@@ -705,24 +770,103 @@
         function openClue(catIdx, rowIdx) {
             const cat = categories[catIdx];
             const clue = cat.clues[rowIdx];
-            currentClue = { catIdx, rowIdx, value: clue.value, response: clue.response };
+            // Detect Daily Double — intercept before showing the clue.
+            const isDailyDouble = !dailyDoubleFound && catIdx === dailyDoubleCat && rowIdx === dailyDoubleRow;
+            currentClue = {
+                catIdx, rowIdx,
+                value: clue.value, response: clue.response, clue: clue.clue,
+                isDailyDouble: isDailyDouble,
+                wager: 0
+            };
             answerRevealed = false;
 
-            document.getElementById('modalCategory').textContent = cat.name;
-            document.getElementById('modalValue').textContent = '$' + clue.value;
-            document.getElementById('modalClue').textContent = clue.clue;
+            if (isDailyDouble) {
+                openDailyDoubleSplash();
+                return;
+            }
+            renderClueModal();
+        }
+
+        /* Render the standard clue modal from currentClue. Used both for normal
+           cells and for the post-wager state of a Daily Double. */
+        function renderClueModal() {
+            const cat = categories[currentClue.catIdx];
+            const isDD = !!currentClue.isDailyDouble;
+            document.getElementById('modalCategory').textContent = isDD
+                ? 'DAILY DOUBLE -- ' + cat.name
+                : cat.name;
+            document.getElementById('modalValue').textContent = isDD
+                ? 'Wager: $' + currentClue.wager
+                : '$' + currentClue.value;
+            document.getElementById('modalClue').textContent = currentClue.clue;
             document.getElementById('modalPrompt').textContent = 'Think of your response, then click Reveal (or press Space)';
             document.getElementById('modalPrompt').style.display = '';
 
             const answerEl = document.getElementById('modalAnswer');
-            answerEl.textContent = clue.response;
+            answerEl.textContent = currentClue.response;
             answerEl.classList.remove('revealed');
 
             document.getElementById('modalActions').innerHTML =
                 '<button class="modal-btn reveal" onclick="revealAnswer()">Reveal Response</button>';
 
-            document.getElementById('modalOverlay').classList.add('active');
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.add('active');
+            overlay.classList.toggle('is-daily-double', isDD);
             document.body.style.overflow = 'hidden';
+        }
+
+        /* Daily Double splash + wager input. Wager range: $5 min,
+           max = max(currentScore, $500) -- classic 'true daily double' rule
+           so players who are at or below 0 can still wager up to the top
+           board value. */
+        function openDailyDoubleSplash() {
+            const cat = categories[currentClue.catIdx];
+            const maxWager = Math.max(score, 500);
+
+            document.getElementById('modalCategory').textContent = 'DAILY DOUBLE';
+            document.getElementById('modalValue').textContent = cat.name;
+            document.getElementById('modalClue').textContent =
+                'You found the Daily Double. Wager any amount from $5 up to ' +
+                '$' + maxWager + '. Get it right to win your wager, get it wrong to lose it.';
+            document.getElementById('modalPrompt').style.display = 'none';
+
+            const answerEl = document.getElementById('modalAnswer');
+            answerEl.textContent = '';
+            answerEl.classList.remove('revealed');
+
+            document.getElementById('modalActions').innerHTML =
+                '<div class="dd-wager-row">' +
+                  '<label for="ddWagerInput" class="dd-wager-label">Your wager:</label>' +
+                  '<span class="dd-wager-dollar">$</span>' +
+                  '<input type="number" id="ddWagerInput" class="dd-wager-input" ' +
+                    'min="5" max="' + maxWager + '" step="5" value="' + Math.min(500, maxWager) + '" ' +
+                    'inputmode="numeric" autofocus>' +
+                '</div>' +
+                '<button class="modal-btn reveal" onclick="submitDailyDoubleWager()">Lock In Wager</button>';
+
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.add('active');
+            overlay.classList.add('is-daily-double');
+            document.body.style.overflow = 'hidden';
+
+            // focus the wager input shortly after the modal animates in
+            setTimeout(function () {
+                const inp = document.getElementById('ddWagerInput');
+                if (inp) { inp.focus(); inp.select(); }
+            }, 50);
+        }
+
+        function submitDailyDoubleWager() {
+            const inp = document.getElementById('ddWagerInput');
+            if (!inp || !currentClue) return;
+            const maxWager = Math.max(score, 500);
+            let wager = parseInt(inp.value, 10);
+            if (isNaN(wager) || wager < 5) wager = 5;
+            if (wager > maxWager) wager = maxWager;
+            currentClue.wager = wager;
+            dailyDoubleFound = true;
+            // Now show the clue with the locked wager.
+            renderClueModal();
         }
 
         function revealAnswer() {
@@ -740,24 +884,26 @@
         function judgeAnswer(correct) {
             if (!currentClue) return;
 
-            const val = currentClue.value;
             const catIdx = currentClue.catIdx;
+            /* For a Daily Double, score the wager (not the cell value).
+               Category-stats use the wager too so the breakdown stays honest. */
+            const stake = currentClue.isDailyDouble ? currentClue.wager : currentClue.value;
 
             if (correct) {
-                score += val;
+                score += stake;
                 correctCount++;
                 currentStreak++;
                 if (currentStreak > bestStreak) bestStreak = currentStreak;
-                catScores[catIdx].earned += val;
+                catScores[catIdx].earned += stake;
                 catScores[catIdx].correct++;
             } else {
-                score -= val;
+                score -= stake;
                 wrongCount++;
                 currentStreak = 0;
-                catScores[catIdx].earned -= val;
+                catScores[catIdx].earned -= stake;
                 catScores[catIdx].wrong++;
             }
-            catScores[catIdx].possible += val;
+            catScores[catIdx].possible += stake;
 
             // Flash the cell before marking used
             const cell = document.getElementById('cell-' + currentClue.catIdx + '-' + currentClue.rowIdx);
@@ -777,7 +923,9 @@
         }
 
         function closeModal() {
-            document.getElementById('modalOverlay').classList.remove('active');
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('active');
+            overlay.classList.remove('is-daily-double');
             document.body.style.overflow = '';
             currentClue = null;
         }
@@ -958,6 +1106,17 @@
 
             if (e.key === 'Escape') {
                 closeModal();
+                return;
+            }
+
+            // When the Daily Double wager input is on-screen and not yet submitted,
+            // Enter locks in the wager; Space/digits flow naturally to the input.
+            const wagerInput = document.getElementById('ddWagerInput');
+            if (wagerInput) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitDailyDoubleWager();
+                }
                 return;
             }
 
