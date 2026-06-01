@@ -768,6 +768,12 @@
            CLUE MODAL
            ================================================================ */
         function openClue(catIdx, rowIdx) {
+            // Re-entry guard: ignore clicks while a modal is already open.
+            // Prevents a fast double-click on the DD cell from spawning a second
+            // splash before the first one fully renders.
+            if (document.getElementById('modalOverlay').classList.contains('active')) {
+                return;
+            }
             const cat = categories[catIdx];
             const clue = cat.clues[rowIdx];
             // Detect Daily Double — intercept before showing the clue.
@@ -860,8 +866,17 @@
             const inp = document.getElementById('ddWagerInput');
             if (!inp || !currentClue) return;
             const maxWager = Math.max(score, 500);
-            let wager = parseInt(inp.value, 10);
-            if (isNaN(wager) || wager < 5) wager = 5;
+            // Strict integer parsing: reject partial-string parses like "500abc"
+            // (parseInt would silently accept those). Empty / non-digit input
+            // falls back to the $5 minimum.
+            const raw = (inp.value || '').trim();
+            let wager;
+            if (/^\d+$/.test(raw)) {
+                wager = parseInt(raw, 10);
+            } else {
+                wager = 5;
+            }
+            if (wager < 5) wager = 5;
             if (wager > maxWager) wager = maxWager;
             currentClue.wager = wager;
             dailyDoubleFound = true;
@@ -971,7 +986,14 @@
            ================================================================ */
         function showFinalScore() {
             const maxScore = 7500; // (100+200+300+400+500) * 5
-            const pct = Math.max(0, Math.round((score / maxScore) * 100));
+            // Raw pct is uncapped so grade-ladder thresholds still see a
+            // correctly-doubled-up Daily Double winner clear S-RANK by margin.
+            // Display pct is clamped to [0, 100] so the final card never reads
+            // 'X% of Max' above 100% (the DD wager can push the actual ceiling
+            // above $7500).
+            const pctRaw     = Math.max(0, Math.round((score / maxScore) * 100));
+            const pctDisplay = Math.min(100, pctRaw);
+            const pct        = pctRaw;  // grade-ladder uses uncapped value
 
             // Populate final score card
             const amountEl = document.getElementById('finalAmount');
@@ -985,7 +1007,7 @@
 
             document.getElementById('fCorrect').textContent = correctCount;
             document.getElementById('fWrong').textContent = wrongCount;
-            document.getElementById('fPct').textContent = pct + '%';
+            document.getElementById('fPct').textContent = pctDisplay + '%';
 
             // Grade
             let gradeText, gradeClass;
@@ -1052,6 +1074,9 @@
            RESET GAME
            ================================================================ */
         function resetGame() {
+            // Close any in-flight modal first so a Reset during DD wager entry
+            // does not leave a stale overlay over a fresh board.
+            closeModal();
             score = 0;
             correctCount = 0;
             wrongCount = 0;
