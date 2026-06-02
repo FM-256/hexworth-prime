@@ -1,7 +1,15 @@
 # Dr. Hex / Aminos / Ghost Layer Resolution
 
-**Status:** DRAFT v3 (post-Nancy round 2) — pending operator decision
-**Date:** 2026-05-30
+> ## ⚠ SUPERSEDED 2026-06-02 — PREMISE WAS WRONG
+>
+> This doc's Option A (retire Aminos, declare Dr. Hex canonical) was deployed 2026-06-02 and immediately reversed when the operator surfaced the actual architecture: **Dr. Hex on labs only; Aminos on everything else with per-house bots; quizzes and exams get no AI; slides get Aminos (for deeper-content engagement).** Dr. Hex and Aminos serve non-overlapping surfaces by design. The "two-button doubles" the doc treated as an architecture conflict were actually a misplacement bug — Dr. Hex had been incorrectly installed on ~169 non-lab hubs/course-indexes/quiz pages by prior decisions, against the lab-only rule that lives in `feedback_dr_hex_lab_only.md` (2026-05-30).
+>
+> Nancy reviews 1-5, Karl, the deliberation pro/con, and my own audit all missed the lab-only constraint because it isn't articulated in any single grep-able doc the agents can find. The deliberation has historical value (it documents what we got wrong and why) but the recommendation is invalid. See the **two addendums at the bottom** for the corrected architecture and what shipped to fix it.
+>
+> Authoritative source on placement: `feedback_dr_hex_lab_only.md` (operator feedback, 2026-05-30).
+
+**Status:** SUPERSEDED — see banner above
+**Date:** 2026-05-30 · Superseded 2026-06-02
 **Author:** Primary (Claude Opus 4.7)
 **Supersedes:** Ghost-layer blocker #1 in `_docs/architecture/hex-ai-ghost-layer-design.md`
 **Nancy reviews:** v1 → PAUSE-DESIGN (3 blockers); v2 → PAUSE-AGAIN (3 new corrections: persona fabrication, missing custom element in scope, archive sequencing contradiction); v3 addresses all six. Persona names below are verified against `_app/components/chatbots/bot-specs/*.json` 2026-05-30 — not from memory.
@@ -301,3 +309,47 @@ There are ~169 pre-existing `index.html` pages (12 house hubs + course hubs + da
 ### Why this matters
 
 The doc shipped to preview was correct as a deliberation artifact but wrong as a ship plan. Nancy rounds 1–5 caught architectural/correctness/CSS issues but not the lab-only constraint because that constraint isn't articulated anywhere the agents have direct sight of (it lives in the operator's mental model and is implicit in the Constitution's emphasis on lab Skill Maps). This is a documentation gap the Dr. Hex governance doc should close — the lab-only scope rule belongs alongside the Help Levels and persona laws.
+
+---
+
+## ADDENDUM 2 — 2026-06-02 operator reframing: Aminos and Dr. Hex are non-overlapping by design
+
+After the corrected scope shipped (commit `c1d55ff03`), the operator clarified the actual platform architecture in chat. The retirement-of-Aminos premise was wrong from day 1, not just incomplete. The correct model:
+
+| Surface | AI | Rationale |
+|---|---|---|
+| **Lab pages** (`*.lab.html`, `*-guilab.module.html`, `*-pslab.module.html`, interactive applets, lab equivalents) | **Dr. Hex** | Skill Map preservation, Help Level 0–5, mood-ring tracking attempts. Built for active doing. |
+| **Quizzes** (`*.quiz.html`, `*-quizquiz.module.html`) | **None** | Assessment integrity. No AI assistance during graded work. |
+| **Exams** | **None** | Same as quizzes. |
+| **Slides / presentations** (`*-presentation.module.html`, `*-intro.module.html`) | **Aminos** with per-house bot | Browse-time companion for students who want to go deeper on the lecture content. |
+| **Hubs, landing, dashboard, course indexes, browse pages** | **Aminos** with per-house bot | Personality-driven engagement during exploration. Alan Turing on AI house, Ada on Code, Linus on Script, Tesla on Signal, Hexworth Assistant on landing/dashboard. |
+
+**Phase A — Aminos restoration (this branch, `aminos-restore`, 2026-06-02):**
+
+Reversed the Aminos `<script>` removal on the 24 student-facing pages stripped by `d619521ef` + `c1d55ff03`. Used `git checkout 0174c7ac4 -- <files>` to restore the verbatim pre-retirement embed lines. Per-house bot mapping is preserved as it was — no re-decisioning of which bot goes on which page. `bot-test.html` stays archived (genuinely a `noindex` internal test page, not student-facing).
+
+**Phase A scope (24 files restored):**
+- 16 house-index doubles → Aminos `<script>` restored; Dr. Hex still present (to be removed in Phase B)
+- 8 browse-only pages → Aminos `<script>` restored, Dr. Hex stays out (already correctly absent)
+
+**Phase A does NOT include:**
+- Dr. Hex removal from the 16 doubles and the ~145 other pre-existing non-lab installations (course hubs + sub-indexes + quizzes + presentations carrying Dr. Hex against the lab-only rule). That is **Phase B**.
+- Extending Aminos to presentation pages and course hubs that don't have it today. That is **Phase C**.
+- Un-deferring sprint items F-54 → F-65 (the per-house bot deepening work). The deferral note in `sprints.json` is now invalid (Aminos isn't being retired). Operator decision pending on whether to un-defer.
+- Investigation of the production 403 Aminos was throwing on `getBotSettings` pre-retirement. Could be Aminos Premium status, domain allowlist, or bot pause. Operator-side check.
+
+**What this Phase A commit is NOT solving:**
+
+This commit gets the platform back to its pre-retirement Aminos state with the architecture doc finally telling the truth about the model. It does NOT fix every misplaced AI surface on the platform — that's Phase B + C work that needs separate Nancy review and operator sign-off.
+
+### Architectural lesson worth keeping
+
+The doc's whole deliberation chain (Options A–D, pro/con, Nancy v1–v5, Karl, the recommendation) was rigorous within its premise. The premise was wrong. None of the agent reviews — including five rounds of Nancy specifically tasked with finding flaws — surfaced the lab-only rule because:
+
+1. The constraint lives in `feedback_dr_hex_lab_only.md` (operator memory) but isn't articulated in `dr-hex-constitution.md` or any other doc the agents directly grep.
+2. `MEMORY.md` is over its load limit (44.7KB vs 24.4KB), so the index entry pointing to the lab-only rule was truncated below the load cut-off when the primary started this session.
+3. The doc's own framing ("Dr. Hex on 2,433 pages already") implicitly contradicted the lab-only rule, but no agent was prompted to question the framing itself — only to find flaws within it.
+
+Fix on the doc side: the lab-only rule needs to be added to `dr-hex-constitution.md` as an explicit "WHERE Dr. Hex appears" section, with a corresponding "WHERE Aminos appears" section that names the per-house bot mapping. That makes both rules grep-able and resolves the truncation gap.
+
+Fix on the agent side: future Nancy/Karl prompts for architectural decisions affecting AI surface placement should be primed with the surface-placement rules explicitly, not inferred from Constitution/Skill-Map docs.
