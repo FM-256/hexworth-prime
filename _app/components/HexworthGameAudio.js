@@ -283,6 +283,15 @@ const HexworthGameAudio = (function() {
     }
 
     // ── Volume / mute / preference ─────────────────────────────────
+    // Known limitation: mute() stops the currently-playing think loop +
+    // timer ticks immediately. unmute() restores masterGain but does
+    // NOT restart whatever loop was active before the mute. So a
+    // student who mutes mid-clue + unmutes mid-clue gets silence for
+    // the rest of that clue/question. Re-triggering loops here would
+    // require the module to track active context (which game, which
+    // event), which adds state we don't currently keep. Acceptable for
+    // a self-paced review: the next event (close modal, next question)
+    // re-enters the playing state correctly.
     function setVolume(v) {
         masterVolume = Math.max(0, Math.min(1, v));
         if (masterGain) masterGain.gain.value = muted ? 0 : masterVolume;
