@@ -1,9 +1,20 @@
 """
-hex_ai_orchestrator — Hexworth Prime AI orchestration service (v0.3.0)
+hex_ai_orchestrator — Hexworth Prime AI orchestration service (v0.6.2)
 
 The constrained version of Dr. Hex. Routes student/operator questions
 through a context packet + persona + help-level pipeline before they
 reach an inference model.
+
+v0.6.2 adds (over v0.6.1):
+  - HEX_OLLAMA_KEEP_ALIVE env (default '30m') threaded through every
+    ollama /api/chat POST so the model stays resident in VRAM across
+    idle gaps. Eliminates the 5-15 s model-load tax students hit after
+    a few minutes of inactivity (improvement #9 from
+    _docs/operations/dr-hex-latency-2026-05-26.md).
+  - Embedding cache in rag.py: SHA-256 of normalized query plus
+    embed-model name, Redis-backed, 1-hour TTL. Skips the 150-300 ms
+    embed call on hot/repeat questions. Soft dependency: Redis outage
+    falls through to fresh embed (improvement #4 same doc).
 
 v0.3.0 adds (over v0.2.0):
   - API-key auth on /chat, /chat/stream, /context (when show_rag=1)
@@ -125,6 +136,15 @@ logging.basicConfig(
 log = logging.getLogger("hex_ai")
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
+
+# How long ollama should keep the model resident in VRAM between requests.
+# Default '30m' covers a normal classroom session and eliminates the
+# 5-15 s model-load tax students pay after a few minutes of idle. Set to
+# '0' to unload immediately (dev only), or '-1' to keep loaded forever.
+# Format mirrors ollama's REST API string syntax ('5m', '1h', '24h', etc.)
+# so ollama can parse it as either a duration string or a seconds int.
+# See _docs/operations/dr-hex-latency-2026-05-26.md improvement #9.
+OLLAMA_KEEP_ALIVE = os.environ.get("HEX_OLLAMA_KEEP_ALIVE", "30m")
 DEFAULT_MODEL = os.environ.get("HEX_DEFAULT_MODEL", "qwen2.5:7b")
 ALLOWED_ORIGINS = os.environ.get("HEX_ALLOWED_ORIGINS", "*").split(",")
 HEX_ENV = os.environ.get("HEX_ENV", "development").lower()
@@ -462,6 +482,7 @@ async def call_ollama_blocking(
                 "messages": messages,
                 "stream": False,
                 "options": {"temperature": 0.4},
+                "keep_alive": OLLAMA_KEEP_ALIVE,
             }
             if tools_list:
                 payload["tools"] = tools_list
@@ -636,6 +657,7 @@ async def call_ollama_blocking(
             }],
             "stream": False,
             "options": {"temperature": 0.4},
+            "keep_alive": OLLAMA_KEEP_ALIVE,
         })
         r.raise_for_status()
         final = (r.json().get("message", {}).get("content") or "").strip()
@@ -693,6 +715,7 @@ async def stream_ollama(
                 "messages": messages,
                 "stream": True,
                 "options": {"temperature": 0.4},
+                "keep_alive": OLLAMA_KEEP_ALIVE,
             }
             if use_tools:
                 payload["tools"] = tools_list
@@ -826,6 +849,7 @@ async def stream_ollama(
                     ),
                 }],
                 "stream": False,
+                "keep_alive": OLLAMA_KEEP_ALIVE,
                 "options": {"temperature": 0.4},
             })
             r.raise_for_status()
@@ -1851,6 +1875,7 @@ async def warmup_ollama() -> None:
                     "messages": [{"role": "user", "content": "hi"}],
                     "stream": False,
                     "options": {"num_predict": 1, "temperature": 0.0},
+                    "keep_alive": OLLAMA_KEEP_ALIVE,
                 },
             )
             if resp.status_code == 200:

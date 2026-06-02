@@ -7,9 +7,19 @@ Embeds the query via ollama nomic-embed-text, runs cosine-distance
 search against pgvector. Returns empty list if pgvector is unreachable
 (retrieval is augmentation, not a hard dependency — the orchestrator
 falls back to no-context chat).
+
+v0.6.2 adds (over v0.6.1):
+  - Redis-backed embedding cache keyed on SHA-256 of normalized query
+    plus the embed model name (so changing models invalidates the cache
+    automatically). 1-hour TTL by default. Skips the ~150-300 ms embed
+    cost on repeat questions (same student re-asking, or two students
+    asking the same thing). Soft dependency on Redis: failure or miss
+    just falls through to a fresh embed.
+    Improvement #4 from _docs/operations/dr-hex-latency-2026-05-26.md.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -26,6 +36,13 @@ EMBED_MODEL = os.environ.get("HEX_EMBED_MODEL", "nomic-embed-text")
 DEFAULT_K = int(os.environ.get("HEX_RAG_K", "3"))
 DEFAULT_DISTANCE_THRESHOLD = float(os.environ.get("HEX_RAG_DISTANCE_THRESHOLD", "0.55"))
 MIN_QUERY_LEN = int(os.environ.get("HEX_RAG_MIN_QUERY_LEN", "8"))
+
+# Embedding cache (Redis) config. Soft dependency: a Redis outage just
+# means every embed costs the full 150-300 ms instead of ~1 ms.
+REDIS_URL          = os.environ.get("HEX_REDIS_URL", "redis://127.0.0.1:6379/0")
+REDIS_TIMEOUT_S    = float(os.environ.get("HEX_REDIS_TIMEOUT_S", "0.5"))
+EMBED_CACHE_TTL_S  = int(os.environ.get("HEX_EMBED_CACHE_TTL_S", str(60 * 60)))
+EMBED_CACHE_ENABLE = os.environ.get("HEX_EMBED_CACHE", "1") != "0"
 
 # Load password once at import
 _PG_PASSWORD = None
@@ -54,6 +71,100 @@ def _embed(text: str) -> list[float] | None:
         return None
 
 
+# ── EMBEDDING CACHE ────────────────────────────────────────────────────────
+# Redis-backed cache so the same query (or near-same after normalization)
+# doesn't repay the ~150-300 ms embed cost. Cache key includes the embed
+# model name so swapping HEX_EMBED_MODEL invalidates the cache cleanly.
+#
+# Sync redis client (not aioredis) because retrieve() is sync and gets
+# wrapped in asyncio.to_thread by callers. Lazy-init on first use; once
+# init fails the client stays None for the rest of the process to avoid
+# repeated connection-failure tax.
+
+_redis_client: Any | None = None
+_redis_init_attempted = False
+
+
+def _get_redis() -> Any | None:
+    """Return a sync Redis client or None if Redis is unavailable.
+
+    Caches the outcome so a Redis outage doesn't cost a connection attempt
+    on every request — important when embed cache is the hot path.
+    """
+    global _redis_client, _redis_init_attempted
+    if _redis_init_attempted:
+        return _redis_client
+    _redis_init_attempted = True
+    if not EMBED_CACHE_ENABLE:
+        return None
+    try:
+        import redis  # sync client (rate_limit uses aioredis; we don't)
+        _redis_client = redis.Redis.from_url(
+            REDIS_URL,
+            socket_timeout=REDIS_TIMEOUT_S,
+            socket_connect_timeout=REDIS_TIMEOUT_S,
+            decode_responses=False,
+        )
+        # Probe so we know the connection works
+        _redis_client.ping()
+        log.info("rag: embed cache active (model=%s, ttl=%ds)", EMBED_MODEL, EMBED_CACHE_TTL_S)
+    except Exception as e:
+        log.warning("rag: embed cache disabled (redis unavailable: %s)", e)
+        _redis_client = None
+    return _redis_client
+
+
+def _normalize_query(q: str) -> str:
+    """Lowercase + collapse internal whitespace so 'What is SQLi?\\n' and
+    'what is sqli?' hash to the same cache key."""
+    return " ".join(q.lower().split())
+
+
+def _embed_cache_key(normalized_query: str) -> str:
+    h = hashlib.sha256(normalized_query.encode()).hexdigest()
+    # Model name in the key so model swap auto-invalidates
+    return f"hex_ai:embed:{EMBED_MODEL}:{h}"
+
+
+def _cached_embed(text: str) -> list[float] | None:
+    """Embed-with-cache wrapper. Returns the same shape as _embed().
+
+    Cache miss path is identical to _embed() — the cache is purely an
+    accelerant. Any Redis failure (connect, GET, SET, JSON decode) falls
+    through to a fresh embed so cache trouble can never break retrieval.
+    """
+    normalized = _normalize_query(text)
+    r = _get_redis()
+    if r is None:
+        return _embed(text)
+
+    key = _embed_cache_key(normalized)
+    # Read from cache
+    try:
+        cached = r.get(key)
+        if cached is not None:
+            try:
+                vec = json.loads(cached)
+                if isinstance(vec, list) and vec:
+                    log.debug("rag: embed cache HIT (%s...)", normalized[:32])
+                    return vec
+            except Exception:
+                # Bad JSON in cache — drop and re-embed
+                pass
+    except Exception as e:
+        log.warning("rag: embed cache GET failed: %s", e)
+
+    # Cache miss or read error — embed fresh and store
+    vec = _embed(text)
+    if vec is not None:
+        try:
+            r.set(key, json.dumps(vec), ex=EMBED_CACHE_TTL_S)
+            log.debug("rag: embed cache STORE (%s...)", normalized[:32])
+        except Exception as e:
+            log.warning("rag: embed cache SET failed: %s", e)
+    return vec
+
+
 def retrieve(
     query: str,
     k: int | None = None,
@@ -77,7 +188,7 @@ def retrieve(
     if not query or len(query.strip()) < MIN_QUERY_LEN:
         log.info("rag: query too short (%d chars), skipping retrieval", len(query.strip()))
         return []
-    qvec = _embed(query)
+    qvec = _cached_embed(query)
     if qvec is None:
         return []
     qvec_str = str(qvec)
