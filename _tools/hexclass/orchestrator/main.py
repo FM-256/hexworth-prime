@@ -140,9 +140,9 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 # How long ollama should keep the model resident in VRAM between requests.
 # Default '30m' covers a normal classroom session and eliminates the
 # 5-15 s model-load tax students pay after a few minutes of idle. Set to
-# '0' to unload immediately (dev only), or '-1' to keep loaded forever.
-# Format mirrors ollama's REST API string syntax ('5m', '1h', '24h', etc.)
-# so ollama can parse it as either a duration string or a seconds int.
+# '0' to unload immediately (dev only), or '-1s' (NOT bare '-1') to keep
+# loaded forever — Go's time.ParseDuration rejects '-1' without a unit.
+# Format mirrors ollama's REST API string syntax ('5m', '1h', '24h', etc.).
 # See _docs/operations/dr-hex-latency-2026-05-26.md improvement #9.
 OLLAMA_KEEP_ALIVE = os.environ.get("HEX_OLLAMA_KEEP_ALIVE", "30m")
 DEFAULT_MODEL = os.environ.get("HEX_DEFAULT_MODEL", "qwen2.5:7b")
@@ -151,7 +151,11 @@ HEX_ENV = os.environ.get("HEX_ENV", "development").lower()
 # Per-conversation cap on tool-call iterations. Prevents runaway loops
 # where the model keeps calling tools without producing a final text.
 MAX_TOOL_ITERATIONS = int(os.environ.get("HEX_MAX_TOOL_ITERATIONS", "3"))
-VERSION = "0.6.5"
+# Single source of truth for the runtime version reported by /health and
+# Prometheus. MUST match pyproject.toml; the v0.6.6 commit aligned them
+# after a pre-existing drift where pyproject was stale at 0.6.1 while
+# main.py had advanced to 0.6.5 through several un-versioned commits.
+VERSION = "0.6.6"
 
 # Special tokens that qwen2.5:7b and similar models treat as control sequences
 # in their chat template. If these appear verbatim in tool result content,
