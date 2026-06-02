@@ -69,6 +69,21 @@ const HexworthGameAudio = (function() {
         }
     }
 
+    /**
+     * Combined init+resume. Called at the top of every sound-producing
+     * method so the FIRST user gesture that triggers a game event
+     * (e.g. first Jeopardy cell click) creates the AudioContext inline,
+     * avoiding the lazy-init race where startThink() would run before
+     * the board-level lazy-init handler had a chance to call init().
+     * Web Audio policy is satisfied because we're already inside the
+     * user-gesture callback that produced the sound request.
+     */
+    function ensureRunning() {
+        if (!initialized) { if (!init()) return false; }
+        if (ctx.state === 'suspended') ctx.resume();
+        return true;
+    }
+
     // ── Voice helpers ──────────────────────────────────────────────
     function makeOsc(freq, type) {
         const o = ctx.createOscillator();
@@ -89,7 +104,7 @@ const HexworthGameAudio = (function() {
     }
 
     function bleep(freq, when, dur, type, peak) {
-        if (!initialized || muted) return;
+        if (!ensureRunning() || muted) return;
         const o  = makeOsc(freq, type || 'square');
         const g  = envGain(when, 0.005, dur, 0.05, peak == null ? 0.35 : peak);
         o.connect(g).connect(masterGain);
@@ -102,7 +117,7 @@ const HexworthGameAudio = (function() {
     // theme. Plays an ascending pentatonic-flavored arpeggio over a
     // soft bass pulse. Loops indefinitely until stopThink() is called.
     function startThink() {
-        if (!initialized || muted) return;
+        if (!ensureRunning() || muted) return;
         stopThink();
         const loopGain = ctx.createGain();
         loopGain.gain.value = 0.25;
@@ -163,7 +178,7 @@ const HexworthGameAudio = (function() {
     // ── JEOPARDY: Daily Double sting ───────────────────────────────
     // Rising bright fanfare ~1.2s: ascending C major triad with shimmer.
     function dailyDouble() {
-        if (!initialized || muted) return;
+        if (!ensureRunning() || muted) return;
         const t0 = ctx.currentTime + 0.02;
         const triad = [523.25, 659.25, 783.99]; // C5, E5, G5
         for (let i = 0; i < triad.length; i++) {
@@ -185,7 +200,7 @@ const HexworthGameAudio = (function() {
 
     // ── JEOPARDY: Final fanfare (3-note ascending + sustained chord) ─
     function finalFanfare() {
-        if (!initialized || muted) return;
+        if (!ensureRunning() || muted) return;
         const t0 = ctx.currentTime + 0.05;
         const lead = [523.25, 659.25, 783.99]; // C5, E5, G5
         for (let i = 0; i < 3; i++) {
@@ -211,7 +226,7 @@ const HexworthGameAudio = (function() {
     // Schedules quarter-note ticks for `durationSec`. Tick gets sharper
     // and slightly higher-pitched in the final 5 seconds for urgency.
     function startTimer(durationSec) {
-        if (!initialized || muted) return;
+        if (!ensureRunning() || muted) return;
         stopTimer();
         const dur = durationSec || 30;
         const startMs = Date.now();
@@ -241,7 +256,7 @@ const HexworthGameAudio = (function() {
 
     // ── KAHOOT: streak bonus (one-shot) ────────────────────────────
     function streak() {
-        if (!initialized || muted) return;
+        if (!ensureRunning() || muted) return;
         const t0 = ctx.currentTime + 0.02;
         const seq = [523.25, 659.25, 783.99, 1046.50]; // C-E-G-C ascending
         for (let i = 0; i < seq.length; i++) {
@@ -255,7 +270,7 @@ const HexworthGameAudio = (function() {
 
     // ── Shared one-shots ───────────────────────────────────────────
     function correct() {
-        if (!initialized || muted) return;
+        if (!ensureRunning() || muted) return;
         const t0 = ctx.currentTime + 0.01;
         // Two-note major third "ding" (C5 -> E5) with bell-like timbre
         [{f: 523.25, when: 0},    {f: 659.25, when: 0.10}].forEach(function(n) {
@@ -268,7 +283,7 @@ const HexworthGameAudio = (function() {
     }
 
     function wrong() {
-        if (!initialized || muted) return;
+        if (!ensureRunning() || muted) return;
         const t0 = ctx.currentTime + 0.01;
         // Descending semitone with muffled timbre
         const o = makeOsc(220, 'sawtooth');
