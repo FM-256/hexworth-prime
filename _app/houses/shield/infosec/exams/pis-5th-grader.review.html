@@ -6,6 +6,7 @@
     <script>AccessGuard.require('sorted');</script>
     <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/HexworthGameAudio.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Are You Smarter Than a 5th Grader? Principles of Information Security (Hexworth Prime)</title>
     <link rel="icon" type="image/webp" href="/assets/images/icons/icon-clipboard.webp">
@@ -58,6 +59,22 @@
             border: 1px solid rgba(59, 130, 246, 0.25); transition: all 0.2s;
         }
         .back-link:hover { background: var(--shield-dim); }
+
+        /* Audio toggle — floating mute button in the header right cluster */
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .audio-toggle {
+            background: transparent; color: var(--shield-primary);
+            border: 1px solid var(--shield-dim);
+            border-radius: 6px; padding: 6px 8px; cursor: pointer; line-height: 0;
+            transition: background 0.15s, border-color 0.15s;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .audio-toggle:hover { background: var(--shield-dim); border-color: var(--shield-primary); }
+        .audio-toggle .ico-on  { display: inline; }
+        .audio-toggle .ico-off { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-on  { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-off { display: inline; }
+        .audio-toggle[aria-pressed="true"] { color: rgba(255,255,255,0.4); }
 
         /* ── Content ── */
         .content { max-width: 1160px; margin: 0 auto; padding: 32px 24px 80px; }
@@ -443,7 +460,28 @@
             <span class="header-badge">PIS-REVIEW</span>
             <h1>Are You Smarter Than a 5th Grader?</h1>
         </div>
-        <a href="../index.html" class="back-link">&larr; Principles of Information Security</a>
+        <div class="header-right">
+            <button id="audioToggle" class="audio-toggle" type="button"
+                    aria-pressed="false" title="Toggle game audio">
+                <span class="audio-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" class="ico-on">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                    </svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" class="ico-off">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <line x1="23" y1="9" x2="17" y2="15"></line>
+                        <line x1="17" y1="9" x2="23" y2="15"></line>
+                    </svg>
+                </span>
+            </button>
+            <a href="../index.html" class="back-link">&larr; Principles of Information Security</a>
+        </div>
     </header>
 
     <main class="content">
@@ -808,6 +846,11 @@
             if (isCorrect) {
                 fb.className = 'question-feedback correct';
                 fb.textContent = 'Correct! ' + q.exp;
+                if (window.HexworthGameAudio) {
+                    // Milestone $50k reach (next step is the milestone) -> small fanfare
+                    if (MILESTONE_INDICES.includes(currentQ)) HexworthGameAudio.dailyDouble();
+                    else HexworthGameAudio.correct();
+                }
                 /* Advance after short delay */
                 setTimeout(() => advanceAfterCorrect(), 1800);
             } else {
@@ -820,11 +863,13 @@
                     syncLifelineButtons();
                     fb.className = 'question-feedback correct';
                     fb.textContent = 'SAVE lifeline triggered! Wrong, but you are protected. ' + q.exp;
+                    if (window.HexworthGameAudio) HexworthGameAudio.streak(); // celebratory save
                     setTimeout(() => advanceAfterCorrect(), 2000);
                 } else {
                     /* Real wrong answer */
                     fb.className = 'question-feedback wrong';
                     fb.textContent = 'Incorrect. ' + q.exp;
+                    if (window.HexworthGameAudio) HexworthGameAudio.wrong();
                     setTimeout(() => endGame(false), 2000);
                 }
             }
@@ -927,6 +972,7 @@
         function endGame(outcome) {
             gameActive = false;
             syncLifelineButtons();
+            if (window.HexworthGameAudio) HexworthGameAudio.finalFanfare();
 
             /* Determine displayed bank */
             let finalBank = bank;
@@ -1135,6 +1181,28 @@
                 }
             }
         } catch(e) {}
+    
+
+        /* ================================================================
+           AUDIO TOGGLE
+           HexworthGameAudio.ensureRunning() auto-creates the AudioContext
+           on first sound call, so no lazy-init target needed here.
+           ================================================================ */
+        (function wireAudioToggle() {
+            var btn = document.getElementById('audioToggle');
+            if (!btn || !window.HexworthGameAudio) return;
+            btn.setAttribute('aria-pressed', String(HexworthGameAudio.isMuted()));
+            btn.addEventListener('click', function() {
+                HexworthGameAudio.init();
+                HexworthGameAudio.resume();
+                var nowMuted = HexworthGameAudio.toggleMute();
+                btn.setAttribute('aria-pressed', String(nowMuted));
+            });
+            if (!HexworthGameAudio.isEnabled()) {
+                HexworthGameAudio.mute();
+                btn.setAttribute('aria-pressed', 'true');
+            }
+        })();
     </script>
 </body>
 </html>

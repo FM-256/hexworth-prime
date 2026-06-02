@@ -6,6 +6,7 @@
     <script>AccessGuard.require('sorted');</script>
     <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/HexworthGameAudio.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ethics in IT Jeopardy: Ethics in Information Technology (Hexworth Prime)</title>
     <link rel="icon" type="image/webp" href="/assets/images/icons/icon-scales.webp">
@@ -40,6 +41,22 @@
             padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(255, 0, 255, 0.25); transition: all 0.2s;
         }
         .back-link:hover { background: var(--forge-dim); }
+
+        /* Audio toggle — floating mute button in the header right cluster */
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .audio-toggle {
+            background: transparent; color: var(--div-primary, var(--forge, #ff00ff));
+            border: 1px solid var(--div-bg, rgba(255,0,255,0.08));
+            border-radius: 6px; padding: 6px 8px; cursor: pointer; line-height: 0;
+            transition: background 0.15s, border-color 0.15s;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .audio-toggle:hover { background: var(--div-bg, rgba(255,0,255,0.08)); border-color: var(--div-primary, var(--forge, #ff00ff)); }
+        .audio-toggle .ico-on  { display: inline; }
+        .audio-toggle .ico-off { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-on  { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-off { display: inline; }
+        .audio-toggle[aria-pressed="true"] { color: rgba(255,255,255,0.4); }
 
         /* Content */
         .content { max-width: 960px; margin: 0 auto; padding: 32px 24px 80px; }
@@ -413,7 +430,28 @@
             <span class="header-badge">ETH-REVIEW</span>
             <h1>Ethics in IT Jeopardy</h1>
         </div>
-        <a href="../index.html" class="back-link">&larr; Ethics in Information Technology</a>
+        <div class="header-right">
+            <button id="audioToggle" class="audio-toggle" type="button"
+                    aria-pressed="false" title="Toggle game audio">
+                <span class="audio-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" class="ico-on">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                    </svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" class="ico-off">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <line x1="23" y1="9" x2="17" y2="15"></line>
+                        <line x1="17" y1="9" x2="23" y2="15"></line>
+                    </svg>
+                </span>
+            </button>
+            <a href="../index.html" class="back-link">&larr; Ethics in Information Technology</a>
+        </div>
     </header>
 
     <main class="content">
@@ -788,10 +826,12 @@
                 ddPending   = true;
                 currentClue = { catIdx, rowIdx, value: categories[catIdx].clues[rowIdx].value };
                 openDDWager(catIdx, rowIdx);
+                if (window.HexworthGameAudio) HexworthGameAudio.dailyDouble();
                 /* Release guard after a tick so rapid double-clicks don't bypass it */
                 setTimeout(() => { ddOpenGuard = false; }, 200);
             } else {
                 showClueModal(catIdx, rowIdx, categories[catIdx].clues[rowIdx].value);
+                if (window.HexworthGameAudio) HexworthGameAudio.startThink();
             }
         }
 
@@ -837,6 +877,7 @@
 
             /* Now show the actual clue */
             showClueModal(currentClue.catIdx, currentClue.rowIdx, wager, true);
+            if (window.HexworthGameAudio) HexworthGameAudio.startThink();
         }
 
         /* ================================================================
@@ -871,6 +912,7 @@
         function revealAnswer() {
             if (answerRevealed) return;
             answerRevealed = true;
+            if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
 
             document.getElementById('modalAnswer').classList.add('revealed');
             document.getElementById('modalPrompt').style.display = 'none';
@@ -882,6 +924,10 @@
 
         function judgeAnswer(correct) {
             if (!currentClue) return;
+            if (window.HexworthGameAudio) {
+                HexworthGameAudio.stopThink();
+                if (correct) HexworthGameAudio.correct(); else HexworthGameAudio.wrong();
+            }
 
             const val    = currentClue.value;
             const catIdx = currentClue.catIdx;
@@ -921,6 +967,7 @@
         }
 
         function closeModal() {
+            if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
             document.getElementById('modalOverlay').classList.remove('active');
             document.body.style.overflow = '';
             currentClue = null;
@@ -963,6 +1010,7 @@
            FINAL SCORE AND CATEGORY BREAKDOWN
            ================================================================ */
         function showFinalScore() {
+            if (window.HexworthGameAudio) HexworthGameAudio.finalFanfare();
             const maxScore   = 7500;
             // Display pct is clamped to [0, 100] so a high-wager correct
             // Daily Double doesn't push the final card to "150% of Max".
@@ -1149,6 +1197,28 @@
                 }
             }
         } catch(e) {}
+    
+
+        /* ================================================================
+           AUDIO TOGGLE
+           HexworthGameAudio.ensureRunning() auto-creates the AudioContext
+           on first sound call, so no lazy-init target needed here.
+           ================================================================ */
+        (function wireAudioToggle() {
+            var btn = document.getElementById('audioToggle');
+            if (!btn || !window.HexworthGameAudio) return;
+            btn.setAttribute('aria-pressed', String(HexworthGameAudio.isMuted()));
+            btn.addEventListener('click', function() {
+                HexworthGameAudio.init();
+                HexworthGameAudio.resume();
+                var nowMuted = HexworthGameAudio.toggleMute();
+                btn.setAttribute('aria-pressed', String(nowMuted));
+            });
+            if (!HexworthGameAudio.isEnabled()) {
+                HexworthGameAudio.mute();
+                btn.setAttribute('aria-pressed', 'true');
+            }
+        })();
     </script>
 </body>
 </html>
