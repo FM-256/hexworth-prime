@@ -342,6 +342,39 @@ Reversed the Aminos `<script>` removal on the 24 student-facing pages stripped b
 
 This commit gets the platform back to its pre-retirement Aminos state with the architecture doc finally telling the truth about the model. It does NOT fix every misplaced AI surface on the platform — that's Phase B + C work that needs separate Nancy review and operator sign-off.
 
+### Per-bot status verification (post-deploy 2026-06-02)
+
+After Phase A deployed to production, all 14 Aminos bots verified working in real browsers:
+
+| Bot ID | House / Surface | Persona | Status |
+|---|---|---|---|
+| 7042 | General (landing + dashboard) | Hexworth Assistant | ✓ working — see note below |
+| 7960 | AI house | Alan Turing | ✓ working |
+| 7983 | Web house | Vint Cerf | ✓ working |
+| 7984 | Code house | Ada Lovelace | ✓ working |
+| 7985 | Cloud house | J.C.R. Licklider | ✓ working |
+| 7986 | Dark Arts house | Kevin Mitnick | ✓ working |
+| 7987 | Eye house | Cliff Stoll | ✓ working |
+| 7988 | Forge house | Steve Wozniak | ✓ working |
+| 7989 | Key house | Claude Shannon | ✓ working |
+| 7990 | Matrix house | Sun Tzu | ✓ working |
+| 7991 | Script house | Linus Torvalds | ✓ working |
+| 8115 | Shield house | Dorothy Denning | ✓ working |
+| 8208 | Divergent house | Leonardo da Vinci | ✓ working |
+| 8210 | Signal house + Projects hub | Nikola Tesla | ✓ working |
+
+**Note on bot 7042 testing:** Direct `curl` requests to `https://platform.aminos.ai/api/bot_info/7042` return HTTP 403 + a Laravel "Forbidden" HTML page, even with `Origin: https://hexworth.com` and full browser-like headers. The other 13 bots return 200 JSON to the same request shape. Real browsers on hexworth.com load 7042 fine. Inferred cause: bot 7042 is configured with stricter access requirements (probably a session-cookie or auth requirement) that my curl can't satisfy. **Not deleted, not broken — just has tighter access config than the 13 house-specific bots.** Future debug sessions hitting the same 403 should not treat it as evidence of a missing bot; verify in a real browser first.
+
+### Aminos bot whitelist (one observation worth saving)
+
+Each Aminos bot's JSON config carries an explicit origin whitelist:
+
+```json
+"whitelist": ["hexworth-prime.web.app", "hexworth.web.app", "hexworth.com"]
+```
+
+That whitelist is **not** wildcarded for Firebase Hosting preview channels. Channel URLs like `hexworth-prime--<channel>-<hash>.web.app` are not allowed. Therefore: **preview-channel verification of Aminos features will always 403 even when production works fine.** Bot-side debug must happen on production or via curl with hexworth.com origin spoofing.
+
 ### Architectural lesson worth keeping
 
 The doc's whole deliberation chain (Options A–D, pro/con, Nancy v1–v5, Karl, the recommendation) was rigorous within its premise. The premise was wrong. None of the agent reviews — including five rounds of Nancy specifically tasked with finding flaws — surfaced the lab-only rule because:
