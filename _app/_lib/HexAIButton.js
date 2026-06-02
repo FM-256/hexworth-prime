@@ -176,27 +176,6 @@ class HexAIButton extends HTMLElement {
                 button.dr-hex-fab:focus + .dr-hex-label {
                     opacity: 1;
                 }
-
-                /* Auth prompt — visible when an unauth visitor clicks
-                   the button. Only fires on pages reachable without
-                   login (landing, dashboard). :host prefix bumps
-                   specificity above the :hover-driven rule above so
-                   the prompt stays visible when the cursor moves from
-                   the button onto the label to click the link. */
-                :host .dr-hex-label.show-auth {
-                    opacity: 1;
-                    pointer-events: auto;
-                    background: #1f2937;
-                    border-color: #67e8f9;
-                }
-                :host .dr-hex-label.show-auth a {
-                    color: #67e8f9;
-                    text-decoration: underline;
-                    font-weight: 600;
-                }
-                :host .dr-hex-label.show-auth a:hover {
-                    color: #a5f3fc;
-                }
             </style>
             <button
                 class="dr-hex-fab"
@@ -281,13 +260,8 @@ class HexAIButton extends HTMLElement {
 
     _openChat() {
         if (!this._authUser) {
-            // 2026-06-02: surface a visible auth prompt instead of silent
-            // return. Triggered on pages reachable by unauth visitors
-            // (landing, dashboard). The 2,4xx auth-gated pages never
-            // reach this branch because their host page won't render
-            // without _authUser set.
+            // Trigger a sign-in popup via the same Firebase auth instance
             console.warn('[HexAIButton] not signed in — chat requires Firebase auth');
-            this._showAuthPrompt();
             return;
         }
         // Open the chat panel by importing it lazily
@@ -308,21 +282,6 @@ class HexAIButton extends HTMLElement {
         }).catch(e => {
             console.error('[HexAIButton] chat panel load failed:', e);
         });
-    }
-
-    _showAuthPrompt() {
-        const label = this.shadowRoot.querySelector('.dr-hex-label');
-        if (!label) return;
-        label.classList.add('show-auth');
-        // innerHTML is needed here because the prompt contains a link.
-        // The reset branch below uses textContent for safety.
-        label.innerHTML = 'Sign in to chat — <a href="/login.html">Sign in</a>';
-        if (this._authPromptTimer) clearTimeout(this._authPromptTimer);
-        this._authPromptTimer = setTimeout(() => {
-            label.classList.remove('show-auth');
-            label.textContent = 'Ask Dr. Hex';
-            this._authPromptTimer = null;
-        }, 5000);
     }
 }
 

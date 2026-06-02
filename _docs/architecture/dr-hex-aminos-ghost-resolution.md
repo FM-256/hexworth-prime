@@ -263,3 +263,41 @@ The recommendation (Option A with corrected scope) reflects the operator's actua
 ---
 
 **Decision pending operator approval.** Primary will not proceed to implementation without explicit go-ahead on (a) Option choice, (b) timing window, (c) whether degradation-mode work blocks or follows.
+
+---
+
+## ADDENDUM — 2026-06-02 operator scope correction: Dr. Hex is lab-only
+
+After the v3 doc was approved and the branch `aminos-retire` was deployed to preview channel, the operator surfaced a constraint missed in v1–v5 review: **"Dr. Hex is only available during labs."**
+
+This constraint is grounded in `dr-hex-constitution.md` and `dr-hex-lab-skill-map.md`. Dr. Hex's behavior model (Help Levels 0–5, mood-ring state, drift detector, Skill Map preservation) is lab-anchored: the per-lab Skill Map is the source of truth for which skills are preserved and how Help modulates. On non-lab pages, none of that machinery has a target — the button is decorative at best, off-mission at worst.
+
+**The "add Dr. Hex to 9 Aminos-only pages" item in Option A is invalidated by this constraint.** None of those 9 pages is a lab:
+
+| Page | Type |
+|---|---|
+| `_app/index.html` | landing |
+| `_app/dashboard.html` | hub |
+| `_app/projects/index.html` | browse |
+| `_app/signal/index.html` | browse |
+| `_app/houses/code/python-for-it/index.html` | course hub |
+| `_app/houses/code/python-programming/index.html` | course hub |
+| `_app/houses/web/intro-networks/index.html` | course hub |
+| `_app/houses/web/net-essentials/index.html` | course hub |
+| `_app/bot-test.html` | archive target |
+
+### Corrected Phase 1 scope (operator-confirmed 2026-06-02)
+
+1. Remove 25 Aminos `<script>` embeds (unchanged).
+2. **Do NOT add Dr. Hex to the 8 non-lab Aminos-only pages.** They end up AI-less. This matches the current production state on landing, where Aminos has been broken (403 from `getBotSettings`) and the landing page has had no working AI button for some time.
+3. Archive bot-test.html, ChatbotRouter.js, bot-specs/ (unchanged).
+4. Mark F-54 → F-65 deferred (unchanged).
+5. **HexAIButton.js auth-prompt patch is reverted** — was only needed because Dr. Hex was going on landing/dashboard where unauth visitors could see the button. With Dr. Hex staying lab-only, those pages are never reached by Dr. Hex unauthenticated.
+
+### Out-of-scope (acknowledged, not addressed by this commit)
+
+There are ~169 pre-existing `index.html` pages (12 house hubs + course hubs + dashboard + etc.) currently carrying `<hex-ai-button>` from prior decisions. By the lab-only constraint, those installations are also out-of-shape. **This commit does NOT sweep them.** Operator chose the minimal correction. A separate sprint item should track the broader cleanup if/when scoped.
+
+### Why this matters
+
+The doc shipped to preview was correct as a deliberation artifact but wrong as a ship plan. Nancy rounds 1–5 caught architectural/correctness/CSS issues but not the lab-only constraint because that constraint isn't articulated anywhere the agents have direct sight of (it lives in the operator's mental model and is implicit in the Constitution's emphasis on lab Skill Maps). This is a documentation gap the Dr. Hex governance doc should close — the lab-only scope rule belongs alongside the Help Levels and persona laws.
