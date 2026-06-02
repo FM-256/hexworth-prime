@@ -106,56 +106,7 @@ async def test_orphan_list_does_not_leak(conv_module):
     assert "fresh answer" in contents
 
 
-# ── NOSCRIPT RECOVERY TEST (runs in CI without Redis) ──────────────────────
-# Mock the redis client so we can simulate the "Redis was restarted, our
-# cached SHA is stale" scenario and confirm we recover via EVAL.
-
-class _MockRedisNoScriptOnce:
-    """Mocks the minimal aioredis surface used by append_turns. The first
-    evalsha() call raises NoScriptError; the inline eval() that follows
-    returns the success sentinel. Subsequent evalsha calls succeed (the
-    re-loaded sha is fresh)."""
-    def __init__(self):
-        self._sha = "deadbeef" * 5  # 40-char fake SHA
-        self._evalsha_call_count = 0
-        self._eval_call_count = 0
-        self._script_load_count = 0
-    async def script_load(self, _script):
-        self._script_load_count += 1
-        return self._sha
-    async def evalsha(self, _sha, _numkeys, *_args):
-        from redis.exceptions import NoScriptError
-        self._evalsha_call_count += 1
-        if self._evalsha_call_count == 1:
-            raise NoScriptError("NOSCRIPT No matching script")
-        return 1
-    async def eval(self, _script, _numkeys, *_args):
-        self._eval_call_count += 1
-        return 1
-
-
-@pytest.mark.asyncio
-@pytest.mark.skipif(
-    os.environ.get("HEX_TEST_REDIS_MOCKS", "1") == "0",
-    reason="Set HEX_TEST_REDIS_MOCKS=0 to skip Redis-mock tests",
-)
-async def test_noscript_falls_back_to_eval(monkeypatch):
-    """Regression for the reviewer-flagged NOSCRIPT failure mode: after
-    Redis restart, the first evalsha returns NoScriptError. v0.6.6 must
-    catch it, invalidate the cached SHA, and fall back to inline EVAL
-    for this request so the student doesn't see a transient outage."""
-    if "conversation" in sys.modules:
-        del sys.modules["conversation"]
-    import conversation  # type: ignore
-    fake = _MockRedisNoScriptOnce()
-    monkeypatch.setattr(conversation, "_client", lambda: fake)
-    conversation._append_turns_sha = None  # cold start
-    cid = str(uuid.uuid4())
-    ok = await conversation.append_turns(cid, "uidX", "q", "a")
-    assert ok is True
-    # SHA was loaded (script_load), evalsha hit NOSCRIPT once, then EVAL ran.
-    assert fake._script_load_count >= 1
-    assert fake._evalsha_call_count == 1
-    assert fake._eval_call_count == 1
-    # The module-level SHA must be cleared so the next call re-LOADs cleanly.
-    assert conversation._append_turns_sha is None
+# NOSCRIPT recovery test moved to tests/test_noscript_recovery.py so it
+# runs in CI without the live-Redis gating that the file-level pytestmark
+# above imposes on the rest of these tests. Nancy pre-deploy review
+# 2026-06-02 flagged the original co-location as a silent-skip risk.

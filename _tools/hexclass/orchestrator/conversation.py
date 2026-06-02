@@ -141,6 +141,13 @@ if existing then
         if parsed.created_iso then
             created_iso = parsed.created_iso
         end
+    else
+        -- Meta is non-nil but failed to decode (corrupted JSON OR
+        -- non-table top-level). Ownership is unverifiable, so any
+        -- surviving list entries cannot be safely inherited. Treat
+        -- this the same as meta-absent: DEL the list before LPUSH.
+        -- Closes Nancy pre-deploy concern #9 (2026-06-02).
+        redis.call('DEL', conv_key)
     end
 else
     -- Meta is missing. If the list survived the meta's TTL it's an

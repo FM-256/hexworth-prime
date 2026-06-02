@@ -1,11 +1,11 @@
 """
-hex_ai_orchestrator — Hexworth Prime AI orchestration service (v0.6.2)
+hex_ai_orchestrator — Hexworth Prime AI orchestration service (v0.6.6)
 
 The constrained version of Dr. Hex. Routes student/operator questions
 through a context packet + persona + help-level pipeline before they
 reach an inference model.
 
-v0.6.2 adds (over v0.6.1):
+v0.6.6 adds (over v0.6.5):
   - HEX_OLLAMA_KEEP_ALIVE env (default '30m') threaded through every
     ollama /api/chat POST so the model stays resident in VRAM across
     idle gaps. Eliminates the 5-15 s model-load tax students hit after
@@ -15,6 +15,12 @@ v0.6.2 adds (over v0.6.1):
     embed-model name, Redis-backed, 1-hour TTL. Skips the 150-300 ms
     embed call on hot/repeat questions. Soft dependency: Redis outage
     falls through to fresh embed (improvement #4 same doc).
+  - Conversation memory TOCTOU fix: append_turns is now a single Lua
+    EVAL/EVALSHA with explicit NoScriptError recovery. Closes the
+    v0.6.1 orphan-list-inheritance window. Lua also DELs the list on
+    corrupted-meta states (Nancy pre-deploy 2026-06-02).
+  - VERSION + pyproject aligned at 0.6.6 (catches a pre-existing drift
+    from un-versioned commits between 0.6.1 and 0.6.5).
 
 v0.3.0 adds (over v0.2.0):
   - API-key auth on /chat, /chat/stream, /context (when show_rag=1)
