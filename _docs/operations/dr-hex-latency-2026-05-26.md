@@ -41,9 +41,11 @@ A/B `qwen2.5:7b` vs `qwen2.5:3b` (or smaller quant of 7b) on help-level 0–2 (S
 
 Add a fast classifier (`MIN_QUERY_LEN` is already 8; add a heuristic for "is question?" via verb presence + length) before the embed call. RAG hits are useful for "explain SQL injection"; useless for "is this right?". Saves 150–500 ms per turn that doesn't need RAG.
 
-### 4 — Cache embeddings for repeated questions
+### 4 — Cache embeddings for repeated questions ✅ SHIPPED v0.6.6
 
 Key on SHA-256 of normalized query, 1-hour TTL in Redis. Saves embed call on hot-question patterns.
+
+Implemented in `_tools/hexclass/orchestrator/rag.py:_cached_embed`. Cache key is `hex_ai:embed:<EMBED_MODEL>:<sha256>` so swapping the embed model auto-invalidates. Soft Redis dependency: any failure falls through to a fresh embed. New env knobs: `HEX_EMBED_CACHE` (default '1'), `HEX_EMBED_CACHE_TTL_S` (default 3600). Tests: `tests/test_embed_cache.py`.
 
 ### 5 — `asyncio.gather` `_resolve_request`
 
@@ -61,9 +63,11 @@ Key on `(lab_id, file_mtime)`. Drops to constant time after first hit. Currently
 
 The CONSTITUTION system message is appended on EVERY turn. With 10 turns of prior history that's 10× constitution-attention. Move to the first system message only OR compress.
 
-### 9 — Increase ollama `keep_alive`
+### 9 — Increase ollama `keep_alive` ✅ SHIPPED v0.6.6
 
 If the model unloads between idle periods, the first response after idle pays the model-load tax. Set `keep_alive` to a longer duration in the ollama service config.
+
+Implemented inline in the orchestrator: new env `HEX_OLLAMA_KEEP_ALIVE` (default `"30m"`) threaded into every `/api/chat` POST in `main.py` (5 sites including warmup). Means we don't depend on ollama service config — the per-request value wins. To keep forever use `"-1s"` (NOT bare `-1`; Go's `time.ParseDuration` rejects unitless `-1`).
 
 ### 10 — Move `deriveFailedAttempts` to orchestrator
 
