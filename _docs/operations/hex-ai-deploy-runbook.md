@@ -242,14 +242,61 @@ Rollback is non-destructive: no data is deleted, no state is mutated. The tunnel
 - **Multi-region failover** — hexclass is the only orchestrator host. If it goes down, AI is unavailable until manually restored. Out of scope for v0.3.0.
 - **Rate limiting** — Cloudflare can rate-limit at the edge; not configured. Defer until first abuse signal.
 
+## v0.6.6 environment knobs (added 2026-06-02)
+
+Versions 0.6.2 through 0.6.6 introduced new optional env vars on the
+hexclass orchestrator. Set in `/etc/systemd/system/hex-ai.service` (or
+the project's environment file) before `systemctl restart hex-ai`. All
+have safe defaults; the orchestrator boots without any of them.
+
+| Env var | Default | What it does |
+|---|---|---|
+| `HEX_OLLAMA_KEEP_ALIVE` | `30m` | How long ollama keeps the model resident in VRAM between requests. `'30m'` covers a normal classroom session. `'0'` unloads immediately (dev). `'-1s'` keeps loaded forever (NOT bare `-1` — Go's `time.ParseDuration` rejects unitless `-1`). |
+| `HEX_EMBED_CACHE` | `1` | Set to `0` to disable the Redis embedding cache entirely. |
+| `HEX_EMBED_CACHE_TTL_S` | `3600` | TTL for cached embeddings (1 hour). |
+| `HEX_REDIS_URL` | `redis://127.0.0.1:6379/0` | Shared by embedding cache, rate limiter, conversation memory. |
+| `HEX_REDIS_TIMEOUT_S` | `0.5` | Socket + connect timeout for the sync embedding-cache client. |
+| `HEX_CONV_TTL_S` | `1800` | 30-min conversation memory TTL. v0.6.6 note: meta-TTL expiry now triggers an explicit orphan-list DEL on the next append (Lua-atomic), so a returning student after a >30 min idle gap will see a fresh conversation rather than potentially-orphaned context. |
+| `HEX_CONV_MAX_TURNS` | `10` | Total role-tagged entries stored AND retrieved (5 user + 5 assistant pairs). |
+| `HEX_TEST_REDIS` | unset | Set to `1` only for the live-Redis subset of the conversation-memory test suite (see below). Not consumed by the runtime. |
+
+## v0.6.6 post-deploy test gates
+
+After `systemctl restart hex-ai`, before declaring the deploy healthy:
+
+```bash
+# 1. /health reports the matching version
+curl -s http://127.0.0.1:8080/health | jq .version
+# expect: "0.6.6"
+
+# 2. Unit tests covering the new code paths (CI-style; no live Redis needed)
+cd /opt/hexclass/orchestrator
+VIRTUAL_ENV=.venv /home/hexclass/.local/bin/uv run pytest \
+    tests/test_embed_cache.py \
+    tests/test_noscript_recovery.py \
+    -v
+
+# 3. TOCTOU regression suite (REQUIRES live Redis on HEX_REDIS_URL)
+HEX_TEST_REDIS=1 VIRTUAL_ENV=.venv /home/hexclass/.local/bin/uv run pytest \
+    tests/test_toctou_append.py -v
+
+# 4. End-to-end smoke: ask Dr. Hex a question through the CF bridge
+#    (covered by Step 5 of the original runbook)
+```
+
+If any of these fail, follow the Rollback section above. The v0.6.6
+release does not change the CF bridge or Firestore rules, so rollback
+is a single `git revert` + `systemctl restart hex-ai`.
+
 ## Related
 
 - `_docs/architecture/dr-hex-orchestrator.md` — the orchestrator this stack exposes
 - `_docs/architecture/hex-ai-cf-bridge.md` — the CF code this deploys
 - `_docs/architecture/hex-ai-network-exposure.md` — why Cloudflare Tunnel was chosen
 - `_docs/architecture/hex-ai-client-sdk.md` — the client that calls into this stack
+- `_docs/operations/dr-hex-latency-2026-05-26.md` — improvement queue (#4, #9 shipped in v0.6.6)
 - `CLAUDE.md` rule 10 — production write gate
 
 ---
 
-*Last Updated: 2026-05-23 · Initial runbook for v0.3.0–v0.5.0a stack*
+*Last Updated: 2026-06-02 · v0.6.6 env knobs + post-deploy test gates appended*
