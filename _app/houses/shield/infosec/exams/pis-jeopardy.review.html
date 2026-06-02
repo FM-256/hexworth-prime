@@ -6,6 +6,7 @@
     <script>AccessGuard.require('sorted');</script>
     <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/HexworthGameAudio.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PIS Jeopardy: Principles of Information Security (Hexworth Prime)</title>
     <link rel="icon" type="image/webp" href="/assets/images/icons/icon-clipboard.webp">
@@ -39,6 +40,22 @@
             padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.25); transition: all 0.2s;
         }
         .back-link:hover { background: var(--forge-dim); }
+
+        /* Audio toggle — floating mute button in the header right cluster */
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .audio-toggle {
+            background: transparent; color: var(--forge); border: 1px solid var(--forge-dim);
+            border-radius: 6px; padding: 6px 8px; cursor: pointer; line-height: 0;
+            transition: background 0.15s, border-color 0.15s;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .audio-toggle:hover { background: var(--forge-dim); border-color: var(--forge); }
+        .audio-toggle .audio-icon { display: inline-flex; }
+        .audio-toggle .ico-on  { display: inline; }
+        .audio-toggle .ico-off { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-on  { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-off { display: inline; }
+        .audio-toggle[aria-pressed="true"] { color: rgba(255,255,255,0.4); }
 
         /* ── Content ── */
         .content { max-width: 960px; margin: 0 auto; padding: 32px 24px 80px; }
@@ -423,7 +440,29 @@
             <span class="header-badge">PIS-REVIEW</span>
             <h1>PIS Jeopardy</h1>
         </div>
-        <a href="../index.html" class="back-link">&larr; Principles of Information Security</a>
+        <div class="header-right">
+            <button id="audioToggle" class="audio-toggle" type="button"
+                    aria-pressed="false" title="Toggle game audio">
+                <span class="audio-icon" aria-hidden="true">
+                    <!-- volume / muted SVG swaps via CSS attribute selector -->
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" class="ico-on">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                    </svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" class="ico-off">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <line x1="23" y1="9" x2="17" y2="15"></line>
+                        <line x1="17" y1="9" x2="23" y2="15"></line>
+                    </svg>
+                </span>
+            </button>
+            <a href="../index.html" class="back-link">&larr; Principles of Information Security</a>
+        </div>
     </header>
 
     <main class="content">
@@ -788,9 +827,12 @@
 
             if (isDailyDouble) {
                 openDailyDoubleSplash();
+                if (window.HexworthGameAudio) HexworthGameAudio.dailyDouble();
                 return;
             }
             renderClueModal();
+            // Loop the tense "think" music while the player ponders.
+            if (window.HexworthGameAudio) HexworthGameAudio.startThink();
         }
 
         /* Render the standard clue modal from currentClue. Used both for normal
@@ -882,11 +924,16 @@
             dailyDoubleFound = true;
             // Now show the clue with the locked wager.
             renderClueModal();
+            // Start the think loop now that the wager is locked + the
+            // clue is on-screen (the DD sting played at splash open).
+            if (window.HexworthGameAudio) HexworthGameAudio.startThink();
         }
 
         function revealAnswer() {
             if (answerRevealed) return;
             answerRevealed = true;
+            // Think music stops as soon as the player commits to reveal.
+            if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
 
             document.getElementById('modalAnswer').classList.add('revealed');
             document.getElementById('modalPrompt').style.display = 'none';
@@ -898,6 +945,12 @@
 
         function judgeAnswer(correct) {
             if (!currentClue) return;
+            // Safety: think music may still be looping if the player
+            // judges directly without clicking Reveal (keyboard shortcut).
+            if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
+            if (window.HexworthGameAudio) {
+                if (correct) HexworthGameAudio.correct(); else HexworthGameAudio.wrong();
+            }
 
             const catIdx = currentClue.catIdx;
             /* For a Daily Double, score the wager (not the cell value).
@@ -943,6 +996,8 @@
             overlay.classList.remove('is-daily-double');
             document.body.style.overflow = '';
             currentClue = null;
+            // Safety: any open modal close must silence think music.
+            if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
         }
 
         /* ================================================================
@@ -985,6 +1040,7 @@
            FINAL SCORE & CATEGORY BREAKDOWN
            ================================================================ */
         function showFinalScore() {
+            if (window.HexworthGameAudio) HexworthGameAudio.finalFanfare();
             const maxScore = 7500; // (100+200+300+400+500) * 5
             // Raw pct is uncapped so grade-ladder thresholds still see a
             // correctly-doubled-up Daily Double winner clear S-RANK by margin.
@@ -1179,6 +1235,46 @@
                 }
             }
         } catch(e) {}
+
+        /* ================================================================
+           AUDIO TOGGLE + LAZY-INIT
+           Web Audio API can only initialize after a user interaction.
+           First cell-click / first toggle-click triggers HexworthGameAudio.init().
+           Toggle button reflects + persists the user's pref in localStorage.
+           ================================================================ */
+        (function wireAudioToggle() {
+            const btn = document.getElementById('audioToggle');
+            if (!btn || !window.HexworthGameAudio) return;
+
+            function syncPressed() {
+                // aria-pressed=true means MUTED (the X icon shows).
+                btn.setAttribute('aria-pressed', String(HexworthGameAudio.isMuted()));
+            }
+            syncPressed();
+
+            btn.addEventListener('click', function() {
+                HexworthGameAudio.init();
+                HexworthGameAudio.resume();
+                const nowMuted = HexworthGameAudio.toggleMute();
+                btn.setAttribute('aria-pressed', String(nowMuted));
+            });
+
+            // Lazy-init on first interaction with the board so the very
+            // first cell-click already gets audio (browsers require a
+            // gesture). The board click bubbles up here.
+            document.getElementById('jeopardyBoard')?.addEventListener('click', function() {
+                if (HexworthGameAudio.isEnabled() && !HexworthGameAudio.isMuted()) {
+                    HexworthGameAudio.init();
+                    HexworthGameAudio.resume();
+                }
+            }, { once: true });
+
+            // Apply persisted enabled-state to the actual mute flag.
+            if (!HexworthGameAudio.isEnabled()) {
+                HexworthGameAudio.mute();
+                btn.setAttribute('aria-pressed', 'true');
+            }
+        })();
     </script>
 </body>
 </html>
