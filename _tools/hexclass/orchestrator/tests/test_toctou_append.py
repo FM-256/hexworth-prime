@@ -28,6 +28,7 @@ import sys
 import uuid
 
 import pytest
+import pytest_asyncio
 
 
 # Skip the whole module if Redis isn't reachable. Operator runs on hexclass
@@ -38,7 +39,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.fixture
+# pytest-asyncio strict mode requires explicit marking for async fixtures.
+# Plain @pytest.fixture on an async function silently fails to handle the
+# coroutine.
+@pytest_asyncio.fixture
 async def conv_module():
     if "conversation" in sys.modules:
         del sys.modules["conversation"]
