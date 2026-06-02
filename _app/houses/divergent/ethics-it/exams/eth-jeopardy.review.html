@@ -245,6 +245,21 @@
             border: 1px solid rgba(255,204,0,0.15);
         }
         .modal-answer.revealed { display: block; animation: fadeUp 0.3s ease-out; }
+
+        /* Think-timer bar — drains left-to-right over 30s synced to music. */
+        .clue-timer-track {
+            position: absolute; left: 14px; right: 14px; bottom: 14px;
+            height: 4px; background: rgba(255,255,255,0.08);
+            border-radius: 2px; overflow: hidden;
+        }
+        .clue-timer-track[hidden] { display: none; }
+        .clue-timer-bar {
+            height: 100%; width: 100%;
+            background: linear-gradient(90deg, #facc15 0%, #f59e0b 60%, #ef4444 100%);
+            transform-origin: left center;
+            transform: scaleX(1);
+        }
+        .clue-timer-bar.running { transform: scaleX(0); }
         @keyframes fadeUp {
             from { transform: translateY(10px); opacity: 0; }
             to   { transform: translateY(0); opacity: 1; }
@@ -574,6 +589,10 @@
             <div class="modal-actions" id="modalActions">
                 <button class="modal-btn reveal" onclick="revealAnswer()">Reveal Response</button>
             </div>
+            <!-- Think-timer bar: drains over 30s synced to the think music. -->
+            <div class="clue-timer-track" id="clueTimerTrack" hidden>
+                <div class="clue-timer-bar" id="clueTimerBar"></div>
+            </div>
         </div>
     </div>
 
@@ -768,6 +787,42 @@
         }
 
         /* ================================================================
+           CLUE THINK TIMER  -- music IS the clock.
+           ================================================================ */
+        const CLUE_TIMER_SECONDS = 30;
+
+        function startClueTimer() {
+            const track = document.getElementById('clueTimerTrack');
+            const bar   = document.getElementById('clueTimerBar');
+            if (!track || !bar) return;
+            bar.classList.remove('running');
+            bar.style.transition = 'none';
+            bar.style.transform  = 'scaleX(1)';
+            track.hidden         = false;
+            void bar.offsetWidth;
+            bar.style.transition = 'transform ' + CLUE_TIMER_SECONDS + 's linear';
+            bar.classList.add('running');
+        }
+
+        function stopClueTimer() {
+            const track = document.getElementById('clueTimerTrack');
+            const bar   = document.getElementById('clueTimerBar');
+            if (!bar || !track) return;
+            bar.classList.remove('running');
+            bar.style.transition = 'none';
+            bar.style.transform  = 'scaleX(1)';
+            track.hidden         = true;
+        }
+
+        function onClueTimeExpired() {
+            stopClueTimer();
+            if (!answerRevealed && currentClue) {
+                revealAnswer();
+                if (window.HexworthGameAudio) HexworthGameAudio.wrong();
+            }
+        }
+
+        /* ================================================================
            GAME STATE
            ================================================================ */
         let score         = 0;
@@ -831,7 +886,8 @@
                 setTimeout(() => { ddOpenGuard = false; }, 200);
             } else {
                 showClueModal(catIdx, rowIdx, categories[catIdx].clues[rowIdx].value);
-                if (window.HexworthGameAudio) HexworthGameAudio.startThink();
+                startClueTimer();
+            if (window.HexworthGameAudio) HexworthGameAudio.startThink(CLUE_TIMER_SECONDS, onClueTimeExpired);
             }
         }
 
@@ -877,7 +933,8 @@
 
             /* Now show the actual clue */
             showClueModal(currentClue.catIdx, currentClue.rowIdx, wager, true);
-            if (window.HexworthGameAudio) HexworthGameAudio.startThink();
+            startClueTimer();
+            if (window.HexworthGameAudio) HexworthGameAudio.startThink(CLUE_TIMER_SECONDS, onClueTimeExpired);
         }
 
         /* ================================================================
@@ -912,6 +969,7 @@
         function revealAnswer() {
             if (answerRevealed) return;
             answerRevealed = true;
+            stopClueTimer();
             if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
 
             document.getElementById('modalAnswer').classList.add('revealed');
@@ -967,6 +1025,7 @@
         }
 
         function closeModal() {
+            stopClueTimer();
             if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
             document.getElementById('modalOverlay').classList.remove('active');
             document.body.style.overflow = '';

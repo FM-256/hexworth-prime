@@ -116,7 +116,19 @@ const HexworthGameAudio = (function() {
     // Approximation of "thinking" mood, not a copy of the Merv Griffin
     // theme. Plays an ascending pentatonic-flavored arpeggio over a
     // soft bass pulse. Loops indefinitely until stopThink() is called.
-    function startThink() {
+    /**
+     * Start the Jeopardy think loop.
+     *
+     * @param {number} [durationSec]   If supplied, the loop auto-stops after
+     *                                 this many seconds (timer mode -- music
+     *                                 length IS the player's clock). Omit for
+     *                                 indefinite loop (legacy free-think mode).
+     * @param {Function} [onExpire]    Callback fired once when the timer
+     *                                 expires naturally (NOT called if the
+     *                                 caller manually stops via stopThink()).
+     *                                 Use this to auto-reveal the answer.
+     */
+    function startThink(durationSec, onExpire) {
         if (!ensureRunning() || muted) return;
         stopThink();
         const loopGain = ctx.createGain();
@@ -156,10 +168,31 @@ const HexworthGameAudio = (function() {
             setTimeout(nextBar, 4 * tempo * 1000);
         }
         nextBar();
+
+        // Timer mode: auto-stop after durationSec and fire onExpire callback.
+        // The callback only fires on NATURAL expiry, not when the player or
+        // the game calls stopThink() before the timer runs out.
+        let expireTimer = null;
+        if (durationSec && durationSec > 0) {
+            expireTimer = setTimeout(function() {
+                if (thinkLoop) {
+                    thinkLoop.stop();
+                    thinkLoop = null;
+                }
+                if (typeof onExpire === 'function') {
+                    try { onExpire(); } catch(e) {
+                        console.warn('[HexworthGameAudio] onExpire callback threw:', e);
+                    }
+                }
+            }, durationSec * 1000);
+        }
+
         thinkLoop = {
             gain: loopGain,
+            expireTimer: expireTimer,
             stop: function() {
                 active = false;
+                if (expireTimer) { clearTimeout(expireTimer); expireTimer = null; }
                 loopGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
                 setTimeout(function() {
                     try { loopGain.disconnect(); } catch(_){}
