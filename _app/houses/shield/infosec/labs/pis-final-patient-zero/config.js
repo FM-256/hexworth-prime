@@ -720,6 +720,27 @@ const PISFinalConfig = {
                     background: #fef9c3; border: 1px solid #fde68a; border-radius: 4px;
                     font-size: 0.74rem; color: #713f12;
                   }
+                  .pwreset-shell .pw-submit:disabled {
+                    background: #cbd5e1; color: #475569; cursor: not-allowed;
+                  }
+                  .pwreset-shell .pw-result { margin-top: 12px; }
+                  .pwreset-shell .pw-result .pw-result-card {
+                    padding: 12px 14px; border-radius: 4px;
+                    font-size: 0.82rem; line-height: 1.5;
+                    display: flex; align-items: flex-start; gap: 10px;
+                  }
+                  .pwreset-shell .pw-result-card.err {
+                    background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b;
+                  }
+                  .pwreset-shell .pw-result-card.ok {
+                    background: #f0fdf4; border: 1px solid #86efac; color: #14532d;
+                  }
+                  .pwreset-shell .pw-result-card .pw-result-mark {
+                    flex-shrink: 0; font-weight: 800; font-size: 1.05rem;
+                  }
+                  .pwreset-shell .pw-result-card .pw-result-title { font-weight: 700; margin-bottom: 2px; }
+                  .pwreset-shell .pw-result-card .pw-result-sub { font-size: 0.74rem; opacity: 0.85; }
+                  .pwreset-shell .pw-result-card ul { margin: 4px 0 0 0; padding-left: 18px; font-size: 0.78rem; }
                 </style>
                 <div class="pwreset-shell">
                   <div class="pw-header">
@@ -795,7 +816,33 @@ const PISFinalConfig = {
                       })(this)">
                       <div class="pw-match"></div>
 
-                      <button class="pw-submit" data-action="reset-noop">Rotate Password &amp; Sign In</button>
+                      <button class="pw-submit" data-action="reset-noop" onclick="(function(btn){
+                        var box = btn.closest('.pwreset-shell');
+                        if (!box) return;
+                        var username = (box.querySelector('#pw-username').value || '').trim();
+                        var current = box.querySelector('#pw-current').value || '';
+                        var newPw = box.querySelector('#pw-new').value || '';
+                        var conf = box.querySelector('#pw-confirm').value || '';
+                        var metCount = box.querySelectorAll('.pw-req.met').length;
+                        var errs = [];
+                        if (!username) errs.push('Enter your username.');
+                        if (!current) errs.push('Enter your current password.');
+                        if (!newPw) errs.push('Enter a new password.');
+                        else if (metCount < 5) errs.push('New password does not meet all 5 complexity requirements.');
+                        if (newPw && conf && newPw !== conf) errs.push('Confirmation does not match the new password.');
+                        if (newPw && !conf) errs.push('Confirm the new password.');
+                        var result = box.querySelector('.pw-result');
+                        if (!result) { result = document.createElement('div'); result.className = 'pw-result'; btn.parentElement.appendChild(result); }
+                        if (errs.length) {
+                          var ul = errs.map(function(e){ return '<li>' + e + '</li>'; }).join('');
+                          result.innerHTML = '<div class=\\'pw-result-card err\\'><span class=\\'pw-result-mark\\'>!</span><div><div class=\\'pw-result-title\\'>Password rotation blocked</div><ul>' + ul + '</ul></div></div>';
+                          return;
+                        }
+                        var ts = new Date().toISOString().replace('T',' ').slice(0,19);
+                        result.innerHTML = '<div class=\\'pw-result-card ok\\'><span class=\\'pw-result-mark\\'>\\u2713</span><div><div class=\\'pw-result-title\\'>Password rotated successfully.</div><div class=\\'pw-result-sub\\'>Account: ' + (username || 'e.morales') + ' &middot; Rotated at ' + ts + ' UTC &middot; Active Directory replication complete.</div><div class=\\'pw-result-sub\\' style=\\'margin-top:6px;\\'>You may close this tab or return to your inbox.</div></div></div>';
+                        btn.disabled = true; btn.textContent = 'Password Rotated';
+                        ['#pw-username','#pw-current','#pw-new','#pw-confirm'].forEach(function(s){ var i = box.querySelector(s); if (i) i.setAttribute('readonly','readonly'); });
+                      })(this)">Rotate Password &amp; Sign In</button>
                     </div>
 
                     <div class="pw-context-col">
