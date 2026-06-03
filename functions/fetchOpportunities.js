@@ -27,7 +27,17 @@
  */
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { defineSecret } = require('firebase-functions/params');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+
+// USAJobs API requires both User-Agent AND Authorization-Key headers.
+// The key is registered separately at https://developer.usajobs.gov/
+// with the contact email. Stored as a Firebase secret; set via:
+//   firebase functions:secrets:set USAJOBS_API_KEY
+// If not set, the USAJobs source is skipped gracefully on each run.
+// Nancy round-1 (LIVE-6) flagged this as a blocking gap; we now degrade
+// instead of 401ing every request.
+const USAJOBS_API_KEY = defineSecret('USAJOBS_API_KEY');
 
 /* ========================================================================
  * CONFIGURATION
@@ -140,6 +150,16 @@ async function fetchWithTimeout(url, options = {}) {
  */
 async function fetchUSAJobs() {
     const results = [];
+    // Pull the API key from Firebase secrets. If not set, skip USAJobs
+    // gracefully — let HN + WWR populate the feed alone until the
+    // operator registers a key and sets the secret. Nancy LIVE-6 fix.
+    let apiKey = '';
+    try { apiKey = USAJOBS_API_KEY.value(); } catch (e) { /* secret not bound */ }
+    if (!apiKey) {
+        console.warn('[usajobs] USAJOBS_API_KEY secret not set — skipping source. Register at developer.usajobs.gov and set via `firebase functions:secrets:set USAJOBS_API_KEY`.');
+        return results;
+    }
+
     for (const query of USAJOBS_QUERIES) {
         const params = new URLSearchParams(query.params);
         const url = `https://data.usajobs.gov/api/search?${params.toString()}`;
@@ -147,6 +167,7 @@ async function fetchUSAJobs() {
             const response = await fetchWithTimeout(url, {
                 headers: {
                     'User-Agent': USAJOBS_USER_AGENT,
+                    'Authorization-Key': apiKey,
                     'Host': 'data.usajobs.gov',
                     'Accept': 'application/json',
                 },
@@ -192,8 +213,11 @@ async function fetchUSAJobs() {
 async function fetchHackerNews() {
     const results = [];
     try {
-        // Step 1: find the latest "Ask HN: Who is hiring?" story
-        const storyURL = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(HN_THREAD_TITLE_PATTERN)}&tags=story&hitsPerPage=5`;
+        // Step 1: find the latest "Ask HN: Who is hiring?" story.
+        // Use search_by_date endpoint, not relevance — Nancy LIVE-6 round
+        // flagged that the relevance endpoint reliably returns the most
+        // ENGAGED-WITH thread (often years old), not the most recent one.
+        const storyURL = `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(HN_THREAD_TITLE_PATTERN)}&tags=story&hitsPerPage=10`;
         const storyResp = await fetchWithTimeout(storyURL);
         if (!storyResp.ok) {
             console.warn(`[hn] story search HTTP ${storyResp.status}`);
@@ -353,9 +377,14 @@ async function writeRecords(db, records) {
 }
 
 async function pruneExpired(db) {
+    // TTL based on when WE fetched, not when the source posted. Nancy
+    // LIVE-6 round flagged that federal jobs are routinely posted 2-6
+    // weeks before the application window opens; pruning by postedAt
+    // would delete USAJobs results in the same run that fetched them.
+    // fetchedAt reflects our caching intent (refresh-or-drop after 7d).
     const cutoff = new Date(Date.now() - (TTL_DAYS * 24 * 60 * 60 * 1000));
     const snap = await db.collection(COLLECTION_NAME)
-        .where('postedAt', '<', Timestamp.fromDate(cutoff))
+        .where('fetchedAt', '<', Timestamp.fromDate(cutoff))
         .limit(500)
         .get();
     if (snap.empty) return 0;
@@ -379,6 +408,9 @@ const fetchOpportunities = onSchedule(
         memory: '512MiB',
         timeoutSeconds: 540,        // 9 minutes — plenty for ~300 fetches
         retryConfig: { retryCount: 1 },
+        // Bind the USAJOBS_API_KEY secret so .value() works at runtime.
+        // If unset, fetchUSAJobs() skips that source cleanly (Nancy LIVE-6).
+        secrets: [USAJOBS_API_KEY],
     },
     async (event) => {
         const db = getFirestore();
