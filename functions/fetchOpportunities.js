@@ -63,8 +63,14 @@ const USAJOBS_QUERIES = [
 const HN_THREAD_TITLE_PATTERN = 'Ask HN: Who is hiring?';
 const HN_CYBER_KEYWORDS = ['security', 'cybersecurity', 'infosec', 'soc', 'pentest', 'pen test', 'red team', 'blue team', 'siem', 'malware', 'threat', 'cloud security', 'appsec', 'devsecops'];
 
-// We Work Remotely RSS endpoint (cybersecurity category).
-const WWR_RSS_URL = 'https://weworkremotely.com/categories/remote-cybersecurity-jobs.rss';
+// We Work Remotely RSS endpoint. The historical /categories/remote-cybersecurity-jobs.rss
+// path was retired by WWR (returns HTTP 301 with no Location → effectively dead). The
+// full-feed endpoint /remote-jobs.rss returns 200 with the same item-element XML shape
+// (<title>, <link>, <description>, <pubDate>, <guid>). We filter to cyber-relevant
+// items inside fetchWeWorkRemotely() by gating on tagHouse() returning a non-null house,
+// so the downstream Firestore writes only include items that match one of the 13
+// HOUSE_KEYWORDS taxonomies. Verified XML schema 2026-06-03.
+const WWR_RSS_URL = 'https://weworkremotely.com/remote-jobs.rss';
 
 /* ========================================================================
  * HEXWORTH HOUSE TAGGER
@@ -290,9 +296,15 @@ async function fetchWeWorkRemotely() {
             return results;
         }
         const xml = await response.text();
-        // Naive RSS parse: split on <item>, extract <title>, <description>, <link>, <pubDate>
-        const items = xml.split(/<item\b/i).slice(1).slice(0, PER_SOURCE_LIMIT);
-        for (const itemRaw of items) {
+        // Naive RSS parse: split on <item>, extract <title>, <description>, <link>, <pubDate>.
+        // Slice order matters: split full feed FIRST, filter to cyber-relevant SECOND, cap
+        // at PER_SOURCE_LIMIT LAST. The full feed is ~95 items per measurement, all <100
+        // (PER_SOURCE_LIMIT), so the cap is defensive against future feed growth. Filtering
+        // before cap prevents the "cyber jobs at tail of feed get dropped by cap" failure mode.
+        const allItems = xml.split(/<item\b/i).slice(1);
+        let skippedNonCyber = 0;
+        for (const itemRaw of allItems) {
+            if (results.length >= PER_SOURCE_LIMIT) break;
             const title = (itemRaw.match(/<title>(?:<!\[CDATA\[)?([^<]*?)(?:\]\]>)?<\/title>/i) || [])[1] || '';
             const link = (itemRaw.match(/<link>([^<]*)<\/link>/i) || [])[1] || '';
             const description = (itemRaw.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i) || [])[1] || '';
@@ -302,6 +314,14 @@ async function fetchWeWorkRemotely() {
             // Title often "Company: Role" or "Role at Company"
             const titleClean = title.replace(/&amp;/g, '&').trim();
             const descClean = description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+            // Cyber-relevance gate: only keep items that match at least one Hexworth
+            // house keyword. Full feed includes Marketing/Product/Sales/Design roles
+            // we don't want to store. tagHouse uses the same 13-house taxonomy used
+            // for downstream classification, so this is single-source-of-truth.
+            const { house } = tagHouse(titleClean, descClean);
+            if (!house) { skippedNonCyber++; continue; }
+
             results.push({
                 source: 'wwr',
                 sourceId: guid,
@@ -314,6 +334,10 @@ async function fetchWeWorkRemotely() {
                 description: descClean.slice(0, 600),
             });
         }
+        // Observability: log raw feed size + filter count separately so a future
+        // wwr=0 diagnosis can distinguish "feed dry" (allItems.length=0) from
+        // "filter rejected all" (skippedNonCyber == allItems.length).
+        console.log(`[wwr] feed=${allItems.length} kept=${results.length} skipped_non_cyber=${skippedNonCyber}`);
     } catch (err) {
         console.warn('[wwr] fetch failed:', err.message);
     }
