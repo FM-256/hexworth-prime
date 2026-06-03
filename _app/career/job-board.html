@@ -625,6 +625,74 @@
             .spotlight-badge { position: static; display: inline-block; margin: 0 0 14px 0; }
             .spotlight-title { font-size: 1.55rem; }
         }
+
+        /* -----------------------------------------------------------------------
+         * LIVE FEED — active openings populated from Firestore REST API.
+         * Same visual treatment as internships.html for cross-page consistency.
+         * ----------------------------------------------------------------------- */
+
+        .live-feed {
+            margin: 56px 0 32px 0;
+            padding: 32px 28px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+        }
+        .live-feed-header { margin: 0 0 24px 0; }
+        .live-feed-title {
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0 0 6px 0;
+        }
+        .live-feed-meta { font-size: 0.88rem; color: var(--text-muted); }
+        .live-feed-empty {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            padding: 22px 24px;
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            line-height: 1.6;
+        }
+        .live-feed-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+        }
+        .live-card {
+            padding: 18px 20px;
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--text);
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+        .live-card:hover { transform: translateY(-2px); border-color: rgba(16, 185, 129, 0.45); }
+        .live-card-source {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+        }
+        .live-card-title { font-size: 1.02rem; font-weight: 600; line-height: 1.35; margin: 0; }
+        .live-card-org { font-size: 0.9rem; color: var(--text-muted); }
+        .live-card-location { font-size: 0.85rem; color: var(--text-muted); }
+        .live-card-meta-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+        .live-card-house-pill {
+            font-size: 0.72rem;
+            padding: 3px 9px;
+            border-radius: 10px;
+            background: rgba(16, 185, 129, 0.10);
+            border: 1px solid rgba(16, 185, 129, 0.32);
+            color: var(--accent);
+        }
+        .live-card-posted { font-size: 0.75rem; color: var(--text-muted); margin-left: auto; }
     </style>
 </head>
 <body>
@@ -780,6 +848,24 @@
         <!-- ─────────────────────────────────────────────────────────────────
              DISCLAIMER: standard third-party-link advisory.
              ───────────────────────────────────────────────────────────── -->
+        <!-- ─────────────────────────────────────────────────────────────────
+             LIVE FEED (LIVE-4): real open positions from USAJobs federal,
+             Hacker News Who Is Hiring, and We Work Remotely. Fetched from
+             Firestore featured_opportunities (populated every 4h by the
+             scheduled fetchOpportunities Cloud Function). Filtered to
+             type=job. Empty state shown until first sync completes.
+             ───────────────────────────────────────────────────────────── -->
+        <section class="live-feed" aria-labelledby="live-feed-heading">
+            <div class="live-feed-header">
+                <h2 id="live-feed-heading" class="live-feed-title">Active Openings This Week</h2>
+                <span class="live-feed-meta" id="live-feed-meta">Real cybersecurity openings from federal USAJobs, Hacker News Who Is Hiring, and remote-friendly boards. Refreshed every 4 hours.</span>
+            </div>
+            <div id="live-feed-empty" class="live-feed-empty">
+                Live feed is coming online. The first sync from federal and remote sources runs after the next scheduled refresh; check back shortly.
+            </div>
+            <div id="live-feed-grid" class="live-feed-grid" hidden></div>
+        </section>
+
         <div class="disclaimer">
             <strong>Heads up.</strong> Listings open in external sites. Hexworth does not endorse or verify individual postings; treat every listing with the same skepticism you would apply to any unsolicited offer. Each board has its own privacy policy and terms of service. URL patterns are accurate as of 2026-06-03 and may change without notice.
         </div>
@@ -1577,6 +1663,139 @@
             .then(function (pick) { render(pick); })
             .catch(function (err) {
                 console.warn('[spotlight] fetch failed, hiding section:', err.message);
+            });
+    })();
+
+    /* ===========================================================================
+     * LIVE FEED fetcher + renderer.
+     * Queries Firestore featured_opportunities filtered to type=job, ordered by
+     * hexworthScore desc. Public-read rules (LIVE-3) allow this fetch with no
+     * auth. Empty state stays visible until first sync populates the collection.
+     * =========================================================================== */
+
+    (function loadLiveFeed() {
+        var FIRESTORE_PROJECT = 'hexworth-prime';
+        var FIRESTORE_QUERY_URL = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT + '/databases/(default)/documents:runQuery';
+
+        function unwrapField(field) {
+            if (!field) { return null; }
+            if (field.stringValue != null) { return field.stringValue; }
+            if (field.integerValue != null) { return parseInt(field.integerValue, 10); }
+            if (field.doubleValue != null) { return field.doubleValue; }
+            if (field.booleanValue != null) { return field.booleanValue; }
+            if (field.timestampValue != null) { return new Date(field.timestampValue); }
+            if (field.nullValue != null) { return null; }
+            return null;
+        }
+        function unwrapDoc(fields) {
+            var out = {};
+            if (!fields) { return out; }
+            Object.keys(fields).forEach(function (k) { out[k] = unwrapField(fields[k]); });
+            return out;
+        }
+        function relativeTime(date) {
+            if (!(date instanceof Date) || isNaN(date.getTime())) { return ''; }
+            var diff = (Date.now() - date.getTime()) / 1000;
+            if (diff < 3600) { return Math.floor(diff / 60) + ' min ago'; }
+            if (diff < 86400) { return Math.floor(diff / 3600) + 'h ago'; }
+            if (diff < 86400 * 7) { return Math.floor(diff / 86400) + 'd ago'; }
+            return date.toLocaleDateString();
+        }
+
+        function renderCard(record) {
+            var card = document.createElement('a');
+            card.className = 'live-card';
+            card.href = record.url || '#';
+            card.target = '_blank';
+            card.rel = 'noopener noreferrer';
+
+            var source = document.createElement('div');
+            source.className = 'live-card-source';
+            source.textContent = (record.source || 'live').toUpperCase();
+            card.appendChild(source);
+
+            var title = document.createElement('div');
+            title.className = 'live-card-title';
+            title.textContent = record.title || 'Untitled posting';
+            card.appendChild(title);
+
+            if (record.company) {
+                var org = document.createElement('div');
+                org.className = 'live-card-org';
+                org.textContent = record.company;
+                card.appendChild(org);
+            }
+            if (record.location) {
+                var loc = document.createElement('div');
+                loc.className = 'live-card-location';
+                loc.textContent = record.location;
+                card.appendChild(loc);
+            }
+
+            var metaRow = document.createElement('div');
+            metaRow.className = 'live-card-meta-row';
+            if (record.house) {
+                var pill = document.createElement('span');
+                pill.className = 'live-card-house-pill';
+                pill.textContent = record.house;
+                metaRow.appendChild(pill);
+            }
+            if (record.postedAt instanceof Date) {
+                var posted = document.createElement('span');
+                posted.className = 'live-card-posted';
+                posted.textContent = relativeTime(record.postedAt);
+                metaRow.appendChild(posted);
+            }
+            card.appendChild(metaRow);
+            return card;
+        }
+
+        function renderFeed(records) {
+            var grid = document.getElementById('live-feed-grid');
+            var empty = document.getElementById('live-feed-empty');
+            if (!grid || !empty) { return; }
+            if (!Array.isArray(records) || records.length === 0) { return; }
+            grid.innerHTML = '';
+            records.forEach(function (r) { grid.appendChild(renderCard(r)); });
+            grid.hidden = false;
+            empty.hidden = true;
+        }
+
+        var query = {
+            structuredQuery: {
+                from: [{ collectionId: 'featured_opportunities' }],
+                where: {
+                    fieldFilter: {
+                        field: { fieldPath: 'type' },
+                        op: 'EQUAL',
+                        value: { stringValue: 'job' }
+                    }
+                },
+                orderBy: [
+                    { field: { fieldPath: 'hexworthScore' }, direction: 'DESCENDING' }
+                ],
+                limit: 30
+            }
+        };
+
+        fetch(FIRESTORE_QUERY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(query)
+        })
+            .then(function (response) {
+                if (!response.ok) { throw new Error('HTTP ' + response.status); }
+                return response.json();
+            })
+            .then(function (data) {
+                if (!Array.isArray(data)) { return; }
+                var records = data
+                    .filter(function (entry) { return entry && entry.document && entry.document.fields; })
+                    .map(function (entry) { return unwrapDoc(entry.document.fields); });
+                renderFeed(records);
+            })
+            .catch(function (err) {
+                console.info('[live-feed] empty or unavailable:', err.message);
             });
     })();
 

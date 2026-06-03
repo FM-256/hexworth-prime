@@ -8461,3 +8461,10 @@ exports.hexAiQualityObservation = _hexAiBridge.hexAiQualityObservation; // AI-26
 exports.hexAiAmbientState     = _hexAiBridge.hexAiAmbientState;   // mood-ring 2026-05-25 — button state computer
 exports.hexAiRecordLabAttempt = _hexAiBridge.hexAiRecordLabAttempt; // AI-20 2026-05-30, lab_attempts data path for educational-lab mood-ring
 exports.hexAiEngagementEvent  = _hexAiBridge.hexAiEngagementEvent; // TELEMETRY-001 2026-05-25 — post-intervention engagement
+
+// LIVE-2 (2026-06-03) — scheduled aggregator that polls USAJobs +
+// Hacker News + WWR for cybersecurity jobs and internships, tags
+// each with Hexworth house affinity, and writes to Firestore
+// featured_opportunities. Read by Internship Finder + Job Board
+// live-feed sections (LIVE-4). Schedule: every 4h at :15.
+exports.fetchOpportunities = require('./fetchOpportunities').fetchOpportunities;
