@@ -46,7 +46,15 @@ This runs once when SEO is first turned on, then again if domain changes or GSC 
 
 ### IndexNow (Bing-family, NOT Google)
 
-After ANY content update worth notifying about, run:
+**Auto-pinged on every `./deploy.sh` run as of 2026-06-02.** Step 7/7 of the deploy script runs `python3 _tools/seo/ping-indexnow.py` after Confluence inventory regen succeeds. Non-blocking: ping failures never fail a deploy that already shipped. The deploy log shows `✓ N URLs accepted (Bing, Yandex, Seznam, Naver)` on success.
+
+Skip with `--skip-indexnow` if needed:
+
+```bash
+./deploy.sh --skip-indexnow
+```
+
+Manual ping (for ad-hoc notification between deploys, e.g., a sitemap change that does not trigger a hosting deploy):
 
 ```bash
 cd /home/eq/ai-content/hexworth-prime
@@ -67,13 +75,13 @@ Dry-run to see what would be sent:
 python3 _tools/seo/ping-indexnow.py --dry-run
 ```
 
-Per-engine pings (route around central endpoint if it's down):
+Per-engine pings (route around central endpoint if it is down):
 
 ```bash
 python3 _tools/seo/ping-indexnow.py --per-engine
 ```
 
-The script exits 0 on success (HTTP 200/202), 1 on failure. Safe to wire into `deploy.sh` as the last step if you want automatic pinging on every hosting deploy.
+The script exits 0 on success (HTTP 200/202), 1 on failure.
 
 ## Ongoing monitoring cadence
 
