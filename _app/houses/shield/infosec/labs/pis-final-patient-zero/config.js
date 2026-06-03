@@ -553,35 +553,306 @@ const PISFinalConfig = {
             '/reset': {
                 title: 'AD Password Reset -- passwd.crimson-dawn.net',
                 html: `
-                <div style="font-family:system-ui,sans-serif; max-width:520px; margin:40px auto; padding:0; background:#fff; border:1px solid #ddd; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                    <div style="background:#dc2626; color:#fff; padding:14px 20px; border-radius:6px 6px 0 0;">
-                        <div style="font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; opacity:0.85;">Crimson Dawn Logistics</div>
-                        <div style="font-size:1.1rem; font-weight:700; margin-top:2px;">Active Directory Self-Service Portal</div>
+                <style>
+                  .pwreset-shell {
+                    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+                    max-width: 880px;
+                    margin: 24px auto;
+                    color: #1a202c;
+                  }
+                  .pwreset-shell .pw-header {
+                    display: flex; align-items: center; gap: 14px;
+                    padding: 12px 18px;
+                    background: linear-gradient(90deg, #7f1d1d, #b91c1c);
+                    color: #fff;
+                    border-radius: 8px 8px 0 0;
+                  }
+                  .pwreset-shell .pw-header .pw-logo {
+                    width: 32px; height: 32px;
+                    background: rgba(255,255,255,0.18);
+                    border-radius: 6px;
+                    display: flex; align-items: center; justify-content: center;
+                    font-weight: 800; letter-spacing: 0.04em;
+                  }
+                  .pwreset-shell .pw-header-text .pw-org {
+                    font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.85;
+                  }
+                  .pwreset-shell .pw-header-text .pw-app {
+                    font-size: 1.05rem; font-weight: 700; margin-top: 1px;
+                  }
+                  .pwreset-shell .pw-body {
+                    display: grid; grid-template-columns: 1.4fr 1fr; gap: 0;
+                    background: #fff; border: 1px solid #e2e8f0; border-top: 0;
+                    border-radius: 0 0 8px 8px;
+                    overflow: hidden;
+                  }
+                  @media (max-width: 760px) { .pwreset-shell .pw-body { grid-template-columns: 1fr; } }
+                  .pwreset-shell .pw-form-col { padding: 22px 22px; border-right: 1px solid #f1f5f9; }
+                  @media (max-width: 760px) { .pwreset-shell .pw-form-col { border-right: 0; border-bottom: 1px solid #f1f5f9; } }
+                  .pwreset-shell .pw-section-title {
+                    font-size: 0.95rem; font-weight: 700; color: #0f172a;
+                    margin-bottom: 4px;
+                  }
+                  .pwreset-shell .pw-section-sub {
+                    font-size: 0.78rem; color: #64748b; margin-bottom: 18px;
+                  }
+                  .pwreset-shell label {
+                    display: block; font-size: 0.78rem; font-weight: 600;
+                    color: #475569; margin: 12px 0 4px 0; letter-spacing: 0.01em;
+                  }
+                  .pwreset-shell input[type="text"],
+                  .pwreset-shell input[type="password"] {
+                    width: 100%; padding: 9px 12px;
+                    border: 1px solid #cbd5e1; border-radius: 4px;
+                    font-family: inherit; font-size: 0.88rem; color: #0f172a;
+                    background: #fff; box-sizing: border-box;
+                    transition: border 0.15s, box-shadow 0.15s;
+                  }
+                  .pwreset-shell input:focus {
+                    outline: 0; border-color: #b91c1c;
+                    box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.12);
+                  }
+                  .pwreset-shell .pw-reqs {
+                    margin-top: 12px; padding: 12px 14px;
+                    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px;
+                  }
+                  .pwreset-shell .pw-reqs-title {
+                    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+                    text-transform: uppercase; color: #475569; margin-bottom: 8px;
+                  }
+                  .pwreset-shell .pw-req {
+                    display: flex; align-items: center; gap: 8px;
+                    font-size: 0.78rem; color: #94a3b8; padding: 2px 0;
+                    transition: color 0.15s;
+                  }
+                  .pwreset-shell .pw-req .pw-tick {
+                    display: inline-flex; align-items: center; justify-content: center;
+                    width: 16px; height: 16px; border-radius: 50%;
+                    background: #e2e8f0; color: #fff; font-size: 0.7rem; font-weight: 700;
+                    transition: background 0.15s;
+                  }
+                  .pwreset-shell .pw-req.met { color: #166534; }
+                  .pwreset-shell .pw-req.met .pw-tick { background: #16a34a; }
+                  .pwreset-shell .pw-req.met .pw-tick::before { content: "\\2713"; }
+                  .pwreset-shell .pw-meter {
+                    margin-top: 12px;
+                    display: flex; align-items: center; gap: 10px;
+                  }
+                  .pwreset-shell .pw-meter-bars {
+                    display: flex; gap: 3px; flex: 1;
+                  }
+                  .pwreset-shell .pw-meter-bar {
+                    flex: 1; height: 5px; background: #e2e8f0; border-radius: 2px;
+                    transition: background 0.15s;
+                  }
+                  .pwreset-shell .pw-meter[data-strength="1"] .pw-meter-bar:nth-child(-n+1),
+                  .pwreset-shell .pw-meter[data-strength="2"] .pw-meter-bar:nth-child(-n+2) { background: #ef4444; }
+                  .pwreset-shell .pw-meter[data-strength="3"] .pw-meter-bar:nth-child(-n+3) { background: #f59e0b; }
+                  .pwreset-shell .pw-meter[data-strength="4"] .pw-meter-bar:nth-child(-n+4) { background: #10b981; }
+                  .pwreset-shell .pw-meter[data-strength="5"] .pw-meter-bar { background: #16a34a; }
+                  .pwreset-shell .pw-meter-label {
+                    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; color: #94a3b8;
+                    text-transform: uppercase; min-width: 70px; text-align: right;
+                  }
+                  .pwreset-shell .pw-match {
+                    margin-top: 8px; font-size: 0.74rem; color: #94a3b8;
+                  }
+                  .pwreset-shell .pw-match.ok { color: #166534; font-weight: 600; }
+                  .pwreset-shell .pw-match.bad { color: #b91c1c; font-weight: 600; }
+                  .pwreset-shell .pw-submit {
+                    margin-top: 18px; width: 100%; padding: 11px;
+                    background: #b91c1c; color: #fff; border: 0; border-radius: 4px;
+                    font-weight: 700; font-size: 0.9rem; letter-spacing: 0.04em;
+                    cursor: pointer; font-family: inherit;
+                    transition: background 0.15s;
+                  }
+                  .pwreset-shell .pw-submit:hover { background: #991b1b; }
+                  .pwreset-shell .pw-context-col {
+                    background: #f8fafc; padding: 20px 20px;
+                    font-size: 0.78rem; color: #475569;
+                  }
+                  .pwreset-shell .pw-context-section + .pw-context-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8f0; }
+                  .pwreset-shell .pw-ctx-h {
+                    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
+                    text-transform: uppercase; color: #64748b; margin-bottom: 8px;
+                  }
+                  .pwreset-shell .pw-ctx-kv {
+                    display: flex; justify-content: space-between; gap: 10px;
+                    padding: 3px 0; font-size: 0.78rem;
+                  }
+                  .pwreset-shell .pw-ctx-k { color: #94a3b8; }
+                  .pwreset-shell .pw-ctx-v { color: #0f172a; font-weight: 600; text-align: right; }
+                  .pwreset-shell .pw-status-pill {
+                    display: inline-block; padding: 2px 8px; border-radius: 10px;
+                    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+                  }
+                  .pwreset-shell .pw-status-pill.ok { background: #dcfce7; color: #166534; }
+                  .pwreset-shell .pw-status-pill.warn { background: #fef3c7; color: #92400e; }
+                  .pwreset-shell .pw-mfa-bar {
+                    margin-top: 6px; display: flex; gap: 6px;
+                  }
+                  .pwreset-shell .pw-mfa-bar > div {
+                    flex: 1; padding: 6px 8px; font-size: 0.7rem;
+                    background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;
+                    text-align: center; color: #475569;
+                  }
+                  .pwreset-shell .pw-mfa-bar > div.on { border-color: #16a34a; color: #166534; background: #f0fdf4; }
+                  .pwreset-shell .pw-mfa-bar > div.off { color: #94a3b8; }
+                  .pwreset-shell .pw-recent {
+                    background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;
+                    padding: 6px 8px; font-size: 0.72rem; color: #475569;
+                    margin-top: 4px;
+                  }
+                  .pwreset-shell .pw-recent + .pw-recent { margin-top: 4px; }
+                  .pwreset-shell .pw-recent .pw-recent-ts { color: #94a3b8; font-family: ui-monospace, monospace; font-size: 0.7rem; }
+                  .pwreset-shell .pw-recent .pw-recent-meta { color: #1a202c; font-weight: 600; }
+                  .pwreset-shell .pw-recent.flag { border-color: #fca5a5; background: #fef2f2; }
+                  .pwreset-shell .pw-recent.flag .pw-recent-meta { color: #991b1b; }
+                  .pwreset-shell .pw-footer-bar {
+                    margin-top: 14px; display: flex; gap: 10px; align-items: center;
+                    padding: 10px 14px; background: #f1f5f9;
+                    border: 1px solid #e2e8f0; border-radius: 4px;
+                    font-size: 0.72rem; color: #475569;
+                  }
+                  .pwreset-shell .pw-footer-bar code { background: #fff; border: 1px solid #e2e8f0; padding: 1px 5px; border-radius: 3px; font-size: 0.7rem; }
+                  .pwreset-shell .pw-ir-note {
+                    margin-top: 12px; padding: 10px 14px;
+                    background: #fef9c3; border: 1px solid #fde68a; border-radius: 4px;
+                    font-size: 0.74rem; color: #713f12;
+                  }
+                </style>
+                <div class="pwreset-shell">
+                  <div class="pw-header">
+                    <div class="pw-logo">CD</div>
+                    <div class="pw-header-text">
+                      <div class="pw-org">Crimson Dawn Logistics, Inc.</div>
+                      <div class="pw-app">Active Directory Self-Service Portal</div>
                     </div>
-                    <div style="padding:24px 20px;">
-                        <div style="font-size:0.85rem; color:#222; margin-bottom:16px;"><b>Password Reset</b> &mdash; rotate your account password</div>
-                        <div style="display:flex; flex-direction:column; gap:10px; font-size:0.83rem;">
-                            <label style="color:#555;">Username (firstname.lastname)
-                                <input type="text" style="display:block; width:100%; padding:8px 10px; margin-top:4px; border:1px solid #ccc; border-radius:4px; font-family:inherit; box-sizing:border-box;">
-                            </label>
-                            <label style="color:#555;">Current password
-                                <input type="password" style="display:block; width:100%; padding:8px 10px; margin-top:4px; border:1px solid #ccc; border-radius:4px; font-family:inherit; box-sizing:border-box;">
-                            </label>
-                            <label style="color:#555;">New password (12+ chars, mixed case, number, symbol)
-                                <input type="password" style="display:block; width:100%; padding:8px 10px; margin-top:4px; border:1px solid #ccc; border-radius:4px; font-family:inherit; box-sizing:border-box;">
-                            </label>
-                            <label style="color:#555;">Confirm new password
-                                <input type="password" style="display:block; width:100%; padding:8px 10px; margin-top:4px; border:1px solid #ccc; border-radius:4px; font-family:inherit; box-sizing:border-box;">
-                            </label>
-                            <button data-action="reset-noop" style="margin-top:8px; padding:10px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit;">Rotate Password</button>
-                        </div>
-                        <div style="margin-top:18px; padding:10px; background:#f0f5ff; border:1px solid #bdd; border-radius:4px; font-size:0.74rem; color:#226;">
-                            <b>Crimson Dawn IT Security</b> &middot; Internal SSO &middot; Issues? Email <code>it-helpdesk@crimson-dawn.net</code> or call x4400.
-                        </div>
-                        <div style="margin-top:14px; padding:10px; background:#fffbe6; border:1px solid #f5dc8a; border-radius:4px; font-size:0.74rem; color:#664;">
-                            <b>IR Note:</b> This portal is reachable on the internal network. The msg/1 email that links here passed SPF/DKIM/DMARC and originated from internal IP 10.0.1.5. Both the portal AND the email check out as legitimate internal traffic. Marked DECOY in the incident analysis.
-                        </div>
+                  </div>
+                  <div class="pw-body">
+                    <div class="pw-form-col reset-form">
+                      <div class="pw-section-title">Rotate Password</div>
+                      <div class="pw-section-sub">Internal SSO &middot; passwd.crimson-dawn.net</div>
+
+                      <label for="pw-username">Username</label>
+                      <input type="text" id="pw-username" placeholder="firstname.lastname" autocomplete="off">
+
+                      <label for="pw-current">Current password</label>
+                      <input type="password" id="pw-current" autocomplete="off">
+
+                      <label for="pw-new">New password</label>
+                      <input type="password" id="pw-new" autocomplete="off" oninput="(function(el){
+                        var v = el.value;
+                        var reqs = {
+                          len: v.length >= 12,
+                          upper: /[A-Z]/.test(v),
+                          lower: /[a-z]/.test(v),
+                          num: /[0-9]/.test(v),
+                          sym: /[^A-Za-z0-9]/.test(v)
+                        };
+                        var box = el.closest('.reset-form');
+                        if (!box) return;
+                        ['len','upper','lower','num','sym'].forEach(function(k){
+                          var item = box.querySelector('[data-req=' + k + ']');
+                          if (item) item.classList.toggle('met', !!reqs[k]);
+                        });
+                        var count = 0; for (var k in reqs) if (reqs[k]) count++;
+                        var meter = box.querySelector('.pw-meter');
+                        if (meter) meter.setAttribute('data-strength', String(count));
+                        var label = box.querySelector('.pw-meter-label');
+                        if (label) {
+                          var labels = ['Empty','Too weak','Weak','Fair','Good','Strong'];
+                          label.textContent = labels[count] || 'Empty';
+                        }
+                        var confirm = box.querySelector('#pw-confirm');
+                        if (confirm) confirm.dispatchEvent(new Event('input'));
+                      })(this)">
+
+                      <div class="pw-reqs">
+                        <div class="pw-reqs-title">Password requirements</div>
+                        <div class="pw-req" data-req="len"><span class="pw-tick"></span>At least 12 characters</div>
+                        <div class="pw-req" data-req="upper"><span class="pw-tick"></span>One uppercase letter (A&ndash;Z)</div>
+                        <div class="pw-req" data-req="lower"><span class="pw-tick"></span>One lowercase letter (a&ndash;z)</div>
+                        <div class="pw-req" data-req="num"><span class="pw-tick"></span>One number (0&ndash;9)</div>
+                        <div class="pw-req" data-req="sym"><span class="pw-tick"></span>One symbol (! @ # $ % etc.)</div>
+                      </div>
+
+                      <div class="pw-meter" data-strength="0">
+                        <div class="pw-meter-bars"><div class="pw-meter-bar"></div><div class="pw-meter-bar"></div><div class="pw-meter-bar"></div><div class="pw-meter-bar"></div><div class="pw-meter-bar"></div></div>
+                        <div class="pw-meter-label">Empty</div>
+                      </div>
+
+                      <label for="pw-confirm">Confirm new password</label>
+                      <input type="password" id="pw-confirm" autocomplete="off" oninput="(function(el){
+                        var box = el.closest('.reset-form');
+                        if (!box) return;
+                        var newPw = box.querySelector('#pw-new');
+                        var match = box.querySelector('.pw-match');
+                        if (!match) return;
+                        if (!el.value) { match.className = 'pw-match'; match.textContent = ''; return; }
+                        if (newPw && el.value === newPw.value) { match.className = 'pw-match ok'; match.textContent = '✓ Passwords match.'; }
+                        else { match.className = 'pw-match bad'; match.textContent = '✗ Passwords do not match.'; }
+                      })(this)">
+                      <div class="pw-match"></div>
+
+                      <button class="pw-submit" data-action="reset-noop">Rotate Password &amp; Sign In</button>
                     </div>
+
+                    <div class="pw-context-col">
+                      <div class="pw-context-section">
+                        <div class="pw-ctx-h">Signed-in account</div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Username</span><span class="pw-ctx-v">e.morales</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Display name</span><span class="pw-ctx-v">Elena Morales</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Title</span><span class="pw-ctx-v">AP Clerk</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Department</span><span class="pw-ctx-v">Accounts Payable</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Workstation</span><span class="pw-ctx-v">WS-EMORALES-01</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Internal IP</span><span class="pw-ctx-v" style="font-family:ui-monospace,monospace;">10.0.4.18</span></div>
+                      </div>
+
+                      <div class="pw-context-section">
+                        <div class="pw-ctx-h">Account status</div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Status</span><span class="pw-status-pill ok">Active</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Role</span><span class="pw-ctx-v">Standard User</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Password age</span><span class="pw-status-pill warn">132 days</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Lockout</span><span class="pw-ctx-v">None</span></div>
+                      </div>
+
+                      <div class="pw-context-section">
+                        <div class="pw-ctx-h">MFA enrolment</div>
+                        <div class="pw-mfa-bar">
+                          <div class="on">Authenticator</div>
+                          <div class="on">SMS</div>
+                          <div class="off">YubiKey</div>
+                        </div>
+                      </div>
+
+                      <div class="pw-context-section">
+                        <div class="pw-ctx-h">Recent sign-ins</div>
+                        <div class="pw-recent">
+                          <div class="pw-recent-ts">2026-05-18 09:01 UTC</div>
+                          <div class="pw-recent-meta">WS-EMORALES-01 &middot; 10.0.4.18 &middot; Workstation Logon</div>
+                        </div>
+                        <div class="pw-recent flag">
+                          <div class="pw-recent-ts">2026-05-18 09:14 UTC</div>
+                          <div class="pw-recent-meta">185.220.101.45 &middot; HTTPS to passwd.crimson-dawn.net</div>
+                        </div>
+                        <div class="pw-recent">
+                          <div class="pw-recent-ts">2026-05-17 16:44 UTC</div>
+                          <div class="pw-recent-meta">WS-EMORALES-01 &middot; 10.0.4.18 &middot; Workstation Unlock</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="pw-footer-bar">
+                    <span><b>Crimson Dawn IT Security</b></span>
+                    <span>&middot;</span>
+                    <span>Issues? Email <code>it-helpdesk@crimson-dawn.net</code> or call ext. <code>x4400</code>.</span>
+                  </div>
+
+                  <div class="pw-ir-note">
+                    <b>IR Note (lab-only, not visible in real portal):</b> This portal is reachable on the internal network. The msg/1 email that links here passed SPF/DKIM/DMARC and originated from internal IP 10.0.1.5 &mdash; both the portal AND the email check out as legitimate internal traffic, so msg/1 is marked DECOY in the incident analysis. The flagged recent sign-in at <code>185.220.101.45</code> on 2026-05-18 09:14 UTC is the external-IP authentication event the SIEM auth log records at the same timestamp as the wire transfer (E-brief Day-1 timeline) &mdash; that is Patient Zero's session being used from the attacker's C2 host. Showing it here is the investigative crumb that ties msg/1's destination to the broader incident.
+                  </div>
                 </div>`
             },
 
