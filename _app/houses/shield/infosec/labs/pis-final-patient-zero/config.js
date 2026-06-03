@@ -565,6 +565,27 @@ const PISFinalConfig = {
                 formHandler: (data, engine) => PISFinalConfig._handleCveSearch(data.cve_query || '', engine)
             },
 
+            // Landing page for bare-hostname 'https://cve.crimson-intel.net' —
+            // smart-normalize maps subdomain 'cve' to this key. Nudges the
+            // student toward /search without spoiling the CVE inventory.
+            '/cve': {
+                title: 'CVE Database -- cve.crimson-intel.net',
+                html: `
+                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
+                    <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
+                        <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON INTEL -- CVE MIRROR</div>
+                        <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">CVE Database</div>
+                        <div style="font-size:0.72rem; color:#888;">NVD mirror -- synced 2026-05-21 &nbsp;|&nbsp; Source: nvd.nist.gov</div>
+                    </div>
+                    <div style="text-align:center; padding:30px 16px;">
+                        <div style="font-size:0.95rem; color:#222; margin-bottom:8px;">Welcome to the CVE Mirror.</div>
+                        <div style="font-size:0.85rem; color:#555; margin-bottom:24px;">Search the NVD-synced database for CVE IDs or vulnerability keywords.</div>
+                        <a href="https://cve.crimson-intel.net/search" style="display:inline-block; padding:10px 24px; background:#dc2626; color:#fff; text-decoration:none; border-radius:4px; font-weight:700; font-size:0.9rem;">Open CVE Search &rarr;</a>
+                        <div style="font-size:0.72rem; color:#888; margin-top:24px;">Direct URL: enter <code>CVE-YYYY-NNNNN</code> in the search to look up a specific entry.</div>
+                    </div>
+                </div>`
+            },
+
             '/cve/CVE-2022-30190': {
                 title: 'CVE-2022-30190 -- Follina',
                 html: `
