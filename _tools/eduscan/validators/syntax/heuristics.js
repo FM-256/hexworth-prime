@@ -1006,6 +1006,15 @@ class HeuristicsValidator {
             // but new Function() parses as classic scripts (no module support)
             if (/type\s*=\s*["']module["']/i.test(attrs)) continue;
 
+            // Skip non-JS script types: JSON-LD structured data
+            // (application/ld+json), JSON config blobs, server templates, etc.
+            // These have `type` attributes that signal the browser NOT to
+            // execute them as JavaScript. JSON-LD content starts with { which
+            // new Function() parses as a block-statement, triggering false
+            // "Unexpected token ':'" syntax errors on every property colon.
+            // Added 2026-06-02 (CAREER-4) when SEO JSON-LD blocks fired 25 FPs.
+            if (/type\s*=\s*["'][^"']*\/(?:ld\+json|json|template|handlebars|mustache|x-template)["']/i.test(attrs)) continue;
+
             try {
                 // new Function() parses the code without executing it
                 new Function(code);
