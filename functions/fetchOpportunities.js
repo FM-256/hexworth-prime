@@ -154,7 +154,11 @@ async function fetchUSAJobs() {
     // gracefully — let HN + WWR populate the feed alone until the
     // operator registers a key and sets the secret. Nancy LIVE-6 fix.
     let apiKey = '';
-    try { apiKey = USAJOBS_API_KEY.value(); } catch (e) { /* secret not bound */ }
+    // SecretParam.value() returns "" at runtime when the secret is unset
+    // (it does NOT throw). The try/catch is belt-and-suspenders for the
+    // FUNCTIONS_CONTROL_API="true" deployment-time path; at runtime the
+    // catch is never entered. The if(!apiKey) below handles the empty case.
+    try { apiKey = USAJOBS_API_KEY.value(); } catch (e) { apiKey = ''; }
     if (!apiKey) {
         console.warn('[usajobs] USAJOBS_API_KEY secret not set — skipping source. Register at developer.usajobs.gov and set via `firebase functions:secrets:set USAJOBS_API_KEY`.');
         return results;

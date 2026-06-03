@@ -9,6 +9,21 @@ The launchpad live feed pulls federal cyber jobs and Pathways internships from U
 
 The `fetchOpportunities` CF is built to degrade gracefully: if the `USAJOBS_API_KEY` Firebase secret is not set, the USAJobs source is skipped silently each run, and the feed populates from Hacker News + We Work Remotely only. Adding the key wakes up the federal source.
 
+## Pre-deploy step (CRITICAL — Nancy LIVE-6 round 2 finding)
+
+The `fetchOpportunities` Cloud Function binds `USAJOBS_API_KEY` via `secrets: [USAJOBS_API_KEY]` in its schedule config. Firebase CLI verifies bound secrets exist at deploy time. **If the secret has never been created in Google Secret Manager, the first `firebase deploy --only functions` for fetchOpportunities will fail.**
+
+Resolution: create the secret BEFORE the first deploy, even if you don't have a real API key yet. Use a placeholder value:
+
+```bash
+cd /home/eq/ai-content/hexworth-prime
+echo -n "PLACEHOLDER_REPLACE_WITH_REAL_KEY_AFTER_REGISTRATION" | firebase functions:secrets:set USAJOBS_API_KEY --data-file=-
+```
+
+With the placeholder set, the deploy succeeds. The CF runs and sees a non-empty (but invalid) key, so USAJobs requests get 401, the adapter logs a warning, and the source is effectively skipped per the graceful-degrade pattern. HN + WWR populate the feed normally.
+
+Once you have a real key from steps 1-5 below, run the same command with the real value, then `firebase deploy --only functions:fetchOpportunities` to redeploy with the new value bound.
+
 ## One-time registration (operator action)
 
 1. Visit https://developer.usajobs.gov/
@@ -17,9 +32,9 @@ The `fetchOpportunities` CF is built to degrade gracefully: if the `USAJOBS_API_
 4. They'll email a confirmation; click through
 5. Log into the developer portal; copy the API key from the dashboard
 
-## Set the Firebase secret
+## Set the Firebase secret (replace placeholder with real key)
 
-Once you have the key string, store it in Firebase secrets so the CF can read it at runtime:
+Once you have the key string, replace the placeholder in Secret Manager:
 
 ```bash
 cd /home/eq/ai-content/hexworth-prime
