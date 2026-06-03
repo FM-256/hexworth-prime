@@ -313,7 +313,12 @@ async function fetchWeWorkRemotely() {
 
             // Title often "Company: Role" or "Role at Company"
             const titleClean = title.replace(/&amp;/g, '&').trim();
-            const descClean = description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            // Truncate description to 600 chars BEFORE filter so the cyber-relevance
+            // gate sees the same input that prepareForFirestore's tagHouse() call
+            // will see downstream. Otherwise a keyword match past position 600 in the
+            // raw description passes the filter but the stored record gets house=null
+            // and skinks to the bottom of the live-feed ranking, defeating the filter.
+            const descClean = description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600);
 
             // Cyber-relevance gate: only keep items that match at least one Hexworth
             // house keyword. Full feed includes Marketing/Product/Sales/Design roles
@@ -331,7 +336,7 @@ async function fetchWeWorkRemotely() {
                 location: 'Remote',
                 url: link,
                 postedAt: pubDate ? new Date(pubDate) : new Date(),
-                description: descClean.slice(0, 600),
+                description: descClean,  // already 600-char capped above
             });
         }
         // Observability: log raw feed size + filter count separately so a future
