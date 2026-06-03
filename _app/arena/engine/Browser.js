@@ -219,6 +219,24 @@ class BrowserInstance {
             pageDef = pages[path.substring(1)];
         }
 
+        // Smart-normalize fallback: when the student types a bare-hostname URL
+        // like `https://siem.crimson-dawn.net` (no path), derive a candidate
+        // page key from the leftmost subdomain. This lets lab authors key
+        // pages by /subdomain (e.g. '/siem') without forcing students to know
+        // the URL path layout. Purely additive — only fires if all prior
+        // lookups failed. Edge cases:
+        //   - apex domain (no subdomain) → no candidate, falls through to 404
+        //   - 'localhost', 'www' subdomain → tried like any other; harmless
+        //   - the `fullUrl` param is the unparsed user input (preserved
+        //     because the parsed `path` may have stripped the host already)
+        if (!pageDef && fullUrl) {
+            const hostMatch = fullUrl.match(/^https?:\/\/([^/.]+)/);
+            if (hostMatch) {
+                const subdomain = hostMatch[1];
+                pageDef = pages['/' + subdomain] || pages[subdomain];
+            }
+        }
+
         if (!pageDef) {
             this._render404(path);
             return;

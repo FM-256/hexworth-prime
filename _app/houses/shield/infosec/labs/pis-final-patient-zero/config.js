@@ -635,9 +635,14 @@ const PISFinalConfig = {
 
             // ─────────────────────────────────────────────────
             // C. WHOIS: whois.crimson-intel.net
+            //   Key changed from '/' to '/whois' to (a) eliminate collision
+            //   with any trailing-slash URL student types (every
+            //   https://*.crimson-dawn.net/ would resolve here), and
+            //   (b) let Browser engine smart-normalize map subdomain
+            //   'whois' to /whois automatically.
             // ─────────────────────────────────────────────────
 
-            '/': {
+            '/whois': {
                 title: 'WHOIS Lookup -- whois.crimson-intel.net',
                 html: `
                 <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
@@ -661,7 +666,10 @@ const PISFinalConfig = {
             // D. HASH ANALYZER: vt-mirror.crimson-intel.net
             // ─────────────────────────────────────────────────
 
-            '/hash': {
+            // Key changed from '/hash' to '/vt-mirror' so Browser engine
+            // smart-normalize maps subdomain 'vt-mirror' to this page.
+            // (Title already references vt-mirror.crimson-intel.net.)
+            '/vt-mirror': {
                 title: 'Hash Analyzer -- vt-mirror.crimson-intel.net',
                 html: `
                 <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
