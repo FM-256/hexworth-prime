@@ -308,7 +308,7 @@ const PISFinalConfig = {
                     <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
                         <p>All Accounts Payable staff,</p>
                         <p>Security policy requires all staff rotate their AD passwords today before 17:00. A failure to rotate will result in your account being locked at EOD.</p>
-                        <p>Use the internal self-service portal: <code>https://passwd.crimson-dawn.net/reset</code></p>
+                        <p>Use the internal self-service portal: <a href="https://passwd.crimson-dawn.net/reset" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://passwd.crimson-dawn.net/reset</a></p>
                         <p>-- IT Helpdesk</p>
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
@@ -334,7 +334,7 @@ const PISFinalConfig = {
                     </div>
                     <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
                         <p>Action Required: Your payroll direct deposit information needs to be re-verified due to a recent bank routing update.</p>
-                        <p>Log in to verify your account details: <code>https://adp-secure-portal.com/verify</code></p>
+                        <p>Log in to verify your account details: <a href="https://adp-secure-portal.com/verify" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://adp-secure-portal.com/verify</a></p>
                         <p>-- ADP Payroll Services</p>
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
@@ -360,7 +360,7 @@ const PISFinalConfig = {
                     </div>
                     <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
                         <p>Your shipment #4470029 has experienced a delivery exception. A customs hold has been placed on your package.</p>
-                        <p>Review exception details: <code>https://fedex-shipping-update.com/exception/4470029</code></p>
+                        <p>Review exception details: <a href="https://fedex-shipping-update.com/exception/4470029" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://fedex-shipping-update.com/exception/4470029</a></p>
                         <p>-- FedEx Notification Services</p>
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
@@ -531,11 +531,152 @@ const PISFinalConfig = {
                         <div><b>X-Originating-IP:</b> 10.0.2.3</div>
                     </div>
                     <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Please complete the Q2 2026 compliance attestation by end of week. Link: <code>https://compliance.crimson-dawn.net/attest/Q2-2026</code></p>
+                        <p>Please complete the Q2 2026 compliance attestation by end of week. Link: <a href="https://compliance.crimson-dawn.net/attest/Q2-2026" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://compliance.crimson-dawn.net/attest/Q2-2026</a></p>
                         <p>-- Compliance Office</p>
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
                         <b>Analysis:</b> Legitimate internal mail. All auth passes. Not relevant to this incident.
+                    </div>
+                </div>`
+            },
+
+            // ─────────────────────────────────────────────────
+            // A2. EMAIL-BODY LINK LANDING PAGES
+            //   Pages reached by clicking URLs inside the inbox messages.
+            //   Visual treatment matches the email's Analysis verdict:
+            //   legit-looking for genuine internal pages; phishing-looking
+            //   (with subtle red flags) for the decoy phishing URLs.
+            // ─────────────────────────────────────────────────
+
+            // Legitimate internal AD password-reset portal — reached from
+            // msg/1's URL https://passwd.crimson-dawn.net/reset.
+            '/reset': {
+                title: 'AD Password Reset -- passwd.crimson-dawn.net',
+                html: `
+                <div style="font-family:system-ui,sans-serif; max-width:520px; margin:40px auto; padding:0; background:#fff; border:1px solid #ddd; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                    <div style="background:#dc2626; color:#fff; padding:14px 20px; border-radius:6px 6px 0 0;">
+                        <div style="font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; opacity:0.85;">Crimson Dawn Logistics</div>
+                        <div style="font-size:1.1rem; font-weight:700; margin-top:2px;">Active Directory Self-Service Portal</div>
+                    </div>
+                    <div style="padding:24px 20px;">
+                        <div style="font-size:0.85rem; color:#222; margin-bottom:16px;"><b>Password Reset</b> &mdash; rotate your account password</div>
+                        <div style="display:flex; flex-direction:column; gap:10px; font-size:0.83rem;">
+                            <label style="color:#555;">Username (firstname.lastname)
+                                <input type="text" style="display:block; width:100%; padding:8px 10px; margin-top:4px; border:1px solid #ccc; border-radius:4px; font-family:inherit; box-sizing:border-box;">
+                            </label>
+                            <label style="color:#555;">Current password
+                                <input type="password" style="display:block; width:100%; padding:8px 10px; margin-top:4px; border:1px solid #ccc; border-radius:4px; font-family:inherit; box-sizing:border-box;">
+                            </label>
+                            <label style="color:#555;">New password (12+ chars, mixed case, number, symbol)
+                                <input type="password" style="display:block; width:100%; padding:8px 10px; margin-top:4px; border:1px solid #ccc; border-radius:4px; font-family:inherit; box-sizing:border-box;">
+                            </label>
+                            <label style="color:#555;">Confirm new password
+                                <input type="password" style="display:block; width:100%; padding:8px 10px; margin-top:4px; border:1px solid #ccc; border-radius:4px; font-family:inherit; box-sizing:border-box;">
+                            </label>
+                            <button data-action="reset-noop" style="margin-top:8px; padding:10px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit;">Rotate Password</button>
+                        </div>
+                        <div style="margin-top:18px; padding:10px; background:#f0f5ff; border:1px solid #bdd; border-radius:4px; font-size:0.74rem; color:#226;">
+                            <b>Crimson Dawn IT Security</b> &middot; Internal SSO &middot; Issues? Email <code>it-helpdesk@crimson-dawn.net</code> or call x4400.
+                        </div>
+                        <div style="margin-top:14px; padding:10px; background:#fffbe6; border:1px solid #f5dc8a; border-radius:4px; font-size:0.74rem; color:#664;">
+                            <b>IR Note:</b> This portal is reachable on the internal network. The msg/1 email that links here passed SPF/DKIM/DMARC and originated from internal IP 10.0.1.5. Both the portal AND the email check out as legitimate internal traffic. Marked DECOY in the incident analysis.
+                        </div>
+                    </div>
+                </div>`
+            },
+
+            // Legitimate internal compliance form — reached from msg/7's URL
+            // https://compliance.crimson-dawn.net/attest/Q2-2026.
+            '/attest/Q2-2026': {
+                title: 'Q2 2026 Compliance Attestation -- compliance.crimson-dawn.net',
+                html: `
+                <div style="font-family:system-ui,sans-serif; max-width:680px; margin:30px auto; padding:0; background:#fff; border:1px solid #ddd; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                    <div style="background:#222; color:#fff; padding:14px 20px; border-radius:6px 6px 0 0;">
+                        <div style="font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; opacity:0.85;">Crimson Dawn Logistics &middot; Compliance Office</div>
+                        <div style="font-size:1.05rem; font-weight:700; margin-top:2px;">Q2 2026 Quarterly Compliance Attestation</div>
+                    </div>
+                    <div style="padding:22px 20px; font-size:0.85rem; color:#222; line-height:1.6;">
+                        <div>Reporting period: Apr 1 &ndash; Jun 30, 2026 &middot; Deadline: end of week</div>
+                        <div style="margin-top:14px; padding:12px; background:#f8f8f8; border-left:3px solid #888;">
+                            As an Accounts Payable / Vendor Management team member, attest to the following for Q2 2026 by checking each item and submitting:
+                        </div>
+                        <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px; font-size:0.83rem;">
+                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have reviewed and understood the AP Wire-Approval Policy (AP-2026-04 rev.3).</span></label>
+                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have completed the quarterly SOX § 404 separation-of-duties verification.</span></label>
+                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have not initiated, approved, or co-signed any wire transfer to an unverified payee in Q2 2026.</span></label>
+                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have completed the FY26 anti-bribery (FCPA) and money-laundering (AML) training modules.</span></label>
+                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have reported any related-party transactions through the standard disclosure form.</span></label>
+                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have not received any third-party compensation or gifts above the $50 disclosure threshold.</span></label>
+                        </div>
+                        <div style="margin-top:18px; display:flex; gap:10px; align-items:center;">
+                            <label style="font-size:0.78rem; color:#444;">Sign as:&nbsp;<input type="text" placeholder="firstname.lastname" style="padding:6px 8px; border:1px solid #ccc; border-radius:3px; font-family:inherit; font-size:0.78rem;"></label>
+                            <button data-action="attest-noop" style="padding:8px 18px; background:#222; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit; font-size:0.83rem;">Submit Attestation</button>
+                        </div>
+                        <div style="margin-top:16px; padding:10px; background:#fffbe6; border:1px solid #f5dc8a; border-radius:4px; font-size:0.74rem; color:#664;">
+                            <b>IR Note:</b> Internal compliance attestation portal. The msg/7 email is from compliance@crimson-dawn.net (originating IP 10.0.2.3), all auth passes. Legitimate but NOT RELEVANT to the wire-fraud incident.
+                        </div>
+                    </div>
+                </div>`
+            },
+
+            // PHISHING-DECOY landing: ADP-impersonation page reached from
+            // msg/2's URL https://adp-secure-portal.com/verify. Aesthetic
+            // is deliberately off-brand: slightly garish, excessive ask
+            // (bank routing + SSN), and a flag at the bottom calling out
+            // the W2 lesson — "surface red flags != active phish."
+            // GAME OVER (msg/2 ADP phishing decoy) — clicking the URL in
+            // the email body lands here. Lesson: "even a phishing decoy is
+            // still a phishing page; don't click links in suspicious
+            // emails." Single CTA reloads the lab from zero.
+            '/verify': {
+                title: 'INCIDENT: CREDENTIALS COMPROMISED',
+                html: `
+                <div style="font-family:'JetBrains Mono', monospace, system-ui; max-width:680px; margin:30px auto; padding:0; background:#0a0a0a; border:3px solid #ff003c; border-radius:6px; box-shadow:0 0 40px rgba(255,0,60,0.45); color:#fff; overflow:hidden;">
+                    <div style="background:#ff003c; color:#000; padding:8px 16px; font-size:0.7rem; letter-spacing:0.18em; font-weight:900; text-align:center;">
+                        &#x26A0; SECURITY EVENT &middot; PHISHING URL CLICKED &middot; INCIDENT COMPROMISED &#x26A0;
+                    </div>
+                    <div style="padding:32px 28px 24px 28px; text-align:center;">
+                        <div style="font-size:3.2rem; font-weight:900; letter-spacing:0.06em; color:#ff003c; text-shadow:0 0 12px rgba(255,0,60,0.55), 2px 2px 0 #220000; line-height:1; margin-bottom:6px;">YOU GOT PHISHED.</div>
+                        <div style="font-size:0.88rem; color:#ffbbcc; letter-spacing:0.04em; margin-bottom:24px;">GAME OVER &middot; CREDENTIAL HARVEST SUCCESSFUL</div>
+                        <div style="text-align:left; background:#1a0008; border:1px solid #5a0020; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#ffdee5; margin-bottom:18px;">
+                            <div style="color:#ff8aa3; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// CONSEQUENCE</div>
+                            You clicked the URL inside msg/2 ("Direct deposit verification required"). The page on the other end was a credential-harvest phishing site running under the ADP impersonation pattern.
+                            <br><br>In a real environment, the attacker now has: Employee ID, last 4 of your SSN, bank routing number, and bank account number. Your paycheck redirect is one form-submit away.
+                        </div>
+                        <div style="text-align:left; background:#001428; border:1px solid #00528c; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#bbdfff; margin-bottom:22px;">
+                            <div style="color:#7ec0ff; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// IR LESSON</div>
+                            The msg/2 Analysis block told you it was a phishing decoy. The correct move was to <b>copy the URL into a sandbox</b> (URLscan, hybrid-analysis, your SOC's detonation chamber), <b>NOT click it from the inbox</b>. Decoy or active phish &mdash; phishing URLs are credential-harvest sites either way.
+                        </div>
+                        <button data-action="restart-lab" onclick="window.location.reload();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                    </div>
+                </div>`
+            },
+
+            // GAME OVER (msg/3 FedEx phishing decoy) — clicking the URL in
+            // the email body lands here. Same template as /verify but with
+            // a payment-fraud framing instead of credential harvest.
+            '/exception/4470029': {
+                title: 'INCIDENT: PAYMENT FRAUD INITIATED',
+                html: `
+                <div style="font-family:'JetBrains Mono', monospace, system-ui; max-width:680px; margin:30px auto; padding:0; background:#0a0a0a; border:3px solid #ff003c; border-radius:6px; box-shadow:0 0 40px rgba(255,0,60,0.45); color:#fff; overflow:hidden;">
+                    <div style="background:#ff003c; color:#000; padding:8px 16px; font-size:0.7rem; letter-spacing:0.18em; font-weight:900; text-align:center;">
+                        &#x26A0; SECURITY EVENT &middot; PHISHING URL CLICKED &middot; INCIDENT COMPROMISED &#x26A0;
+                    </div>
+                    <div style="padding:32px 28px 24px 28px; text-align:center;">
+                        <div style="font-size:3.2rem; font-weight:900; letter-spacing:0.06em; color:#ff003c; text-shadow:0 0 12px rgba(255,0,60,0.55), 2px 2px 0 #220000; line-height:1; margin-bottom:6px;">YOU GOT PHISHED.</div>
+                        <div style="font-size:0.88rem; color:#ffbbcc; letter-spacing:0.04em; margin-bottom:24px;">GAME OVER &middot; PAYMENT FRAUD SUCCESSFUL</div>
+                        <div style="text-align:left; background:#1a0008; border:1px solid #5a0020; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#ffdee5; margin-bottom:18px;">
+                            <div style="color:#ff8aa3; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// CONSEQUENCE</div>
+                            You clicked the URL inside msg/3 ("Delivery exception #4470029"). The page on the other end was a FedEx-impersonation phishing site running the customs-hold payment-fraud pattern.
+                            <br><br>In a real environment, the attacker now has your full credit card number and cardholder name. The "release package" form-submit would have triggered an unauthorized charge.
+                        </div>
+                        <div style="text-align:left; background:#001428; border:1px solid #00528c; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#bbdfff; margin-bottom:22px;">
+                            <div style="color:#7ec0ff; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// IR LESSON</div>
+                            The msg/3 Analysis block told you it was a phishing decoy (the sender domain <code>fedex-shipping-update.com</code> is not FedEx; FedEx never collects customs duty via shipping-notification URLs). The correct move was to <b>verify the tracking number on fedex.com directly</b>, not click the link in the email. Decoy or active phish &mdash; phishing URLs harm you either way.
+                        </div>
+                        <button data-action="restart-lab" onclick="window.location.reload();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
                     </div>
                 </div>`
             },
