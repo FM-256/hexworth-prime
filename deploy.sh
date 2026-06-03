@@ -8,13 +8,15 @@
 #   4. firebase deploy --only hosting
 #   5. Post-verify     : nexus refresh + EduScan + log-spike check — --skip-post-verify bypass (with reason)
 #   6. Confluence inventory regen (post-deploy, NON-BLOCKING — never aborts deploy)
+#   7. IndexNow ping (post-deploy, NON-BLOCKING — notifies Bing-family search engines)
 #
 # Usage:
-#   ./deploy.sh                     Run all gates, deploy hosting + regen inventory
+#   ./deploy.sh                     Run all gates, deploy hosting + regen inventory + ping IndexNow
 #   ./deploy.sh --strict            Nexus blocks on CRITICAL or HIGH
 #   ./deploy.sh --force             Skip Nexus only (preserve smoke gate)
 #   ./deploy.sh --skip-smoke        Skip smoke only (preserve Nexus gate)
 #   ./deploy.sh --skip-inventory    Skip Confluence inventory regen (deploy proceeds normally)
+#   ./deploy.sh --skip-indexnow     Skip IndexNow ping (Bing/Yandex/etc. notification)
 #   ./deploy.sh --skip-post-verify --skip-post-verify-reason "<text>"
 #                                   Skip post-verify (audit-logged with reason)
 #   ./deploy.sh --force --skip-smoke   Skip BOTH gates (explicit, audit-trail-friendly)
@@ -50,6 +52,7 @@ FORCE=false
 STRICT=false
 SKIP_SMOKE=false
 SKIP_INVENTORY=false
+SKIP_INDEXNOW=false
 SKIP_POST_VERIFY=false
 SKIP_POST_VERIFY_REASON=""   # initialized for set -u safety
 SKIP_POST_VERIFY_NEXT=false
@@ -64,6 +67,7 @@ for arg in "$@"; do
         --strict)                   STRICT=true ;;
         --skip-smoke)               SKIP_SMOKE=true ;;
         --skip-inventory)           SKIP_INVENTORY=true ;;
+        --skip-indexnow)            SKIP_INDEXNOW=true ;;
         --skip-post-verify)         SKIP_POST_VERIFY=true ;;
         --skip-post-verify-reason)  SKIP_POST_VERIFY_NEXT=true ;;
         *)                          echo -e "${RED}Unknown flag: $arg${NC}"; exit 1 ;;
@@ -85,7 +89,7 @@ if [[ "$SKIP_POST_VERIFY" == "true" && -z "$SKIP_POST_VERIFY_REASON" ]]; then
 fi
 
 # ── Gate 1: Branch check (no override) ───────────────────────────────
-echo -e "${BOLD}[1/6]${NC} Branch safety check..."
+echo -e "${BOLD}[1/7]${NC} Branch safety check..."
 CURRENT_BRANCH="$(git branch --show-current)"
 if [ "$CURRENT_BRANCH" != "master" ]; then
     echo ""
@@ -101,10 +105,10 @@ echo ""
 
 # ── Gate 2: Nexus static-analysis gate ───────────────────────────────
 if [ "$FORCE" = true ]; then
-    echo -e "${BOLD}[2/6]${NC} Nexus gate ${YELLOW}[SKIPPED]${NC} — --force flag set"
+    echo -e "${BOLD}[2/7]${NC} Nexus gate ${YELLOW}[SKIPPED]${NC} — --force flag set"
     echo ""
 else
-    echo -e "${BOLD}[2/6]${NC} Running Nexus deploy gate..."
+    echo -e "${BOLD}[2/7]${NC} Running Nexus deploy gate..."
     echo ""
 
     GATE_FLAGS=""
@@ -123,10 +127,10 @@ fi
 
 # ── Gate 3: Smoke gate (real-browser pre-render check) ───────────────
 if [ "$SKIP_SMOKE" = true ]; then
-    echo -e "${BOLD}[3/6]${NC} Smoke gate ${YELLOW}[SKIPPED]${NC} — --skip-smoke flag set"
+    echo -e "${BOLD}[3/7]${NC} Smoke gate ${YELLOW}[SKIPPED]${NC} — --skip-smoke flag set"
     echo ""
 else
-    echo -e "${BOLD}[3/6]${NC} Running real-browser smoke gate..."
+    echo -e "${BOLD}[3/7]${NC} Running real-browser smoke gate..."
     echo ""
     if node _tools/eduscan/smoke/run.js; then
         echo ""
@@ -142,7 +146,7 @@ fi
 # (from the previous successful deploy's post-verify --archive step).
 # NEVER blocks deploy — smoke + nexus gates already enforce critical/high.
 # Captures the EduScan "DRIFT ANALYSIS" section: trend, counts, NEW ISSUES.
-echo -e "${BOLD}[3.5/6]${NC} EduScan drift report (informational, non-blocking)..."
+echo -e "${BOLD}[3.5/7]${NC} EduScan drift report (informational, non-blocking)..."
 echo ""
 DRIFT_OUTPUT=$(node _tools/eduscan/cli.js --diff 2>&1 || true)
 # Extract just the DRIFT ANALYSIS block. If --diff finds no prior archive,
@@ -151,7 +155,7 @@ echo "$DRIFT_OUTPUT" | awk '/DRIFT ANALYSIS/,/^$/{print}' | sed 's/^/  /'
 echo ""
 
 # ── Gate 4: Firebase deploy (with deploy-in-progress lock for post-verify) ──
-echo -e "${BOLD}[4/6]${NC} Deploying to Firebase..."
+echo -e "${BOLD}[4/7]${NC} Deploying to Firebase..."
 echo ""
 
 LOCK_FILE="$SCRIPT_DIR/_tools/deploy/.deploy-in-progress"
@@ -183,13 +187,13 @@ echo ""
 # Runs BEFORE Confluence regen so a flagged regression skips inventory
 # update — Confluence shouldn't reflect a broken state as "deployed."
 if [ "$SKIP_POST_VERIFY" = true ]; then
-    echo -e "${BOLD}[5/6]${NC} Post-verify ${YELLOW}[SKIPPED]${NC} — reason: $SKIP_POST_VERIFY_REASON"
+    echo -e "${BOLD}[5/7]${NC} Post-verify ${YELLOW}[SKIPPED]${NC} — reason: $SKIP_POST_VERIFY_REASON"
     AUDIT_LOG="$SCRIPT_DIR/_planning/reports/skip-post-verify-audit.log"
     mkdir -p "$(dirname "$AUDIT_LOG")"
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) deploy.sh skip-post-verify: $SKIP_POST_VERIFY_REASON" >> "$AUDIT_LOG"
     echo ""
 elif [ -f "$SCRIPT_DIR/_tools/deploy/post-verify.sh" ]; then
-    echo -e "${BOLD}[5/6]${NC} Running post-deploy verification..."
+    echo -e "${BOLD}[5/7]${NC} Running post-deploy verification..."
     echo ""
     if bash "$SCRIPT_DIR/_tools/deploy/post-verify.sh" --hosting; then
         echo ""
@@ -201,7 +205,7 @@ elif [ -f "$SCRIPT_DIR/_tools/deploy/post-verify.sh" ]; then
         exit $POST_EXIT
     fi
 else
-    echo -e "${BOLD}[5/6]${NC} ${YELLOW}post-verify.sh not found — skipping${NC}"
+    echo -e "${BOLD}[5/7]${NC} ${YELLOW}post-verify.sh not found — skipping${NC}"
     echo ""
 fi
 
@@ -214,12 +218,46 @@ fi
 # Only runs if post-verify passed (or was skipped) — a flagged regression
 # would have exit'd above.
 if [ "$SKIP_INVENTORY" = true ]; then
-    echo -e "${BOLD}[6/6]${NC} Confluence inventory regen ${YELLOW}[SKIPPED]${NC} — --skip-inventory flag set"
+    echo -e "${BOLD}[6/7]${NC} Confluence inventory regen ${YELLOW}[SKIPPED]${NC} — --skip-inventory flag set"
 else
-    echo -e "${BOLD}[6/6]${NC} Refreshing Confluence inventory page..."
+    echo -e "${BOLD}[6/7]${NC} Refreshing Confluence inventory page..."
     # The wrapper handles its own error reporting + always exits 0.
     # Wrap in `|| true` as belt-and-suspenders against `set -e`.
     "$SCRIPT_DIR/_tools/confluence/push_hub_inventory.sh" || true
+fi
+
+# ── Step 7: IndexNow ping (NON-BLOCKING) ─────────────────────────────
+# Notify Bing-family search engines (Bing, Yandex, Seznam, Naver, plus
+# downstream consumers DuckDuckGo / Brave / Ecosia / Startpage which
+# source results from Bing's index) of fresh content via the IndexNow
+# protocol. Google does NOT accept IndexNow as of 2026-06; Google
+# discovery happens via Search Console + organic crawl. About 5-8%
+# of US search traffic is Bing-family.
+#
+# Non-blocking by design: ping failures (network, IndexNow outage,
+# rate limit, key validation drift) NEVER fail a deploy that already
+# shipped. Wrapped in `|| true` as belt-and-suspenders against `set -e`.
+#
+# Script source: _tools/seo/ping-indexnow.py
+# Runbook: _docs/operations/seo-monitoring-runbook.md
+# Key file: _app/c9ef8e71d110cb110ef4fc14f2579eff.txt (must remain deployed)
+if [ "$SKIP_INDEXNOW" = true ]; then
+    echo -e "${BOLD}[7/7]${NC} IndexNow ping ${YELLOW}[SKIPPED]${NC} — --skip-indexnow flag set"
+elif [ ! -f "$SCRIPT_DIR/_tools/seo/ping-indexnow.py" ]; then
+    echo -e "${BOLD}[7/7]${NC} ${YELLOW}ping-indexnow.py not found — skipping${NC}"
+else
+    echo -e "${BOLD}[7/7]${NC} Notifying IndexNow (Bing-family search engines)..."
+    # Capture full output; show only the result summary to keep deploy
+    # log readable. Full per-URL detail is in the script's verbose mode.
+    INDEXNOW_OUT=$(python3 "$SCRIPT_DIR/_tools/seo/ping-indexnow.py" 2>&1 || true)
+    URL_COUNT=$(echo "$INDEXNOW_OUT" | grep -oE 'urls:\s+[0-9]+' | head -1 | grep -oE '[0-9]+')
+    if echo "$INDEXNOW_OUT" | grep -q '✓ submission accepted'; then
+        echo -e "  ${GREEN}✓${NC} ${URL_COUNT:-?} URLs accepted (Bing, Yandex, Seznam, Naver)"
+    else
+        echo -e "  ${YELLOW}WARN: IndexNow ping did not confirm acceptance (non-blocking)${NC}"
+        # Print last 5 lines so an operator can see what happened
+        echo "$INDEXNOW_OUT" | tail -5 | sed 's/^/    /'
+    fi
 fi
 
 echo ""
