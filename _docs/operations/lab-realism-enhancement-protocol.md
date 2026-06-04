@@ -479,4 +479,126 @@ The protocol is opinionated for a reason: realism is a teaching tool, not decora
 
 ---
 
-*Last updated: 2026-06-04. Canonical example: PIS-Final Patient Zero (commits `ab5be1f2a` → `a2af235fa`).*
+## 13. Reactivity & click-path verification (added 2026-06-04)
+
+LREP §1–12 covers **visual realism** — the chrome that makes a tool look like its real-world counterpart. After applying LREP to PIS-Final Patient Zero, we surfaced a second class of failure that's invisible to the original protocol: **reactivity gaps**. A tool can be visually correct, smoke-test-green, walkthrough-documented, and *still* feel broken to a real student because the state-change → visible-feedback loop is incomplete somewhere.
+
+This section is the lessons captured from a five-hour debugging session on the same lab the visual polish had just shipped clean. Every issue in this section came from a student saying "this isn't working" about something the smoke test said was fine.
+
+### 13.1 "Click feels dead" is never one bug
+
+A click that produces no visible feedback can be caused by any of **four independent layers** of failure, stacked in a way that fixing one without finding the next can give a false sense of completion:
+
+| Layer | Symptom-level cause | Where it lives |
+|---|---|---|
+| **1. Event wiring** | The click handler doesn't fire | `_wireFormHandlers` in `Browser.js` — button must have `data-action` attribute the engine wires |
+| **2. formData composition** | Handler fires but receives empty data | Engine composes formData from `[data-field]` inputs + (since 2026-06-04) the clicked button's own `btn.dataset` |
+| **3. Handler logic** | Handler receives data but doesn't mutate state or returns no HTML | Lab's `_handleXxx` function in config.js |
+| **4. Render path** | Handler returns HTML but student can't see it | `_handleFormSubmission` injects into `[data-results]`; if that element is below the fold + no scroll, student sees nothing |
+
+**Trace every layer before declaring a fix.** Fixing layer 3 (handler returns better HTML) when the root cause is layer 1 (event never fires) makes the symptom look subtly different but doesn't solve it. The Eclipse lab session burned three iterations on prettier handler responses before reading the engine wiring and finding that `btn.dataset` was never being passed at all.
+
+Each layer has a different telltale you can probe for in seconds:
+
+```js
+// Layer 1 (event wiring) — is the click event firing at all?
+// Add a temporary console.log in btn.addEventListener('click', () => { console.log('click fired'); ... })
+
+// Layer 2 (formData) — what does the handler actually receive?
+// Add console.log(formData) at the top of the handler
+
+// Layer 3 (handler) — does state mutate? does it return non-empty HTML?
+// Add console.log(db.xxx_state, 'returning', resultHtml.length) at the end
+
+// Layer 4 (render) — does [data-results] now contain the HTML? Is it visible?
+// Inspect the element in DevTools, check getBoundingClientRect()
+```
+
+### 13.2 Smoke that bypasses the engine is a polite lie
+
+The functional smoke tests (`_tools/eduscan/smoke/test-<lab>-functional.js`) call handlers **directly** with the expected data shape:
+
+```js
+cfg._handlePatchAction({ action: 'apply_patch', cve: 'CVE-2022-30190' }, mockEngine);
+```
+
+This verifies the handler does the right thing **given the correct input**. It does NOT verify that the actual user-click code path ever produces that input. The Eclipse lab's `_handlePatchAction` had been smoke-passing for weeks while real student clicks were silently passing `{}` (no data) to it — the smoke had no visibility into the gap.
+
+**Recommendation: add an engine-path smoke layer.** Test the actual click chain by invoking `_wireFormHandlers` on a JSDOM-rendered page, dispatching a synthetic click event on the button, and inspecting what landed in `[data-results]`. This catches layer-1 and layer-2 bugs that direct-handler smoke can't see.
+
+Until that engine-path smoke exists, when shipping LREP polish on a lab, **manually click every button in a real browser** before declaring student-readiness. The 5 minutes of clicking saves a day of "the smoke said it worked" arguments later.
+
+### 13.3 Documentation/engine contract
+
+If the walkthrough tells the student to do X, the engine must support X. The Eclipse lab's walkthrough taught two operations that the simulator could not actually perform:
+
+- **`openssl s_client ... | openssl x509 ...`** — the walkthrough's shell-pipe form silently produced only the s_client banner. The simulator had no pipe parser.
+- **`echo "..." | sha256sum | awk '...'`** — same issue, for the Phase 7 synthesis hash. The walkthrough said "compute this in the terminal"; the terminal had neither `echo` (it did — but couldn't be piped) nor a real sha256sum stdin path nor `awk` at all.
+
+Both gaps had **passing smoke tests**. The smoke called the handlers with the right pre-pipe inputs and verified they returned the right post-pipe outputs. It never tested whether the simulator could actually compose the pipe in the first place.
+
+**Rule:** when authoring a walkthrough, every command in a code fence must round-trip through the lab's actual command parser. If the parser can't handle it, either fix the parser OR change the walkthrough — but don't ship a contract gap. The Eclipse lab eventually got both: pipe support added to Terminal.js + the walkthrough updated to mention what now works.
+
+### 13.4 State changes must be visible within the same click cycle
+
+Anywhere a click mutates `db.<phase>_state.*`, the visible UI must reflect the new state — ideally in the same click response, not "next time you navigate to this page". The Eclipse lab's `_renderPatchDashboard` rendered once at navigation time and never refreshed:
+
+- Click Deploy Update → handler mutates `db.patch_state.applied`, returns confirmation HTML in `[data-results]`
+- Dashboard tables above `[data-results]` still show the **pre-click state**
+- "Outstanding Vulnerabilities" still lists the CVE the student just deployed
+- "Recently Deployed" section is still empty
+- Student concludes: "the patch didn't apply" (it did; the dashboard just doesn't refresh)
+
+**Fix pattern:** wrap the dynamic portion of the page in `[data-results]` and have the form handler return the full re-rendered dynamic body (not just a confirmation banner). The engine's existing form-submission path then replaces the dynamic content with fresh state on every click — no engine change required.
+
+Same pattern applies to **completion gates that fire across multiple tools**. The Eclipse lab's Phase 6 composite flag (`REMED-OK-S7K9P2`) was originally only revealed in the `/patch` dashboard's composite block. If the student happened to finish in `/insightvm` or `/mailadmin`, they completed Phase 6 but the lab never told them — they had to know to navigate back to `/patch`. Fix: the completion-reveal helper (`_phase6CompleteReveal()`) gets appended to every tool's success response, so the reveal appears in whichever tool completed the last sub-action.
+
+### 13.5 The reactivity pre-flight checklist
+
+Before declaring a lab student-ready, run through these four questions for **every interactive element** (every button, every form submit, every state-changing tool action):
+
+1. **Event wiring** — when I click the button in a real browser, does any handler run? (Add a console.log if unsure.)
+2. **Data flow** — does the handler receive the data it needs? (Specifically: button-level `data-*` attributes, page-level `[data-field]` inputs, prior-state context.)
+3. **State + visibility** — when the handler mutates state, does the resulting UI reflect that state without requiring a separate navigation?
+4. **Cross-tool completion** — if this click is the last action that completes a phase, does the phase-complete reveal appear here, OR is the student forced to remember to check somewhere else?
+
+If you can't answer "yes" to all four, you have a reactivity gap. Don't ship until you fix it OR explicitly document the missing path (and then plan to fix it next iteration).
+
+### 13.6 Engineering patterns that emerged
+
+These four patterns came out of the Eclipse-lab reactivity session and are reusable for any future lab:
+
+| Pattern | What it solves | Where used |
+|---|---|---|
+| `btn.dataset` merge into formData | Per-button data not reaching handlers | `Browser.js _wireFormHandlers` — engine change benefits all 89 labs |
+| `scrollIntoView({block:'nearest'})` after form result | Result rendered below the fold | `Browser.js _handleFormSubmission` — engine change |
+| `[data-results]` wraps the dynamic body | Tables/pills/counts stay stale after click | `_renderPatchDashboard` ↔ `_renderPatchDashboardBody` split |
+| `_phaseCompleteReveal()` appended to every contributing tool's response | Completion gate visible only at the "last" location | `_phase6CompleteReveal` injected into 3 handlers |
+| Pure-JS SHA-256 + minimal awk/grep/etc. for pipe support | Walkthrough commands that need shell semantics | `Terminal.js` pipe pipeline + `PISFinalConfig._sha256Hex` |
+
+### 13.7 Memorialized incidents (Eclipse lab, 2026-06-04)
+
+For future maintainers debugging similar symptoms, here's the timeline of what we found vs what we initially assumed:
+
+| Symptom student reported | Initial hypothesis | Actual root cause | Layer |
+|---|---|---|---|
+| "Click Run Vulnerability Scan, no feedback" | Result below fold (scroll) | First it WAS scroll. Then handler returned `{}` because engine never passed button data. | 4, then 1 |
+| "It is not actually deploying" | Same as above | `btn.dataset` not merged into formData; handler fell through to "Unknown action" | 1 |
+| "Currently they all say not deployed" | Dashboard didn't refresh | `_renderPatchDashboard` rendered once at navigation; never re-rendered after state change | 3-4 boundary |
+| "Step 3.3 openssl command does nothing" | Terminal didn't run command | Terminal parsed `\| openssl` as additional args to first openssl; no pipe support | engine ↔ docs contract gap |
+| "Can't get flag 7 from echo pipe sha256sum" | Same | Terminal had echo but no pipes + sha256sum didn't read stdin + no awk | engine ↔ docs contract gap |
+| "How does the student know to combine REMED-OK + scan-ID?" | They see it in the dashboard | They only saw it if they finished in /patch — completion reveal was tool-local, not phase-local | cross-tool reactivity gap |
+
+Total fixes across these incidents: ~6 commits on master, mostly engine-level (`btn.dataset`, pipe support, scroll-into-view) which benefit every lab on the platform, not just Eclipse.
+
+---
+
+## 14. Why §13 matters
+
+§1–12 made the Eclipse lab look like real Rapid7 / Mandiant / SCCM / Splunk. §13 made it actually *behave* like those products at the click level. **A lab needs both.** A beautifully-skinned tool with dead clicks is worse than a generic-looking tool that works — the realism creates an expectation of behavior that the dead clicks immediately violate, and students conclude either "this is broken" or "I'm doing it wrong".
+
+The original LREP was about making students recognize the chrome. §13 is about making sure the chrome **responds** the way the real product would. Together they're the full Lab Realism + Reactivity protocol. Most labs will need both halves.
+
+---
+
+*Last updated: 2026-06-04. §1–12 added with the LREP marathon (commits `ab5be1f2a` → `a2af235fa`). §13–14 added after the Eclipse reactivity debugging session (commits `3e370cb0d` → `3816e6ed5`). Canonical example: PIS-Final Patient Zero.*
