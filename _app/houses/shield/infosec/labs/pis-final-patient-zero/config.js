@@ -627,7 +627,7 @@ const PISFinalConfig = {
                         <div><b>X-Originating-IP:</b> 185.157.122.49</div>
                     </div>
                     <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Microsoft Security Alert</p><p>We detected a sign-in to your Microsoft 365 account from an unrecognized device in Stockholm, Sweden. If this was you, no action is needed. If not, secure your account immediately.</p><p>Review the sign-in: <code>https://microsoft-365-account.com/verify-signin?id=AC8842</code></p><p>-- Microsoft Account Team</p>
+                        <p>Microsoft Security Alert</p><p>We detected a sign-in to your Microsoft 365 account from an unrecognized device in Stockholm, Sweden. If this was you, no action is needed. If not, secure your account immediately.</p><p>Review the sign-in: <a href="https://microsoft-365-account.com/verify-signin?id=AC8842" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://microsoft-365-account.com/verify-signin?id=AC8842</a></p><p>-- Microsoft Account Team</p>
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#ffe6e6; border:1px solid #e74c3c; border-radius:4px; font-size:0.78rem;">
                         <b>Analysis:</b> PHISHING DECOY. The sender domain <code>microsoft-365-account.com</code> is not a real Microsoft domain (Microsoft uses <code>account.microsoft.com</code> and <code>account.live.com</code>). SPF FAILS and DMARC FAILS -- both are highlighted in the headers. The originating IP <code>185.157.122.49</code> resolves to a hosting provider in Bulgaria, not a Microsoft data center. Classic credential-harvest pattern; would have routed to a Microsoft-impersonation login page. Decoy for this incident, but a real threat in its own right -- a student who clicks that URL would have been compromised in production.
@@ -651,7 +651,7 @@ const PISFinalConfig = {
                         <div><b>X-Originating-IP:</b> 170.114.45.18</div>
                     </div>
                     <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Hi Elena,</p><p>Reminder: your recurring meeting "Accounts Payable Weekly Sync" with R. Chen, M. Harlowe, and S. Patel is scheduled for Thursday May 22 at 14:00 UTC.</p><p>Join URL: <code>https://crimson-dawn.zoom.us/j/85544192033</code></p><p>-- Zoom Meetings</p>
+                        <p>Hi Elena,</p><p>Reminder: your recurring meeting "Accounts Payable Weekly Sync" with R. Chen, M. Harlowe, and S. Patel is scheduled for Thursday May 22 at 14:00 UTC.</p><p>Join URL: <a href="https://crimson-dawn.zoom.us/j/85544192033" style="color:#2d8cff; text-decoration:underline; font-family:monospace;">https://crimson-dawn.zoom.us/j/85544192033</a></p><p>-- Zoom Meetings</p>
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
                         <b>Analysis:</b> Legitimate Zoom notification. SPF/DKIM/DMARC all pass. Originating IP is in Zoom\'s ARIN-allocated range. Recurring meeting reminder unrelated to the incident; routine AP team comms.
@@ -675,7 +675,7 @@ const PISFinalConfig = {
                         <div><b>X-Originating-IP:</b> 45.83.91.122</div>
                     </div>
                     <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Chase Business Banking Wire Alert</p><p>An outgoing wire of $4,200,000.00 to account ending <b>-7741</b> requires your review. If not authorized, click below to dispute within 60 minutes.</p><p>Review wire: <code>https://chase-bizbanking.com/wires/review/PNFAH-7741</code></p><p>-- Chase Business Banking</p>
+                        <p>Chase Business Banking Wire Alert</p><p>An outgoing wire of $4,200,000.00 to account ending <b>-7741</b> requires your review. If not authorized, click below to dispute within 60 minutes.</p><p>Review wire: <a href="https://chase-bizbanking.com/wires/review/PNFAH-7741" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://chase-bizbanking.com/wires/review/PNFAH-7741</a></p><p>-- Chase Business Banking</p>
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#ffe6e6; border:1px solid #e74c3c; border-radius:4px; font-size:0.78rem;">
                         <b>Analysis:</b> PHISHING DECOY -- and a particularly cynical one: a follow-up scam timed AFTER the actual wire fraud, attempting to harvest credentials from someone now panicked about the loss. The sender domain <code>chase-bizbanking.com</code> is not Chase (Chase uses <code>chase.com</code> and <code>jpmorganchase.com</code>). All three auth checks FAIL. The amount $4.2M and account suffix -7741 match the real fraud -- the attacker (or a different scammer monitoring the breach) is using public knowledge of the fraud to set up a secondary social-engineering attack. NOT the source of the original wire fraud; that traces to msg/4. This message arrived AFTER the wire on 2026-05-18 at 13:15 UTC, four hours post-loss.
@@ -699,7 +699,7 @@ const PISFinalConfig = {
                         <div><b>X-Originating-IP:</b> 18.142.5.99</div>
                     </div>
                     <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>r.chen mentioned you in <b>#ap-team</b> on Crimson Dawn Slack:</p><blockquote style="border-left:3px solid #ddd; padding:4px 12px; margin:8px 0; color:#444;">@e.morales -- please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks. -- r.chen</blockquote><p>Open in Slack: <code>https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722</code></p>
+                        <p>r.chen mentioned you in <b>#ap-team</b> on Crimson Dawn Slack:</p><blockquote style="border-left:3px solid #ddd; padding:4px 12px; margin:8px 0; color:#444;">@e.morales -- please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks. -- r.chen</blockquote><p>Open in Slack: <a href="https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722" style="color:#1264a3; text-decoration:underline; font-family:monospace;">https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722</a></p>
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
                         <b>Analysis:</b> Legitimate Slack notification. SPF/DKIM/DMARC all pass. Originating IP is in Slack\'s AWS-allocated range. <b>Note the topical timing:</b> r.chen references the Nakamura wire routing -- this is the AP supervisor following up on what she believed was a legitimate vendor update earlier in the morning. Connect this message back to msg/4 during Phase 1 review: the supervisor is unknowingly endorsing the fraudulent routing from msg/4. The Slack message itself is legitimate; the underlying business state it describes is compromised.
@@ -723,7 +723,7 @@ const PISFinalConfig = {
                         <div><b>X-Originating-IP:</b> 162.241.92.10</div>
                     </div>
                     <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Adobe Billing Notice</p><p>Your Adobe Creative Cloud subscription has been auto-renewed for $599.88 USD. Charge will appear on your card ending in 8842 within 24 hours.</p><p>To dispute this charge or cancel renewal, you must act within 24 hours: <code>https://adobe-renewal-services.com/billing/dispute?ref=8842</code></p><p>-- Adobe Billing Services</p>
+                        <p>Adobe Billing Notice</p><p>Your Adobe Creative Cloud subscription has been auto-renewed for $599.88 USD. Charge will appear on your card ending in 8842 within 24 hours.</p><p>To dispute this charge or cancel renewal, you must act within 24 hours: <a href="https://adobe-renewal-services.com/billing/dispute?ref=8842" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://adobe-renewal-services.com/billing/dispute?ref=8842</a></p><p>-- Adobe Billing Services</p>
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#ffe6e6; border:1px solid #e74c3c; border-radius:4px; font-size:0.78rem;">
                         <b>Analysis:</b> PHISHING DECOY. Sender domain <code>adobe-renewal-services.com</code> is not a real Adobe domain (Adobe uses <code>adobe.com</code> for billing). SPF and DMARC both FAIL; only DKIM passes (the attacker controls the keys for their own fake domain). <b>Reply-To is different from From</b> (<code>support@billing-services-portal.com</code>) -- a classic phishing tell. Originating IP <code>162.241.92.10</code> resolves to a generic hosting provider in Utah, not Adobe infrastructure. Urgency tactic ("act within 24 hours") and unfamiliar card suffix ("ending in 8842" -- AP doesn\'t have an Adobe charge on file) are additional red flags. Decoy for this incident.
@@ -1199,6 +1199,184 @@ const PISFinalConfig = {
                         </div>
                         <button data-action="restart-lab" onclick="window.location.reload();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
                         <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                    </div>
+                </div>`
+            },
+
+            // ─────────────────────────────────────────────────
+            // A3. NOISE-LAYER EMAIL URL LANDING PAGES (msg/8-13)
+            //   3 GAME OVER variants for the new phishing decoys
+            //   (msg/9 MS365, msg/11 Chase, msg/13 Adobe) and
+            //   2 legit placeholders for Zoom + Slack URLs
+            //   (msg/10, msg/12).
+            // ─────────────────────────────────────────────────
+
+            // GAME OVER (msg/9 Microsoft 365 phishing) — clicking the URL
+            // in msg/9 body lands here. Microsoft account credential harvest.
+            '/verify-signin': {
+                title: 'INCIDENT: MICROSOFT ACCOUNT COMPROMISED',
+                html: `
+                <div style="font-family:'JetBrains Mono', monospace, system-ui; max-width:680px; margin:30px auto; padding:0; background:#0a0a0a; border:3px solid #ff003c; border-radius:6px; box-shadow:0 0 40px rgba(255,0,60,0.45); color:#fff; overflow:hidden;">
+                    <div style="background:#ff003c; color:#000; padding:8px 16px; font-size:0.7rem; letter-spacing:0.18em; font-weight:900; text-align:center;">
+                        &#x26A0; SECURITY EVENT &middot; PHISHING URL CLICKED &middot; INCIDENT COMPROMISED &#x26A0;
+                    </div>
+                    <div style="padding:32px 28px 24px 28px; text-align:center;">
+                        <div style="font-size:3.2rem; font-weight:900; letter-spacing:0.06em; color:#ff003c; text-shadow:0 0 12px rgba(255,0,60,0.55), 2px 2px 0 #220000; line-height:1; margin-bottom:6px;">YOU GOT PHISHED.</div>
+                        <div style="font-size:0.88rem; color:#ffbbcc; letter-spacing:0.04em; margin-bottom:24px;">GAME OVER &middot; MICROSOFT 365 CREDENTIALS HARVESTED</div>
+                        <div style="text-align:left; background:#1a0008; border:1px solid #5a0020; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#ffdee5; margin-bottom:18px;">
+                            <div style="color:#ff8aa3; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// CONSEQUENCE</div>
+                            You clicked the URL inside msg/9 ("Unusual sign-in activity on your Microsoft account"). The page on the other end was a Microsoft 365 sign-in clone harvesting credentials.
+                            <br><br>In a real environment, the attacker now has your Microsoft 365 email + password. With that they can read Exchange mail, exfiltrate SharePoint documents, impersonate you in Teams, and pivot into your tenant. The MFA-enrollment screen the phishing site showed was a follow-on harvest stage to capture the second factor too.
+                        </div>
+                        <div style="text-align:left; background:#001428; border:1px solid #00528c; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#bbdfff; margin-bottom:22px;">
+                            <div style="color:#7ec0ff; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// IR LESSON</div>
+                            Real Microsoft sign-in alerts come from <code>account.microsoft.com</code> or <code>account.live.com</code>, NOT <code>microsoft-365-account.com</code>. The msg/9 headers showed SPF FAIL + DMARC FAIL with origin IP <code>185.157.122.49</code> (Bulgaria hosting). All three of those tells were in the inbox view before you ever clicked. Read the auth-results line on every email; copy URLs into a sandbox; never click suspicious links from the inbox.
+                        </div>
+                        <button data-action="restart-lab" onclick="window.location.reload();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                    </div>
+                </div>`
+            },
+
+            // GAME OVER (msg/11 Chase wire alert phishing) — clicking the URL
+            // in msg/11 body lands here. Banking credential harvest + wire-
+            // authorization secondary compromise.
+            '/wires/review/PNFAH-7741': {
+                title: 'INCIDENT: BANKING CREDENTIALS COMPROMISED',
+                html: `
+                <div style="font-family:'JetBrains Mono', monospace, system-ui; max-width:680px; margin:30px auto; padding:0; background:#0a0a0a; border:3px solid #ff003c; border-radius:6px; box-shadow:0 0 40px rgba(255,0,60,0.45); color:#fff; overflow:hidden;">
+                    <div style="background:#ff003c; color:#000; padding:8px 16px; font-size:0.7rem; letter-spacing:0.18em; font-weight:900; text-align:center;">
+                        &#x26A0; SECURITY EVENT &middot; PHISHING URL CLICKED &middot; INCIDENT COMPROMISED &#x26A0;
+                    </div>
+                    <div style="padding:32px 28px 24px 28px; text-align:center;">
+                        <div style="font-size:3.2rem; font-weight:900; letter-spacing:0.06em; color:#ff003c; text-shadow:0 0 12px rgba(255,0,60,0.55), 2px 2px 0 #220000; line-height:1; margin-bottom:6px;">YOU GOT PHISHED.</div>
+                        <div style="font-size:0.88rem; color:#ffbbcc; letter-spacing:0.04em; margin-bottom:24px;">GAME OVER &middot; CHASE BANKING CREDENTIALS HARVESTED</div>
+                        <div style="text-align:left; background:#1a0008; border:1px solid #5a0020; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#ffdee5; margin-bottom:18px;">
+                            <div style="color:#ff8aa3; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// CONSEQUENCE</div>
+                            You clicked the URL inside msg/11 ("ACTION REQUIRED: Outgoing wire $4,200,000.00 review"). The page was a Chase Business Banking clone harvesting your banking login.
+                            <br><br>In a real environment, the attacker now has your Chase business banking username and password. They can authorize ADDITIONAL fraudulent wires against the same account that just lost $4.2M -- piggybacking on the panic the original fraud created. This is the textbook "follow-up scam" pattern after a known breach: the second attacker uses public knowledge of the loss to harvest credentials from the panicked victim.
+                        </div>
+                        <div style="text-align:left; background:#001428; border:1px solid #00528c; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#bbdfff; margin-bottom:22px;">
+                            <div style="color:#7ec0ff; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// IR LESSON</div>
+                            Real Chase notifications come from <code>chase.com</code> or <code>jpmorganchase.com</code>, NOT <code>chase-bizbanking.com</code>. The msg/11 headers showed SPF FAIL + DKIM FAIL + DMARC FAIL -- all three. The amount ($4.2M) and account suffix (-7741) matching the actual fraud should have made you MORE suspicious, not less -- only the original attacker and someone monitoring the breach would know those exact details. Confirm wire-fraud follow-up by calling your Chase relationship manager on a number from a prior statement, never a number or URL from the alert email.
+                        </div>
+                        <button data-action="restart-lab" onclick="window.location.reload();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                    </div>
+                </div>`
+            },
+
+            // GAME OVER (msg/13 Adobe subscription phishing) — clicking the URL
+            // in msg/13 body lands here. Payment card harvest.
+            '/billing/dispute': {
+                title: 'INCIDENT: PAYMENT CARD STOLEN',
+                html: `
+                <div style="font-family:'JetBrains Mono', monospace, system-ui; max-width:680px; margin:30px auto; padding:0; background:#0a0a0a; border:3px solid #ff003c; border-radius:6px; box-shadow:0 0 40px rgba(255,0,60,0.45); color:#fff; overflow:hidden;">
+                    <div style="background:#ff003c; color:#000; padding:8px 16px; font-size:0.7rem; letter-spacing:0.18em; font-weight:900; text-align:center;">
+                        &#x26A0; SECURITY EVENT &middot; PHISHING URL CLICKED &middot; INCIDENT COMPROMISED &#x26A0;
+                    </div>
+                    <div style="padding:32px 28px 24px 28px; text-align:center;">
+                        <div style="font-size:3.2rem; font-weight:900; letter-spacing:0.06em; color:#ff003c; text-shadow:0 0 12px rgba(255,0,60,0.55), 2px 2px 0 #220000; line-height:1; margin-bottom:6px;">YOU GOT PHISHED.</div>
+                        <div style="font-size:0.88rem; color:#ffbbcc; letter-spacing:0.04em; margin-bottom:24px;">GAME OVER &middot; CREDIT CARD STOLEN</div>
+                        <div style="text-align:left; background:#1a0008; border:1px solid #5a0020; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#ffdee5; margin-bottom:18px;">
+                            <div style="color:#ff8aa3; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// CONSEQUENCE</div>
+                            You clicked the URL inside msg/13 ("ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed"). The page was an Adobe billing clone harvesting payment card details under the pretext of "dispute the charge".
+                            <br><br>In a real environment, the attacker now has the full card number, CVV, expiration, billing name, and billing address that the form asked for. The card is on its way to a carding marketplace and will be tested in seconds against e-commerce checkouts. Card-not-present fraud is the typical follow-on, often charges across multiple regions within an hour.
+                        </div>
+                        <div style="text-align:left; background:#001428; border:1px solid #00528c; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#bbdfff; margin-bottom:22px;">
+                            <div style="color:#7ec0ff; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// IR LESSON</div>
+                            Real Adobe billing comes from <code>adobe.com</code> ("payments@mail.adobe.com"), NOT <code>adobe-renewal-services.com</code>. The msg/13 headers showed SPF FAIL + DMARC FAIL with Reply-To pointing to a DIFFERENT domain than the From line (<code>support@billing-services-portal.com</code>). The card-suffix "8842" the email referenced wasn't in your AP records. Three independent tells before the click. Real subscription disputes go through the vendor's verified billing portal accessed by manually typing the vendor's main domain, never through links in the renewal alert.
+                        </div>
+                        <button data-action="restart-lab" onclick="window.location.reload();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                    </div>
+                </div>`
+            },
+
+            // LEGIT placeholder (msg/10 Zoom join URL) — clicking the URL
+            // in msg/10 body lands here. NO game over: msg/10 is a real Zoom
+            // recurring-meeting reminder. Renders a Zoom-style "joining"
+            // page so the click is visibly harmless.
+            '/j/85544192033': {
+                title: 'Joining meeting -- Zoom',
+                html: `
+                <div style="font-family:'Lato', system-ui, sans-serif; max-width:560px; margin:60px auto; padding:0; background:#fff; border:1px solid #e0e0e0; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.08); text-align:center;">
+                    <div style="background:#2d8cff; color:#fff; padding:14px 20px; border-radius:8px 8px 0 0;">
+                        <div style="font-size:1.05rem; font-weight:700; letter-spacing:0.02em;">Zoom</div>
+                    </div>
+                    <div style="padding:36px 28px;">
+                        <div style="margin-bottom:18px;">
+                            <div style="width:60px; height:60px; margin:0 auto; border:4px solid #2d8cff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></div>
+                            <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+                        </div>
+                        <div style="font-size:1.05rem; font-weight:600; color:#232333; margin-bottom:6px;">Joining meeting</div>
+                        <div style="font-size:0.86rem; color:#747487; margin-bottom:22px;">
+                            <b>AP Weekly Sync</b><br>
+                            Meeting ID: 855 4419 2033
+                        </div>
+                        <div style="padding:14px 18px; background:#f5f7fa; border-radius:6px; font-size:0.78rem; color:#747487; line-height:1.6;">
+                            Waiting for the host to start the meeting&hellip;<br>
+                            <span style="font-size:0.7rem; color:#a0a0b0;">(2 of 4 expected participants connected)</span>
+                        </div>
+                        <div style="margin-top:24px;">
+                            <a href="https://mail.crimson-dawn.net/inbox" style="color:#2d8cff; text-decoration:none; font-size:0.84rem; font-weight:600;">&larr; Return to inbox</a>
+                        </div>
+                        <div style="margin-top:18px; padding:10px 14px; background:#fef9c3; border:1px solid #fde68a; border-radius:4px; font-size:0.72rem; color:#713f12; text-align:left;">
+                            <b>IR Note (lab-only):</b> Legitimate Zoom meeting URL from msg/10. SPF/DKIM/DMARC passed, origin IP in Zoom\'s ARIN range. Clicking this link is harmless &mdash; it joins a real internal AP weekly sync meeting. msg/10 is decoy.
+                        </div>
+                    </div>
+                </div>`
+            },
+
+            // LEGIT placeholder (msg/12 Slack archive URL) — clicking the URL
+            // in msg/12 body lands here. Renders a Slack-style channel archive
+            // showing the r.chen message that mentions e.morales about the
+            // (now-known-fraudulent) Nakamura wire routing change.
+            '/archives/C04AP4421/p1726658722': {
+                title: '#ap-team -- Crimson Dawn Slack',
+                html: `
+                <div style="font-family:'Lato', system-ui, sans-serif; max-width:760px; margin:18px auto; background:#fff; border:1px solid #e0e0e0; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.06); overflow:hidden;">
+                    <div style="background:#350d36; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px;">
+                        <div style="width:28px; height:28px; background:#fff; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#350d36; font-weight:900; font-size:0.8rem;">CD</div>
+                        <div>
+                            <div style="font-size:0.72rem; opacity:0.85; letter-spacing:0.06em;">CRIMSON DAWN</div>
+                            <div style="font-size:0.95rem; font-weight:700;">Slack workspace</div>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:200px 1fr;">
+                        <div style="background:#3f0e40; color:#cfc3d0; padding:14px 12px; font-size:0.82rem;">
+                            <div style="opacity:0.7; font-size:0.7rem; letter-spacing:0.08em; margin-bottom:6px;">CHANNELS</div>
+                            <div style="padding:4px 8px; opacity:0.8;">&#35; ap-finance</div>
+                            <div style="padding:4px 8px; background:#1164a3; color:#fff; border-radius:4px; font-weight:700;">&#35; ap-team</div>
+                            <div style="padding:4px 8px; opacity:0.8;">&#35; ap-vendors</div>
+                            <div style="padding:4px 8px; opacity:0.8;">&#35; general</div>
+                            <div style="padding:4px 8px; opacity:0.8;">&#35; random</div>
+                            <div style="opacity:0.7; font-size:0.7rem; letter-spacing:0.08em; margin-top:14px; margin-bottom:6px;">DIRECT MESSAGES</div>
+                            <div style="padding:4px 8px; opacity:0.8;"><span style="color:#2ecc71;">&bull;</span> r.chen</div>
+                            <div style="padding:4px 8px; opacity:0.8;"><span style="color:#aaa;">&bull;</span> m.harlowe</div>
+                            <div style="padding:4px 8px; opacity:0.8;"><span style="color:#aaa;">&bull;</span> s.patel</div>
+                        </div>
+                        <div style="padding:14px 20px;">
+                            <div style="border-bottom:1px solid #e0e0e0; padding-bottom:10px; margin-bottom:14px;">
+                                <div style="font-size:0.92rem; font-weight:700; color:#1d1c1d;">&#35; ap-team</div>
+                                <div style="font-size:0.72rem; color:#747487;">Accounts Payable team channel &middot; 8 members</div>
+                            </div>
+                            <div style="display:flex; gap:10px; padding:8px 0;">
+                                <div style="width:36px; height:36px; background:#dc2626; border-radius:4px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:0.8rem;">RC</div>
+                                <div style="flex:1;">
+                                    <div><span style="font-weight:700; color:#1d1c1d;">r.chen</span> <span style="font-size:0.7rem; color:#747487; margin-left:6px;">9:42 AM</span></div>
+                                    <div style="margin-top:2px; color:#1d1c1d; font-size:0.86rem; line-height:1.5;">
+                                        <span style="color:#1264a3; font-weight:600;">@e.morales</span> &mdash; please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks.
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-top:14px; padding:8px 12px; background:#f8f8f8; border-radius:6px; font-size:0.72rem; color:#747487; text-align:center;">
+                                Showing 1 message &middot; mentioned: @e.morales &middot; <a href="https://mail.crimson-dawn.net/inbox" style="color:#1264a3; text-decoration:none; font-weight:600;">&larr; Return to inbox</a>
+                            </div>
+                            <div style="margin-top:14px; padding:10px 14px; background:#fef9c3; border:1px solid #fde68a; border-radius:4px; font-size:0.74rem; color:#713f12;">
+                                <b>IR Note (lab-only):</b> Legitimate Slack archive from msg/12. The message itself is real internal AP comms. <b>Pedagogical hook:</b> r.chen is unknowingly endorsing the fraudulent "corrected wire routing" that came from msg/4 (the active phish). Connect this thread back to Phase 1 review &mdash; the AP supervisor was socially-engineered into validating the attacker\'s change.
+                            </div>
+                        </div>
                     </div>
                 </div>`
             },
