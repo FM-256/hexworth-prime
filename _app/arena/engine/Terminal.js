@@ -196,7 +196,26 @@ class TerminalInstance {
         this.history.push(trimmed);
         this.historyIndex = -1;
 
-        // Parse command and args
+        // ── Pipe handling ─────────────────────────────────────────
+        // Split on " | " outside quoted strings. If more than one
+        // segment, run as a pipeline: each command's stdout becomes
+        // the next command's stdin. Final result is printed.
+        // Required for synthesis-formula commands like
+        //   echo -n "..." | sha256sum | awk '{...}'
+        // which the walkthrough teaches and students try literally.
+        const segments = this._splitPipeSegments(trimmed);
+        if (segments.length > 1) {
+            let stdin = '';
+            for (let i = 0; i < segments.length; i++) {
+                stdin = this._executeSegmentCapture(segments[i], stdin);
+                if (stdin === null) return; // segment errored & printed
+            }
+            if (stdin) this._appendOutput(stdin);
+            this._scrollToBottom();
+            return;
+        }
+
+        // Parse command and args (single command, no pipe)
         const parts = this._parseLine(trimmed);
         const cmd = parts[0].toLowerCase();
         const args = parts.slice(1);
@@ -263,6 +282,174 @@ class TerminalInstance {
         }
 
         this._scrollToBottom();
+    }
+
+    // ────────────────────────────────────────────────
+    // PIPE PIPELINE — split a command line on " | " outside quoted
+    // strings, then run each segment with the previous segment's
+    // stdout as stdin. Supports `echo "x" | sha256sum`, sha256sum
+    // hashing stdin instead of a file, and `awk '{...}'` with the
+    // specific patterns the walkthroughs teach. Designed to make
+    // the literal walkthrough commands work; not a full shell.
+    // ────────────────────────────────────────────────
+
+    /** Split a command line on top-level pipe characters (outside quotes). */
+    _splitPipeSegments(line) {
+        const segments = [];
+        let current = '';
+        let quote = null;
+        for (let i = 0; i < line.length; i++) {
+            const c = line[i];
+            if (quote) {
+                current += c;
+                if (c === quote) quote = null;
+                continue;
+            }
+            if (c === '"' || c === "'") { quote = c; current += c; continue; }
+            if (c === '|') {
+                segments.push(current.trim());
+                current = '';
+                continue;
+            }
+            current += c;
+        }
+        if (current.trim()) segments.push(current.trim());
+        return segments;
+    }
+
+    /** Run one pipe segment with provided stdin; return its stdout
+     *  as a string, or null if a hard error already printed. */
+    _executeSegmentCapture(segmentLine, stdin) {
+        const parts = this._parseLine(segmentLine);
+        if (!parts.length) return stdin;
+        const cmd = parts[0].toLowerCase();
+        const args = parts.slice(1);
+
+        // Try custom box commands first (e.g. lab-registered sha256sum)
+        const customCommands = this.config.commands || {};
+        if (customCommands[cmd]) {
+            // Make stdin available to the custom command via term._pipedStdin
+            this._pipedStdin = stdin;
+            try {
+                const out = customCommands[cmd](args, this, this.engine);
+                if (out === null) {
+                    // Fall through to builtin handlers
+                } else {
+                    return (typeof out === 'string' ? out : String(out || '')).replace(/\n$/, '');
+                }
+            } finally {
+                this._pipedStdin = null;
+            }
+        }
+
+        // Pipe-aware builtins:
+        switch (cmd) {
+            case 'echo': {
+                // Strip leading -n flag (no trailing newline). For our
+                // simple pipeline, output never carries a trailing newline
+                // anyway — captured string only.
+                let out = args;
+                if (out[0] === '-n') out = out.slice(1);
+                return out.join(' ');
+            }
+            case 'cat': {
+                // cat with no args reads stdin
+                if (args.length === 0) return stdin;
+                // cat with file args: read each file's content
+                const out = [];
+                for (const a of args) {
+                    const node = this._getNode(this._resolvePath(a));
+                    if (node && node.type === 'file') out.push(node.content || '');
+                }
+                return out.join('\n');
+            }
+            case 'awk': {
+                return this._awkOnStdin(args.join(' '), stdin);
+            }
+            case 'tr': {
+                // Support common case: tr a-z A-Z (uppercase) or tr -d <char>
+                if (args[0] === '-d' && args[1]) return stdin.split(args[1]).join('');
+                if (args[0] && args[1]) {
+                    // Very rough — only the upper-case case is common
+                    if (args[0] === 'a-z' && args[1] === 'A-Z') return stdin.toUpperCase();
+                    if (args[0] === 'A-Z' && args[1] === 'a-z') return stdin.toLowerCase();
+                }
+                return stdin;
+            }
+            case 'head': {
+                const n = (args[0] === '-n' && args[1]) ? parseInt(args[1], 10) : 10;
+                return stdin.split('\n').slice(0, n).join('\n');
+            }
+            case 'tail': {
+                const n = (args[0] === '-n' && args[1]) ? parseInt(args[1], 10) : 10;
+                return stdin.split('\n').slice(-n).join('\n');
+            }
+            case 'grep': {
+                if (!args.length) return '';
+                const pattern = args[args.length - 1];
+                try {
+                    const re = new RegExp(pattern);
+                    return stdin.split('\n').filter(l => re.test(l)).join('\n');
+                } catch { return ''; }
+            }
+            case 'wc': {
+                const lines = stdin ? stdin.split('\n').length : 0;
+                const words = stdin ? stdin.split(/\s+/).filter(Boolean).length : 0;
+                const chars = stdin ? stdin.length : 0;
+                if (args[0] === '-l') return String(lines);
+                if (args[0] === '-w') return String(words);
+                if (args[0] === '-c') return String(chars);
+                return `    ${lines}    ${words}    ${chars}`;
+            }
+        }
+
+        // Unknown command in a pipeline — error out
+        this._appendError(`${cmd}: command not found`);
+        return null;
+    }
+
+    /** Minimal awk implementation — supports the few patterns the
+     *  PIS-final walkthrough teaches. Most importantly:
+     *    awk '{print toupper(substr($1,1,16))}'
+     *  Returns first field of stdin, first 16 chars, upper case. */
+    _awkOnStdin(programArg, stdin) {
+        // Strip surrounding quotes
+        let prog = programArg.trim();
+        if ((prog.startsWith("'") && prog.endsWith("'")) ||
+            (prog.startsWith('"') && prog.endsWith('"'))) {
+            prog = prog.slice(1, -1);
+        }
+        // Split stdin into lines (sha256sum output is typically one line)
+        const lines = (stdin || '').split('\n').filter(Boolean);
+        const out = [];
+        for (const line of lines) {
+            const fields = line.split(/\s+/).filter(Boolean);
+            // toupper(substr($1, 1, 16))
+            let m = prog.match(/print\s+toupper\s*\(\s*substr\s*\(\s*\$(\d+)\s*,\s*1\s*,\s*(\d+)\s*\)\s*\)/);
+            if (m) {
+                const f = fields[parseInt(m[1], 10) - 1] || '';
+                out.push(f.slice(0, parseInt(m[2], 10)).toUpperCase());
+                continue;
+            }
+            // toupper($N)
+            m = prog.match(/print\s+toupper\s*\(\s*\$(\d+)\s*\)/);
+            if (m) { out.push((fields[parseInt(m[1], 10) - 1] || '').toUpperCase()); continue; }
+            // substr($N, 1, K) — no toupper
+            m = prog.match(/print\s+substr\s*\(\s*\$(\d+)\s*,\s*1\s*,\s*(\d+)\s*\)/);
+            if (m) {
+                const f = fields[parseInt(m[1], 10) - 1] || '';
+                out.push(f.slice(0, parseInt(m[2], 10)));
+                continue;
+            }
+            // {print $N}
+            m = prog.match(/print\s+\$(\d+)/);
+            if (m) { out.push(fields[parseInt(m[1], 10) - 1] || ''); continue; }
+            // {print} or {print $0}
+            if (/print\s*(\$0)?\s*\}?$/.test(prog)) { out.push(line); continue; }
+            // Unknown pattern — pass through
+            out.push(line);
+        }
+        return out.join('\n');
     }
 
     /** Parse a command line into tokens, respecting quoted strings */
