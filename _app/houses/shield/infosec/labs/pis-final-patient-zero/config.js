@@ -1290,22 +1290,28 @@ const PISFinalConfig = {
 
             '/search': {
                 title: 'CVE Search -- cve.crimson-intel.net',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-                    <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                        <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON INTEL -- CVE MIRROR</div>
-                        <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">CVE Database Search</div>
-                        <div style="font-size:0.72rem; color:#888;">NVD mirror -- synced 2026-05-21 &nbsp;|&nbsp; Source: nvd.nist.gov</div>
-                    </div>
-                    <div style="display:flex; gap:8px; margin-bottom:16px;">
-                        <input type="text" data-field="cve_query" placeholder="CVE-ID or keyword (e.g. CVE-2022-30190, Follina, MSDT)"
-                               style="flex:1; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.83rem;">
-                        <button data-action="search" style="padding:8px 18px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit;">Search</button>
-                    </div>
-                    <div data-results>
-                        <div style="color:#888; font-size:0.78rem; text-align:center; padding:20px;">Enter a CVE ID or keyword to search.</div>
-                    </div>
-                </div>`,
+                html: function() { return PISFinalConfig._nvdShellStyle() +
+                    '<div class="nvd-shell">' +
+                    PISFinalConfig._nvdHeader('Vulnerability Database Search') +
+                    '<div class="nvd-search-card">' +
+                        '<div class="nvd-section-h">Search</div>' +
+                        '<div class="nvd-search-sub">Search the NVD-synced vulnerability database by CVE ID, vendor, product, or keyword (e.g. "Follina", "MSDT", "Word"). Results include CVSS score, affected products, and links to the official Microsoft and CISA advisories.</div>' +
+                        '<div class="nvd-search-row">' +
+                            '<input type="text" class="nvd-q" data-field="cve_query" placeholder="CVE-2022-30190, Follina, MSDT, Windows...">' +
+                            '<button class="nvd-search-btn" data-action="search">Search</button>' +
+                        '</div>' +
+                        '<div class="nvd-chips">' +
+                            '<span class="nvd-chip-label">Recent lookups:</span>' +
+                            '<span class="nvd-chip" onclick="var i=document.querySelector(&quot;.nvd-shell .nvd-q&quot;); if(i){i.value=&quot;CVE-2022-30190&quot;;i.focus();}">CVE-2022-30190</span>' +
+                            '<span class="nvd-chip" onclick="var i=document.querySelector(&quot;.nvd-shell .nvd-q&quot;); if(i){i.value=&quot;Follina&quot;;i.focus();}">Follina</span>' +
+                            '<span class="nvd-chip" onclick="var i=document.querySelector(&quot;.nvd-shell .nvd-q&quot;); if(i){i.value=&quot;MSDT&quot;;i.focus();}">MSDT</span>' +
+                            '<span class="nvd-chip" onclick="var i=document.querySelector(&quot;.nvd-shell .nvd-q&quot;); if(i){i.value=&quot;CVE-2024-21412&quot;;i.focus();}">CVE-2024-21412</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="nvd-results" data-results>' +
+                        '<div class="nvd-empty">Enter a CVE ID, vendor, or keyword above and click <b>Search</b>. Mirror covers <code>247,891</code> CVEs across <code>27,432</code> vendors.</div>' +
+                    '</div>' +
+                    '</div>'; },
                 formHandler: (data, engine) => PISFinalConfig._handleCveSearch(data.cve_query || '', engine)
             },
 
@@ -1314,88 +1320,98 @@ const PISFinalConfig = {
             // student toward /search without spoiling the CVE inventory.
             '/cve': {
                 title: 'CVE Database -- cve.crimson-intel.net',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-                    <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                        <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON INTEL -- CVE MIRROR</div>
-                        <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">CVE Database</div>
-                        <div style="font-size:0.72rem; color:#888;">NVD mirror -- synced 2026-05-21 &nbsp;|&nbsp; Source: nvd.nist.gov</div>
-                    </div>
-                    <div style="text-align:center; padding:30px 16px;">
-                        <div style="font-size:0.95rem; color:#222; margin-bottom:8px;">Welcome to the CVE Mirror.</div>
-                        <div style="font-size:0.85rem; color:#555; margin-bottom:24px;">Search the NVD-synced database for CVE IDs or vulnerability keywords.</div>
-                        <a href="https://cve.crimson-intel.net/search" style="display:inline-block; padding:10px 24px; background:#dc2626; color:#fff; text-decoration:none; border-radius:4px; font-weight:700; font-size:0.9rem;">Open CVE Search &rarr;</a>
-                        <div style="font-size:0.72rem; color:#888; margin-top:24px;">Direct URL: enter <code>CVE-YYYY-NNNNN</code> in the search to look up a specific entry.</div>
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._nvdShellStyle() +
+                    '<div class="nvd-shell">' +
+                    PISFinalConfig._nvdHeader('National Vulnerability Database Mirror') +
+                    '<div class="nvd-landing">' +
+                        '<div class="nvd-landing-h">Welcome to the CVE Mirror</div>' +
+                        '<div class="nvd-landing-sub">Search NVD-synced vulnerability data. The mirror tracks all published CVEs with CVSS scoring, affected-product enumeration, and links to vendor advisories.</div>' +
+                        '<a class="nvd-cta-btn" href="https://cve.crimson-intel.net/search">Open CVE Search &rarr;</a>' +
+                        '<div class="nvd-landing-stats">' +
+                            '<div class="nvd-ls-tile"><div class="nvd-ls-v">247,891</div><div class="nvd-ls-k">Total CVEs</div></div>' +
+                            '<div class="nvd-ls-tile"><div class="nvd-ls-v">27,432</div><div class="nvd-ls-k">Vendors</div></div>' +
+                            '<div class="nvd-ls-tile"><div class="nvd-ls-v">2026-05-21</div><div class="nvd-ls-k">Last sync</div></div>' +
+                        '</div>' +
+                        '<div class="nvd-landing-note">Direct lookup: append <code>/CVE-YYYY-NNNNN</code> to the URL, or use Search above.</div>' +
+                    '</div>' +
+                    '</div>'; }
             },
 
             '/cve/CVE-2022-30190': {
                 title: 'CVE-2022-30190 -- Follina',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-                    <a href="https://cve.crimson-intel.net/search" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Search</a>
-                    <div style="margin-top:12px; padding:14px; background:#fff0f0; border:2px solid #dc2626; border-radius:4px;">
-                        <div style="font-size:1rem; font-weight:700; color:#dc2626;">CVE-2022-30190 &mdash; "Follina"</div>
-                        <div style="font-size:0.78rem; color:#555; margin-top:4px;"><b>NVD Title:</b> Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability</div>
-                    </div>
-                    <table style="width:100%; border-collapse:collapse; font-size:0.8rem; margin-top:12px;">
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888; width:160px;">CVSS Score</td><td style="padding:8px 10px; font-weight:700; color:#dc2626;">7.8 HIGH</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Vendor</td><td style="padding:8px 10px;">Microsoft</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Affected</td><td style="padding:8px 10px;">Windows OS family (Windows 7 through Server 2022) -- see NVD<br><span style="color:#888; font-size:0.75rem;">Note: Office (Word) is the delivery vector, not the patched component. The vulnerability lives in the Windows MSDT URL protocol handler.</span></td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Disclosure</td><td style="padding:8px 10px;">2022-05-30</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Delivery vector</td><td style="padding:8px 10px;">Microsoft Office (Word) as calling application -- external template reference triggers MSDT URL protocol</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Mitigation</td><td style="padding:8px 10px;">KB5014699 (June 14, 2022 Patch Tuesday)<br><a href="https://support.microsoft.com/en-us/topic/june-14-2022-kb5014699-os-builds-19042-1766-19043-1766-and-19044-1766-5c81d49d-0b6e-4808-9485-1f54e5d1bb15" style="color:#dc2626; font-size:0.75rem;">KB5014699 (Microsoft Support)</a></td></tr>
-                    </table>
-                    <div style="margin-top:12px; padding:10px; background:#f8f8f8; border:1px solid #ddd; border-radius:4px; font-size:0.78rem;">
-                        <b>Description:</b> A remote code execution vulnerability exists when MSDT (Microsoft Support Diagnostic Tool) is called using a URL protocol from a calling application such as Word. An attacker who successfully exploits this vulnerability can run arbitrary code with the privileges of the calling application.
-                    </div>
-                    <div style="margin-top:8px; font-size:0.73rem; color:#888;">Source: NVD mirror -- nvd.nist.gov/vuln/detail/CVE-2022-30190 &nbsp;|&nbsp; MITRE ATT&CK: T1566.001 (Spearphishing Attachment)</div>
-                </div>`
+                html: function() { return PISFinalConfig._renderCveDetail({
+                    id: 'CVE-2022-30190', alias: '"Follina"', tier: 'crit', score: '7.8', sev: 'HIGH',
+                    title: 'Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability',
+                    vector: 'AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H',
+                    impact: 'Remote Code Execution', vectorShort: 'Local file open (user-required)',
+                    statusPills: ['exploited', 'active'],
+                    identification: [
+                        { k: 'Vendor', v: 'Microsoft' },
+                        { k: 'Product', v: 'Windows OS (MSDT URL protocol)' },
+                        { k: 'Affected versions', v: 'Windows 7 &mdash; Server 2022' },
+                        { k: 'Disclosure', v: '2022-05-30' },
+                        { k: 'CWE', v: 'CWE-94 Code Injection' },
+                        { k: 'EPSS score', v: '0.974 (97th percentile)' }
+                    ],
+                    exploitation: [
+                        { k: 'Vector', v: 'Office document &rarr; external template reference &rarr; MSDT URL handler &rarr; arbitrary code' },
+                        { k: 'Delivery', v: 'Spear-phishing attachment (Word .docx)' },
+                        { k: 'User interaction', v: 'Required (open document)' },
+                        { k: 'MITRE ATT&CK', v: '<span class="nvd-mitre-chip">T1566.001</span> <span class="nvd-mitre-chip">T1203</span>' },
+                        { k: 'Public exploit', v: '<span style="color:#b91c1c;">Yes &middot; Metasploit + numerous public PoCs</span>' }
+                    ],
+                    description: 'A remote code execution vulnerability exists when MSDT (Microsoft Support Diagnostic Tool) is called using a URL protocol from a calling application such as Word. An attacker who successfully exploits this vulnerability can run arbitrary code with the privileges of the calling application. The attacker can then install programs; view, change, or delete data; or create new accounts in the context allowed by the user\'s rights.',
+                    mitigation: [
+                        { h: 'Vendor Patch', v: '<code>KB5014699</code> &mdash; June 14, 2022 Patch Tuesday',
+                          link: { text: 'View KB5014699 on Microsoft Support &rarr;', url: 'https://support.microsoft.com/en-us/topic/june-14-2022-kb5014699-os-builds-19042-1766-19043-1766-and-19044-1766-5c81d49d-0b6e-4808-9485-1f54e5d1bb15' } },
+                        { h: 'CISA KEV Catalog', v: 'Added 2022-06-14 &middot; Federal remediation due 2022-07-05',
+                          link: { text: 'CISA Known Exploited Vulnerabilities Catalog &rarr;', url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog' } }
+                    ],
+                    source: 'Source: NVD mirror &mdash; nvd.nist.gov/vuln/detail/CVE-2022-30190 &middot; Last enriched: 2026-05-21'
+                }); }
             },
 
             '/cve/CVE-2024-21412': {
                 title: 'CVE-2024-21412',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-                    <a href="https://cve.crimson-intel.net/search" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Search</a>
-                    <div style="margin-top:12px; padding:14px; background:#fff8f0; border:2px solid #e67e22; border-radius:4px;">
-                        <div style="font-size:1rem; font-weight:700; color:#e67e22;">CVE-2024-21412</div>
-                        <div style="font-size:0.78rem; color:#555; margin-top:4px;"><b>NVD Title:</b> Internet Shortcut Files Security Feature Bypass Vulnerability</div>
-                    </div>
-                    <table style="width:100%; border-collapse:collapse; font-size:0.8rem; margin-top:12px;">
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888; width:160px;">CVSS Score</td><td style="padding:8px 10px; font-weight:700; color:#e67e22;">8.1 HIGH</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Vendor</td><td style="padding:8px 10px;">Microsoft</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Affected</td><td style="padding:8px 10px;">Windows 10, Windows 11, Windows Server 2019, Windows Server 2022</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Disclosure</td><td style="padding:8px 10px;">2024-02-13</td></tr>
-                    </table>
-                    <div style="margin-top:10px; padding:8px 12px; background:#fff8f0; border:1px solid #e67e22; border-radius:4px; font-size:0.78rem; color:#e67e22;">
-                        <b>Note:</b> This CVE is real and outstanding on WS-EMORALES-01, but it is NOT the CVE exploited in the current incident. Applying this patch first will not resolve the active vulnerability.
-                    </div>
-                    <div style="margin-top:6px; font-size:0.73rem; color:#888;">Source: NVD mirror -- nvd.nist.gov/vuln/detail/CVE-2024-21412</div>
-                </div>`
+                html: function() { return PISFinalConfig._renderCveDetail({
+                    id: 'CVE-2024-21412', tier: 'high', score: '8.1', sev: 'HIGH',
+                    title: 'Internet Shortcut Files Security Feature Bypass Vulnerability',
+                    vector: 'AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H',
+                    impact: 'SmartScreen bypass', vectorShort: 'Network (.url file)',
+                    statusPills: ['exploited'],
+                    identification: [
+                        { k: 'Vendor', v: 'Microsoft' },
+                        { k: 'Product', v: 'Windows SmartScreen' },
+                        { k: 'Affected versions', v: 'Windows 10, Windows 11, Server 2019, Server 2022' },
+                        { k: 'Disclosure', v: '2024-02-13' },
+                        { k: 'CWE', v: 'CWE-693 Protection Mechanism Failure' },
+                        { k: 'Patch', v: '<code>KB5034441</code>' }
+                    ],
+                    incidentNote: { cls: 'nvd-note-warn',
+                        html: '<b>Real but NOT the exploited CVE in this incident.</b> This patch is outstanding on WS-EMORALES-01 (and should be applied during normal patch cycles), but applying it during active IR <b>does not resolve</b> the current compromise. Patch Management is showing this as one of three pending updates &mdash; the IR runbook requires identifying the exploited CVE from Phase 2 first.' },
+                    source: 'Source: NVD mirror &mdash; nvd.nist.gov/vuln/detail/CVE-2024-21412'
+                }); }
             },
 
             '/cve/CVE-2024-26169': {
                 title: 'CVE-2024-26169',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-                    <a href="https://cve.crimson-intel.net/search" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Search</a>
-                    <div style="margin-top:12px; padding:14px; background:#f8f8ff; border:2px solid #888; border-radius:4px;">
-                        <div style="font-size:1rem; font-weight:700; color:#555;">CVE-2024-26169</div>
-                        <div style="font-size:0.78rem; color:#555; margin-top:4px;"><b>NVD Title:</b> Windows Error Reporting Service Elevation of Privilege Vulnerability</div>
-                    </div>
-                    <table style="width:100%; border-collapse:collapse; font-size:0.8rem; margin-top:12px;">
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888; width:160px;">CVSS Score</td><td style="padding:8px 10px; font-weight:700; color:#555;">7.8 HIGH (EoP)</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Vendor</td><td style="padding:8px 10px;">Microsoft</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Type</td><td style="padding:8px 10px;">Elevation of Privilege (local)</td></tr>
-                        <tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; color:#888;">Disclosure</td><td style="padding:8px 10px;">2024-03-12</td></tr>
-                    </table>
-                    <div style="margin-top:10px; padding:8px 12px; background:#f8f8f8; border:1px solid #ddd; border-radius:4px; font-size:0.78rem; color:#888;">
-                        <b>Note:</b> Elevation of Privilege -- not the initial access vector. This CVE is outstanding on WS-EMORALES-01 but was NOT the exploited vulnerability in this incident.
-                    </div>
-                    <div style="margin-top:6px; font-size:0.73rem; color:#888;">Source: NVD mirror -- nvd.nist.gov/vuln/detail/CVE-2024-26169</div>
-                </div>`
+                html: function() { return PISFinalConfig._renderCveDetail({
+                    id: 'CVE-2024-26169', tier: 'med', score: '7.8', sev: 'IMPORTANT (EoP)',
+                    title: 'Windows Error Reporting Service Elevation of Privilege Vulnerability',
+                    vector: 'AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H',
+                    impact: 'Local privilege escalation', vectorShort: 'Local (requires foothold)',
+                    identification: [
+                        { k: 'Vendor', v: 'Microsoft' },
+                        { k: 'Product', v: 'Windows Error Reporting (WER) service' },
+                        { k: 'Type', v: 'Elevation of Privilege (local)' },
+                        { k: 'Disclosure', v: '2024-03-12' },
+                        { k: 'CWE', v: 'CWE-269 Improper Privilege Management' },
+                        { k: 'Patch', v: '<code>KB5036892</code>' }
+                    ],
+                    incidentNote: { cls: '',
+                        html: '<b>Elevation of Privilege &mdash; not the initial access vector.</b> EoP vulnerabilities require an existing foothold, so they cannot be the entry point in a phishing-driven IR scenario. This CVE is outstanding on WS-EMORALES-01 from normal patch cycles, but was NOT the exploited vulnerability in this incident. Do not apply during active IR.' },
+                    source: 'Source: NVD mirror &mdash; nvd.nist.gov/vuln/detail/CVE-2024-26169'
+                }); }
             },
 
             // ─────────────────────────────────────────────────
@@ -4191,6 +4207,188 @@ const PISFinalConfig = {
         if (parts.length === 0) return '?';
         if (parts.length === 1) return parts[0][0].toUpperCase();
         return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    },
+
+    // NVD-mirror shell — used by /search, /cve, /cve/CVE-* pages
+    _nvdShellStyle: function() {
+        return `<style>
+            .nvd-shell { font-family: 'Inter', system-ui, sans-serif; max-width: 1080px; margin: 18px auto; color: #1f2937; background: #fff; min-height: calc(100vh - 36px); }
+            .nvd-shell .nvd-header { background: linear-gradient(135deg, #003366 0%, #001f3f 100%); color: #fff; padding: 14px 22px; display: flex; align-items: center; gap: 14px; border-radius: 6px 6px 0 0; }
+            .nvd-shell .nvd-logo { width: 38px; height: 38px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #003366; font-weight: 800; font-size: 0.7rem; letter-spacing: 0.04em; }
+            .nvd-shell .nvd-brand-org { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.78; }
+            .nvd-shell .nvd-brand-app { font-size: 1.05rem; font-weight: 700; margin-top: 1px; }
+            .nvd-shell .nvd-sync { margin-left: auto; text-align: right; font-size: 0.7rem; opacity: 0.85; line-height: 1.5; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+            .nvd-shell .nvd-sync b { color: #fff; font-weight: 700; }
+            .nvd-shell .nvd-nav { background: #f9fafb; padding: 0 22px; display: flex; gap: 0; border-bottom: 1px solid #e5e7eb; }
+            .nvd-shell .nvd-nav-item { padding: 9px 14px; font-size: 0.76rem; color: #6b7280; border-bottom: 2px solid transparent; cursor: default; }
+            .nvd-shell .nvd-nav-item.active { color: #003366; border-bottom-color: #003366; font-weight: 700; }
+            /* Search card */
+            .nvd-shell .nvd-search-card { padding: 22px 26px; border-bottom: 1px solid #e5e7eb; }
+            .nvd-shell .nvd-section-h { font-size: 0.94rem; font-weight: 700; color: #003366; margin-bottom: 6px; }
+            .nvd-shell .nvd-search-sub { font-size: 0.8rem; color: #6b7280; margin-bottom: 14px; line-height: 1.6; }
+            .nvd-shell .nvd-search-row { display: flex; gap: 8px; }
+            .nvd-shell .nvd-q { flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.84rem; color: #0f172a; outline: 0; box-sizing: border-box; }
+            .nvd-shell .nvd-q:focus { border-color: #003366; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.14); }
+            .nvd-shell .nvd-search-btn { padding: 10px 22px; background: #003366; color: #fff; border: 0; border-radius: 4px; font-weight: 700; font-size: 0.84rem; cursor: pointer; font-family: inherit; }
+            .nvd-shell .nvd-search-btn:hover { background: #001f3f; }
+            .nvd-shell .nvd-chips { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+            .nvd-shell .nvd-chip-label { color: #6b7280; font-size: 0.72rem; margin-right: 4px; }
+            .nvd-shell .nvd-chip { padding: 4px 10px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; color: #1e40af; font-size: 0.72rem; cursor: pointer; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+            .nvd-shell .nvd-chip:hover { background: #dbeafe; border-color: #3b82f6; }
+            /* Results / empty */
+            .nvd-shell .nvd-results { padding: 14px 22px; min-height: 80px; }
+            .nvd-shell .nvd-empty { padding: 30px 18px; text-align: center; color: #6b7280; font-size: 0.84rem; line-height: 1.7; }
+            .nvd-shell .nvd-empty code { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.76rem; color: #0f172a; }
+            /* Landing */
+            .nvd-shell .nvd-landing { padding: 40px 22px; text-align: center; }
+            .nvd-shell .nvd-landing-h { font-size: 1.4rem; font-weight: 700; color: #003366; margin-bottom: 8px; }
+            .nvd-shell .nvd-landing-sub { font-size: 0.88rem; color: #4b5563; margin-bottom: 22px; max-width: 580px; margin-left: auto; margin-right: auto; line-height: 1.7; }
+            .nvd-shell .nvd-cta-btn { display: inline-block; padding: 12px 28px; background: #003366; color: #fff; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.92rem; letter-spacing: 0.02em; }
+            .nvd-shell .nvd-cta-btn:hover { background: #001f3f; }
+            .nvd-shell .nvd-landing-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 580px; margin: 26px auto 0; }
+            .nvd-shell .nvd-ls-tile { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 8px; }
+            .nvd-shell .nvd-ls-v { font-size: 1.2rem; font-weight: 800; color: #003366; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+            .nvd-shell .nvd-ls-k { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; font-weight: 700; margin-top: 4px; }
+            .nvd-shell .nvd-landing-note { font-size: 0.78rem; color: #9ca3af; margin-top: 22px; }
+            .nvd-shell .nvd-landing-note code { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; }
+            /* Back row */
+            .nvd-shell .nvd-back-row { padding: 12px 22px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; font-size: 0.78rem; }
+            .nvd-shell .nvd-back-row a { color: #003366; text-decoration: none; font-weight: 700; }
+            /* Detail hero */
+            .nvd-shell .nvd-detail-hero { padding: 22px 26px; border-bottom: 1px solid #e5e7eb; }
+            .nvd-shell .nvd-detail-hero.crit { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-bottom-color: #fca5a5; }
+            .nvd-shell .nvd-detail-hero.high { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border-bottom-color: #fdba74; }
+            .nvd-shell .nvd-detail-hero.med { background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border-bottom-color: #fde047; }
+            .nvd-shell .nvd-cve-id { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.6rem; font-weight: 800; color: #111827; letter-spacing: 0.02em; }
+            .nvd-shell .nvd-cve-alias { font-size: 1rem; color: #b91c1c; font-weight: 700; margin-top: 2px; font-style: italic; }
+            .nvd-shell .nvd-cve-title { font-size: 1.04rem; color: #1f2937; margin-top: 8px; line-height: 1.5; }
+            .nvd-shell .nvd-cve-status-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+            .nvd-shell .nvd-status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; }
+            .nvd-shell .nvd-status-pill.exploited { background: #dc2626; color: #fff; }
+            .nvd-shell .nvd-status-pill.active { background: #ea580c; color: #fff; }
+            /* CVSS band */
+            .nvd-shell .nvd-cvss-band { padding: 14px 26px; display: flex; align-items: center; gap: 22px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; }
+            @media (max-width: 760px) { .nvd-shell .nvd-cvss-band { flex-direction: column; align-items: flex-start; } }
+            .nvd-shell .nvd-cvss-circle { width: 58px; height: 58px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.25rem; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #fff; flex-shrink: 0; }
+            .nvd-shell .nvd-cvss-circle.crit { background: #dc2626; }
+            .nvd-shell .nvd-cvss-circle.high { background: #ea580c; }
+            .nvd-shell .nvd-cvss-circle.med { background: #ca8a04; }
+            .nvd-shell .nvd-cvss-meta { flex: 1; }
+            .nvd-shell .nvd-cvss-sev { font-size: 0.82rem; font-weight: 800; color: #111827; letter-spacing: 0.06em; }
+            .nvd-shell .nvd-cvss-vec { font-size: 0.74rem; color: #6b7280; font-family: 'JetBrains Mono', ui-monospace, monospace; margin-top: 3px; }
+            .nvd-shell .nvd-cvss-impact { font-size: 0.76rem; color: #4b5563; line-height: 1.7; }
+            .nvd-shell .nvd-cvss-imp b { color: #111827; font-weight: 700; }
+            /* Detail grid */
+            .nvd-shell .nvd-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 18px 22px; }
+            @media (max-width: 760px) { .nvd-shell .nvd-detail-grid { grid-template-columns: 1fr; } }
+            .nvd-shell .nvd-detail-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px 18px; }
+            .nvd-shell .nvd-card-h { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: #003366; font-weight: 800; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
+            .nvd-shell .nvd-row { display: flex; gap: 12px; padding: 5px 0; align-items: flex-start; font-size: 0.8rem; }
+            .nvd-shell .nvd-k { color: #6b7280; min-width: 110px; font-size: 0.74rem; font-weight: 600; flex-shrink: 0; }
+            .nvd-shell .nvd-v { color: #1f2937; font-weight: 500; line-height: 1.55; flex: 1; }
+            .nvd-shell .nvd-v code { background: #fff; border: 1px solid #e5e7eb; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; color: #0f172a; }
+            .nvd-shell .nvd-mitre-chip { display: inline-block; background: #fff; border: 1px solid #bfdbfe; padding: 1px 7px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.7rem; color: #1e40af; margin-right: 4px; }
+            /* Description / mitigation */
+            .nvd-shell .nvd-section { padding: 16px 26px; border-top: 1px solid #e5e7eb; }
+            .nvd-shell .nvd-desc { font-size: 0.86rem; color: #1f2937; line-height: 1.7; }
+            .nvd-shell .nvd-mitigation { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+            @media (max-width: 760px) { .nvd-shell .nvd-mitigation { grid-template-columns: 1fr; } }
+            .nvd-shell .nvd-mit-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 12px 14px; }
+            .nvd-shell .nvd-mit-h { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: #15803d; font-weight: 800; margin-bottom: 5px; }
+            .nvd-shell .nvd-mit-v { font-size: 0.82rem; color: #166534; font-weight: 600; margin-bottom: 6px; }
+            .nvd-shell .nvd-mit-v code { background: #fff; border: 1px solid #bbf7d0; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; color: #15803d; }
+            .nvd-shell .nvd-mit-link a { font-size: 0.76rem; color: #166534; text-decoration: underline; font-weight: 600; }
+            /* Note (relevance to incident) */
+            .nvd-shell .nvd-note { padding: 12px 14px; background: #f9fafb; border-left: 4px solid #6b7280; border-radius: 0 4px 4px 0; font-size: 0.82rem; color: #4b5563; line-height: 1.7; }
+            .nvd-shell .nvd-note.nvd-note-warn { background: #fff7ed; border-left-color: #ea580c; color: #9a3412; }
+            .nvd-shell .nvd-note b { color: #111827; font-weight: 700; }
+            .nvd-shell .nvd-source-line { padding: 12px 26px; background: #f9fafb; border-top: 1px solid #e5e7eb; font-size: 0.72rem; color: #6b7280; border-radius: 0 0 6px 6px; }
+        </style>`;
+    },
+
+    _renderCveDetail: function(cve) {
+        var pillHtml = (cve.statusPills || []).map(function(p) {
+            if (p === 'exploited') return '<div class="nvd-status-pill exploited">&#9888; KNOWN EXPLOITED (CISA KEV)</div>';
+            if (p === 'active') return '<div class="nvd-status-pill active">&#9888; ACTIVE EXPLOITATION</div>';
+            return '';
+        }).join('');
+        var idRows = (cve.identification || []).map(function(r) {
+            return '<div class="nvd-row"><span class="nvd-k">' + r.k + '</span><span class="nvd-v">' + r.v + '</span></div>';
+        }).join('');
+        var rightCard = '';
+        if (cve.exploitation) {
+            var expRows = cve.exploitation.map(function(r) {
+                return '<div class="nvd-row"><span class="nvd-k">' + r.k + '</span><span class="nvd-v">' + r.v + '</span></div>';
+            }).join('');
+            rightCard = '<div class="nvd-detail-card"><div class="nvd-card-h">Exploitation</div>' + expRows + '</div>';
+        } else if (cve.incidentNote) {
+            rightCard = '<div class="nvd-detail-card"><div class="nvd-card-h">Relevance to this incident</div>' +
+                '<div class="nvd-note ' + (cve.incidentNote.cls || '') + '">' + cve.incidentNote.html + '</div>' +
+            '</div>';
+        }
+        var descSection = cve.description ? '<div class="nvd-section"><div class="nvd-section-h">Description</div><div class="nvd-desc">' + cve.description + '</div></div>' : '';
+        var mitSection = '';
+        if (cve.mitigation) {
+            var mitCards = cve.mitigation.map(function(m) {
+                return '<div class="nvd-mit-card">' +
+                    '<div class="nvd-mit-h">' + m.h + '</div>' +
+                    '<div class="nvd-mit-v">' + m.v + '</div>' +
+                    (m.link ? '<div class="nvd-mit-link"><a href="' + m.link.url + '">' + m.link.text + '</a></div>' : '') +
+                '</div>';
+            }).join('');
+            mitSection = '<div class="nvd-section"><div class="nvd-section-h">Mitigation</div><div class="nvd-mitigation">' + mitCards + '</div></div>';
+        }
+        return this._nvdShellStyle() +
+            '<div class="nvd-shell">' +
+            this._nvdHeader('Vulnerability Detail') +
+            '<div class="nvd-back-row"><a href="https://cve.crimson-intel.net/search">&larr; Back to Search</a></div>' +
+            '<div class="nvd-detail-hero ' + cve.tier + '">' +
+                '<div class="nvd-cve-id">' + cve.id + '</div>' +
+                (cve.alias ? '<div class="nvd-cve-alias">' + cve.alias + '</div>' : '') +
+                '<div class="nvd-cve-title">' + cve.title + '</div>' +
+                (pillHtml ? '<div class="nvd-cve-status-row">' + pillHtml + '</div>' : '') +
+            '</div>' +
+            '<div class="nvd-cvss-band ' + cve.tier + '">' +
+                '<div class="nvd-cvss-circle ' + cve.tier + '">' + cve.score + '</div>' +
+                '<div class="nvd-cvss-meta">' +
+                    '<div class="nvd-cvss-sev">' + cve.sev + '</div>' +
+                    '<div class="nvd-cvss-vec">CVSSv3.1 &middot; ' + cve.vector + '</div>' +
+                '</div>' +
+                '<div class="nvd-cvss-impact">' +
+                    '<div class="nvd-cvss-imp"><b>Impact:</b> ' + cve.impact + '</div>' +
+                    '<div class="nvd-cvss-imp"><b>Vector:</b> ' + cve.vectorShort + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="nvd-detail-grid">' +
+                '<div class="nvd-detail-card"><div class="nvd-card-h">Identification</div>' + idRows + '</div>' +
+                rightCard +
+            '</div>' +
+            descSection +
+            mitSection +
+            '<div class="nvd-source-line">' + cve.source + '</div>' +
+            '</div>';
+    },
+
+    _nvdHeader: function(subtitle) {
+        return `
+            <div class="nvd-header">
+                <div class="nvd-logo">NVD</div>
+                <div>
+                    <div class="nvd-brand-org">Crimson Intel &middot; National Vulnerability Database Mirror</div>
+                    <div class="nvd-brand-app">${subtitle}</div>
+                </div>
+                <div class="nvd-sync">
+                    <div>NVD sync: <b>2026-05-21</b></div>
+                    <div>Source: nvd.nist.gov</div>
+                </div>
+            </div>
+            <div class="nvd-nav">
+                <div class="nvd-nav-item${subtitle.indexOf('Search') >= 0 ? ' active' : ''}">Search</div>
+                <div class="nvd-nav-item">Browse by Vendor</div>
+                <div class="nvd-nav-item">CISA KEV Catalog</div>
+                <div class="nvd-nav-item">Statistics</div>
+                <div class="nvd-nav-item">About</div>
+            </div>`;
     },
 
     // Outlook-style inbox listing
