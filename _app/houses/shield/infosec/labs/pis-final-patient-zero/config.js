@@ -338,20 +338,52 @@ const PISFinalConfig = {
                         }
                     }
                     return `
-                    <div style="font-family:system-ui,sans-serif; max-width:600px; margin:40px auto; text-align:center; padding:24px;">
-                        <div style="font-size:2rem; margin-bottom:12px; color:#2ecc71;">&#10003;</div>
-                        <h2 style="font-size:1rem; margin-bottom:8px; color:#222;">File Downloaded</h2>
-                        <div style="font-size:0.82rem; color:#555; margin-bottom:16px;">
-                            <strong>Nakamura-Q1-2026-CORRECTED.docx</strong> saved to<br>
-                            <code style="color:#dc2626;">/home/ir-lead/downloads/</code>
+                    <style>
+                      .dl-shell { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 720px; margin: 24px auto; }
+                      .dl-shell .dl-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+                      .dl-shell .dl-toolbar { background: #faf9f8; border-bottom: 1px solid #e5e7eb; padding: 8px 14px; display: flex; gap: 12px; font-size: 0.78rem; }
+                      .dl-shell .dl-toolbar a { color: #0078d4; text-decoration: none; font-weight: 600; }
+                      .dl-shell .dl-confirm { padding: 26px 28px; display: flex; gap: 22px; align-items: center; border-bottom: 1px solid #f3f4f6; }
+                      .dl-shell .dl-glyph { width: 64px; height: 78px; background: linear-gradient(135deg, #2b579a 0%, #103e6f 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 1.1rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.18); }
+                      .dl-shell .dl-meta { flex: 1; }
+                      .dl-shell .dl-fname { font-size: 1.05rem; font-weight: 700; color: #111827; word-break: break-all; }
+                      .dl-shell .dl-fpath { font-size: 0.76rem; color: #6b7280; font-family: 'Cascadia Code', ui-monospace, monospace; margin-top: 4px; }
+                      .dl-shell .dl-check { padding: 4px 12px; background: #16a34a; color: #fff; border-radius: 4px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; }
+                      .dl-shell .dl-details { padding: 18px 28px; }
+                      .dl-shell .dl-details table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+                      .dl-shell .dl-details td { padding: 6px 0; vertical-align: top; }
+                      .dl-shell .dl-details td:first-child { color: #6b7280; width: 130px; font-size: 0.74rem; }
+                      .dl-shell .dl-details td:nth-child(2) { color: #111827; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.78rem; word-break: break-all; }
+                      .dl-shell .dl-next { margin: 4px 28px 22px; padding: 14px 16px; background: #eff6ff; border-left: 4px solid #2b579a; border-radius: 0 4px 4px 0; font-size: 0.82rem; color: #1e3a8a; line-height: 1.7; }
+                      .dl-shell .dl-next b { color: #1e1e6f; }
+                      .dl-shell .dl-next code { background: #fff; border: 1px solid #bfdbfe; padding: 1px 6px; border-radius: 3px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.74rem; color: #1e3a8a; }
+                      .dl-shell .dl-next a { color: #1e40af; font-weight: 700; }
+                    </style>
+                    <div class="dl-shell">
+                      <div class="dl-card">
+                        <div class="dl-toolbar"><a href="https://mail.crimson-dawn.net/msg/4">&larr; Back to message</a><span style="color:#9ca3af;">|</span><span style="color:#6b7280;">Edge Downloads</span></div>
+                        <div class="dl-confirm">
+                          <div class="dl-glyph">DOC</div>
+                          <div class="dl-meta">
+                            <div class="dl-fname">Nakamura-Q1-2026-CORRECTED.docx</div>
+                            <div class="dl-fpath">Saved to /home/ir-lead/downloads/Nakamura-Q1-2026-CORRECTED.docx</div>
+                          </div>
+                          <div class="dl-check">&#10003; SAVED</div>
                         </div>
-                        <div style="font-size:0.78rem; color:#888; padding:10px; background:#f8f8f8; border-radius:4px; border:1px solid #ddd; text-align:left;">
-                            Next step (Phase 2):<br>
-                            In the terminal, run:<br>
-                            <code>sha256sum /home/ir-lead/downloads/Nakamura-Q1-2026-CORRECTED.docx</code><br>
-                            Then look up the hash at: <a href="https://vt-mirror.crimson-intel.net" style="color:#dc2626;">https://vt-mirror.crimson-intel.net</a>
+                        <div class="dl-details">
+                          <table>
+                            <tr><td>Size</td><td>47.2 KB (48,332 bytes)</td></tr>
+                            <tr><td>Type</td><td>Microsoft Word document (OOXML)</td></tr>
+                            <tr><td>From</td><td>mail.crimson-dawn.net (attachment)</td></tr>
+                            <tr><td>Downloaded</td><td>${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC</td></tr>
+                          </table>
                         </div>
-                        <div style="margin-top:12px;"><a href="https://mail.crimson-dawn.net/msg/4" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to message</a></div>
+                        <div class="dl-next">
+                          <b>Next step (Phase 2):</b> In the terminal, hash the file:<br>
+                          <code>sha256sum /home/ir-lead/downloads/Nakamura-Q1-2026-CORRECTED.docx</code><br>
+                          Then look up the hash at <a href="https://vt-mirror.crimson-intel.net">vt-mirror.crimson-intel.net</a> to identify the malware family + CVE.
+                        </div>
+                      </div>
                     </div>`;
                 }
             },
@@ -391,11 +423,49 @@ const PISFinalConfig = {
                         }
                     }
                     return `
-                    <div style="font-family:system-ui,sans-serif; max-width:600px; margin:40px auto; text-align:center; padding:24px;">
-                        <div style="font-size:2rem; margin-bottom:12px; color:#2ecc71;">&#10003;</div>
-                        <h2 style="font-size:1rem; margin-bottom:8px;">budget-Q1-final.xlsx downloaded</h2>
-                        <div style="font-size:0.78rem; color:#888;">Saved to /home/ir-lead/downloads/budget-Q1-final.xlsx</div>
-                        <div style="margin-top:12px;"><a href="https://mail.crimson-dawn.net/msg/5" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back</a></div>
+                    <style>
+                      .dl-shell { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 720px; margin: 24px auto; }
+                      .dl-shell .dl-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+                      .dl-shell .dl-toolbar { background: #faf9f8; border-bottom: 1px solid #e5e7eb; padding: 8px 14px; display: flex; gap: 12px; font-size: 0.78rem; }
+                      .dl-shell .dl-toolbar a { color: #0078d4; text-decoration: none; font-weight: 600; }
+                      .dl-shell .dl-confirm { padding: 26px 28px; display: flex; gap: 22px; align-items: center; border-bottom: 1px solid #f3f4f6; }
+                      .dl-shell .dl-glyph { width: 64px; height: 78px; background: linear-gradient(135deg, #107c41 0%, #0a4e2a 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 1.1rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.18); }
+                      .dl-shell .dl-meta { flex: 1; }
+                      .dl-shell .dl-fname { font-size: 1.05rem; font-weight: 700; color: #111827; word-break: break-all; }
+                      .dl-shell .dl-fpath { font-size: 0.76rem; color: #6b7280; font-family: 'Cascadia Code', ui-monospace, monospace; margin-top: 4px; }
+                      .dl-shell .dl-check { padding: 4px 12px; background: #16a34a; color: #fff; border-radius: 4px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; }
+                      .dl-shell .dl-details { padding: 18px 28px; }
+                      .dl-shell .dl-details table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+                      .dl-shell .dl-details td { padding: 6px 0; vertical-align: top; }
+                      .dl-shell .dl-details td:first-child { color: #6b7280; width: 130px; font-size: 0.74rem; }
+                      .dl-shell .dl-details td:nth-child(2) { color: #111827; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.78rem; word-break: break-all; }
+                      .dl-shell .dl-note { margin: 4px 28px 22px; padding: 12px 14px; background: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 0 4px 4px 0; font-size: 0.82rem; color: #166534; line-height: 1.7; }
+                      .dl-shell .dl-note b { color: #14532d; }
+                      .dl-shell .dl-note code { background: #fff; border: 1px solid #bbf7d0; padding: 1px 6px; border-radius: 3px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.74rem; color: #166534; }
+                    </style>
+                    <div class="dl-shell">
+                      <div class="dl-card">
+                        <div class="dl-toolbar"><a href="https://mail.crimson-dawn.net/msg/5">&larr; Back to message</a><span style="color:#9ca3af;">|</span><span style="color:#6b7280;">Edge Downloads</span></div>
+                        <div class="dl-confirm">
+                          <div class="dl-glyph">XLS</div>
+                          <div class="dl-meta">
+                            <div class="dl-fname">budget-Q1-final.xlsx</div>
+                            <div class="dl-fpath">Saved to /home/ir-lead/downloads/budget-Q1-final.xlsx</div>
+                          </div>
+                          <div class="dl-check">&#10003; SAVED</div>
+                        </div>
+                        <div class="dl-details">
+                          <table>
+                            <tr><td>Size</td><td>31.4 KB (32,154 bytes)</td></tr>
+                            <tr><td>Type</td><td>Microsoft Excel spreadsheet (OOXML)</td></tr>
+                            <tr><td>From</td><td>mail.crimson-dawn.net (internal attachment)</td></tr>
+                            <tr><td>Downloaded</td><td>${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC</td></tr>
+                          </table>
+                        </div>
+                        <div class="dl-note">
+                          <b>Phase 2 decoy.</b> Hashing this file in the terminal (<code>sha256sum</code>) returns a clean result &mdash; no anomalies. Internal Finance attachment from a real sender, on the workstation\'s expected vendor list. Not the payload.
+                        </div>
+                      </div>
                     </div>`;
                 }
             },
