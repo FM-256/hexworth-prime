@@ -104,6 +104,11 @@ const PISFinalConfig = {
             { id: 'briefing', label: 'Briefing',    icon: '\uD83D\uDCCB',       app: 'briefing' },
             { id: 'terminal', label: 'Terminal',    icon: '\uD83D\uDDA5\uFE0F', app: 'terminal' },
             { id: 'browser',  label: 'Firefox',     icon: '\uD83C\uDF10',       app: 'browser'  },
+            // Outlook is a dedicated Mail app (LREP workflow-realism, 2026-06-04).
+            // Custom app type handled by onAppLaunch -> _launchMailApp below.
+            // The mail.crimson-dawn.net browser routes remain in place as
+            // fallback \u2014 clicking an inbox URL inside Firefox still works.
+            { id: 'mail',     label: 'Outlook',     icon: '\u2709\uFE0F',       app: 'mail'     },
             { id: 'notes',    label: 'Notes',       icon: '\uD83D\uDCDD',       app: 'notes'    },
             { id: 'hints',    label: 'Hints',       icon: '\uD83D\uDCA1',       app: 'hints'    },
             { id: 'flags',    label: 'Submit Flag', icon: '\uD83D\uDEA9',       app: 'flags'    }
@@ -113,6 +118,8 @@ const PISFinalConfig = {
     onAppLaunch: function(iconDef, engine) {
         if (iconDef && iconDef.app === 'briefing') {
             BriefingPage.show(this, function() {}, { force: true });
+        } else if (iconDef && iconDef.app === 'mail') {
+            PISFinalConfig._launchMailApp(engine);
         }
     },
 
@@ -4459,6 +4466,117 @@ const PISFinalConfig = {
                 <div class="nvd-nav-item">Statistics</div>
                 <div class="nvd-nav-item">About</div>
             </div>`;
+    },
+
+    // =========================================================
+    // OUTLOOK MAIL APP — standalone window (LREP workflow-realism)
+    // =========================================================
+    // Launched from the desktop "Outlook" icon. Opens its own
+    // arena-window via engine.openWindow(). Renders the same
+    // OWA-styled inbox + read-pane HTML produced by _renderInbox
+    // and _renderMessage, but routes link clicks INTERNALLY (no
+    // browser navigation), so the student can have Outlook open
+    // alongside the Browser window simultaneously — the real-
+    // world workflow.
+    //
+    // Defensive design:
+    //  - Browser routes /inbox + /msg/N still work in Firefox
+    //    (fallback if anything goes wrong with this app, or if
+    //     a link from another tool points back to the inbox URL)
+    //  - Cross-app links (downloads, GAME OVER decoy landings,
+    //    Slack/Zoom legit decoys, other tool URLs) are forwarded
+    //    to the Browser app — Mail does not try to render them
+    //  - Window opens at 900×620 for the OWA chrome to breathe
+    // =========================================================
+
+    _launchMailApp: function(engine) {
+        // Build the window content container
+        var container = document.createElement('div');
+        container.className = 'mail-app-container';
+        container.style.cssText = 'width:100%; height:100%; overflow:auto; background:#f3f2f1;';
+
+        // Open the window via the engine's existing window manager
+        var winRec = engine.openWindow('mail', 'Outlook — accounts@crimson-dawn.net', '✉️', container);
+
+        // Resize to give the OWA chrome more room (default is 700×500)
+        if (winRec && winRec.el) {
+            winRec.el.style.width = '920px';
+            winRec.el.style.height = '640px';
+        }
+
+        // Render initial inbox view
+        this._mailAppRender(container, engine, { view: 'inbox' });
+    },
+
+    // Render a view (inbox or message) into the mail app container,
+    // then wire link clicks for internal vs cross-app routing.
+    _mailAppRender: function(container, engine, state) {
+        if (state.view === 'inbox') {
+            container.innerHTML = this._renderInbox();
+        } else if (state.view === 'message' && state.msgId != null) {
+            // Look up the message via the existing webApp pages so we
+            // reuse the exact same data + render path the browser uses
+            var page = this.webApp.pages['/msg/' + state.msgId];
+            if (page && typeof page.html === 'function') {
+                container.innerHTML = page.html();
+            } else {
+                container.innerHTML = '<div style="padding:32px; text-align:center; color:#6b7280;">Message not found.</div>';
+            }
+        }
+        // Re-wire clicks every render (innerHTML wipes prior listeners)
+        this._mailAppWireLinks(container, engine);
+    },
+
+    _mailAppWireLinks: function(container, engine) {
+        var self = this;
+        container.addEventListener('click', function handler(e) {
+            var anchor = e.target.closest('a[href]');
+            if (!anchor) return;
+            var href = anchor.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+            e.preventDefault();
+            self._mailAppHandleHref(href, container, engine);
+        });
+    },
+
+    _mailAppHandleHref: function(href, container, engine) {
+        // Internal mail routes — re-render in this container, no browser
+        // Pattern matches: https://mail.crimson-dawn.net/inbox
+        //                  https://mail.crimson-dawn.net/msg/N
+        var inboxMatch = href.match(/^https?:\/\/mail\.crimson-dawn\.net\/inbox\/?$/);
+        if (inboxMatch) {
+            this._mailAppRender(container, engine, { view: 'inbox' });
+            return;
+        }
+        var msgMatch = href.match(/^https?:\/\/mail\.crimson-dawn\.net\/msg\/(\d+)\/?$/);
+        if (msgMatch) {
+            this._mailAppRender(container, engine, { view: 'message', msgId: msgMatch[1] });
+            return;
+        }
+        // Everything else — downloads, GAME OVER pages, other tool URLs,
+        // legit decoys — forward to the Browser app so Mail and Browser
+        // coexist like a real desktop. If Browser is not open, launch it.
+        this._mailAppForwardToBrowser(href, engine);
+    },
+
+    _mailAppForwardToBrowser: function(href, engine) {
+        // Ensure the Browser window is open
+        if (!engine._windows || !engine._windows['browser']) {
+            // Synthesize the launch by reusing the engine's _launchApp
+            // path. The browser icon definition has to match the desktop
+            // declaration above so the existing engine switch handles it.
+            engine._launchApp({ id: 'browser', label: 'Firefox', icon: '🌐', app: 'browser' });
+        }
+        // Find the BrowserInstance (ArenaBrowser tracks instances; the
+        // most recent one is at the end of the array)
+        if (typeof ArenaBrowser !== 'undefined' && ArenaBrowser._instances && ArenaBrowser._instances.length) {
+            var browserInst = ArenaBrowser._instances[ArenaBrowser._instances.length - 1];
+            if (browserInst && typeof browserInst.navigate === 'function') {
+                browserInst.navigate(href);
+            }
+        }
+        // Focus the browser window so the student sees the navigation
+        if (engine._focusWindow) engine._focusWindow('browser');
     },
 
     // Outlook-style inbox listing
