@@ -3272,111 +3272,259 @@ const PISFinalConfig = {
         const applied = db.patch_state.applied;
 
         const cves = [
-            { id: 'CVE-2024-21412', title: 'Internet Shortcut Files Security Feature Bypass Vulnerability', severity: 'HIGH', score: '8.1' },
-            { id: 'CVE-2022-30190', title: 'Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability ("Follina")', severity: 'HIGH', score: '7.8' },
-            { id: 'CVE-2024-26169', title: 'Windows Error Reporting Service Elevation of Privilege Vulnerability', severity: 'MEDIUM (EoP)', score: '7.8' }
+            { id: 'CVE-2024-21412', title: 'Internet Shortcut Files Security Feature Bypass Vulnerability', severity: 'HIGH', score: '8.1', vector: 'AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H', kb: 'KB5034441', released: '2024-02-13', categories: ['Defender SmartScreen'] },
+            { id: 'CVE-2022-30190', title: 'Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability ("Follina")', severity: 'CRITICAL', score: '7.8', vector: 'AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H', kb: 'KB5014699', released: '2022-06-14', categories: ['Office', 'MSDT', 'Active exploitation'] },
+            { id: 'CVE-2024-26169', title: 'Windows Error Reporting Service Elevation of Privilege Vulnerability', severity: 'IMPORTANT', score: '7.8', vector: 'AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H', kb: 'KB5036892', released: '2024-03-12', categories: ['WER'] }
         ];
 
         const outstanding = cves.filter(c => !applied.includes(c.id));
         const appliedList = cves.filter(c => applied.includes(c.id));
 
-        const outRows = outstanding.map(c => `
-            <tr style="border-bottom:1px solid #eee;">
-                <td style="padding:8px 10px; font-family:monospace; font-size:0.8rem; color:#dc2626;">${c.id}</td>
-                <td style="padding:8px 10px; font-size:0.8rem;">${c.title}</td>
-                <td style="padding:8px 10px; font-size:0.78rem; color:#e67e22; font-weight:700;">${c.severity}</td>
-                <td style="padding:8px 10px;">
-                    <button data-action="apply_patch" data-cve="${c.id}"
-                            style="padding:5px 12px; background:#dc2626; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:0.78rem; font-family:inherit; font-weight:600;">Apply Patch</button>
-                </td>
-            </tr>`).join('');
+        // Severity → SCCM-style badge tone
+        const sevToneFor = function(c) {
+            if (c.id === 'CVE-2022-30190') return 'crit'; // matches incident
+            if (c.severity === 'CRITICAL') return 'crit';
+            if (c.severity === 'HIGH') return 'high';
+            return 'med';
+        };
 
-        const appliedRows = appliedList.map(c => `
-            <tr style="border-bottom:1px solid #eee; background:#f0fff4;">
-                <td style="padding:8px 10px; font-family:monospace; font-size:0.8rem; color:#2ecc71;">${c.id}</td>
-                <td style="padding:8px 10px; font-size:0.8rem;">${c.title}</td>
-                <td style="padding:8px 10px; font-size:0.78rem; color:#2ecc71; font-weight:700;">PATCHED</td>
-                <td style="padding:8px 10px;">
-                    <button data-action="undo_patch" data-cve="${c.id}"
-                            style="padding:5px 12px; background:#888; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:0.78rem; font-family:inherit;">Undo / Re-evaluate</button>
+        // Outstanding rows — SCCM Update Group style
+        const outRows = outstanding.map(c => {
+            const sev = sevToneFor(c);
+            const catChips = c.categories.map(cat => '<span class="pm-cat-chip">' + cat + '</span>').join('');
+            return `
+            <tr class="pm-row pm-row-out">
+                <td class="pm-td pm-td-cve">
+                    <div class="pm-cve-id">${c.id}</div>
+                    <div class="pm-cve-kb">${c.kb}</div>
                 </td>
-            </tr>`).join('');
+                <td class="pm-td pm-td-title">
+                    <div class="pm-title">${c.title}</div>
+                    <div class="pm-cats">${catChips}<span class="pm-released">Released ${c.released}</span></div>
+                </td>
+                <td class="pm-td pm-td-cvss">
+                    <div class="pm-cvss-circle pm-cvss-${sev}">${c.score}</div>
+                    <div class="pm-cvss-sev pm-cvss-sev-${sev}">${c.severity}</div>
+                </td>
+                <td class="pm-td pm-td-status">
+                    <div class="pm-status pm-status-pending">
+                        <span class="pm-status-dot"></span>Required
+                    </div>
+                    <div class="pm-status-sub">Not deployed</div>
+                </td>
+                <td class="pm-td pm-td-action">
+                    <button class="pm-btn pm-btn-apply" data-action="apply_patch" data-cve="${c.id}">Deploy Update</button>
+                </td>
+            </tr>`;
+        }).join('');
 
-        // Check Phase 6 completion and reveal composite flag if all 3 actions done.
-        // Nancy round 3 BLOCK fix: require EXCLUSIVE presence of CVE-2022-30190.
-        // If any wrong patches (CVE-2024-21412 or CVE-2024-26169) remain applied
-        // without being Undone, Phase 6 does NOT complete -- the student must
-        // Undo wrong patches before the gate releases. This enforces the
-        // pedagogical loop the walkthrough specifies (identify the exploited
-        // vulnerability, patch ONLY that one, validate, then filter).
-        const wrongPatchesStillApplied = applied.some(
-            cve => cve !== 'CVE-2022-30190'
-        );
+        // Applied rows — green deployed style
+        const appliedRows = appliedList.map(c => {
+            const isCorrect = c.id === 'CVE-2022-30190';
+            const rowCls = isCorrect ? 'pm-row-applied-ok' : 'pm-row-applied-warn';
+            const statusText = isCorrect ? 'Deployed &mdash; correct target' : 'Deployed &mdash; review';
+            const statusCls = isCorrect ? 'pm-status-ok' : 'pm-status-warn';
+            return `
+            <tr class="pm-row ${rowCls}">
+                <td class="pm-td pm-td-cve">
+                    <div class="pm-cve-id ${isCorrect ? 'ok' : 'warn'}">${c.id}</div>
+                    <div class="pm-cve-kb">${c.kb}</div>
+                </td>
+                <td class="pm-td pm-td-title">
+                    <div class="pm-title">${c.title}</div>
+                    <div class="pm-cats"><span class="pm-released">Deployed ${new Date().toISOString().slice(0, 10)}</span></div>
+                </td>
+                <td class="pm-td pm-td-cvss">
+                    <div class="pm-cvss-circle pm-cvss-done">&#10003;</div>
+                </td>
+                <td class="pm-td pm-td-status">
+                    <div class="pm-status ${statusCls}">
+                        <span class="pm-status-dot"></span>${statusText}
+                    </div>
+                </td>
+                <td class="pm-td pm-td-action">
+                    <button class="pm-btn pm-btn-undo" data-action="undo_patch" data-cve="${c.id}">Undo / Re-evaluate</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        // Phase 6 completion gate — see comment in original
+        const wrongPatchesStillApplied = applied.some(cve => cve !== 'CVE-2022-30190');
         const phaseComplete = applied.includes('CVE-2022-30190') &&
             !wrongPatchesStillApplied &&
             db.rapid7_scan_state.result === 'clean' &&
             db.mail_filter_state.active;
 
+        // Compliance score calculation — % of required updates deployed correctly
+        const compliancePct = outstanding.length === 0 && !wrongPatchesStillApplied
+            ? 100
+            : Math.round(((applied.length - (wrongPatchesStillApplied ? applied.filter(c => c !== 'CVE-2022-30190').length : 0)) / cves.length) * 100);
+
         const compositeBlock = phaseComplete ? `
-            <div style="margin-top:16px; padding:14px; background:#f0fff4; border:2px solid #2ecc71; border-radius:4px;">
-                <div style="font-size:0.9rem; font-weight:700; color:#2ecc71; margin-bottom:8px;">Containment + Remediation: COMPLETE</div>
-                <div style="font-size:0.82rem; color:#555; margin-bottom:6px;">All three Phase 6 actions completed correctly:</div>
-                <div style="font-size:0.78rem; color:#555; margin-bottom:10px;">
-                    <div style="color:#2ecc71;">&#10003; CVE-2022-30190 patched</div>
-                    <div style="color:#2ecc71;">&#10003; Rapid7 InsightVM scan: CLEAN (Scan ID: S7K9P2)</div>
-                    <div style="color:#2ecc71;">&#10003; Mail filter rule active</div>
+            <div class="pm-composite">
+                <div class="pm-comp-h">Containment + Remediation: COMPLETE</div>
+                <div class="pm-comp-sub">All three Phase 6 actions completed correctly:</div>
+                <div class="pm-comp-checks">
+                    <div class="pm-comp-check">&#10003; CVE-2022-30190 patched (KB5014699 deployed)</div>
+                    <div class="pm-comp-check">&#10003; Rapid7 InsightVM scan: CLEAN (Scan ID: S7K9P2)</div>
+                    <div class="pm-comp-check">&#10003; Mail filter rule active (Proofpoint policy enforced)</div>
                 </div>
-                <div style="padding:10px; background:#fff; border:2px solid #2ecc71; border-radius:4px; text-align:center;">
-                    <div style="font-size:0.75rem; color:#888; margin-bottom:4px; letter-spacing:0.1em; text-transform:uppercase;">Composite Flag</div>
-                    <div style="font-size:1.2rem; font-weight:700; color:#2ecc71; font-family:monospace;">REMED-OK-S7K9P2</div>
-                    <div style="font-size:0.72rem; color:#888; margin-top:4px;">Submit this as Flag 6</div>
+                <div class="pm-comp-flag">
+                    <div class="pm-comp-flag-h">Composite Flag</div>
+                    <div class="pm-comp-flag-v">REMED-OK-S7K9P2</div>
+                    <div class="pm-comp-flag-sub">Submit this as Flag 6</div>
                 </div>
             </div>` : '';
 
-        return `<div style="font-family:system-ui,sans-serif; max-width:860px; margin:0 auto; padding:16px;">
-            <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON DAWN -- PATCH MANAGEMENT</div>
-                <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">WS-EMORALES-01 &mdash; Vulnerability Status</div>
-                <div style="font-size:0.72rem; color:#888;">Host: WS-EMORALES-01 (10.0.4.18) &nbsp;|&nbsp; User: e.morales &nbsp;|&nbsp; OS: Windows 10 22H2</div>
-            </div>
-
-            <div style="margin-bottom:16px;">
-                <div style="font-size:0.82rem; font-weight:700; color:#dc2626; margin-bottom:8px;">Outstanding Vulnerabilities (${outstanding.length})</div>
-                ${outstanding.length > 0 ? `
-                <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
-                    <thead><tr style="background:#f5f5f5;">
-                        <th style="padding:8px 10px; text-align:left; color:#555;">CVE ID</th>
-                        <th style="padding:8px 10px; text-align:left; color:#555;">Title</th>
-                        <th style="padding:8px 10px; text-align:left; color:#555;">Severity</th>
-                        <th style="padding:8px 10px; text-align:left; color:#555;">Action</th>
-                    </tr></thead>
-                    <tbody>${outRows}</tbody>
-                </table>
-                <div style="margin-top:8px; padding:8px; background:#fff8f0; border:1px solid #e67e22; border-radius:4px; font-size:0.77rem; color:#e67e22;">
-                    <b>Instruction:</b> Apply patches one at a time. Identify the exploited vulnerability (from Phase 2) and patch it first.
-                </div>` : '<div style="color:#2ecc71; font-size:0.8rem; padding:8px;">No outstanding vulnerabilities. Verify with Rapid7 InsightVM scan.</div>'}
-            </div>
-
-            ${appliedList.length > 0 ? `
-            <div style="margin-bottom:16px;">
-                <div style="font-size:0.82rem; font-weight:700; color:#2ecc71; margin-bottom:8px;">Recently Applied (${appliedList.length})</div>
-                <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
-                    <thead><tr style="background:#f5f5f5;">
-                        <th style="padding:8px 10px; text-align:left; color:#555;">CVE ID</th>
-                        <th style="padding:8px 10px; text-align:left; color:#555;">Title</th>
-                        <th style="padding:8px 10px; text-align:left; color:#555;">Status</th>
-                        <th style="padding:8px 10px; text-align:left; color:#555;">Action</th>
-                    </tr></thead>
-                    <tbody>${appliedRows}</tbody>
-                </table>
-            </div>` : ''}
-
-            <div style="margin-top:8px; font-size:0.73rem; color:#888;">
-                Next step after patching: validate with <a href="https://insightvm.crimson-dawn.net" style="color:#dc2626;">Rapid7 InsightVM</a> scan.
-            </div>
-            ${compositeBlock}
-            <div data-results></div>
-        </div>`;
+        return `
+            <style>
+              .pm-shell { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 1080px; margin: 18px auto; color: #1f2937; }
+              .pm-shell .pm-header { background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%); color: #fff; padding: 14px 22px; display: flex; align-items: center; gap: 14px; border-radius: 6px 6px 0 0; }
+              .pm-shell .pm-logo { width: 38px; height: 38px; flex-shrink: 0; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #0078d4; font-weight: 800; font-size: 0.7rem; }
+              .pm-shell .pm-brand-org { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }
+              .pm-shell .pm-brand-app { font-size: 1.05rem; font-weight: 700; margin-top: 1px; }
+              .pm-shell .pm-host-info { margin-left: auto; text-align: right; font-size: 0.74rem; opacity: 0.92; line-height: 1.5; font-family: 'Cascadia Code', ui-monospace, monospace; }
+              .pm-shell .pm-host-info b { color: #fff; font-weight: 600; }
+              .pm-shell .pm-status-strip { background: #f3f4f6; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; padding: 12px 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+              @media (max-width: 760px) { .pm-shell .pm-status-strip { grid-template-columns: repeat(2, 1fr); } }
+              .pm-shell .pm-status-tile-k { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7280; font-weight: 700; }
+              .pm-shell .pm-status-tile-v { font-size: 1rem; font-weight: 700; color: #111827; margin-top: 3px; font-family: 'Cascadia Code', ui-monospace, monospace; }
+              .pm-shell .pm-status-tile-v.crit { color: #b91c1c; }
+              .pm-shell .pm-status-tile-v.ok { color: #15803d; }
+              .pm-shell .pm-status-tile-v.warn { color: #c2410c; }
+              .pm-shell .pm-section { background: #fff; border: 1px solid #e5e7eb; border-top: 0; padding: 16px 22px; }
+              .pm-shell .pm-section-h { font-size: 0.82rem; font-weight: 700; color: #111827; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+              .pm-shell .pm-section-h-count { background: #fee2e2; color: #b91c1c; padding: 1px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; }
+              .pm-shell .pm-section-h-count.ok { background: #dcfce7; color: #15803d; }
+              .pm-shell .pm-section-sub { font-size: 0.76rem; color: #6b7280; margin-bottom: 10px; }
+              .pm-shell .pm-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+              .pm-shell .pm-table thead th { background: #f9fafb; padding: 8px 12px; text-align: left; color: #4b5563; font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; border-bottom: 2px solid #e5e7eb; }
+              .pm-shell .pm-row { border-bottom: 1px solid #f3f4f6; }
+              .pm-shell .pm-row:hover { background: #fafbfc; }
+              .pm-shell .pm-row.pm-row-applied-ok { background: #f0fdf4; }
+              .pm-shell .pm-row.pm-row-applied-warn { background: #fff7ed; }
+              .pm-shell .pm-td { padding: 12px; vertical-align: middle; }
+              .pm-shell .pm-td-cve { width: 130px; }
+              .pm-shell .pm-cve-id { font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.8rem; font-weight: 700; color: #dc2626; }
+              .pm-shell .pm-cve-id.ok { color: #15803d; }
+              .pm-shell .pm-cve-id.warn { color: #c2410c; }
+              .pm-shell .pm-cve-kb { font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.7rem; color: #6b7280; margin-top: 2px; }
+              .pm-shell .pm-title { color: #111827; font-weight: 500; font-size: 0.82rem; line-height: 1.45; }
+              .pm-shell .pm-cats { margin-top: 5px; }
+              .pm-shell .pm-cat-chip { display: inline-block; padding: 1px 7px; background: #eff6ff; color: #1d4ed8; font-size: 0.66rem; border-radius: 3px; margin-right: 4px; border: 1px solid #dbeafe; }
+              .pm-shell .pm-released { font-size: 0.66rem; color: #9ca3af; margin-left: 4px; }
+              .pm-shell .pm-td-cvss { width: 80px; text-align: center; }
+              .pm-shell .pm-cvss-circle { display: inline-block; width: 36px; height: 36px; border-radius: 50%; line-height: 32px; font-size: 0.8rem; font-weight: 800; font-family: 'Cascadia Code', ui-monospace, monospace; border: 2px solid; }
+              .pm-shell .pm-cvss-circle.pm-cvss-crit { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+              .pm-shell .pm-cvss-circle.pm-cvss-high { border-color: #ea580c; color: #ea580c; background: #fff7ed; }
+              .pm-shell .pm-cvss-circle.pm-cvss-med { border-color: #ca8a04; color: #ca8a04; background: #fefce8; }
+              .pm-shell .pm-cvss-circle.pm-cvss-done { border-color: #15803d; color: #15803d; background: #f0fdf4; line-height: 30px; font-size: 1rem; }
+              .pm-shell .pm-cvss-sev { font-size: 0.62rem; letter-spacing: 0.08em; font-weight: 700; margin-top: 3px; }
+              .pm-shell .pm-cvss-sev.pm-cvss-sev-crit { color: #dc2626; }
+              .pm-shell .pm-cvss-sev.pm-cvss-sev-high { color: #ea580c; }
+              .pm-shell .pm-cvss-sev.pm-cvss-sev-med { color: #ca8a04; }
+              .pm-shell .pm-td-status { width: 170px; }
+              .pm-shell .pm-status { font-size: 0.78rem; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+              .pm-shell .pm-status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+              .pm-shell .pm-status-pending { color: #b91c1c; }
+              .pm-shell .pm-status-pending .pm-status-dot { background: #dc2626; }
+              .pm-shell .pm-status-ok { color: #15803d; }
+              .pm-shell .pm-status-ok .pm-status-dot { background: #22c55e; }
+              .pm-shell .pm-status-warn { color: #c2410c; }
+              .pm-shell .pm-status-warn .pm-status-dot { background: #f97316; }
+              .pm-shell .pm-status-sub { font-size: 0.7rem; color: #9ca3af; margin-top: 2px; }
+              .pm-shell .pm-td-action { width: 150px; text-align: right; }
+              .pm-shell .pm-btn { padding: 6px 14px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-size: 0.76rem; font-weight: 600; font-family: inherit; }
+              .pm-shell .pm-btn-apply { background: #0078d4; color: #fff; border-color: #005a9e; }
+              .pm-shell .pm-btn-apply:hover { background: #005a9e; }
+              .pm-shell .pm-btn-undo { background: #fff; color: #4b5563; border-color: #d1d5db; }
+              .pm-shell .pm-btn-undo:hover { background: #f3f4f6; border-color: #9ca3af; }
+              .pm-shell .pm-instruction { margin-top: 12px; padding: 10px 14px; background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 4px 4px 0; font-size: 0.78rem; color: #9a3412; line-height: 1.55; }
+              .pm-shell .pm-instruction b { color: #7c2d12; }
+              .pm-shell .pm-empty-ok { padding: 14px; color: #15803d; font-size: 0.84rem; font-weight: 600; text-align: center; background: #f0fdf4; border: 1px dashed #86efac; border-radius: 4px; }
+              .pm-shell .pm-footer { background: #f9fafb; border: 1px solid #e5e7eb; border-top: 0; padding: 10px 22px; font-size: 0.76rem; color: #4b5563; border-radius: 0 0 6px 6px; }
+              .pm-shell .pm-footer a { color: #0078d4; text-decoration: none; font-weight: 600; }
+              .pm-shell .pm-footer a:hover { text-decoration: underline; }
+              /* Composite block */
+              .pm-shell .pm-composite { margin-top: 18px; padding: 18px 22px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #16a34a; border-radius: 6px; }
+              .pm-shell .pm-comp-h { font-size: 1rem; font-weight: 800; color: #15803d; margin-bottom: 6px; letter-spacing: 0.02em; }
+              .pm-shell .pm-comp-sub { font-size: 0.82rem; color: #374151; margin-bottom: 10px; }
+              .pm-shell .pm-comp-checks { margin-bottom: 14px; font-size: 0.78rem; color: #166534; line-height: 1.9; }
+              .pm-shell .pm-comp-check { padding-left: 6px; }
+              .pm-shell .pm-comp-flag { padding: 14px 18px; background: #fff; border: 2px solid #16a34a; border-radius: 6px; text-align: center; }
+              .pm-shell .pm-comp-flag-h { font-size: 0.7rem; color: #6b7280; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 6px; }
+              .pm-shell .pm-comp-flag-v { font-size: 1.5rem; font-weight: 800; color: #15803d; font-family: 'Cascadia Code', ui-monospace, monospace; letter-spacing: 0.05em; }
+              .pm-shell .pm-comp-flag-sub { font-size: 0.74rem; color: #6b7280; margin-top: 6px; }
+            </style>
+            <div class="pm-shell">
+                <div class="pm-header">
+                    <div class="pm-logo">CFM</div>
+                    <div>
+                        <div class="pm-brand-org">Crimson Dawn &middot; Configuration Manager</div>
+                        <div class="pm-brand-app">Endpoint Compliance &mdash; Software Updates</div>
+                    </div>
+                    <div class="pm-host-info">
+                        <div><b>WS-EMORALES-01</b></div>
+                        <div>10.0.4.18 &middot; Windows 10 22H2 (19045.4291)</div>
+                        <div>User: <b>e.morales</b> &middot; Domain: CRIMSON-DAWN</div>
+                    </div>
+                </div>
+                <div class="pm-status-strip">
+                    <div>
+                        <div class="pm-status-tile-k">Outstanding</div>
+                        <div class="pm-status-tile-v ${outstanding.length > 0 ? 'crit' : 'ok'}">${outstanding.length}</div>
+                    </div>
+                    <div>
+                        <div class="pm-status-tile-k">Deployed (this session)</div>
+                        <div class="pm-status-tile-v ${applied.length > 0 ? 'ok' : ''}">${applied.length}</div>
+                    </div>
+                    <div>
+                        <div class="pm-status-tile-k">Compliance score</div>
+                        <div class="pm-status-tile-v ${compliancePct === 100 ? 'ok' : (compliancePct >= 50 ? 'warn' : 'crit')}">${compliancePct}%</div>
+                    </div>
+                    <div>
+                        <div class="pm-status-tile-k">Last sync</div>
+                        <div class="pm-status-tile-v">${new Date().toISOString().slice(0, 16).replace('T', ' ')}</div>
+                    </div>
+                </div>
+                <div class="pm-section">
+                    <div class="pm-section-h">Outstanding Vulnerabilities <span class="pm-section-h-count ${outstanding.length === 0 ? 'ok' : ''}">${outstanding.length}</span></div>
+                    <div class="pm-section-sub">Updates classified as <b>Security Update</b> and pending deployment to this host. Sorted by severity (highest first).</div>
+                    ${outstanding.length > 0 ? `
+                    <table class="pm-table">
+                        <thead><tr>
+                            <th>CVE / KB</th>
+                            <th>Title</th>
+                            <th>CVSS</th>
+                            <th>Compliance</th>
+                            <th></th>
+                        </tr></thead>
+                        <tbody>${outRows}</tbody>
+                    </table>
+                    <div class="pm-instruction"><b>Operator note:</b> Apply patches one at a time. Identify the exploited vulnerability from <b>Phase 2 hash analysis</b> first and deploy <b>that KB only</b>. Wrong patches will increase remediation time and count against the Eclipse score (-40 each).</div>
+                    ` : '<div class="pm-empty-ok">No outstanding vulnerabilities. Validate with Rapid7 InsightVM scan.</div>'}
+                </div>
+                ${appliedList.length > 0 ? `
+                <div class="pm-section">
+                    <div class="pm-section-h">Recently Deployed <span class="pm-section-h-count ok">${appliedList.length}</span></div>
+                    <div class="pm-section-sub">Updates deployed in the current remediation session.</div>
+                    <table class="pm-table">
+                        <thead><tr>
+                            <th>CVE / KB</th>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Compliance</th>
+                            <th></th>
+                        </tr></thead>
+                        <tbody>${appliedRows}</tbody>
+                    </table>
+                </div>` : ''}
+                <div class="pm-footer">
+                    Next step after patching: validate with <a href="https://insightvm.crimson-dawn.net">Rapid7 InsightVM</a> scan, then activate the mail filter rule in <a href="https://mailadmin.crimson-dawn.net">Mail Admin</a>.
+                </div>
+                ${compositeBlock}
+                <div data-results></div>
+            </div>`;
     },
 
     _handlePatchAction: function(data, engine) {
