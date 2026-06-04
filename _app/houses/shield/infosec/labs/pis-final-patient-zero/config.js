@@ -1112,31 +1112,86 @@ const PISFinalConfig = {
             '/attest/Q2-2026': {
                 title: 'Q2 2026 Compliance Attestation -- compliance.crimson-dawn.net',
                 html: `
-                <div style="font-family:system-ui,sans-serif; max-width:680px; margin:30px auto; padding:0; background:#fff; border:1px solid #ddd; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                    <div style="background:#222; color:#fff; padding:14px 20px; border-radius:6px 6px 0 0;">
-                        <div style="font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; opacity:0.85;">Crimson Dawn Logistics &middot; Compliance Office</div>
-                        <div style="font-size:1.05rem; font-weight:700; margin-top:2px;">Q2 2026 Quarterly Compliance Attestation</div>
+                <style>
+                  .at-shell { font-family: 'Inter', system-ui, sans-serif; max-width: 920px; margin: 18px auto; color: #1f2937; }
+                  .at-shell .at-header { background: linear-gradient(135deg, #581c87 0%, #4c1d95 100%); color: #fff; padding: 16px 22px; display: flex; align-items: center; gap: 14px; border-radius: 6px 6px 0 0; }
+                  .at-shell .at-logo { width: 38px; height: 38px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #581c87; font-weight: 800; font-size: 0.72rem; letter-spacing: 0.04em; }
+                  .at-shell .at-brand-org { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.85; }
+                  .at-shell .at-brand-app { font-size: 1.04rem; font-weight: 700; margin-top: 1px; }
+                  .at-shell .at-doc-ref { margin-left: auto; text-align: right; font-size: 0.72rem; opacity: 0.92; font-family: 'JetBrains Mono', ui-monospace, monospace; line-height: 1.5; }
+                  .at-shell .at-meta-strip { background: #faf5ff; border-left: 1px solid #e9d5ff; border-right: 1px solid #e9d5ff; padding: 12px 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+                  @media (max-width: 760px) { .at-shell .at-meta-strip { grid-template-columns: repeat(2, 1fr); } }
+                  .at-shell .at-meta-k { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: #6b21a8; font-weight: 700; }
+                  .at-shell .at-meta-v { font-size: 0.86rem; font-weight: 700; color: #111827; margin-top: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+                  .at-shell .at-body { background: #fff; border: 1px solid #e5e7eb; border-top: 0; padding: 22px 26px; line-height: 1.6; }
+                  .at-shell .at-section-h { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; font-weight: 700; margin-bottom: 8px; }
+                  .at-shell .at-intro { background: #faf5ff; border-left: 4px solid #581c87; padding: 12px 14px; border-radius: 0 4px 4px 0; margin-bottom: 18px; font-size: 0.83rem; color: #4c1d95; }
+                  .at-shell .at-intro b { color: #2e1065; }
+                  .at-shell .at-checklist { margin-bottom: 20px; }
+                  .at-shell .at-item { display: flex; gap: 12px; padding: 12px 14px; border: 1px solid #e5e7eb; border-radius: 4px; margin-bottom: 8px; background: #fff; transition: background 0.12s; }
+                  .at-shell .at-item:hover { background: #faf5ff; border-color: #ddd6fe; }
+                  .at-shell .at-item input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; accent-color: #581c87; transform: scale(1.15); }
+                  .at-shell .at-item-text { font-size: 0.83rem; color: #1f2937; flex: 1; }
+                  .at-shell .at-item-ref { font-size: 0.7rem; color: #9ca3af; font-family: 'JetBrains Mono', ui-monospace, monospace; margin-left: 8px; padding: 2px 7px; background: #f3f4f6; border-radius: 3px; flex-shrink: 0; align-self: flex-start; }
+                  .at-shell .at-sign-row { display: flex; gap: 14px; align-items: center; padding: 16px 18px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; margin-bottom: 16px; }
+                  .at-shell .at-sign-label { font-size: 0.74rem; color: #6b7280; font-weight: 600; letter-spacing: 0.04em; }
+                  .at-shell .at-sign-input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.82rem; color: #111827; flex: 1; outline: 0; }
+                  .at-shell .at-sign-input:focus { border-color: #581c87; box-shadow: 0 0 0 3px rgba(88, 28, 135, 0.14); }
+                  .at-shell .at-submit { padding: 10px 24px; background: #581c87; color: #fff; border: 0; border-radius: 4px; font-weight: 700; font-size: 0.84rem; cursor: pointer; font-family: inherit; }
+                  .at-shell .at-submit:hover { background: #4c1d95; }
+                  .at-shell .at-footer-note { padding: 12px 14px; background: #fefce8; border-left: 4px solid #ca8a04; border-radius: 0 4px 4px 0; font-size: 0.78rem; color: #713f12; line-height: 1.7; }
+                  .at-shell .at-footer-note b { color: #422006; }
+                  .at-shell .at-trust-bar { background: #f9fafb; border: 1px solid #e5e7eb; border-top: 0; padding: 10px 22px; display: flex; gap: 16px; font-size: 0.7rem; color: #6b7280; border-radius: 0 0 6px 6px; }
+                  .at-shell .at-trust-bar-item { display: flex; align-items: center; gap: 6px; }
+                  .at-shell .at-trust-bar-item .at-tb-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 4px #22c55e; }
+                </style>
+                <div class="at-shell">
+                    <div class="at-header">
+                        <div class="at-logo">GRC</div>
+                        <div>
+                            <div class="at-brand-org">Crimson Dawn Logistics &middot; Compliance Office</div>
+                            <div class="at-brand-app">Q2 2026 Quarterly Compliance Attestation</div>
+                        </div>
+                        <div class="at-doc-ref">
+                            <div>Form ID: <b>ATT-Q2-2026-AP</b></div>
+                            <div>Workflow: COMP-WF-21</div>
+                        </div>
                     </div>
-                    <div style="padding:22px 20px; font-size:0.85rem; color:#222; line-height:1.6;">
-                        <div>Reporting period: Apr 1 &ndash; Jun 30, 2026 &middot; Deadline: end of week</div>
-                        <div style="margin-top:14px; padding:12px; background:#f8f8f8; border-left:3px solid #888;">
-                            As an Accounts Payable / Vendor Management team member, attest to the following for Q2 2026 by checking each item and submitting:
+                    <div class="at-meta-strip">
+                        <div><div class="at-meta-k">Reporting Period</div><div class="at-meta-v">Apr 1 &ndash; Jun 30, 2026</div></div>
+                        <div><div class="at-meta-k">Due By</div><div class="at-meta-v">Fri 2026-06-05</div></div>
+                        <div><div class="at-meta-k">Department</div><div class="at-meta-v">Accounts Payable</div></div>
+                        <div><div class="at-meta-k">Frequency</div><div class="at-meta-v">Quarterly</div></div>
+                    </div>
+                    <div class="at-body">
+                        <div class="at-section-h">Attestation Statement</div>
+                        <div class="at-intro">
+                            As an Accounts Payable / Vendor Management team member, I attest that during <b>Q2 2026</b> I have personally completed each of the following responsibilities. By submitting this form, I affirm under <b>SOX &sect; 302</b> and <b>company policy CDC-POL-12</b> that my responses are true to the best of my knowledge.
                         </div>
-                        <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px; font-size:0.83rem;">
-                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have reviewed and understood the AP Wire-Approval Policy (AP-2026-04 rev.3).</span></label>
-                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have completed the quarterly SOX § 404 separation-of-duties verification.</span></label>
-                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have not initiated, approved, or co-signed any wire transfer to an unverified payee in Q2 2026.</span></label>
-                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have completed the FY26 anti-bribery (FCPA) and money-laundering (AML) training modules.</span></label>
-                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have reported any related-party transactions through the standard disclosure form.</span></label>
-                            <label style="display:flex; gap:8px; align-items:flex-start;"><input type="checkbox"><span>I have not received any third-party compensation or gifts above the $50 disclosure threshold.</span></label>
+                        <div class="at-section-h">Attestation Items</div>
+                        <div class="at-checklist">
+                            <label class="at-item"><input type="checkbox"><span class="at-item-text">I have reviewed and understood the AP Wire-Approval Policy.</span><span class="at-item-ref">AP-2026-04 rev.3</span></label>
+                            <label class="at-item"><input type="checkbox"><span class="at-item-text">I have completed the quarterly separation-of-duties verification.</span><span class="at-item-ref">SOX &sect; 404</span></label>
+                            <label class="at-item"><input type="checkbox"><span class="at-item-text">I have not initiated, approved, or co-signed any wire transfer to an unverified payee in Q2 2026.</span><span class="at-item-ref">CDC-POL-12</span></label>
+                            <label class="at-item"><input type="checkbox"><span class="at-item-text">I have completed the FY26 anti-bribery and money-laundering training modules.</span><span class="at-item-ref">FCPA / AML</span></label>
+                            <label class="at-item"><input type="checkbox"><span class="at-item-text">I have reported any related-party transactions through the standard disclosure form.</span><span class="at-item-ref">FORM-DISC-04</span></label>
+                            <label class="at-item"><input type="checkbox"><span class="at-item-text">I have not received any third-party compensation or gifts above the disclosure threshold.</span><span class="at-item-ref">$50 / CDC-POL-08</span></label>
                         </div>
-                        <div style="margin-top:18px; display:flex; gap:10px; align-items:center;">
-                            <label style="font-size:0.78rem; color:#444;">Sign as:&nbsp;<input type="text" placeholder="firstname.lastname" style="padding:6px 8px; border:1px solid #ccc; border-radius:3px; font-family:inherit; font-size:0.78rem;"></label>
-                            <button data-action="attest-noop" style="padding:8px 18px; background:#222; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit; font-size:0.83rem;">Submit Attestation</button>
+                        <div class="at-section-h">Electronic Signature</div>
+                        <div class="at-sign-row">
+                            <span class="at-sign-label">Sign as:</span>
+                            <input type="text" class="at-sign-input" placeholder="firstname.lastname">
+                            <button class="at-submit" data-action="attest-noop">Submit Attestation</button>
                         </div>
-                        <div style="margin-top:16px; padding:10px; background:#fffbe6; border:1px solid #f5dc8a; border-radius:4px; font-size:0.74rem; color:#664;">
-                            <b>IR Note:</b> Internal compliance attestation portal. The msg/7 email is from compliance@crimson-dawn.net (originating IP 10.0.2.3), all auth passes. Legitimate but NOT RELEVANT to the wire-fraud incident.
+                        <div class="at-footer-note">
+                            <b>Operator IR note (training overlay):</b> This is the <b>legitimate</b> internal compliance attestation portal. The msg/7 email is from <code style="background:#fff; padding:1px 5px; border-radius:3px; font-family:'JetBrains Mono', monospace; font-size:0.74rem;">compliance@crimson-dawn.net</code> (originating IP <code style="background:#fff; padding:1px 5px; border-radius:3px; font-family:'JetBrains Mono', monospace; font-size:0.74rem;">10.0.2.3</code> &mdash; internal mail relay), SPF / DKIM / DMARC all pass. This page exists to test whether the analyst correctly distinguishes benign internal mail from the active wire-fraud thread. Submitting this form has <b>no effect on the incident</b>.
                         </div>
+                    </div>
+                    <div class="at-trust-bar">
+                        <div class="at-trust-bar-item"><span class="at-tb-dot"></span>Encrypted (TLS 1.3)</div>
+                        <div class="at-trust-bar-item"><span class="at-tb-dot"></span>SAML SSO verified</div>
+                        <div class="at-trust-bar-item"><span class="at-tb-dot"></span>SOX compliant audit trail</div>
+                        <div style="margin-left:auto;">&copy; 2026 Crimson Dawn Logistics, Inc.</div>
                     </div>
                 </div>`
             },
