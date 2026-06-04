@@ -3927,45 +3927,154 @@ const PISFinalConfig = {
         const active = db.mail_filter_state.active;
 
         const activeBlock = active ? `
-            <div style="margin-bottom:14px; padding:12px; background:#f0fff4; border:2px solid #2ecc71; border-radius:4px;">
-                <div style="font-size:0.85rem; font-weight:700; color:#2ecc71; margin-bottom:4px;">Active Filter Rule</div>
-                <div style="font-size:0.8rem; color:#555;">Scope: ${db.mail_filter_state.rule}</div>
-                <button data-action="remove_filter" style="margin-top:8px; padding:4px 10px; background:#888; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:0.75rem; font-family:inherit;">Remove Rule</button>
+            <div class="ma-active-card">
+                <div class="ma-active-head">
+                    <div class="ma-active-status-dot"></div>
+                    <div>
+                        <div class="ma-active-h">Active Filter Rule</div>
+                        <div class="ma-active-sub">Enforcing on all inbound mail to accounts@crimson-dawn.net</div>
+                    </div>
+                    <div class="ma-active-badge">ENABLED</div>
+                </div>
+                <div class="ma-active-rule">
+                    <div class="ma-active-rule-h">Match expression</div>
+                    <div class="ma-active-rule-v">${db.mail_filter_state.rule}</div>
+                </div>
+                <div class="ma-active-stats">
+                    <div class="ma-active-stat"><div class="ma-active-stat-k">Action</div><div class="ma-active-stat-v">Quarantine + alert SOC</div></div>
+                    <div class="ma-active-stat"><div class="ma-active-stat-k">Priority</div><div class="ma-active-stat-v">90 (high)</div></div>
+                    <div class="ma-active-stat"><div class="ma-active-stat-k">Created</div><div class="ma-active-stat-v">${new Date().toISOString().slice(0, 16).replace('T', ' ')}</div></div>
+                </div>
+                <button class="ma-btn ma-btn-remove" data-action="remove_filter">Remove Rule</button>
             </div>` : '';
 
-        return `<div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-            <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON DAWN -- MAIL ADMIN CONSOLE</div>
-                <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">Add Mail Filter Rule</div>
-                <div style="font-size:0.72rem; color:#888;">Inbound mail filter &middot; accounts@crimson-dawn.net</div>
-            </div>
-            ${activeBlock}
-            <div style="padding:12px; background:#f8f8f8; border:1px solid #ddd; border-radius:4px; margin-bottom:12px;">
-                <div style="font-size:0.8rem; font-weight:700; margin-bottom:8px;">Block by:</div>
-                <div style="margin-bottom:8px;">
-                    <label style="font-size:0.8rem; display:block; margin-bottom:4px;">Filter type:</label>
-                    <select data-field="filter_type" style="width:100%; padding:7px 10px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.82rem;">
-                        <option value="">-- select scope --</option>
-                        <option value="sender_email">Sender email address</option>
-                        <option value="sender_domain">Sender domain</option>
-                        <option value="reply_to">Reply-To header pattern</option>
-                        <option value="subject_keyword">Subject keyword</option>
-                        <option value="source_tld">Source TLD (e.g. *.net, *.xyz)</option>
-                    </select>
+        return `
+            <style>
+              .ma-shell { font-family: 'Inter', system-ui, sans-serif; max-width: 1040px; margin: 18px auto; color: #1f2937; background: #f9fafb; min-height: calc(100vh - 36px); }
+              .ma-shell .ma-header { background: linear-gradient(135deg, #0a3d62 0%, #082c47 100%); color: #fff; padding: 16px 26px; display: flex; align-items: center; gap: 14px; border-radius: 6px 6px 0 0; }
+              .ma-shell .ma-logo { width: 38px; height: 38px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #0a3d62; font-weight: 800; font-size: 0.7rem; letter-spacing: 0.02em; }
+              .ma-shell .ma-brand-org { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }
+              .ma-shell .ma-brand-app { font-size: 1.05rem; font-weight: 700; margin-top: 1px; }
+              .ma-shell .ma-tenant { margin-left: auto; text-align: right; font-size: 0.72rem; opacity: 0.92; line-height: 1.5; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+              .ma-shell .ma-tenant b { color: #fff; }
+              .ma-shell .ma-nav { background: #fff; padding: 0 26px; display: flex; gap: 0; border-bottom: 1px solid #e5e7eb; }
+              .ma-shell .ma-nav-item { padding: 11px 16px; font-size: 0.78rem; color: #6b7280; border-bottom: 2px solid transparent; cursor: default; }
+              .ma-shell .ma-nav-item.active { color: #0a3d62; border-bottom-color: #0a3d62; font-weight: 600; }
+              .ma-shell .ma-content { padding: 22px 26px; }
+              /* Stats strip */
+              .ma-shell .ma-stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; padding: 14px 22px; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 16px; }
+              @media (max-width: 760px) { .ma-shell .ma-stats-strip { grid-template-columns: repeat(2, 1fr); } }
+              .ma-shell .ma-stat-k { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7280; font-weight: 700; }
+              .ma-shell .ma-stat-v { font-size: 1rem; font-weight: 700; color: #111827; margin-top: 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+              .ma-shell .ma-stat-v.warn { color: #b91c1c; }
+              .ma-shell .ma-stat-v.ok { color: #15803d; }
+              /* Active filter card */
+              .ma-shell .ma-active-card { background: #fff; border: 1px solid #16a34a; border-left: 4px solid #16a34a; border-radius: 6px; padding: 18px 22px; margin-bottom: 16px; }
+              .ma-shell .ma-active-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+              .ma-shell .ma-active-status-dot { width: 12px; height: 12px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; flex-shrink: 0; }
+              .ma-shell .ma-active-h { font-size: 1rem; font-weight: 700; color: #15803d; }
+              .ma-shell .ma-active-sub { font-size: 0.76rem; color: #6b7280; margin-top: 2px; }
+              .ma-shell .ma-active-badge { margin-left: auto; padding: 4px 12px; background: #16a34a; color: #fff; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; border-radius: 12px; }
+              .ma-shell .ma-active-rule { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; padding: 10px 14px; margin-bottom: 12px; }
+              .ma-shell .ma-active-rule-h { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; font-weight: 700; margin-bottom: 4px; }
+              .ma-shell .ma-active-rule-v { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.86rem; color: #111827; font-weight: 600; }
+              .ma-shell .ma-active-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+              @media (max-width: 760px) { .ma-shell .ma-active-stats { grid-template-columns: 1fr; } }
+              .ma-shell .ma-active-stat-k { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; font-weight: 700; }
+              .ma-shell .ma-active-stat-v { font-size: 0.82rem; font-weight: 600; color: #111827; margin-top: 3px; }
+              /* Form card */
+              .ma-shell .ma-form-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 22px; }
+              .ma-shell .ma-form-h { font-size: 0.9rem; font-weight: 700; color: #111827; margin-bottom: 6px; }
+              .ma-shell .ma-form-sub { font-size: 0.78rem; color: #6b7280; margin-bottom: 18px; line-height: 1.55; }
+              .ma-shell .ma-form-row { margin-bottom: 14px; }
+              .ma-shell .ma-form-label { font-size: 0.74rem; font-weight: 700; color: #374151; display: block; margin-bottom: 5px; letter-spacing: 0.02em; }
+              .ma-shell .ma-form-hint { font-size: 0.72rem; color: #9ca3af; margin-left: 4px; font-weight: 400; }
+              .ma-shell select.ma-input, .ma-shell input.ma-input { width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-family: inherit; font-size: 0.84rem; box-sizing: border-box; outline: 0; color: #111827; background: #fff; }
+              .ma-shell select.ma-input:focus, .ma-shell input.ma-input:focus { border-color: #0a3d62; box-shadow: 0 0 0 3px rgba(10, 61, 98, 0.14); }
+              .ma-shell input.ma-input { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+              .ma-shell input.ma-input::placeholder { color: #9ca3af; }
+              .ma-shell .ma-warn { padding: 12px 14px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 4px 4px 0; font-size: 0.78rem; color: #78350f; margin-bottom: 14px; line-height: 1.55; }
+              .ma-shell .ma-warn b { color: #422006; }
+              .ma-shell .ma-btn { padding: 10px 22px; border: 0; border-radius: 4px; cursor: pointer; font-size: 0.84rem; font-weight: 700; font-family: inherit; letter-spacing: 0.02em; }
+              .ma-shell .ma-btn-add { background: #0a3d62; color: #fff; }
+              .ma-shell .ma-btn-add:hover { background: #082c47; }
+              .ma-shell .ma-btn-remove { background: #fff; color: #6b7280; border: 1px solid #d1d5db; padding: 6px 14px; font-size: 0.76rem; }
+              .ma-shell .ma-btn-remove:hover { background: #f3f4f6; color: #374151; }
+              /* IOC reference card */
+              .ma-shell .ma-ioc-card { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 12px 14px; margin-bottom: 18px; }
+              .ma-shell .ma-ioc-h { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: #0c4a6e; font-weight: 700; margin-bottom: 6px; }
+              .ma-shell .ma-ioc-row { font-size: 0.78rem; color: #0c4a6e; line-height: 1.7; }
+              .ma-shell .ma-ioc-row code { background: #fff; border: 1px solid #bae6fd; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; color: #075985; }
+              /* Result card (handler returns these styles) */
+              .ma-shell .ma-result { margin-top: 14px; padding: 14px 18px; border-radius: 4px; font-size: 0.84rem; line-height: 1.6; }
+              .ma-shell .ma-result-ok { background: #f0fdf4; border: 1px solid #16a34a; border-left: 4px solid #16a34a; color: #166534; }
+              .ma-shell .ma-result-rej { background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; color: #991b1b; }
+              .ma-shell .ma-result-warn { background: #fef3c7; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; color: #78350f; }
+              .ma-shell .ma-result-h { font-weight: 700; margin-bottom: 6px; font-size: 0.86rem; }
+              .ma-shell .ma-result-sub { font-size: 0.78rem; opacity: 0.85; }
+              .ma-shell .ma-result code { background: rgba(255,255,255,0.6); border: 1px solid currentColor; opacity: 0.95; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; }
+            </style>
+            <div class="ma-shell">
+                <div class="ma-header">
+                    <div class="ma-logo">PFP</div>
+                    <div>
+                        <div class="ma-brand-org">Proofpoint &middot; Email Security &middot; Crimson Dawn</div>
+                        <div class="ma-brand-app">Mail Filter Rules &mdash; Inbound Policy Editor</div>
+                    </div>
+                    <div class="ma-tenant">
+                        <div>Tenant: <b>crimson-dawn.net</b></div>
+                        <div>Policy: <b>AP-Inbox-2026</b> &middot; Engine v8.21.4</div>
+                    </div>
                 </div>
-                <div style="margin-bottom:8px;">
-                    <label style="font-size:0.8rem; display:block; margin-bottom:4px;">Pattern value:</label>
-                    <input type="text" data-field="filter_value" placeholder="e.g. nakamura-suppliers-corp.com"
-                           style="width:100%; padding:7px 10px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.82rem; box-sizing:border-box;">
+                <div class="ma-nav">
+                    <div class="ma-nav-item">Dashboard</div>
+                    <div class="ma-nav-item active">Filter Rules</div>
+                    <div class="ma-nav-item">Quarantine</div>
+                    <div class="ma-nav-item">Allow / Block Lists</div>
+                    <div class="ma-nav-item">Reports</div>
                 </div>
-                <div style="margin-bottom:12px; padding:8px; background:#fff8f0; border:1px solid #e67e22; border-radius:3px; font-size:0.77rem; color:#e67e22;">
-                    <b>WARNING:</b> Overly broad filters can block legitimate mail.<br>
-                    Recommended scope: narrowest pattern that catches THIS attack.
+                <div class="ma-content">
+                    <div class="ma-stats-strip">
+                        <div><div class="ma-stat-k">Inbound (24h)</div><div class="ma-stat-v">28,471</div></div>
+                        <div><div class="ma-stat-k">Quarantined (24h)</div><div class="ma-stat-v warn">312</div></div>
+                        <div><div class="ma-stat-k">Active rules</div><div class="ma-stat-v">${active ? '1' : '0'}</div></div>
+                        <div><div class="ma-stat-k">Mailbox protected</div><div class="ma-stat-v ok">accounts@</div></div>
+                    </div>
+                    ${activeBlock}
+                    <div class="ma-form-card">
+                        <div class="ma-form-h">${active ? 'Update Filter Rule' : 'Add Filter Rule'}</div>
+                        <div class="ma-form-sub">Create an inbound mail filter to block the attacker pattern identified in <b>Phase 1 headers</b>. Quarantine action sends matches to the SOC for review while preserving evidence.</div>
+                        <div class="ma-ioc-card">
+                            <div class="ma-ioc-h">IOCs from Phase 1 (use these to scope the rule)</div>
+                            <div class="ma-ioc-row">
+                                Reply-To domain: <code>nakamura-suppliers-corp.com</code> (attacker lookalike)<br>
+                                Sender domain: <code>crimson-dawn-finance.net</code> (attacker front)<br>
+                                Source TLD: <code>.net</code> &nbsp;<span style="color:#9ca3af;">(too broad &mdash; would block 38% of legit vendor mail)</span>
+                            </div>
+                        </div>
+                        <div class="ma-form-row">
+                            <label class="ma-form-label">Filter type <span class="ma-form-hint">&mdash; what header field to match against</span></label>
+                            <select data-field="filter_type" class="ma-input">
+                                <option value="">&mdash; select scope &mdash;</option>
+                                <option value="sender_email">Sender email address</option>
+                                <option value="sender_domain">Sender domain</option>
+                                <option value="reply_to">Reply-To header pattern</option>
+                                <option value="subject_keyword">Subject keyword</option>
+                                <option value="source_tld">Source TLD (e.g. *.net, *.xyz)</option>
+                            </select>
+                        </div>
+                        <div class="ma-form-row">
+                            <label class="ma-form-label">Pattern value <span class="ma-form-hint">&mdash; exact string or wildcard</span></label>
+                            <input type="text" data-field="filter_value" class="ma-input" placeholder="e.g. nakamura-suppliers-corp.com">
+                        </div>
+                        <div class="ma-warn">
+                            <b>Overly broad filters can block legitimate mail.</b> Recommended scope: the <i>narrowest pattern</i> that catches the attacker without collateral damage. The Proofpoint policy engine rejects rules that would quarantine more than 5% of historic legitimate traffic.
+                        </div>
+                        <button class="ma-btn ma-btn-add" data-action="add_filter">${active ? 'Update Rule' : 'Add Rule'}</button>
+                    </div>
+                    <div data-results></div>
                 </div>
-                <button data-action="add_filter" style="padding:8px 18px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit; font-size:0.82rem;">Add Rule</button>
-            </div>
-            <div data-results></div>
-        </div>`;
+            </div>`;
     },
 
     _handleMailFilter: function(data, engine) {
@@ -3976,35 +4085,33 @@ const PISFinalConfig = {
         if (data.action === 'remove_filter') {
             db.mail_filter_state.active = false;
             db.mail_filter_state.rule = null;
-            return '<div style="color:#888; font-size:0.8rem; padding:8px;">Filter rule removed.</div>';
+            return '<div class="ma-result ma-result-warn"><div class="ma-result-h">Filter rule removed</div><div class="ma-result-sub">Inbound traffic on accounts@crimson-dawn.net is no longer being quarantined by this rule.</div></div>';
         }
 
         if (!type || !val) {
-            return '<div style="color:#888; font-size:0.8rem; padding:8px;">Select a filter type and enter a pattern value.</div>';
+            return '<div class="ma-result ma-result-warn"><div class="ma-result-h">Incomplete rule</div><div class="ma-result-sub">Select a filter type and enter a pattern value before submitting.</div></div>';
         }
 
-        // Rejected scopes
+        // Rejected scopes (overly broad)
         if (type === 'source_tld' && val.includes('.net')) {
-            return `<div style="padding:10px; background:#fff0f0; border:1px solid #dc2626; border-radius:4px; font-size:0.8rem; color:#dc2626;">
-                <b>Filter rejected:</b> pattern would block 38% of legitimate vendor mail.<br>
-                Vendors operating on .net TLDs in the last 30 days: 47 unique senders.<br>
-                <span style="color:#555; font-size:0.77rem;">Narrow the scope: try Reply-To pattern, Message-ID host, or specific sender domain.</span>
-            </div>`;
+            return '<div class="ma-result ma-result-rej">' +
+                '<div class="ma-result-h">Filter REJECTED &mdash; overly broad</div>' +
+                '<div class="ma-result-sub">Pattern <code>' + this._escHtml(data.filter_value) + '</code> would block <b>38% of legitimate vendor mail</b> (47 unique senders operating on .net TLDs in the last 30 days, including Microsoft, Adobe, GitHub).<br><br>Narrow the scope: try <b>Reply-To header pattern</b>, <b>Message-ID host</b>, or a <b>specific sender domain</b> instead.</div>' +
+            '</div>';
         }
 
         if (type === 'subject_keyword' && (val.includes('invoice') || val === 'corrected' || val === 'invoice')) {
-            return `<div style="padding:10px; background:#fff0f0; border:1px solid #dc2626; border-radius:4px; font-size:0.8rem; color:#dc2626;">
-                <b>Filter rejected:</b> Subject keyword "invoice" would block 100% of legitimate vendor invoices.<br>
-                <span style="color:#555; font-size:0.77rem;">Scope must isolate the attacker pattern without collateral damage.</span>
-            </div>`;
+            return '<div class="ma-result ma-result-rej">' +
+                '<div class="ma-result-h">Filter REJECTED &mdash; subject keyword too broad</div>' +
+                '<div class="ma-result-sub">Subject keyword <code>' + this._escHtml(data.filter_value) + '</code> would block <b>100% of legitimate vendor invoices</b> (Accounts Payable receives invoice mail every business day from 47+ vendors).<br><br>Scope must isolate the attacker pattern without collateral damage. Match on a header field the attacker controls but legitimate senders do not.</div>' +
+            '</div>';
         }
 
         if (type === 'sender_domain' && val === 'nakamura-supplies.com') {
-            return `<div style="padding:10px; background:#fff0f0; border:1px solid #dc2626; border-radius:4px; font-size:0.8rem; color:#dc2626;">
-                <b>Filter rejected:</b> nakamura-supplies.com is the legitimate vendor's real domain.<br>
-                Filtering this would block all future legitimate invoices from this vendor.<br>
-                <span style="color:#555; font-size:0.77rem;">The attacker used nakamura-suppliers-corp.com (different domain) in the Reply-To, not in the From.</span>
-            </div>`;
+            return '<div class="ma-result ma-result-rej">' +
+                '<div class="ma-result-h">Filter REJECTED &mdash; would block legitimate vendor</div>' +
+                '<div class="ma-result-sub"><code>nakamura-supplies.com</code> is the <b>legitimate vendor\'s real domain</b>. Filtering this would block all future legitimate invoices from this vendor.<br><br>The attacker used <code>nakamura-suppliers-corp.com</code> (subtle lookalike &mdash; note the trailing "s" + "-corp") in the <b>Reply-To header</b>, NOT in the From. Re-read the Phase 1 headers carefully.</div>' +
+            '</div>';
         }
 
         // Accepted correct scopes
@@ -4015,20 +4122,18 @@ const PISFinalConfig = {
 
         if (isCorrect) {
             db.mail_filter_state.active = true;
-            db.mail_filter_state.rule = `${type} = ${data.filter_value}`;
-            return `<div style="padding:10px; background:#f0fff4; border:2px solid #2ecc71; border-radius:4px; font-size:0.8rem; color:#2ecc71;">
-                <b>Filter rule accepted.</b> Mail matching this pattern will be quarantined.<br>
-                <span style="color:#555; font-size:0.77rem;">This scope correctly isolates the attacker's pattern without blocking legitimate vendor mail.<br>
-                Check <a href="https://patch.crimson-dawn.net" style="color:#dc2626;">Patch Management</a> to see if Phase 6 composite flag is now available.</span>
-            </div>`;
+            db.mail_filter_state.rule = type + ' = ' + data.filter_value;
+            return '<div class="ma-result ma-result-ok">' +
+                '<div class="ma-result-h">Filter rule ACCEPTED &mdash; deployed to AP-Inbox-2026 policy</div>' +
+                '<div class="ma-result-sub">Pattern <code>' + this._escHtml(type) + ' = ' + this._escHtml(data.filter_value) + '</code> correctly isolates the attacker\'s pattern without blocking legitimate vendor mail. Matching messages are <b>quarantined + SOC alerted</b>.<br><br>Check <a href="https://patch.crimson-dawn.net">Patch Management</a> to see if Phase 6 composite flag is now available.</div>' +
+            '</div>';
         }
 
         // Generic accepted-but-wrong-scope scopes
-        return `<div style="padding:10px; background:#fff8f0; border:1px solid #e67e22; border-radius:4px; font-size:0.8rem; color:#e67e22;">
-            <b>Filter not accepted for this incident.</b><br>
-            The scope "${type} = ${this._escHtml(data.filter_value)}" does not precisely target the attack vector.<br>
-            <span style="color:#555; font-size:0.77rem;">Review Phase 1 headers: the attacker-controlled indicators are the Reply-To domain (nakamura-suppliers-corp.com), the Message-ID host, and the Sender domain crimson-dawn-finance.net.</span>
-        </div>`;
+        return '<div class="ma-result ma-result-warn">' +
+            '<div class="ma-result-h">Filter not accepted for this incident</div>' +
+            '<div class="ma-result-sub">Scope <code>' + this._escHtml(type) + ' = ' + this._escHtml(data.filter_value) + '</code> does not precisely target the attack vector.<br><br>Re-read the Phase 1 headers: the attacker-controlled indicators are the <b>Reply-To domain</b> (<code>nakamura-suppliers-corp.com</code>), the <b>Message-ID host</b>, and the <b>Sender domain</b> (<code>crimson-dawn-finance.net</code>).</div>' +
+        '</div>';
     },
 
     // Utility: HTML escape for user-supplied strings rendered in form outputs
