@@ -1427,28 +1427,191 @@ const PISFinalConfig = {
             '/siem': {
                 title: 'SIEM-lite -- siem.crimson-dawn.net',
                 html: `
-                <div style="font-family:system-ui,sans-serif; max-width:860px; margin:0 auto; padding:16px;">
-                    <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                        <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON DAWN -- SIEM-LITE LOG VIEWER</div>
-                        <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">Security Event Search</div>
-                        <div style="font-size:0.72rem; color:#888;">Coverage: DNS (14 days), Auth (14 days), Firewall (7 days)</div>
+                <style>
+                  .siem-shell { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace; max-width: 1080px; margin: 18px auto; color: #e2e8f0; }
+                  .siem-shell .siem-header {
+                    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+                    border: 1px solid #334155; border-bottom: 0; border-radius: 8px 8px 0 0;
+                    padding: 12px 18px; display: flex; align-items: center; gap: 14px;
+                  }
+                  .siem-shell .siem-logo {
+                    width: 32px; height: 32px; flex-shrink: 0;
+                    background: linear-gradient(135deg, #dc2626, #7f1d1d);
+                    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+                    font-weight: 800; color: #fff; font-size: 0.78rem; letter-spacing: 0.06em;
+                    font-family: 'Inter', system-ui, sans-serif;
+                  }
+                  .siem-shell .siem-brand { font-family: 'Inter', system-ui, sans-serif; }
+                  .siem-shell .siem-brand .siem-app { font-size: 0.98rem; font-weight: 700; color: #f1f5f9; }
+                  .siem-shell .siem-brand .siem-org { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: #94a3b8; }
+                  .siem-shell .siem-version-bar {
+                    margin-left: auto; display: flex; gap: 14px; align-items: center;
+                    font-size: 0.66rem; letter-spacing: 0.08em; color: #94a3b8; text-transform: uppercase;
+                    font-family: 'Inter', system-ui, sans-serif;
+                  }
+                  .siem-shell .siem-status-dot {
+                    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+                    background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, 0.7);
+                    margin-right: 6px; vertical-align: middle;
+                  }
+                  .siem-shell .siem-coverage {
+                    background: #0b1220; border-left: 1px solid #334155; border-right: 1px solid #334155;
+                    padding: 8px 18px; display: flex; gap: 22px; font-size: 0.7rem; color: #cbd5e1;
+                    font-family: 'Inter', system-ui, sans-serif;
+                  }
+                  .siem-shell .siem-coverage .siem-cov { display: flex; align-items: center; gap: 6px; }
+                  .siem-shell .siem-coverage .siem-cov-k { color: #64748b; }
+                  .siem-shell .siem-coverage .siem-cov-v { color: #e2e8f0; font-weight: 600; }
+                  .siem-shell .siem-tabs {
+                    background: #0b1220; border-left: 1px solid #334155; border-right: 1px solid #334155;
+                    padding: 0 14px; display: flex; gap: 0; border-bottom: 1px solid #334155;
+                  }
+                  .siem-shell .siem-tab {
+                    padding: 10px 18px; cursor: pointer; font-family: 'Inter', system-ui, sans-serif;
+                    font-size: 0.78rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.04em;
+                    border-bottom: 2px solid transparent; transition: all 0.15s;
+                    user-select: none;
+                  }
+                  .siem-shell .siem-tab:hover { color: #f1f5f9; background: rgba(255,255,255,0.02); }
+                  .siem-shell .siem-tab.active { color: #ef4444; border-bottom-color: #ef4444; }
+                  .siem-shell .siem-tab .siem-tab-count {
+                    display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px;
+                    background: rgba(148, 163, 184, 0.16); color: #cbd5e1; font-size: 0.66rem; font-weight: 700;
+                  }
+                  .siem-shell .siem-tab.active .siem-tab-count { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+                  .siem-shell .siem-query-bar {
+                    background: #0b1220; border-left: 1px solid #334155; border-right: 1px solid #334155;
+                    padding: 14px 18px;
+                  }
+                  .siem-shell .siem-query-row { display: flex; gap: 8px; }
+                  .siem-shell .siem-search-icon {
+                    background: #1e293b; border: 1px solid #334155; border-right: 0;
+                    border-radius: 4px 0 0 4px; padding: 0 12px; display: flex; align-items: center;
+                    color: #64748b; font-size: 0.9rem; font-weight: 800;
+                  }
+                  .siem-shell input.siem-q {
+                    flex: 1; padding: 10px 12px;
+                    background: #1e293b; color: #f1f5f9; border: 1px solid #334155; border-left: 0; border-radius: 0 4px 4px 0;
+                    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.82rem;
+                    outline: none; transition: border-color 0.15s;
+                  }
+                  .siem-shell input.siem-q::placeholder { color: #475569; }
+                  .siem-shell input.siem-q:focus { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1); }
+                  .siem-shell button.siem-search {
+                    padding: 10px 22px; background: #dc2626; color: #fff; border: 0; border-radius: 4px;
+                    font-weight: 700; font-family: 'Inter', system-ui, sans-serif; font-size: 0.82rem;
+                    cursor: pointer; letter-spacing: 0.04em;
+                  }
+                  .siem-shell button.siem-search:hover { background: #b91c1c; }
+                  .siem-shell .siem-chips { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; font-family: 'Inter', system-ui, sans-serif; }
+                  .siem-shell .siem-chips .siem-chip-label { color: #64748b; font-size: 0.7rem; padding: 4px 0; margin-right: 4px; }
+                  .siem-shell .siem-chip {
+                    padding: 4px 10px; background: rgba(148, 163, 184, 0.1); border: 1px solid #334155;
+                    border-radius: 12px; color: #cbd5e1; font-size: 0.7rem; cursor: pointer;
+                    transition: all 0.12s;
+                  }
+                  .siem-shell .siem-chip:hover { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #fca5a5; }
+                  .siem-shell .siem-results-frame {
+                    background: #0a0f1a; border: 1px solid #334155; border-top: 0;
+                    border-radius: 0 0 8px 8px; padding: 0; min-height: 120px;
+                  }
+                  .siem-shell .siem-empty {
+                    padding: 32px 18px; text-align: center; color: #64748b; font-size: 0.78rem;
+                    font-family: 'Inter', system-ui, sans-serif;
+                  }
+                  /* Result table — used by handler */
+                  .siem-shell .siem-results-toolbar {
+                    background: #0b1220; padding: 8px 16px; border-bottom: 1px solid #1e293b;
+                    display: flex; gap: 14px; align-items: center; font-family: 'Inter', system-ui, sans-serif; font-size: 0.7rem; color: #94a3b8;
+                  }
+                  .siem-shell .siem-results-toolbar .siem-count { color: #f1f5f9; font-weight: 700; }
+                  .siem-shell .siem-results-toolbar .siem-anomaly-count { color: #fca5a5; font-weight: 700; }
+                  .siem-shell table.siem-table { width: 100%; border-collapse: collapse; }
+                  .siem-shell .siem-table thead th {
+                    background: #0b1220; color: #64748b; font-size: 0.66rem; letter-spacing: 0.1em;
+                    text-transform: uppercase; font-weight: 700; padding: 8px 12px; text-align: left;
+                    border-bottom: 1px solid #1e293b; font-family: 'Inter', system-ui, sans-serif;
+                  }
+                  .siem-shell .siem-table tbody tr { border-bottom: 1px solid #131c2e; }
+                  .siem-shell .siem-table tbody tr:hover { background: rgba(148, 163, 184, 0.04); }
+                  .siem-shell .siem-table tbody tr.anomaly { background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; }
+                  .siem-shell .siem-table tbody tr.anomaly:hover { background: rgba(239, 68, 68, 0.14); }
+                  .siem-shell .siem-table td {
+                    padding: 6px 12px; font-size: 0.74rem;
+                    font-family: 'JetBrains Mono', ui-monospace, monospace; color: #cbd5e1;
+                  }
+                  .siem-shell .siem-table td.siem-ts { color: #64748b; white-space: nowrap; }
+                  .siem-shell .siem-table td.siem-user { color: #e2e8f0; font-weight: 600; }
+                  .siem-shell .siem-table tr.anomaly td.siem-user { color: #fca5a5; }
+                  .siem-shell .siem-table td.siem-target { color: #cbd5e1; }
+                  .siem-shell .siem-table tr.anomaly td.siem-target { color: #fda4af; font-weight: 600; }
+                  .siem-shell .siem-badge {
+                    display: inline-block; padding: 1px 7px; border-radius: 3px;
+                    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
+                    text-transform: uppercase; font-family: 'Inter', system-ui, sans-serif;
+                  }
+                  .siem-shell .siem-badge.crit { background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+                  .siem-shell .siem-badge.high { background: rgba(249, 115, 22, 0.22); color: #fdba74; border: 1px solid rgba(249, 115, 22, 0.4); }
+                  .siem-shell .siem-badge.info { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+                  .siem-shell .siem-flag-text {
+                    font-family: 'Inter', system-ui, sans-serif; font-size: 0.7rem; color: #fca5a5;
+                    margin-left: 8px;
+                  }
+                  .siem-shell .siem-no-match {
+                    padding: 26px 18px; text-align: center; color: #94a3b8; font-size: 0.8rem;
+                    font-family: 'Inter', system-ui, sans-serif;
+                  }
+                </style>
+                <div class="siem-shell">
+                  <div class="siem-header">
+                    <div class="siem-logo">CD</div>
+                    <div class="siem-brand">
+                      <div class="siem-org">Crimson Dawn Logistics &middot; Security Operations</div>
+                      <div class="siem-app">SIEM-lite <span style="font-weight:400; color:#64748b; font-size:0.74rem;">v4.2.1</span></div>
                     </div>
-                    <div style="display:flex; gap:8px; margin-bottom:8px;">
-                        <select data-field="log_type" style="padding:8px 10px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.83rem;">
-                            <option value="dns">DNS Queries</option>
-                            <option value="auth">Authentication Log</option>
-                            <option value="firewall">Firewall Log</option>
-                        </select>
-                        <input type="text" data-field="log_filter" placeholder="Filter (username, domain, IP, or leave blank for all)"
-                               style="flex:1; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.83rem;">
-                        <button data-action="query" style="padding:8px 18px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit;">Query</button>
+                    <div class="siem-version-bar">
+                      <span><span class="siem-status-dot"></span>Index: HEALTHY</span>
+                      <span>Last sync: 2026-05-21 09:14 UTC</span>
                     </div>
-                    <div style="font-size:0.72rem; color:#888; margin-bottom:12px;">
-                        Examples: filter=e.morales, filter=crimson-dawn-finance.net, filter=185.220.101.45
+                  </div>
+                  <div class="siem-coverage">
+                    <div class="siem-cov"><span class="siem-cov-k">Coverage:</span></div>
+                    <div class="siem-cov"><span class="siem-cov-k">DNS</span><span class="siem-cov-v">14 days</span></div>
+                    <div class="siem-cov"><span class="siem-cov-k">Authentication</span><span class="siem-cov-v">14 days</span></div>
+                    <div class="siem-cov"><span class="siem-cov-k">Firewall</span><span class="siem-cov-v">7 days</span></div>
+                    <div class="siem-cov" style="margin-left:auto;"><span class="siem-cov-k">Events/sec:</span><span class="siem-cov-v">2,344</span></div>
+                  </div>
+                  <div class="siem-tabs">
+                    <div class="siem-tab active" data-log="dns" onclick="(function(t){t.parentNode.querySelectorAll('.siem-tab').forEach(function(x){x.classList.remove('active');});t.classList.add('active');var sel=document.querySelector('.siem-shell [data-field=log_type]');if(sel)sel.value=t.getAttribute('data-log');})(this)">DNS Queries <span class="siem-tab-count">26</span></div>
+                    <div class="siem-tab" data-log="auth" onclick="(function(t){t.parentNode.querySelectorAll('.siem-tab').forEach(function(x){x.classList.remove('active');});t.classList.add('active');var sel=document.querySelector('.siem-shell [data-field=log_type]');if(sel)sel.value=t.getAttribute('data-log');})(this)">Authentication <span class="siem-tab-count">31</span></div>
+                    <div class="siem-tab" data-log="firewall" onclick="(function(t){t.parentNode.querySelectorAll('.siem-tab').forEach(function(x){x.classList.remove('active');});t.classList.add('active');var sel=document.querySelector('.siem-shell [data-field=log_type]');if(sel)sel.value=t.getAttribute('data-log');})(this)">Firewall <span class="siem-tab-count">18</span></div>
+                  </div>
+                  <select data-field="log_type" style="display:none;">
+                    <option value="dns" selected>DNS Queries</option>
+                    <option value="auth">Authentication Log</option>
+                    <option value="firewall">Firewall Log</option>
+                  </select>
+                  <div class="siem-query-bar">
+                    <div class="siem-query-row">
+                      <div class="siem-search-icon">&gt;</div>
+                      <input type="text" class="siem-q" data-field="log_filter" placeholder="Filter by user, domain, IP &mdash; leave blank for all events">
+                      <button class="siem-search" data-action="query">Search</button>
                     </div>
-                    <div data-results>
-                        <div style="color:#888; font-size:0.78rem; text-align:center; padding:20px;">Select a log type and optionally enter a filter, then click Query.</div>
+                    <div class="siem-chips">
+                      <span class="siem-chip-label">Quick filters:</span>
+                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='e.morales';i.focus();}">e.morales</span>
+                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='r.chen';i.focus();}">r.chen</span>
+                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='crimson-dawn-finance.net';i.focus();}">crimson-dawn-finance.net</span>
+                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='emberwolf-c2.duckdns.org';i.focus();}">emberwolf-c2.duckdns.org</span>
+                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='185.220.101.45';i.focus();}">185.220.101.45</span>
                     </div>
+                  </div>
+                  <div class="siem-results-frame" data-results>
+                    <div class="siem-empty">
+                      Select a log type tab and enter a filter (or leave blank), then <b>Search</b>.<br>
+                      <span style="opacity:0.65;">Tip: anomaly events are pre-flagged. Use quick-filter chips above to pivot.</span>
+                    </div>
+                  </div>
                 </div>`,
                 formHandler: (data, engine) => PISFinalConfig._handleSiem(data.log_type || 'dns', data.log_filter || '', engine)
             },
@@ -1910,35 +2073,38 @@ Country: US</pre>`
         ) : allEntries;
 
         if (entries.length === 0) {
-            return `<div style="color:#888; font-size:0.8rem; padding:12px;">No DNS entries matched filter: "${this._escHtml(filter)}"</div>`;
+            return `<div class="siem-no-match">No DNS entries matched filter: <b>"${this._escHtml(filter)}"</b><br><span style="opacity:0.7; font-size:0.74rem;">Try a quick-filter chip above or clear the filter.</span></div>`;
         }
 
+        const anomalyCount = entries.filter(e => e.flag).length;
+
         const rows = entries.map(e => {
-            const flagStyle = e.flag ? 'color:#dc2626; font-weight:700;' : 'color:#888;';
-            return `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.75rem; white-space:nowrap;">${e.ts}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.75rem;">${e.user}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.75rem; ${e.flag ? 'color:#dc2626; font-weight:700;' : ''}">${e.domain}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.75rem;">${e.ip}</td>
-                <td style="padding:5px 8px; font-size:0.73rem; ${flagStyle}">${e.flag || '&mdash;'}</td>
+            const trClass = e.flag ? 'anomaly' : '';
+            const flagBadge = e.flag ? `<span class="siem-badge crit">CRIT</span><span class="siem-flag-text">${e.flag}</span>` : '<span style="color:#475569;">&mdash;</span>';
+            return `<tr class="${trClass}">
+                <td class="siem-ts">${e.ts}</td>
+                <td class="siem-user">${e.user}</td>
+                <td class="siem-target">${e.domain}</td>
+                <td>${e.ip}</td>
+                <td>${flagBadge}</td>
             </tr>`;
         }).join('');
 
-        return `<div style="font-size:0.72rem; color:#888; margin-bottom:6px;">DNS Query Log -- ${entries.length} entries${filter ? ` matching "${this._escHtml(filter)}"` : ''}</div>
-        <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.78rem; min-width:600px;">
-            <thead><tr style="background:#f5f5f5;">
-                <th style="padding:6px 8px; text-align:left; color:#555; white-space:nowrap;">Timestamp</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">User</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Query Domain</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Response IP</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Note</th>
+        return `<div class="siem-results-toolbar">
+            <span><span class="siem-count">${entries.length}</span> events</span>
+            ${anomalyCount > 0 ? `<span><span class="siem-anomaly-count">${anomalyCount}</span> anomalies</span>` : ''}
+            ${filter ? `<span style="margin-left:auto;">filter: <code style="background:#1e293b; padding:1px 6px; border-radius:3px; color:#fda4af;">${this._escHtml(filter)}</code></span>` : '<span style="margin-left:auto;">no filter active</span>'}
+        </div>
+        <table class="siem-table">
+            <thead><tr>
+                <th>Timestamp (UTC)</th>
+                <th>User</th>
+                <th>Query Domain</th>
+                <th>Response IP</th>
+                <th>Severity / Note</th>
             </tr></thead>
             <tbody>${rows}</tbody>
-        </table></div>
-        <div style="margin-top:8px; padding:8px; background:#fff8f0; border:1px solid #e67e22; border-radius:4px; font-size:0.77rem; color:#e67e22;">
-            <b>Phase 5 tip:</b> Filter by the lookalike domain to see who queried it. Then check which of those users also queried the C2 domain -- that's the one whose machine executed the payload.
-        </div>`;
+        </table>`;
     },
 
     _siemAuthLog: function(filter) {
@@ -1975,38 +2141,49 @@ Country: US</pre>`
         ) : allEntries;
 
         if (entries.length === 0) {
-            return `<div style="color:#888; font-size:0.8rem; padding:12px;">No auth entries matched filter: "${this._escHtml(filter)}"</div>`;
+            return `<div class="siem-no-match">No auth entries matched filter: <b>"${this._escHtml(filter)}"</b></div>`;
         }
 
+        const unexplainedCount = entries.filter(e => e.note.startsWith('UNEXPLAINED')).length;
+        const explainedCount = entries.filter(e => e.note.startsWith('EXPLAINED')).length;
+
         const rows = entries.map(e => {
-            let noteStyle = '';
-            let notePrefix = '';
-            if (e.note.startsWith('UNEXPLAINED')) { noteStyle = 'color:#dc2626; font-weight:700;'; notePrefix = ''; }
-            else if (e.note.startsWith('EXPLAINED')) { noteStyle = 'color:#e67e22;'; notePrefix = ''; }
-            return `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.73rem; white-space:nowrap;">${e.ts}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.75rem;">${e.user}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.75rem;">${e.src}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.75rem;">${e.ws}</td>
-                <td style="padding:5px 8px; font-size:0.72rem; ${noteStyle}">${e.note || '&mdash;'}</td>
+            let badge = '<span style="color:#475569;">&mdash;</span>';
+            let trClass = '';
+            if (e.note.startsWith('UNEXPLAINED')) {
+                // Full note text preserved verbatim — smoke test looks for "UNEXPLAINED ANOMALY"
+                // string in the rendered output, and instructors / Phase-5 pedagogy
+                // reads the full provenance line. Badge is the visual cue; text is the data.
+                badge = `<span class="siem-badge crit">CRIT</span><span class="siem-flag-text">${e.note}</span>`;
+                trClass = 'anomaly';
+            } else if (e.note.startsWith('EXPLAINED')) {
+                badge = `<span class="siem-badge high">EXPL'D</span><span class="siem-flag-text" style="color:#fdba74;">${e.note}</span>`;
+            }
+            return `<tr class="${trClass}">
+                <td class="siem-ts">${e.ts}</td>
+                <td class="siem-user">${e.user}</td>
+                <td class="siem-target">${e.src}</td>
+                <td>${e.ws}</td>
+                <td>${badge}</td>
             </tr>`;
         }).join('');
 
-        return `<div style="font-size:0.72rem; color:#888; margin-bottom:6px;">Authentication Log -- ${entries.length} entries${filter ? ` matching "${this._escHtml(filter)}"` : ''}</div>
-        <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.78rem; min-width:600px;">
-            <thead><tr style="background:#f5f5f5;">
-                <th style="padding:6px 8px; text-align:left; color:#555; white-space:nowrap;">Timestamp</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">User</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Source IP</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Workstation</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Provenance</th>
+        return `<div class="siem-results-toolbar">
+            <span><span class="siem-count">${entries.length}</span> events</span>
+            ${unexplainedCount > 0 ? `<span><span class="siem-anomaly-count">${unexplainedCount}</span> unexplained anomalies</span>` : ''}
+            ${explainedCount > 0 ? `<span style="color:#fdba74;">${explainedCount} explained</span>` : ''}
+            ${filter ? `<span style="margin-left:auto;">filter: <code style="background:#1e293b; padding:1px 6px; border-radius:3px; color:#fda4af;">${this._escHtml(filter)}</code></span>` : '<span style="margin-left:auto;">no filter active</span>'}
+        </div>
+        <table class="siem-table">
+            <thead><tr>
+                <th>Timestamp (UTC)</th>
+                <th>User</th>
+                <th>Source IP</th>
+                <th>Workstation</th>
+                <th>Provenance</th>
             </tr></thead>
             <tbody>${rows}</tbody>
-        </table></div>
-        <div style="margin-top:8px; padding:8px; background:#fff0f0; border:1px solid #dc2626; border-radius:4px; font-size:0.77rem; color:#dc2626;">
-            <b>W4 lesson:</b> UNEXPLAINED anomalies are threats. EXPLAINED anomalies (calendar + HR ticket + prior session history) are not. Read the provenance line -- the SIEM annotates inline.
-        </div>`;
+        </table>`;
     },
 
     _siemFirewallLog: function(filter) {
@@ -2042,34 +2219,48 @@ Country: US</pre>`
         ) : allEntries;
 
         if (entries.length === 0) {
-            return `<div style="color:#888; font-size:0.8rem; padding:12px;">No firewall entries matched filter: "${this._escHtml(filter)}"</div>`;
+            return `<div class="siem-no-match">No firewall entries matched filter: <b>"${this._escHtml(filter)}"</b></div>`;
         }
 
+        const c2Count = entries.filter(e => e.note.includes('C2')).length;
+        const dnsCount = entries.filter(e => e.note.startsWith('DNS query:')).length;
+
         const rows = entries.map(e => {
-            const noteStyle = e.note.includes('C2') ? 'color:#dc2626; font-weight:700;' : 'color:#888;';
-            return `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.72rem; white-space:nowrap;">${e.ts}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.72rem;">${e.src}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.72rem;">${e.dst}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.72rem;">${e.proto}</td>
-                <td style="padding:5px 8px; font-family:monospace; font-size:0.72rem;">${e.bytes}</td>
-                <td style="padding:5px 8px; font-size:0.72rem; ${noteStyle}">${e.note || '&mdash;'}</td>
+            let badge = '<span style="color:#475569;">&mdash;</span>';
+            let trClass = '';
+            if (e.note.includes('C2')) {
+                badge = `<span class="siem-badge crit">CRIT</span><span class="siem-flag-text">${e.note}</span>`;
+                trClass = 'anomaly';
+            } else if (e.note.startsWith('DNS query:')) {
+                badge = `<span class="siem-badge info">DNS</span><span class="siem-flag-text" style="color:#cbd5e1;">${e.note.replace(/^DNS query:\s*/, '')}</span>`;
+            }
+            return `<tr class="${trClass}">
+                <td class="siem-ts">${e.ts}</td>
+                <td>${e.src}</td>
+                <td class="siem-target">${e.dst}</td>
+                <td>${e.proto}</td>
+                <td>${e.bytes}</td>
+                <td>${badge}</td>
             </tr>`;
         }).join('');
 
-        return `<div style="font-size:0.72rem; color:#888; margin-bottom:6px;">Firewall Log -- ${entries.length} entries${filter ? ` matching "${this._escHtml(filter)}"` : ''}</div>
-        <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.78rem; min-width:600px;">
-            <thead><tr style="background:#f5f5f5;">
-                <th style="padding:6px 8px; text-align:left; color:#555; white-space:nowrap;">Timestamp</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Source</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Destination</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Proto</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Bytes</th>
-                <th style="padding:6px 8px; text-align:left; color:#555;">Note</th>
+        return `<div class="siem-results-toolbar">
+            <span><span class="siem-count">${entries.length}</span> events</span>
+            ${c2Count > 0 ? `<span><span class="siem-anomaly-count">${c2Count}</span> C2 events</span>` : ''}
+            ${dnsCount > 0 ? `<span style="color:#cbd5e1;">${dnsCount} DNS annotated</span>` : ''}
+            ${filter ? `<span style="margin-left:auto;">filter: <code style="background:#1e293b; padding:1px 6px; border-radius:3px; color:#fda4af;">${this._escHtml(filter)}</code></span>` : '<span style="margin-left:auto;">no filter active</span>'}
+        </div>
+        <table class="siem-table">
+            <thead><tr>
+                <th>Timestamp (UTC)</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Proto</th>
+                <th>Bytes</th>
+                <th>Severity / Note</th>
             </tr></thead>
             <tbody>${rows}</tbody>
-        </table></div>`;
+        </table>`;
     },
 
     _renderPatchDashboard: function(engine) {
