@@ -220,22 +220,42 @@ const PISFinalConfig = {
     // =========================================================
 
     webApp: {
-        startUrl: 'https://mail.crimson-dawn.net/inbox',
+        startUrl: '/newtab',
 
         pages: {
 
             // ─────────────────────────────────────────────────
+            // A0. FIREFOX NEW-TAB: default homepage when Firefox opens
+            //   Tile grid of IR tools, grouped by category. Replaces the
+            //   legacy "Firefox opens to the inbox" behavior now that
+            //   the mailbox lives in its own Outlook app (LREP 2026-06-04).
+            // ─────────────────────────────────────────────────
+
+            '/newtab': {
+                title: 'New Tab — Firefox',
+                html: function() { return PISFinalConfig._renderNewTab(); }
+            },
+
+            // ─────────────────────────────────────────────────
             // A. WEBMAIL: mail.crimson-dawn.net
+            //   These routes used to render the inbox + 13 messages in
+            //   Firefox. Now that the standalone Outlook app exists, the
+            //   public html() of each route returns a "Mail moved to
+            //   Outlook" redirect notice. The original message data +
+            //   render logic lives on `_outlookHtml` (called only by the
+            //   Outlook app), so Outlook keeps working without a refactor.
             // ─────────────────────────────────────────────────
 
             '/inbox': {
                 title: 'Inbox -- accounts@crimson-dawn.net',
-                html: function() { return PISFinalConfig._renderInbox(); }
+                html: function() { return PISFinalConfig._renderMailRedirect('Inbox'); },
+                _outlookHtml: function() { return PISFinalConfig._renderInbox(); }
             },
 
             '/msg/1': {
                 title: 'Message 1 -- MANDATORY: Password rotation TODAY',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 1'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'MANDATORY: Password rotation TODAY',
                     fromName: 'IT Helpdesk', fromEmail: 'it-helpdesk@crimson-dawn.net',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 17 May 2026 14:22:11 +0000',
@@ -256,7 +276,8 @@ const PISFinalConfig = {
 
             '/msg/2': {
                 title: 'Message 2 -- Direct deposit verification required',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 2'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'Direct deposit verification required',
                     fromName: 'ADP Payroll Services', fromEmail: 'payroll-alerts@adp-secure-portal.com',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 17 May 2026 16:08:44 +0000',
@@ -276,7 +297,8 @@ const PISFinalConfig = {
 
             '/msg/3': {
                 title: 'Message 3 -- Delivery exception #4470029',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 3'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'Delivery exception #4470029',
                     fromName: 'FedEx Notification', fromEmail: 'noreply@fedex-shipping-update.com',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 17 May 2026 18:45:02 +0000',
@@ -296,7 +318,8 @@ const PISFinalConfig = {
 
             '/msg/4': {
                 title: 'Message 4 -- Invoice 2026-Q1-114 (corrected version)',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 4'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'Invoice 2026-Q1-114 (corrected version)',
                     fromName: 'Nakamura Supplies Accounts', fromEmail: 'accounts@nakamura-supplies.com',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 08:54:31 +0000',
@@ -397,7 +420,8 @@ const PISFinalConfig = {
 
             '/msg/5': {
                 title: 'Message 5 -- Re: Q1 budget review',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 5'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'Re: Q1 budget review',
                     fromName: 'Marcus Harlowe', fromEmail: 'm.harlowe@crimson-dawn.net',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 09:30:14 +0000',
@@ -479,7 +503,8 @@ const PISFinalConfig = {
 
             '/msg/6': {
                 title: 'Message 6 -- Meeting confirmation',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 6'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'Meeting confirmation: 2026-05-19 14:00',
                     fromName: 'Calendly Notifications', fromEmail: 'support@calendly.com',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 10:15:00 +0000',
@@ -498,7 +523,8 @@ const PISFinalConfig = {
 
             '/msg/7': {
                 title: 'Message 7 -- Quarterly compliance attestation',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 7'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'Quarterly compliance attestation form',
                     fromName: 'Crimson Dawn Compliance', fromEmail: 'compliance@crimson-dawn.net',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 11:00:00 +0000',
@@ -530,7 +556,8 @@ const PISFinalConfig = {
 
             '/msg/8': {
                 title: 'Message 8 -- Invoice OD-2026-44890 -- Office supplies May',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 8'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'Invoice OD-2026-44890 — Office supplies May',
                     fromName: 'Office Depot Business AR', fromEmail: 'ar@officedepot.com',
                     to: 'accounts@crimson-dawn.net', date: 'Sat, 16 May 2026 16:40:11 +0000',
@@ -551,7 +578,8 @@ const PISFinalConfig = {
 
             '/msg/9': {
                 title: 'Message 9 -- Unusual sign-in activity on your Microsoft account',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 9'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'Unusual sign-in activity on your Microsoft account',
                     fromName: 'Microsoft Account Team', fromEmail: 'security@microsoft-365-account.com',
                     to: 'accounts@crimson-dawn.net', date: 'Sun, 17 May 2026 09:55:33 +0000',
@@ -573,7 +601,8 @@ const PISFinalConfig = {
 
             '/msg/10': {
                 title: 'Message 10 -- Recurring meeting reminder: AP Weekly Sync',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 10'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'Recurring meeting reminder: AP Weekly Sync (Thursdays)',
                     fromName: 'Zoom Meetings', fromEmail: 'no-reply@zoom.us',
                     to: 'accounts@crimson-dawn.net', date: 'Sun, 17 May 2026 11:20:00 +0000',
@@ -594,7 +623,8 @@ const PISFinalConfig = {
 
             '/msg/11': {
                 title: 'Message 11 -- ACTION REQUIRED: Outgoing wire $4,200,000.00 review',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 11'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'ACTION REQUIRED: Outgoing wire $4,200,000.00 review',
                     fromName: 'Chase Business Banking', fromEmail: 'wires-alerts@chase-bizbanking.com',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 13:15:09 +0000',
@@ -616,7 +646,8 @@ const PISFinalConfig = {
 
             '/msg/12': {
                 title: 'Message 12 -- r.chen mentioned you in #ap-team',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 12'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'r.chen mentioned you in #ap-team',
                     fromName: 'Slack Notifications', fromEmail: 'notification@slack.com',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 09:45:22 +0000',
@@ -636,7 +667,8 @@ const PISFinalConfig = {
 
             '/msg/13': {
                 title: 'Message 13 -- ACTION REQUIRED: Adobe Creative Cloud auto-renewed',
-                html: function() { return PISFinalConfig._renderMessage({
+                html: function() { return PISFinalConfig._renderMailRedirect('Message 13'); },
+                _outlookHtml: function() { return PISFinalConfig._renderMessage({
                     subject: 'ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed',
                     fromName: 'Adobe Billing Services', fromEmail: 'billing@adobe-renewal-services.com',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 11:55:41 +0000',
@@ -4489,6 +4521,122 @@ const PISFinalConfig = {
     //  - Window opens at 900×620 for the OWA chrome to breathe
     // =========================================================
 
+    // Firefox redirect notice — rendered when a student manually navigates
+    // to one of the legacy mail.crimson-dawn.net browser routes. Tells them
+    // mail now lives in Outlook (which they should already see on the
+    // desktop and in the taskbar).
+    _renderMailRedirect: function(hint) {
+        var hintText = hint ? this._escHtml(hint) : 'Mail';
+        return `
+            <style>
+              .mre-shell { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 680px; margin: 60px auto; padding: 0 24px; text-align: center; }
+              .mre-shell .mre-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 36px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+              .mre-shell .mre-glyph { width: 64px; height: 64px; margin: 0 auto 18px; background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.6rem; box-shadow: 0 3px 10px rgba(0,120,212,0.25); }
+              .mre-shell .mre-h { font-size: 1.3rem; font-weight: 700; color: #111827; margin-bottom: 8px; letter-spacing: -0.01em; }
+              .mre-shell .mre-sub { font-size: 0.96rem; color: #4b5563; line-height: 1.7; margin-bottom: 22px; }
+              .mre-shell .mre-sub b { color: #111827; }
+              .mre-shell .mre-route { display: inline-block; padding: 4px 10px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.84rem; color: #6b7280; margin: 0 2px; }
+              .mre-shell .mre-instruct { padding: 14px 18px; background: #eff6ff; border-left: 4px solid #0078d4; border-radius: 0 4px 4px 0; font-size: 0.88rem; color: #1e3a8a; text-align: left; line-height: 1.7; margin-bottom: 18px; }
+              .mre-shell .mre-instruct b { color: #1e1e6f; }
+              .mre-shell .mre-instruct ol { margin: 8px 0 0 22px; padding: 0; }
+              .mre-shell .mre-instruct li { padding: 2px 0; }
+              .mre-shell .mre-footer { font-size: 0.78rem; color: #9ca3af; margin-top: 12px; }
+              .mre-shell .mre-footer a { color: #0078d4; text-decoration: none; }
+            </style>
+            <div class="mre-shell">
+              <div class="mre-card">
+                <div class="mre-glyph">✉</div>
+                <div class="mre-h">Mail has moved to Outlook</div>
+                <div class="mre-sub">You tried to open <span class="mre-route">${hintText}</span> in Firefox, but <b>mail.crimson-dawn.net</b> is now served by the standalone <b>Outlook</b> app on your desktop &mdash; the same way real IR analysts work (mail and browser as separate windows).</div>
+                <div class="mre-instruct">
+                  <b>To read your mail:</b>
+                  <ol>
+                    <li>Look for the <b>Outlook</b> icon (✉️) on your desktop.</li>
+                    <li>Double-click it &mdash; a new Outlook window opens alongside Firefox.</li>
+                    <li>If Outlook is already open, click <b>Outlook</b> in the taskbar at the bottom to bring it forward.</li>
+                  </ol>
+                </div>
+                <div class="mre-footer">Firefox now opens to your <a href="/newtab">new tab</a> page by default.</div>
+              </div>
+            </div>`;
+    },
+
+    // Firefox new-tab page — student's home screen for the browser.
+    // Tile grid mirrors real Firefox's "Top Sites" pinned-bookmark UI.
+    // Categories help the student build a mental map of the IR toolset.
+    _renderNewTab: function() {
+        var tiles = [
+            { cat: 'osint',  name: 'VirusTotal Mirror',       host: 'vt-mirror.crimson-intel.net',     url: 'https://vt-mirror.crimson-intel.net',    glyph: 'VT',  color: '#3b5998' },
+            { cat: 'osint',  name: 'CVE Database (NVD)',      host: 'cve.crimson-intel.net',           url: 'https://cve.crimson-intel.net',          glyph: 'NVD', color: '#003366' },
+            { cat: 'osint',  name: 'WHOIS Lookup',            host: 'whois.crimson-intel.net',         url: 'https://whois.crimson-intel.net',        glyph: 'WH',  color: '#0891b2' },
+            { cat: 'osint',  name: 'IP Geolocation',          host: 'ipgeo.crimson-intel.net',         url: 'https://ipgeo.crimson-intel.net',        glyph: 'GEO', color: '#7c3aed' },
+            { cat: 'osint',  name: 'Threat Intel Mirror',     host: 'intel.crimson-intel.net',         url: 'https://intel.crimson-intel.net',        glyph: 'TI',  color: '#dc2626' },
+            { cat: 'ops',    name: 'SIEM Console',            host: 'siem.crimson-dawn.net',           url: 'https://siem.crimson-dawn.net/siem',     glyph: 'SIEM',color: '#1e293b' },
+            { cat: 'ops',    name: 'Patch Management',        host: 'patch.crimson-dawn.net',          url: 'https://patch.crimson-dawn.net',         glyph: 'CFM', color: '#0078d4' },
+            { cat: 'ops',    name: 'Rapid7 InsightVM',        host: 'insightvm.crimson-dawn.net',      url: 'https://insightvm.crimson-dawn.net',     glyph: 'R7',  color: '#ff1f1f' },
+            { cat: 'ops',    name: 'Proofpoint Mail Admin',   host: 'mailadmin.crimson-dawn.net',      url: 'https://mailadmin.crimson-dawn.net',     glyph: 'PFP', color: '#0a3d62' },
+            { cat: 'other',  name: 'Compliance Office',       host: 'compliance.crimson-dawn.net',     url: 'https://compliance.crimson-dawn.net/attest/Q2-2026', glyph: 'GRC', color: '#581c87' },
+            { cat: 'other',  name: 'AD Password Reset',       host: 'passwd.crimson-dawn.net',         url: 'https://passwd.crimson-dawn.net/reset',  glyph: 'AD',  color: '#0078d4' }
+        ];
+        var sections = [
+            { id: 'osint', label: 'Threat Intel & OSINT' },
+            { id: 'ops',   label: 'Internal Operations' },
+            { id: 'other', label: 'Other Internal' }
+        ];
+        var self = this;
+        var tileHtml = function(t) {
+            return '<a class="nt-tile" href="' + t.url + '">' +
+                '<div class="nt-tile-glyph" style="background:' + t.color + ';">' + t.glyph + '</div>' +
+                '<div class="nt-tile-name">' + self._escHtml(t.name) + '</div>' +
+                '<div class="nt-tile-host">' + self._escHtml(t.host) + '</div>' +
+            '</a>';
+        };
+        var sectionsHtml = sections.map(function(s) {
+            var sTiles = tiles.filter(function(t) { return t.cat === s.id; });
+            return '<div class="nt-section">' +
+                '<div class="nt-section-h">' + s.label + '</div>' +
+                '<div class="nt-tile-grid">' + sTiles.map(tileHtml).join('') + '</div>' +
+            '</div>';
+        }).join('');
+
+        return `
+            <style>
+              .nt-shell { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; min-height: 100%; background: linear-gradient(180deg, #fafafa 0%, #f3f4f6 100%); padding: 36px 28px 60px; color: #1f2937; }
+              .nt-shell .nt-brand { text-align: center; margin-bottom: 22px; }
+              .nt-shell .nt-logo { width: 64px; height: 64px; margin: 0 auto 8px; background: radial-gradient(circle at 30% 30%, #ff9500 0%, #f7634c 35%, #e62b6e 65%, #4a3aa8 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 1.3rem; font-family: 'Inter', sans-serif; box-shadow: 0 4px 14px rgba(231,43,110,0.3); letter-spacing: -0.02em; }
+              .nt-shell .nt-brand-name { font-size: 0.78rem; color: #6b7280; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; }
+              .nt-shell .nt-search-row { max-width: 580px; margin: 0 auto 36px; }
+              .nt-shell .nt-search { width: 100%; padding: 13px 18px 13px 44px; border: 1px solid #d1d5db; border-radius: 24px; background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%236b7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>') no-repeat 16px center; font-family: inherit; font-size: 0.92rem; color: #111827; outline: 0; box-sizing: border-box; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+              .nt-shell .nt-search:focus { border-color: #0060df; box-shadow: 0 0 0 4px rgba(0,96,223,0.14); }
+              .nt-shell .nt-search::placeholder { color: #9ca3af; }
+              .nt-shell .nt-section { max-width: 920px; margin: 0 auto 28px; }
+              .nt-shell .nt-section-h { font-size: 0.74rem; color: #4b5563; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; padding-left: 4px; }
+              .nt-shell .nt-tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+              .nt-shell .nt-tile { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 14px; text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; transition: all 0.18s; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+              .nt-shell .nt-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.08); border-color: #c7d2fe; }
+              .nt-shell .nt-tile-glyph { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.86rem; letter-spacing: 0.04em; margin-bottom: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+              .nt-shell .nt-tile-name { font-size: 0.86rem; font-weight: 600; color: #111827; text-align: center; line-height: 1.3; }
+              .nt-shell .nt-tile-host { font-size: 0.68rem; font-family: 'Cascadia Code', ui-monospace, monospace; color: #9ca3af; margin-top: 4px; text-align: center; }
+              .nt-shell .nt-footer { max-width: 920px; margin: 28px auto 0; padding: 14px 18px; background: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 0 6px 6px 0; font-size: 0.86rem; color: #78350f; line-height: 1.7; }
+              .nt-shell .nt-footer b { color: #422006; }
+              .nt-shell .nt-footer-glyph { display: inline-block; margin-right: 6px; }
+            </style>
+            <div class="nt-shell">
+              <div class="nt-brand">
+                <div class="nt-logo">🦊</div>
+                <div class="nt-brand-name">Firefox &middot; New Tab</div>
+              </div>
+              <div class="nt-search-row">
+                <input class="nt-search" type="text" placeholder="Search with Google or enter address" disabled>
+              </div>
+              ${sectionsHtml}
+              <div class="nt-footer">
+                <span class="nt-footer-glyph">📬</span>
+                <b>Looking for your mailbox?</b> Mail now lives in the <b>Outlook</b> app &mdash; check your desktop or click <b>Outlook</b> in the taskbar at the bottom of the screen.
+              </div>
+            </div>`;
+    },
+
     _launchMailApp: function(engine) {
         // Build the window content container
         var container = document.createElement('div');
@@ -4514,11 +4662,13 @@ const PISFinalConfig = {
         if (state.view === 'inbox') {
             container.innerHTML = this._renderInbox();
         } else if (state.view === 'message' && state.msgId != null) {
-            // Look up the message via the existing webApp pages so we
-            // reuse the exact same data + render path the browser uses
+            // Outlook calls page._outlookHtml() — the message data + render
+            // logic lives there. The Firefox-facing page.html() now returns
+            // a redirect notice ("Mail moved to Outlook"), so we deliberately
+            // bypass it here.
             var page = this.webApp.pages['/msg/' + state.msgId];
-            if (page && typeof page.html === 'function') {
-                container.innerHTML = page.html();
+            if (page && typeof page._outlookHtml === 'function') {
+                container.innerHTML = page._outlookHtml();
             } else {
                 container.innerHTML = '<div style="padding:32px; text-align:center; color:#6b7280;">Message not found.</div>';
             }
