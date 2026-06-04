@@ -132,7 +132,7 @@ const PISFinalConfig = {
                             children: {
                                 'incident-brief.md': {
                                     type: 'file',
-                                    content: 'INCIDENT BRIEF -- CRIMSON DAWN WIRE FRAUD (2026-05-18)\n======================================================\nReceived: 2026-05-21 09:00 from IT security manager\nClassification: INTERNAL // INCIDENT-RESPONSE\nSeverity: CRITICAL ($4.2M wire fraud)\n\nRECONSTRUCTED TIMELINE:\n\n2026-05-18 09:12 -- DNS log shows queries to an unrecognized domain\n                    from at least one AP workstation.\n\n2026-05-18 09:14 -- $4.2M wire transfer authorized via a duplicate-invoice\n                    fraud. Wire sent to offshore account ending in -7741.\n\n2026-05-18 09:14 -- Same timestamp: SIEM auth log records a login from\n                    an external IP address.\n\n2026-05-21 06:30 -- Bank flags the transfer; IT notified.\n\n2026-05-21 07:00 -- Network isolated. All AP workstations quarantined.\n\n2026-05-21 09:00 -- You arrive on-site. Webmail for the shared AP inbox\n                    accounts@crimson-dawn.net has been forensically recovered\n                    and is available in the browser (bookmark: Webmail).\n\nSCOPE:\n\nThree employees in Accounts Payable + Vendor Management had access to\nthe wire-approval workflow:\n\n  e.morales   AP clerk (WS-EMORALES-01, 10.0.4.18)\n  r.chen      AP supervisor (WS-RCHEN-01, 10.0.4.6)\n  s.patel     Vendor Management (currently on a London business trip)\n              NOTE: s.patel has an approved travel record -- HR ticket\n              #TR-2026-0418, calendar offsite 2026-05-15 to 2026-05-22.\n              Four prior London sessions on record. Her foreign-IP logins\n              are expected -- see SIEM auth log for inline provenance.\n\nSeven messages in the AP shared inbox from the 48 hours before the wire.\nOpen webmail at https://mail.crimson-dawn.net/inbox\n\nAvailable IR tools (browser bookmarks):\n  Webmail:           https://mail.crimson-dawn.net/inbox\n  CVE Search:        https://cve.crimson-intel.net/search\n  WHOIS Lookup:      https://whois.crimson-intel.net\n  Hash Analyzer:     https://vt-mirror.crimson-intel.net\n  Threat Intel:      https://intel.crimson-intel.net\n  IP Geolocation:    https://ipgeo.crimson-intel.net\n  SIEM-lite:         https://siem.crimson-dawn.net\n  Patch Mgmt:        https://patch.crimson-dawn.net\n  Rapid7 InsightVM:  https://insightvm.crimson-dawn.net\n  Mail Admin:        https://mailadmin.crimson-dawn.net\n\nRun: phase  -- to see current phase status at any time.\n'
+                                    content: 'INCIDENT BRIEF -- CRIMSON DAWN WIRE FRAUD (2026-05-18)\n======================================================\nReceived: 2026-05-21 09:00 from IT security manager\nClassification: INTERNAL // INCIDENT-RESPONSE\nSeverity: CRITICAL ($4.2M wire fraud)\n\nRECONSTRUCTED TIMELINE:\n\n2026-05-18 09:12 -- DNS log shows queries to an unrecognized domain\n                    from at least one AP workstation.\n\n2026-05-18 09:14 -- $4.2M wire transfer authorized via a duplicate-invoice\n                    fraud. Wire sent to offshore account ending in -7741.\n\n2026-05-18 09:14 -- Same timestamp: SIEM auth log records a login from\n                    an external IP address.\n\n2026-05-21 06:30 -- Bank flags the transfer; IT notified.\n\n2026-05-21 07:00 -- Network isolated. All AP workstations quarantined.\n\n2026-05-21 09:00 -- You arrive on-site. Webmail for the shared AP inbox\n                    accounts@crimson-dawn.net has been forensically recovered\n                    and is available in the browser (bookmark: Webmail).\n\nSCOPE:\n\nThree employees in Accounts Payable + Vendor Management had access to\nthe wire-approval workflow:\n\n  e.morales   AP clerk (WS-EMORALES-01, 10.0.4.18)\n  r.chen      AP supervisor (WS-RCHEN-01, 10.0.4.6)\n  s.patel     Vendor Management (currently on a London business trip)\n              NOTE: s.patel has an approved travel record -- HR ticket\n              #TR-2026-0418, calendar offsite 2026-05-15 to 2026-05-22.\n              Four prior London sessions on record. Her foreign-IP logins\n              are expected -- see SIEM auth log for inline provenance.\n\nThirteen messages in the AP shared inbox spanning the 60 hours before the wire and a few hours after. One of them is the active phish that enabled the wire fraud; the rest are a mix of legitimate internal mail, recurring vendor notifications, and unrelated phishing attempts (some legitimate-looking but with header-level tells -- SPF/DKIM/DMARC failures, mismatched Reply-To, fake sender domains).\nOpen webmail at https://mail.crimson-dawn.net/inbox\n\nAvailable IR tools (browser bookmarks):\n  Webmail:           https://mail.crimson-dawn.net/inbox\n  CVE Search:        https://cve.crimson-intel.net/search\n  WHOIS Lookup:      https://whois.crimson-intel.net\n  Hash Analyzer:     https://vt-mirror.crimson-intel.net\n  Threat Intel:      https://intel.crimson-intel.net\n  IP Geolocation:    https://ipgeo.crimson-intel.net\n  SIEM-lite:         https://siem.crimson-dawn.net\n  Patch Mgmt:        https://patch.crimson-dawn.net\n  Rapid7 InsightVM:  https://insightvm.crimson-dawn.net\n  Mail Admin:        https://mailadmin.crimson-dawn.net\n\nRun: phase  -- to see current phase status at any time.\n'
                                 },
                                 'notes.txt': {
                                     type: 'file',
@@ -242,50 +242,86 @@ const PISFinalConfig = {
                         <tbody>
                             <tr style="border-bottom:1px solid #eee;">
                                 <td style="padding:8px 12px; color:#888;">1</td>
+                                <td style="padding:8px 12px;">ar@officedepot.com</td>
+                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/8" style="color:#222; text-decoration:none;">Invoice OD-2026-44890 -- Office supplies May</a></td>
+                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-16 16:40</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:8px 12px; color:#888;">2</td>
+                                <td style="padding:8px 12px;">security@microsoft-365-account.com</td>
+                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/9" style="color:#dc2626; text-decoration:none; font-weight:600;">Unusual sign-in activity on your Microsoft account</a></td>
+                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 09:55</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:8px 12px; color:#888;">3</td>
+                                <td style="padding:8px 12px;">no-reply@zoom.us</td>
+                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/10" style="color:#222; text-decoration:none;">Recurring meeting reminder: AP Weekly Sync (Thursdays)</a></td>
+                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 11:20</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:8px 12px; color:#888;">4</td>
                                 <td style="padding:8px 12px;">it-helpdesk@crimson-dawn.net</td>
                                 <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/1" style="color:#dc2626; text-decoration:none; font-weight:600;">MANDATORY: Password rotation TODAY</a></td>
                                 <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 14:22</td>
                             </tr>
                             <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">2</td>
+                                <td style="padding:8px 12px; color:#888;">5</td>
                                 <td style="padding:8px 12px;">payroll-alerts@adp-secure-portal.com</td>
                                 <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/2" style="color:#dc2626; text-decoration:none; font-weight:600;">Direct deposit verification required</a></td>
                                 <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 16:08</td>
                             </tr>
                             <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">3</td>
+                                <td style="padding:8px 12px; color:#888;">6</td>
                                 <td style="padding:8px 12px;">noreply@fedex-shipping-update.com</td>
                                 <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/3" style="color:#dc2626; text-decoration:none; font-weight:600;">Delivery exception #4470029</a></td>
                                 <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 18:45</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #eee; background:#fff8f8;">
-                                <td style="padding:8px 12px; color:#888;">4</td>
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:8px 12px; color:#888;">7</td>
                                 <td style="padding:8px 12px;">accounts@nakamura-supplies.com</td>
                                 <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/4" style="color:#222; text-decoration:none;">Invoice 2026-Q1-114 (corrected version)</a></td>
                                 <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 08:54</td>
                             </tr>
                             <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">5</td>
+                                <td style="padding:8px 12px; color:#888;">8</td>
                                 <td style="padding:8px 12px;">m.harlowe@crimson-dawn.net</td>
                                 <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/5" style="color:#222; text-decoration:none;">Re: Q1 budget review</a></td>
                                 <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 09:30</td>
                             </tr>
                             <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">6</td>
+                                <td style="padding:8px 12px; color:#888;">9</td>
+                                <td style="padding:8px 12px;">notification@slack.com</td>
+                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/12" style="color:#222; text-decoration:none;">r.chen mentioned you in #ap-team</a></td>
+                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 09:45</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:8px 12px; color:#888;">10</td>
                                 <td style="padding:8px 12px;">support@calendly.com</td>
                                 <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/6" style="color:#222; text-decoration:none;">Meeting confirmation: 2026-05-19 14:00</a></td>
                                 <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 10:15</td>
                             </tr>
                             <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">7</td>
+                                <td style="padding:8px 12px; color:#888;">11</td>
                                 <td style="padding:8px 12px;">compliance@crimson-dawn.net</td>
                                 <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/7" style="color:#222; text-decoration:none;">Quarterly compliance attestation form</a></td>
                                 <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 11:00</td>
                             </tr>
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:8px 12px; color:#888;">12</td>
+                                <td style="padding:8px 12px;">billing@adobe-renewal-services.com</td>
+                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/13" style="color:#dc2626; text-decoration:none; font-weight:600;">ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed</a></td>
+                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 11:55</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:8px 12px; color:#888;">13</td>
+                                <td style="padding:8px 12px;">wires-alerts@chase-bizbanking.com</td>
+                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/11" style="color:#dc2626; text-decoration:none; font-weight:600;">ACTION REQUIRED: Outgoing wire $4,200,000.00 review</a></td>
+                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 13:15</td>
+                            </tr>
                         </tbody>
                     </table>
                     <div style="margin-top:12px; padding:10px; background:#f8f8f8; border:1px solid #ddd; border-radius:4px; font-size:0.72rem; color:#888;">
-                        7 messages total &mdash; click any message to view full headers and body
+                        13 messages total &mdash; click any message to view full headers and body
                     </div>
                 </div>`
             },
@@ -536,6 +572,161 @@ const PISFinalConfig = {
                     </div>
                     <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
                         <b>Analysis:</b> Legitimate internal mail. All auth passes. Not relevant to this incident.
+                    </div>
+                </div>`
+            },
+
+            // ─────────────────────────────────────────────────
+            // A1b. NOISE-LAYER MESSAGES (decoy expansion)
+            //   Six additional messages added 2026-06-03 to bury the
+            //   active phish (msg/4) in a larger inbox. Mix of legit
+            //   decoys and phishing decoys with obvious header tells
+            //   (SPF/DKIM/DMARC failures, mismatched Reply-To, fake
+            //   sender domains). Numbered 8-13 to preserve existing
+            //   msg/1-7 routes. The inbox table renders them in
+            //   chronological order alongside msg/1-7.
+            // ─────────────────────────────────────────────────
+
+            '/msg/8': {
+                title: 'Message 8 -- Invoice OD-2026-44890 -- Office supplies May',
+                html: `
+                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
+                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
+                    <h2 style="font-size:1rem; margin:12px 0 4px;">Invoice OD-2026-44890 -- Office supplies May</h2>
+                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
+                        <div><b>From:</b> ar@officedepot.com</div>
+                        <div><b>To:</b> accounts@crimson-dawn.net</div>
+                        <div><b>Date:</b> Sat, 16 May 2026 16:40:11 +0000</div>
+                        <div><b>Message-ID:</b> &lt;OD.20260516164011.44890@officedepot.com&gt;</div>
+                        <div><b>Reply-To:</b> ar@officedepot.com</div>
+                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass dkim=pass dmarc=pass</span></div>
+                        <div><b>X-Originating-IP:</b> 198.51.100.42</div>
+                    </div>
+                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
+                        <p>Hello,</p><p>Your monthly office supplies invoice is attached. Total due: $1,247.62. Payment terms net-30. PO reference: AP-CD-2026-04.</p><p>If you have questions, reply to this email or call your account manager Karen Liu at (212) 555-0184.</p><p>-- Office Depot Business Accounts Receivable</p>
+                    </div>
+                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
+                        <b>Analysis:</b> Legitimate vendor invoice. Sender domain matches officedepot.com. All authentication passes. Originating IP is consistent with Office Depot\'s network. Routine monthly AR notification; not relevant to this incident.
+                    </div>
+                </div>`
+            },
+
+            '/msg/9': {
+                title: 'Message 9 -- Unusual sign-in activity on your Microsoft account',
+                html: `
+                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
+                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
+                    <h2 style="font-size:1rem; margin:12px 0 4px;">Unusual sign-in activity on your Microsoft account</h2>
+                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
+                        <div><b>From:</b> security@microsoft-365-account.com</div>
+                        <div><b>To:</b> accounts@crimson-dawn.net</div>
+                        <div><b>Date:</b> Sun, 17 May 2026 09:55:33 +0000</div>
+                        <div><b>Message-ID:</b> &lt;MS365.20260517095533@microsoft-365-account.com&gt;</div>
+                        <div><b>Reply-To:</b> security@microsoft-365-account.com</div>
+                        <div><b>Authentication-Results:</b> <span style="color:#e74c3c; font-weight:bold;">spf=FAIL dkim=neutral dmarc=fail</span></div>
+                        <div><b>X-Originating-IP:</b> 185.157.122.49</div>
+                    </div>
+                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
+                        <p>Microsoft Security Alert</p><p>We detected a sign-in to your Microsoft 365 account from an unrecognized device in Stockholm, Sweden. If this was you, no action is needed. If not, secure your account immediately.</p><p>Review the sign-in: <code>https://microsoft-365-account.com/verify-signin?id=AC8842</code></p><p>-- Microsoft Account Team</p>
+                    </div>
+                    <div style="margin-top:10px; padding:10px; background:#ffe6e6; border:1px solid #e74c3c; border-radius:4px; font-size:0.78rem;">
+                        <b>Analysis:</b> PHISHING DECOY. The sender domain <code>microsoft-365-account.com</code> is not a real Microsoft domain (Microsoft uses <code>account.microsoft.com</code> and <code>account.live.com</code>). SPF FAILS and DMARC FAILS -- both are highlighted in the headers. The originating IP <code>185.157.122.49</code> resolves to a hosting provider in Bulgaria, not a Microsoft data center. Classic credential-harvest pattern; would have routed to a Microsoft-impersonation login page. Decoy for this incident, but a real threat in its own right -- a student who clicks that URL would have been compromised in production.
+                    </div>
+                </div>`
+            },
+
+            '/msg/10': {
+                title: 'Message 10 -- Recurring meeting reminder: AP Weekly Sync (Thursdays)',
+                html: `
+                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
+                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
+                    <h2 style="font-size:1rem; margin:12px 0 4px;">Recurring meeting reminder: AP Weekly Sync (Thursdays)</h2>
+                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
+                        <div><b>From:</b> no-reply@zoom.us</div>
+                        <div><b>To:</b> accounts@crimson-dawn.net</div>
+                        <div><b>Date:</b> Sun, 17 May 2026 11:20:00 +0000</div>
+                        <div><b>Message-ID:</b> &lt;ZM.20260517112000.recurring-441@zoom.us&gt;</div>
+                        <div><b>Reply-To:</b> no-reply@zoom.us</div>
+                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass dkim=pass dmarc=pass</span></div>
+                        <div><b>X-Originating-IP:</b> 170.114.45.18</div>
+                    </div>
+                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
+                        <p>Hi Elena,</p><p>Reminder: your recurring meeting "Accounts Payable Weekly Sync" with R. Chen, M. Harlowe, and S. Patel is scheduled for Thursday May 22 at 14:00 UTC.</p><p>Join URL: <code>https://crimson-dawn.zoom.us/j/85544192033</code></p><p>-- Zoom Meetings</p>
+                    </div>
+                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
+                        <b>Analysis:</b> Legitimate Zoom notification. SPF/DKIM/DMARC all pass. Originating IP is in Zoom\'s ARIN-allocated range. Recurring meeting reminder unrelated to the incident; routine AP team comms.
+                    </div>
+                </div>`
+            },
+
+            '/msg/11': {
+                title: 'Message 11 -- ACTION REQUIRED: Outgoing wire $4,200,000.00 review',
+                html: `
+                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
+                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
+                    <h2 style="font-size:1rem; margin:12px 0 4px;">ACTION REQUIRED: Outgoing wire $4,200,000.00 review</h2>
+                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
+                        <div><b>From:</b> wires-alerts@chase-bizbanking.com</div>
+                        <div><b>To:</b> accounts@crimson-dawn.net</div>
+                        <div><b>Date:</b> Mon, 18 May 2026 13:15:09 +0000</div>
+                        <div><b>Message-ID:</b> &lt;CH.20260518131509@chase-bizbanking.com&gt;</div>
+                        <div><b>Reply-To:</b> wires-alerts@chase-bizbanking.com</div>
+                        <div><b>Authentication-Results:</b> <span style="color:#e74c3c; font-weight:bold;">spf=FAIL dkim=fail dmarc=fail</span></div>
+                        <div><b>X-Originating-IP:</b> 45.83.91.122</div>
+                    </div>
+                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
+                        <p>Chase Business Banking Wire Alert</p><p>An outgoing wire of $4,200,000.00 to account ending <b>-7741</b> requires your review. If not authorized, click below to dispute within 60 minutes.</p><p>Review wire: <code>https://chase-bizbanking.com/wires/review/PNFAH-7741</code></p><p>-- Chase Business Banking</p>
+                    </div>
+                    <div style="margin-top:10px; padding:10px; background:#ffe6e6; border:1px solid #e74c3c; border-radius:4px; font-size:0.78rem;">
+                        <b>Analysis:</b> PHISHING DECOY -- and a particularly cynical one: a follow-up scam timed AFTER the actual wire fraud, attempting to harvest credentials from someone now panicked about the loss. The sender domain <code>chase-bizbanking.com</code> is not Chase (Chase uses <code>chase.com</code> and <code>jpmorganchase.com</code>). All three auth checks FAIL. The amount $4.2M and account suffix -7741 match the real fraud -- the attacker (or a different scammer monitoring the breach) is using public knowledge of the fraud to set up a secondary social-engineering attack. NOT the source of the original wire fraud; that traces to msg/4. This message arrived AFTER the wire on 2026-05-18 at 13:15 UTC, four hours post-loss.
+                    </div>
+                </div>`
+            },
+
+            '/msg/12': {
+                title: 'Message 12 -- r.chen mentioned you in #ap-team',
+                html: `
+                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
+                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
+                    <h2 style="font-size:1rem; margin:12px 0 4px;">r.chen mentioned you in #ap-team</h2>
+                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
+                        <div><b>From:</b> notification@slack.com</div>
+                        <div><b>To:</b> accounts@crimson-dawn.net</div>
+                        <div><b>Date:</b> Mon, 18 May 2026 09:45:22 +0000</div>
+                        <div><b>Message-ID:</b> &lt;SL.20260518094522.AP4421@slack.com&gt;</div>
+                        <div><b>Reply-To:</b> no-reply@slack.com</div>
+                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass dkim=pass dmarc=pass</span></div>
+                        <div><b>X-Originating-IP:</b> 18.142.5.99</div>
+                    </div>
+                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
+                        <p>r.chen mentioned you in <b>#ap-team</b> on Crimson Dawn Slack:</p><blockquote style="border-left:3px solid #ddd; padding:4px 12px; margin:8px 0; color:#444;">@e.morales -- please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks. -- r.chen</blockquote><p>Open in Slack: <code>https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722</code></p>
+                    </div>
+                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
+                        <b>Analysis:</b> Legitimate Slack notification. SPF/DKIM/DMARC all pass. Originating IP is in Slack\'s AWS-allocated range. <b>Note the topical timing:</b> r.chen references the Nakamura wire routing -- this is the AP supervisor following up on what she believed was a legitimate vendor update earlier in the morning. Connect this message back to msg/4 during Phase 1 review: the supervisor is unknowingly endorsing the fraudulent routing from msg/4. The Slack message itself is legitimate; the underlying business state it describes is compromised.
+                    </div>
+                </div>`
+            },
+
+            '/msg/13': {
+                title: 'Message 13 -- ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed',
+                html: `
+                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
+                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
+                    <h2 style="font-size:1rem; margin:12px 0 4px;">ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed</h2>
+                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
+                        <div><b>From:</b> billing@adobe-renewal-services.com</div>
+                        <div><b>To:</b> accounts@crimson-dawn.net</div>
+                        <div><b>Date:</b> Mon, 18 May 2026 11:55:41 +0000</div>
+                        <div><b>Message-ID:</b> &lt;ADB.20260518115541@adobe-renewal-services.com&gt;</div>
+                        <div><b>Reply-To:</b> support@billing-services-portal.com</div>
+                        <div><b>Authentication-Results:</b> <span style="color:#e74c3c; font-weight:bold;">spf=FAIL dkim=pass dmarc=fail</span></div>
+                        <div><b>X-Originating-IP:</b> 162.241.92.10</div>
+                    </div>
+                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
+                        <p>Adobe Billing Notice</p><p>Your Adobe Creative Cloud subscription has been auto-renewed for $599.88 USD. Charge will appear on your card ending in 8842 within 24 hours.</p><p>To dispute this charge or cancel renewal, you must act within 24 hours: <code>https://adobe-renewal-services.com/billing/dispute?ref=8842</code></p><p>-- Adobe Billing Services</p>
+                    </div>
+                    <div style="margin-top:10px; padding:10px; background:#ffe6e6; border:1px solid #e74c3c; border-radius:4px; font-size:0.78rem;">
+                        <b>Analysis:</b> PHISHING DECOY. Sender domain <code>adobe-renewal-services.com</code> is not a real Adobe domain (Adobe uses <code>adobe.com</code> for billing). SPF and DMARC both FAIL; only DKIM passes (the attacker controls the keys for their own fake domain). <b>Reply-To is different from From</b> (<code>support@billing-services-portal.com</code>) -- a classic phishing tell. Originating IP <code>162.241.92.10</code> resolves to a generic hosting provider in Utah, not Adobe infrastructure. Urgency tactic ("act within 24 hours") and unfamiliar card suffix ("ending in 8842" -- AP doesn\'t have an Adobe charge on file) are additional red flags. Decoy for this incident.
                     </div>
                 </div>`
             },
