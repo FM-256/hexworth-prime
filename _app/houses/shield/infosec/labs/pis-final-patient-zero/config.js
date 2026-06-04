@@ -223,220 +223,100 @@ const PISFinalConfig = {
 
             '/inbox': {
                 title: 'Inbox -- accounts@crimson-dawn.net',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:800px; margin:0 auto; padding:16px;">
-                    <div style="border-bottom:2px solid #dc2626; padding-bottom:12px; margin-bottom:16px;">
-                        <div style="font-size:0.75rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON DAWN WEBMAIL</div>
-                        <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">Inbox: accounts@crimson-dawn.net</div>
-                        <div style="font-size:0.72rem; color:#888; margin-top:4px;">Forensically recovered -- 48h window before wire transfer (2026-05-17 to 2026-05-18)</div>
-                    </div>
-                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
-                        <thead>
-                            <tr style="background:#f5f5f5;">
-                                <th style="padding:8px 12px; text-align:left; color:#555; font-weight:600; border-bottom:1px solid #ddd;">#</th>
-                                <th style="padding:8px 12px; text-align:left; color:#555; font-weight:600; border-bottom:1px solid #ddd;">From</th>
-                                <th style="padding:8px 12px; text-align:left; color:#555; font-weight:600; border-bottom:1px solid #ddd;">Subject</th>
-                                <th style="padding:8px 12px; text-align:left; color:#555; font-weight:600; border-bottom:1px solid #ddd;">Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">1</td>
-                                <td style="padding:8px 12px;">ar@officedepot.com</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/8" style="color:#222; text-decoration:none;">Invoice OD-2026-44890 -- Office supplies May</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-16 16:40</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">2</td>
-                                <td style="padding:8px 12px;">security@microsoft-365-account.com</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/9" style="color:#dc2626; text-decoration:none; font-weight:600;">Unusual sign-in activity on your Microsoft account</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 09:55</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">3</td>
-                                <td style="padding:8px 12px;">no-reply@zoom.us</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/10" style="color:#222; text-decoration:none;">Recurring meeting reminder: AP Weekly Sync (Thursdays)</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 11:20</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">4</td>
-                                <td style="padding:8px 12px;">it-helpdesk@crimson-dawn.net</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/1" style="color:#dc2626; text-decoration:none; font-weight:600;">MANDATORY: Password rotation TODAY</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 14:22</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">5</td>
-                                <td style="padding:8px 12px;">payroll-alerts@adp-secure-portal.com</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/2" style="color:#dc2626; text-decoration:none; font-weight:600;">Direct deposit verification required</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 16:08</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">6</td>
-                                <td style="padding:8px 12px;">noreply@fedex-shipping-update.com</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/3" style="color:#dc2626; text-decoration:none; font-weight:600;">Delivery exception #4470029</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-17 18:45</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">7</td>
-                                <td style="padding:8px 12px;">accounts@nakamura-supplies.com</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/4" style="color:#222; text-decoration:none;">Invoice 2026-Q1-114 (corrected version)</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 08:54</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">8</td>
-                                <td style="padding:8px 12px;">m.harlowe@crimson-dawn.net</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/5" style="color:#222; text-decoration:none;">Re: Q1 budget review</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 09:30</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">9</td>
-                                <td style="padding:8px 12px;">notification@slack.com</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/12" style="color:#222; text-decoration:none;">r.chen mentioned you in #ap-team</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 09:45</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">10</td>
-                                <td style="padding:8px 12px;">support@calendly.com</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/6" style="color:#222; text-decoration:none;">Meeting confirmation: 2026-05-19 14:00</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 10:15</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">11</td>
-                                <td style="padding:8px 12px;">compliance@crimson-dawn.net</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/7" style="color:#222; text-decoration:none;">Quarterly compliance attestation form</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 11:00</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">12</td>
-                                <td style="padding:8px 12px;">billing@adobe-renewal-services.com</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/13" style="color:#dc2626; text-decoration:none; font-weight:600;">ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 11:55</td>
-                            </tr>
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:8px 12px; color:#888;">13</td>
-                                <td style="padding:8px 12px;">wires-alerts@chase-bizbanking.com</td>
-                                <td style="padding:8px 12px;"><a href="https://mail.crimson-dawn.net/msg/11" style="color:#dc2626; text-decoration:none; font-weight:600;">ACTION REQUIRED: Outgoing wire $4,200,000.00 review</a></td>
-                                <td style="padding:8px 12px; color:#888; font-size:0.77rem;">2026-05-18 13:15</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div style="margin-top:12px; padding:10px; background:#f8f8f8; border:1px solid #ddd; border-radius:4px; font-size:0.72rem; color:#888;">
-                        13 messages total &mdash; click any message to view full headers and body
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderInbox(); }
             },
 
             '/msg/1': {
                 title: 'Message 1 -- MANDATORY: Password rotation TODAY',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">MANDATORY: Password rotation TODAY</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> it-helpdesk@crimson-dawn.net</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 17 May 2026 14:22:11 +0000</div>
-                        <div><b>Message-ID:</b> &lt;HD.20260517142211@crimson-dawn.net&gt;</div>
-                        <div><b>Reply-To:</b> it-helpdesk@crimson-dawn.net</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass</span> dkim=pass dmarc=pass</div>
-                        <div><b>X-Originating-IP:</b> 10.0.1.5</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>All Accounts Payable staff,</p>
-                        <p>Security policy requires all staff rotate their AD passwords today before 17:00. A failure to rotate will result in your account being locked at EOD.</p>
-                        <p>Use the internal self-service portal: <a href="https://passwd.crimson-dawn.net/reset" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://passwd.crimson-dawn.net/reset</a></p>
-                        <p>-- IT Helpdesk</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> SPF pass, DKIM pass, DMARC pass. Sender domain matches crimson-dawn.net. Message-ID host matches sender domain. Originating IP is internal (10.0.1.5). This message is <b>legitimate internal mail</b> -- a decoy candidate.
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'MANDATORY: Password rotation TODAY',
+                    fromName: 'IT Helpdesk', fromEmail: 'it-helpdesk@crimson-dawn.net',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 17 May 2026 14:22:11 +0000',
+                    dateLine: 'Mon 5/17/2026 2:22 PM',
+                    messageId: 'HD.20260517142211@crimson-dawn.net',
+                    replyTo: 'it-helpdesk@crimson-dawn.net',
+                    auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
+                    originIp: '10.0.1.5', originIpNote: '&larr; internal corporate range',
+                    external: false,
+                    body: '<p>All Accounts Payable staff,</p>' +
+                          '<p>Security policy requires all staff rotate their AD passwords today before 17:00. A failure to rotate will result in your account being locked at EOD.</p>' +
+                          '<p>Use the internal self-service portal: <a href="https://passwd.crimson-dawn.net/reset">https://passwd.crimson-dawn.net/reset</a></p>' +
+                          '<p>&mdash; IT Helpdesk</p>',
+                    analysis: { kind: 'ok', html:
+                        '<b>SPF pass, DKIM pass, DMARC pass.</b> Sender domain matches <code>crimson-dawn.net</code>. Message-ID host matches sender domain. Originating IP is internal (<code>10.0.1.5</code>). This message is <b>legitimate internal mail</b> &mdash; a decoy candidate. (The reset portal it links to is also genuinely internal &mdash; clicking through demonstrates a real corporate IDM workflow.)' }
+                }); }
             },
 
             '/msg/2': {
                 title: 'Message 2 -- Direct deposit verification required',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">Direct deposit verification required</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> payroll-alerts@adp-secure-portal.com</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 17 May 2026 16:08:44 +0000</div>
-                        <div><b>Message-ID:</b> &lt;ADP.20260517160844@adp-secure-portal.com&gt;</div>
-                        <div><b>Reply-To:</b> payroll-alerts@adp-secure-portal.com</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass</span> dkim=pass dmarc=pass</div>
-                        <div><b>X-Originating-IP:</b> 204.111.12.88</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Action Required: Your payroll direct deposit information needs to be re-verified due to a recent bank routing update.</p>
-                        <p>Log in to verify your account details: <a href="https://adp-secure-portal.com/verify" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://adp-secure-portal.com/verify</a></p>
-                        <p>-- ADP Payroll Services</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> SPF pass, DKIM pass, DMARC pass. Although the subject is alarming, all authentication headers pass. Reply-To matches From. This is spam-adjacent but <b>not the active phish</b> in this incident.
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'Direct deposit verification required',
+                    fromName: 'ADP Payroll Services', fromEmail: 'payroll-alerts@adp-secure-portal.com',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 17 May 2026 16:08:44 +0000',
+                    dateLine: 'Mon 5/17/2026 4:08 PM',
+                    messageId: 'ADP.20260517160844@adp-secure-portal.com',
+                    replyTo: 'payroll-alerts@adp-secure-portal.com',
+                    auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
+                    originIp: '204.111.12.88',
+                    external: true,
+                    body: '<p><b>Action Required:</b> Your payroll direct deposit information needs to be re-verified due to a recent bank routing update.</p>' +
+                          '<p>Log in to verify your account details: <a class="mc-phish-link" href="https://adp-secure-portal.com/verify">https://adp-secure-portal.com/verify</a></p>' +
+                          '<p>&mdash; ADP Payroll Services</p>',
+                    analysis: { kind: 'ok', html:
+                        '<b>All authentication passes:</b> SPF pass, DKIM pass, DMARC pass. The subject is alarming but the headers check out and Reply-To matches From. <b>Not the active phish</b> in this incident. (Note: <code>adp-secure-portal.com</code> is NOT a real ADP domain &mdash; real ADP uses <code>adp.com</code>. SPF can pass on attacker-controlled domains because the attacker writes the SPF record. Auth-pass is a necessary but not sufficient signal &mdash; cross-check sender legitimacy.)' }
+                }); }
             },
 
             '/msg/3': {
                 title: 'Message 3 -- Delivery exception #4470029',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">Delivery exception #4470029</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> noreply@fedex-shipping-update.com</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 17 May 2026 18:45:02 +0000</div>
-                        <div><b>Message-ID:</b> &lt;FDX.20260517184502@fedex-shipping-update.com&gt;</div>
-                        <div><b>Reply-To:</b> noreply@fedex-shipping-update.com</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass</span> dkim=pass dmarc=pass</div>
-                        <div><b>X-Originating-IP:</b> 161.199.0.14</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Your shipment #4470029 has experienced a delivery exception. A customs hold has been placed on your package.</p>
-                        <p>Review exception details: <a href="https://fedex-shipping-update.com/exception/4470029" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://fedex-shipping-update.com/exception/4470029</a></p>
-                        <p>-- FedEx Notification Services</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> SPF pass, DKIM pass, DMARC pass. Looks suspicious on the surface but all authentication passes. Reply-To matches From. <b>Not the active phish</b> -- decoy. The intuition trap here is intentional (W2 skill: surface red flags != active phish).
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'Delivery exception #4470029',
+                    fromName: 'FedEx Notification', fromEmail: 'noreply@fedex-shipping-update.com',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 17 May 2026 18:45:02 +0000',
+                    dateLine: 'Mon 5/17/2026 6:45 PM',
+                    messageId: 'FDX.20260517184502@fedex-shipping-update.com',
+                    replyTo: 'noreply@fedex-shipping-update.com',
+                    auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
+                    originIp: '161.199.0.14',
+                    external: true,
+                    body: '<p>Your shipment <b>#4470029</b> has experienced a delivery exception. A customs hold has been placed on your package.</p>' +
+                          '<p>Review exception details: <a class="mc-phish-link" href="https://fedex-shipping-update.com/exception/4470029">https://fedex-shipping-update.com/exception/4470029</a></p>' +
+                          '<p>&mdash; FedEx Notification Services</p>',
+                    analysis: { kind: 'ok', html:
+                        'SPF pass, DKIM pass, DMARC pass. Looks suspicious on the surface but all authentication passes and Reply-To matches From. <b>Not the active phish</b> &mdash; decoy. The intuition trap is intentional (W2 skill: surface red flags &ne; active phish). The lookalike domain <code>fedex-shipping-update.com</code> is NOT a real FedEx domain however &mdash; a determined attacker would not need it to be.' }
+                }); }
             },
 
             '/msg/4': {
                 title: 'Message 4 -- Invoice 2026-Q1-114 (corrected version)',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">Invoice 2026-Q1-114 (corrected version)</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> accounts@nakamura-supplies.com</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 18 May 2026 08:54:31 +0000</div>
-                        <div><b>Message-ID:</b> <span style="color:#dc2626; font-weight:bold;">&lt;F1F2A4E8.20260518123045@crimson-dawn-finance.net&gt;</span></div>
-                        <div><b>Reply-To:</b> <span style="color:#dc2626; font-weight:bold;">payments@nakamura-suppliers-corp.com</span> &nbsp;<span style="color:#dc2626;">&larr; MISMATCH: Reply-To domain differs from From</span></div>
-                        <div><b>Authentication-Results:</b> <span style="color:#dc2626; font-weight:bold;">spf=neutral</span> <span style="color:#dc2626; font-weight:bold;">dkim=fail</span> <span style="color:#dc2626; font-weight:bold;">dmarc=fail</span></div>
-                        <div><b>X-Originating-IP:</b> <span style="color:#dc2626; font-weight:bold;">185.220.101.45</span> &nbsp;<span style="color:#888;">(Foreign ASN -- not Nakamura Supplies published infra)</span></div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Dear Accounts Payable Team,</p>
-                        <p>Please find attached the corrected invoice for Q1 2026. There was an error in our previous submission regarding the unit pricing on items 14 and 22. The corrected total is reflected in the attached document.</p>
-                        <p>If you have any questions, please reply to this message or contact our payments team directly.</p>
-                        <p>Attachment: <a href="https://mail.crimson-dawn.net/downloads/Nakamura-Q1-2026-CORRECTED.docx" style="color:#dc2626; font-weight:600;">Nakamura-Q1-2026-CORRECTED.docx</a> (click to download to /home/ir-lead/downloads/)</p>
-                        <p>-- Nakamura Supplies Accounts Department</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#fff0f0; border:1px solid #dc2626; border-radius:4px; font-size:0.78rem;">
-                        <b style="color:#dc2626;">Analysis -- multiple red flags in headers:</b><br>
-                        1. Message-ID host is <code>crimson-dawn-finance.net</code> -- does NOT match the From domain <code>nakamura-supplies.com</code><br>
-                        2. Reply-To is <code>payments@nakamura-suppliers-corp.com</code> -- note "suppliers" (with -s) and "-corp" suffix -- different domain than From<br>
-                        3. SPF neutral -- sender IP not authorized by nakamura-supplies.com SPF record<br>
-                        4. DKIM fail -- signature invalid (body tampered or sender impersonated)<br>
-                        5. DMARC fail -- neither SPF nor DKIM alignment achieved<br>
-                        6. X-Originating-IP 185.220.101.45 -- not associated with Nakamura Supplies infrastructure
-                    </div>
-                </div>`,
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'Invoice 2026-Q1-114 (corrected version)',
+                    fromName: 'Nakamura Supplies Accounts', fromEmail: 'accounts@nakamura-supplies.com',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 08:54:31 +0000',
+                    dateLine: 'Tue 5/18/2026 8:54 AM',
+                    messageId: 'F1F2A4E8.20260518123045@crimson-dawn-finance.net',
+                    replyTo: 'payments@nakamura-suppliers-corp.com',
+                    auth: { spf: 'neutral', dkim: 'fail', dmarc: 'fail' },
+                    originIp: '185.220.101.45', originIpClass: 'mc-fail',
+                    originIpNote: '&larr; foreign ASN (NForce, NL) &mdash; not Nakamura Supplies published infra',
+                    external: true,
+                    body: '<p>Dear Accounts Payable Team,</p>' +
+                          '<p>Please find attached the <b>corrected invoice</b> for Q1 2026. There was an error in our previous submission regarding the unit pricing on items 14 and 22. The corrected total is reflected in the attached document.</p>' +
+                          '<p>If you have any questions, please reply to this message or contact our payments team directly.</p>' +
+                          '<div class="mc-attach"><div class="mc-attach-glyph">DOC</div><div><div class="mc-attach-name"><a href="https://mail.crimson-dawn.net/downloads/Nakamura-Q1-2026-CORRECTED.docx">Nakamura-Q1-2026-CORRECTED.docx</a></div><div class="mc-attach-meta">Word document &middot; 47.2 KB &middot; <a href="https://mail.crimson-dawn.net/downloads/Nakamura-Q1-2026-CORRECTED.docx" style="color:#0078d4;">Download</a></div></div></div>' +
+                          '<p>&mdash; Nakamura Supplies Accounts Department</p>',
+                    analysis: { kind: 'warn', html:
+                        '<b>Multiple red flags in headers &mdash; this is the active phish.</b>' +
+                        '<ol>' +
+                        '<li><b>Message-ID host</b> is <code>crimson-dawn-finance.net</code> &mdash; does NOT match the From domain <code>nakamura-supplies.com</code>. Mail clients generate the Message-ID on the sending host; this one was generated by attacker-controlled infrastructure.</li>' +
+                        '<li><b>Reply-To</b> is <code>payments@nakamura-suppliers-corp.com</code> &mdash; note <b>"suppliers"</b> (extra "s") and <b>"-corp"</b> suffix &mdash; a different lookalike domain than the From. Replies would go to the attacker, not the real vendor.</li>' +
+                        '<li><b>SPF neutral</b> &mdash; sender IP not authorized by <code>nakamura-supplies.com</code>\'s SPF record.</li>' +
+                        '<li><b>DKIM fail</b> &mdash; signature invalid (body tampered or sender impersonated).</li>' +
+                        '<li><b>DMARC fail</b> &mdash; neither SPF nor DKIM alignment achieved.</li>' +
+                        '<li><b>X-Originating-IP <code>185.220.101.45</code></b> &mdash; not associated with Nakamura Supplies infrastructure (whois shows NForce Entertainment, NL &mdash; a known bulletproof VPS provider).</li>' +
+                        '</ol>' +
+                        'This is the <b>Phase 1 phishing email</b> the rest of the incident traces back to. The Message-ID host string (<code>F1F2A4E8.20260518123045@crimson-dawn-finance.net</code>) is the seed for the Flag 1 hash.' }
+                }); },
                 formHandler: function(data, engine) {
                     // Download handler is wired via link interception in Browser.js
                     return '';
@@ -478,29 +358,23 @@ const PISFinalConfig = {
 
             '/msg/5': {
                 title: 'Message 5 -- Re: Q1 budget review',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">Re: Q1 budget review</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> m.harlowe@crimson-dawn.net</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 18 May 2026 09:30:14 +0000</div>
-                        <div><b>Message-ID:</b> &lt;MH.20260518093014@crimson-dawn.net&gt;</div>
-                        <div><b>Reply-To:</b> m.harlowe@crimson-dawn.net</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass</span> dkim=pass dmarc=pass</div>
-                        <div><b>X-Originating-IP:</b> 10.0.1.8</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Team,</p>
-                        <p>Attaching the final Q1 budget numbers after the corrections from last week's review. Please confirm once received.</p>
-                        <p>Attachment: <a href="https://mail.crimson-dawn.net/downloads/budget-Q1-final.xlsx" style="color:#222;">budget-Q1-final.xlsx</a> (legitimate internal attachment -- decoy for Phase 2)</p>
-                        <p>-- Marcus Harlowe, Finance</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> SPF pass, DKIM pass, DMARC pass. Internal sender, internal originating IP. Reply-To matches From. Legitimate correspondence. The attached budget file is <b>benign</b> -- hashing it returns a clean result in the hash analyzer.
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'Re: Q1 budget review',
+                    fromName: 'Marcus Harlowe', fromEmail: 'm.harlowe@crimson-dawn.net',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 09:30:14 +0000',
+                    dateLine: 'Tue 5/18/2026 9:30 AM',
+                    messageId: 'MH.20260518093014@crimson-dawn.net',
+                    replyTo: 'm.harlowe@crimson-dawn.net',
+                    auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
+                    originIp: '10.0.1.8', originIpNote: '&larr; internal corporate range',
+                    external: false,
+                    body: '<p>Team,</p>' +
+                          '<p>Attaching the final Q1 budget numbers after the corrections from last week\'s review. Please confirm once received.</p>' +
+                          '<div class="mc-attach"><div class="mc-attach-glyph">XLS</div><div><div class="mc-attach-name"><a href="https://mail.crimson-dawn.net/downloads/budget-Q1-final.xlsx">budget-Q1-final.xlsx</a></div><div class="mc-attach-meta">Excel spreadsheet &middot; 31.4 KB &middot; <a href="https://mail.crimson-dawn.net/downloads/budget-Q1-final.xlsx" style="color:#0078d4;">Download</a></div></div></div>' +
+                          '<p>&mdash; Marcus Harlowe, Finance</p>',
+                    analysis: { kind: 'ok', html:
+                        '<b>SPF pass, DKIM pass, DMARC pass.</b> Internal sender (real Finance manager), internal originating IP. Reply-To matches From. <b>Legitimate correspondence.</b> The attached budget file is benign &mdash; hashing it returns a clean result in the hash analyzer. (This is the "innocent file" Phase 2 decoy &mdash; demonstrates that not every attachment in an inbox during an incident is the payload.)' }
+                }); }
             },
 
             '/downloads/budget-Q1-final.xlsx': {
@@ -528,52 +402,42 @@ const PISFinalConfig = {
 
             '/msg/6': {
                 title: 'Message 6 -- Meeting confirmation',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">Meeting confirmation: 2026-05-19 14:00</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> support@calendly.com</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 18 May 2026 10:15:00 +0000</div>
-                        <div><b>Message-ID:</b> &lt;CAL.20260518101500@calendly.com&gt;</div>
-                        <div><b>Reply-To:</b> support@calendly.com</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass</span> dkim=pass dmarc=pass</div>
-                        <div><b>X-Originating-IP:</b> 104.16.88.25</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Your meeting "Q2 Vendor Review" has been confirmed for 2026-05-19 at 14:00 UTC with J. Rivera from Accounts.</p>
-                        <p>-- Calendly Notification Services</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> Legitimate notification from Calendly. All auth passes. Not relevant to this incident.
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'Meeting confirmation: 2026-05-19 14:00',
+                    fromName: 'Calendly Notifications', fromEmail: 'support@calendly.com',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 10:15:00 +0000',
+                    dateLine: 'Tue 5/18/2026 10:15 AM',
+                    messageId: 'CAL.20260518101500@calendly.com',
+                    replyTo: 'support@calendly.com',
+                    auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
+                    originIp: '104.16.88.25', originIpNote: '&larr; Cloudflare edge (Calendly fronts via CF)',
+                    external: true,
+                    body: '<p>Your meeting <b>"Q2 Vendor Review"</b> has been confirmed for <b>2026-05-19 at 14:00 UTC</b> with J. Rivera from Accounts.</p>' +
+                          '<p>&mdash; Calendly Notification Services</p>',
+                    analysis: { kind: 'ok', html:
+                        'Legitimate notification from Calendly. All auth passes. Sender domain matches a real Calendly domain. Not relevant to this incident &mdash; routine vendor-review scheduling.' }
+                }); }
             },
 
             '/msg/7': {
                 title: 'Message 7 -- Quarterly compliance attestation',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">Quarterly compliance attestation form</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> compliance@crimson-dawn.net</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 18 May 2026 11:00:00 +0000</div>
-                        <div><b>Message-ID:</b> &lt;CMP.20260518110000@crimson-dawn.net&gt;</div>
-                        <div><b>Reply-To:</b> compliance@crimson-dawn.net</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass</span> dkim=pass dmarc=pass</div>
-                        <div><b>X-Originating-IP:</b> 10.0.2.3</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Please complete the Q2 2026 compliance attestation by end of week. Link: <a href="https://compliance.crimson-dawn.net/attest/Q2-2026" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://compliance.crimson-dawn.net/attest/Q2-2026</a></p>
-                        <p>-- Compliance Office</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> Legitimate internal mail. All auth passes. Not relevant to this incident.
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'Quarterly compliance attestation form',
+                    fromName: 'Crimson Dawn Compliance', fromEmail: 'compliance@crimson-dawn.net',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 11:00:00 +0000',
+                    dateLine: 'Tue 5/18/2026 11:00 AM',
+                    messageId: 'CMP.20260518110000@crimson-dawn.net',
+                    replyTo: 'compliance@crimson-dawn.net',
+                    auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
+                    originIp: '10.0.2.3', originIpNote: '&larr; internal mail relay (Compliance subnet)',
+                    external: false,
+                    body: '<p>Please complete the <b>Q2 2026 compliance attestation</b> by end of week:</p>' +
+                          '<p>Link: <a href="https://compliance.crimson-dawn.net/attest/Q2-2026">https://compliance.crimson-dawn.net/attest/Q2-2026</a></p>' +
+                          '<p>This is a quarterly requirement per <b>SOX &sect; 302</b> and policy <b>CDC-POL-12</b>.</p>' +
+                          '<p>&mdash; Compliance Office</p>',
+                    analysis: { kind: 'ok', html:
+                        '<b>Legitimate internal mail.</b> All auth passes. Sender domain matches <code>crimson-dawn.net</code>. Originating IP is internal (Compliance relay). Not relevant to this incident &mdash; routine quarterly attestation. (The /attest portal it links to is genuinely internal &mdash; clicking through demonstrates a real GRC workflow.)' }
+                }); }
             },
 
             // ─────────────────────────────────────────────────
@@ -589,146 +453,130 @@ const PISFinalConfig = {
 
             '/msg/8': {
                 title: 'Message 8 -- Invoice OD-2026-44890 -- Office supplies May',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">Invoice OD-2026-44890 -- Office supplies May</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> ar@officedepot.com</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Sat, 16 May 2026 16:40:11 +0000</div>
-                        <div><b>Message-ID:</b> &lt;OD.20260516164011.44890@officedepot.com&gt;</div>
-                        <div><b>Reply-To:</b> ar@officedepot.com</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass dkim=pass dmarc=pass</span></div>
-                        <div><b>X-Originating-IP:</b> 198.51.100.42</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Hello,</p><p>Your monthly office supplies invoice is attached. Total due: $1,247.62. Payment terms net-30. PO reference: AP-CD-2026-04.</p><p>If you have questions, reply to this email or call your account manager Karen Liu at (212) 555-0184.</p><p>-- Office Depot Business Accounts Receivable</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> Legitimate vendor invoice. Sender domain matches officedepot.com. All authentication passes. Originating IP is consistent with Office Depot\'s network. Routine monthly AR notification; not relevant to this incident.
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'Invoice OD-2026-44890 — Office supplies May',
+                    fromName: 'Office Depot Business AR', fromEmail: 'ar@officedepot.com',
+                    to: 'accounts@crimson-dawn.net', date: 'Sat, 16 May 2026 16:40:11 +0000',
+                    dateLine: 'Sat 5/16/2026 4:40 PM',
+                    messageId: 'OD.20260516164011.44890@officedepot.com',
+                    replyTo: 'ar@officedepot.com',
+                    auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
+                    originIp: '198.51.100.42',
+                    external: true,
+                    body: '<p>Hello,</p>' +
+                          '<p>Your monthly office supplies invoice is attached. <b>Total due: $1,247.62</b>. Payment terms net-30. PO reference: <code>AP-CD-2026-04</code>.</p>' +
+                          '<p>If you have questions, reply to this email or call your account manager Karen Liu at (212) 555-0184.</p>' +
+                          '<p>&mdash; Office Depot Business Accounts Receivable</p>',
+                    analysis: { kind: 'ok', html:
+                        '<b>Legitimate vendor invoice.</b> Sender domain matches <code>officedepot.com</code>. All authentication passes. Originating IP is consistent with Office Depot\'s network. Routine monthly AR notification; not relevant to this incident.' }
+                }); }
             },
 
             '/msg/9': {
                 title: 'Message 9 -- Unusual sign-in activity on your Microsoft account',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">Unusual sign-in activity on your Microsoft account</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> security@microsoft-365-account.com</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Sun, 17 May 2026 09:55:33 +0000</div>
-                        <div><b>Message-ID:</b> &lt;MS365.20260517095533@microsoft-365-account.com&gt;</div>
-                        <div><b>Reply-To:</b> security@microsoft-365-account.com</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#e74c3c; font-weight:bold;">spf=FAIL dkim=neutral dmarc=fail</span></div>
-                        <div><b>X-Originating-IP:</b> 185.157.122.49</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Microsoft Security Alert</p><p>We detected a sign-in to your Microsoft 365 account from an unrecognized device in Stockholm, Sweden. If this was you, no action is needed. If not, secure your account immediately.</p><p>Review the sign-in: <a href="https://microsoft-365-account.com/verify-signin?id=AC8842" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://microsoft-365-account.com/verify-signin?id=AC8842</a></p><p>-- Microsoft Account Team</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#ffe6e6; border:1px solid #e74c3c; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> PHISHING DECOY. The sender domain <code>microsoft-365-account.com</code> is not a real Microsoft domain (Microsoft uses <code>account.microsoft.com</code> and <code>account.live.com</code>). SPF FAILS and DMARC FAILS -- both are highlighted in the headers. The originating IP <code>185.157.122.49</code> resolves to a hosting provider in Bulgaria, not a Microsoft data center. Classic credential-harvest pattern; would have routed to a Microsoft-impersonation login page. Decoy for this incident, but a real threat in its own right -- a student who clicks that URL would have been compromised in production.
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'Unusual sign-in activity on your Microsoft account',
+                    fromName: 'Microsoft Account Team', fromEmail: 'security@microsoft-365-account.com',
+                    to: 'accounts@crimson-dawn.net', date: 'Sun, 17 May 2026 09:55:33 +0000',
+                    dateLine: 'Sun 5/17/2026 9:55 AM',
+                    messageId: 'MS365.20260517095533@microsoft-365-account.com',
+                    replyTo: 'security@microsoft-365-account.com',
+                    auth: { spf: 'fail', dkim: 'neutral', dmarc: 'fail' },
+                    originIp: '185.157.122.49', originIpClass: 'mc-fail',
+                    originIpNote: '&larr; Bulgaria hosting provider &mdash; not a Microsoft data center',
+                    external: true,
+                    body: '<p><b>Microsoft Security Alert</b></p>' +
+                          '<p>We detected a sign-in to your Microsoft 365 account from an unrecognized device in <b>Stockholm, Sweden</b>. If this was you, no action is needed. If not, secure your account immediately.</p>' +
+                          '<p>Review the sign-in: <a class="mc-phish-link" href="https://microsoft-365-account.com/verify-signin?id=AC8842">https://microsoft-365-account.com/verify-signin?id=AC8842</a></p>' +
+                          '<p>&mdash; Microsoft Account Team</p>',
+                    analysis: { kind: 'warn', html:
+                        '<b>PHISHING DECOY.</b> The sender domain <code>microsoft-365-account.com</code> is NOT a real Microsoft domain (Microsoft uses <code>account.microsoft.com</code> and <code>account.live.com</code>). <b>SPF FAILS and DMARC FAILS</b> &mdash; both highlighted in the headers. Originating IP <code>185.157.122.49</code> resolves to a hosting provider in Bulgaria, not a Microsoft data center.<br><br>Classic credential-harvest pattern &mdash; would route to a Microsoft-impersonation login page. <b>Decoy for THIS incident, but a real threat in its own right</b> &mdash; a student who clicks that URL gets a GAME OVER lesson page in the lab.' }
+                }); }
             },
 
             '/msg/10': {
-                title: 'Message 10 -- Recurring meeting reminder: AP Weekly Sync (Thursdays)',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">Recurring meeting reminder: AP Weekly Sync (Thursdays)</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> no-reply@zoom.us</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Sun, 17 May 2026 11:20:00 +0000</div>
-                        <div><b>Message-ID:</b> &lt;ZM.20260517112000.recurring-441@zoom.us&gt;</div>
-                        <div><b>Reply-To:</b> no-reply@zoom.us</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass dkim=pass dmarc=pass</span></div>
-                        <div><b>X-Originating-IP:</b> 170.114.45.18</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Hi Elena,</p><p>Reminder: your recurring meeting "Accounts Payable Weekly Sync" with R. Chen, M. Harlowe, and S. Patel is scheduled for Thursday May 22 at 14:00 UTC.</p><p>Join URL: <a href="https://crimson-dawn.zoom.us/j/85544192033" style="color:#2d8cff; text-decoration:underline; font-family:monospace;">https://crimson-dawn.zoom.us/j/85544192033</a></p><p>-- Zoom Meetings</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> Legitimate Zoom notification. SPF/DKIM/DMARC all pass. Originating IP is in Zoom\'s ARIN-allocated range. Recurring meeting reminder unrelated to the incident; routine AP team comms.
-                    </div>
-                </div>`
+                title: 'Message 10 -- Recurring meeting reminder: AP Weekly Sync',
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'Recurring meeting reminder: AP Weekly Sync (Thursdays)',
+                    fromName: 'Zoom Meetings', fromEmail: 'no-reply@zoom.us',
+                    to: 'accounts@crimson-dawn.net', date: 'Sun, 17 May 2026 11:20:00 +0000',
+                    dateLine: 'Sun 5/17/2026 11:20 AM',
+                    messageId: 'ZM.20260517112000.recurring-441@zoom.us',
+                    replyTo: 'no-reply@zoom.us',
+                    auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
+                    originIp: '170.114.45.18', originIpNote: '&larr; Zoom ARIN-allocated range',
+                    external: true,
+                    body: '<p>Hi Elena,</p>' +
+                          '<p>Reminder: your recurring meeting <b>"Accounts Payable Weekly Sync"</b> with R. Chen, M. Harlowe, and S. Patel is scheduled for <b>Thursday May 22 at 14:00 UTC</b>.</p>' +
+                          '<p>Join URL: <a href="https://crimson-dawn.zoom.us/j/85544192033">https://crimson-dawn.zoom.us/j/85544192033</a></p>' +
+                          '<p>&mdash; Zoom Meetings</p>',
+                    analysis: { kind: 'ok', html:
+                        '<b>Legitimate Zoom notification.</b> SPF/DKIM/DMARC all pass. Originating IP is in Zoom\'s ARIN-allocated range. Sender domain matches <code>zoom.us</code>. Recurring meeting reminder unrelated to the incident; routine AP team comms.' }
+                }); }
             },
 
             '/msg/11': {
                 title: 'Message 11 -- ACTION REQUIRED: Outgoing wire $4,200,000.00 review',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">ACTION REQUIRED: Outgoing wire $4,200,000.00 review</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> wires-alerts@chase-bizbanking.com</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 18 May 2026 13:15:09 +0000</div>
-                        <div><b>Message-ID:</b> &lt;CH.20260518131509@chase-bizbanking.com&gt;</div>
-                        <div><b>Reply-To:</b> wires-alerts@chase-bizbanking.com</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#e74c3c; font-weight:bold;">spf=FAIL dkim=fail dmarc=fail</span></div>
-                        <div><b>X-Originating-IP:</b> 45.83.91.122</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Chase Business Banking Wire Alert</p><p>An outgoing wire of $4,200,000.00 to account ending <b>-7741</b> requires your review. If not authorized, click below to dispute within 60 minutes.</p><p>Review wire: <a href="https://chase-bizbanking.com/wires/review/PNFAH-7741" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://chase-bizbanking.com/wires/review/PNFAH-7741</a></p><p>-- Chase Business Banking</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#ffe6e6; border:1px solid #e74c3c; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> PHISHING DECOY -- and a particularly cynical one: a follow-up scam timed AFTER the actual wire fraud, attempting to harvest credentials from someone now panicked about the loss. The sender domain <code>chase-bizbanking.com</code> is not Chase (Chase uses <code>chase.com</code> and <code>jpmorganchase.com</code>). All three auth checks FAIL. The amount $4.2M and account suffix -7741 match the real fraud -- the attacker (or a different scammer monitoring the breach) is using public knowledge of the fraud to set up a secondary social-engineering attack. NOT the source of the original wire fraud; that traces to msg/4. This message arrived AFTER the wire on 2026-05-18 at 13:15 UTC, four hours post-loss.
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'ACTION REQUIRED: Outgoing wire $4,200,000.00 review',
+                    fromName: 'Chase Business Banking', fromEmail: 'wires-alerts@chase-bizbanking.com',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 13:15:09 +0000',
+                    dateLine: 'Tue 5/18/2026 1:15 PM',
+                    messageId: 'CH.20260518131509@chase-bizbanking.com',
+                    replyTo: 'wires-alerts@chase-bizbanking.com',
+                    auth: { spf: 'fail', dkim: 'fail', dmarc: 'fail' },
+                    originIp: '45.83.91.122', originIpClass: 'mc-fail',
+                    originIpNote: '&larr; not Chase / JPMorgan infrastructure',
+                    external: true,
+                    body: '<p><b>Chase Business Banking Wire Alert</b></p>' +
+                          '<p>An outgoing wire of <b>$4,200,000.00</b> to account ending <b>-7741</b> requires your review. If not authorized, click below to dispute within <b>60 minutes</b>.</p>' +
+                          '<p>Review wire: <a class="mc-phish-link" href="https://chase-bizbanking.com/wires/review/PNFAH-7741">https://chase-bizbanking.com/wires/review/PNFAH-7741</a></p>' +
+                          '<p>&mdash; Chase Business Banking</p>',
+                    analysis: { kind: 'warn', html:
+                        '<b>PHISHING DECOY &mdash; a particularly cynical one.</b> A follow-up scam timed AFTER the actual wire fraud, attempting to harvest credentials from someone now panicked about the loss.<br><br>The sender domain <code>chase-bizbanking.com</code> is NOT Chase (Chase uses <code>chase.com</code> and <code>jpmorganchase.com</code>). <b>All three auth checks FAIL</b>. The amount $4.2M and account suffix -7741 match the real fraud &mdash; the attacker (or a different scammer monitoring the breach) is using public knowledge of the fraud to set up a secondary social-engineering attack.<br><br><b>NOT the source of the original wire fraud</b>; that traces to msg/4. This message arrived AFTER the wire on 2026-05-18 at 13:15 UTC, ~4 hours post-loss.' }
+                }); }
             },
 
             '/msg/12': {
                 title: 'Message 12 -- r.chen mentioned you in #ap-team',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">r.chen mentioned you in #ap-team</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> notification@slack.com</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 18 May 2026 09:45:22 +0000</div>
-                        <div><b>Message-ID:</b> &lt;SL.20260518094522.AP4421@slack.com&gt;</div>
-                        <div><b>Reply-To:</b> no-reply@slack.com</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#2ecc71; font-weight:bold;">spf=pass dkim=pass dmarc=pass</span></div>
-                        <div><b>X-Originating-IP:</b> 18.142.5.99</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>r.chen mentioned you in <b>#ap-team</b> on Crimson Dawn Slack:</p><blockquote style="border-left:3px solid #ddd; padding:4px 12px; margin:8px 0; color:#444;">@e.morales -- please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks. -- r.chen</blockquote><p>Open in Slack: <a href="https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722" style="color:#1264a3; text-decoration:underline; font-family:monospace;">https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722</a></p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#e8f8ee; border:1px solid #2ecc71; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> Legitimate Slack notification. SPF/DKIM/DMARC all pass. Originating IP is in Slack\'s AWS-allocated range. <b>Note the topical timing:</b> r.chen references the Nakamura wire routing -- this is the AP supervisor following up on what she believed was a legitimate vendor update earlier in the morning. Connect this message back to msg/4 during Phase 1 review: the supervisor is unknowingly endorsing the fraudulent routing from msg/4. The Slack message itself is legitimate; the underlying business state it describes is compromised.
-                    </div>
-                </div>`
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'r.chen mentioned you in #ap-team',
+                    fromName: 'Slack Notifications', fromEmail: 'notification@slack.com',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 09:45:22 +0000',
+                    dateLine: 'Tue 5/18/2026 9:45 AM',
+                    messageId: 'SL.20260518094522.AP4421@slack.com',
+                    replyTo: 'no-reply@slack.com',
+                    auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
+                    originIp: '18.142.5.99', originIpNote: '&larr; AWS Singapore (Slack region)',
+                    external: true,
+                    body: '<p><b>r.chen</b> mentioned you in <b>#ap-team</b> on Crimson Dawn Slack:</p>' +
+                          '<blockquote>@e.morales &mdash; please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks. &mdash; r.chen</blockquote>' +
+                          '<p>Open in Slack: <a href="https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722">https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722</a></p>',
+                    analysis: { kind: 'ok', html:
+                        '<b>Legitimate Slack notification.</b> SPF/DKIM/DMARC all pass. Originating IP is in Slack\'s AWS-allocated range.<br><br><b>Note the topical timing:</b> r.chen references the Nakamura wire routing &mdash; this is the AP supervisor following up on what she believed was a legitimate vendor update earlier in the morning. <b>Connect this back to msg/4</b> during Phase 1 review: the supervisor is <i>unknowingly endorsing</i> the fraudulent routing. The Slack message itself is legitimate; the underlying business state it describes is compromised.' }
+                }); }
             },
 
             '/msg/13': {
-                title: 'Message 13 -- ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed',
-                html: `
-                <div style="font-family:system-ui,sans-serif; max-width:780px; margin:0 auto; padding:16px;">
-                    <a href="https://mail.crimson-dawn.net/inbox" style="color:#dc2626; font-size:0.8rem; text-decoration:none;">&larr; Back to Inbox</a>
-                    <h2 style="font-size:1rem; margin:12px 0 4px;">ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed</h2>
-                    <div style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:12px; font-size:0.78rem; font-family:monospace; line-height:1.7;">
-                        <div><b>From:</b> billing@adobe-renewal-services.com</div>
-                        <div><b>To:</b> accounts@crimson-dawn.net</div>
-                        <div><b>Date:</b> Mon, 18 May 2026 11:55:41 +0000</div>
-                        <div><b>Message-ID:</b> &lt;ADB.20260518115541@adobe-renewal-services.com&gt;</div>
-                        <div><b>Reply-To:</b> support@billing-services-portal.com</div>
-                        <div><b>Authentication-Results:</b> <span style="color:#e74c3c; font-weight:bold;">spf=FAIL dkim=pass dmarc=fail</span></div>
-                        <div><b>X-Originating-IP:</b> 162.241.92.10</div>
-                    </div>
-                    <div style="font-size:0.85rem; line-height:1.7; padding:12px; border:1px solid #eee; border-radius:4px;">
-                        <p>Adobe Billing Notice</p><p>Your Adobe Creative Cloud subscription has been auto-renewed for $599.88 USD. Charge will appear on your card ending in 8842 within 24 hours.</p><p>To dispute this charge or cancel renewal, you must act within 24 hours: <a href="https://adobe-renewal-services.com/billing/dispute?ref=8842" style="color:#dc2626; text-decoration:underline; font-family:monospace;">https://adobe-renewal-services.com/billing/dispute?ref=8842</a></p><p>-- Adobe Billing Services</p>
-                    </div>
-                    <div style="margin-top:10px; padding:10px; background:#ffe6e6; border:1px solid #e74c3c; border-radius:4px; font-size:0.78rem;">
-                        <b>Analysis:</b> PHISHING DECOY. Sender domain <code>adobe-renewal-services.com</code> is not a real Adobe domain (Adobe uses <code>adobe.com</code> for billing). SPF and DMARC both FAIL; only DKIM passes (the attacker controls the keys for their own fake domain). <b>Reply-To is different from From</b> (<code>support@billing-services-portal.com</code>) -- a classic phishing tell. Originating IP <code>162.241.92.10</code> resolves to a generic hosting provider in Utah, not Adobe infrastructure. Urgency tactic ("act within 24 hours") and unfamiliar card suffix ("ending in 8842" -- AP doesn\'t have an Adobe charge on file) are additional red flags. Decoy for this incident.
-                    </div>
-                </div>`
+                title: 'Message 13 -- ACTION REQUIRED: Adobe Creative Cloud auto-renewed',
+                html: function() { return PISFinalConfig._renderMessage({
+                    subject: 'ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed',
+                    fromName: 'Adobe Billing Services', fromEmail: 'billing@adobe-renewal-services.com',
+                    to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 11:55:41 +0000',
+                    dateLine: 'Tue 5/18/2026 11:55 AM',
+                    messageId: 'ADB.20260518115541@adobe-renewal-services.com',
+                    replyTo: 'support@billing-services-portal.com',
+                    auth: { spf: 'fail', dkim: 'pass', dmarc: 'fail' },
+                    originIp: '162.241.92.10', originIpClass: 'mc-fail',
+                    originIpNote: '&larr; generic hosting in Utah &mdash; not Adobe infrastructure',
+                    external: true,
+                    body: '<p><b>Adobe Billing Notice</b></p>' +
+                          '<p>Your Adobe Creative Cloud subscription has been auto-renewed for <b>$599.88 USD</b>. Charge will appear on your card ending in <b>8842</b> within 24 hours.</p>' +
+                          '<p>To dispute this charge or cancel renewal, you must act within 24 hours: <a class="mc-phish-link" href="https://adobe-renewal-services.com/billing/dispute?ref=8842">https://adobe-renewal-services.com/billing/dispute?ref=8842</a></p>' +
+                          '<p>&mdash; Adobe Billing Services</p>',
+                    analysis: { kind: 'warn', html:
+                        '<b>PHISHING DECOY.</b> Sender domain <code>adobe-renewal-services.com</code> is NOT a real Adobe domain (Adobe uses <code>adobe.com</code> for billing). <b>SPF and DMARC both FAIL</b>; only DKIM passes (the attacker controls the keys for their own fake domain).<br><br><b>Reply-To differs from From</b> (<code>support@billing-services-portal.com</code>) &mdash; a classic phishing tell. Originating IP <code>162.241.92.10</code> resolves to generic hosting in Utah, not Adobe infrastructure.<br><br>Urgency tactic ("act within 24 hours") and unfamiliar card suffix ("ending in 8842" &mdash; AP doesn\'t have an Adobe charge on file) are additional red flags. Decoy for this incident.' }
+                }); }
             },
 
             // ─────────────────────────────────────────────────
@@ -1028,11 +876,11 @@ const PISFinalConfig = {
                         if (!result) { result = document.createElement('div'); result.className = 'pw-result'; btn.parentElement.appendChild(result); }
                         if (errs.length) {
                           var ul = errs.map(function(e){ return '<li>' + e + '</li>'; }).join('');
-                          result.innerHTML = '<div class=\\'pw-result-card err\\'><span class=\\'pw-result-mark\\'>!</span><div><div class=\\'pw-result-title\\'>Password rotation blocked</div><ul>' + ul + '</ul></div></div>';
+                          result.innerHTML = '<div class=\'pw-result-card err\'><span class=\'pw-result-mark\'>!</span><div><div class=\'pw-result-title\'>Password rotation blocked</div><ul>' + ul + '</ul></div></div>';
                           return;
                         }
                         var ts = new Date().toISOString().replace('T',' ').slice(0,19);
-                        result.innerHTML = '<div class=\\'pw-result-card ok\\'><span class=\\'pw-result-mark\\'>\\u2713</span><div><div class=\\'pw-result-title\\'>Password rotated successfully.</div><div class=\\'pw-result-sub\\'>Account: ' + (username || 'e.morales') + ' &middot; Rotated at ' + ts + ' UTC &middot; Active Directory replication complete.</div><div class=\\'pw-result-sub\\' style=\\'margin-top:6px;\\'>You may close this tab or return to your inbox.</div></div></div>';
+                        result.innerHTML = '<div class=\'pw-result-card ok\'><span class=\'pw-result-mark\'>\\u2713</span><div><div class=\'pw-result-title\'>Password rotated successfully.</div><div class=\'pw-result-sub\'>Account: ' + (username || 'e.morales') + ' &middot; Rotated at ' + ts + ' UTC &middot; Active Directory replication complete.</div><div class=\'pw-result-sub\' style=\'margin-top:6px;\'>You may close this tab or return to your inbox.</div></div></div>';
                         btn.disabled = true; btn.textContent = 'Password Rotated';
                         ['#pw-username','#pw-current','#pw-new','#pw-confirm'].forEach(function(s){ var i = box.querySelector(s); if (i) i.setAttribute('readonly','readonly'); });
                         var agePill = box.querySelector('#pw-age-pill');
@@ -1041,7 +889,7 @@ const PISFinalConfig = {
                         if (recentList) {
                           var row = document.createElement('div');
                           row.className = 'pw-recent success';
-                          row.innerHTML = '<div class=\\'pw-recent-ts\\'>' + ts + ' UTC</div><div class=\\'pw-recent-meta\\'>passwd.crimson-dawn.net &middot; Password rotation &middot; ' + (username || 'e.morales') + '</div>';
+                          row.innerHTML = '<div class=\'pw-recent-ts\'>' + ts + ' UTC</div><div class=\'pw-recent-meta\'>passwd.crimson-dawn.net &middot; Password rotation &middot; ' + (username || 'e.morales') + '</div>';
                           recentList.insertBefore(row, recentList.firstChild);
                         }
                       })(this)">Rotate Password &amp; Sign In</button>
@@ -4189,6 +4037,346 @@ const PISFinalConfig = {
             '<div class="ma-result-h">Filter not accepted for this incident</div>' +
             '<div class="ma-result-sub">Scope <code>' + this._escHtml(type) + ' = ' + this._escHtml(data.filter_value) + '</code> does not precisely target the attack vector.<br><br>Re-read the Phase 1 headers: the attacker-controlled indicators are the <b>Reply-To domain</b> (<code>nakamura-suppliers-corp.com</code>), the <b>Message-ID host</b>, and the <b>Sender domain</b> (<code>crimson-dawn-finance.net</code>).</div>' +
         '</div>';
+    },
+
+    // =========================================================
+    // MAIL CLIENT (Outlook Web Access aesthetic) — shared helpers
+    // =========================================================
+    // Used by /inbox and /msg/* routes. Single style block + shared
+    // chrome wrapper. Each /msg/N supplies a struct describing the
+    // message; the renderer takes care of headers, layout, analysis.
+    // =========================================================
+
+    _mailShellStyle: function() {
+        return `
+            <style>
+              .mc-shell { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 1080px; margin: 12px auto; color: #1f2937; background: #f3f2f1; min-height: calc(100vh - 24px); }
+              .mc-shell .mc-bar { background: linear-gradient(90deg, #0078d4 0%, #106ebe 100%); color: #fff; padding: 10px 18px; display: flex; align-items: center; gap: 14px; border-radius: 4px 4px 0 0; }
+              .mc-shell .mc-bar-app { font-size: 0.94rem; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; gap: 10px; }
+              .mc-shell .mc-bar-app-glyph { display: inline-block; width: 22px; height: 22px; background: #fff; border-radius: 3px; color: #0078d4; font-size: 0.66rem; font-weight: 800; line-height: 22px; text-align: center; letter-spacing: 0; }
+              .mc-shell .mc-bar-search { flex: 1; max-width: 420px; padding: 6px 12px; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.28); border-radius: 4px; color: #fff; font-size: 0.78rem; }
+              .mc-shell .mc-bar-search::before { content: '⌕  Search mail'; opacity: 0.85; }
+              .mc-shell .mc-bar-user { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 0.78rem; }
+              .mc-shell .mc-bar-avatar { width: 30px; height: 30px; background: #b06f3e; color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.78rem; }
+              .mc-shell .mc-grid { display: grid; grid-template-columns: 220px 1fr; min-height: 600px; background: #fff; }
+              @media (max-width: 760px) { .mc-shell .mc-grid { grid-template-columns: 1fr; } }
+              .mc-shell .mc-sidebar { background: #faf9f8; border-right: 1px solid #e5e7eb; padding: 12px 0; }
+              .mc-shell .mc-newbtn { margin: 0 14px 12px; padding: 8px 14px; background: #0078d4; color: #fff; border: 0; border-radius: 3px; font-size: 0.82rem; font-weight: 700; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+              .mc-shell .mc-folder { padding: 6px 18px; display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: #323130; border-left: 3px solid transparent; cursor: default; }
+              .mc-shell .mc-folder.active { background: #edebe9; border-left-color: #0078d4; font-weight: 600; color: #0078d4; }
+              .mc-shell .mc-folder:hover:not(.active) { background: #f3f2f1; }
+              .mc-shell .mc-folder-count { margin-left: auto; font-size: 0.72rem; color: #6b7280; font-weight: 600; }
+              .mc-shell .mc-folder.active .mc-folder-count { color: #0078d4; }
+              .mc-shell .mc-folder-glyph { width: 16px; text-align: center; color: #6b7280; }
+              .mc-shell .mc-folder.active .mc-folder-glyph { color: #0078d4; }
+              .mc-shell .mc-divider { border-top: 1px solid #e5e7eb; margin: 8px 14px; }
+              .mc-shell .mc-side-h { padding: 6px 18px; font-size: 0.62rem; color: #6b7280; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
+              .mc-shell .mc-main { display: flex; flex-direction: column; }
+              .mc-shell .mc-list-toolbar { padding: 8px 14px; border-bottom: 1px solid #e5e7eb; display: flex; gap: 8px; align-items: center; font-size: 0.78rem; color: #6b7280; background: #faf9f8; }
+              .mc-shell .mc-tool-btn { padding: 4px 10px; border-radius: 3px; cursor: default; font-size: 0.74rem; }
+              .mc-shell .mc-tool-btn:hover { background: #f3f2f1; }
+              .mc-shell .mc-list-meta { margin-left: auto; font-size: 0.74rem; color: #6b7280; }
+              /* Inbox table */
+              .mc-shell .mc-list { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+              .mc-shell .mc-list thead th { background: #faf9f8; padding: 8px 14px; text-align: left; color: #6b7280; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; }
+              .mc-shell .mc-list tbody tr { border-bottom: 1px solid #f3f2f1; }
+              .mc-shell .mc-list tbody tr:hover { background: #faf9f8; }
+              .mc-shell .mc-list tbody tr.mc-row-unread { background: #fff; }
+              .mc-shell .mc-list tbody tr.mc-row-unread .mc-li-from, .mc-shell .mc-list tbody tr.mc-row-unread .mc-li-subj { font-weight: 700; color: #111827; }
+              .mc-shell .mc-list tbody td { padding: 10px 14px; vertical-align: middle; }
+              .mc-shell .mc-li-avatar { width: 30px; height: 30px; border-radius: 50%; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.72rem; vertical-align: middle; }
+              .mc-shell .mc-li-from { color: #323130; font-size: 0.82rem; }
+              .mc-shell .mc-li-from-mail { color: #9ca3af; font-size: 0.7rem; font-family: 'Cascadia Code', ui-monospace, monospace; margin-top: 2px; }
+              .mc-shell .mc-li-subj { font-size: 0.82rem; color: #323130; }
+              .mc-shell .mc-li-subj-warn { color: #b91c1c; font-weight: 700; }
+              .mc-shell .mc-li-preview { font-size: 0.74rem; color: #9ca3af; margin-top: 2px; }
+              .mc-shell .mc-li-date { font-size: 0.74rem; color: #6b7280; font-family: 'Cascadia Code', ui-monospace, monospace; text-align: right; white-space: nowrap; }
+              .mc-shell .mc-list tbody a { text-decoration: none; color: inherit; display: block; }
+              .mc-shell .mc-li-badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; margin-left: 6px; vertical-align: middle; }
+              .mc-shell .mc-li-badge-warn { background: #fecaca; color: #991b1b; }
+              .mc-shell .mc-li-badge-ext { background: #fde68a; color: #92400e; }
+              .mc-shell .mc-list-footer { padding: 10px 14px; border-top: 1px solid #e5e7eb; background: #faf9f8; font-size: 0.74rem; color: #6b7280; }
+              /* Message read pane */
+              .mc-shell .mc-read-back { padding: 8px 16px; border-bottom: 1px solid #e5e7eb; background: #faf9f8; display: flex; gap: 14px; align-items: center; font-size: 0.78rem; }
+              .mc-shell .mc-read-back a { color: #0078d4; text-decoration: none; font-weight: 600; }
+              .mc-shell .mc-read-toolbar { padding: 8px 18px; border-bottom: 1px solid #e5e7eb; display: flex; gap: 10px; align-items: center; font-size: 0.78rem; }
+              .mc-shell .mc-read-tb-btn { padding: 5px 12px; border: 1px solid #d1d5db; border-radius: 3px; background: #fff; color: #323130; font-size: 0.74rem; font-weight: 600; display: flex; align-items: center; gap: 5px; cursor: default; }
+              .mc-shell .mc-read-tb-btn:hover { background: #f3f2f1; }
+              .mc-shell .mc-read-pane { padding: 20px 26px; }
+              .mc-shell .mc-read-subject { font-size: 1.2rem; font-weight: 700; color: #111827; margin-bottom: 16px; line-height: 1.3; }
+              .mc-shell .mc-read-sender { display: flex; align-items: flex-start; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb; margin-bottom: 16px; }
+              .mc-shell .mc-read-avatar { width: 42px; height: 42px; border-radius: 50%; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.96rem; flex-shrink: 0; }
+              .mc-shell .mc-read-sender-meta { flex: 1; }
+              .mc-shell .mc-read-name { font-size: 0.92rem; font-weight: 700; color: #111827; }
+              .mc-shell .mc-read-email { font-size: 0.76rem; color: #6b7280; font-family: 'Cascadia Code', ui-monospace, monospace; margin-top: 1px; }
+              .mc-shell .mc-read-to { font-size: 0.74rem; color: #6b7280; margin-top: 4px; }
+              .mc-shell .mc-read-to b { color: #323130; font-weight: 600; }
+              .mc-shell .mc-read-date { font-size: 0.74rem; color: #6b7280; text-align: right; flex-shrink: 0; }
+              .mc-shell .mc-ext-pill { display: inline-block; padding: 2px 8px; background: #fde68a; color: #92400e; border-radius: 3px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; margin-top: 4px; }
+              .mc-shell .mc-int-pill { display: inline-block; padding: 2px 8px; background: #dcfce7; color: #15803d; border-radius: 3px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; margin-top: 4px; }
+              /* Headers panel — toggle-able like real OWA "show original" */
+              .mc-shell .mc-headers { background: #faf9f8; border: 1px solid #e5e7eb; border-radius: 4px; padding: 12px 14px; margin-bottom: 18px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.74rem; line-height: 1.85; color: #111827; }
+              .mc-shell .mc-hdr-h { font-size: 0.66rem; letter-spacing: 0.1em; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; font-family: 'Segoe UI', system-ui, sans-serif; }
+              .mc-shell .mc-hdr-row b { color: #6b7280; font-weight: 600; }
+              .mc-shell .mc-pass { color: #15803d; font-weight: 700; }
+              .mc-shell .mc-fail { color: #b91c1c; font-weight: 700; }
+              .mc-shell .mc-warn { color: #b45309; font-weight: 700; }
+              .mc-shell .mc-note { color: #6b7280; font-style: italic; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 0.72rem; margin-left: 4px; }
+              /* Body */
+              .mc-shell .mc-body { font-size: 0.92rem; line-height: 1.75; color: #1f2937; padding: 8px 4px 18px; }
+              .mc-shell .mc-body p { margin: 0 0 12px; }
+              .mc-shell .mc-body a { color: #0078d4; text-decoration: underline; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.86rem; }
+              .mc-shell .mc-body a.mc-phish-link { color: #b91c1c; }
+              .mc-shell .mc-body blockquote { border-left: 3px solid #d1d5db; padding: 4px 14px; margin: 10px 0; color: #4b5563; font-style: italic; }
+              .mc-shell .mc-attach { padding: 12px 14px; background: #faf9f8; border: 1px solid #e5e7eb; border-radius: 4px; margin: 14px 0; display: flex; gap: 12px; align-items: center; }
+              .mc-shell .mc-attach-glyph { width: 36px; height: 44px; background: #fff; border: 1px solid #d1d5db; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.74rem; font-weight: 700; color: #0078d4; flex-shrink: 0; }
+              .mc-shell .mc-attach-name { font-size: 0.84rem; font-weight: 600; color: #0078d4; }
+              .mc-shell .mc-attach-meta { font-size: 0.72rem; color: #6b7280; margin-top: 2px; }
+              .mc-shell .mc-attach a { color: inherit; text-decoration: none; }
+              .mc-shell .mc-attach a:hover .mc-attach-name { text-decoration: underline; }
+              /* Analysis (training overlay) */
+              .mc-shell .mc-analysis { margin-top: 18px; padding: 14px 16px; border-radius: 4px; font-size: 0.82rem; line-height: 1.7; border-left: 4px solid; }
+              .mc-shell .mc-analysis-ok { background: #f0fdf4; border-color: #16a34a; color: #166534; }
+              .mc-shell .mc-analysis-warn { background: #fef2f2; border-color: #dc2626; color: #991b1b; }
+              .mc-shell .mc-analysis-h { font-weight: 800; margin-bottom: 6px; font-size: 0.86rem; }
+              .mc-shell .mc-analysis code { background: rgba(255,255,255,0.7); border: 1px solid currentColor; opacity: 0.92; padding: 1px 6px; border-radius: 3px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.72rem; }
+              .mc-shell .mc-analysis ol, .mc-shell .mc-analysis ul { margin: 6px 0 0 18px; padding: 0; }
+              .mc-shell .mc-analysis li { padding: 2px 0; }
+            </style>`;
+    },
+
+    // Shared OWA shell wrapper. Takes a {title, body} struct.
+    // title goes in the read-pane subject; body is full inner HTML.
+    _mailChrome: function(opts) {
+        var unreadCount = (opts && opts.unreadCount) != null ? opts.unreadCount : 5;
+        var folder = (opts && opts.activeFolder) || 'inbox';
+        var content = (opts && opts.content) || '';
+        return this._mailShellStyle() +
+            '<div class="mc-shell">' +
+                '<div class="mc-bar">' +
+                    '<div class="mc-bar-app"><span class="mc-bar-app-glyph">O</span>Crimson Dawn &middot; Outlook on the web</div>' +
+                    '<div class="mc-bar-search"></div>' +
+                    '<div class="mc-bar-user"><span>Elena Morales</span><span class="mc-bar-avatar">EM</span></div>' +
+                '</div>' +
+                '<div class="mc-grid">' +
+                    '<div class="mc-sidebar">' +
+                        '<button class="mc-newbtn">+ New mail</button>' +
+                        '<div class="mc-side-h">Favorites</div>' +
+                        '<div class="mc-folder' + (folder === 'inbox' ? ' active' : '') + '"><span class="mc-folder-glyph">📥</span>Inbox<span class="mc-folder-count">' + unreadCount + '</span></div>' +
+                        '<div class="mc-folder"><span class="mc-folder-glyph">★</span>Flagged</div>' +
+                        '<div class="mc-divider"></div>' +
+                        '<div class="mc-side-h">Folders</div>' +
+                        '<div class="mc-folder"><span class="mc-folder-glyph">✉</span>Drafts</div>' +
+                        '<div class="mc-folder"><span class="mc-folder-glyph">📤</span>Sent Items</div>' +
+                        '<div class="mc-folder"><span class="mc-folder-glyph">🗑</span>Deleted Items</div>' +
+                        '<div class="mc-folder"><span class="mc-folder-glyph">⚠</span>Junk Email<span class="mc-folder-count">7</span></div>' +
+                        '<div class="mc-folder"><span class="mc-folder-glyph">📎</span>Archive</div>' +
+                    '</div>' +
+                    '<div class="mc-main">' + content + '</div>' +
+                '</div>' +
+            '</div>';
+    },
+
+    // Hash a string to one of 8 stable avatar colors so different
+    // senders show as different swatches in the inbox.
+    _avatarColor: function(seed) {
+        var palette = ['#0078d4', '#107c10', '#a4373a', '#5c2d91', '#b06f3e', '#0078d4', '#198754', '#005a9e'];
+        var h = 0;
+        for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffffffff;
+        return palette[Math.abs(h) % palette.length];
+    },
+
+    _avatarInitials: function(name) {
+        var parts = String(name || '?').trim().split(/[\s.@-]+/).filter(Boolean);
+        if (parts.length === 0) return '?';
+        if (parts.length === 1) return parts[0][0].toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    },
+
+    // Outlook-style inbox listing
+    _renderInbox: function() {
+        // Master list in chronological order. Each row has:
+        // n, fromName, fromEmail, subject, dateLine, route, preview, tag
+        var rows = [
+            { n: 1,  fromName: 'Office Depot Business AR', fromEmail: 'ar@officedepot.com',
+              subject: 'Invoice OD-2026-44890 — Office supplies May',
+              preview: 'Your monthly office supplies invoice is attached. Total due: $1,247.62. Payment terms net-30. PO ref AP-CD-2026-04.',
+              dateLine: 'Sat 5/16 4:40 PM', route: '/msg/8', tag: '' },
+            { n: 2,  fromName: 'Microsoft Account Team', fromEmail: 'security@microsoft-365-account.com',
+              subject: 'Unusual sign-in activity on your Microsoft account',
+              preview: 'We detected a sign-in to your Microsoft 365 account from an unrecognized device in Stockholm, Sweden...',
+              dateLine: 'Sun 5/17 9:55 AM', route: '/msg/9', tag: 'warn' },
+            { n: 3,  fromName: 'Zoom Meetings', fromEmail: 'no-reply@zoom.us',
+              subject: 'Recurring meeting reminder: AP Weekly Sync (Thursdays)',
+              preview: 'Reminder: your recurring meeting "Accounts Payable Weekly Sync" is scheduled for Thursday May 22 at 14:00 UTC.',
+              dateLine: 'Sun 5/17 11:20 AM', route: '/msg/10', tag: '' },
+            { n: 4,  fromName: 'IT Helpdesk', fromEmail: 'it-helpdesk@crimson-dawn.net',
+              subject: 'MANDATORY: Password rotation TODAY',
+              preview: 'All Accounts Payable staff, Security policy requires all staff rotate their AD passwords today before 17:00...',
+              dateLine: 'Mon 5/17 2:22 PM', route: '/msg/1', tag: 'warn', internal: true },
+            { n: 5,  fromName: 'ADP Payroll Services', fromEmail: 'payroll-alerts@adp-secure-portal.com',
+              subject: 'Direct deposit verification required',
+              preview: 'Action Required: Your payroll direct deposit information needs to be re-verified due to a recent bank routing update.',
+              dateLine: 'Mon 5/17 4:08 PM', route: '/msg/2', tag: 'warn' },
+            { n: 6,  fromName: 'FedEx Notification', fromEmail: 'noreply@fedex-shipping-update.com',
+              subject: 'Delivery exception #4470029',
+              preview: 'Your shipment #4470029 has experienced a delivery exception. A customs hold has been placed on your package.',
+              dateLine: 'Mon 5/17 6:45 PM', route: '/msg/3', tag: 'warn' },
+            { n: 7,  fromName: 'Nakamura Supplies Accounts', fromEmail: 'accounts@nakamura-supplies.com',
+              subject: 'Invoice 2026-Q1-114 (corrected version)',
+              preview: 'Dear Accounts Payable Team, Please find attached the corrected invoice for Q1 2026...',
+              dateLine: 'Tue 5/18 8:54 AM', route: '/msg/4', tag: '', hasAttach: true },
+            { n: 8,  fromName: 'Marcus Harlowe', fromEmail: 'm.harlowe@crimson-dawn.net',
+              subject: 'Re: Q1 budget review',
+              preview: 'Team, Attaching the final Q1 budget numbers after the corrections from last week\'s review. Please confirm.',
+              dateLine: 'Tue 5/18 9:30 AM', route: '/msg/5', tag: '', internal: true, hasAttach: true },
+            { n: 9,  fromName: 'Slack Notifications', fromEmail: 'notification@slack.com',
+              subject: 'r.chen mentioned you in #ap-team',
+              preview: '@e.morales — please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry...',
+              dateLine: 'Tue 5/18 9:45 AM', route: '/msg/12', tag: '' },
+            { n: 10, fromName: 'Calendly Notifications', fromEmail: 'support@calendly.com',
+              subject: 'Meeting confirmation: 2026-05-19 14:00',
+              preview: 'Your meeting "Q2 Vendor Review" has been confirmed for 2026-05-19 at 14:00 UTC with J. Rivera from Accounts.',
+              dateLine: 'Tue 5/18 10:15 AM', route: '/msg/6', tag: '' },
+            { n: 11, fromName: 'Crimson Dawn Compliance', fromEmail: 'compliance@crimson-dawn.net',
+              subject: 'Quarterly compliance attestation form',
+              preview: 'Please complete the Q2 2026 compliance attestation by end of week. This is a quarterly requirement per SOX § 302.',
+              dateLine: 'Tue 5/18 11:00 AM', route: '/msg/7', tag: '', internal: true },
+            { n: 12, fromName: 'Adobe Billing Services', fromEmail: 'billing@adobe-renewal-services.com',
+              subject: 'ACTION REQUIRED: Adobe Creative Cloud subscription auto-renewed',
+              preview: 'Your Adobe Creative Cloud subscription has been auto-renewed for $599.88 USD. Charge will appear on your card ending in 8842...',
+              dateLine: 'Tue 5/18 11:55 AM', route: '/msg/13', tag: 'warn' },
+            { n: 13, fromName: 'Chase Business Banking', fromEmail: 'wires-alerts@chase-bizbanking.com',
+              subject: 'ACTION REQUIRED: Outgoing wire $4,200,000.00 review',
+              preview: 'An outgoing wire of $4,200,000.00 to account ending -7741 requires your review. If not authorized, click below to dispute within 60 minutes.',
+              dateLine: 'Tue 5/18 1:15 PM', route: '/msg/11', tag: 'warn' }
+        ];
+
+        var self = this;
+        var listRows = rows.map(function(r) {
+            var initials = self._avatarInitials(r.fromName || r.fromEmail);
+            var color = self._avatarColor(r.fromEmail);
+            var badge = '';
+            if (r.tag === 'warn') badge = '<span class="mc-li-badge mc-li-badge-warn">ACTION</span>';
+            if (r.hasAttach) badge += ' <span class="mc-li-badge mc-li-badge-ext">📎</span>';
+            var subjCls = r.tag === 'warn' ? 'mc-li-subj mc-li-subj-warn' : 'mc-li-subj';
+            return '<tr class="mc-row-unread"><td colspan="4" style="padding:0;"><a href="https://mail.crimson-dawn.net' + r.route + '"><table style="width:100%; border-collapse:collapse;">' +
+                '<tr>' +
+                    '<td style="padding:10px 14px; width:44px; vertical-align:top;"><span class="mc-li-avatar" style="background:' + color + ';">' + initials + '</span></td>' +
+                    '<td style="padding:10px 0; vertical-align:top; width:220px;">' +
+                        '<div class="mc-li-from">' + self._escHtml(r.fromName) + '</div>' +
+                        '<div class="mc-li-from-mail">' + self._escHtml(r.fromEmail) + '</div>' +
+                    '</td>' +
+                    '<td style="padding:10px 14px; vertical-align:top;">' +
+                        '<div class="' + subjCls + '">' + self._escHtml(r.subject) + ' ' + badge + '</div>' +
+                        '<div class="mc-li-preview">' + self._escHtml(r.preview) + '</div>' +
+                    '</td>' +
+                    '<td style="padding:10px 14px; vertical-align:top; width:100px;"><div class="mc-li-date">' + r.dateLine + '</div></td>' +
+                '</tr>' +
+            '</table></a></td></tr>';
+        }).join('');
+
+        var content =
+            '<div class="mc-list-toolbar">' +
+                '<span class="mc-tool-btn">☐ Select</span>' +
+                '<span class="mc-tool-btn">🔄 Refresh</span>' +
+                '<span class="mc-tool-btn">✿ Filter</span>' +
+                '<div class="mc-list-meta">Showing <b>13</b> of 13 &middot; Forensically recovered (2026-05-16 → 2026-05-18, 48h window)</div>' +
+            '</div>' +
+            '<table class="mc-list"><tbody>' + listRows + '</tbody></table>' +
+            '<div class="mc-list-footer">13 messages &middot; click any message to view full headers and body. <b>Training overlay enabled</b> &mdash; each message shows an Analysis panel with the verdict + reasoning.</div>';
+
+        return this._mailChrome({ unreadCount: 13, activeFolder: 'inbox', content: content });
+    },
+
+    // Build a single message's OWA-style read-pane HTML.
+    // msg: { subject, fromName, fromEmail, to, toName, date, dateLine,
+    //        messageId, replyTo, auth: {spf, dkim, dmarc},
+    //        originIp, originIpNote, external, body, analysis: {kind, html} }
+    _renderMessage: function(msg) {
+        var initials = this._avatarInitials(msg.fromName || msg.fromEmail);
+        var color = this._avatarColor(msg.fromEmail);
+        var externalPill = msg.external
+            ? '<div class="mc-ext-pill">EXTERNAL SENDER</div>'
+            : '<div class="mc-int-pill">INTERNAL</div>';
+
+        // Auth row coloring
+        var authClass = function(v) {
+            var s = String(v || '').toLowerCase();
+            if (s === 'pass') return 'mc-pass';
+            if (s === 'fail') return 'mc-fail';
+            return 'mc-warn';
+        };
+        var auth = msg.auth || { spf: 'pass', dkim: 'pass', dmarc: 'pass' };
+
+        // Reply-To mismatch detector
+        var fromDomain = (msg.fromEmail || '').split('@')[1] || '';
+        var replyDomain = (msg.replyTo || '').split('@')[1] || '';
+        var replyMismatch = msg.replyTo && fromDomain && replyDomain && fromDomain !== replyDomain;
+        var replyClass = replyMismatch ? 'mc-fail' : '';
+        var replyNote = replyMismatch ? '<span class="mc-note">&larr; mismatches From domain</span>' : '';
+
+        // Message-ID host
+        var msgIdHost = '';
+        var msgIdMatch = String(msg.messageId || '').match(/@([^>]+)/);
+        if (msgIdMatch) msgIdHost = msgIdMatch[1];
+        var msgIdMismatch = msgIdHost && fromDomain && msgIdHost !== fromDomain;
+        var msgIdClass = msgIdMismatch ? 'mc-fail' : '';
+        var msgIdNote = msgIdMismatch ? '<span class="mc-note">&larr; host does NOT match From domain</span>' : '';
+
+        // Origin IP note
+        var ipClass = msg.originIpClass || '';
+        var ipNote = msg.originIpNote ? '<span class="mc-note">' + msg.originIpNote + '</span>' : '';
+
+        var analysisCls = (msg.analysis && msg.analysis.kind === 'ok') ? 'mc-analysis-ok' : 'mc-analysis-warn';
+        var analysisH = (msg.analysis && msg.analysis.kind === 'ok')
+            ? 'Training overlay &mdash; Analysis (LEGITIMATE)'
+            : 'Training overlay &mdash; Analysis (SUSPICIOUS)';
+
+        var content =
+            '<div class="mc-read-back"><a href="https://mail.crimson-dawn.net/inbox">&larr; Inbox</a><span style="color:#9ca3af;">|</span><span style="color:#6b7280;">' + this._escHtml(msg.subject || '') + '</span></div>' +
+            '<div class="mc-read-toolbar">' +
+                '<button class="mc-read-tb-btn">↩ Reply</button>' +
+                '<button class="mc-read-tb-btn">↩↩ Reply All</button>' +
+                '<button class="mc-read-tb-btn">↪ Forward</button>' +
+                '<button class="mc-read-tb-btn">🗑 Delete</button>' +
+                '<button class="mc-read-tb-btn">⚠ Mark as junk</button>' +
+                '<button class="mc-read-tb-btn">⋯ More</button>' +
+            '</div>' +
+            '<div class="mc-read-pane">' +
+                '<div class="mc-read-subject">' + this._escHtml(msg.subject || '') + '</div>' +
+                '<div class="mc-read-sender">' +
+                    '<div class="mc-read-avatar" style="background:' + color + '">' + initials + '</div>' +
+                    '<div class="mc-read-sender-meta">' +
+                        '<div class="mc-read-name">' + this._escHtml(msg.fromName || msg.fromEmail || '') + '</div>' +
+                        '<div class="mc-read-email">&lt;' + this._escHtml(msg.fromEmail || '') + '&gt;</div>' +
+                        '<div class="mc-read-to"><b>To:</b> ' + this._escHtml(msg.to || 'accounts@crimson-dawn.net') + '</div>' +
+                        externalPill +
+                    '</div>' +
+                    '<div class="mc-read-date">' + this._escHtml(msg.dateLine || msg.date || '') + '</div>' +
+                '</div>' +
+                '<div class="mc-headers">' +
+                    '<div class="mc-hdr-h">Original message headers</div>' +
+                    '<div class="mc-hdr-row"><b>From:</b> ' + this._escHtml(msg.fromEmail || '') + '</div>' +
+                    '<div class="mc-hdr-row"><b>To:</b> ' + this._escHtml(msg.to || 'accounts@crimson-dawn.net') + '</div>' +
+                    '<div class="mc-hdr-row"><b>Date:</b> ' + this._escHtml(msg.date || '') + '</div>' +
+                    '<div class="mc-hdr-row"><b>Message-ID:</b> &lt;<span class="' + msgIdClass + '">' + this._escHtml(msg.messageId || '') + '</span>&gt; ' + msgIdNote + '</div>' +
+                    '<div class="mc-hdr-row"><b>Reply-To:</b> <span class="' + replyClass + '">' + this._escHtml(msg.replyTo || msg.fromEmail || '') + '</span> ' + replyNote + '</div>' +
+                    '<div class="mc-hdr-row"><b>Authentication-Results:</b> ' +
+                        '<span class="' + authClass(auth.spf) + '">spf=' + auth.spf + '</span> ' +
+                        '<span class="' + authClass(auth.dkim) + '">dkim=' + auth.dkim + '</span> ' +
+                        '<span class="' + authClass(auth.dmarc) + '">dmarc=' + auth.dmarc + '</span>' +
+                    '</div>' +
+                    '<div class="mc-hdr-row"><b>X-Originating-IP:</b> <span class="' + ipClass + '">' + this._escHtml(msg.originIp || '') + '</span> ' + ipNote + '</div>' +
+                '</div>' +
+                '<div class="mc-body">' + (msg.body || '') + '</div>' +
+                '<div class="mc-analysis ' + analysisCls + '">' +
+                    '<div class="mc-analysis-h">' + analysisH + '</div>' +
+                    (msg.analysis ? msg.analysis.html : '') +
+                '</div>' +
+            '</div>';
+
+        return this._mailChrome({ unreadCount: 5, activeFolder: 'inbox', content: content });
     },
 
     // Utility: HTML escape for user-supplied strings rendered in form outputs
