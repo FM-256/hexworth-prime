@@ -3446,9 +3446,20 @@ const PISFinalConfig = {
                     <div class="pm-comp-check">&#10003; Mail filter rule active (Proofpoint policy enforced)</div>
                 </div>
                 <div class="pm-comp-flag">
-                    <div class="pm-comp-flag-h">Composite Flag</div>
+                    <div class="pm-comp-flag-h">Phase 6 &mdash; Composite Flag</div>
                     <div class="pm-comp-flag-v">REMED-OK-S7K9P2</div>
                     <div class="pm-comp-flag-sub">Submit this as Flag 6</div>
+                </div>
+                <div class="pm-comp-flag pm-comp-flag-7">
+                    <div class="pm-comp-flag-h">Phase 7 &mdash; Synthesis Flag</div>
+                    <div class="pm-comp-flag-v">A82A44DCA64FA463</div>
+                    <div class="pm-comp-flag-sub">Submit this as Flag 7 to complete the lab</div>
+                    <div class="pm-comp-flag-note">
+                        Computed as <code>SHA256(flag1|flag2|flag3|flag4|flag5|flag6).hex().toUpperCase().substring(0,16)</code>.
+                        Because Flag 6 (REMED-OK-S7K9P2) is itself gated on the prior 5 flags being correct, reaching this
+                        point means the synthesis input is verified &mdash; the value above is deterministic. (See walkthrough
+                        Step 7.1 for the full formula and how to verify it in a real shell.)
+                    </div>
                 </div>
             </div>` : '';
 
@@ -3590,6 +3601,11 @@ const PISFinalConfig = {
               .pm-shell .pm-comp-flag-h { font-size: 0.7rem; color: #6b7280; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 6px; }
               .pm-shell .pm-comp-flag-v { font-size: 1.5rem; font-weight: 800; color: #15803d; font-family: 'Cascadia Code', ui-monospace, monospace; letter-spacing: 0.05em; }
               .pm-shell .pm-comp-flag-sub { font-size: 0.74rem; color: #6b7280; margin-top: 6px; }
+              .pm-shell .pm-comp-flag.pm-comp-flag-7 { margin-top: 12px; border-color: #0ea5e9; background: #f0f9ff; }
+              .pm-shell .pm-comp-flag.pm-comp-flag-7 .pm-comp-flag-h { color: #075985; }
+              .pm-shell .pm-comp-flag.pm-comp-flag-7 .pm-comp-flag-v { color: #0c4a6e; }
+              .pm-shell .pm-comp-flag-note { font-size: 0.72rem; color: #4b5563; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; line-height: 1.6; text-align: left; }
+              .pm-shell .pm-comp-flag-note code { background: #fff; border: 1px solid #e5e7eb; padding: 1px 5px; border-radius: 3px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.7rem; color: #0c4a6e; }
               /* "Currently applied" status banner — pinned at the top of the dynamic body, always visible. */
               .pm-shell .pm-current { margin-top: 14px; padding: 14px 18px; border-radius: 6px; display: flex; gap: 14px; align-items: flex-start; }
               .pm-shell .pm-current-empty { background: #f0f9ff; border: 1px solid #bae6fd; }
