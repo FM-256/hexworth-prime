@@ -3295,15 +3295,63 @@ const PISFinalConfig = {
         </table>`;
     },
 
-    _renderPatchDashboard: function(engine) {
-        const db = PISFinalConfig._db;
-        const applied = db.patch_state.applied;
-
-        const cves = [
+    // CVE inventory — single source of truth, used by both renderer + handler.
+    _patchCveCatalog: function() {
+        return [
             { id: 'CVE-2024-21412', title: 'Internet Shortcut Files Security Feature Bypass Vulnerability', severity: 'HIGH', score: '8.1', vector: 'AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H', kb: 'KB5034441', released: '2024-02-13', categories: ['Defender SmartScreen'] },
             { id: 'CVE-2022-30190', title: 'Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability ("Follina")', severity: 'CRITICAL', score: '7.8', vector: 'AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H', kb: 'KB5014699', released: '2022-06-14', categories: ['Office', 'MSDT', 'Active exploitation'] },
             { id: 'CVE-2024-26169', title: 'Windows Error Reporting Service Elevation of Privilege Vulnerability', severity: 'IMPORTANT', score: '7.8', vector: 'AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H', kb: 'KB5036892', released: '2024-03-12', categories: ['WER'] }
         ];
+    },
+
+    // Always-visible "Currently applied" status banner. Renders as the first
+    // line of the dashboard body so the student can see at a glance what is
+    // deployed on the host without scrolling or reading tables.
+    _patchCurrentlyAppliedBanner: function() {
+        const db = PISFinalConfig._db;
+        const applied = db.patch_state.applied;
+        const cves = this._patchCveCatalog();
+
+        if (applied.length === 0) {
+            return `<div class="pm-current pm-current-empty">
+                <div class="pm-current-icon">○</div>
+                <div class="pm-current-body">
+                    <div class="pm-current-h">No patches currently deployed on WS-EMORALES-01</div>
+                    <div class="pm-current-sub">Click <b>Deploy Update</b> on the correct CVE below. The exploited vulnerability was identified in Phase 2 hash analysis.</div>
+                </div>
+            </div>`;
+        }
+
+        const appliedChips = applied.map(cveId => {
+            const info = cves.find(c => c.id === cveId) || { kb: '?', title: '(unknown)' };
+            const isCorrect = cveId === 'CVE-2022-30190';
+            return `<span class="pm-current-chip ${isCorrect ? 'ok' : 'warn'}">
+                <span class="pm-current-chip-cve">${cveId}</span>
+                <span class="pm-current-chip-kb">${info.kb}</span>
+                ${isCorrect ? '<span class="pm-current-chip-check">✓ correct target</span>' : '<span class="pm-current-chip-warn">⚠ wrong target</span>'}
+            </span>`;
+        }).join('');
+
+        const hasWrong = applied.some(c => c !== 'CVE-2022-30190');
+        const cls = hasWrong ? 'pm-current-warn' : 'pm-current-ok';
+
+        return `<div class="pm-current ${cls}">
+            <div class="pm-current-icon">${hasWrong ? '⚠' : '✓'}</div>
+            <div class="pm-current-body">
+                <div class="pm-current-h">Currently applied on WS-EMORALES-01:</div>
+                <div class="pm-current-chips">${appliedChips}</div>
+                ${hasWrong ? '<div class="pm-current-sub">Wrong-target patches don\'t resolve this incident. Use the Undo button on the Recently Deployed row.</div>' : '<div class="pm-current-sub">Validate with a Rapid7 InsightVM scan to complete Phase 6.</div>'}
+            </div>
+        </div>`;
+    },
+
+    // Body of the dashboard — everything below the header. Re-rendered from
+    // scratch every time the patch state changes (either at page load or
+    // after a form action). The header stays static.
+    _renderPatchDashboardBody: function() {
+        const db = PISFinalConfig._db;
+        const applied = db.patch_state.applied;
+        const cves = this._patchCveCatalog();
 
         const outstanding = cves.filter(c => !applied.includes(c.id));
         const appliedList = cves.filter(c => applied.includes(c.id));
@@ -3405,6 +3453,65 @@ const PISFinalConfig = {
             </div>` : '';
 
         return `
+            ${this._patchCurrentlyAppliedBanner()}
+            <div class="pm-status-strip">
+                <div>
+                    <div class="pm-status-tile-k">Outstanding</div>
+                    <div class="pm-status-tile-v ${outstanding.length > 0 ? 'crit' : 'ok'}">${outstanding.length}</div>
+                </div>
+                <div>
+                    <div class="pm-status-tile-k">Deployed (this session)</div>
+                    <div class="pm-status-tile-v ${applied.length > 0 ? 'ok' : ''}">${applied.length}</div>
+                </div>
+                <div>
+                    <div class="pm-status-tile-k">Compliance score</div>
+                    <div class="pm-status-tile-v ${compliancePct === 100 ? 'ok' : (compliancePct >= 50 ? 'warn' : 'crit')}">${compliancePct}%</div>
+                </div>
+                <div>
+                    <div class="pm-status-tile-k">Last sync</div>
+                    <div class="pm-status-tile-v">${new Date().toISOString().slice(0, 16).replace('T', ' ')}</div>
+                </div>
+            </div>
+            <div class="pm-section">
+                <div class="pm-section-h">Outstanding Vulnerabilities <span class="pm-section-h-count ${outstanding.length === 0 ? 'ok' : ''}">${outstanding.length}</span></div>
+                <div class="pm-section-sub">Updates classified as <b>Security Update</b> and pending deployment to this host. Sorted by severity (highest first).</div>
+                ${outstanding.length > 0 ? `
+                <table class="pm-table">
+                    <thead><tr>
+                        <th>CVE / KB</th>
+                        <th>Title</th>
+                        <th>CVSS</th>
+                        <th>Compliance</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody>${outRows}</tbody>
+                </table>
+                <div class="pm-instruction"><b>Operator note:</b> Apply patches one at a time. Identify the exploited vulnerability from <b>Phase 2 hash analysis</b> first and deploy <b>that KB only</b>. Wrong patches will increase remediation time and count against the Eclipse score (-40 each).</div>
+                ` : '<div class="pm-empty-ok">No outstanding vulnerabilities. Validate with Rapid7 InsightVM scan.</div>'}
+            </div>
+            ${appliedList.length > 0 ? `
+            <div class="pm-section">
+                <div class="pm-section-h">Recently Deployed <span class="pm-section-h-count ok">${appliedList.length}</span></div>
+                <div class="pm-section-sub">Updates deployed in the current remediation session.</div>
+                <table class="pm-table">
+                    <thead><tr>
+                        <th>CVE / KB</th>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Compliance</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody>${appliedRows}</tbody>
+                </table>
+            </div>` : ''}
+            <div class="pm-footer">
+                Next step after patching: validate with <a href="https://insightvm.crimson-dawn.net">Rapid7 InsightVM</a> scan, then activate the mail filter rule in <a href="https://mailadmin.crimson-dawn.net">Mail Admin</a>.
+            </div>
+            ${compositeBlock}`;
+    },
+
+    _renderPatchDashboard: function(engine) {
+        return `
             <style>
               .pm-shell { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 1080px; margin: 18px auto; color: #1f2937; }
               .pm-shell .pm-header { background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%); color: #fff; padding: 14px 22px; display: flex; align-items: center; gap: 14px; border-radius: 6px 6px 0 0; }
@@ -3483,6 +3590,31 @@ const PISFinalConfig = {
               .pm-shell .pm-comp-flag-h { font-size: 0.7rem; color: #6b7280; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 6px; }
               .pm-shell .pm-comp-flag-v { font-size: 1.5rem; font-weight: 800; color: #15803d; font-family: 'Cascadia Code', ui-monospace, monospace; letter-spacing: 0.05em; }
               .pm-shell .pm-comp-flag-sub { font-size: 0.74rem; color: #6b7280; margin-top: 6px; }
+              /* "Currently applied" status banner — pinned at the top of the dynamic body, always visible. */
+              .pm-shell .pm-current { margin-top: 14px; padding: 14px 18px; border-radius: 6px; display: flex; gap: 14px; align-items: flex-start; }
+              .pm-shell .pm-current-empty { background: #f0f9ff; border: 1px solid #bae6fd; }
+              .pm-shell .pm-current-ok    { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #16a34a; }
+              .pm-shell .pm-current-warn  { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #ea580c; }
+              .pm-shell .pm-current-icon  { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; color: #fff; flex-shrink: 0; }
+              .pm-shell .pm-current-empty .pm-current-icon { background: #0ea5e9; }
+              .pm-shell .pm-current-ok    .pm-current-icon { background: #16a34a; }
+              .pm-shell .pm-current-warn  .pm-current-icon { background: #ea580c; }
+              .pm-shell .pm-current-body  { flex: 1; }
+              .pm-shell .pm-current-h     { font-size: 0.96rem; font-weight: 800; color: #111827; margin-bottom: 8px; }
+              .pm-shell .pm-current-empty .pm-current-h { color: #0c4a6e; }
+              .pm-shell .pm-current-ok    .pm-current-h { color: #15803d; }
+              .pm-shell .pm-current-warn  .pm-current-h { color: #9a3412; }
+              .pm-shell .pm-current-sub   { font-size: 0.82rem; color: #4b5563; line-height: 1.55; margin-top: 6px; }
+              .pm-shell .pm-current-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+              .pm-shell .pm-current-chip  { display: inline-flex; gap: 8px; align-items: center; padding: 6px 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.82rem; }
+              .pm-shell .pm-current-chip.ok   { border-color: #bbf7d0; }
+              .pm-shell .pm-current-chip.warn { border-color: #fed7aa; }
+              .pm-shell .pm-current-chip-cve  { font-weight: 800; color: #111827; }
+              .pm-shell .pm-current-chip.ok   .pm-current-chip-cve { color: #15803d; }
+              .pm-shell .pm-current-chip.warn .pm-current-chip-cve { color: #9a3412; }
+              .pm-shell .pm-current-chip-kb   { color: #6b7280; font-size: 0.74rem; }
+              .pm-shell .pm-current-chip-check { color: #15803d; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 0.74rem; font-weight: 700; padding-left: 4px; border-left: 1px solid #d1fae5; }
+              .pm-shell .pm-current-chip-warn  { color: #9a3412; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 0.74rem; font-weight: 700; padding-left: 4px; border-left: 1px solid #fed7aa; }
             </style>
             <div class="pm-shell">
                 <div class="pm-header">
@@ -3497,61 +3629,7 @@ const PISFinalConfig = {
                         <div>User: <b>e.morales</b> &middot; Domain: CRIMSON-DAWN</div>
                     </div>
                 </div>
-                <div class="pm-status-strip">
-                    <div>
-                        <div class="pm-status-tile-k">Outstanding</div>
-                        <div class="pm-status-tile-v ${outstanding.length > 0 ? 'crit' : 'ok'}">${outstanding.length}</div>
-                    </div>
-                    <div>
-                        <div class="pm-status-tile-k">Deployed (this session)</div>
-                        <div class="pm-status-tile-v ${applied.length > 0 ? 'ok' : ''}">${applied.length}</div>
-                    </div>
-                    <div>
-                        <div class="pm-status-tile-k">Compliance score</div>
-                        <div class="pm-status-tile-v ${compliancePct === 100 ? 'ok' : (compliancePct >= 50 ? 'warn' : 'crit')}">${compliancePct}%</div>
-                    </div>
-                    <div>
-                        <div class="pm-status-tile-k">Last sync</div>
-                        <div class="pm-status-tile-v">${new Date().toISOString().slice(0, 16).replace('T', ' ')}</div>
-                    </div>
-                </div>
-                <div class="pm-section">
-                    <div class="pm-section-h">Outstanding Vulnerabilities <span class="pm-section-h-count ${outstanding.length === 0 ? 'ok' : ''}">${outstanding.length}</span></div>
-                    <div class="pm-section-sub">Updates classified as <b>Security Update</b> and pending deployment to this host. Sorted by severity (highest first).</div>
-                    ${outstanding.length > 0 ? `
-                    <table class="pm-table">
-                        <thead><tr>
-                            <th>CVE / KB</th>
-                            <th>Title</th>
-                            <th>CVSS</th>
-                            <th>Compliance</th>
-                            <th></th>
-                        </tr></thead>
-                        <tbody>${outRows}</tbody>
-                    </table>
-                    <div class="pm-instruction"><b>Operator note:</b> Apply patches one at a time. Identify the exploited vulnerability from <b>Phase 2 hash analysis</b> first and deploy <b>that KB only</b>. Wrong patches will increase remediation time and count against the Eclipse score (-40 each).</div>
-                    ` : '<div class="pm-empty-ok">No outstanding vulnerabilities. Validate with Rapid7 InsightVM scan.</div>'}
-                </div>
-                ${appliedList.length > 0 ? `
-                <div class="pm-section">
-                    <div class="pm-section-h">Recently Deployed <span class="pm-section-h-count ok">${appliedList.length}</span></div>
-                    <div class="pm-section-sub">Updates deployed in the current remediation session.</div>
-                    <table class="pm-table">
-                        <thead><tr>
-                            <th>CVE / KB</th>
-                            <th>Title</th>
-                            <th>Status</th>
-                            <th>Compliance</th>
-                            <th></th>
-                        </tr></thead>
-                        <tbody>${appliedRows}</tbody>
-                    </table>
-                </div>` : ''}
-                <div class="pm-footer">
-                    Next step after patching: validate with <a href="https://insightvm.crimson-dawn.net">Rapid7 InsightVM</a> scan, then activate the mail filter rule in <a href="https://mailadmin.crimson-dawn.net">Mail Admin</a>.
-                </div>
-                ${compositeBlock}
-                <div data-results></div>
+                <div data-results>${this._renderPatchDashboardBody()}</div>
             </div>`;
     },
 
@@ -3568,15 +3646,22 @@ const PISFinalConfig = {
             'CVE-2024-26169': { kb: 'KB5036892', title: 'Windows Error Reporting Elevation of Privilege',  severity: 'IMPORTANT' }
         };
 
+        // Helper: every response includes a confirmation banner PLUS the
+        // re-rendered dashboard body, so the Outstanding/Recently Deployed
+        // tables and the "Currently applied" pill always reflect current
+        // state after the click. The student sees fresh truth, not a stale
+        // dashboard from the initial page render.
+        const respond = (bannerHtml) => bannerHtml + PISFinalConfig._renderPatchDashboardBody() + PISFinalConfig._pmDeployStyle();
+
         if (action === 'apply_patch' && cve) {
             if (db.patch_state.applied.includes(cve)) {
-                return `<div class="pm-deploy-result pm-deploy-noop">
+                return respond(`<div class="pm-deploy-result pm-deploy-noop">
                     <div class="pm-deploy-icon">i</div>
                     <div class="pm-deploy-body">
                         <div class="pm-deploy-h">Already deployed</div>
                         <div class="pm-deploy-sub"><code>${cve}</code> is already in the Recently Deployed list on this host. No action taken.</div>
                     </div>
-                </div>${PISFinalConfig._pmDeployStyle()}`;
+                </div>`);
             }
 
             db.patch_state.applied.push(cve);
@@ -3588,7 +3673,7 @@ const PISFinalConfig = {
             const isCorrect = cve === 'CVE-2022-30190';
 
             if (isCorrect) {
-                return `<div class="pm-deploy-result pm-deploy-ok">
+                return respond(`<div class="pm-deploy-result pm-deploy-ok">
                     <div class="pm-deploy-icon">&#10003;</div>
                     <div class="pm-deploy-body">
                         <div class="pm-deploy-h">Patch deployed successfully</div>
@@ -3606,12 +3691,12 @@ const PISFinalConfig = {
                             The scan should now return CLEAN with scan ID S7K9P2.
                         </div>
                     </div>
-                </div>${PISFinalConfig._pmDeployStyle()}`;
+                </div>`);
             }
 
             // Wrong CVE applied
             if (engine && engine.addScore) engine.addScore(-40, 'Wrong patch action (unrelated CVE)');
-            return `<div class="pm-deploy-result pm-deploy-warn">
+            return respond(`<div class="pm-deploy-result pm-deploy-warn">
                 <div class="pm-deploy-icon">&#9888;</div>
                 <div class="pm-deploy-body">
                     <div class="pm-deploy-h">Patch deployed &mdash; WRONG TARGET for this incident</div>
@@ -3630,14 +3715,14 @@ const PISFinalConfig = {
                         <b>This CVE is real but NOT the one exploited in this incident.</b> The exploited
                         vulnerability was identified in Phase 2 hash analysis. To recover:
                         <ol style="margin:6px 0 0 18px; padding:0;">
-                            <li>Click <b>Undo / Re-evaluate</b> on the &quot;Recently Deployed&quot; row above.</li>
+                            <li>Click <b>Undo / Re-evaluate</b> on the &quot;Recently Deployed&quot; row below.</li>
                             <li>Identify the exploited CVE from your Phase 2 notes.</li>
                             <li>Deploy that KB instead.</li>
                         </ol>
                         Each wrong deployment costs &minus;40.
                     </div>
                 </div>
-            </div>${PISFinalConfig._pmDeployStyle()}`;
+            </div>`);
         }
 
         if (action === 'undo_patch' && cve) {
@@ -3648,7 +3733,7 @@ const PISFinalConfig = {
                 db.rapid7_scan_state.result = null;
                 db.patch_state.undone.push(cve);
                 const info = cveInfo[cve] || { kb: '(unknown KB)', title: '(unknown title)' };
-                return `<div class="pm-deploy-result pm-deploy-undo">
+                return respond(`<div class="pm-deploy-result pm-deploy-undo">
                     <div class="pm-deploy-icon">&#8634;</div>
                     <div class="pm-deploy-body">
                         <div class="pm-deploy-h">Undo confirmed</div>
@@ -3666,18 +3751,18 @@ const PISFinalConfig = {
                             original wrong action remains.)</span>
                         </div>
                     </div>
-                </div>${PISFinalConfig._pmDeployStyle()}`;
+                </div>`);
             }
-            return `<div class="pm-deploy-result pm-deploy-noop">
+            return respond(`<div class="pm-deploy-result pm-deploy-noop">
                 <div class="pm-deploy-icon">i</div>
                 <div class="pm-deploy-body">
                     <div class="pm-deploy-h">Nothing to undo</div>
                     <div class="pm-deploy-sub"><code>${cve}</code> is not in the Recently Deployed list.</div>
                 </div>
-            </div>${PISFinalConfig._pmDeployStyle()}`;
+            </div>`);
         }
 
-        return '<div class="pm-deploy-result pm-deploy-noop"><div class="pm-deploy-icon">i</div><div class="pm-deploy-body"><div class="pm-deploy-h">Unknown action</div></div></div>' + PISFinalConfig._pmDeployStyle();
+        return respond('<div class="pm-deploy-result pm-deploy-noop"><div class="pm-deploy-icon">i</div><div class="pm-deploy-body"><div class="pm-deploy-h">Unknown action</div></div></div>');
     },
 
     // CSS for the deploy result banners — co-located with the handler so the
