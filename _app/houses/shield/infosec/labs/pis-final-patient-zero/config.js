@@ -143,7 +143,7 @@ const PISFinalConfig = {
                                 },
                                 'notes.txt': {
                                     type: 'file',
-                                    content: 'FINAL PRACTICAL -- COMMAND REFERENCE\n=====================================\n\nTerminal commands:\n  dig <domain>          DNS A-record lookup\n  whois <domain|ip>     Registration info\n  host <domain>         Alias for dig\n  sha256sum <file>      Hash a file in downloads/\n  file <file>           Identify file type\n\nOpenSSL (TLS cert inspection):\n  openssl s_client -connect <host>:443 -showcerts\n    -- pipe the output through:\n  openssl x509 -noout -text\n    -- or grep the SAN directly:\n  openssl s_client -connect <host>:443 -showcerts | openssl x509 -noout -text | grep -A1 "Subject Alternative"\n\nPhase status:\n  phase                 Show current phase + what is still missing\n  help                  Full command reference\n\nKey files:\n  /home/ir-lead/incident-brief.md         Scenario brief\n  /home/ir-lead/downloads/                Attachment downloads land here\n  /evidence/pcap-day1.txt                 Day-1 firewall log excerpt\n\nSynthesis formula (Phase 7):\n  echo -n "<flag1>|<flag2>|<flag3>|<flag4>|<flag5>|<flag6>" | sha256sum | awk \'{print toupper(substr($1,1,16))}\'\n  NOTE: outer double-quotes are load-bearing -- flag1 contains angle brackets.\n'
+                                    content: 'FINAL PRACTICAL -- COMMAND REFERENCE\n=====================================\n\nTerminal commands:\n  dig <domain>          DNS A-record lookup\n  whois <domain|ip>     Registration info\n  host <domain>         Alias for dig\n  sha256sum <file>      Hash a file in downloads/\n  file <file>           Identify file type\n\nOpenSSL (TLS cert inspection — run as TWO separate commands; simulator does not support shell pipes):\n  openssl s_client -connect <host>:443 -showcerts\n  openssl x509 -noout -text\n    -- or grep the SAN directly:\n\nPhase status:\n  phase                 Show current phase + what is still missing\n  help                  Full command reference\n\nKey files:\n  /home/ir-lead/incident-brief.md         Scenario brief\n  /home/ir-lead/downloads/                Attachment downloads land here\n  /evidence/pcap-day1.txt                 Day-1 firewall log excerpt\n\nSynthesis formula (Phase 7):\n  echo -n "<flag1>|<flag2>|<flag3>|<flag4>|<flag5>|<flag6>" | sha256sum | awk \'{print toupper(substr($1,1,16))}\'\n  NOTE: outer double-quotes are load-bearing -- flag1 contains angle brackets.\n'
                                 },
                                 'downloads': {
                                     type: 'dir',
@@ -5028,7 +5028,7 @@ const PISFinalConfig = {
             id: 'hint3',
             label: 'Phase 3 -- DNS + PKI Forensics (L4)',
             helpLevel: 4,
-            text: 'The lookalike domain (from Phase 1 headers) is a front. The real C2 is in the certificate\'s Subject Alternative Name list. Run openssl s_client -connect <lookalike>:443 -showcerts and pipe to openssl x509 -noout -text to read the cert. The C2 domain in the SAN list has a name that signals dynamic DNS abuse.',
+            text: 'The lookalike domain (from Phase 1 headers) is a front. The real C2 is in the certificate\'s Subject Alternative Name list. Run openssl s_client -connect <lookalike>:443 -showcerts, THEN run openssl x509 -noout -text (two separate commands; simulator does not support shell pipes). The C2 domain in the SAN list has a name that signals dynamic DNS abuse.',
             cost: 75,
             penalty: -75
         },
@@ -5138,7 +5138,7 @@ const PISFinalConfig = {
                     // this gate, students could call x509 standalone and get the SAN
                     // list without ever connecting to the lookalike domain.
                     PISFinalConfig._db._sclient_target = host;
-                    return `CONNECTED(00000003)\ndepth=2 C = US, O = Internet Security Research Group, CN = ISRG Root X1\ndepth=1 C = US, O = Let's Encrypt, CN = R3\ndepth=0 CN = crimson-dawn-finance.net\n---\nCertificate chain\n 0 s:CN = crimson-dawn-finance.net\n   i:C = US, O = Let's Encrypt, CN = R3\n---\n[Certificate data -- pipe to 'openssl x509 -noout -text' to parse]\n---\nSSL handshake has read 4221 bytes and written 737 bytes\nVerification: OK\n---\nNew, TLSv1.3, Cipher is TLS_AES_128_GCM_SHA256\nServer public key is 2048 bit\n\nNote: to read the certificate, use:\n  openssl s_client -connect ${host}:443 -showcerts | openssl x509 -noout -text`;
+                    return `CONNECTED(00000003)\ndepth=2 C = US, O = Internet Security Research Group, CN = ISRG Root X1\ndepth=1 C = US, O = Let's Encrypt, CN = R3\ndepth=0 CN = crimson-dawn-finance.net\n---\nCertificate chain\n 0 s:CN = crimson-dawn-finance.net\n   i:C = US, O = Let's Encrypt, CN = R3\n---\n[Certificate data -- next: run 'openssl x509 -noout -text' to parse]\n---\nSSL handshake has read 4221 bytes and written 737 bytes\nVerification: OK\n---\nNew, TLSv1.3, Cipher is TLS_AES_128_GCM_SHA256\nServer public key is 2048 bit\n\nNote: to read the certificate, run these as two separate commands (the simulator does not support shell pipes):\n  openssl s_client -connect ${host}:443 -showcerts\n  openssl x509 -noout -text`;
                 }
 
                 if (legitHosts.includes(host)) {
@@ -5156,7 +5156,7 @@ const PISFinalConfig = {
                     // had actually connected -- a Phase 3 skill bypass.
                     const sclientTarget = PISFinalConfig._db._sclient_target;
                     if (!sclientTarget) {
-                        return `unable to load certificate\n0123:error:0906D06C:PEM routines:PEM_read_bio:no start line:pem_lib.c:701:Expecting: TRUSTED CERTIFICATE\n\nNo certificate data on stdin. Pipe input from openssl s_client:\n  openssl s_client -connect <host>:443 -showcerts | openssl x509 -noout -text`;
+                        return `unable to load certificate\n0123:error:0906D06C:PEM routines:PEM_read_bio:no start line:pem_lib.c:701:Expecting: TRUSTED CERTIFICATE\n\nNo certificate data primed. First run:\n  openssl s_client -connect <host>:443 -showcerts\nthen re-run:\n  openssl x509 -noout -text\n(Two separate commands -- simulator does not support shell pipes.)`;
                     }
                     // Only attacker hosts' certs reveal the multi-SAN list.
                     return `Certificate:\n    Data:\n        Version: 3 (0x2)\n        Serial Number: 03:c4:a2:8a:19:f5:c4:4c:7f:92:a3:bb:11:22:33:44\n    Signature Algorithm: sha256WithRSAEncryption\n        Issuer: C=US, O=Let's Encrypt, CN=R3\n        Validity\n            Not Before: May 15 00:00:00 2026 GMT\n            Not After : Aug 13 23:59:59 2026 GMT\n        Subject: CN=crimson-dawn-finance.net\n        X509v3 extensions:\n            X509v3 Subject Alternative Name:\n                DNS:crimson-dawn-finance.net, DNS:nakamura-suppliers-corp.com, DNS:emberwolf-c2.duckdns.org, DNS:cd-paymentportal.net, DNS:vendor-update-2026.com\n\n*** SAN LIST EXTRACTED ***\nFive domains -- the attacker's full infrastructure:\n  1. crimson-dawn-finance.net       (the lookalike -- receives replies)\n  2. nakamura-suppliers-corp.com    (second attacker domain -- Reply-To)\n  3. emberwolf-c2.duckdns.org       (C2 callback -- DuckDNS dynamic DNS)\n  4. cd-paymentportal.net           (payment redirect domain)\n  5. vendor-update-2026.com         (additional phishing domain)\n\nThe C2 naming convention "emberwolf-c2.*" is the actor signature.\nDig the C2 domain to confirm it resolves to the same X-Originating-IP as Phase 1.`;
@@ -5256,7 +5256,7 @@ const PISFinalConfig = {
             lines.push('');
             lines.push('Phase 3 -- DNS + PKI Forensics: ' + (f3 ? 'COMPLETE' : (f2 ? 'INCOMPLETE' : 'LOCKED (submit Flag 2 first)')));
             lines.push('  ' + (f3 ? '[OK]' : '[ ]') + ' dig the X-Originating-IP lookalike domain');
-            lines.push('  ' + (f3 ? '[OK]' : '[ ]') + ' openssl s_client -connect <lookalike>:443 -showcerts | openssl x509 -noout -text');
+            lines.push('  ' + (f3 ? '[OK]' : '[ ]') + ' openssl s_client -connect <lookalike>:443 -showcerts ; then openssl x509 -noout -text');
             lines.push('  ' + (f3 ? '[OK]' : '[ ]') + ' Extract C2 domain from SAN list, confirm with dig');
 
             lines.push('');
