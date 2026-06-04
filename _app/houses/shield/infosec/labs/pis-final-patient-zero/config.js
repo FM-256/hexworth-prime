@@ -708,6 +708,8 @@ const PISFinalConfig = {
                   .pwreset-shell .pw-recent .pw-recent-meta { color: #1a202c; font-weight: 600; }
                   .pwreset-shell .pw-recent.flag { border-color: #fca5a5; background: #fef2f2; }
                   .pwreset-shell .pw-recent.flag .pw-recent-meta { color: #991b1b; }
+                  .pwreset-shell .pw-recent.success { border-color: #86efac; background: #f0fdf4; }
+                  .pwreset-shell .pw-recent.success .pw-recent-meta { color: #14532d; }
                   .pwreset-shell .pw-footer-bar {
                     margin-top: 14px; display: flex; gap: 10px; align-items: center;
                     padding: 10px 14px; background: #f1f5f9;
@@ -842,6 +844,15 @@ const PISFinalConfig = {
                         result.innerHTML = '<div class=\\'pw-result-card ok\\'><span class=\\'pw-result-mark\\'>\\u2713</span><div><div class=\\'pw-result-title\\'>Password rotated successfully.</div><div class=\\'pw-result-sub\\'>Account: ' + (username || 'e.morales') + ' &middot; Rotated at ' + ts + ' UTC &middot; Active Directory replication complete.</div><div class=\\'pw-result-sub\\' style=\\'margin-top:6px;\\'>You may close this tab or return to your inbox.</div></div></div>';
                         btn.disabled = true; btn.textContent = 'Password Rotated';
                         ['#pw-username','#pw-current','#pw-new','#pw-confirm'].forEach(function(s){ var i = box.querySelector(s); if (i) i.setAttribute('readonly','readonly'); });
+                        var agePill = box.querySelector('#pw-age-pill');
+                        if (agePill) { agePill.className = 'pw-status-pill ok'; agePill.textContent = 'Just now'; }
+                        var recentList = box.querySelector('#pw-recent-list');
+                        if (recentList) {
+                          var row = document.createElement('div');
+                          row.className = 'pw-recent success';
+                          row.innerHTML = '<div class=\\'pw-recent-ts\\'>' + ts + ' UTC</div><div class=\\'pw-recent-meta\\'>passwd.crimson-dawn.net &middot; Password rotation &middot; ' + (username || 'e.morales') + '</div>';
+                          recentList.insertBefore(row, recentList.firstChild);
+                        }
                       })(this)">Rotate Password &amp; Sign In</button>
                     </div>
 
@@ -860,7 +871,7 @@ const PISFinalConfig = {
                         <div class="pw-ctx-h">Account status</div>
                         <div class="pw-ctx-kv"><span class="pw-ctx-k">Status</span><span class="pw-status-pill ok">Active</span></div>
                         <div class="pw-ctx-kv"><span class="pw-ctx-k">Role</span><span class="pw-ctx-v">Standard User</span></div>
-                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Password age</span><span class="pw-status-pill warn">132 days</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Password age</span><span class="pw-status-pill warn" id="pw-age-pill">132 days</span></div>
                         <div class="pw-ctx-kv"><span class="pw-ctx-k">Lockout</span><span class="pw-ctx-v">None</span></div>
                       </div>
 
@@ -875,17 +886,19 @@ const PISFinalConfig = {
 
                       <div class="pw-context-section">
                         <div class="pw-ctx-h">Recent sign-ins</div>
-                        <div class="pw-recent">
-                          <div class="pw-recent-ts">2026-05-18 09:01 UTC</div>
-                          <div class="pw-recent-meta">WS-EMORALES-01 &middot; 10.0.4.18 &middot; Workstation Logon</div>
-                        </div>
-                        <div class="pw-recent flag">
-                          <div class="pw-recent-ts">2026-05-18 09:14 UTC</div>
-                          <div class="pw-recent-meta">185.220.101.45 &middot; HTTPS to passwd.crimson-dawn.net</div>
-                        </div>
-                        <div class="pw-recent">
-                          <div class="pw-recent-ts">2026-05-17 16:44 UTC</div>
-                          <div class="pw-recent-meta">WS-EMORALES-01 &middot; 10.0.4.18 &middot; Workstation Unlock</div>
+                        <div id="pw-recent-list">
+                          <div class="pw-recent">
+                            <div class="pw-recent-ts">2026-05-18 09:01 UTC</div>
+                            <div class="pw-recent-meta">WS-EMORALES-01 &middot; 10.0.4.18 &middot; Workstation Logon</div>
+                          </div>
+                          <div class="pw-recent flag">
+                            <div class="pw-recent-ts">2026-05-18 09:14 UTC</div>
+                            <div class="pw-recent-meta">185.220.101.45 &middot; HTTPS to passwd.crimson-dawn.net</div>
+                          </div>
+                          <div class="pw-recent">
+                            <div class="pw-recent-ts">2026-05-17 16:44 UTC</div>
+                            <div class="pw-recent-meta">WS-EMORALES-01 &middot; 10.0.4.18 &middot; Workstation Unlock</div>
+                          </div>
                         </div>
                       </div>
                     </div>
