@@ -3348,6 +3348,70 @@ const PISFinalConfig = {
     // Body of the dashboard — everything below the header. Re-rendered from
     // scratch every time the patch state changes (either at page load or
     // after a form action). The header stays static.
+    // When Phase 6 is fully complete (correct patch + Rapid7 CLEAN + mail filter
+    // active), reveal the composite flag + Phase 7 synthesis flag + composition
+    // breakdown. Used by the patch dashboard AND injected into the InsightVM
+    // scan + mailadmin filter responses so the student sees Flag 6 the moment
+    // they finish the last sub-action — no need to navigate back to /patch.
+    _phase6CompleteReveal: function() {
+        const db = PISFinalConfig._db;
+        const phaseComplete = db.patch_state.applied.includes('CVE-2022-30190') &&
+            !db.patch_state.applied.some(c => c !== 'CVE-2022-30190') &&
+            db.rapid7_scan_state.result === 'clean' &&
+            db.mail_filter_state.active;
+        if (!phaseComplete) return '';
+        // Self-contained reveal block (own styles inlined so it can be
+        // injected into any tool's form-result area without depending on
+        // the patch-shell CSS being in scope).
+        return `<style>
+            .p6-reveal { font-family: 'Segoe UI', system-ui, sans-serif; margin-top: 18px; padding: 18px 22px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #16a34a; border-radius: 6px; }
+            .p6-reveal-h { font-size: 1rem; font-weight: 800; color: #15803d; margin-bottom: 6px; letter-spacing: 0.02em; }
+            .p6-reveal-sub { font-size: 0.82rem; color: #374151; margin-bottom: 12px; }
+            .p6-reveal-checks { margin-bottom: 14px; font-size: 0.78rem; color: #166534; line-height: 1.9; }
+            .p6-reveal-flag { padding: 14px 18px; background: #fff; border: 2px solid #16a34a; border-radius: 6px; text-align: center; margin-bottom: 12px; }
+            .p6-reveal-flag.f7 { background: #f0f9ff; border-color: #0ea5e9; }
+            .p6-reveal-flag-h { font-size: 0.7rem; color: #6b7280; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 6px; }
+            .p6-reveal-flag.f7 .p6-reveal-flag-h { color: #075985; }
+            .p6-reveal-flag-v { font-size: 1.5rem; font-weight: 800; color: #15803d; font-family: 'Cascadia Code', ui-monospace, monospace; letter-spacing: 0.05em; }
+            .p6-reveal-flag.f7 .p6-reveal-flag-v { color: #0c4a6e; }
+            .p6-reveal-flag-sub { font-size: 0.74rem; color: #6b7280; margin-top: 6px; }
+            .p6-reveal-comp { font-size: 0.74rem; color: #4b5563; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; line-height: 1.6; text-align: left; }
+            .p6-reveal-comp b { color: #111827; }
+            .p6-reveal-comp code { background: #fff; border: 1px solid #e5e7eb; padding: 1px 5px; border-radius: 3px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.7rem; color: #0c4a6e; }
+            .p6-reveal-comp table { width: 100%; margin: 6px 0; border-collapse: collapse; }
+            .p6-reveal-comp td { padding: 4px 6px; vertical-align: top; font-size: 0.72rem; }
+            .p6-reveal-comp td:first-child { width: 96px; }
+            .p6-reveal-comp td:first-child code { background: #ecfdf5; border-color: #86efac; color: #14532d; font-weight: 800; }
+            .p6-reveal-comp tr + tr td { border-top: 1px solid #f3f4f6; }
+        </style>
+        <div class="p6-reveal">
+            <div class="p6-reveal-h">Phase 6 &mdash; Containment + Remediation: COMPLETE</div>
+            <div class="p6-reveal-sub">All three sub-actions verified across the IR toolchain:</div>
+            <div class="p6-reveal-checks">
+                &#10003; CVE-2022-30190 patched (KB5014699 deployed via Patch Management)<br>
+                &#10003; Rapid7 InsightVM scan: CLEAN (Scan ID: S7K9P2)<br>
+                &#10003; Proofpoint mail filter rule active
+            </div>
+            <div class="p6-reveal-flag">
+                <div class="p6-reveal-flag-h">Phase 6 &mdash; Composite Flag</div>
+                <div class="p6-reveal-flag-v">REMED-OK-S7K9P2</div>
+                <div class="p6-reveal-flag-sub">Submit this as Flag 6</div>
+                <div class="p6-reveal-comp">
+                    <b>How it's built:</b> <code>REMED-OK-&lt;scan-ID&gt;</code> &mdash; two parts concatenated:
+                    <table>
+                        <tr><td><code>REMED-OK-</code></td><td>fixed prefix &mdash; marks that all three Phase 6 actions verified (patch + scan + filter)</td></tr>
+                        <tr><td><code>S7K9P2</code></td><td>Rapid7 InsightVM scan ID &mdash; returned in the CLEAN scan result; proves the patch actually validated</td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="p6-reveal-flag f7">
+                <div class="p6-reveal-flag-h">Phase 7 &mdash; Synthesis Flag</div>
+                <div class="p6-reveal-flag-v">A82A44DCA64FA463</div>
+                <div class="p6-reveal-flag-sub">Submit this as Flag 7 to complete the lab</div>
+            </div>
+        </div>`;
+    },
+
     _renderPatchDashboardBody: function() {
         const db = PISFinalConfig._db;
         const applied = db.patch_state.applied;
@@ -4112,7 +4176,7 @@ const PISFinalConfig = {
                     '</div>' +
                 '</div>' +
                 '<div class="r7-result-next">Workstation <b>WS-EMORALES-01</b> cleared. Proceed to mail filter step at <a href="https://mailadmin.crimson-dawn.net">mailadmin.crimson-dawn.net</a>.</div>'
-            );
+            ) + PISFinalConfig._phase6CompleteReveal();
         }
 
         if (mixedCoApplied) {
@@ -4377,8 +4441,8 @@ const PISFinalConfig = {
             db.mail_filter_state.rule = type + ' = ' + data.filter_value;
             return '<div class="ma-result ma-result-ok">' +
                 '<div class="ma-result-h">Filter rule ACCEPTED &mdash; deployed to AP-Inbox-2026 policy</div>' +
-                '<div class="ma-result-sub">Pattern <code>' + this._escHtml(type) + ' = ' + this._escHtml(data.filter_value) + '</code> correctly isolates the attacker\'s pattern without blocking legitimate vendor mail. Matching messages are <b>quarantined + SOC alerted</b>.<br><br>Check <a href="https://patch.crimson-dawn.net">Patch Management</a> to see if Phase 6 composite flag is now available.</div>' +
-            '</div>';
+                '<div class="ma-result-sub">Pattern <code>' + this._escHtml(type) + ' = ' + this._escHtml(data.filter_value) + '</code> correctly isolates the attacker\'s pattern without blocking legitimate vendor mail. Matching messages are <b>quarantined + SOC alerted</b>.</div>' +
+            '</div>' + PISFinalConfig._phase6CompleteReveal();
         }
 
         // Generic accepted-but-wrong-scope scopes
