@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
-# regen.sh — regenerate walkthrough PDFs from .md sources with wrap-fix CSS.
+# regen.sh — regenerate walkthrough PDF + HTML from .md sources.
 #
-# Problem this solves:
+# This script produces TWO outputs per markdown source:
+#   <name>.pdf   — A4 landscape, 8pt code font, wrap-safe shell commands.
+#                  For print + clipboard-safe copy/paste in classroom.
+#   <name>.html  — Browser-friendly, self-contained, embedded CSS,
+#                  auto-generated TOC, syntax-highlighted code blocks.
+#                  Single file — can be emailed or shared without
+#                  external dependencies.
+#
+# (Script path preserved as `_tools/walkthrough-pdf/` for backward
+#  compatibility with existing references — it produces both formats
+#  now, not PDF only.)
+#
+# Problem PDF generation solves:
 #   WeasyPrint at default font + portrait wraps long shell commands
 #   (openssl, curl, etc.) at hyphen boundaries. When PDF rendering
 #   wraps INSIDE a flag like `-in`, the line ends with `-` and the next
@@ -10,31 +22,41 @@
 #   input file" / "Wrong key file" errors. Discovered on PIS-L06 step 3
 #   on 2026-05-19.
 #
-# Fix: render at 8pt code font on A4 landscape. The 130–140 char commands
-# in PIS labs fit on one line, so the wrap never happens.
+#   Fix: render at 8pt code font on A4 landscape. The 130–140 char
+#   commands in PIS labs fit on one line, so the wrap never happens.
+#
+# Why HTML too:
+#   Operators / instructors want to share walkthroughs by email, embed
+#   in a course portal, or open in a browser without PDF readers.
+#   HTML is the universal-share format. Added 2026-06-04 after the
+#   PIS-FINAL Patient Zero polish marathon — students needed a third
+#   format alongside the .md source and the .pdf print copy.
 #
 # Usage:
-#   _tools/walkthrough-pdf/regen.sh <file.md>           # single file
-#   _tools/walkthrough-pdf/regen.sh <dir>               # all *-SOLUTION.md in dir
-#   _tools/walkthrough-pdf/regen.sh --verify <file.pdf> # check ONE pdf for wraps
-#   _tools/walkthrough-pdf/regen.sh --help              # show this header
+#   regen.sh <file.md>                  generate <file>.pdf AND <file>.html
+#   regen.sh <dir>                      sweep all *-SOLUTION.md in dir
+#   regen.sh --pdf-only <file-or-dir>   PDF only (legacy behavior)
+#   regen.sh --html-only <file-or-dir>  HTML only
+#   regen.sh --verify <file.pdf>        check ONE pdf for wrap-broken commands
+#   regen.sh --help                     show this header
 #
 # Requires: pandoc, weasyprint, pdfinfo, pdftotext.
 #
 # Exit codes:
-#   0  success — all PDFs generated and verified wrap-free
-#   1  pandoc/weasyprint/poppler missing OR a generated PDF still has wraps
+#   0  success — all outputs generated (and PDFs verified wrap-free)
+#   1  tooling missing OR a generated PDF still has wraps OR pandoc failed
 #   2  input path doesn't exist
 #   3  CSS asset missing
 
 set -e
 
-CSS_PATH="/home/eq/hexworth-shared/Solutions/_assets/walkthrough-pdf.css"
+CSS_PDF="/home/eq/hexworth-shared/Solutions/_assets/walkthrough-pdf.css"
+CSS_HTML="/home/eq/hexworth-shared/Solutions/_assets/walkthrough-html.css"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die()  { echo "ERROR: $*" >&2; exit "${2:-1}"; }
-log()  { echo "[walkthrough-pdf] $*"; }
-warn() { echo "[walkthrough-pdf] WARN: $*" >&2; }
+log()  { echo "[walkthrough-regen] $*"; }
+warn() { echo "[walkthrough-regen] WARN: $*" >&2; }
 
 # --- show help and exit if no args or --help ---
 if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
@@ -42,13 +64,25 @@ if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     exit 0
 fi
 
+# --- parse format-selection flags ---
+DO_PDF=1
+DO_HTML=1
+case "$1" in
+    --pdf-only)  DO_HTML=0; shift ;;
+    --html-only) DO_PDF=0;  shift ;;
+esac
+[ $# -ge 1 ] || die "After format flag, give a .md file or directory."
+
 # --- preflight: tools present ---
-for tool in pandoc weasyprint pdfinfo pdftotext; do
+need_tools=(pandoc)
+[ $DO_PDF  -eq 1 ] && need_tools+=(weasyprint pdfinfo pdftotext)
+for tool in "${need_tools[@]}"; do
     command -v "$tool" >/dev/null 2>&1 || die "$tool not found in PATH. Install: pandoc + weasyprint + poppler-utils."
 done
 
-# --- preflight: CSS asset present ---
-[ -f "$CSS_PATH" ] || die "CSS asset missing at $CSS_PATH. Restore it before running this tool." 3
+# --- preflight: CSS assets present (only the ones we'll use) ---
+[ $DO_PDF  -eq 1 ] && { [ -f "$CSS_PDF" ]  || die "PDF CSS missing at $CSS_PDF. Restore it before running this tool." 3; }
+[ $DO_HTML -eq 1 ] && { [ -f "$CSS_HTML" ] || die "HTML CSS missing at $CSS_HTML. Restore it before running this tool." 3; }
 
 # --- verify mode: check one PDF for wrap-broken commands ---
 if [ "$1" = "--verify" ]; then
@@ -71,7 +105,6 @@ input="$1"
 [ -e "$input" ] || die "Input path not found: $input" 2
 
 if [ -d "$input" ]; then
-    # Sweep all *-SOLUTION.md in the directory.
     mapfile -t mds < <(find "$input" -maxdepth 1 -type f -name "*-SOLUTION.md" | sort)
     [ ${#mds[@]} -gt 0 ] || die "No *-SOLUTION.md files under $input"
     log "Sweeping ${#mds[@]} walkthroughs in $input"
@@ -91,25 +124,47 @@ for md in "${mds[@]}"; do
         # Fallback: use the first H1 of the .md.
         title=$(grep -m1 "^# " "$md" | sed 's/^# //' || echo "$base")
     fi
-    out="${md%.md}.pdf"
-    if pandoc "$md" -o "$out" \
-        --pdf-engine=weasyprint \
-        --css="$CSS_PATH" \
-        -M title="$title" 2>/dev/null; then
-        # Verify the generated PDF has no wraps.
-        wraps=$(pdftotext -layout "$out" - 2>/dev/null \
-                | awk '/^(openssl|sudo|curl|gpg|ssh-keygen|wget|scp|rsync)/ && /-$/' \
-                | wc -l)
-        pages=$(pdfinfo "$out" 2>/dev/null | awk '/^Pages:/ {print $2}')
-        if [ "$wraps" -gt 0 ]; then
-            warn "$out — generated but $wraps wrap-broken command line(s). Verify font size + page orientation in $CSS_PATH."
-            fail=1
+
+    # --- PDF ---
+    if [ $DO_PDF -eq 1 ]; then
+        out_pdf="${md%.md}.pdf"
+        if pandoc "$md" -o "$out_pdf" \
+            --pdf-engine=weasyprint \
+            --css="$CSS_PDF" \
+            -M title="$title" 2>/dev/null; then
+            wraps=$(pdftotext -layout "$out_pdf" - 2>/dev/null \
+                    | awk '/^(openssl|sudo|curl|gpg|ssh-keygen|wget|scp|rsync)/ && /-$/' \
+                    | wc -l)
+            pages=$(pdfinfo "$out_pdf" 2>/dev/null | awk '/^Pages:/ {print $2}')
+            if [ "$wraps" -gt 0 ]; then
+                warn "$out_pdf — generated but $wraps wrap-broken command line(s). Verify font size + page orientation in $CSS_PDF."
+                fail=1
+            else
+                log "OK $(basename "$out_pdf") (pages=$pages)"
+            fi
         else
-            log "OK $(basename "$out") (pages=$pages, title=\"$title\")"
+            warn "pandoc PDF failed for $md"
+            fail=1
         fi
-    else
-        warn "pandoc failed for $md"
-        fail=1
+    fi
+
+    # --- HTML ---
+    if [ $DO_HTML -eq 1 ]; then
+        out_html="${md%.md}.html"
+        if pandoc "$md" -o "$out_html" \
+            --standalone \
+            --embed-resources \
+            --toc \
+            --toc-depth=3 \
+            --highlight-style=tango \
+            --metadata title="$title" \
+            --css="$CSS_HTML" 2>/dev/null; then
+            bytes=$(wc -c < "$out_html")
+            log "OK $(basename "$out_html") (${bytes} bytes, self-contained)"
+        else
+            warn "pandoc HTML failed for $md"
+            fail=1
+        fi
     fi
 done
 
