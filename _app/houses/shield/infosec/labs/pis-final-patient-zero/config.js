@@ -3587,51 +3587,219 @@ const PISFinalConfig = {
     _renderInsightVM: function(engine) {
         const db = PISFinalConfig._db;
         const scanResult = db.rapid7_scan_state.result;
+        const scanId = db.rapid7_scan_state.scan_id || '';
 
         let resultBlock = '';
         if (scanResult === 'clean') {
-            resultBlock = `<div style="padding:14px; background:#f0fff4; border:2px solid #2ecc71; border-radius:4px; margin-top:14px;">
-                <div style="font-size:0.95rem; font-weight:700; color:#2ecc71; margin-bottom:8px;">SCAN RESULT: CLEAN</div>
-                <div style="font-size:0.82rem; color:#555; line-height:1.7;">
-                    Previously detected: CVE-2022-30190 &mdash; <span style="color:#2ecc71; font-weight:700;">REMEDIATED</span><br>
-                    <b>Scan ID: S7K9P2</b><br>
-                    Scan completed: ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC<br>
-                    Target: WS-EMORALES-01 (10.0.4.18)
+            resultBlock = `
+            <div class="r7-result r7-result-clean">
+                <div class="r7-result-head">
+                    <div class="r7-risk-circle r7-risk-zero">0</div>
+                    <div class="r7-result-meta">
+                        <div class="r7-result-verdict">No risk &mdash; Asset compliant</div>
+                        <div class="r7-result-sub">All previously detected vulnerabilities have been remediated</div>
+                    </div>
+                    <div class="r7-result-scanid">
+                        <div class="r7-result-scanid-k">Scan ID</div>
+                        <div class="r7-result-scanid-v">S7K9P2</div>
+                    </div>
+                </div>
+                <div class="r7-result-body">
+                    <table class="r7-result-table">
+                        <tr><td class="r7-rt-k">Scan target</td><td class="r7-rt-v">WS-EMORALES-01 (10.0.4.18)</td></tr>
+                        <tr><td class="r7-rt-k">Template</td><td class="r7-rt-v">Full audit, enhanced authenticated</td></tr>
+                        <tr><td class="r7-rt-k">Scan engine</td><td class="r7-rt-v">SE-Crimson-01 (East-1)</td></tr>
+                        <tr><td class="r7-rt-k">Started</td><td class="r7-rt-v">${new Date(Date.now() - 4*60*1000).toISOString().slice(0, 16).replace('T', ' ')} UTC</td></tr>
+                        <tr><td class="r7-rt-k">Completed</td><td class="r7-rt-v">${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC</td></tr>
+                        <tr><td class="r7-rt-k">Duration</td><td class="r7-rt-v">4m 12s</td></tr>
+                        <tr><td class="r7-rt-k">Checks executed</td><td class="r7-rt-v">14,247</td></tr>
+                    </table>
+                    <div class="r7-result-remed">
+                        <div class="r7-result-remed-h">Previously detected &middot; Now remediated</div>
+                        <div class="r7-remed-item r7-remed-item-ok">
+                            <span class="r7-remed-cve">CVE-2022-30190</span>
+                            <span class="r7-remed-title">MSDT Remote Code Execution (Follina)</span>
+                            <span class="r7-remed-badge">Remediated</span>
+                        </div>
+                    </div>
+                    <div class="r7-result-next">Workstation WS-EMORALES-01 cleared. Proceed to the <a href="https://mailadmin.crimson-dawn.net">mail filter rule</a> step to close the attack vector.</div>
                 </div>
             </div>`;
         } else if (scanResult === 'vulnerable') {
-            resultBlock = `<div style="padding:14px; background:#fff0f0; border:2px solid #dc2626; border-radius:4px; margin-top:14px;">
-                <div style="font-size:0.95rem; font-weight:700; color:#dc2626; margin-bottom:8px;">SCAN RESULT: VULNERABILITY DETECTED</div>
-                <div style="font-size:0.82rem; color:#dc2626; font-weight:700; margin-bottom:4px;">- CVE-2022-30190 (Follina) &mdash; STILL EXPLOITABLE</div>
-                <div style="font-size:0.78rem; color:#555;">Patch the correct vulnerability (CVE-2022-30190) and re-scan.</div>
+            resultBlock = `
+            <div class="r7-result r7-result-vuln">
+                <div class="r7-result-head">
+                    <div class="r7-risk-circle r7-risk-crit">!</div>
+                    <div class="r7-result-meta">
+                        <div class="r7-result-verdict">Critical vulnerability detected</div>
+                        <div class="r7-result-sub">Asset exposes 1 actively exploited vulnerability</div>
+                    </div>
+                </div>
+                <div class="r7-result-body">
+                    <div class="r7-result-remed">
+                        <div class="r7-remed-item r7-remed-item-crit">
+                            <span class="r7-remed-cve">CVE-2022-30190</span>
+                            <span class="r7-remed-title">MSDT Remote Code Execution (Follina) &mdash; STILL EXPLOITABLE</span>
+                            <span class="r7-remed-badge crit">CVSS 7.8</span>
+                        </div>
+                    </div>
+                    <div class="r7-result-next r7-result-next-warn">Patch the correct vulnerability (<b>CVE-2022-30190</b>) via the <a href="https://patch.crimson-dawn.net">Patch Management console</a> and re-scan.</div>
+                </div>
             </div>`;
         } else if (scanResult === 'wrong_patch') {
-            resultBlock = `<div style="padding:14px; background:#fff0f0; border:2px solid #dc2626; border-radius:4px; margin-top:14px;">
-                <div style="font-size:0.95rem; font-weight:700; color:#dc2626; margin-bottom:8px;">SCAN RESULT: VULNERABILITY DETECTED</div>
-                <div style="font-size:0.82rem; color:#dc2626; font-weight:700; margin-bottom:4px;">- CVE-2022-30190 (Follina) &mdash; STILL EXPLOITABLE</div>
-                <div style="font-size:0.78rem; color:#555;">Wrong patch detected. Undo the incorrectly-applied patch in the Patch Management console, then apply CVE-2022-30190 and re-scan.</div>
+            resultBlock = `
+            <div class="r7-result r7-result-vuln">
+                <div class="r7-result-head">
+                    <div class="r7-risk-circle r7-risk-crit">!</div>
+                    <div class="r7-result-meta">
+                        <div class="r7-result-verdict">Non-compliant &mdash; extraneous patches applied</div>
+                        <div class="r7-result-sub">Workstation patched outside the IR runbook scope</div>
+                    </div>
+                </div>
+                <div class="r7-result-body">
+                    <div class="r7-result-remed">
+                        <div class="r7-remed-item r7-remed-item-crit">
+                            <span class="r7-remed-cve">CVE-2022-30190</span>
+                            <span class="r7-remed-title">MSDT Remote Code Execution (Follina) &mdash; STILL EXPLOITABLE</span>
+                            <span class="r7-remed-badge crit">CVSS 7.8</span>
+                        </div>
+                    </div>
+                    <div class="r7-result-next r7-result-next-warn">Wrong patch detected. Undo the incorrectly-applied patch in the <a href="https://patch.crimson-dawn.net">Patch Management console</a>, then apply <b>CVE-2022-30190</b> and re-scan.</div>
+                </div>
             </div>`;
         }
 
-        return `<div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-            <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">RAPID7 INSIGHTVM &mdash; CRIMSON DAWN</div>
-                <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">Vulnerability Scan Console</div>
-                <div style="font-size:0.72rem; color:#888;">Rapid7 InsightVM v6.6.218 &middot; Agent registered</div>
-            </div>
-            <div style="padding:12px; border:1px solid #ddd; border-radius:4px; background:#f8f8f8; margin-bottom:14px;">
-                <div style="font-size:0.82rem; font-weight:700; margin-bottom:6px;">WS-EMORALES-01 &mdash; Scan Target</div>
-                <table style="font-size:0.78rem; border-collapse:collapse;">
-                    <tr><td style="padding:4px 10px; color:#888; width:120px;">Host</td><td style="padding:4px 10px;">WS-EMORALES-01</td></tr>
-                    <tr><td style="padding:4px 10px; color:#888;">IP</td><td style="padding:4px 10px;">10.0.4.18</td></tr>
-                    <tr><td style="padding:4px 10px; color:#888;">OS</td><td style="padding:4px 10px;">Windows 10 22H2 (19045.4651)</td></tr>
-                    <tr><td style="padding:4px 10px; color:#888;">Agent</td><td style="padding:4px 10px; color:#2ecc71;">CONNECTED</td></tr>
-                </table>
-            </div>
-            <button data-action="run_scan" style="padding:10px 24px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-size:0.85rem; font-family:inherit;">Run Vulnerability Scan</button>
-            ${resultBlock}
-            <div data-results></div>
-        </div>`;
+        return `
+            <style>
+              .r7-shell { font-family: 'Inter', system-ui, sans-serif; max-width: 1040px; margin: 18px auto; color: #1f2937; background: #f7fafc; min-height: calc(100vh - 36px); padding: 0; }
+              .r7-shell .r7-header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 16px 26px; display: flex; align-items: center; gap: 14px; }
+              .r7-shell .r7-logo { width: 38px; height: 38px; background: #ff1f1f; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.04em; }
+              .r7-shell .r7-brand-org { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: #6b7280; }
+              .r7-shell .r7-brand-app { font-size: 1.05rem; font-weight: 700; color: #111827; margin-top: 1px; }
+              .r7-shell .r7-version { margin-left: auto; display: flex; gap: 22px; font-size: 0.7rem; color: #6b7280; }
+              .r7-shell .r7-version-v { color: #111827; font-weight: 600; }
+              .r7-shell .r7-nav { background: #fff; padding: 0 26px; display: flex; gap: 0; border-bottom: 1px solid #e2e8f0; }
+              .r7-shell .r7-nav-item { padding: 10px 16px; font-size: 0.78rem; color: #6b7280; border-bottom: 2px solid transparent; cursor: default; }
+              .r7-shell .r7-nav-item.active { color: #ff1f1f; border-bottom-color: #ff1f1f; font-weight: 600; }
+              .r7-shell .r7-content { padding: 22px 26px; }
+              .r7-shell .r7-asset-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 18px 22px; margin-bottom: 16px; }
+              .r7-shell .r7-asset-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+              .r7-shell .r7-asset-icon { width: 42px; height: 42px; background: #0f172a; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.1rem; font-weight: 700; }
+              .r7-shell .r7-asset-name { font-size: 1.1rem; font-weight: 700; color: #111827; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+              .r7-shell .r7-asset-meta { font-size: 0.72rem; color: #6b7280; margin-top: 2px; }
+              .r7-shell .r7-asset-agent { margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 16px; }
+              .r7-shell .r7-asset-agent-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 6px #22c55e; }
+              .r7-shell .r7-asset-agent-text { font-size: 0.72rem; color: #15803d; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+              .r7-shell .r7-asset-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; border-top: 1px solid #f1f5f9; padding-top: 12px; }
+              @media (max-width: 760px) { .r7-shell .r7-asset-grid { grid-template-columns: repeat(2, 1fr); } }
+              .r7-shell .r7-asset-k { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; font-weight: 700; }
+              .r7-shell .r7-asset-v { font-size: 0.84rem; font-weight: 600; color: #111827; margin-top: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+              .r7-shell .r7-scan-launch { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 18px 22px; margin-bottom: 16px; display: flex; align-items: center; gap: 18px; }
+              .r7-shell .r7-scan-template { flex: 1; }
+              .r7-shell .r7-scan-template-h { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; font-weight: 700; }
+              .r7-shell .r7-scan-template-v { font-size: 0.92rem; font-weight: 700; color: #111827; margin-top: 4px; }
+              .r7-shell .r7-scan-template-sub { font-size: 0.74rem; color: #6b7280; margin-top: 4px; }
+              .r7-shell .r7-scan-btn { padding: 12px 28px; background: #ff1f1f; color: #fff; border: 0; border-radius: 4px; font-weight: 700; cursor: pointer; font-size: 0.88rem; font-family: inherit; letter-spacing: 0.02em; }
+              .r7-shell .r7-scan-btn:hover { background: #dc1616; }
+              /* Result block */
+              .r7-shell .r7-result { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+              .r7-shell .r7-result-clean { border-color: #16a34a; }
+              .r7-shell .r7-result-vuln { border-color: #dc2626; }
+              .r7-shell .r7-result-head { padding: 18px 22px; display: flex; align-items: center; gap: 18px; }
+              .r7-shell .r7-result-clean .r7-result-head { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-bottom: 1px solid #bbf7d0; }
+              .r7-shell .r7-result-vuln .r7-result-head { background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); border-bottom: 1px solid #fca5a5; }
+              .r7-shell .r7-risk-circle { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.6rem; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #fff; }
+              .r7-shell .r7-risk-zero { background: #16a34a; }
+              .r7-shell .r7-risk-crit { background: #dc2626; }
+              .r7-shell .r7-result-meta { flex: 1; }
+              .r7-shell .r7-result-verdict { font-size: 1.05rem; font-weight: 700; color: #111827; }
+              .r7-shell .r7-result-sub { font-size: 0.8rem; color: #4b5563; margin-top: 4px; }
+              .r7-shell .r7-result-scanid { text-align: right; padding-left: 12px; border-left: 1px solid #bbf7d0; }
+              .r7-shell .r7-result-scanid-k { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; font-weight: 700; }
+              .r7-shell .r7-result-scanid-v { font-size: 1rem; font-weight: 800; color: #111827; font-family: 'JetBrains Mono', ui-monospace, monospace; margin-top: 3px; letter-spacing: 0.05em; }
+              .r7-shell .r7-result-body { padding: 16px 22px; background: #fff; }
+              .r7-shell .r7-result-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-bottom: 14px; }
+              .r7-shell .r7-result-table td { padding: 5px 0; vertical-align: top; }
+              .r7-shell .r7-rt-k { color: #6b7280; width: 160px; font-size: 0.72rem; letter-spacing: 0.04em; }
+              .r7-shell .r7-rt-v { color: #111827; font-weight: 600; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; }
+              .r7-shell .r7-result-remed { border-top: 1px solid #f1f5f9; padding-top: 12px; margin-top: 4px; }
+              .r7-shell .r7-result-remed-h { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; font-weight: 700; margin-bottom: 8px; }
+              .r7-shell .r7-remed-item { padding: 10px 14px; border-radius: 4px; display: flex; align-items: center; gap: 12px; font-size: 0.82rem; }
+              .r7-shell .r7-remed-item-ok { background: #f0fdf4; border: 1px solid #bbf7d0; }
+              .r7-shell .r7-remed-item-crit { background: #fef2f2; border: 1px solid #fecaca; }
+              .r7-shell .r7-remed-cve { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700; color: #111827; }
+              .r7-shell .r7-remed-title { flex: 1; color: #374151; }
+              .r7-shell .r7-remed-badge { padding: 3px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; background: #22c55e; color: #fff; letter-spacing: 0.04em; }
+              .r7-shell .r7-remed-badge.crit { background: #dc2626; }
+              .r7-shell .r7-result-next { margin-top: 14px; padding: 10px 14px; background: #f0f9ff; border-left: 4px solid #0ea5e9; border-radius: 0 4px 4px 0; font-size: 0.8rem; color: #0c4a6e; line-height: 1.6; }
+              .r7-shell .r7-result-next.r7-result-next-warn { background: #fef3c7; border-left-color: #f59e0b; color: #78350f; }
+              .r7-shell .r7-result-next a { color: #0369a1; font-weight: 700; text-decoration: none; }
+              .r7-shell .r7-result-next a:hover { text-decoration: underline; }
+              .r7-shell .r7-result-next-warn a { color: #92400e; }
+            </style>
+            <div class="r7-shell">
+                <div class="r7-header">
+                    <div class="r7-logo">R7</div>
+                    <div>
+                        <div class="r7-brand-org">Rapid7 InsightVM &middot; Crimson Dawn</div>
+                        <div class="r7-brand-app">Vulnerability Management &mdash; Authenticated Asset Scan</div>
+                    </div>
+                    <div class="r7-version">
+                        <div>Engine <span class="r7-version-v">v6.6.218</span></div>
+                        <div>Console <span class="r7-version-v">cd-vm-01</span></div>
+                    </div>
+                </div>
+                <div class="r7-nav">
+                    <div class="r7-nav-item active">Assets</div>
+                    <div class="r7-nav-item">Vulnerabilities</div>
+                    <div class="r7-nav-item">Scan Templates</div>
+                    <div class="r7-nav-item">Reports</div>
+                    <div class="r7-nav-item">Policy</div>
+                </div>
+                <div class="r7-content">
+                    <div class="r7-asset-card">
+                        <div class="r7-asset-head">
+                            <div class="r7-asset-icon">&#x2630;</div>
+                            <div>
+                                <div class="r7-asset-name">WS-EMORALES-01</div>
+                                <div class="r7-asset-meta">Asset Group: Accounts Payable &middot; Last assessed 2026-05-19</div>
+                            </div>
+                            <div class="r7-asset-agent">
+                                <span class="r7-asset-agent-dot"></span>
+                                <span class="r7-asset-agent-text">Insight Agent Connected</span>
+                            </div>
+                        </div>
+                        <div class="r7-asset-grid">
+                            <div>
+                                <div class="r7-asset-k">IP Address</div>
+                                <div class="r7-asset-v">10.0.4.18</div>
+                            </div>
+                            <div>
+                                <div class="r7-asset-k">Operating System</div>
+                                <div class="r7-asset-v">Windows 10 22H2</div>
+                            </div>
+                            <div>
+                                <div class="r7-asset-k">Build</div>
+                                <div class="r7-asset-v">19045.4651</div>
+                            </div>
+                            <div>
+                                <div class="r7-asset-k">Risk Score (prior)</div>
+                                <div class="r7-asset-v" style="color:#dc2626;">847 / 1000</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="r7-scan-launch">
+                        <div class="r7-scan-template">
+                            <div class="r7-scan-template-h">Scan Template</div>
+                            <div class="r7-scan-template-v">Full audit, enhanced authenticated</div>
+                            <div class="r7-scan-template-sub">14,247 checks &middot; CVSSv3 base scoring &middot; Insight Agent + authenticated WinRM</div>
+                        </div>
+                        <button class="r7-scan-btn" data-action="run_scan">Run Vulnerability Scan</button>
+                    </div>
+                    ${resultBlock}
+                    <div data-results></div>
+                </div>
+            </div>`;
     },
 
     _handleInsightVMScan: function(data, engine) {
