@@ -1507,19 +1507,101 @@ const PISFinalConfig = {
             '/whois': {
                 title: 'WHOIS Lookup -- whois.crimson-intel.net',
                 html: `
-                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-                    <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                        <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON INTEL -- WHOIS</div>
-                        <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">Domain / IP Registration Lookup</div>
+                <style>
+                  .wh-shell { font-family: 'Inter', system-ui, sans-serif; max-width: 1040px; margin: 18px auto; color: #1e293b; }
+                  .wh-shell .wh-header { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px 8px 0 0; padding: 14px 20px; display: flex; align-items: center; gap: 14px; }
+                  .wh-shell .wh-logo { width: 36px; height: 36px; flex-shrink: 0; background: linear-gradient(135deg, #0891b2, #155e75); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.04em; }
+                  .wh-shell .wh-brand .wh-org { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; }
+                  .wh-shell .wh-brand .wh-app { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-top: 1px; }
+                  .wh-shell .wh-stats { margin-left: auto; display: flex; gap: 18px; font-size: 0.7rem; color: #64748b; }
+                  .wh-shell .wh-stats .wh-stat-v { color: #0f172a; font-weight: 700; }
+                  .wh-shell .wh-search-card { background: #fff; border: 1px solid #e2e8f0; border-top: 0; padding: 20px; }
+                  .wh-shell .wh-prompt { font-size: 0.82rem; color: #334155; margin-bottom: 10px; }
+                  .wh-shell .wh-search-row { display: flex; gap: 8px; }
+                  .wh-shell input.wh-q { flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.82rem; color: #0f172a; background: #fff; outline: 0; transition: border 0.15s; box-sizing: border-box; }
+                  .wh-shell input.wh-q::placeholder { color: #94a3b8; }
+                  .wh-shell input.wh-q:focus { border-color: #0891b2; box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12); }
+                  .wh-shell button.wh-lookup { padding: 10px 22px; background: #0891b2; color: #fff; border: 0; border-radius: 4px; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.04em; cursor: pointer; font-family: inherit; }
+                  .wh-shell button.wh-lookup:hover { background: #0e7490; }
+                  .wh-shell .wh-chips { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+                  .wh-shell .wh-chip-label { color: #64748b; font-size: 0.7rem; padding: 4px 0; margin-right: 4px; }
+                  .wh-shell .wh-chip { padding: 4px 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; color: #0c4a6e; font-size: 0.7rem; cursor: pointer; transition: all 0.12s; }
+                  .wh-shell .wh-chip:hover { background: #e0f2fe; border-color: #38bdf8; }
+                  .wh-shell .wh-results { background: #fff; border: 1px solid #e2e8f0; border-top: 0; border-radius: 0 0 8px 8px; min-height: 80px; }
+                  .wh-shell .wh-empty { padding: 26px 18px; text-align: center; color: #64748b; font-size: 0.78rem; }
+                  /* Result components — rendered by handler */
+                  .wh-shell .wh-result-head { padding: 18px 22px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid #e2e8f0; }
+                  .wh-shell .wh-result-head.suspicious { background: linear-gradient(180deg, #fef2f2 0%, #fff 100%); border-bottom-color: #fecaca; }
+                  .wh-shell .wh-result-head.legit { background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%); border-bottom-color: #bbf7d0; }
+                  .wh-shell .wh-result-head.neutral { background: linear-gradient(180deg, #f8fafc 0%, #fff 100%); border-bottom-color: #e2e8f0; }
+                  .wh-shell .wh-target { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.15rem; font-weight: 700; color: #0f172a; flex: 1; }
+                  .wh-shell .wh-verdict-pill { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+                  .wh-shell .wh-verdict-pill.suspicious { background: #ef4444; color: #fff; }
+                  .wh-shell .wh-verdict-pill.legit { background: #22c55e; color: #fff; }
+                  .wh-shell .wh-verdict-pill.neutral { background: #94a3b8; color: #fff; }
+                  .wh-shell .wh-result-body { display: grid; grid-template-columns: 1.4fr 1fr; gap: 0; }
+                  @media (max-width: 820px) { .wh-shell .wh-result-body { grid-template-columns: 1fr; } }
+                  .wh-shell .wh-raw-col { padding: 16px 20px; border-right: 1px solid #f1f5f9; }
+                  @media (max-width: 820px) { .wh-shell .wh-raw-col { border-right: 0; border-bottom: 1px solid #f1f5f9; } }
+                  .wh-shell .wh-section-label { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 8px; }
+                  .wh-shell .wh-raw { background: #0f172a; color: #cbd5e1; padding: 14px 16px; border-radius: 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
+                  .wh-shell .wh-raw .wh-k { color: #94a3b8; }
+                  .wh-shell .wh-raw .wh-v-red { color: #fca5a5; font-weight: 700; }
+                  .wh-shell .wh-raw .wh-v-green { color: #86efac; font-weight: 700; }
+                  .wh-shell .wh-meta-col { padding: 16px 20px; background: #f8fafc; }
+                  .wh-shell .wh-meta-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; }
+                  .wh-shell .wh-meta-card-h { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 8px; }
+                  .wh-shell .wh-meta-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 3px 0; font-size: 0.78rem; }
+                  .wh-shell .wh-meta-row .wh-meta-k { color: #94a3b8; font-size: 0.7rem; }
+                  .wh-shell .wh-meta-row .wh-meta-v { color: #0f172a; font-weight: 600; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; }
+                  .wh-shell .wh-meta-row .wh-meta-v.suspicious { color: #b91c1c; }
+                  .wh-shell .wh-meta-row .wh-meta-v.legit { color: #15803d; }
+                  .wh-shell .wh-age-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-family: 'Inter', system-ui, sans-serif; }
+                  .wh-shell .wh-age-badge.crit { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+                  .wh-shell .wh-age-badge.warn { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+                  .wh-shell .wh-age-badge.ok { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+                  .wh-shell .wh-pivots { margin-top: 10px; }
+                  .wh-shell .wh-pivots-h { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px; }
+                  .wh-shell .wh-pivot { display: block; padding: 6px 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; margin-bottom: 4px; font-size: 0.74rem; color: #0c4a6e; text-decoration: none; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+                  .wh-shell .wh-pivot:hover { background: #e0f2fe; border-color: #38bdf8; color: #075985; }
+                  .wh-shell .wh-pivot-label { font-family: 'Inter', system-ui, sans-serif; color: #64748b; font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; margin-right: 8px; }
+                  .wh-shell .wh-analyst { padding: 14px 20px; background: #fef9c3; border-top: 1px solid #fde68a; font-size: 0.82rem; color: #713f12; line-height: 1.6; }
+                  .wh-shell .wh-analyst.legit { background: #f0fdf4; border-top-color: #bbf7d0; color: #14532d; }
+                  .wh-shell .wh-analyst b { color: #422006; }
+                  .wh-shell .wh-analyst.legit b { color: #14532d; }
+                  .wh-shell .wh-no-result { padding: 24px 20px; text-align: center; color: #64748b; font-size: 0.82rem; }
+                  .wh-shell .wh-no-result code { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; }
+                </style>
+                <div class="wh-shell">
+                  <div class="wh-header">
+                    <div class="wh-logo">CI</div>
+                    <div class="wh-brand">
+                      <div class="wh-org">Crimson Intel &middot; Domain Forensics</div>
+                      <div class="wh-app">WHOIS Lookup <span style="font-weight:400; color:#64748b; font-size:0.74rem; margin-left:6px;">&middot; ICANN + ASN mirror</span></div>
                     </div>
-                    <div style="display:flex; gap:8px; margin-bottom:16px;">
-                        <input type="text" data-field="whois_query" placeholder="Domain or IP (e.g. crimson-dawn-finance.net, 185.220.101.45)"
-                               style="flex:1; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.83rem;">
-                        <button data-action="lookup" style="padding:8px 18px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit;">Lookup</button>
+                    <div class="wh-stats">
+                      <div>ICANN mirror sync <span class="wh-stat-v">2026-05-21</span></div>
+                      <div>ASN db <span class="wh-stat-v">RIPE + ARIN</span></div>
                     </div>
-                    <div data-results>
-                        <div style="color:#888; font-size:0.78rem; text-align:center; padding:20px;">Enter a domain name or IP address to look up registration info.</div>
+                  </div>
+                  <div class="wh-search-card">
+                    <div class="wh-prompt">Enter a <b>domain name</b> or <b>IP address</b> to retrieve registration history, name servers, registrar, DNSSEC status, and ASN enrichment.</div>
+                    <div class="wh-search-row">
+                      <input type="text" class="wh-q" data-field="whois_query" placeholder="crimson-dawn-finance.net, 185.220.101.45, ...">
+                      <button class="wh-lookup" data-action="lookup">Lookup</button>
                     </div>
+                    <div class="wh-chips">
+                      <span class="wh-chip-label">Quick lookups:</span>
+                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='crimson-dawn-finance.net';i.focus();}">crimson-dawn-finance.net</span>
+                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='emberwolf-c2.duckdns.org';i.focus();}">emberwolf-c2.duckdns.org</span>
+                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='nakamura-suppliers-corp.com';i.focus();}">nakamura-suppliers-corp.com</span>
+                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='nakamura-supplies.com';i.focus();}">nakamura-supplies.com</span>
+                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='185.220.101.45';i.focus();}">185.220.101.45</span>
+                    </div>
+                  </div>
+                  <div class="wh-results" data-results>
+                    <div class="wh-empty">Enter a domain or IP and click <b>Lookup</b>.<br><span style="opacity:0.7; font-size:0.74rem;">Use the quick-lookup chips above to pivot to a known IOC.</span></div>
+                  </div>
                 </div>`,
                 formHandler: (data, engine) => PISFinalConfig._handleWhois(data.whois_query || '', engine)
             },
@@ -2086,103 +2168,234 @@ const PISFinalConfig = {
         <div style="font-size:0.72rem; color:#888; margin-top:8px;">${results.length} result(s) -- click a CVE ID for full details</div>`;
     },
 
+    _renderWhoisCard: function(rec) {
+        var verdictClass = rec.verdict || 'neutral';
+        var analystClass = (verdictClass === 'legit') ? 'legit' : '';
+        var ageBadge = rec.age ? '<span class="wh-age-badge ' + rec.age.cls + '" style="margin-left:10px;">' + rec.age.text + '</span>' : '';
+        var verdictPill = '<span class="wh-verdict-pill ' + verdictClass + '">' + rec.verdictText + '</span>';
+        var rawHtml = rec.raw.split('\n').map(function(line) {
+            if (!line.trim()) return '<br>';
+            // colorize key:value lines — key in gray, value normal
+            var m = line.match(/^([A-Za-z0-9\- ]+):\s*(.*)$/);
+            if (m) {
+                var k = m[1], v = m[2];
+                var vClass = '';
+                if (v.indexOf('[RED]') !== -1) { vClass = 'wh-v-red'; v = v.replace(/\[RED\]/g, ''); }
+                if (v.indexOf('[GREEN]') !== -1) { vClass = 'wh-v-green'; v = v.replace(/\[GREEN\]/g, ''); }
+                return '<span class="wh-k">' + this._escHtml(k) + ':</span> ' + (vClass ? '<span class="' + vClass + '">' + this._escHtml(v) + '</span>' : this._escHtml(v));
+            }
+            return this._escHtml(line);
+        }, this).join('\n');
+        var metaCards = '';
+        if (rec.metaCards) {
+            metaCards = rec.metaCards.map(function(card) {
+                var rows = card.rows.map(function(r) {
+                    return '<div class="wh-meta-row"><span class="wh-meta-k">' + r.k + '</span><span class="wh-meta-v ' + (r.cls || '') + '">' + r.v + '</span></div>';
+                }).join('');
+                return '<div class="wh-meta-card"><div class="wh-meta-card-h">' + card.h + '</div>' + rows + '</div>';
+            }).join('');
+        }
+        var pivotsHtml = '';
+        if (rec.pivots && rec.pivots.length) {
+            pivotsHtml = '<div class="wh-pivots"><div class="wh-pivots-h">Pivot to</div>' +
+                rec.pivots.map(function(p) {
+                    return '<a class="wh-pivot" href="' + p.url + '"><span class="wh-pivot-label">' + p.label + '</span>' + p.value + '</a>';
+                }).join('') + '</div>';
+        }
+        return '<div class="wh-result-head ' + verdictClass + '">' +
+            '<div class="wh-target">' + rec.title + ageBadge + '</div>' +
+            verdictPill +
+            '</div>' +
+            '<div class="wh-result-body">' +
+                '<div class="wh-raw-col">' +
+                    '<div class="wh-section-label">Raw WHOIS / ASN response</div>' +
+                    '<div class="wh-raw">' + rawHtml + '</div>' +
+                '</div>' +
+                '<div class="wh-meta-col">' +
+                    '<div class="wh-section-label">Parsed metadata</div>' +
+                    metaCards +
+                    pivotsHtml +
+                '</div>' +
+            '</div>' +
+            '<div class="wh-analyst ' + analystClass + '"><b>Analyst verdict:</b> ' + rec.analyst + '</div>';
+    },
+
     _handleWhois: function(query, engine) {
-        if (!query.trim()) return '<div style="color:#888; font-size:0.8rem; padding:16px; text-align:center;">Enter a domain or IP to look up.</div>';
+        if (!query.trim()) return '<div class="wh-empty">Enter a domain or IP and click <b>Lookup</b>.</div>';
         const q = query.trim().toLowerCase();
 
         const records = {
-            'crimson-dawn-finance.net': `<pre style="font-family:monospace; font-size:0.78rem; line-height:1.6; white-space:pre-wrap; background:#f8f8f8; border:1px solid #ddd; padding:12px; border-radius:4px;">Domain Name: CRIMSON-DAWN-FINANCE.NET
-Registrar: NameCheap, Inc.
-Registrar URL: https://www.namecheap.com
-Updated Date: 2026-05-15
-Created Date: <span style="color:#dc2626; font-weight:bold;">2026-05-15</span>  &larr; 3 days BEFORE the wire fraud
-Registrant: REDACTED FOR PRIVACY (WhoisGuard, Inc.)
-Registrant Email: [REDACTED]
-Name Servers: ns1.cloudflare.com, ns2.cloudflare.com
-DNSSEC: <span style="color:#dc2626;">unsigned</span>
-Status: clientTransferProhibited
-
-<span style="color:#dc2626; font-weight:bold;">ANALYST NOTE: Recently registered (same week as attack), privacy-protected,
-unsigned DNSSEC, Cloudflare nameservers. Consistent with phishing infrastructure.</span></pre>`,
-            'nakamura-suppliers-corp.com': `<pre style="font-family:monospace; font-size:0.78rem; line-height:1.6; white-space:pre-wrap; background:#f8f8f8; border:1px solid #ddd; padding:12px; border-radius:4px;">Domain Name: NAKAMURA-SUPPLIERS-CORP.COM
-Registrar: NameCheap, Inc.
-Created Date: <span style="color:#dc2626; font-weight:bold;">2026-05-14</span>  &larr; 4 days before attack
-Registrant: REDACTED FOR PRIVACY (WhoisGuard, Inc.)
-Name Servers: ns1.cloudflare.com, ns2.cloudflare.com
-DNSSEC: unsigned
-
-<span style="color:#dc2626; font-weight:bold;">ANALYST NOTE: Lookalike domain for nakamura-supplies.com (legitimate vendor).
-Note the added "-corp" suffix. Recently registered, same registrar and privacy
-service as crimson-dawn-finance.net -- same operator infrastructure.</span></pre>`,
-            'nakamura-supplies.com': `<pre style="font-family:monospace; font-size:0.78rem; line-height:1.6; white-space:pre-wrap; background:#f8f8f8; border:1px solid #ddd; padding:12px; border-radius:4px;">Domain Name: NAKAMURA-SUPPLIES.COM
-Registrar: Network Solutions, LLC
-Created Date: <span style="color:#2ecc71; font-weight:bold;">2009-03-18</span>  &larr; 17 years old -- legitimate business
-Updated Date: 2025-01-12
-Registrant Organization: Nakamura Supplies International, Inc.
-Registrant Country: JP
-Name Servers: ns1.dnsmadeeasy.com, ns2.dnsmadeeasy.com
-DNSSEC: signed
-
-<span style="color:#2ecc71; font-weight:bold;">ANALYST NOTE: Long-established domain (2009), DNSSEC signed, real corporate
-registrant. This is the LEGITIMATE vendor domain. Not suspicious.</span></pre>`,
-            'emberwolf-c2.duckdns.org': `<pre style="font-family:monospace; font-size:0.78rem; line-height:1.6; white-space:pre-wrap; background:#f8f8f8; border:1px solid #ddd; padding:12px; border-radius:4px;">Domain Name: emberwolf-c2.duckdns.org
-Service: DuckDNS (free dynamic DNS -- duckdns.org)
-Subdomain operator: [USER-CONTROLLED -- anonymous registration]
-Created: [DuckDNS does not expose creation timestamps]
-Resolves to: <span style="color:#dc2626; font-weight:bold;">185.220.101.45</span>
-TTL: 60 seconds (typical for dynamic DNS C2 -- enables rapid IP rotation)
-
-<span style="color:#dc2626; font-weight:bold;">ANALYST NOTE: DuckDNS is a legitimate dynamic DNS service that is commonly
-abused by threat actors (see MITRE T1568). Operator-controlled subdomain names.
-The subdomain name "emberwolf-c2" is an actor signature -- explicitly labels this
-as the C2 channel. The 60-second TTL enables rapid IP rotation on detection.</span></pre>`,
-            '185.220.101.45': `<pre style="font-family:monospace; font-size:0.78rem; line-height:1.6; white-space:pre-wrap; background:#f8f8f8; border:1px solid #ddd; padding:12px; border-radius:4px;">IP: 185.220.101.45
-ASN: AS43350 (NForce Entertainment B.V.)
-ASN Country (incorporation): NL
-Block: 185.220.100.0/22
-Abuse contact: abuse@nforce.nl
-Tor exit node history: NO (this IP is not a Tor exit node)
-First seen as malicious: 2026-04-08 (multiple campaigns)
-
-<span style="color:#dc2626; font-weight:bold;">ANALYST NOTE: NForce Entertainment B.V. (AS43350) is a bulletproof hosting
-provider with a significant abuse history. The NL country code is the
-PROVIDER'S incorporation jurisdiction, NOT the operator's origin.
-Do not use WHOIS ASN country as actor attribution. See IP Geolocation for
-actor-origin enrichment.</span></pre>`,
-            'crimson-dawn.net': `<pre style="font-family:monospace; font-size:0.78rem; line-height:1.6; white-space:pre-wrap; background:#f8f8f8; border:1px solid #ddd; padding:12px; border-radius:4px;">Domain Name: CRIMSON-DAWN.NET
-Registrar: GoDaddy.com, LLC
-Created Date: 2018-07-22
-Updated Date: 2025-07-22
-Registrant Organization: Crimson Dawn Logistics, LLC
-Registrant Country: US
-Name Servers: ns49.domaincontrol.com, ns50.domaincontrol.com
-DNSSEC: signed
-
-<span style="color:#2ecc71; font-weight:bold;">ANALYST NOTE: Legitimate corporate domain. Long history (2018), DNSSEC signed,
-real corporate registrant. This is the company's actual domain.</span></pre>`,
-            'google.com': `<pre style="font-family:monospace; font-size:0.78rem; line-height:1.6; white-space:pre-wrap; background:#f8f8f8; border:1px solid #ddd; padding:12px; border-radius:4px;">Domain Name: GOOGLE.COM
-Registrar: MarkMonitor Inc.
-Created Date: 1997-09-15
-Registrant Organization: Google LLC
-Registrant Country: US
-Name Servers: ns1.google.com (and 3 others)
-DNSSEC: signed</pre>`,
-            '8.8.8.8': `<pre style="font-family:monospace; font-size:0.78rem; line-height:1.6; white-space:pre-wrap; background:#f8f8f8; border:1px solid #ddd; padding:12px; border-radius:4px;">IP: 8.8.8.8
-ASN: AS15169 (Google LLC)
-Block: 8.8.8.0/24
-Organization: Google LLC (Public DNS)
-Country: US</pre>`
+            'crimson-dawn-finance.net': {
+                title: 'CRIMSON-DAWN-FINANCE.NET',
+                verdict: 'suspicious', verdictText: 'Suspicious infrastructure',
+                age: { cls: 'crit', text: '3 days old' },
+                raw: 'Domain Name: CRIMSON-DAWN-FINANCE.NET\nRegistrar: NameCheap, Inc.\nRegistrar URL: https://www.namecheap.com\nUpdated Date: 2026-05-15\nCreated Date: [RED]2026-05-15 (3 days BEFORE the wire fraud)\nRegistrant: REDACTED FOR PRIVACY (WhoisGuard, Inc.)\nRegistrant Email: [REDACTED]\nName Servers: ns1.cloudflare.com, ns2.cloudflare.com\nDNSSEC: [RED]unsigned\nStatus: clientTransferProhibited',
+                metaCards: [
+                    { h: 'Registration', rows: [
+                        { k: 'Registrar', v: 'NameCheap', cls: 'suspicious' },
+                        { k: 'Created', v: '2026-05-15', cls: 'suspicious' },
+                        { k: 'Updated', v: '2026-05-15' },
+                        { k: 'DNSSEC', v: 'unsigned', cls: 'suspicious' }
+                    ]},
+                    { h: 'Infrastructure', rows: [
+                        { k: 'Nameservers', v: 'Cloudflare' },
+                        { k: 'Privacy', v: 'WhoisGuard', cls: 'suspicious' },
+                        { k: 'Status', v: 'clientTransferProhibited' }
+                    ]}
+                ],
+                pivots: [
+                    { label: 'IPGeo', value: '104.21.45.122 (resolution)', url: 'https://ipgeo.crimson-intel.net' },
+                    { label: 'WHOIS', value: 'nakamura-suppliers-corp.com (related)', url: 'https://whois.crimson-intel.net' }
+                ],
+                analyst: 'Recently registered (same week as the wire fraud), privacy-protected, unsigned DNSSEC, Cloudflare nameservers. Consistent with phishing infrastructure. Same registrar + privacy service as nakamura-suppliers-corp.com &mdash; same operator footprint.'
+            },
+            'nakamura-suppliers-corp.com': {
+                title: 'NAKAMURA-SUPPLIERS-CORP.COM',
+                verdict: 'suspicious', verdictText: 'Lookalike domain',
+                age: { cls: 'crit', text: '4 days old' },
+                raw: 'Domain Name: NAKAMURA-SUPPLIERS-CORP.COM\nRegistrar: NameCheap, Inc.\nCreated Date: [RED]2026-05-14 (4 days BEFORE the wire fraud)\nRegistrant: REDACTED FOR PRIVACY (WhoisGuard, Inc.)\nName Servers: ns1.cloudflare.com, ns2.cloudflare.com\nDNSSEC: [RED]unsigned',
+                metaCards: [
+                    { h: 'Registration', rows: [
+                        { k: 'Registrar', v: 'NameCheap', cls: 'suspicious' },
+                        { k: 'Created', v: '2026-05-14', cls: 'suspicious' },
+                        { k: 'DNSSEC', v: 'unsigned', cls: 'suspicious' }
+                    ]},
+                    { h: 'Infrastructure', rows: [
+                        { k: 'Nameservers', v: 'Cloudflare' },
+                        { k: 'Privacy', v: 'WhoisGuard', cls: 'suspicious' }
+                    ]}
+                ],
+                pivots: [
+                    { label: 'WHOIS', value: 'nakamura-supplies.com (real vendor)', url: 'https://whois.crimson-intel.net' },
+                    { label: 'WHOIS', value: 'crimson-dawn-finance.net (same infra)', url: 'https://whois.crimson-intel.net' }
+                ],
+                analyst: 'Lookalike domain for <b>nakamura-supplies.com</b> (the legitimate vendor) with an added "-corp" suffix &mdash; classic typosquat pattern. Same registrar (NameCheap), same privacy service (WhoisGuard), same nameservers (Cloudflare) as crimson-dawn-finance.net. Identical operator infrastructure.'
+            },
+            'nakamura-supplies.com': {
+                title: 'NAKAMURA-SUPPLIES.COM',
+                verdict: 'legit', verdictText: 'Legitimate vendor',
+                age: { cls: 'ok', text: '17 years (2009)' },
+                raw: 'Domain Name: NAKAMURA-SUPPLIES.COM\nRegistrar: Network Solutions, LLC\nCreated Date: [GREEN]2009-03-18 (17 years old, legitimate business)\nUpdated Date: 2025-01-12\nRegistrant Organization: Nakamura Supplies International, Inc.\nRegistrant Country: JP\nName Servers: ns1.dnsmadeeasy.com, ns2.dnsmadeeasy.com\nDNSSEC: [GREEN]signed',
+                metaCards: [
+                    { h: 'Registration', rows: [
+                        { k: 'Registrar', v: 'Network Solutions', cls: 'legit' },
+                        { k: 'Created', v: '2009-03-18', cls: 'legit' },
+                        { k: 'Updated', v: '2025-01-12' },
+                        { k: 'DNSSEC', v: 'signed', cls: 'legit' }
+                    ]},
+                    { h: 'Registrant', rows: [
+                        { k: 'Org', v: 'Nakamura Supplies Intl', cls: 'legit' },
+                        { k: 'Country', v: 'JP' },
+                        { k: 'Nameservers', v: 'DNSMadeEasy' }
+                    ]}
+                ],
+                pivots: [
+                    { label: 'WHOIS', value: 'nakamura-suppliers-corp.com (lookalike)', url: 'https://whois.crimson-intel.net' }
+                ],
+                analyst: 'Long-established domain (registered 2009, 17 years old), DNSSEC signed, real corporate registrant in JP. This is the <b>legitimate</b> Nakamura Supplies vendor &mdash; not suspicious. The phishing campaign uses the lookalike nakamura-suppliers-corp.com instead.'
+            },
+            'emberwolf-c2.duckdns.org': {
+                title: 'emberwolf-c2.duckdns.org',
+                verdict: 'suspicious', verdictText: 'C2 infrastructure',
+                age: { cls: 'crit', text: 'Dynamic DNS' },
+                raw: 'Domain Name: emberwolf-c2.duckdns.org\nService: DuckDNS (free dynamic DNS at duckdns.org)\nSubdomain operator: [RED][USER-CONTROLLED - anonymous registration]\nCreated: [DuckDNS does not expose creation timestamps]\nResolves to: [RED]185.220.101.45\nTTL: 60 seconds (typical for dynamic DNS C2 - enables rapid IP rotation)\nMITRE T1568.002: Dynamic Resolution: Dynamic DNS',
+                metaCards: [
+                    { h: 'Service', rows: [
+                        { k: 'DNS service', v: 'DuckDNS' },
+                        { k: 'Operator', v: 'Anonymous', cls: 'suspicious' },
+                        { k: 'TTL', v: '60s', cls: 'suspicious' }
+                    ]},
+                    { h: 'MITRE ATT&CK', rows: [
+                        { k: 'Technique', v: 'T1568.002', cls: 'suspicious' },
+                        { k: 'Pattern', v: 'Dynamic DNS' }
+                    ]}
+                ],
+                pivots: [
+                    { label: 'IPGeo', value: '185.220.101.45 (resolves to)', url: 'https://ipgeo.crimson-intel.net' },
+                    { label: 'WHOIS', value: '185.220.101.45 (ASN lookup)', url: 'https://whois.crimson-intel.net' }
+                ],
+                analyst: 'DuckDNS is a legitimate dynamic-DNS service commonly abused by threat actors (MITRE <b>T1568.002</b>). The subdomain name "emberwolf-c2" is an actor signature &mdash; explicitly self-labels as the C2 channel for the EMBERWOLF campaign. The 60-second TTL enables rapid IP rotation if any individual host is detected and burned.'
+            },
+            '185.220.101.45': {
+                title: '185.220.101.45',
+                verdict: 'suspicious', verdictText: 'Bulletproof hosting',
+                age: { cls: 'crit', text: 'Known malicious' },
+                raw: 'IP: 185.220.101.45\nASN: AS43350 (NForce Entertainment B.V.)\nASN Country (incorporation): NL\nBlock: 185.220.100.0/22\nAbuse contact: abuse@nforce.nl\nTor exit node history: NO (this IP is not a Tor exit node)\nFirst seen as malicious: [RED]2026-04-08 (multiple campaigns)',
+                metaCards: [
+                    { h: 'Network', rows: [
+                        { k: 'ASN', v: 'AS43350' },
+                        { k: 'ASN Org', v: 'NForce B.V.', cls: 'suspicious' },
+                        { k: 'Country', v: 'NL (incorp)' },
+                        { k: 'Block', v: '185.220.100.0/22' }
+                    ]},
+                    { h: 'Threat history', rows: [
+                        { k: 'First malicious', v: '2026-04-08', cls: 'suspicious' },
+                        { k: 'Abuse contact', v: 'abuse@nforce.nl' },
+                        { k: 'Tor exit', v: 'No' }
+                    ]}
+                ],
+                pivots: [
+                    { label: 'IPGeo', value: '185.220.101.45 (actor origin)', url: 'https://ipgeo.crimson-intel.net' },
+                    { label: 'Intel', value: 'EMBERWOLF actor profile', url: 'https://intel.crimson-intel.net' }
+                ],
+                analyst: 'NForce Entertainment B.V. (AS43350) is a bulletproof hosting provider with significant abuse history. <b>Caveat:</b> the NL country code is the provider\'s incorporation jurisdiction, NOT the operator\'s origin. Do not use WHOIS ASN country as actor attribution &mdash; pivot to IP Geolocation for actor-origin enrichment (passive DNS, beaconing-time analysis).'
+            },
+            'crimson-dawn.net': {
+                title: 'CRIMSON-DAWN.NET',
+                verdict: 'legit', verdictText: 'Corporate domain',
+                age: { cls: 'ok', text: '8 years (2018)' },
+                raw: 'Domain Name: CRIMSON-DAWN.NET\nRegistrar: GoDaddy.com, LLC\nCreated Date: [GREEN]2018-07-22\nUpdated Date: 2025-07-22\nRegistrant Organization: Crimson Dawn Logistics, LLC\nRegistrant Country: US\nName Servers: ns49.domaincontrol.com, ns50.domaincontrol.com\nDNSSEC: [GREEN]signed',
+                metaCards: [
+                    { h: 'Registration', rows: [
+                        { k: 'Registrar', v: 'GoDaddy' },
+                        { k: 'Created', v: '2018-07-22', cls: 'legit' },
+                        { k: 'DNSSEC', v: 'signed', cls: 'legit' }
+                    ]},
+                    { h: 'Registrant', rows: [
+                        { k: 'Org', v: 'Crimson Dawn LLC', cls: 'legit' },
+                        { k: 'Country', v: 'US' }
+                    ]}
+                ],
+                pivots: [],
+                analyst: 'Legitimate corporate domain &mdash; the company\'s own. Long history (2018), DNSSEC signed, real corporate registrant. This is the actual employer\'s domain (matches "@crimson-dawn.net" senders in the legitimate emails msg/1, msg/5, msg/7).'
+            },
+            'google.com': {
+                title: 'GOOGLE.COM',
+                verdict: 'legit', verdictText: 'Legitimate',
+                age: { cls: 'ok', text: '29 years (1997)' },
+                raw: 'Domain Name: GOOGLE.COM\nRegistrar: MarkMonitor Inc.\nCreated Date: [GREEN]1997-09-15\nRegistrant Organization: Google LLC\nRegistrant Country: US\nName Servers: ns1.google.com (and 3 others)\nDNSSEC: [GREEN]signed',
+                metaCards: [
+                    { h: 'Registration', rows: [
+                        { k: 'Registrar', v: 'MarkMonitor' },
+                        { k: 'Created', v: '1997-09-15', cls: 'legit' },
+                        { k: 'DNSSEC', v: 'signed', cls: 'legit' }
+                    ]}
+                ],
+                pivots: [],
+                analyst: 'Legitimate &mdash; Google\'s primary domain. Not relevant to this incident.'
+            },
+            '8.8.8.8': {
+                title: '8.8.8.8',
+                verdict: 'neutral', verdictText: 'Public DNS',
+                raw: 'IP: 8.8.8.8\nASN: AS15169 (Google LLC)\nBlock: 8.8.8.0/24\nOrganization: Google LLC (Public DNS)\nCountry: US',
+                metaCards: [
+                    { h: 'Network', rows: [
+                        { k: 'ASN', v: 'AS15169' },
+                        { k: 'Org', v: 'Google LLC' },
+                        { k: 'Country', v: 'US' }
+                    ]}
+                ],
+                pivots: [],
+                analyst: 'Google\'s public DNS resolver. Routine outbound DNS traffic, not actor-controlled infrastructure. Not relevant to attribution.'
+            }
         };
 
-        const record = records[q];
-        if (record) {
-            return `<div style="margin-top:8px;"><div style="font-size:0.72rem; color:#888; margin-bottom:6px;">WHOIS result for: <code>${this._escHtml(query)}</code></div>${record}</div>`;
-        }
+        const rec = records[q];
+        if (rec) return this._renderWhoisCard(rec);
 
-        return `<div style="background:#f8f8f8; border:1px solid #ddd; padding:12px; border-radius:4px; font-family:monospace; font-size:0.78rem; color:#888;">
-            No WHOIS record found for: ${this._escHtml(query)}<br>
-            The domain or IP may not exist or may not be in the local WHOIS mirror.<br>
-            Try: crimson-dawn-finance.net, nakamura-suppliers-corp.com, nakamura-supplies.com, emberwolf-c2.duckdns.org, 185.220.101.45, crimson-dawn.net
+        return `<div class="wh-no-result">
+            No WHOIS record found for <code>${this._escHtml(query)}</code>.<br>
+            <span style="opacity:0.7; font-size:0.74rem;">The domain or IP may not exist, or may not be in the local mirror. Try one of the quick-lookup chips above.</span>
         </div>`;
     },
 
