@@ -1356,17 +1356,192 @@ const PISFinalConfig = {
             '/vt-mirror': {
                 title: 'Hash Analyzer -- vt-mirror.crimson-intel.net',
                 html: `
-                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-                    <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                        <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON INTEL -- HASH ANALYZER (VT Mirror)</div>
-                        <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">File Hash Lookup</div>
-                        <div style="font-size:0.72rem; color:#888;">68-engine consensus feed -- synced 2026-05-21</div>
+                <style>
+                  .vt-shell {
+                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                    max-width: 960px; margin: 18px auto; color: #1e293b;
+                  }
+                  .vt-shell .vt-header {
+                    background: #fff; border: 1px solid #e2e8f0;
+                    border-radius: 8px 8px 0 0;
+                    padding: 14px 20px; display: flex; align-items: center; gap: 14px;
+                  }
+                  .vt-shell .vt-logo {
+                    width: 36px; height: 36px; flex-shrink: 0;
+                    background: linear-gradient(135deg, #2563eb, #1e40af);
+                    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+                    color: #fff; font-weight: 800; font-size: 0.9rem; letter-spacing: 0.04em;
+                  }
+                  .vt-shell .vt-brand .vt-org { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; }
+                  .vt-shell .vt-brand .vt-app { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-top: 1px; }
+                  .vt-shell .vt-stats {
+                    margin-left: auto; display: flex; gap: 18px; font-size: 0.7rem; color: #64748b;
+                  }
+                  .vt-shell .vt-stats .vt-stat-v { color: #0f172a; font-weight: 700; }
+                  .vt-shell .vt-search-card {
+                    background: #fff; border: 1px solid #e2e8f0; border-top: 0;
+                    padding: 22px 20px;
+                  }
+                  .vt-shell .vt-tabs {
+                    display: flex; gap: 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px;
+                  }
+                  .vt-shell .vt-tab {
+                    padding: 8px 16px; font-size: 0.78rem; font-weight: 600; color: #64748b;
+                    letter-spacing: 0.02em; border-bottom: 2px solid transparent; user-select: none;
+                  }
+                  .vt-shell .vt-tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+                  .vt-shell .vt-prompt {
+                    font-size: 0.82rem; color: #334155; margin-bottom: 8px;
+                  }
+                  .vt-shell .vt-prompt b { color: #0f172a; }
+                  .vt-shell textarea.vt-hash {
+                    width: 100%; padding: 12px 14px;
+                    border: 2px dashed #cbd5e1; border-radius: 6px;
+                    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.84rem;
+                    color: #0f172a; background: #f8fafc; box-sizing: border-box;
+                    resize: vertical; outline: 0; transition: border 0.15s, background 0.15s;
+                  }
+                  .vt-shell textarea.vt-hash::placeholder { color: #94a3b8; }
+                  .vt-shell textarea.vt-hash:focus {
+                    border-color: #2563eb; background: #fff;
+                    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+                  }
+                  .vt-shell .vt-actions {
+                    margin-top: 12px; display: flex; gap: 10px; align-items: center;
+                  }
+                  .vt-shell button.vt-analyze {
+                    padding: 10px 24px; background: #2563eb; color: #fff;
+                    border: 0; border-radius: 4px; font-weight: 700; font-size: 0.84rem;
+                    letter-spacing: 0.04em; cursor: pointer;
+                  }
+                  .vt-shell button.vt-analyze:hover { background: #1e40af; }
+                  .vt-shell .vt-sample-hashes {
+                    font-size: 0.7rem; color: #64748b;
+                  }
+                  .vt-shell .vt-sample-hashes code {
+                    background: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 5px;
+                    border-radius: 3px; font-size: 0.66rem; cursor: pointer;
+                  }
+                  .vt-shell .vt-sample-hashes code:hover { background: #e0f2fe; border-color: #7dd3fc; }
+                  .vt-shell .vt-results-frame {
+                    background: #fff; border: 1px solid #e2e8f0; border-top: 0;
+                    border-radius: 0 0 8px 8px; min-height: 60px;
+                  }
+                  .vt-shell .vt-results-empty {
+                    padding: 22px 20px; text-align: center; color: #64748b; font-size: 0.8rem;
+                  }
+                  /* Result cards rendered by handler */
+                  .vt-shell .vt-verdict-bar {
+                    padding: 16px 22px; display: flex; align-items: center; gap: 20px;
+                    border-bottom: 1px solid #e2e8f0;
+                  }
+                  .vt-shell .vt-verdict-bar.malicious { background: linear-gradient(180deg, #fef2f2 0%, #fff 100%); border-bottom-color: #fecaca; }
+                  .vt-shell .vt-verdict-bar.clean { background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%); border-bottom-color: #bbf7d0; }
+                  .vt-shell .vt-verdict-bar.unknown { background: #fefce8; border-bottom-color: #fde68a; }
+                  .vt-shell .vt-ratio {
+                    width: 96px; height: 96px; border-radius: 50%; flex-shrink: 0;
+                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    background: #fff; border: 6px solid #ef4444; color: #b91c1c;
+                  }
+                  .vt-shell .vt-ratio.clean { border-color: #22c55e; color: #15803d; }
+                  .vt-shell .vt-ratio.unknown { border-color: #eab308; color: #a16207; }
+                  .vt-shell .vt-ratio .vt-ratio-num { font-size: 1.55rem; font-weight: 800; line-height: 1; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+                  .vt-shell .vt-ratio .vt-ratio-den { font-size: 0.66rem; font-weight: 700; color: #64748b; letter-spacing: 0.08em; margin-top: 2px; text-transform: uppercase; }
+                  .vt-shell .vt-verdict-meta { flex: 1; }
+                  .vt-shell .vt-verdict-label {
+                    display: inline-block; padding: 3px 12px; border-radius: 4px;
+                    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em;
+                    text-transform: uppercase;
+                  }
+                  .vt-shell .vt-verdict-label.malicious { background: #ef4444; color: #fff; }
+                  .vt-shell .vt-verdict-label.clean { background: #22c55e; color: #fff; }
+                  .vt-shell .vt-verdict-label.unknown { background: #eab308; color: #422006; }
+                  .vt-shell .vt-verdict-title { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-top: 6px; }
+                  .vt-shell .vt-verdict-sub { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+                  .vt-shell .vt-hash-row {
+                    padding: 12px 22px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+                    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.72rem;
+                    color: #475569; word-break: break-all;
+                  }
+                  .vt-shell .vt-hash-row .vt-hash-k { color: #94a3b8; margin-right: 8px; font-weight: 700; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.08em; }
+                  .vt-shell .vt-section-tabs {
+                    display: flex; gap: 0; border-bottom: 1px solid #e2e8f0; padding: 0 18px;
+                    background: #fff;
+                  }
+                  .vt-shell .vt-section-tab {
+                    padding: 10px 14px; font-size: 0.74rem; font-weight: 600; color: #64748b;
+                    border-bottom: 2px solid transparent; user-select: none;
+                  }
+                  .vt-shell .vt-section-tab.active { color: #ef4444; border-bottom-color: #ef4444; }
+                  .vt-shell .vt-section-tab.active.clean { color: #16a34a; border-bottom-color: #16a34a; }
+                  .vt-shell .vt-section {
+                    padding: 14px 20px;
+                  }
+                  .vt-shell table.vt-kv { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+                  .vt-shell table.vt-kv td { padding: 6px 10px; vertical-align: top; }
+                  .vt-shell table.vt-kv tr { border-bottom: 1px solid #f1f5f9; }
+                  .vt-shell table.vt-kv tr:last-child { border-bottom: 0; }
+                  .vt-shell table.vt-kv td.vt-k { color: #64748b; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; width: 200px; }
+                  .vt-shell table.vt-kv td.vt-v { color: #0f172a; font-weight: 500; }
+                  .vt-shell table.vt-kv td.vt-v.danger { color: #b91c1c; font-weight: 700; }
+                  .vt-shell table.vt-kv td.vt-v a { color: #2563eb; text-decoration: none; font-weight: 700; }
+                  .vt-shell table.vt-kv td.vt-v a:hover { text-decoration: underline; }
+                  .vt-shell .vt-engine-grid {
+                    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+                    font-size: 0.78rem;
+                  }
+                  @media (max-width: 700px) { .vt-shell .vt-engine-grid { grid-template-columns: 1fr; } }
+                  .vt-shell .vt-engine-row {
+                    padding: 6px 14px; border-bottom: 1px solid #f1f5f9;
+                    display: flex; justify-content: space-between; gap: 10px;
+                  }
+                  .vt-shell .vt-engine-row .vt-engine-name { color: #475569; font-weight: 600; }
+                  .vt-shell .vt-engine-row .vt-engine-sig { color: #b91c1c; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.72rem; }
+                  .vt-shell .vt-engine-row.clean .vt-engine-sig { color: #16a34a; font-weight: 700; font-family: inherit; font-size: 0.74rem; }
+                  .vt-shell .vt-ioc-list { font-size: 0.8rem; }
+                  .vt-shell .vt-ioc-list .vt-ioc {
+                    padding: 8px 12px; background: #fef2f2; border-left: 3px solid #ef4444;
+                    border-radius: 4px; margin-bottom: 6px;
+                  }
+                  .vt-shell .vt-ioc-list .vt-ioc-k { font-size: 0.66rem; color: #b91c1c; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; }
+                  .vt-shell .vt-ioc-list .vt-ioc-v { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; color: #0f172a; font-weight: 600; }
+                  .vt-shell .vt-ioc-list .vt-ioc-desc { font-size: 0.74rem; color: #64748b; margin-top: 2px; }
+                  .vt-shell .vt-flag-note {
+                    margin: 14px 18px; padding: 10px 14px;
+                    background: #fef9c3; border: 1px solid #fde68a; border-radius: 4px;
+                    font-size: 0.75rem; color: #713f12;
+                  }
+                  .vt-shell .vt-flag-note code { background: #fff; border: 1px solid #fde68a; padding: 1px 5px; border-radius: 3px; }
+                </style>
+                <div class="vt-shell">
+                  <div class="vt-header">
+                    <div class="vt-logo">VT</div>
+                    <div class="vt-brand">
+                      <div class="vt-org">Crimson Intel &middot; Hash Analyzer</div>
+                      <div class="vt-app">VT Mirror <span style="font-weight:400; color:#64748b; font-size:0.74rem; margin-left:6px;">&middot; 68 engines</span></div>
                     </div>
-                    <div style="margin-bottom:8px; font-size:0.8rem; color:#555;">Paste a SHA-256 hash to check for known malware:</div>
-                    <textarea data-field="hash_input" rows="3" placeholder="SHA-256 hash (64 hex characters)"
-                              style="width:100%; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-family:monospace; font-size:0.82rem; box-sizing:border-box; resize:vertical;"></textarea>
-                    <button data-action="analyze" style="margin-top:8px; padding:8px 18px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit;">Analyze</button>
-                    <div data-results style="margin-top:16px;"></div>
+                    <div class="vt-stats">
+                      <div><span class="vt-stat-v">68</span> engines</div>
+                      <div>Last sync <span class="vt-stat-v">2026-05-21</span></div>
+                    </div>
+                  </div>
+                  <div class="vt-search-card">
+                    <div class="vt-tabs">
+                      <div class="vt-tab active">SHA-256</div>
+                      <div class="vt-tab" style="opacity:0.5; cursor:not-allowed;">SHA-1</div>
+                      <div class="vt-tab" style="opacity:0.5; cursor:not-allowed;">MD5</div>
+                      <div class="vt-tab" style="opacity:0.5; cursor:not-allowed;">URL</div>
+                    </div>
+                    <div class="vt-prompt">Paste a <b>SHA-256 file hash</b> (64 hex characters) to check the 68-engine consensus feed for known malware signatures, family attribution, and IOC correlation.</div>
+                    <textarea class="vt-hash" data-field="hash_input" rows="3" placeholder="e.g. b3a4f8c2d7e91a6e5f8c2b1d9a4f7e3c8b6d2a1f9e7c4b8a6d3f2e1c9b8a7f4d"></textarea>
+                    <div class="vt-actions">
+                      <button class="vt-analyze" data-action="analyze">Analyze Hash</button>
+                      <span class="vt-sample-hashes">Need a hash? <code onclick="var t=this.parentNode.parentNode.parentNode.querySelector('.vt-hash'); if(t){t.value='sha256sum the file in /home/ir-lead/downloads/ first'; t.focus();}">sha256sum first</code></span>
+                    </div>
+                  </div>
+                  <div class="vt-results-frame" data-results>
+                    <div class="vt-results-empty">Paste a SHA-256 hash above and click <b>Analyze Hash</b>.<br><span style="opacity:0.7; font-size:0.74rem;">Phase 2 reminder: hash the attachment you downloaded from webmail first via <code style="background:#f1f5f9; padding:1px 5px; border-radius:3px;">sha256sum</code>.</span></div>
+                  </div>
                 </div>`,
                 formHandler: (data, engine) => PISFinalConfig._handleHashLookup(data.hash_input || '', engine)
             },
@@ -1832,44 +2007,128 @@ Country: US</pre>`
     },
 
     _handleHashLookup: function(hash, engine) {
-        if (!hash.trim()) return '<div style="color:#888; font-size:0.8rem; padding:16px;">Paste a SHA-256 hash and click Analyze.</div>';
+        if (!hash.trim()) return '<div class="vt-results-empty">Paste a SHA-256 hash and click <b>Analyze Hash</b>.</div>';
         const h = hash.trim().toLowerCase().replace(/\s+/g, '');
 
         if (h === 'b3a4f8c2d7e91a6e5f8c2b1d9a4f7e3c8b6d2a1f9e7c4b8a6d3f2e1c9b8a7f4d') {
-            return `<div style="border:2px solid #dc2626; border-radius:4px; padding:14px; background:#fff0f0; font-size:0.82rem; font-family:system-ui,sans-serif;">
-                <div style="font-size:1rem; font-weight:700; color:#dc2626; margin-bottom:10px;">VERDICT: MALICIOUS</div>
-                <table style="width:100%; border-collapse:collapse;">
-                    <tr style="border-bottom:1px solid #fdd;"><td style="padding:6px 8px; color:#888; width:180px;">Hash</td><td style="padding:6px 8px; font-family:monospace; font-size:0.75rem; color:#dc2626;">${h}</td></tr>
-                    <tr style="border-bottom:1px solid #fdd;"><td style="padding:6px 8px; color:#888;">Engine Consensus</td><td style="padding:6px 8px; font-weight:700; color:#dc2626;">47/68 engines MALICIOUS</td></tr>
-                    <tr style="border-bottom:1px solid #fdd;"><td style="padding:6px 8px; color:#888;">Family</td><td style="padding:6px 8px; font-weight:700;">Cobalt Strike Beacon (stage-1 loader)</td></tr>
-                    <tr style="border-bottom:1px solid #fdd;"><td style="padding:6px 8px; color:#888;">Delivery</td><td style="padding:6px 8px;">MSDT URL-protocol exploit via Word external template reference</td></tr>
-                    <tr style="border-bottom:1px solid #fdd;"><td style="padding:6px 8px; color:#888;">Associated CVE</td><td style="padding:6px 8px; font-weight:700;"><a href="https://cve.crimson-intel.net/cve/CVE-2022-30190" style="color:#dc2626;">CVE-2022-30190</a> ("Follina")</td></tr>
-                    <tr style="border-bottom:1px solid #fdd;"><td style="padding:6px 8px; color:#888;">First Seen</td><td style="padding:6px 8px;">2026-04-12</td></tr>
-                    <tr><td style="padding:6px 8px; color:#888;">Associated Campaigns</td><td style="padding:6px 8px; font-weight:700; color:#dc2626;">EMBERWOLF (financial sector targeting)</td></tr>
-                </table>
-                <div style="margin-top:10px; padding:8px; background:#fff8f8; border:1px solid #fcc; border-radius:4px; font-size:0.77rem; color:#555;">
-                    <b>Submission format note:</b> The "Family" field returns "Cobalt Strike Beacon" -- the flag normalizes this to <code>COBALT_STRIKE</code> (drop the "Beacon" component; Beacon is the loader's name within the Cobalt Strike framework, not a distinct family).
+            // 12 engine consensus sample (real VirusTotal-style — diverse engines, varied signature names)
+            const engines = [
+                { n: 'Microsoft Defender',      s: 'Trojan:Win32/CobaltStrike.PB!MTB' },
+                { n: 'Kaspersky',               s: 'HEUR:Trojan-Spy.Win32.CobaltStrike.gen' },
+                { n: 'CrowdStrike Falcon',      s: 'malicious_confidence_100% (W)' },
+                { n: 'SentinelOne',             s: 'DFI - Malicious PE' },
+                { n: 'Symantec',                s: 'Backdoor.Cobalt!gen.5' },
+                { n: 'ESET-NOD32',              s: 'Win32/CobaltStrike.AB' },
+                { n: 'Bitdefender',             s: 'Trojan.Generic.34788429' },
+                { n: 'Trend Micro',             s: 'TrojanSpy.Win64.COBALTSTRIKE.SMA' },
+                { n: 'McAfee',                  s: 'Trojan-FXMU!4F7AE2A9C81B' },
+                { n: 'Sophos',                  s: 'ML/PE-A + Mal/Generic-S' },
+                { n: 'Palo Alto WildFire',      s: 'malicious' },
+                { n: 'Avira',                   s: 'TR/Crypt.XPACK.Gen' }
+            ];
+            const engineGrid = engines.map(e =>
+                `<div class="vt-engine-row"><span class="vt-engine-name">${e.n}</span><span class="vt-engine-sig">${e.s}</span></div>`
+            ).join('');
+
+            return `<div class="vt-verdict-bar malicious">
+                <div class="vt-ratio">
+                    <div class="vt-ratio-num">47<span style="font-size:0.85rem; color:#94a3b8; font-weight:600;">/68</span></div>
+                    <div class="vt-ratio-den">detections</div>
                 </div>
+                <div class="vt-verdict-meta">
+                    <div class="vt-verdict-label malicious">Malicious</div>
+                    <div class="vt-verdict-title">Cobalt Strike Beacon (stage-1 loader)</div>
+                    <div class="vt-verdict-sub">First seen 2026-04-12 &middot; Associated with EMBERWOLF campaign (financial sector)</div>
+                </div>
+            </div>
+            <div class="vt-hash-row"><span class="vt-hash-k">SHA-256</span>${h}</div>
+            <div class="vt-section-tabs">
+                <div class="vt-section-tab active">Detection</div>
+                <div class="vt-section-tab">Behavior</div>
+                <div class="vt-section-tab">Network IOCs</div>
+                <div class="vt-section-tab">Family</div>
+            </div>
+            <div class="vt-section">
+                <table class="vt-kv">
+                    <tr><td class="vt-k">Engine consensus</td><td class="vt-v danger">47 / 68 engines flag as malicious</td></tr>
+                    <tr><td class="vt-k">Family</td><td class="vt-v danger">Cobalt Strike Beacon (stage-1 loader)</td></tr>
+                    <tr><td class="vt-k">Delivery vector</td><td class="vt-v">MSDT URL-protocol exploit via Word external template reference</td></tr>
+                    <tr><td class="vt-k">Associated CVE</td><td class="vt-v"><a href="https://cve.crimson-intel.net/cve/CVE-2022-30190">CVE-2022-30190</a> &mdash; "Follina" (MSDT RCE, CVSS 7.8 HIGH)</td></tr>
+                    <tr><td class="vt-k">First seen</td><td class="vt-v">2026-04-12</td></tr>
+                    <tr><td class="vt-k">Associated campaigns</td><td class="vt-v danger">EMBERWOLF (financial sector targeting, RU-aligned)</td></tr>
+                    <tr><td class="vt-k">MITRE ATT&amp;CK</td><td class="vt-v">T1566.001 (Spearphishing Attachment) &middot; T1203 (Exploit Client Execution) &middot; T1071.001 (App Layer Protocol: Web) &middot; T1568 (Dynamic DNS)</td></tr>
+                </table>
+                <div style="margin-top:14px; padding:12px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;">
+                    <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.08em; color:#64748b; text-transform:uppercase; margin-bottom:8px;">Engine consensus (sample of 47)</div>
+                    <div class="vt-engine-grid">${engineGrid}</div>
+                    <div style="font-size:0.7rem; color:#94a3b8; margin-top:8px; text-align:center;">+ 35 additional engines flagged this file</div>
+                </div>
+                <div style="margin-top:14px;">
+                    <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.08em; color:#64748b; text-transform:uppercase; margin-bottom:8px;">Network IOCs observed in sandbox</div>
+                    <div class="vt-ioc-list">
+                        <div class="vt-ioc"><div class="vt-ioc-k">C2 callback</div><div class="vt-ioc-v">185.220.101.45 (TCP/443)</div><div class="vt-ioc-desc">Beacon heartbeat to NForce Entertainment B.V. (AS43350, bulletproof hosting NL). 60-second jitter.</div></div>
+                        <div class="vt-ioc"><div class="vt-ioc-k">DNS resolution</div><div class="vt-ioc-v">emberwolf-c2.duckdns.org &rarr; 185.220.101.45</div><div class="vt-ioc-desc">DuckDNS dynamic DNS (MITRE T1568). Operator-controlled subdomain.</div></div>
+                        <div class="vt-ioc"><div class="vt-ioc-k">Lookalike domain</div><div class="vt-ioc-v">crimson-dawn-finance.net &rarr; 104.21.45.122</div><div class="vt-ioc-desc">Registered 2026-05-15 (3 days before attack). NameCheap + WhoisGuard privacy. See WHOIS.</div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="vt-flag-note">
+                <b>Phase 2 flag-format note:</b> The Family field returns "Cobalt Strike Beacon" &mdash; the flag value normalizes to <code>COBALT_STRIKE</code> (drop the "Beacon" component; Beacon is the loader's name within the Cobalt Strike framework, not a distinct family).
             </div>`;
         }
 
         if (h === '4a1b2c3d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b') {
-            return `<div style="border:2px solid #2ecc71; border-radius:4px; padding:14px; background:#f0fff4; font-size:0.82rem; font-family:system-ui,sans-serif;">
-                <div style="font-size:1rem; font-weight:700; color:#2ecc71; margin-bottom:8px;">VERDICT: CLEAN</div>
-                <table style="width:100%; border-collapse:collapse;">
-                    <tr style="border-bottom:1px solid #d0f0dd;"><td style="padding:6px 8px; color:#888; width:180px;">Hash</td><td style="padding:6px 8px; font-family:monospace; font-size:0.75rem;">${h}</td></tr>
-                    <tr style="border-bottom:1px solid #d0f0dd;"><td style="padding:6px 8px; color:#888;">Engine Consensus</td><td style="padding:6px 8px; font-weight:700; color:#2ecc71;">0/68 engines MALICIOUS</td></tr>
-                    <tr style="border-bottom:1px solid #d0f0dd;"><td style="padding:6px 8px; color:#888;">File Type</td><td style="padding:6px 8px;">Microsoft Excel spreadsheet</td></tr>
-                    <tr><td style="padding:6px 8px; color:#888;">IOCs</td><td style="padding:6px 8px; color:#2ecc71;">None detected</td></tr>
+            return `<div class="vt-verdict-bar clean">
+                <div class="vt-ratio clean">
+                    <div class="vt-ratio-num">0<span style="font-size:0.85rem; color:#94a3b8; font-weight:600;">/68</span></div>
+                    <div class="vt-ratio-den">detections</div>
+                </div>
+                <div class="vt-verdict-meta">
+                    <div class="vt-verdict-label clean">Clean</div>
+                    <div class="vt-verdict-title">Microsoft Excel spreadsheet</div>
+                    <div class="vt-verdict-sub">No detections from any engine. No IOCs observed in sandbox.</div>
+                </div>
+            </div>
+            <div class="vt-hash-row"><span class="vt-hash-k">SHA-256</span>${h}</div>
+            <div class="vt-section-tabs">
+                <div class="vt-section-tab active clean">Summary</div>
+            </div>
+            <div class="vt-section">
+                <table class="vt-kv">
+                    <tr><td class="vt-k">Engine consensus</td><td class="vt-v" style="color:#15803d; font-weight:700;">0 / 68 engines flagged</td></tr>
+                    <tr><td class="vt-k">File type</td><td class="vt-v">Microsoft Excel Open XML spreadsheet (.xlsx)</td></tr>
+                    <tr><td class="vt-k">IOCs observed</td><td class="vt-v" style="color:#15803d;">None</td></tr>
                 </table>
-                <div style="margin-top:8px; font-size:0.77rem; color:#888;">This file is benign. If you submitted a flag derived from this hash, you are working on the wrong attachment. Re-read Phase 1.</div>
+                <div style="margin-top:14px; padding:10px 14px; background:#fef9c3; border:1px solid #fde68a; border-radius:4px; font-size:0.78rem; color:#713f12;">
+                    <b>IR Note:</b> This file is benign. If you submitted a Phase-2 flag derived from this hash, you hashed the <i>wrong attachment</i>. Re-read Phase 1: msg/4 has TWO attachments and only one of them is the malicious payload.
+                </div>
             </div>`;
         }
 
-        return `<div style="border:1px solid #ddd; border-radius:4px; padding:14px; background:#f8f8f8; font-size:0.82rem; font-family:system-ui,sans-serif;">
-            <div style="color:#888; font-weight:700; margin-bottom:8px;">Hash: <code style="font-size:0.75rem;">${this._escHtml(h.substring(0, 40))}...</code></div>
-            <div style="color:#888;">Status: Not found in local hash database.</div>
-            <div style="font-size:0.77rem; color:#888; margin-top:8px;">Make sure you are hashing a file from <code>/home/ir-lead/downloads/</code>. Download the phishing attachment from the webmail first (Phase 2, Step 2.1).</div>
+        return `<div class="vt-verdict-bar unknown">
+            <div class="vt-ratio unknown">
+                <div class="vt-ratio-num" style="font-size:1.15rem;">?</div>
+                <div class="vt-ratio-den">no data</div>
+            </div>
+            <div class="vt-verdict-meta">
+                <div class="vt-verdict-label unknown">Unknown</div>
+                <div class="vt-verdict-title">Hash not found in database</div>
+                <div class="vt-verdict-sub">The 68-engine mirror has no record of this SHA-256.</div>
+            </div>
+        </div>
+        <div class="vt-hash-row"><span class="vt-hash-k">SUBMITTED</span>${this._escHtml(h.substring(0, 64))}${h.length > 64 ? '...' : ''}</div>
+        <div class="vt-section">
+            <div style="font-size:0.84rem; color:#475569; line-height:1.6;">
+                The hash you submitted is not in the local mirror. Verify you are:
+                <ul style="margin:8px 0 0 18px; padding:0; line-height:1.7;">
+                    <li>Hashing the actual attachment file (not the email body)</li>
+                    <li>Running <code style="background:#f1f5f9; padding:1px 5px; border-radius:3px; font-family:'JetBrains Mono', monospace;">sha256sum</code> from <code style="background:#f1f5f9; padding:1px 5px; border-radius:3px;">/home/ir-lead/downloads/</code></li>
+                    <li>Submitting the full 64-character lowercase hex hash (no spaces, no truncation)</li>
+                </ul>
+            </div>
+            <div style="margin-top:12px; padding:10px 14px; background:#fef9c3; border:1px solid #fde68a; border-radius:4px; font-size:0.74rem; color:#713f12;">
+                <b>Phase 2 step 2.1 reminder:</b> Download the attachment from msg/4 first (the corrected invoice), save to <code>/home/ir-lead/downloads/</code>, then hash with <code>sha256sum</code>.
+            </div>
         </div>`;
     },
 
