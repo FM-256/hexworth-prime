@@ -3449,6 +3449,14 @@ const PISFinalConfig = {
                     <div class="pm-comp-flag-h">Phase 6 &mdash; Composite Flag</div>
                     <div class="pm-comp-flag-v">REMED-OK-S7K9P2</div>
                     <div class="pm-comp-flag-sub">Submit this as Flag 6</div>
+                    <div class="pm-comp-flag-note">
+                        <b>Composition:</b> <code>REMED-OK-&lt;scan-ID&gt;</code> &mdash; concatenated from two parts:
+                        <table class="pm-comp-parts">
+                            <tr><td><code>REMED-OK-</code></td><td>fixed prefix &mdash; marks that all three Phase 6 actions verified (patch + scan + filter)</td></tr>
+                            <tr><td><code>S7K9P2</code></td><td>Rapid7 InsightVM scan ID &mdash; returned in the CLEAN scan result; proves the patch worked. <span style="color:#6b7280;">See <a href="https://insightvm.crimson-dawn.net">insightvm.crimson-dawn.net</a>, &quot;Scan ID&quot; field on the CLEAN result card.</span></td></tr>
+                        </table>
+                        Without the scan ID, the prefix alone is incomplete &mdash; the lab requires evidence that the patch actually validated, not just that something was applied.
+                    </div>
                 </div>
                 <div class="pm-comp-flag pm-comp-flag-7">
                     <div class="pm-comp-flag-h">Phase 7 &mdash; Synthesis Flag</div>
@@ -3606,6 +3614,12 @@ const PISFinalConfig = {
               .pm-shell .pm-comp-flag.pm-comp-flag-7 .pm-comp-flag-v { color: #0c4a6e; }
               .pm-shell .pm-comp-flag-note { font-size: 0.72rem; color: #4b5563; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; line-height: 1.6; text-align: left; }
               .pm-shell .pm-comp-flag-note code { background: #fff; border: 1px solid #e5e7eb; padding: 1px 5px; border-radius: 3px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.7rem; color: #0c4a6e; }
+              .pm-shell .pm-comp-flag-note a { color: #0078d4; font-weight: 600; }
+              .pm-shell .pm-comp-parts { width: 100%; margin: 6px 0; border-collapse: collapse; }
+              .pm-shell .pm-comp-parts td { padding: 4px 6px; vertical-align: top; font-size: 0.72rem; }
+              .pm-shell .pm-comp-parts td:first-child { width: 90px; }
+              .pm-shell .pm-comp-parts td:first-child code { background: #ecfdf5; border-color: #86efac; color: #14532d; font-weight: 800; }
+              .pm-shell .pm-comp-parts tr + tr td { border-top: 1px solid #f3f4f6; }
               /* "Currently applied" status banner — pinned at the top of the dynamic body, always visible. */
               .pm-shell .pm-current { margin-top: 14px; padding: 14px 18px; border-radius: 6px; display: flex; gap: 14px; align-items: flex-start; }
               .pm-shell .pm-current-empty { background: #f0f9ff; border: 1px solid #bae6fd; }
