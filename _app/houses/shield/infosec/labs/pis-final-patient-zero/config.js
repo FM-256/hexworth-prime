@@ -1505,6 +1505,8 @@ const PISFinalConfig = {
                   }
                   .vt-shell .vt-ioc-list .vt-ioc-k { font-size: 0.66rem; color: #b91c1c; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 2px; }
                   .vt-shell .vt-ioc-list .vt-ioc-v { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; color: #0f172a; font-weight: 600; }
+                  .vt-shell .vt-ioc-list .vt-ioc-v a { color: #2563eb; text-decoration: none; border-bottom: 1px dotted #2563eb; padding-bottom: 0; }
+                  .vt-shell .vt-ioc-list .vt-ioc-v a:hover { color: #1e40af; border-bottom-style: solid; }
                   .vt-shell .vt-ioc-list .vt-ioc-desc { font-size: 0.74rem; color: #64748b; margin-top: 2px; }
                   .vt-shell .vt-flag-note {
                     margin: 14px 18px; padding: 10px 14px;
@@ -2066,9 +2068,9 @@ Country: US</pre>`
                 <div style="margin-top:14px;">
                     <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.08em; color:#64748b; text-transform:uppercase; margin-bottom:8px;">Network IOCs observed in sandbox</div>
                     <div class="vt-ioc-list">
-                        <div class="vt-ioc"><div class="vt-ioc-k">C2 callback</div><div class="vt-ioc-v">185.220.101.45 (TCP/443)</div><div class="vt-ioc-desc">Beacon heartbeat to NForce Entertainment B.V. (AS43350, bulletproof hosting NL). 60-second jitter.</div></div>
-                        <div class="vt-ioc"><div class="vt-ioc-k">DNS resolution</div><div class="vt-ioc-v">emberwolf-c2.duckdns.org &rarr; 185.220.101.45</div><div class="vt-ioc-desc">DuckDNS dynamic DNS (MITRE T1568). Operator-controlled subdomain.</div></div>
-                        <div class="vt-ioc"><div class="vt-ioc-k">Lookalike domain</div><div class="vt-ioc-v">crimson-dawn-finance.net &rarr; 104.21.45.122</div><div class="vt-ioc-desc">Registered 2026-05-15 (3 days before attack). NameCheap + WhoisGuard privacy. See WHOIS.</div></div>
+                        <div class="vt-ioc"><div class="vt-ioc-k">C2 callback</div><div class="vt-ioc-v"><a href="https://ipgeo.crimson-intel.net">185.220.101.45</a> (TCP/443)</div><div class="vt-ioc-desc">Beacon heartbeat to NForce Entertainment B.V. (AS43350, bulletproof hosting NL). 60-second jitter. Click IP to pivot to IP geolocation.</div></div>
+                        <div class="vt-ioc"><div class="vt-ioc-k">DNS resolution</div><div class="vt-ioc-v"><a href="https://whois.crimson-intel.net">emberwolf-c2.duckdns.org</a> &rarr; <a href="https://ipgeo.crimson-intel.net">185.220.101.45</a></div><div class="vt-ioc-desc">DuckDNS dynamic DNS (MITRE T1568). Operator-controlled subdomain. Click domain to pivot to WHOIS, IP to pivot to IP geolocation.</div></div>
+                        <div class="vt-ioc"><div class="vt-ioc-k">Lookalike domain</div><div class="vt-ioc-v"><a href="https://whois.crimson-intel.net">crimson-dawn-finance.net</a> &rarr; <a href="https://ipgeo.crimson-intel.net">104.21.45.122</a></div><div class="vt-ioc-desc">Registered 2026-05-15 (3 days before attack). NameCheap + WhoisGuard privacy. Click domain to pivot to WHOIS.</div></div>
                     </div>
                 </div>
             </div>
