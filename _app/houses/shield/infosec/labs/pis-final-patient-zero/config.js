@@ -1840,19 +1840,103 @@ const PISFinalConfig = {
             '/ipgeo': {
                 title: 'IP Geolocation -- ipgeo.crimson-intel.net',
                 html: `
-                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-                    <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                        <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON INTEL -- IP GEOLOCATION + ENRICHMENT</div>
-                        <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">IP Address Lookup</div>
+                <style>
+                  .ig-shell { font-family: 'Inter', system-ui, sans-serif; max-width: 1040px; margin: 18px auto; color: #1e293b; }
+                  .ig-shell .ig-header { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px 8px 0 0; padding: 14px 20px; display: flex; align-items: center; gap: 14px; }
+                  .ig-shell .ig-logo { width: 36px; height: 36px; flex-shrink: 0; background: linear-gradient(135deg, #7c3aed, #5b21b6); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.78rem; }
+                  .ig-shell .ig-brand .ig-org { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; }
+                  .ig-shell .ig-brand .ig-app { font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-top: 1px; }
+                  .ig-shell .ig-stats { margin-left: auto; display: flex; gap: 18px; font-size: 0.7rem; color: #64748b; }
+                  .ig-shell .ig-stats .ig-stat-v { color: #0f172a; font-weight: 700; }
+                  .ig-shell .ig-search-card { background: #fff; border: 1px solid #e2e8f0; border-top: 0; padding: 20px; }
+                  .ig-shell .ig-search-row { display: flex; gap: 8px; }
+                  .ig-shell input.ig-q { flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.82rem; color: #0f172a; outline: 0; box-sizing: border-box; }
+                  .ig-shell input.ig-q::placeholder { color: #94a3b8; }
+                  .ig-shell input.ig-q:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12); }
+                  .ig-shell button.ig-lookup { padding: 10px 22px; background: #7c3aed; color: #fff; border: 0; border-radius: 4px; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
+                  .ig-shell button.ig-lookup:hover { background: #5b21b6; }
+                  .ig-shell .ig-chips { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+                  .ig-shell .ig-chip-label { color: #64748b; font-size: 0.7rem; padding: 4px 0; margin-right: 4px; }
+                  .ig-shell .ig-chip { padding: 4px 10px; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; color: #4c1d95; font-size: 0.7rem; cursor: pointer; }
+                  .ig-shell .ig-chip:hover { background: #ede9fe; border-color: #a78bfa; }
+                  .ig-shell .ig-results { background: #fff; border: 1px solid #e2e8f0; border-top: 0; border-radius: 0 0 8px 8px; min-height: 80px; }
+                  .ig-shell .ig-empty { padding: 26px 18px; text-align: center; color: #64748b; font-size: 0.78rem; }
+                  /* Result components */
+                  .ig-shell .ig-ip-banner { padding: 22px 24px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fff; display: flex; align-items: center; gap: 22px; }
+                  .ig-shell .ig-ip-banner.suspicious { background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%); }
+                  .ig-shell .ig-ip-banner.cloud { background: linear-gradient(135deg, #0c4a6e 0%, #082f49 100%); }
+                  .ig-shell .ig-ip-banner.private { background: linear-gradient(135deg, #475569 0%, #1e293b 100%); }
+                  .ig-shell .ig-ip-banner.vpn { background: linear-gradient(135deg, #4338ca 0%, #312e81 100%); }
+                  .ig-shell .ig-ip-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.6rem; font-weight: 800; letter-spacing: 0.02em; }
+                  .ig-shell .ig-ip-meta { flex: 1; }
+                  .ig-shell .ig-ip-meta-sub { font-size: 0.78rem; opacity: 0.78; margin-top: 4px; }
+                  .ig-shell .ig-verdict-pill { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; background: rgba(255,255,255,0.15); color: #fff; }
+                  .ig-shell .ig-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+                  @media (max-width: 760px) { .ig-shell .ig-cards { grid-template-columns: 1fr; } }
+                  .ig-shell .ig-card { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; }
+                  @media (max-width: 760px) { .ig-shell .ig-card { border-right: 0; } }
+                  .ig-shell .ig-card-h { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 10px; }
+                  .ig-shell .ig-card-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; font-size: 0.8rem; }
+                  .ig-shell .ig-card-k { color: #94a3b8; font-size: 0.72rem; }
+                  .ig-shell .ig-card-v { color: #0f172a; font-weight: 600; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.76rem; text-align: right; }
+                  .ig-shell .ig-card-v.danger { color: #b91c1c; }
+                  .ig-shell .ig-card-v.legit { color: #15803d; }
+                  .ig-shell .ig-attribution { padding: 18px 22px; background: #fef2f2; border-top: 1px solid #fecaca; }
+                  .ig-shell .ig-attribution.cloud { background: #f0f9ff; border-top-color: #bae6fd; }
+                  .ig-shell .ig-attribution.private { background: #f8fafc; border-top-color: #e2e8f0; }
+                  .ig-shell .ig-attribution.vpn { background: #eef2ff; border-top-color: #c7d2fe; }
+                  .ig-shell .ig-attr-h { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: #b91c1c; font-weight: 700; margin-bottom: 6px; }
+                  .ig-shell .ig-attribution.cloud .ig-attr-h { color: #0c4a6e; }
+                  .ig-shell .ig-attribution.private .ig-attr-h { color: #475569; }
+                  .ig-shell .ig-attribution.vpn .ig-attr-h { color: #4338ca; }
+                  .ig-shell .ig-attr-verdict { font-size: 1rem; font-weight: 800; color: #b91c1c; margin-bottom: 8px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+                  .ig-shell .ig-attribution.cloud .ig-attr-verdict { color: #0c4a6e; }
+                  .ig-shell .ig-attribution.private .ig-attr-verdict { color: #475569; }
+                  .ig-shell .ig-attribution.vpn .ig-attr-verdict { color: #4338ca; }
+                  .ig-shell .ig-attr-conf { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; margin-left: 8px; }
+                  .ig-shell .ig-attr-sources { margin-top: 8px; font-size: 0.78rem; color: #444; line-height: 1.6; }
+                  .ig-shell .ig-attr-sources b { color: #0f172a; }
+                  .ig-shell .ig-attr-sources ul { margin: 6px 0 0 16px; padding: 0; }
+                  .ig-shell .ig-attr-sources li { padding: 2px 0; font-size: 0.74rem; }
+                  .ig-shell .ig-pivots { padding: 12px 22px; background: #f8fafc; }
+                  .ig-shell .ig-pivots-h { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 8px; }
+                  .ig-shell .ig-pivot { display: inline-block; padding: 6px 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; margin-right: 8px; margin-bottom: 4px; font-size: 0.74rem; color: #0c4a6e; text-decoration: none; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+                  .ig-shell .ig-pivot:hover { background: #e0f2fe; border-color: #38bdf8; color: #075985; }
+                  .ig-shell .ig-pivot-label { font-family: 'Inter', system-ui, sans-serif; color: #64748b; font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; margin-right: 6px; }
+                  .ig-shell .ig-caveat { padding: 12px 22px; background: #fef9c3; border-top: 1px solid #fde68a; font-size: 0.78rem; color: #713f12; line-height: 1.6; }
+                  .ig-shell .ig-caveat b { color: #422006; }
+                  .ig-shell .ig-no-result { padding: 24px 20px; text-align: center; color: #64748b; font-size: 0.82rem; }
+                  .ig-shell .ig-no-result code { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; }
+                </style>
+                <div class="ig-shell">
+                  <div class="ig-header">
+                    <div class="ig-logo">GEO</div>
+                    <div class="ig-brand">
+                      <div class="ig-org">Crimson Intel &middot; IP Enrichment</div>
+                      <div class="ig-app">IP Geolocation &amp; Attribution <span style="font-weight:400; color:#64748b; font-size:0.74rem; margin-left:6px;">&middot; MaxMind + ASN + HexIntel feed</span></div>
                     </div>
-                    <div style="display:flex; gap:8px; margin-bottom:16px;">
-                        <input type="text" data-field="ip_query" placeholder="IP address (e.g. 185.220.101.45)"
-                               style="flex:1; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.83rem;">
-                        <button data-action="lookup" style="padding:8px 18px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit;">Lookup</button>
+                    <div class="ig-stats">
+                      <div>MaxMind <span class="ig-stat-v">2026-05-14</span></div>
+                      <div>HexIntel <span class="ig-stat-v">2026-05-21</span></div>
                     </div>
-                    <div data-results>
-                        <div style="color:#888; font-size:0.78rem; text-align:center; padding:20px;">Enter an IP address to look up geolocation and enrichment data.</div>
+                  </div>
+                  <div class="ig-search-card">
+                    <div style="font-size:0.82rem; color:#334155; margin-bottom:10px;">Enter an <b>IPv4 address</b> for geo + ASN + threat-intel actor-origin enrichment. Combines passive-DNS, behavioral analysis, and HexIntel feed.</div>
+                    <div class="ig-search-row">
+                      <input type="text" class="ig-q" data-field="ip_query" placeholder="185.220.101.45">
+                      <button class="ig-lookup" data-action="lookup">Lookup</button>
                     </div>
+                    <div class="ig-chips">
+                      <span class="ig-chip-label">Quick lookups:</span>
+                      <span class="ig-chip" onclick="var i=document.querySelector('.ig-shell .ig-q'); if(i){i.value='185.220.101.45';i.focus();}">185.220.101.45</span>
+                      <span class="ig-chip" onclick="var i=document.querySelector('.ig-shell .ig-q'); if(i){i.value='104.21.45.122';i.focus();}">104.21.45.122</span>
+                      <span class="ig-chip" onclick="var i=document.querySelector('.ig-shell .ig-q'); if(i){i.value='51.140.83.42';i.focus();}">51.140.83.42</span>
+                      <span class="ig-chip" onclick="var i=document.querySelector('.ig-shell .ig-q'); if(i){i.value='8.8.8.8';i.focus();}">8.8.8.8</span>
+                    </div>
+                  </div>
+                  <div class="ig-results" data-results>
+                    <div class="ig-empty">Enter an IP address and click <b>Lookup</b>.<br><span style="opacity:0.7; font-size:0.74rem;">Phase 4 reminder: the WHOIS ASN country is the <i>provider's incorporation</i>, not the operator's origin. This tool surfaces the HexIntel actor-origin enrichment.</span></div>
+                  </div>
                 </div>`,
                 formHandler: (data, engine) => PISFinalConfig._handleIpGeo(data.ip_query || '', engine)
             },
@@ -2611,69 +2695,183 @@ const PISFinalConfig = {
         </div>`;
     },
 
+    _renderIpGeoCard: function(rec) {
+        var bannerClass = rec.banner || 'neutral';
+        var attrClass = rec.attribution ? rec.attribution.cls : 'cloud';
+        var verdictPill = rec.verdictText ? '<span class="ig-verdict-pill">' + rec.verdictText + '</span>' : '';
+        var geoRows = rec.geo.map(function(r) {
+            return '<div class="ig-card-row"><span class="ig-card-k">' + r.k + '</span><span class="ig-card-v ' + (r.cls || '') + '">' + r.v + '</span></div>';
+        }).join('');
+        var asnRows = rec.asn.map(function(r) {
+            return '<div class="ig-card-row"><span class="ig-card-k">' + r.k + '</span><span class="ig-card-v ' + (r.cls || '') + '">' + r.v + '</span></div>';
+        }).join('');
+        var attributionHtml = '';
+        if (rec.attribution) {
+            var sourcesUl = rec.attribution.sources ?
+                '<ul>' + rec.attribution.sources.map(function(s) { return '<li>' + s + '</li>'; }).join('') + '</ul>' : '';
+            attributionHtml = '<div class="ig-attribution ' + attrClass + '">' +
+                '<div class="ig-attr-h">' + rec.attribution.label + '</div>' +
+                '<div class="ig-attr-verdict">' + rec.attribution.verdict + (rec.attribution.confidence ? '<span class="ig-attr-conf">' + rec.attribution.confidence + '</span>' : '') + '</div>' +
+                (rec.attribution.detail ? '<div class="ig-attr-sources"><b>Detail:</b> ' + rec.attribution.detail + sourcesUl + '</div>' : sourcesUl) +
+                '</div>';
+        }
+        var pivotsHtml = '';
+        if (rec.pivots && rec.pivots.length) {
+            pivotsHtml = '<div class="ig-pivots"><div class="ig-pivots-h">Pivot to</div>' +
+                rec.pivots.map(function(p) {
+                    return '<a class="ig-pivot" href="' + p.url + '"><span class="ig-pivot-label">' + p.label + '</span>' + p.value + '</a>';
+                }).join('') + '</div>';
+        }
+        var caveatHtml = rec.caveat ? '<div class="ig-caveat">' + rec.caveat + '</div>' : '';
+        return '<div class="ig-ip-banner ' + bannerClass + '">' +
+            '<div class="ig-ip-meta">' +
+                '<div class="ig-ip-mono">' + rec.ip + '</div>' +
+                '<div class="ig-ip-meta-sub">' + (rec.sub || '') + '</div>' +
+            '</div>' +
+            verdictPill +
+            '</div>' +
+            '<div class="ig-cards">' +
+                '<div class="ig-card"><div class="ig-card-h">Geolocation</div>' + geoRows + '</div>' +
+                '<div class="ig-card" style="border-right:0;"><div class="ig-card-h">Network / ASN</div>' + asnRows + '</div>' +
+            '</div>' +
+            attributionHtml +
+            caveatHtml +
+            pivotsHtml;
+    },
+
     _handleIpGeo: function(ip, engine) {
-        if (!ip.trim()) return '<div style="color:#888; font-size:0.8rem; padding:16px; text-align:center;">Enter an IP address.</div>';
+        if (!ip.trim()) return '<div class="ig-empty">Enter an IP address.</div>';
         const q = ip.trim();
 
         const geoData = {
-            '185.220.101.45': `<div style="font-family:system-ui,sans-serif; font-size:0.82rem;">
-                <div style="border:2px solid #e67e22; border-radius:4px; padding:12px; background:#fffaf0; margin-bottom:12px;">
-                    <table style="width:100%; border-collapse:collapse;">
-                        <tr style="border-bottom:1px solid #ffe0b2;"><td style="padding:6px 8px; color:#888; width:200px;">IP</td><td style="padding:6px 8px; font-weight:700;">185.220.101.45</td></tr>
-                        <tr style="border-bottom:1px solid #ffe0b2;"><td style="padding:6px 8px; color:#888;">Edge location</td><td style="padding:6px 8px;">Amsterdam, NL (CDN/VPS provider edge node)</td></tr>
-                        <tr style="border-bottom:1px solid #ffe0b2;"><td style="padding:6px 8px; color:#888;">ASN owner</td><td style="padding:6px 8px;">NForce Entertainment B.V. (incorporated: NL)</td></tr>
-                        <tr style="border-bottom:1px solid #ffe0b2;"><td style="padding:6px 8px; color:#888;">ASN country (incorporation)</td><td style="padding:6px 8px;">NL &nbsp;<span style="color:#e67e22; font-weight:600;">&larr; this is where the VPS provider is incorporated, NOT where the operator lives</span></td></tr>
-                    </table>
-                </div>
-                <div style="border:2px solid #dc2626; border-radius:4px; padding:12px; background:#fff0f0;">
-                    <div style="font-weight:700; color:#dc2626; margin-bottom:8px;">CAUTION: VPS edge geolocation &ne; operator origin.</div>
-                    <div style="color:#888; font-size:0.77rem; margin-bottom:8px;">Cross-reference with WHOIS, threat-intel enrichment, and behavioral patterns.</div>
-                    <div style="font-size:0.8rem; margin-bottom:4px;"><b>WHOIS registrant:</b> REDACTED (commercial privacy proxy)</div>
-                    <div style="font-size:0.8rem; font-weight:700; color:#dc2626; margin-bottom:8px;">HexIntel actor-origin enrichment: RU (HIGH confidence)</div>
-                    <div style="font-size:0.77rem; color:#555; line-height:1.7;">
-                        Sources contributing to enrichment:<br>
-                        &nbsp;&nbsp;- Behavioral C2 callback windows align with UTC+3 working hours<br>
-                        &nbsp;&nbsp;- Language artifacts in builder strings recovered from prior EMBERWOLF samples<br>
-                        &nbsp;&nbsp;- Infrastructure-overlap analysis with prior RU-aligned campaigns (HexIntel feed)<br>
-                        &nbsp;&nbsp;- Open-source reporting from prior incidents
-                    </div>
-                </div>
-            </div>`,
-            '51.140.83.42': `<div style="font-size:0.82rem; border:1px solid #ddd; padding:12px; border-radius:4px; background:#f8f8f8;">
-                <b>51.140.83.42</b><br>
-                Location: London, UK<br>
-                ASN: AS8075 (Microsoft Corporation -- Azure UK South)<br>
-                VPN provider: Known commercial VPN egress (UK region)<br>
-                <div style="margin-top:8px; color:#888; font-size:0.77rem;">This IP is consistent with commercial VPN usage from London.</div>
-            </div>`,
-            '104.21.45.122': `<div style="font-size:0.82rem; border:1px solid #ddd; padding:12px; border-radius:4px; background:#f8f8f8;">
-                <b>104.21.45.122</b><br>
-                Location: San Jose, CA, US (Cloudflare CDN edge)<br>
-                ASN: AS13335 (Cloudflare, Inc.)<br>
-                Note: Cloudflare edge IP -- does not indicate origin of hosted content.
-            </div>`,
-            '8.8.8.8': `<div style="font-size:0.82rem; border:1px solid #ddd; padding:12px; border-radius:4px; background:#f8f8f8;"><b>8.8.8.8</b><br>Location: Mountain View, CA, US<br>ASN: AS15169 (Google LLC)<br>Service: Google Public DNS</div>`,
-            '52.86.14.93': `<div style="font-size:0.82rem; border:1px solid #ddd; padding:12px; border-radius:4px; background:#f8f8f8;"><b>52.86.14.93</b><br>Location: Ashburn, VA, US<br>ASN: AS14618 (Amazon Web Services)<br>Service: AWS EC2 us-east-1</div>`,
-            '204.111.12.88': `<div style="font-size:0.82rem; border:1px solid #ddd; padding:12px; border-radius:4px; background:#f8f8f8;"><b>204.111.12.88</b><br>Location: Philadelphia, PA, US<br>ASN: AS7922 (Comcast Cable Communications)<br>Note: Residential broadband range</div>`,
-            '10.0.4.18': `<div style="font-size:0.82rem; border:1px solid #ddd; padding:12px; border-radius:4px; background:#f8f8f8;"><b>10.0.4.18</b><br>Location: PRIVATE (RFC 1918 -- internal network)<br>No geolocation available for private IP ranges.</div>`
+            '185.220.101.45': {
+                ip: '185.220.101.45', banner: 'suspicious', verdictText: 'Bulletproof hosting',
+                sub: 'C2 host for the EMBERWOLF Cobalt Strike Beacon',
+                geo: [
+                    { k: 'Edge city', v: 'Amsterdam' },
+                    { k: 'Edge country', v: 'NL' },
+                    { k: 'Latitude/Long', v: '52.3676 / 4.9041' }
+                ],
+                asn: [
+                    { k: 'ASN', v: 'AS43350' },
+                    { k: 'Org', v: 'NForce Entertainment B.V.', cls: 'danger' },
+                    { k: 'Block', v: '185.220.100.0/22' },
+                    { k: 'Abuse', v: 'abuse@nforce.nl' }
+                ],
+                attribution: {
+                    cls: 'suspicious', label: 'HexIntel actor-origin enrichment',
+                    verdict: 'RU-aligned', confidence: 'HIGH confidence',
+                    detail: 'The MaxMind geo locates the NForce edge in NL; HexIntel\'s passive-DNS + behavioral telemetry locates the <b>operator</b> in RU.',
+                    sources: [
+                        'Behavioral C2 callback windows align with UTC+3 working hours',
+                        'Language artifacts in builder strings recovered from prior EMBERWOLF samples',
+                        'Infrastructure-overlap analysis with prior RU-aligned campaigns (HexIntel feed)',
+                        'Open-source reporting from 3 prior incidents (Q1-Q2 2026)'
+                    ]
+                },
+                caveat: '<b>Phase 4 caveat:</b> the MaxMind geo and the WHOIS ASN country both report NL &mdash; that is the provider\'s edge + incorporation jurisdiction, NOT actor origin. Bulletproof hosts like NForce serve operators globally. Do not use WHOIS/MaxMind country alone for attribution; always cross-reference behavioral + open-source signal.',
+                pivots: [
+                    { label: 'WHOIS', value: '185.220.101.45 (ASN lookup)', url: 'https://whois.crimson-intel.net' },
+                    { label: 'Intel', value: 'EMBERWOLF actor profile', url: 'https://intel.crimson-intel.net' }
+                ]
+            },
+            '104.21.45.122': {
+                ip: '104.21.45.122', banner: 'cloud', verdictText: 'Cloudflare edge',
+                sub: 'CDN edge IP &mdash; resolves crimson-dawn-finance.net (lookalike domain)',
+                geo: [
+                    { k: 'Edge city', v: 'San Jose' },
+                    { k: 'Edge country', v: 'US' },
+                    { k: 'Latitude/Long', v: '37.3387 / -121.8853' }
+                ],
+                asn: [
+                    { k: 'ASN', v: 'AS13335' },
+                    { k: 'Org', v: 'Cloudflare, Inc.' },
+                    { k: 'Block', v: '104.16.0.0/12' },
+                    { k: 'Service', v: 'CDN edge' }
+                ],
+                attribution: {
+                    cls: 'cloud', label: 'CDN edge &ne; origin',
+                    verdict: 'Cloudflare anycast',
+                    detail: 'This IP is a Cloudflare edge node and does NOT indicate the origin of the content hosted behind it. Behind the CDN, the actual hosting could be anywhere in the world. To find the real origin, use passive DNS or SSL-cert fingerprinting (out of scope for this exercise).'
+                },
+                caveat: '<b>Phase 4 pedagogy:</b> CDN-fronted infrastructure is a deliberate obscuration tactic. Lookalike phishing domains routinely sit behind Cloudflare/Akamai/Fastly so that the public WHOIS + MaxMind geo are useless for attribution. Use this IP as a signal that the actor is using a CDN, not as a geolocation result.',
+                pivots: [
+                    { label: 'WHOIS', value: 'crimson-dawn-finance.net (front domain)', url: 'https://whois.crimson-intel.net' }
+                ]
+            },
+            '51.140.83.42': {
+                ip: '51.140.83.42', banner: 'vpn', verdictText: 'Commercial VPN',
+                sub: 'Azure UK South &mdash; matches s.patel\'s expected travel pattern',
+                geo: [
+                    { k: 'Edge city', v: 'London' },
+                    { k: 'Edge country', v: 'UK' },
+                    { k: 'Latitude/Long', v: '51.5074 / -0.1278' }
+                ],
+                asn: [
+                    { k: 'ASN', v: 'AS8075' },
+                    { k: 'Org', v: 'Microsoft Corporation' },
+                    { k: 'Service', v: 'Azure UK South' },
+                    { k: 'VPN egress', v: 'Known commercial' }
+                ],
+                attribution: {
+                    cls: 'vpn', label: 'Provenance verification',
+                    verdict: 'Explained anomaly',
+                    detail: 'This IP is a known Azure UK South VPN egress point. The auth log shows s.patel logging in from this IP on 2026-05-15 through 2026-05-19 &mdash; matches her HR-approved offsite travel ticket #TR-2026-0418 (London, 2026-05-15 to 2026-05-22). Four prior London sessions exist on her account from past travel.'
+                },
+                pivots: [
+                    { label: 'WHOIS', value: '51.140.83.42 (ASN)', url: 'https://whois.crimson-intel.net' }
+                ]
+            },
+            '8.8.8.8': {
+                ip: '8.8.8.8', banner: 'cloud', verdictText: 'Public DNS',
+                sub: 'Google Public DNS &mdash; not actor infrastructure',
+                geo: [
+                    { k: 'City', v: 'Mountain View' },
+                    { k: 'Country', v: 'US' }
+                ],
+                asn: [
+                    { k: 'ASN', v: 'AS15169' },
+                    { k: 'Org', v: 'Google LLC' },
+                    { k: 'Service', v: 'Public DNS' }
+                ]
+            },
+            '52.86.14.93': {
+                ip: '52.86.14.93', banner: 'cloud', verdictText: 'AWS EC2',
+                sub: 'AWS us-east-1 &mdash; ordinary cloud traffic',
+                geo: [{ k: 'City', v: 'Ashburn' }, { k: 'Country', v: 'US' }],
+                asn: [{ k: 'ASN', v: 'AS14618' }, { k: 'Org', v: 'Amazon AWS' }, { k: 'Service', v: 'EC2 us-east-1' }]
+            },
+            '204.111.12.88': {
+                ip: '204.111.12.88', banner: 'neutral', verdictText: 'Residential ISP',
+                sub: 'Comcast residential broadband',
+                geo: [{ k: 'City', v: 'Philadelphia' }, { k: 'Country', v: 'US' }],
+                asn: [{ k: 'ASN', v: 'AS7922' }, { k: 'Org', v: 'Comcast Cable' }, { k: 'Type', v: 'Residential broadband' }]
+            },
+            '10.0.4.18': {
+                ip: '10.0.4.18', banner: 'private', verdictText: 'Private RFC1918',
+                sub: 'e.morales workstation (WS-EMORALES-01) &mdash; internal AP network',
+                geo: [{ k: 'Range', v: 'RFC 1918' }, { k: 'Scope', v: 'Private' }],
+                asn: [{ k: 'Network', v: '10.0.0.0/8' }, { k: 'Owner', v: 'Internal' }],
+                attribution: {
+                    cls: 'private', label: 'Internal asset',
+                    verdict: 'Patient Zero workstation',
+                    detail: 'No external geolocation available for RFC1918 private ranges. Internal asset records identify this as e.morales\'s assigned workstation (WS-EMORALES-01) on the Accounts Payable subnet 10.0.4.0/24.'
+                }
+            }
         };
 
-        const result = geoData[q];
-        if (result) {
-            return `<div style="margin-top:8px;"><div style="font-size:0.72rem; color:#888; margin-bottom:8px;">Geolocation result for: <code>${this._escHtml(q)}</code></div>${result}</div>`;
-        }
+        const rec = geoData[q];
+        if (rec) return this._renderIpGeoCard(rec);
 
-        // Default for unknown IPs
         const octets = q.split('.');
-        if (octets.length === 4 && octets.every(o => !isNaN(parseInt(o)))) {
-            return `<div style="font-size:0.82rem; border:1px solid #ddd; padding:12px; border-radius:4px; background:#f8f8f8; color:#888;">
-                <b>${this._escHtml(q)}</b><br>
-                Geolocation: Not found in local database.<br>
-                <div style="font-size:0.77rem; margin-top:6px;">Key IPs in this investigation: 185.220.101.45 (attacker C2), 51.140.83.42 (London VPN), 104.21.45.122 (Cloudflare edge)</div>
+        if (octets.length === 4 && octets.every(o => !isNaN(parseInt(o)) && parseInt(o) >= 0 && parseInt(o) <= 255)) {
+            return `<div class="ig-no-result">
+                No geolocation record found for <code>${this._escHtml(q)}</code>.<br>
+                <span style="opacity:0.7; font-size:0.74rem;">Key IPs in this investigation: <code>185.220.101.45</code> (attacker C2), <code>104.21.45.122</code> (CDN front), <code>51.140.83.42</code> (London VPN), <code>10.0.4.18</code> (Patient Zero workstation)</span>
             </div>`;
         }
 
-        return `<div style="color:#888; font-size:0.8rem; padding:12px; border:1px solid #ddd; border-radius:4px;">Invalid IP address format. Enter a valid IPv4 address.</div>`;
+        return `<div class="ig-no-result">Invalid IP address format. Enter a valid IPv4 address (e.g. <code>185.220.101.45</code>).</div>`;
     },
 
     _handleSiem: function(logType, filter, engine) {
