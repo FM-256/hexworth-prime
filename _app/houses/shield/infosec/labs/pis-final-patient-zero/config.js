@@ -3560,37 +3560,84 @@ const PISFinalConfig = {
         const cve = data.cve;
         const action = data.action;
 
+        // CVE → KB number + title lookup. Used by both apply_patch and the
+        // re-apply branch to keep the messaging consistent.
+        const cveInfo = {
+            'CVE-2022-30190': { kb: 'KB5014699', title: 'MSDT Remote Code Execution (Follina)',          severity: 'CRITICAL' },
+            'CVE-2024-21412': { kb: 'KB5034441', title: 'Internet Shortcut Files Security Feature Bypass', severity: 'HIGH'     },
+            'CVE-2024-26169': { kb: 'KB5036892', title: 'Windows Error Reporting Elevation of Privilege',  severity: 'IMPORTANT' }
+        };
+
         if (action === 'apply_patch' && cve) {
             if (db.patch_state.applied.includes(cve)) {
-                return '<div style="color:#888; font-size:0.8rem; padding:8px;">This CVE has already been applied.</div>';
+                return `<div class="pm-deploy-result pm-deploy-noop">
+                    <div class="pm-deploy-icon">i</div>
+                    <div class="pm-deploy-body">
+                        <div class="pm-deploy-h">Already deployed</div>
+                        <div class="pm-deploy-sub"><code>${cve}</code> is already in the Recently Deployed list on this host. No action taken.</div>
+                    </div>
+                </div>${PISFinalConfig._pmDeployStyle()}`;
             }
 
             db.patch_state.applied.push(cve);
             db.rapid7_scan_state.ran = false; // Patch applied -- scan needs to be re-run
             db.rapid7_scan_state.result = null;
 
-            if (cve === 'CVE-2022-30190') {
-                return `<div style="padding:12px; background:#f0fff4; border:2px solid #2ecc71; border-radius:4px; font-size:0.82rem;">
-                    <div style="font-weight:700; color:#2ecc71; margin-bottom:4px;">[Patch applied] CVE-2022-30190 -- Follina</div>
-                    <div style="color:#555; font-size:0.78rem;">KB5014699 applied to WS-EMORALES-01. Validate with Rapid7 InsightVM scan at <a href="https://insightvm.crimson-dawn.net" style="color:#dc2626;">insightvm.crimson-dawn.net</a>.</div>
-                </div>`;
+            const info = cveInfo[cve] || { kb: '(unknown KB)', title: 'Unknown CVE', severity: 'UNKNOWN' };
+            const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+            const isCorrect = cve === 'CVE-2022-30190';
+
+            if (isCorrect) {
+                return `<div class="pm-deploy-result pm-deploy-ok">
+                    <div class="pm-deploy-icon">&#10003;</div>
+                    <div class="pm-deploy-body">
+                        <div class="pm-deploy-h">Patch deployed successfully</div>
+                        <table class="pm-deploy-table">
+                            <tr><td>CVE</td><td><code class="pm-deploy-cve">${cve}</code></td></tr>
+                            <tr><td>Title</td><td>${info.title}</td></tr>
+                            <tr><td>KB number</td><td><code class="pm-deploy-kb">${info.kb}</code></td></tr>
+                            <tr><td>Target host</td><td><code>WS-EMORALES-01</code> (10.0.4.18)</td></tr>
+                            <tr><td>Status</td><td><span class="pm-deploy-pill ok">DEPLOYED &middot; PENDING REBOOT NOT REQUIRED</span></td></tr>
+                            <tr><td>Applied</td><td>${now} UTC</td></tr>
+                        </table>
+                        <div class="pm-deploy-next">
+                            <b>Next step:</b> Validate the patch with a Rapid7 InsightVM scan at
+                            <a href="https://insightvm.crimson-dawn.net">insightvm.crimson-dawn.net</a>.
+                            The scan should now return CLEAN with scan ID S7K9P2.
+                        </div>
+                    </div>
+                </div>${PISFinalConfig._pmDeployStyle()}`;
             }
 
             // Wrong CVE applied
-            const titles = { 'CVE-2024-21412': 'Internet Shortcut Files Security Feature Bypass Vulnerability', 'CVE-2024-26169': 'Windows Error Reporting Service Elevation of Privilege Vulnerability' };
             if (engine && engine.addScore) engine.addScore(-40, 'Wrong patch action (unrelated CVE)');
-            return `<div style="padding:12px; background:#fff8f0; border:2px solid #e67e22; border-radius:4px; font-size:0.82rem;">
-                <div style="font-weight:700; color:#e67e22; margin-bottom:4px;">[Patch applied] ${cve} -- ${titles[cve] || 'Unknown CVE'}</div>
-                <div style="color:#555; font-size:0.78rem;">Status: PATCHED &middot; Applied ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC</div>
-                <div style="color:#dc2626; font-weight:700; margin-top:6px; font-size:0.78rem;">Penalty: -40 (wrong action for this incident)</div>
-                <div style="color:#555; font-size:0.77rem; margin-top:6px;">
-                    Note: This CVE is real but unrelated to the current incident.<br>
-                    The exploited CVE was identified in Phase 2. To recover:<br>
-                    &nbsp;&nbsp;&rarr; Click [Undo / Re-evaluate] on the "Recently Applied" row to revert.<br>
-                    &nbsp;&nbsp;&rarr; Re-apply the correct CVE.<br>
-                    &nbsp;&nbsp;&rarr; Each wrong attempt costs -40 (Eclipse scoring).
+            return `<div class="pm-deploy-result pm-deploy-warn">
+                <div class="pm-deploy-icon">&#9888;</div>
+                <div class="pm-deploy-body">
+                    <div class="pm-deploy-h">Patch deployed &mdash; WRONG TARGET for this incident</div>
+                    <table class="pm-deploy-table">
+                        <tr><td>CVE deployed</td><td><code class="pm-deploy-cve warn">${cve}</code></td></tr>
+                        <tr><td>Title</td><td>${info.title}</td></tr>
+                        <tr><td>KB number</td><td><code class="pm-deploy-kb">${info.kb}</code></td></tr>
+                        <tr><td>Target host</td><td><code>WS-EMORALES-01</code> (10.0.4.18)</td></tr>
+                        <tr><td>Status</td><td><span class="pm-deploy-pill warn">DEPLOYED &middot; INCIDENT-IRRELEVANT</span></td></tr>
+                        <tr><td>Applied</td><td>${now} UTC</td></tr>
+                    </table>
+                    <div class="pm-deploy-penalty">
+                        <b>Penalty: &minus;40 points</b> (wrong action for this incident, per Eclipse scoring)
+                    </div>
+                    <div class="pm-deploy-next warn">
+                        <b>This CVE is real but NOT the one exploited in this incident.</b> The exploited
+                        vulnerability was identified in Phase 2 hash analysis. To recover:
+                        <ol style="margin:6px 0 0 18px; padding:0;">
+                            <li>Click <b>Undo / Re-evaluate</b> on the &quot;Recently Deployed&quot; row above.</li>
+                            <li>Identify the exploited CVE from your Phase 2 notes.</li>
+                            <li>Deploy that KB instead.</li>
+                        </ol>
+                        Each wrong deployment costs &minus;40.
+                    </div>
                 </div>
-            </div>`;
+            </div>${PISFinalConfig._pmDeployStyle()}`;
         }
 
         if (action === 'undo_patch' && cve) {
@@ -3600,16 +3647,78 @@ const PISFinalConfig = {
                 db.rapid7_scan_state.ran = false;
                 db.rapid7_scan_state.result = null;
                 db.patch_state.undone.push(cve);
-                return `<div style="padding:12px; background:#f8f8f8; border:1px solid #ddd; border-radius:4px; font-size:0.82rem;">
-                    <div style="font-weight:700; color:#888; margin-bottom:4px;">[Undo confirmed] ${cve} -- reverted to outstanding</div>
-                    <div style="color:#555; font-size:0.78rem;">Status: Patch state restored to pre-application.</div>
-                    <div style="color:#555; font-size:0.77rem; margin-top:6px;">You may now select a different CVE to patch.<br>(Undo itself is free; the -40 penalty for the original wrong action remains.)</div>
-                </div>`;
+                const info = cveInfo[cve] || { kb: '(unknown KB)', title: '(unknown title)' };
+                return `<div class="pm-deploy-result pm-deploy-undo">
+                    <div class="pm-deploy-icon">&#8634;</div>
+                    <div class="pm-deploy-body">
+                        <div class="pm-deploy-h">Undo confirmed</div>
+                        <table class="pm-deploy-table">
+                            <tr><td>CVE reverted</td><td><code>${cve}</code></td></tr>
+                            <tr><td>KB removed</td><td><code>${info.kb}</code></td></tr>
+                            <tr><td>Target host</td><td><code>WS-EMORALES-01</code></td></tr>
+                            <tr><td>Status</td><td><span class="pm-deploy-pill undo">REVERTED &middot; CVE back on Outstanding list</span></td></tr>
+                        </table>
+                        <div class="pm-deploy-next">
+                            Patch state restored to pre-application. You may now select a different
+                            CVE to deploy.
+                            <br><br>
+                            <span style="color:#9ca3af;">(Undo itself is free; the &minus;40 penalty from the
+                            original wrong action remains.)</span>
+                        </div>
+                    </div>
+                </div>${PISFinalConfig._pmDeployStyle()}`;
             }
-            return '<div style="color:#888; font-size:0.8rem; padding:8px;">Nothing to undo -- CVE not in applied list.</div>';
+            return `<div class="pm-deploy-result pm-deploy-noop">
+                <div class="pm-deploy-icon">i</div>
+                <div class="pm-deploy-body">
+                    <div class="pm-deploy-h">Nothing to undo</div>
+                    <div class="pm-deploy-sub"><code>${cve}</code> is not in the Recently Deployed list.</div>
+                </div>
+            </div>${PISFinalConfig._pmDeployStyle()}`;
         }
 
-        return '<div style="color:#888; font-size:0.8rem; padding:8px;">Unknown action.</div>';
+        return '<div class="pm-deploy-result pm-deploy-noop"><div class="pm-deploy-icon">i</div><div class="pm-deploy-body"><div class="pm-deploy-h">Unknown action</div></div></div>' + PISFinalConfig._pmDeployStyle();
+    },
+
+    // CSS for the deploy result banners — co-located with the handler so the
+    // styles ship with the response HTML and survive form-result injection.
+    // Class prefix `.pm-deploy-*` is distinct from `.pm-*` (dashboard) so
+    // there is no chrome-vs-result CSS conflict.
+    _pmDeployStyle: function() {
+        return `<style>
+            .pm-deploy-result { font-family: 'Segoe UI', system-ui, sans-serif; margin-top: 14px; padding: 16px 20px; border-radius: 6px; display: flex; gap: 16px; align-items: flex-start; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+            .pm-deploy-result.pm-deploy-ok    { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #16a34a; }
+            .pm-deploy-result.pm-deploy-warn  { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #ea580c; }
+            .pm-deploy-result.pm-deploy-undo  { background: #f9fafb; border: 1px solid #d1d5db; }
+            .pm-deploy-result.pm-deploy-noop  { background: #f0f9ff; border: 1px solid #bae6fd; }
+            .pm-deploy-icon { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; color: #fff; flex-shrink: 0; }
+            .pm-deploy-ok   .pm-deploy-icon { background: #16a34a; }
+            .pm-deploy-warn .pm-deploy-icon { background: #ea580c; }
+            .pm-deploy-undo .pm-deploy-icon { background: #6b7280; }
+            .pm-deploy-noop .pm-deploy-icon { background: #0ea5e9; }
+            .pm-deploy-body { flex: 1; }
+            .pm-deploy-h { font-size: 1.05rem; font-weight: 800; color: #111827; margin-bottom: 8px; letter-spacing: -0.01em; }
+            .pm-deploy-ok   .pm-deploy-h { color: #15803d; }
+            .pm-deploy-warn .pm-deploy-h { color: #9a3412; }
+            .pm-deploy-undo .pm-deploy-h { color: #374151; }
+            .pm-deploy-sub { font-size: 0.86rem; color: #4b5563; line-height: 1.5; }
+            .pm-deploy-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 0.82rem; }
+            .pm-deploy-table td { padding: 4px 0; vertical-align: top; }
+            .pm-deploy-table td:first-child { color: #6b7280; width: 130px; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.02em; padding-right: 12px; }
+            .pm-deploy-table td:nth-child(2) { color: #111827; }
+            .pm-deploy-cve { font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.86rem; font-weight: 800; color: #15803d; background: #fff; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 3px; }
+            .pm-deploy-cve.warn { color: #9a3412; border-color: #fed7aa; }
+            .pm-deploy-kb { font-family: 'Cascadia Code', ui-monospace, monospace; background: #fff; border: 1px solid #e5e7eb; padding: 1px 7px; border-radius: 3px; color: #111827; }
+            .pm-deploy-pill { display: inline-block; padding: 2px 9px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; }
+            .pm-deploy-pill.ok    { background: #16a34a; color: #fff; }
+            .pm-deploy-pill.warn  { background: #ea580c; color: #fff; }
+            .pm-deploy-pill.undo  { background: #6b7280; color: #fff; }
+            .pm-deploy-next { padding: 10px 14px; background: rgba(255,255,255,0.7); border-left: 4px solid #16a34a; border-radius: 0 4px 4px 0; font-size: 0.84rem; color: #1f2937; line-height: 1.65; margin-top: 4px; }
+            .pm-deploy-next.warn { border-left-color: #ea580c; background: rgba(255,255,255,0.75); }
+            .pm-deploy-next a { color: #0078d4; font-weight: 600; }
+            .pm-deploy-penalty { padding: 8px 14px; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 0 4px 4px 0; font-size: 0.84rem; color: #991b1b; margin-bottom: 10px; }
+            .pm-deploy-penalty b { color: #7f1d1d; }
+        </style>`;
     },
 
     _renderInsightVM: function(engine) {
