@@ -1815,20 +1815,114 @@ const PISFinalConfig = {
             '/intel': {
                 title: 'Threat Intel Mirror -- intel.crimson-intel.net',
                 html: `
-                <div style="font-family:system-ui,sans-serif; max-width:720px; margin:0 auto; padding:16px;">
-                    <div style="border-bottom:2px solid #dc2626; padding-bottom:10px; margin-bottom:16px;">
-                        <div style="font-size:0.72rem; color:#888; letter-spacing:0.1em; text-transform:uppercase;">CRIMSON INTEL -- THREAT INTEL MIRROR (HexIntel Feed)</div>
-                        <div style="font-size:1rem; font-weight:700; color:#222; margin-top:2px;">APT / IOC Search</div>
-                        <div style="font-size:0.72rem; color:#888;">Search by: domain, hash, CVE, malware family, or APT name</div>
+                <style>
+                  .ti-shell { font-family: 'Inter', system-ui, sans-serif; max-width: 1080px; margin: 18px auto; color: #e2e8f0; background: #0f172a; min-height: calc(100vh - 36px); padding-bottom: 24px; }
+                  .ti-shell .ti-header { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 2px solid #dc2626; padding: 18px 24px; display: flex; align-items: center; gap: 14px; }
+                  .ti-shell .ti-logo { width: 42px; height: 42px; flex-shrink: 0; background: linear-gradient(135deg, #dc2626, #7f1d1d); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.04em; }
+                  .ti-shell .ti-brand .ti-org { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: #94a3b8; }
+                  .ti-shell .ti-brand .ti-app { font-size: 1.1rem; font-weight: 700; color: #f8fafc; margin-top: 1px; }
+                  .ti-shell .ti-stats { margin-left: auto; display: flex; gap: 22px; font-size: 0.7rem; color: #64748b; }
+                  .ti-shell .ti-stats .ti-stat-v { color: #f1f5f9; font-weight: 700; }
+                  .ti-shell .ti-search-card { background: #1e293b; border-bottom: 1px solid #334155; padding: 22px 24px; }
+                  .ti-shell .ti-search-meta { font-size: 0.82rem; color: #cbd5e1; margin-bottom: 12px; line-height: 1.6; }
+                  .ti-shell .ti-search-meta b { color: #f8fafc; }
+                  .ti-shell .ti-search-row { display: flex; gap: 8px; }
+                  .ti-shell input.ti-q { flex: 1; padding: 10px 12px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.82rem; color: #f8fafc; outline: 0; box-sizing: border-box; }
+                  .ti-shell input.ti-q::placeholder { color: #64748b; }
+                  .ti-shell input.ti-q:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18); }
+                  .ti-shell button.ti-go { padding: 10px 22px; background: #dc2626; color: #fff; border: 0; border-radius: 4px; font-weight: 700; font-size: 0.82rem; cursor: pointer; letter-spacing: 0.02em; }
+                  .ti-shell button.ti-go:hover { background: #b91c1c; }
+                  .ti-shell .ti-chips { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+                  .ti-shell .ti-chip-label { color: #64748b; font-size: 0.7rem; margin-right: 4px; }
+                  .ti-shell .ti-chip { padding: 4px 10px; background: rgba(220, 38, 38, 0.12); border: 1px solid rgba(220, 38, 38, 0.32); border-radius: 12px; color: #fca5a5; font-size: 0.7rem; cursor: pointer; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+                  .ti-shell .ti-chip:hover { background: rgba(220, 38, 38, 0.2); border-color: #dc2626; color: #fecaca; }
+                  .ti-shell .ti-results { padding: 18px 24px 0; }
+                  .ti-shell .ti-empty { padding: 32px 18px; text-align: center; color: #64748b; font-size: 0.82rem; line-height: 1.7; }
+                  .ti-shell .ti-empty code { background: #1e293b; border: 1px solid #334155; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; color: #cbd5e1; }
+                  .ti-shell .ti-search-summary { padding: 8px 12px; background: rgba(220, 38, 38, 0.08); border-left: 3px solid #dc2626; margin-bottom: 18px; font-size: 0.78rem; color: #fecaca; letter-spacing: 0.02em; }
+                  .ti-shell .ti-search-summary b { color: #fff; }
+                  /* Actor card */
+                  .ti-shell .ti-actor { background: #1e293b; border: 1px solid #334155; border-radius: 6px; margin-bottom: 14px; overflow: hidden; }
+                  .ti-shell .ti-actor.high { border-color: #dc2626; box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.3); }
+                  .ti-shell .ti-actor.partial { border-color: #d97706; }
+                  .ti-shell .ti-actor-head { padding: 14px 18px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #334155; }
+                  .ti-shell .ti-actor.high .ti-actor-head { background: linear-gradient(135deg, rgba(220, 38, 38, 0.18) 0%, transparent 100%); }
+                  .ti-shell .ti-actor.partial .ti-actor-head { background: linear-gradient(135deg, rgba(217, 119, 6, 0.12) 0%, transparent 100%); }
+                  .ti-shell .ti-codename { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.2rem; font-weight: 800; color: #f8fafc; letter-spacing: 0.04em; }
+                  .ti-shell .ti-actor.high .ti-codename { color: #fca5a5; }
+                  .ti-shell .ti-actor.partial .ti-codename { color: #fdba74; }
+                  .ti-shell .ti-match-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.04em; }
+                  .ti-shell .ti-actor.high .ti-match-badge { background: #dc2626; color: #fff; }
+                  .ti-shell .ti-actor.partial .ti-match-badge { background: #d97706; color: #fff; }
+                  .ti-shell .ti-actor.low .ti-match-badge { background: #475569; color: #cbd5e1; }
+                  .ti-shell .ti-flag { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+                  .ti-shell .ti-flag-code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; font-weight: 700; padding: 4px 10px; border-radius: 4px; letter-spacing: 0.06em; }
+                  .ti-shell .ti-flag-code.ru { background: rgba(220, 38, 38, 0.2); color: #fca5a5; border: 1px solid rgba(220, 38, 38, 0.5); }
+                  .ti-shell .ti-flag-code.us { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.5); }
+                  .ti-shell .ti-flag-code.unk { background: rgba(148, 163, 184, 0.16); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.4); }
+                  .ti-shell .ti-flag-code.cn { background: rgba(234, 88, 12, 0.2); color: #fdba74; border: 1px solid rgba(234, 88, 12, 0.5); }
+                  .ti-shell .ti-flag-code.kp { background: rgba(168, 85, 247, 0.18); color: #c4b5fd; border: 1px solid rgba(168, 85, 247, 0.5); }
+                  .ti-shell .ti-flag-code.ir { background: rgba(20, 184, 166, 0.18); color: #5eead4; border: 1px solid rgba(20, 184, 166, 0.5); }
+                  .ti-shell .ti-keyfacts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-bottom: 1px solid #334155; }
+                  @media (max-width: 760px) { .ti-shell .ti-keyfacts { grid-template-columns: repeat(2, 1fr); } }
+                  .ti-shell .ti-kf { padding: 10px 14px; border-right: 1px solid #334155; }
+                  .ti-shell .ti-kf:last-child { border-right: 0; }
+                  .ti-shell .ti-kf-k { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: #64748b; font-weight: 700; }
+                  .ti-shell .ti-kf-v { color: #f1f5f9; font-size: 0.82rem; font-weight: 600; margin-top: 4px; }
+                  .ti-shell .ti-kf-v.hot { color: #fca5a5; }
+                  .ti-shell .ti-kf-v.warn { color: #fdba74; }
+                  .ti-shell .ti-ttp-section { padding: 14px 18px; }
+                  .ti-shell .ti-ttp-h { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 10px; }
+                  .ti-shell .ti-ttp-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+                  .ti-shell .ti-ttp-table td { padding: 7px 10px; border-bottom: 1px solid #334155; }
+                  .ti-shell .ti-ttp-table tr:last-child td { border-bottom: 0; }
+                  .ti-shell .ti-ttp-table .ti-ttp-k { color: #94a3b8; width: 170px; font-size: 0.72rem; letter-spacing: 0.04em; }
+                  .ti-shell .ti-ttp-table .ti-ttp-v { color: #e2e8f0; font-weight: 600; }
+                  .ti-shell .ti-ttp-table .ti-ttp-v.match { color: #fca5a5; }
+                  .ti-shell .ti-ttp-table .ti-ttp-v.no-match { color: #94a3b8; font-weight: 400; }
+                  .ti-shell .ti-mitre { display: inline-block; background: #0f172a; border: 1px solid #475569; color: #93c5fd; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.68rem; margin-left: 6px; }
+                  .ti-shell .ti-disambig { margin: 12px 18px 14px; padding: 12px 14px; background: rgba(220, 38, 38, 0.08); border-left: 3px solid #dc2626; border-radius: 0 4px 4px 0; font-size: 0.78rem; color: #fecaca; line-height: 1.6; }
+                  .ti-shell .ti-disambig b { color: #fff; }
+                  .ti-shell .ti-pivots { padding: 10px 18px 14px; background: #0f172a; border-top: 1px solid #334155; }
+                  .ti-shell .ti-pivots-h { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 8px; }
+                  .ti-shell .ti-pivot { display: inline-block; padding: 5px 10px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; margin-right: 6px; margin-bottom: 4px; font-size: 0.72rem; color: #7dd3fc; text-decoration: none; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+                  .ti-shell .ti-pivot:hover { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #bae6fd; }
+                  .ti-shell .ti-pivot-label { font-family: 'Inter', system-ui, sans-serif; color: #64748b; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; margin-right: 5px; }
+                  .ti-shell .ti-no-match { padding: 18px 20px; }
+                  .ti-shell .ti-no-match-msg { color: #94a3b8; font-size: 0.85rem; line-height: 1.7; }
+                  .ti-shell .ti-no-match-msg code { background: #1e293b; border: 1px solid #334155; padding: 1px 6px; border-radius: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.74rem; color: #cbd5e1; }
+                </style>
+                <div class="ti-shell">
+                  <div class="ti-header">
+                    <div class="ti-logo">INTEL</div>
+                    <div class="ti-brand">
+                      <div class="ti-org">Crimson Intel &middot; Threat Intel Mirror &middot; HexIntel Feed</div>
+                      <div class="ti-app">APT &amp; IOC Search <span style="font-weight:400; color:#94a3b8; font-size:0.74rem; margin-left:6px;">&middot; 247 tracked actors &middot; 14d rolling enrichment</span></div>
                     </div>
-                    <div style="display:flex; gap:8px; margin-bottom:16px;">
-                        <input type="text" data-field="intel_query" placeholder="e.g. emberwolf-c2.duckdns.org, CVE-2022-30190, Cobalt Strike"
-                               style="flex:1; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.83rem;">
-                        <button data-action="search" style="padding:8px 18px; background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-family:inherit;">Search</button>
+                    <div class="ti-stats">
+                      <div>Last feed sync <span class="ti-stat-v">2026-05-21</span></div>
+                      <div>Coverage <span class="ti-stat-v">3y rolling</span></div>
                     </div>
-                    <div data-results>
-                        <div style="color:#888; font-size:0.78rem; text-align:center; padding:20px;">Enter an IOC, CVE, or malware family to search actor profiles.</div>
+                  </div>
+                  <div class="ti-search-card">
+                    <div class="ti-search-meta">
+                      Search by <b>IOC</b> (domain, IP, hash, file path), <b>CVE</b>, <b>malware family</b>, or <b>APT codename</b>. Results show all actors with at least <b>2/4 TTP overlap</b> with the query. Use the <b>Disambiguator</b> note on each card to narrow from candidates to a single actor.
                     </div>
+                    <div class="ti-search-row">
+                      <input type="text" class="ti-q" data-field="intel_query" placeholder="e.g. emberwolf-c2.duckdns.org, CVE-2022-30190, Cobalt Strike, 185.220.101.45">
+                      <button class="ti-go" data-action="search">Search</button>
+                    </div>
+                    <div class="ti-chips">
+                      <span class="ti-chip-label">Quick search:</span>
+                      <span class="ti-chip" onclick="var i=document.querySelector('.ti-shell .ti-q'); if(i){i.value='emberwolf-c2.duckdns.org';i.focus();}">emberwolf-c2.duckdns.org</span>
+                      <span class="ti-chip" onclick="var i=document.querySelector('.ti-shell .ti-q'); if(i){i.value='CVE-2022-30190';i.focus();}">CVE-2022-30190</span>
+                      <span class="ti-chip" onclick="var i=document.querySelector('.ti-shell .ti-q'); if(i){i.value='Cobalt Strike';i.focus();}">Cobalt Strike</span>
+                      <span class="ti-chip" onclick="var i=document.querySelector('.ti-shell .ti-q'); if(i){i.value='185.220.101.45';i.focus();}">185.220.101.45</span>
+                    </div>
+                  </div>
+                  <div class="ti-results" data-results>
+                    <div class="ti-empty">Enter an IOC, CVE, or malware family above and click <b>Search</b>.<br><span style="font-size:0.74rem;">Mirror covers <code>247</code> tracked actors across financial, government, energy, and ICS sectors.</span></div>
+                  </div>
                 </div>`,
                 formHandler: (data, engine) => PISFinalConfig._handleThreatIntel(data.intel_query || '', engine)
             },
@@ -2617,82 +2711,142 @@ const PISFinalConfig = {
         const isEmberwolfQuery = q.includes('emberwolf') || q.includes('cobalt strike') || q.includes('cobalt_strike') || q.includes('cve-2022-30190') || q.includes('follina') || q.includes('duckdns') || q.includes('185.220.101.45');
 
         if (!isEmberwolfQuery && q.length < 3) {
-            return '<div style="color:#888; font-size:0.8rem; padding:16px;">Enter at least 3 characters or a known IOC.</div>';
+            return '<div class="ti-no-match"><div class="ti-no-match-msg">Enter at least 3 characters or a known IOC to search the mirror.</div></div>';
         }
 
         if (!isEmberwolfQuery) {
-            return `<div style="color:#888; font-size:0.8rem; padding:16px;">No actor profiles matched "${this._escHtml(query)}".<br><br>Try searching by IOC from previous phases: the C2 domain, the malware family, the CVE, or the X-Originating-IP.</div>`;
+            return '<div class="ti-no-match"><div class="ti-no-match-msg">No actor profiles matched <code>' + this._escHtml(query) + '</code>.<br><br>Try searching by IOC from previous phases &mdash; the C2 domain, malware family, CVE, or X-Originating-IP. <span style="opacity:0.7; font-size:0.78rem;">Suggestion: try <code>emberwolf-c2.duckdns.org</code>, <code>CVE-2022-30190</code>, or <code>Cobalt Strike</code>.</span></div></div>';
         }
 
-        return `<div style="font-family:system-ui,sans-serif; font-size:0.82rem;">
-        <div style="color:#888; font-size:0.77rem; margin-bottom:12px;">SEARCH MATCHED: 3 ACTOR PROFILES with at least 2/4 TTP overlap</div>
+        var actors = [
+            {
+                codename: 'EMBERWOLF', matchScore: '4/4', matchText: 'EXACT MATCH', tier: 'high',
+                alignment: 'RU-aligned', flagCode: 'RU', flagClass: 'ru',
+                tracked: '2024-Q2',
+                targeting: 'Financial services',
+                geo: 'RU (HIGH conf.)',
+                status: 'Active',
+                ttps: [
+                    { k: 'Initial Access', v: 'Spear-phishing with invoice lures', mitre: 'T1566.001', match: true },
+                    { k: 'Exploit', v: 'CVE-2022-30190 (Follina) via Word external template', mitre: 'T1203', match: true },
+                    { k: 'Post-Exploit', v: 'Cobalt Strike Beacon (stage-1 loader)', mitre: 'S0154', match: true },
+                    { k: 'Infrastructure', v: 'Dynamic-DNS C2 (DuckDNS, No-IP)', mitre: 'T1568.002', match: true },
+                    { k: 'Naming Convention', v: '"emberwolf-c2.*" / "crimson-*-finance.*"', mitre: '', match: true },
+                    { k: 'Sector Targeting', v: 'Financial services exclusively (AP, vendor systems)', mitre: '', match: true }
+                ],
+                disambig: 'The naming-convention TTP (<code style="background:rgba(255,255,255,0.08); padding:1px 4px; border-radius:2px;">emberwolf-c2.*</code> + <code style="background:rgba(255,255,255,0.08); padding:1px 4px; border-radius:2px;">crimson-*-finance.*</code>) is <b>unique to EMBERWOLF</b>. <b>CRIMSONTIDE</b> uses random/non-themed names. <b>BLACKHELIX</b> uses legit-corp-lookalikes. The themed cluster + dynamic-DNS + Follina + Cobalt Strike together = EMBERWOLF, no ambiguity.',
+                pivots: [
+                    { label: 'WHOIS', value: 'crimson-dawn-finance.net (front domain)', url: 'https://whois.crimson-intel.net' },
+                    { label: 'IP Geo', value: '185.220.101.45 (C2 host)', url: 'https://ipgeo.crimson-intel.net' },
+                    { label: 'VT-Mirror', value: 'F8E92A1B4C5D6E7F (Cobalt Strike sample)', url: 'https://vt-mirror.crimson-intel.net' }
+                ]
+            },
+            {
+                codename: 'CRIMSONTIDE', matchScore: '2/4', matchText: 'PARTIAL', tier: 'partial',
+                alignment: 'criminal, US affiliate network', flagCode: 'US', flagClass: 'us',
+                tracked: '2023-Q4',
+                targeting: 'Cross-sector, opportunistic',
+                geo: 'US (MEDIUM conf.)',
+                status: 'Active',
+                ttps: [
+                    { k: 'Initial Access', v: 'Varied phishing + initial-access-broker buy-ins', mitre: 'T1566', match: false },
+                    { k: 'Exploit', v: 'Varied &mdash; CVE-2017-11882, CVE-2022-30190, CVE-2024-21412', mitre: '', match: true },
+                    { k: 'Post-Exploit', v: 'Cobalt Strike Beacon &rarr; ransomware (Black Basta, Royal)', mitre: 'S0154', match: true },
+                    { k: 'Infrastructure', v: 'Rotating VPS &mdash; <b>no dynamic-DNS preference</b>', mitre: 'T1583', match: false },
+                    { k: 'Naming Convention', v: '<b>Random / non-themed</b>', mitre: '', match: false },
+                    { k: 'Sector Targeting', v: 'Opportunistic (LOW sector confidence)', mitre: '', match: false }
+                ],
+                pivots: [
+                    { label: 'TTP overlap', value: 'CVE-2022-30190 + Cobalt Strike', url: '' }
+                ]
+            },
+            {
+                codename: 'BLACKHELIX', matchScore: '2/4', matchText: 'PARTIAL', tier: 'partial',
+                alignment: 'criminal, transient', flagCode: 'UNK', flagClass: 'unk',
+                tracked: '2025-Q1',
+                targeting: 'Banking, fintech',
+                geo: 'Operator unknown (LOW conf.)',
+                status: 'Active',
+                ttps: [
+                    { k: 'Initial Access', v: 'Browser zero-days + Word macros', mitre: 'T1189', match: false },
+                    { k: 'Exploit', v: '<b>NOT Follina</b> &mdash; uses different vulnerabilities', mitre: '', match: false },
+                    { k: 'Post-Exploit', v: 'Custom banking malware (Marblegate) &mdash; <b>not Cobalt Strike</b>', mitre: '', match: false },
+                    { k: 'Infrastructure', v: 'Compromised legitimate hosting', mitre: 'T1584', match: false },
+                    { k: 'Naming Convention', v: 'Legit-corp-lookalike (different pattern logic)', mitre: '', match: false },
+                    { k: 'Sector Targeting', v: 'Banking + fintech (HIGH sector confidence)', mitre: '', match: true }
+                ]
+            },
+            {
+                codename: 'IRONHAVEN', matchScore: '1/4', matchText: 'BELOW THRESHOLD', tier: 'low',
+                alignment: 'CN-aligned', flagCode: 'CN', flagClass: 'cn',
+                tracked: '2022-Q1',
+                targeting: 'IP theft &mdash; manufacturing, pharma, defense',
+                geo: 'CN (HIGH conf.)',
+                status: 'Active',
+                ttps: [
+                    { k: 'Note', v: 'No observed use of Follina or Cobalt Strike. Custom implants only. Financial-sector targeting: <b>NONE</b>.', mitre: '', match: false }
+                ]
+            },
+            {
+                codename: 'NORTHGALE', matchScore: '1/4', matchText: 'BELOW THRESHOLD', tier: 'low',
+                alignment: 'KP-aligned', flagCode: 'KP', flagClass: 'kp',
+                tracked: '2023-Q3',
+                targeting: 'Financial heists (crypto, SWIFT)',
+                geo: 'KP (HIGH conf.)',
+                status: 'Active',
+                ttps: [
+                    { k: 'Note', v: 'Uses different malware families &mdash; no Follina or Cobalt Strike on record. Different infrastructure pattern (compromised cryptocurrency exchanges).', mitre: '', match: false }
+                ]
+            },
+            {
+                codename: 'DESERTKITE', matchScore: '0/4', matchText: 'NO OVERLAP', tier: 'low',
+                alignment: 'IR-aligned', flagCode: 'IR', flagClass: 'ir',
+                tracked: '2021-Q4',
+                targeting: 'Energy / critical infrastructure',
+                geo: 'IR (HIGH conf.)',
+                status: 'Active',
+                ttps: [
+                    { k: 'Note', v: 'No overlap with this incident\'s TTPs. Included for completeness &mdash; a thorough analyst checks even unlikely candidates and rules them out.', mitre: '', match: false }
+                ]
+            }
+        ];
 
-        <div style="border:2px solid #dc2626; border-radius:4px; padding:14px; margin-bottom:14px; background:#fff0f0;">
-            <div style="font-size:0.95rem; font-weight:700; color:#dc2626; margin-bottom:8px;">EMBERWOLF &nbsp;<span style="font-size:0.75rem; font-weight:400; color:#888;">(TTP match: 4/4)</span> &nbsp;<span style="font-size:0.78rem; font-weight:600; color:#dc2626;">RU-aligned</span></div>
-            <table style="width:100%; border-collapse:collapse; font-size:0.78rem;">
-                <tr style="border-bottom:1px solid #fdd;"><td style="padding:5px 8px; color:#888; width:160px;">First observed</td><td style="padding:5px 8px;">2024-Q2</td></tr>
-                <tr style="border-bottom:1px solid #fdd;"><td style="padding:5px 8px; color:#888;">Targeting</td><td style="padding:5px 8px; font-weight:600;">Financial services, accounts payable, vendor systems</td></tr>
-                <tr style="border-bottom:1px solid #fdd;"><td style="padding:5px 8px; color:#888;">Initial access</td><td style="padding:5px 8px;">Spear-phishing with invoice lures (T1566.001)</td></tr>
-                <tr style="border-bottom:1px solid #fdd;"><td style="padding:5px 8px; color:#888;">Exploit</td><td style="padding:5px 8px; color:#dc2626; font-weight:600;">CVE-2022-30190 (Follina) via Word external template</td></tr>
-                <tr style="border-bottom:1px solid #fdd;"><td style="padding:5px 8px; color:#888;">Post-exploit</td><td style="padding:5px 8px; color:#dc2626; font-weight:600;">Cobalt Strike Beacon (stage-1 loader)</td></tr>
-                <tr style="border-bottom:1px solid #fdd;"><td style="padding:5px 8px; color:#888;">Infrastructure</td><td style="padding:5px 8px; color:#dc2626; font-weight:600;">Dynamic-DNS C2 (typically DuckDNS, No-IP)</td></tr>
-                <tr style="border-bottom:1px solid #fdd;"><td style="padding:5px 8px; color:#888;">Naming convention</td><td style="padding:5px 8px; color:#dc2626; font-weight:600;">"emberwolf-c2.*" / "crimson-*-finance.*"</td></tr>
-                <tr style="border-bottom:1px solid #fdd;"><td style="padding:5px 8px; color:#888;">Sector confidence</td><td style="padding:5px 8px; font-weight:600;">HIGH (financial services exclusively)</td></tr>
-                <tr><td style="padding:5px 8px; color:#888;">Geo confidence</td><td style="padding:5px 8px; font-weight:600; color:#dc2626;">HIGH (RU)</td></tr>
-            </table>
-            <div style="margin-top:8px; padding:6px 8px; background:#fff8f8; border:1px solid #fcc; border-radius:4px; font-size:0.75rem; color:#dc2626;">
-                <b>Disambiguator:</b> The naming-convention TTP (emberwolf-c2.* + crimson-*-finance.*) is unique to EMBERWOLF. CRIMSONTIDE and BLACKHELIX do not share this pattern.
-            </div>
-        </div>
+        var cardsHtml = actors.map(function(a) {
+            var ttpRowsHtml = a.ttps.map(function(t) {
+                var mitreChip = t.mitre ? '<span class="ti-mitre">' + t.mitre + '</span>' : '';
+                var vCls = t.match ? 'match' : (a.tier === 'low' ? 'no-match' : '');
+                return '<tr><td class="ti-ttp-k">' + t.k + '</td><td class="ti-ttp-v ' + vCls + '">' + t.v + mitreChip + '</td></tr>';
+            }).join('');
+            var disambigHtml = a.disambig ? '<div class="ti-disambig"><b>Disambiguator:</b> ' + a.disambig + '</div>' : '';
+            var pivotsHtml = '';
+            if (a.pivots && a.pivots.length) {
+                pivotsHtml = '<div class="ti-pivots"><div class="ti-pivots-h">Pivot to</div>' + a.pivots.map(function(p) {
+                    if (p.url) return '<a class="ti-pivot" href="' + p.url + '"><span class="ti-pivot-label">' + p.label + '</span>' + p.value + '</a>';
+                    return '<span class="ti-pivot" style="cursor:default; opacity:0.7;"><span class="ti-pivot-label">' + p.label + '</span>' + p.value + '</span>';
+                }).join('') + '</div>';
+            }
+            return '<div class="ti-actor ' + a.tier + '">' +
+                '<div class="ti-actor-head">' +
+                    '<div class="ti-codename">' + a.codename + '</div>' +
+                    '<div class="ti-match-badge">TTP match: ' + a.matchScore + ' &middot; ' + a.matchText + '</div>' +
+                    '<div class="ti-flag"><div class="ti-flag-code ' + a.flagClass + '">' + a.flagCode + '</div></div>' +
+                '</div>' +
+                '<div class="ti-keyfacts">' +
+                    '<div class="ti-kf"><div class="ti-kf-k">Tracked since</div><div class="ti-kf-v">' + a.tracked + '</div></div>' +
+                    '<div class="ti-kf"><div class="ti-kf-k">Targeting</div><div class="ti-kf-v ' + (a.tier === 'high' ? 'hot' : '') + '">' + a.targeting + '</div></div>' +
+                    '<div class="ti-kf"><div class="ti-kf-k">Geo origin</div><div class="ti-kf-v ' + (a.tier === 'high' ? 'hot' : (a.tier === 'partial' ? 'warn' : '')) + '">' + a.geo + '</div></div>' +
+                    '<div class="ti-kf"><div class="ti-kf-k">Status</div><div class="ti-kf-v">' + a.status + '</div></div>' +
+                '</div>' +
+                '<div class="ti-ttp-section">' +
+                    '<div class="ti-ttp-h">TTP Profile vs. Observed Incident</div>' +
+                    '<table class="ti-ttp-table">' + ttpRowsHtml + '</table>' +
+                '</div>' +
+                disambigHtml +
+                pivotsHtml +
+            '</div>';
+        }).join('');
 
-        <div style="border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:10px; background:#fafafa;">
-            <div style="font-size:0.9rem; font-weight:700; color:#555; margin-bottom:6px;">CRIMSONTIDE &nbsp;<span style="font-size:0.73rem; font-weight:400; color:#888;">(TTP match: 2/4)</span> &nbsp;<span style="font-size:0.76rem; color:#888;">criminal, US-based</span></div>
-            <div style="font-size:0.78rem; line-height:1.6; color:#555;">
-                First observed: 2023-Q4 &nbsp;|&nbsp; Targeting: Cross-sector, opportunistic, ransomware-driven<br>
-                Exploit: varied -- observed CVE-2017-11882, CVE-2022-30190, CVE-2024-21412<br>
-                Post-exploit: Cobalt Strike Beacon &rarr; ransomware (Black Basta, Royal)<br>
-                Infrastructure: rotating VPS, <b>no dynamic-DNS preference</b><br>
-                Naming convention: <b>random / non-themed</b><br>
-                Sector confidence: LOW (opportunistic) &nbsp;|&nbsp; Geo confidence: MEDIUM (US-based affiliate network)
-            </div>
-        </div>
-
-        <div style="border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:10px; background:#fafafa;">
-            <div style="font-size:0.9rem; font-weight:700; color:#555; margin-bottom:6px;">BLACKHELIX &nbsp;<span style="font-size:0.73rem; font-weight:400; color:#888;">(TTP match: 2/4)</span> &nbsp;<span style="font-size:0.76rem; color:#888;">criminal, transient</span></div>
-            <div style="font-size:0.78rem; line-height:1.6; color:#555;">
-                First observed: 2025-Q1 &nbsp;|&nbsp; Targeting: Banking, fintech<br>
-                Exploit: browser zero-days + Word macros (<b>NOT Follina</b>)<br>
-                Post-exploit: custom banking malware (Marblegate) -- <b>not Cobalt Strike</b><br>
-                Infrastructure: compromised legitimate hosting<br>
-                Naming convention: legitimate-corp-lookalike (similar surface appearance, different pattern logic)<br>
-                Sector confidence: HIGH (banking) &nbsp;|&nbsp; Geo confidence: LOW (operator unknown)
-            </div>
-        </div>
-
-        <div style="border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:10px; background:#fafafa;">
-            <div style="font-size:0.9rem; font-weight:700; color:#555; margin-bottom:6px;">IRONHAVEN &nbsp;<span style="font-size:0.73rem; font-weight:400; color:#888;">(TTP match: 1/4 -- below threshold)</span> &nbsp;<span style="font-size:0.76rem; color:#888;">CN-aligned</span></div>
-            <div style="font-size:0.78rem; line-height:1.6; color:#555;">
-                First observed: 2022-Q1 &nbsp;|&nbsp; Targeting: Intellectual property theft -- manufacturing, pharma, defense<br>
-                No observed use of Follina or Cobalt Strike. Custom implants only. Financial-sector targeting: NONE.
-            </div>
-        </div>
-
-        <div style="border:1px solid #ddd; border-radius:4px; padding:12px; margin-bottom:10px; background:#fafafa;">
-            <div style="font-size:0.9rem; font-weight:700; color:#555; margin-bottom:6px;">NORTHGALE &nbsp;<span style="font-size:0.73rem; font-weight:400; color:#888;">(TTP match: 1/4 -- below threshold)</span> &nbsp;<span style="font-size:0.76rem; color:#888;">KP-aligned</span></div>
-            <div style="font-size:0.78rem; line-height:1.6; color:#555;">
-                First observed: 2023-Q3 &nbsp;|&nbsp; Targeting: Financial heists (cryptocurrency, SWIFT)<br>
-                Exploit: uses different malware families; no Follina or Cobalt Strike on record. Different infrastructure pattern.
-            </div>
-        </div>
-
-        <div style="border:1px solid #ddd; border-radius:4px; padding:12px; background:#fafafa;">
-            <div style="font-size:0.9rem; font-weight:700; color:#555; margin-bottom:6px;">DESERTKITE &nbsp;<span style="font-size:0.73rem; font-weight:400; color:#888;">(TTP match: 0/4)</span> &nbsp;<span style="font-size:0.76rem; color:#888;">IR-aligned</span></div>
-            <div style="font-size:0.78rem; line-height:1.6; color:#555;">
-                First observed: 2021-Q4 &nbsp;|&nbsp; Targeting: Energy sector, critical infrastructure<br>
-                No overlap with this incident's TTPs. Included for completeness.
-            </div>
-        </div>
-        </div>`;
+        return '<div class="ti-search-summary"><b>SEARCH MATCHED:</b> 3 actor profiles with at least 2/4 TTP overlap &middot; 3 below-threshold candidates returned for completeness</div>' + cardsHtml;
     },
 
     _renderIpGeoCard: function(rec) {
