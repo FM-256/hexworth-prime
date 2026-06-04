@@ -349,6 +349,17 @@ class BrowserInstance {
         if (resultsArea) {
             resultsArea.innerHTML = resultHtml;
             this._wireLinks(resultsArea);
+            // Scroll the freshly-rendered result into view if it would
+            // otherwise be below the fold. `block: 'nearest'` is a no-op
+            // when the result is already visible, so this is non-jumpy
+            // for short pages and only kicks in when needed. Required for
+            // tall tool pages (Rapid7 InsightVM, Patch Mgmt, etc.) where
+            // the launch button sits at the bottom of the visible viewport
+            // and the result would otherwise render off-screen, making the
+            // click feel dead.
+            if (resultsArea.scrollIntoView) {
+                resultsArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
             // Append form result source for View Source
             if (this._currentSource !== undefined) {
                 this._currentSource += '\n\n<!-- === Form Response === -->\n' + resultHtml;
