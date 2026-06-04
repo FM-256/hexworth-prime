@@ -3812,6 +3812,26 @@ const PISFinalConfig = {
         const mixedCoApplied = applied.includes('CVE-2022-30190') &&
             (applied.includes('CVE-2024-21412') || applied.includes('CVE-2024-26169'));
 
+        // Rapid7-styled result card emitter (matches _renderInsightVM chrome)
+        var emit = function(kind, verdict, sub, body) {
+            var cls = kind === 'clean' ? 'r7-result-clean' : 'r7-result-vuln';
+            var circle = kind === 'clean'
+                ? '<div class="r7-risk-circle r7-risk-zero">0</div>'
+                : '<div class="r7-risk-circle r7-risk-crit">!</div>';
+            var scanIdBlock = kind === 'clean'
+                ? '<div class="r7-result-scanid"><div class="r7-result-scanid-k">Scan ID</div><div class="r7-result-scanid-v">S7K9P2</div></div>'
+                : '';
+            return '<div class="r7-result ' + cls + '" style="margin-top:14px;">' +
+                '<div class="r7-result-head">' + circle +
+                    '<div class="r7-result-meta">' +
+                        '<div class="r7-result-verdict">' + verdict + '</div>' +
+                        '<div class="r7-result-sub">' + sub + '</div>' +
+                    '</div>' + scanIdBlock +
+                '</div>' +
+                '<div class="r7-result-body">' + body + '</div>' +
+            '</div>';
+        };
+
         // Nancy round 3 BLOCK fix: scan returns CLEAN only when correct patch
         // is the ONLY applied patch. Co-applied wrong patches make the host
         // non-compliant -- the IR loop requires identifying the exploited CVE
@@ -3820,47 +3840,86 @@ const PISFinalConfig = {
             db.rapid7_scan_state.ran = true;
             db.rapid7_scan_state.result = 'clean';
             db.rapid7_scan_state.scan_id = 'S7K9P2';
-            return `<div style="margin-top:14px; padding:14px; background:#f0fff4; border:2px solid #2ecc71; border-radius:4px; font-size:0.85rem;">
-                <div style="font-weight:700; color:#2ecc71; margin-bottom:6px;">SCAN RESULT: CLEAN</div>
-                <div style="color:#555; font-size:0.78rem; margin-bottom:6px;">Scan ID: <span style="font-family:monospace; color:#222;">S7K9P2</span></div>
-                <div style="color:#555; font-size:0.78rem;">Previously detected: CVE-2022-30190 (Follina) &mdash; <strong style="color:#2ecc71;">REMEDIATED</strong></div>
-                <div style="color:#888; font-size:0.75rem; margin-top:6px; font-style:italic;">Workstation WS-EMORALES-01 cleared. Proceed to mail filter step.</div>
-            </div>`;
+            return emit('clean',
+                'No risk &mdash; Asset compliant',
+                'SCAN RESULT: CLEAN &middot; All previously detected vulnerabilities remediated',
+                '<table class="r7-result-table">' +
+                    '<tr><td class="r7-rt-k">Scan target</td><td class="r7-rt-v">WS-EMORALES-01 (10.0.4.18)</td></tr>' +
+                    '<tr><td class="r7-rt-k">Template</td><td class="r7-rt-v">Full audit, enhanced authenticated</td></tr>' +
+                    '<tr><td class="r7-rt-k">Scan engine</td><td class="r7-rt-v">SE-Crimson-01 (East-1)</td></tr>' +
+                    '<tr><td class="r7-rt-k">Completed</td><td class="r7-rt-v">' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC</td></tr>' +
+                    '<tr><td class="r7-rt-k">Duration</td><td class="r7-rt-v">4m 12s</td></tr>' +
+                    '<tr><td class="r7-rt-k">Checks executed</td><td class="r7-rt-v">14,247</td></tr>' +
+                '</table>' +
+                '<div class="r7-result-remed">' +
+                    '<div class="r7-result-remed-h">Previously detected &middot; Now remediated</div>' +
+                    '<div class="r7-remed-item r7-remed-item-ok">' +
+                        '<span class="r7-remed-cve">CVE-2022-30190</span>' +
+                        '<span class="r7-remed-title">MSDT Remote Code Execution (Follina) &mdash; REMEDIATED</span>' +
+                        '<span class="r7-remed-badge">Remediated</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="r7-result-next">Workstation <b>WS-EMORALES-01</b> cleared. Proceed to mail filter step at <a href="https://mailadmin.crimson-dawn.net">mailadmin.crimson-dawn.net</a>.</div>'
+            );
         }
 
         if (mixedCoApplied) {
-            // Correct patch is applied but so is a wrong one -- non-compliant.
             db.rapid7_scan_state.ran = true;
             db.rapid7_scan_state.result = 'wrong_patch';
             db.rapid7_scan_state.scan_id = null;
             const wrongPatches = applied.filter(c => c !== 'CVE-2022-30190');
-            return `<div style="margin-top:14px; padding:14px; background:#fff5f5; border:2px solid #dc2626; border-radius:4px; font-size:0.85rem;">
-                <div style="font-weight:700; color:#dc2626; margin-bottom:6px;">SCAN RESULT: NON-COMPLIANT (extraneous patches applied)</div>
-                <div style="color:#555; font-size:0.78rem; margin-bottom:4px;">CVE-2022-30190 (Follina): <strong style="color:#2ecc71;">REMEDIATED</strong></div>
-                <div style="color:#555; font-size:0.78rem; margin-bottom:6px;">Extraneous patches applied: <strong style="color:#dc2626;">${wrongPatches.join(', ')}</strong></div>
-                <div style="color:#888; font-size:0.75rem; margin-top:6px; font-style:italic;">Crimson Dawn's IR runbook requires patching only the exploited CVE during active incident response, to preserve root-cause evidence and avoid masking other vulnerabilities. Undo the unrelated patches and re-scan.</div>
-            </div>`;
+            return emit('vuln',
+                'Non-compliant &mdash; extraneous patches applied',
+                'SCAN RESULT: CVE-2022-30190 (Follina) STILL EXPLOITABLE in IR runbook context',
+                '<div class="r7-result-remed">' +
+                    '<div class="r7-remed-item r7-remed-item-ok" style="margin-bottom:8px;">' +
+                        '<span class="r7-remed-cve">CVE-2022-30190</span>' +
+                        '<span class="r7-remed-title">MSDT RCE (Follina) &mdash; REMEDIATED</span>' +
+                        '<span class="r7-remed-badge">Patched</span>' +
+                    '</div>' +
+                    '<div class="r7-remed-item r7-remed-item-crit">' +
+                        '<span class="r7-remed-cve">' + wrongPatches.join(', ') + '</span>' +
+                        '<span class="r7-remed-title">Extraneous patches &mdash; outside IR runbook scope</span>' +
+                        '<span class="r7-remed-badge crit">Non-compliant</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="r7-result-next r7-result-next-warn">Crimson Dawn IR runbook requires patching only the exploited CVE during active response &mdash; preserves root-cause evidence and avoids masking other vulnerabilities. Undo the unrelated patches via <a href="https://patch.crimson-dawn.net">Patch Management</a> and re-scan.</div>'
+            );
         }
 
         if (wrongOnly) {
             db.rapid7_scan_state.ran = true;
             db.rapid7_scan_state.result = 'wrong_patch';
             db.rapid7_scan_state.scan_id = null;
-            return `<div style="margin-top:14px; padding:14px; background:#fff5f5; border:2px solid #dc2626; border-radius:4px; font-size:0.85rem;">
-                <div style="font-weight:700; color:#dc2626; margin-bottom:6px;">SCAN RESULT: VULNERABILITY DETECTED</div>
-                <div style="color:#555; font-size:0.78rem; margin-bottom:6px;">CVE-2022-30190 (Follina) &mdash; <strong style="color:#dc2626;">STILL EXPLOITABLE</strong></div>
-                <div style="color:#888; font-size:0.75rem; margin-top:6px; font-style:italic;">Patch the correct vulnerability and re-scan. Re-identify the exploited CVE from Phase 2.</div>
-            </div>`;
+            return emit('vuln',
+                'Critical vulnerability detected',
+                'SCAN RESULT: VULNERABILITY DETECTED &middot; Wrong patches do not address the exploited CVE',
+                '<div class="r7-result-remed">' +
+                    '<div class="r7-remed-item r7-remed-item-crit">' +
+                        '<span class="r7-remed-cve">CVE-2022-30190</span>' +
+                        '<span class="r7-remed-title">MSDT Remote Code Execution (Follina) &mdash; STILL EXPLOITABLE</span>' +
+                        '<span class="r7-remed-badge crit">CVSS 7.8</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="r7-result-next r7-result-next-warn">Patch the correct vulnerability and re-scan. Re-identify the exploited CVE from <b>Phase 2 hash analysis</b>, then deploy that KB via <a href="https://patch.crimson-dawn.net">Patch Management</a>.</div>'
+            );
         }
 
         db.rapid7_scan_state.ran = true;
         db.rapid7_scan_state.result = 'vulnerable';
         db.rapid7_scan_state.scan_id = null;
-        return `<div style="margin-top:14px; padding:14px; background:#fff5f5; border:2px solid #dc2626; border-radius:4px; font-size:0.85rem;">
-            <div style="font-weight:700; color:#dc2626; margin-bottom:6px;">SCAN RESULT: VULNERABILITY DETECTED</div>
-            <div style="color:#555; font-size:0.78rem; margin-bottom:6px;">CVE-2022-30190 (Follina) &mdash; <strong style="color:#dc2626;">STILL EXPLOITABLE</strong></div>
-            <div style="color:#888; font-size:0.75rem; margin-top:6px; font-style:italic;">No patches applied. Open Patch Management and apply the exploited CVE.</div>
-        </div>`;
+        return emit('vuln',
+            'Critical vulnerability detected',
+            'SCAN RESULT: VULNERABILITY DETECTED &middot; No remediation applied',
+            '<div class="r7-result-remed">' +
+                '<div class="r7-remed-item r7-remed-item-crit">' +
+                    '<span class="r7-remed-cve">CVE-2022-30190</span>' +
+                    '<span class="r7-remed-title">MSDT Remote Code Execution (Follina) &mdash; STILL EXPLOITABLE</span>' +
+                    '<span class="r7-remed-badge crit">CVSS 7.8</span>' +
+                '</div>' +
+            '</div>' +
+            '<div class="r7-result-next r7-result-next-warn">No patches applied. Open <a href="https://patch.crimson-dawn.net">Patch Management</a> and apply the exploited CVE identified in Phase 2.</div>'
+        );
     },
 
     _renderMailAdmin: function(engine) {
