@@ -80,6 +80,7 @@ cd _tools/nexus && node nexus.js status                # QC health across all to
 | [web-flasher-runbook.md](operations/web-flasher-runbook.md) | — | Triage runbook for student "I tried to flash my ESP32 and it didn't work" — 7 failure buckets, what to check, escalation path |
 | [web-flasher-smoke.md](operations/web-flasher-smoke.md) | — | Operations guide for the `web-flasher-smoke` Nexus deploy-gate spoke — 38 assertions, severity model, failure-mode triage table mapping every assertion to its likely root cause, off-switch usage, transient-findings mechanism |
 | [web-flasher-hardware-smoke-2026-05-17.md](operations/web-flasher-hardware-smoke-2026-05-17.md) | — | Operator-driven hardware smoke test plan — 6 rounds across ESP32 DevKit / XIAO C3 / XIAO S3 / Pi Pico / Arduino Mega / Pi 3/4/5 with explicit PASS criteria |
+| [lab-realism-enhancement-protocol.md](operations/lab-realism-enhancement-protocol.md) | — | LREP — methodology for re-skinning lab tool surfaces to mirror real-world security products (VirusTotal, Mandiant, Rapid7, NVD, SCCM, Splunk, etc.). 12 sections covering brand mapping, wave structure, shared-helper patterns, smoke-contract preservation, walkthrough sync. Canonical example: PIS-Final Patient Zero (38 routes, 13 tool surfaces, 73/73 smoke checkpoints). |
 
 #### Safety Net & SYM Sprint (added 2026-05-03 onward)
 
