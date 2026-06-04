@@ -319,6 +319,22 @@ class BrowserInstance {
                 fields.forEach(field => {
                     formData[field.getAttribute('data-field')] = field.value;
                 });
+                // Also capture the clicked button's own data-* attributes
+                // so handlers can read which action + which target row was
+                // clicked. Without this, a button like
+                //   <button data-action="apply_patch" data-cve="CVE-2022-30190">
+                // passes only the page-level field inputs to the handler,
+                // leaving data.action and data.cve undefined — the handler
+                // then falls through to "Unknown action" and nothing happens.
+                // Iterating the dataset preserves all data-* attributes
+                // (data-action → formData.action, data-cve → formData.cve, etc.).
+                if (btn.dataset) {
+                    for (const key in btn.dataset) {
+                        if (Object.prototype.hasOwnProperty.call(btn.dataset, key)) {
+                            formData[key] = btn.dataset[key];
+                        }
+                    }
+                }
                 this._handleFormSubmission(pageDef, formData, wrapper);
             });
         });
