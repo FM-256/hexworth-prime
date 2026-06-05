@@ -54,6 +54,92 @@ const MODULE_CONFIGS = {
         ],
         contentFills: [],
     },
+    'm16-backup-recovery': {
+        stripSignatures: [
+            { sig: 'VSS + dedupe + remote restore',                            expected: 1 },  // S04
+            { sig: 'Registry + AD + SYSVOL + Boot + COM+',                     expected: 2 },  // S05+S06
+            { sig: 'AD DS, certs, registry, boot files, IIS meta',             expected: 1 },  // S07
+            { sig: 'Full server rebuild from blank disk',                      expected: 1 },  // S08
+            { sig: 'OS partition + critical volumes + System State',           expected: 3 },  // S09+S10+S11
+            { sig: 'wbadmin enable backup + weekly / daily / hourly',          expected: 3 },  // S12+S13+S14
+            { sig: 'Once daily, multiple times daily, custom cron',            expected: 1 },  // S15
+            { sig: 'AD Recovery: authoritative vs non-authoritative',          expected: 1 },  // S16
+            { sig: 'Get-ADObject -IncludeDeletedObjects + Restore-ADObject',   expected: 1 },  // S17
+        ],
+        contentFills: [
+            // S05 BMR
+            { anchor: '<p>Bare Metal Recovery allows you to restore a complete server to new hardware without pre-installing Windows.</p>',
+              replacement: `<p>Bare Metal Recovery (BMR) restores a complete server from a backup image onto blank disk hardware — used when the OS volume is unrecoverable (hardware failure, ransomware, total loss) or when migrating to replacement hardware.</p>
+
+                    <ul>
+                        <li>Restores the OS partition + all critical volumes + System State as a single atomic operation</li>
+                        <li>Requires boot media (Windows installation media or recovery USB) to bootstrap the restore — you cannot BMR-recover while running the OS being restored</li>
+                        <li>Backup target must be reachable from the boot environment (local disk, network share, or attached USB)</li>
+                        <li>Hardware can differ from the original (different make/model) — Windows generalizes drivers on restore, though storage controller drivers may need to be supplied manually</li>
+                    </ul>
+
+                    <p>Trigger a BMR restore from boot media:</p>
+
+                    <div class="code-block">
+<span class="comment"># Boot from Windows installation media → Repair your computer →</span>
+<span class="comment">#   Troubleshoot → System Image Recovery → Select system image →</span>
+<span class="comment">#   Use the latest available system image → Next → Finish</span>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>Test BMR before you need it:</strong> a BMR backup that has never been test-restored is unverified. Schedule a periodic restore-to-VM drill (Hyper-V or VMware) so you discover image corruption or missing drivers BEFORE the production incident.
+                    </div>` },
+            // S09 AD Recycle Bin
+            { anchor: '<p>The AD Recycle Bin allows recovery of deleted objects without restoring from backup.</p>',
+              replacement: `<p>AD Recycle Bin lets you recover deleted Active Directory objects with all attributes intact — no need for an authoritative restore from backup.</p>
+
+                    <ul>
+                        <li><strong>Enabled per forest</strong>, one-way (cannot be cleanly disabled once turned on) — plan the rollout deliberately</li>
+                        <li><strong>Requires</strong> forest functional level Windows Server 2008 R2 or higher</li>
+                        <li><strong>Without it:</strong> deleted objects become tombstoned and lose most attributes; full recovery requires an authoritative restore from a backup taken before deletion</li>
+                        <li><strong>With it:</strong> deleted objects retain ALL attributes for the tombstone lifetime (default 180 days for forests created on Server 2008 R2+)</li>
+                    </ul>
+
+                    <p>Enable the feature once per forest, then recover deleted objects in place:</p>
+
+                    <div class="code-block">
+<span class="comment"># Enable AD Recycle Bin (one-way — confirm forest functional level first)</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -Target hexworth.local</span>
+
+<span class="comment"># List recoverable deleted objects</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Get-ADObject -Filter 'isDeleted -eq \$true' -IncludeDeletedObjects -Properties *</span>
+
+<span class="comment"># Restore a specific deleted user</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Get-ADObject -Filter "Name -like 'jdoe*'" -IncludeDeletedObjects | Restore-ADObject</span>
+                    </div>` },
+            // S12 VSS
+            { anchor: "<p>VSS enables consistent backups of data, even while it's in use by applications.</p>",
+              replacement: `<p>Volume Shadow Copy Service (VSS) creates point-in-time snapshots of volumes and files — the engine that makes consistent backups possible while applications are still running.</p>
+
+                    <ul>
+                        <li><strong>Used by:</strong> backup tools (WSB, Veeam, NetBackup), the Previous Versions feature, System Restore, Hyper-V checkpoints</li>
+                        <li><strong>App-consistent vs crash-consistent:</strong> if a VSS Writer exists for the app (SQL, Exchange, AD, IIS, Hyper-V) the snapshot is app-consistent (data flushed + quiesced first). Without a Writer, it&#39;s crash-consistent (equivalent to a hard power-off mid-operation).</li>
+                        <li><strong>Snapshot is fast</strong> — copy-on-write semantics mean the snapshot creation is near-instant; the snapshot grows over time as the live volume diverges from the point-in-time view</li>
+                    </ul>
+
+                    <p>Diagnostic commands for VSS health (run as Administrator):</p>
+
+                    <div class="code-block">
+<span class="comment"># List installed VSS Writers and their last state (Stable / Error / Retryable)</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">vssadmin list writers</span>
+
+<span class="comment"># List existing shadow copies on each volume</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">vssadmin list shadows</span>
+
+<span class="comment"># Show maximum shadow storage allocation per volume</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">vssadmin list shadowstorage</span>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>Writer in Error state = backup will fail or be crash-consistent.</strong> Restart the failing Writer&#39;s parent service before running the backup. Most common offender: VSS SQL Writer needing the SQL Server VSS Writer service restarted.
+                    </div>` },
+        ],
+    },
     'm15-ad-sites': {
         stripSignatures: [
             { sig: 'Without map, clients hit random DC',                       expected: 1 },  // S05
