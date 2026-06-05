@@ -54,6 +54,18 @@ const MODULE_CONFIGS = {
         ],
         contentFills: [],
     },
+    'm14-advanced-networking': {
+        stripSignatures: [
+            { sig: 'Guest, Voice, IoT, Management',                       expected: 1 },  // S25
+            { sig: 'Hyper-V Network Virtualization NVGRE/VXLAN',          expected: 1 },  // S27
+            { sig: '3 profiles, 3 rule directions',                       expected: 1 },  // S28
+            { sig: 'Program / Port / Predefined / Custom',                expected: 1 },  // S29
+            { sig: 'Encrypt + authenticate L3 between hosts',             expected: 1 },  // S30
+            { sig: 'QoS: prioritize traffic by app / port / DSCP',        expected: 2 },  // S31+S32
+            { sig: 'New-NetQosPolicy by app/port + DSCP value',           expected: 1 },  // S33
+        ],
+        contentFills: [],
+    },
     'm13-certificate-services': {
         stripSignatures: [
             { sig: 'Root + Policy + Issuing CAs',                       expected: 1 },  // S06
