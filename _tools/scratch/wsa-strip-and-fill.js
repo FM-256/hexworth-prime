@@ -54,6 +54,27 @@ const MODULE_CONFIGS = {
         ],
         contentFills: [],
     },
+    'm13-certificate-services': {
+        stripSignatures: [
+            { sig: 'Root + Policy + Issuing CAs',                       expected: 1 },  // S06
+            { sig: 'Enterprise CA vs Standalone CA',                    expected: 1 },  // S07
+            { sig: 'Install-WindowsFeature ADCS-Cert-Authority',        expected: 1 },  // S08
+            { sig: 'CA + Web Enroll + NDES + OCSP',                     expected: 1 },  // S09
+            { sig: 'Templates: cert blueprints stored in AD',           expected: 1 },  // S10
+            { sig: 'Copy + modify + publish',                           expected: 1 },  // S11
+            { sig: 'GPO + template ACL + scheduled refresh',            expected: 1 },  // S13
+            { sig: 'https://ca/certsrv portal',                         expected: 1 },  // S14
+            { sig: 'CSR upload, advanced requests',                     expected: 1 },  // S15
+            { sig: 'CRL: list of revoked certs',                        expected: 1 },  // S16
+            { sig: 'CRL Distribution Point + Authority Info Access',    expected: 1 },  // S17
+            { sig: 'Online status check, no full CRL download',         expected: 1 },  // S18
+            { sig: 'Personal, Trusted Root, Intermediate, Others',      expected: 1 },  // S19
+            { sig: 'Private key escrow + KRA agent',                    expected: 1 },  // S20
+            { sig: 'CA admin retrieves via certutil -getkey',           expected: 1 },  // S21
+            { sig: 'Swiss-army CLI for AD CS operations',               expected: 1 },  // S22
+        ],
+        contentFills: [],
+    },
     'm12-remote-desktop': {
         stripSignatures: [
             { sig: 'Timeouts, drives, printers, clipboard',       expected: 1 },  // S08
