@@ -193,9 +193,146 @@ function renderClassroomSchedule(cfg, now) {
     </svg>`;
 }
 
+// ─── day-night-schedule template ──────────────────────────────────
+// Variant of classroom-schedule that supports a single day-class block
+// (own time + instructor) and a night-class block (shared time +
+// instructor) holding two courses on different day pairs. Designed for
+// rooms that host different day/night curricula (e.g., Room 214 fall
+// 2026: CIS2218 day-only + CTS4321/CTS1328C night pair).
+//
+// config shape:
+//   {
+//     room, timezone, openLab,
+//     dayBlock:   { label, time, instructor, course: {code, title, days, dayNums:[]} },
+//     nightBlock: { label, time, instructor, courses: [ {code, title, days, dayNums:[], side:'left'|'right'} ] }
+//   }
+function escSvg(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function findActiveDayNight(cfg, dayNum) {
+    if (cfg.dayBlock && cfg.dayBlock.course && Array.isArray(cfg.dayBlock.course.dayNums)
+        && cfg.dayBlock.course.dayNums.includes(dayNum)) {
+        return { course: cfg.dayBlock.course, block: 'day', time: cfg.dayBlock.time, instructor: cfg.dayBlock.instructor };
+    }
+    if (cfg.nightBlock && Array.isArray(cfg.nightBlock.courses)) {
+        for (const c of cfg.nightBlock.courses) {
+            if (Array.isArray(c.dayNums) && c.dayNums.includes(dayNum)) {
+                return { course: c, block: 'night', time: cfg.nightBlock.time, instructor: cfg.nightBlock.instructor };
+            }
+        }
+    }
+    return null;
+}
+
+function renderDayNightSchedule(cfg, now) {
+    const active = findActiveDayNight(cfg, now.dayNum);
+
+    const headerH = 90;
+    const openLabH = cfg.openLab && cfg.openLab.enabled ? 44 : 0;
+    const footerH = 64;
+    const contentTop = headerH + 12;
+    const contentBottom = HEIGHT - footerH - openLabH - 8;
+    const contentH = contentBottom - contentTop;
+
+    // Day class featured (55%), night row gets 45% minus 6px gap.
+    const daySectH = Math.round(contentH * 0.55);
+    const nightSectH = contentH - daySectH - 6;
+    const dayTop = contentTop;
+    const nightTop = contentTop + daySectH + 6;
+
+    const midX = WIDTH / 2;
+    const openLabY = contentBottom + 4;
+
+    // Day class panel (full width)
+    const dayActive = !!(active && active.block === 'day');
+    const dayBg = dayActive ? '#000' : '#fff';
+    const dayFg = dayActive ? '#fff' : '#000';
+    const dayCourse = (cfg.dayBlock && cfg.dayBlock.course) || {};
+    const dayPanel = `
+        <g>
+            <rect x="12" y="${dayTop}" width="${WIDTH - 24}" height="${daySectH}" fill="${dayBg}" stroke="#000" stroke-width="3"/>
+            <text x="28" y="${dayTop + 26}" fill="${dayFg}" font-family="Inter, Segoe UI, sans-serif" font-size="14" font-weight="700" letter-spacing="4" opacity="0.65">${escSvg(cfg.dayBlock && cfg.dayBlock.label || 'DAY CLASS')}  ·  ${escSvg(cfg.dayBlock && cfg.dayBlock.time || '')}  ·  ${escSvg(cfg.dayBlock && cfg.dayBlock.instructor || '')}</text>
+            ${dayActive ? `
+                <rect x="${WIDTH - 130}" y="${dayTop + 10}" rx="6" ry="6" width="100" height="28" fill="#fff" stroke="#fff" stroke-width="2"/>
+                <text x="${WIDTH - 80}" y="${dayTop + 30}" text-anchor="middle" fill="#000" font-family="Inter, Segoe UI, sans-serif" font-size="16" font-weight="800" letter-spacing="2">TODAY</text>
+            ` : ''}
+            <text x="${midX}" y="${dayTop + 78}" text-anchor="middle" fill="${dayFg}" font-family="Inter, Segoe UI, sans-serif" font-size="48" font-weight="900" letter-spacing="2">${escSvg(dayCourse.code || '')}</text>
+            <text x="${midX}" y="${dayTop + 112}" text-anchor="middle" fill="${dayFg}" font-family="Inter, Segoe UI, sans-serif" font-size="18" font-weight="800" letter-spacing="1">${escSvg(dayCourse.title || '')}</text>
+            <text x="${midX}" y="${dayTop + 138}" text-anchor="middle" fill="${dayFg}" font-family="Inter, Segoe UI, sans-serif" font-size="16" font-weight="600">${escSvg(dayCourse.days || '')}</text>
+        </g>`;
+
+    // Night-section header bar
+    const nightHeaderH = 24;
+    const nightSubHeader = `
+        <rect x="12" y="${nightTop}" width="${WIDTH - 24}" height="${nightHeaderH}" fill="#000"/>
+        <text x="${midX}" y="${nightTop + 17}" text-anchor="middle" fill="#fff" font-family="Inter, Segoe UI, sans-serif" font-size="14" font-weight="700" letter-spacing="4">${escSvg(cfg.nightBlock && cfg.nightBlock.label || 'NIGHT CLASS')}  ·  ${escSvg(cfg.nightBlock && cfg.nightBlock.time || '')}  ·  ${escSvg(cfg.nightBlock && cfg.nightBlock.instructor || '')}</text>`;
+
+    // Night panels (2 side-by-side)
+    const nightPanelTop = nightTop + nightHeaderH + 4;
+    const nightPanelH = nightSectH - nightHeaderH - 4;
+    const panelW = (WIDTH - 36) / 2;
+    const nightCourses = (cfg.nightBlock && cfg.nightBlock.courses) || [];
+    const leftNight = nightCourses.find(c => c.side === 'left') || nightCourses[0] || null;
+    const rightNight = nightCourses.find(c => c.side === 'right') || nightCourses[1] || null;
+
+    const nightPanel = (course, x0) => {
+        if (!course) return '';
+        const isActive = !!(active && active.block === 'night' && active.course.code === course.code);
+        const bg = isActive ? '#000' : '#fff';
+        const fg = isActive ? '#fff' : '#000';
+        return `
+            <g>
+                <rect x="${x0}" y="${nightPanelTop}" width="${panelW}" height="${nightPanelH}" fill="${bg}" stroke="#000" stroke-width="3"/>
+                ${isActive ? `
+                    <rect x="${x0 + 12}" y="${nightPanelTop + 10}" rx="5" ry="5" width="90" height="24" fill="#fff" stroke="#fff" stroke-width="2"/>
+                    <text x="${x0 + 57}" y="${nightPanelTop + 28}" text-anchor="middle" fill="#000" font-family="Inter, Segoe UI, sans-serif" font-size="14" font-weight="800" letter-spacing="2">TODAY</text>
+                ` : ''}
+                <text x="${x0 + panelW / 2}" y="${nightPanelTop + 36}" text-anchor="middle" fill="${fg}" font-family="Inter, Segoe UI, sans-serif" font-size="32" font-weight="900" letter-spacing="2">${escSvg(course.code || '')}</text>
+                <text x="${x0 + panelW / 2}" y="${nightPanelTop + 60}" text-anchor="middle" fill="${fg}" font-family="Inter, Segoe UI, sans-serif" font-size="12" font-weight="700">${escSvg(course.title || '')}</text>
+                <text x="${x0 + panelW / 2}" y="${nightPanelTop + 80}" text-anchor="middle" fill="${fg}" font-family="Inter, Segoe UI, sans-serif" font-size="14" font-weight="600">${escSvg(course.days || '')}</text>
+            </g>`;
+    };
+
+    const openLabBar = cfg.openLab && cfg.openLab.enabled ? `
+        <rect x="0" y="${openLabY}" width="${WIDTH}" height="${openLabH}" fill="#000"/>
+        <text x="${midX}" y="${openLabY + 30}" text-anchor="middle" fill="#fff" font-family="Inter, Segoe UI, sans-serif" font-size="22" font-weight="900" letter-spacing="4">OPEN LAB  ·  ${escSvg(cfg.openLab.time || '')}</text>` : '';
+
+    let footerText;
+    if (active) {
+        footerText = `${escSvg(active.instructor || '')}  ·  ${escSvg(cfg.room || '')}  ·  ${escSvg(active.time || '')}  ·  ${escSvg(active.course.code || '')}`;
+    } else {
+        const dayDesc = dayCourse.days ? `Day ${escSvg(dayCourse.days)} ${escSvg(cfg.dayBlock && cfg.dayBlock.time || '')}` : '';
+        const nightDesc = (cfg.nightBlock && cfg.nightBlock.time) ? `Night ${escSvg(cfg.nightBlock.time)}` : '';
+        const parts = [`No class today`, escSvg(cfg.room || ''), dayDesc, nightDesc].filter(Boolean);
+        footerText = parts.join('  ·  ');
+    }
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
+        <rect width="${WIDTH}" height="${HEIGHT}" fill="#fff"/>
+        <rect x="0" y="0" width="${WIDTH}" height="${headerH}" fill="#000"/>
+        <text x="30" y="40" fill="#fff" font-family="Inter, Segoe UI, sans-serif" font-size="28" font-weight="900" letter-spacing="3">HEXWORTH PRIME</text>
+        <text x="30" y="72" fill="#fff" font-family="Inter, Segoe UI, sans-serif" font-size="18" font-weight="500" letter-spacing="2">CLASSROOM SCHEDULE  ·  ${escSvg(cfg.room || '')}</text>
+        <text x="${WIDTH - 30}" y="40" text-anchor="end" fill="#fff" font-family="Inter, Segoe UI, sans-serif" font-size="20" font-weight="700">${escSvg(now.dayName)}</text>
+        <text x="${WIDTH - 30}" y="68" text-anchor="end" fill="#fff" font-family="Inter, Segoe UI, sans-serif" font-size="16" font-weight="400">${escSvg(now.month)} ${escSvg(now.day)}, ${escSvg(now.year)}</text>
+        ${dayPanel}
+        ${nightSubHeader}
+        ${nightPanel(leftNight, 12)}
+        ${nightPanel(rightNight, 12 + panelW + 12)}
+        ${openLabBar}
+        <rect x="0" y="${HEIGHT - footerH}" width="${WIDTH}" height="${footerH}" fill="#000"/>
+        <text x="${midX}" y="${HEIGHT - footerH + 30}" text-anchor="middle" fill="#fff" font-family="Inter, Segoe UI, sans-serif" font-size="17" font-weight="600">${footerText}</text>
+        <text x="${midX}" y="${HEIGHT - footerH + 52}" text-anchor="middle" fill="#fff" font-family="Inter, Segoe UI, sans-serif" font-size="12" font-weight="400" opacity="0.7">Generated ${escSvg(now.hour)}:${escSvg(now.minute)} · refresh every 15 minutes</text>
+    </svg>`;
+}
+
 // ─── Renderer dispatch ────────────────────────────────────────────
 const TEMPLATES = {
     'classroom-schedule': renderClassroomSchedule,
+    'day-night-schedule': renderDayNightSchedule,
 };
 
 async function loadBoardConfig(db, boardId) {
