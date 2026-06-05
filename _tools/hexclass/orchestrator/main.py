@@ -400,11 +400,30 @@ def build_context_packet(req: ChatRequest) -> dict:
     }
 
 
-def compose_system_prompt(persona: dict, help_level_suffix: str, context: dict) -> str:
+def compose_system_prompt(persona: dict, help_level_suffix: str, context: dict,
+                          skill_map=None) -> str:
     """Layer order: voice-rule → persona → help-level → context.
 
     Persona is WRAPPED BY help-level, not the other way around — closes the
-    'Mitnick persona bypasses Level-2 ceiling' backdoor."""
+    'Mitnick persona bypasses Level-2 ceiling' backdoor.
+
+    skill_map (optional): a LabSkillMap from skill_map_loader. When present
+    AND not a summative-only assessment (allowed_help_levels != [0]), the
+    skill map's lab_name + primary_skill.description are folded into the
+    STUDENT CONTEXT block as positive grounding. Fixes the 2026-06-05 bug
+    where mission_id labs got generically-IR-flavored responses that named
+    tools/files not present in the lab (e.g., "access.log in your web
+    server directory" for a Patient Zero SIEM lab).
+
+    SECURITY: secondary_skill.description is intentionally NOT injected.
+    For capstone labs it names decoys (decoy email IDs, decoy CVEs, decoy
+    APT names, explained-anomaly usernames) that are not in
+    forbidden_disclosures and would be leaked verbatim.
+
+    SECURITY: summative exams (allowed_help_levels == [0]) are excluded
+    entirely. Adding domain context to a calm-mode-only assessment
+    would domain-prime the model during an active exam attempt.
+    """
     context_lines = []
     if context.get("house"):
         context_lines.append(f"- Student is currently in: {context['house']} house")
@@ -429,6 +448,23 @@ def compose_system_prompt(persona: dict, help_level_suffix: str, context: dict) 
         context_lines.append(f"- Operator role: {context['role']}")
     if context.get("failed_attempts", 0) > 0:
         context_lines.append(f"- Failed attempts on this objective: {context['failed_attempts']}")
+
+    # 2026-06-05: lab grounding from skill map (positive content to
+    # complement forbidden_disclosures negative filter). Folded INTO
+    # STUDENT CONTEXT (not appended as a new top-level section) so the
+    # model treats it as context metadata, not as scope license to
+    # demonstrate the named tools. Help-level ceiling still wraps.
+    if skill_map is not None and skill_map.allowed_help_levels != [0]:
+        context_lines.append(f"- Lab title: {skill_map.lab_name}")
+        if skill_map.primary_skill and skill_map.primary_skill.description:
+            desc = skill_map.primary_skill.description.strip()
+            context_lines.append(f"- Skill assessed: {desc}")
+        context_lines.append(
+            "- Lab grounding rule: when discussing the lab, refer to the "
+            "tools and surfaces named above. Do not suggest tools or files "
+            "that are not part of this lab (e.g., do not invent log paths). "
+            "Help-level ceiling above still applies."
+        )
 
     context_block = "\n\nSTUDENT CONTEXT:\n" + "\n".join(context_lines) if context_lines else ""
 
@@ -1110,7 +1146,15 @@ async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, 
         hint_used_recently=req.hint_used_recently,
         role=req.role,
     )
-    system = compose_system_prompt(persona, suffix, context)
+    # 2026-06-05: load skill map once (cached by mtime — later linter pass
+    # at the lint_response call hits the same cache entry). When present
+    # AND not summative-only (allowed_help_levels != [0]), compose_system_prompt
+    # folds the lab_name + primary_skill.description into STUDENT CONTEXT
+    # so the model has positive grounding about which tools are actually
+    # present in the lab. Replaces the prior generic-IR behaviour where
+    # the model would invent tools/paths not in the lab.
+    sm_for_prompt = maybe_load_skill_map(req.mission_id) if req.mission_id else None
+    system = compose_system_prompt(persona, suffix, context, skill_map=sm_for_prompt)
     model = req.model or DEFAULT_MODEL
     persona_slug = [s for s, p in PERSONAS.items() if p == persona][0]
 
