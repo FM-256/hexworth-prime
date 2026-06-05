@@ -54,6 +54,23 @@ const MODULE_CONFIGS = {
         ],
         contentFills: [],
     },
+    'm12-remote-desktop': {
+        stripSignatures: [
+            { sig: 'Timeouts, drives, printers, clipboard',       expected: 1 },  // S08
+            { sig: 'Connection + Resource policies',              expected: 1 },  // S10
+            { sig: 'NLA + TLS + cert pinning',                    expected: 1 },  // S11
+            { sig: 'No client install, central updates, BYOD',    expected: 1 },  // S13
+            { sig: 'Command-line args, file associations',        expected: 1 },  // S14
+            { sig: 'Per-User CAL or Per-Device CAL',              expected: 1 },  // S15
+            { sig: 'SSO + identity + Trusted Publisher',          expected: 1 },  // S16
+            { sig: 'One VHDX per user, roams sessions',           expected: 1 },  // S17
+            { sig: 'Size, share, exclusions, refresh',            expected: 1 },  // S18
+            { sig: 'Session limits, drive maps, redirection',     expected: 1 },  // S19
+            { sig: '.rdp files, command-line flags, credentials', expected: 1 },  // S20
+            { sig: 'Connect, disconnect, shadow, logoff',         expected: 1 },  // S21
+        ],
+        contentFills: [],
+    },
 };
 
 // ─── CLI ─────────────────────────────────────────────────────────────────
