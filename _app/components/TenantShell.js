@@ -80,7 +80,7 @@
             pill.textContent = tenantName;
             pill.style.cssText = [
                 'position: fixed',
-                'bottom: 20px',
+                'top: 20px',
                 'right: 20px',
                 'z-index: 99999',
                 'background: ' + pillColor,
