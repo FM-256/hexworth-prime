@@ -554,7 +554,7 @@
                     <p>Subnets define IP address ranges. AD doesn&#39;t auto-discover which subnet belongs to which site — admins must REGISTER each subnet against a site, otherwise client→DC selection falls back to random.</p>
 
                     <ul>
-                        <li><strong>Without mapping:</strong> a client looks up <code>_ldap._tcp.dc._msdcs.<em>domain</em></code> and gets every DC; it picks one essentially at random — possibly across a WAN link</li>
+                        <li><strong>DC locator</strong> first tries the site-aware SRV query <code>_ldap._tcp.&lt;site&gt;._sites.dc._msdcs.<em>domain</em></code>. If the client&#39;s subnet isn&#39;t registered (no site match), it falls back to <code>_ldap._tcp.dc._msdcs.<em>domain</em></code> — returns every DC, client picks one essentially at random, possibly across a WAN link.</li>
                         <li><strong>With mapping:</strong> the client&#39;s IP matches a registered subnet → site, and the response prefers DCs in that site (low-latency intra-site path)</li>
                         <li>One subnet maps to exactly one site; one site can hold many subnets</li>
                         <li>Branch-office subnets are the most commonly-forgotten — branch clients then hit corporate DCs and slow down logon</li>
@@ -565,7 +565,7 @@
 <span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSubnet -Name "10.20.0.0/24" -Site "Boston"</span>
 
 <span class="comment"># List unassigned-subnet warnings (clients hitting DCs without a site match)</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">Get-EventLog -LogName System -Source NETLOGON -Newest 50 | Where-Object Message -like "*no client site*"</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-Content $env:SystemRoot\debug\netlogon.log | Select-String "NO_CLIENT_SITE"</span>
                     </div>
                 </div>
                 <div class="tv-visual">
@@ -724,7 +724,7 @@
 
                     <ul>
                         <li><strong>Runs every 15 minutes</strong> on each DC, evaluating local conditions and rebuilding connection objects as needed</li>
-                        <li><strong>Intrasite topology:</strong> full mesh between DCs in the same site (or near-mesh with up to 3 hops max), no compression, change-notify driven (typically &lt; 1 minute)</li>
+                        <li><strong>Intrasite topology:</strong> for sites with ~7 or fewer DCs, KCC builds a full mesh — every DC is a direct partner, 1 hop between any pair. For larger sites it switches to a ring/partial-mesh where the guarantee is any DC reaches any other within 3 hops. Either way: no compression, change-notify driven (typically &lt; 1 minute).</li>
                         <li><strong>Intersite topology:</strong> spanning tree via bridgehead servers, compressed payload, scheduled (default 180 minutes)</li>
                         <li><strong>ISTG (Inter-Site Topology Generator):</strong> one DC per site is elected to handle intersite topology calculations on behalf of the site</li>
                     </ul>
