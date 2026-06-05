@@ -54,6 +54,86 @@ const MODULE_CONFIGS = {
         ],
         contentFills: [],
     },
+    'm15-ad-sites': {
+        stripSignatures: [
+            { sig: 'Without map, clients hit random DC',                       expected: 1 },  // S05
+            { sig: 'Site Links = configured replication paths',                expected: 1 },  // S06
+            { sig: 'Replication: fast inside, scheduled between',              expected: 3 },  // S07+S08+S09
+            { sig: 'Knowledge Consistency Checker auto-builds topology',       expected: 1 },  // S10
+            { sig: 'Runs every 15 min, manages connection objects',            expected: 1 },  // S11
+            { sig: 'Bridgehead = the one DC that handles intersite rep',       expected: 3 },  // S12+S13+S14
+            { sig: 'ISTG picks lowest GUID DC by default',                     expected: 3 },  // S15+S16+S17
+            { sig: 'Transitive replication path inference',                    expected: 1 },  // S18
+            { sig: 'A→B + B→C means A→C automatically',                        expected: 1 },  // S19
+        ],
+        contentFills: [
+            // S03 Subnets and Site Association — keep decoration (matches), fill sparse text
+            {
+                anchor: '<p>Subnets define IP address ranges and must be associated with sites for proper client-DC mapping.</p>',
+                replacement: `<p>Subnets define IP address ranges. AD doesn&#39;t auto-discover which subnet belongs to which site — admins must REGISTER each subnet against a site, otherwise client→DC selection falls back to random.</p>
+
+                    <ul>
+                        <li><strong>Without mapping:</strong> a client looks up <code>_ldap._tcp.dc._msdcs.<em>domain</em></code> and gets every DC; it picks one essentially at random — possibly across a WAN link</li>
+                        <li><strong>With mapping:</strong> the client&#39;s IP matches a registered subnet → site, and the response prefers DCs in that site (low-latency intra-site path)</li>
+                        <li>One subnet maps to exactly one site; one site can hold many subnets</li>
+                        <li>Branch-office subnets are the most commonly-forgotten — branch clients then hit corporate DCs and slow down logon</li>
+                    </ul>
+
+                    <div class="code-block">
+<span class="comment"># Register a branch-office subnet against the Boston site</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">New-ADReplicationSubnet -Name "10.20.0.0/24" -Site "Boston"</span>
+
+<span class="comment"># List unassigned-subnet warnings (clients hitting DCs without a site match)</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">Get-EventLog -LogName System -Source NETLOGON -Newest 50 | Where-Object Message -like "*no client site*"</span>
+                    </div>` },
+            // S07 Knowledge Consistency Checker — strip decoration AND fill sparse text
+            {
+                anchor: '<p>The KCC is an automatic process that creates and maintains the replication topology.</p>',
+                replacement: `<p>The KCC is an automatic process that runs on every DC and builds the replication topology — the set of "connection objects" describing which DC pulls changes from which partner.</p>
+
+                    <ul>
+                        <li><strong>Runs every 15 minutes</strong> on each DC, evaluating local conditions and rebuilding connection objects as needed</li>
+                        <li><strong>Intrasite topology:</strong> full mesh between DCs in the same site (or near-mesh with up to 3 hops max), no compression, change-notify driven (typically &lt; 1 minute)</li>
+                        <li><strong>Intersite topology:</strong> spanning tree via bridgehead servers, compressed payload, scheduled (default 180 minutes)</li>
+                        <li><strong>ISTG (Inter-Site Topology Generator):</strong> one DC per site is elected to handle intersite topology calculations on behalf of the site</li>
+                    </ul>
+
+                    <p>Manual intervention is rarely needed — admins typically only trigger a recalculation after major topology changes (new site, new DC, removed DC):</p>
+
+                    <div class="code-block">
+<span class="comment"># Force the KCC to recompute the topology immediately</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">repadmin /kcc</span>
+
+<span class="comment"># Show the current ISTG for a site</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">repadmin /istg</span>
+                    </div>` },
+            // S12 Replication Troubleshooting — strip + fill sparse text
+            {
+                anchor: '<p>Use these tools and techniques to diagnose and resolve replication problems.</p>',
+                replacement: `<p>When replication breaks, walk a three-layer diagnostic flow: confirm connectivity, then confirm replication is happening, then confirm objects are converging.</p>
+
+                    <ul>
+                        <li><strong>Connectivity</strong> — Can DCs reach each other? Time skew &lt; 5 min? DNS SRV records resolving? RPC ports (135 + dynamic) open?</li>
+                        <li><strong>Replication</strong> — Are partners running? <code>repadmin /replsummary</code> shows global health; <code>repadmin /showrepl</code> shows per-partner USN + last-success time + error code.</li>
+                        <li><strong>Convergence</strong> — Are objects actually arriving everywhere? Create a test user/group on one DC, then verify it appears on partner DCs.</li>
+                    </ul>
+
+                    <div class="code-block">
+<span class="comment"># Global health: which DCs have inbound replication failures?</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">repadmin /replsummary</span>
+
+<span class="comment"># Per-DC detail: who am I replicating from, when did it last succeed, what was the error?</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">repadmin /showrepl &lt;dc-name&gt;</span>
+
+<span class="comment"># Test-suite view from MS&#39;s recommended tool</span>
+<span class="prompt">PS C:\\&gt;</span> <span class="command">dcdiag /test:replications</span>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>Common root causes (in order of frequency):</strong> time skew, DNS SRV records, firewall (RPC dynamic ports), stale tombstone/lingering objects, USN rollback after improper restore.
+                    </div>` },
+        ],
+    },
     'm14-advanced-networking': {
         stripSignatures: [
             { sig: 'Guest, Voice, IoT, Management',                       expected: 1 },  // S25

@@ -377,6 +377,7 @@
     
 
         /* === Text+Visual layout (2026-05-29 m15) === */
+        .text-visual-grid.single-col { grid-template-columns: 1fr; }
         .text-visual-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 28px; align-items: stretch; flex: 1; min-height: 0; overflow: hidden; }
         .tv-text { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; }
         .tv-visual { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; padding: 4px; overflow: hidden; }
@@ -550,7 +551,22 @@
             <h2>Subnets and Site Association</h2>
             <div class="text-visual-grid">
                 <div class="tv-text">
-                    <p>Subnets define IP address ranges and must be associated with sites for proper client-DC mapping.</p>
+                    <p>Subnets define IP address ranges. AD doesn&#39;t auto-discover which subnet belongs to which site — admins must REGISTER each subnet against a site, otherwise client→DC selection falls back to random.</p>
+
+                    <ul>
+                        <li><strong>Without mapping:</strong> a client looks up <code>_ldap._tcp.dc._msdcs.<em>domain</em></code> and gets every DC; it picks one essentially at random — possibly across a WAN link</li>
+                        <li><strong>With mapping:</strong> the client&#39;s IP matches a registered subnet → site, and the response prefers DCs in that site (low-latency intra-site path)</li>
+                        <li>One subnet maps to exactly one site; one site can hold many subnets</li>
+                        <li>Branch-office subnets are the most commonly-forgotten — branch clients then hit corporate DCs and slow down logon</li>
+                    </ul>
+
+                    <div class="code-block">
+<span class="comment"># Register a branch-office subnet against the Boston site</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSubnet -Name "10.20.0.0/24" -Site "Boston"</span>
+
+<span class="comment"># List unassigned-subnet warnings (clients hitting DCs without a site match)</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-EventLog -LogName System -Source NETLOGON -Newest 50 | Where-Object Message -like "*no client site*"</span>
+                    </div>
                 </div>
                 <div class="tv-visual">
                     <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">IP subnet → Site assignment</text><g class="anim-server-pulse"><rect x="180" y="120" width="160" height="80" rx="8" fill="rgba(96,165,250,0.25)" stroke="#93c5fd" stroke-width="2"/><text x="260" y="155" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="14" font-weight="700">Subnet Mapping</text></g></svg>
@@ -614,7 +630,7 @@
         <!-- Slide 4: Site Links -->
         <div class="slide has-visual">
             <h2>Site Links</h2>
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <p>Site links define the replication paths between sites and control how AD data flows across WAN connections.</p>
 
@@ -661,16 +677,13 @@
                 <strong>Cost Calculation:</strong> Use inverse of bandwidth. A 10Mbps link might have cost 100, while a 100Mbps link has cost 10. Lower cost = faster perceived connection.
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Without map, clients hit random DC</text><g class="anim-server-pulse"><rect x="180" y="120" width="160" height="80" rx="8" fill="rgba(96,165,250,0.25)" stroke="#93c5fd" stroke-width="2"/><text x="260" y="155" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="14" font-weight="700">Why subnet maps matter</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <!-- Slide 5: Intrasite vs Intersite Replication -->
         <div class="slide has-visual">
             <h2>Intrasite vs Intersite Replication</h2>
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <p>AD uses different replication strategies depending on whether DCs are in the same or different sites.</p>
 
@@ -699,27 +712,38 @@
 
             <p style="margin-top: 6px;"><strong>Timing in practice:</strong> DC1→DC2 same site = 15 sec (notification). DC1→DC3 branch = 15-180 min (scheduled, compressed).</p>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Site Links = configured replication paths</text><g class="anim-bounce"><circle cx="100" cy="100" r="40" fill="rgba(96,165,250,0.25)" stroke="#60a5fa" stroke-width="2"/><text x="100" y="95" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">US</text><text x="100" y="112" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="9">DC01, DC02</text></g><g class="anim-bounce" style="animation-delay:0.3s"><circle cx="260" cy="100" r="40" fill="rgba(96,165,250,0.25)" stroke="#60a5fa" stroke-width="2"/><text x="260" y="95" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">EU</text><text x="260" y="112" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="9">DC03</text></g><g class="anim-bounce" style="animation-delay:0.6s"><circle cx="420" cy="100" r="40" fill="rgba(96,165,250,0.25)" stroke="#60a5fa" stroke-width="2"/><text x="420" y="95" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">APAC</text><text x="420" y="112" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="9">DC04</text></g><line x1="140" y1="100" x2="220" y2="100" stroke="#fbbf24" stroke-width="3"/><text x="180" y="92" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="10">Link cost: 100</text><line x1="300" y1="100" x2="380" y2="100" stroke="#fbbf24" stroke-width="3"/><text x="340" y="92" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="10">Link cost: 200</text><path d="M 100 140 Q 260 220 420 140" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 4" fill="none"/><text x="260" y="220" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="10">Optional US→APAC link, cost: 400</text><rect x="20" y="240" width="480" height="50" rx="6" fill="rgba(96,165,250,0.05)" stroke="#60a5fa"/><text x="40" y="262" fill="#22c55e" font-family="Segoe UI" font-size="11">Cost</text><text x="100" y="262" fill="#9ca3af" font-family="Segoe UI" font-size="10">lower = preferred path</text><text x="40" y="282" fill="#22c55e" font-family="Segoe UI" font-size="11">Schedule</text><text x="130" y="282" fill="#9ca3af" font-family="Segoe UI" font-size="10">when to replicate (e.g., off-hours only)</text></svg>
                 </div>
-            </div>
         </div>
 
         <!-- Slide 6: The Knowledge Consistency Checker (KCC) -->
         <div class="slide has-visual">
             <h2>Knowledge Consistency Checker (KCC)</h2>
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
-                    <p>The KCC is an automatic process that creates and maintains the replication topology.</p>
+                    <p>The KCC is an automatic process that runs on every DC and builds the replication topology — the set of "connection objects" describing which DC pulls changes from which partner.</p>
+
+                    <ul>
+                        <li><strong>Runs every 15 minutes</strong> on each DC, evaluating local conditions and rebuilding connection objects as needed</li>
+                        <li><strong>Intrasite topology:</strong> full mesh between DCs in the same site (or near-mesh with up to 3 hops max), no compression, change-notify driven (typically &lt; 1 minute)</li>
+                        <li><strong>Intersite topology:</strong> spanning tree via bridgehead servers, compressed payload, scheduled (default 180 minutes)</li>
+                        <li><strong>ISTG (Inter-Site Topology Generator):</strong> one DC per site is elected to handle intersite topology calculations on behalf of the site</li>
+                    </ul>
+
+                    <p>Manual intervention is rarely needed — admins typically only trigger a recalculation after major topology changes (new site, new DC, removed DC):</p>
+
+                    <div class="code-block">
+<span class="comment"># Force the KCC to recompute the topology immediately</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /kcc</span>
+
+<span class="comment"># Show the current ISTG for a site</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /istg</span>
+                    </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Replication: fast inside, scheduled between</text><g><rect x="20" y="55" width="230" height="240" rx="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e"/><text x="135" y="80" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="12" font-weight="700">Intrasite</text><text x="135" y="98" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">within one site</text><circle cx="75" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="75" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC01</text><circle cx="195" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="195" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC02</text><path d="M 89 135 L 181 135" stroke="#22c55e" stroke-width="2" class="anim-fade-cycle"/><text x="135" y="165" text-anchor="middle" fill="#22c55e" font-family="Consolas" font-size="10">RPC</text><text x="135" y="185" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">notify-based</text><text x="135" y="205" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">~15 seconds</text><text x="135" y="225" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="11">no compression</text><text x="135" y="245" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="11">cost-free</text><text x="135" y="278" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">For: same LAN</text></g><g><rect x="270" y="55" width="230" height="240" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/><text x="385" y="80" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="12" font-weight="700">Intersite</text><text x="385" y="98" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">across sites</text><circle cx="325" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="325" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC02</text><circle cx="445" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="445" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC03</text><path d="M 339 135 L 431 135" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 4" class="anim-fade-cycle"/><text x="385" y="165" text-anchor="middle" fill="#fbbf24" font-family="Consolas" font-size="10">IP or SMTP</text><text x="385" y="185" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11">scheduled</text><text x="385" y="205" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11">~180 minutes default</text><text x="385" y="225" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">compressed (≥50KB)</text><text x="385" y="245" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">cost-aware</text><text x="385" y="278" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">For: WAN, slow links</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <div class="slide has-visual">
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <h2>KCC Functions</h2>
             <ul>
@@ -740,14 +764,11 @@
 Consistency check on <span class="command">DC01.hexworth.local</span> successful.
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Replication: fast inside, scheduled between</text><g><rect x="20" y="55" width="230" height="240" rx="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e"/><text x="135" y="80" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="12" font-weight="700">Intrasite</text><text x="135" y="98" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">within one site</text><circle cx="75" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="75" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC01</text><circle cx="195" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="195" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC02</text><path d="M 89 135 L 181 135" stroke="#22c55e" stroke-width="2" class="anim-fade-cycle"/><text x="135" y="165" text-anchor="middle" fill="#22c55e" font-family="Consolas" font-size="10">RPC</text><text x="135" y="185" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">notify-based</text><text x="135" y="205" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">~15 seconds</text><text x="135" y="225" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="11">no compression</text><text x="135" y="245" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="11">cost-free</text><text x="135" y="278" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">For: same LAN</text></g><g><rect x="270" y="55" width="230" height="240" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/><text x="385" y="80" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="12" font-weight="700">Intersite</text><text x="385" y="98" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">across sites</text><circle cx="325" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="325" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC02</text><circle cx="445" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="445" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC03</text><path d="M 339 135 L 431 135" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 4" class="anim-fade-cycle"/><text x="385" y="165" text-anchor="middle" fill="#fbbf24" font-family="Consolas" font-size="10">IP or SMTP</text><text x="385" y="185" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11">scheduled</text><text x="385" y="205" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11">~180 minutes default</text><text x="385" y="225" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">compressed (≥50KB)</text><text x="385" y="245" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">cost-aware</text><text x="385" y="278" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">For: WAN, slow links</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <div class="slide has-visual">
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <h2>KCC Functions (cont.)</h2>
                     <p>Connection objects represent the replication partnerships that KCC has automatically created between domain controllers.</p>
@@ -784,16 +805,13 @@ Beginning data collection for replication summary, this may take awhile:
                 <strong>Don't Override KCC:</strong> While you can manually create connection objects, let KCC manage topology when possible. Manual connections are not automatically adjusted if servers fail.
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Replication: fast inside, scheduled between</text><g><rect x="20" y="55" width="230" height="240" rx="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e"/><text x="135" y="80" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="12" font-weight="700">Intrasite</text><text x="135" y="98" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">within one site</text><circle cx="75" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="75" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC01</text><circle cx="195" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="195" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC02</text><path d="M 89 135 L 181 135" stroke="#22c55e" stroke-width="2" class="anim-fade-cycle"/><text x="135" y="165" text-anchor="middle" fill="#22c55e" font-family="Consolas" font-size="10">RPC</text><text x="135" y="185" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">notify-based</text><text x="135" y="205" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">~15 seconds</text><text x="135" y="225" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="11">no compression</text><text x="135" y="245" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="11">cost-free</text><text x="135" y="278" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">For: same LAN</text></g><g><rect x="270" y="55" width="230" height="240" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/><text x="385" y="80" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="12" font-weight="700">Intersite</text><text x="385" y="98" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">across sites</text><circle cx="325" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="325" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC02</text><circle cx="445" cy="135" r="14" fill="rgba(96,165,250,0.3)" stroke="#60a5fa"/><text x="445" y="139" text-anchor="middle" fill="#e0e0e0" font-family="Segoe UI" font-size="10">DC03</text><path d="M 339 135 L 431 135" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 4" class="anim-fade-cycle"/><text x="385" y="165" text-anchor="middle" fill="#fbbf24" font-family="Consolas" font-size="10">IP or SMTP</text><text x="385" y="185" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11">scheduled</text><text x="385" y="205" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11">~180 minutes default</text><text x="385" y="225" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">compressed (≥50KB)</text><text x="385" y="245" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11">cost-aware</text><text x="385" y="278" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10">For: WAN, slow links</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <!-- Slide 7: Bridgehead Servers -->
         <div class="slide has-visual">
             <h2>Bridgehead Servers</h2>
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <p>Bridgehead servers are the designated replication partners for intersite traffic.</p>
 
@@ -828,16 +846,13 @@ Beginning data collection for replication summary, this may take awhile:
                 <strong>High Availability Tip:</strong> If you have multiple DCs in a site, consider setting two preferred bridgeheads for redundancy. If one fails, the other is already designated.
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Knowledge Consistency Checker auto-builds topology</text><g class="anim-server-pulse"><rect x="180" y="120" width="160" height="80" rx="8" fill="rgba(96,165,250,0.25)" stroke="#93c5fd" stroke-width="2"/><text x="260" y="155" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="14" font-weight="700">KCC</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <!-- Slide 8: Site Link Bridges -->
         <div class="slide has-visual">
             <h2>Site Link Bridges</h2>
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <p>Site link bridges control whether transitive replication is allowed across site links.</p>
 
@@ -852,27 +867,42 @@ Beginning data collection for replication summary, this may take awhile:
                 <strong>When to disable:</strong> Only in complex hub-and-spoke networks where you need explicit control over which sites can talk to which.
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Runs every 15 min, manages connection objects</text><g class="anim-server-pulse"><rect x="180" y="120" width="160" height="80" rx="8" fill="rgba(96,165,250,0.25)" stroke="#93c5fd" stroke-width="2"/><text x="260" y="155" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="14" font-weight="700">KCC Functions</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <!-- Slide 9: Replication Troubleshooting -->
         <div class="slide has-visual">
             <h2>Replication Troubleshooting</h2>
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
-                    <p>Use these tools and techniques to diagnose and resolve replication problems.</p>
+                    <p>When replication breaks, walk a three-layer diagnostic flow: confirm connectivity, then confirm replication is happening, then confirm objects are converging.</p>
+
+                    <ul>
+                        <li><strong>Connectivity</strong> — Can DCs reach each other? Time skew &lt; 5 min? DNS SRV records resolving? RPC ports (135 + dynamic) open?</li>
+                        <li><strong>Replication</strong> — Are partners running? <code>repadmin /replsummary</code> shows global health; <code>repadmin /showrepl</code> shows per-partner USN + last-success time + error code.</li>
+                        <li><strong>Convergence</strong> — Are objects actually arriving everywhere? Create a test user/group on one DC, then verify it appears on partner DCs.</li>
+                    </ul>
+
+                    <div class="code-block">
+<span class="comment"># Global health: which DCs have inbound replication failures?</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /replsummary</span>
+
+<span class="comment"># Per-DC detail: who am I replicating from, when did it last succeed, what was the error?</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /showrepl &lt;dc-name&gt;</span>
+
+<span class="comment"># Test-suite view from MS&#39;s recommended tool</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">dcdiag /test:replications</span>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>Common root causes (in order of frequency):</strong> time skew, DNS SRV records, firewall (RPC dynamic ports), stale tombstone/lingering objects, USN rollback after improper restore.
+                    </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Bridgehead = the one DC that handles intersite rep</text><g><rect x="20" y="55" width="200" height="180" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/><text x="120" y="80" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">US site</text><g class="anim-server-pulse"><rect x="35" y="100" width="80" height="50" rx="6" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="2"/><text x="75" y="125" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11" font-weight="700">DC01</text><text x="75" y="142" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="9">bridgehead</text></g><rect x="125" y="100" width="80" height="50" rx="6" fill="rgba(96,165,250,0.25)" stroke="#60a5fa"/><text x="165" y="125" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">DC02</text><line x1="115" y1="125" x2="125" y2="125" stroke="#22c55e" stroke-width="1"/><text x="120" y="170" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="9">DC02 ↔ DC01 intrasite</text><text x="120" y="185" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="9">DC01 → intersite only</text></g><defs><marker id="ar15b" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><polygon points="0 0, 10 5, 0 10" fill="#fbbf24"/></marker></defs><path d="M 225 130 L 295 130" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ar15b)" class="anim-fade-cycle"/><text x="260" y="120" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="10">intersite</text><g><rect x="300" y="55" width="200" height="180" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/><text x="400" y="80" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">EU site</text><g class="anim-server-pulse" style="animation-delay:0.5s"><rect x="315" y="100" width="80" height="50" rx="6" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="2"/><text x="355" y="125" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11" font-weight="700">DC03</text><text x="355" y="142" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="9">bridgehead</text></g><rect x="405" y="100" width="80" height="50" rx="6" fill="rgba(96,165,250,0.25)" stroke="#60a5fa"/><text x="445" y="125" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">DC04</text></g><text x="260" y="270" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="11">Only the bridgehead talks across the WAN. Others get updates intrasite.</text><text x="260" y="290" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10" font-style="italic">ISTG (Inter-Site Topology Generator) picks bridgehead per site</text></svg>
                 </div>
-            </div>
         </div>
 
         <div class="slide has-visual">
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <h2>Key Diagnostic Commands</h2>
 
@@ -910,14 +940,11 @@ Site Options: (none)
             Last success @ 2025-01-15 09:28:00.
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Bridgehead = the one DC that handles intersite rep</text><g><rect x="20" y="55" width="200" height="180" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/><text x="120" y="80" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">US site</text><g class="anim-server-pulse"><rect x="35" y="100" width="80" height="50" rx="6" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="2"/><text x="75" y="125" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11" font-weight="700">DC01</text><text x="75" y="142" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="9">bridgehead</text></g><rect x="125" y="100" width="80" height="50" rx="6" fill="rgba(96,165,250,0.25)" stroke="#60a5fa"/><text x="165" y="125" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">DC02</text><line x1="115" y1="125" x2="125" y2="125" stroke="#22c55e" stroke-width="1"/><text x="120" y="170" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="9">DC02 ↔ DC01 intrasite</text><text x="120" y="185" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="9">DC01 → intersite only</text></g><defs><marker id="ar15b" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><polygon points="0 0, 10 5, 0 10" fill="#fbbf24"/></marker></defs><path d="M 225 130 L 295 130" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ar15b)" class="anim-fade-cycle"/><text x="260" y="120" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="10">intersite</text><g><rect x="300" y="55" width="200" height="180" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/><text x="400" y="80" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">EU site</text><g class="anim-server-pulse" style="animation-delay:0.5s"><rect x="315" y="100" width="80" height="50" rx="6" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="2"/><text x="355" y="125" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11" font-weight="700">DC03</text><text x="355" y="142" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="9">bridgehead</text></g><rect x="405" y="100" width="80" height="50" rx="6" fill="rgba(96,165,250,0.25)" stroke="#60a5fa"/><text x="445" y="125" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">DC04</text></g><text x="260" y="270" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="11">Only the bridgehead talks across the WAN. Others get updates intrasite.</text><text x="260" y="290" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10" font-style="italic">ISTG (Inter-Site Topology Generator) picks bridgehead per site</text></svg>
                 </div>
-            </div>
         </div>
 
         <div class="slide has-visual">
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <h2>Key Diagnostic Commands (cont.)</h2>
                     <p>When you need changes propagated immediately, syncall forces replication across all DCs including transitive partners.</p>
@@ -956,16 +983,13 @@ Current queue contains <span class="command">0</span> items.
                 <li><strong>Lingering objects:</strong> Old objects on isolated DCs</li>
             </ul>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Bridgehead = the one DC that handles intersite rep</text><g><rect x="20" y="55" width="200" height="180" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/><text x="120" y="80" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">US site</text><g class="anim-server-pulse"><rect x="35" y="100" width="80" height="50" rx="6" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="2"/><text x="75" y="125" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11" font-weight="700">DC01</text><text x="75" y="142" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="9">bridgehead</text></g><rect x="125" y="100" width="80" height="50" rx="6" fill="rgba(96,165,250,0.25)" stroke="#60a5fa"/><text x="165" y="125" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">DC02</text><line x1="115" y1="125" x2="125" y2="125" stroke="#22c55e" stroke-width="1"/><text x="120" y="170" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="9">DC02 ↔ DC01 intrasite</text><text x="120" y="185" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="9">DC01 → intersite only</text></g><defs><marker id="ar15b" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><polygon points="0 0, 10 5, 0 10" fill="#fbbf24"/></marker></defs><path d="M 225 130 L 295 130" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ar15b)" class="anim-fade-cycle"/><text x="260" y="120" text-anchor="middle" fill="#fbbf24" font-family="Segoe UI" font-size="10">intersite</text><g><rect x="300" y="55" width="200" height="180" rx="8" fill="rgba(96,165,250,0.1)" stroke="#60a5fa"/><text x="400" y="80" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">EU site</text><g class="anim-server-pulse" style="animation-delay:0.5s"><rect x="315" y="100" width="80" height="50" rx="6" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="2"/><text x="355" y="125" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="11" font-weight="700">DC03</text><text x="355" y="142" text-anchor="middle" fill="#22c55e" font-family="Segoe UI" font-size="9">bridgehead</text></g><rect x="405" y="100" width="80" height="50" rx="6" fill="rgba(96,165,250,0.25)" stroke="#60a5fa"/><text x="445" y="125" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="11" font-weight="700">DC04</text></g><text x="260" y="270" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="11">Only the bridgehead talks across the WAN. Others get updates intrasite.</text><text x="260" y="290" text-anchor="middle" fill="#9ca3af" font-family="Segoe UI" font-size="10" font-style="italic">ISTG (Inter-Site Topology Generator) picks bridgehead per site</text></svg>
                 </div>
-            </div>
         </div>
 
         <!-- Slide 10: SYSVOL Replication -->
         <div class="slide has-visual">
             <h2>SYSVOL Replication</h2>
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <p>SYSVOL contains Group Policy templates and scripts that must be synchronized across all DCs.</p>
 
@@ -990,14 +1014,11 @@ Current queue contains <span class="command">0</span> items.
                 </div>
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">ISTG picks lowest GUID DC by default</text><g class="anim-server-pulse"><rect x="180" y="120" width="160" height="80" rx="8" fill="rgba(96,165,250,0.25)" stroke="#93c5fd" stroke-width="2"/><text x="260" y="155" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="14" font-weight="700">Bridgehead Selection</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <div class="slide has-visual">
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <h2>SYSVOL Replication, Configuration</h2>
                     <p>Before migrating from FRS, check whether your domain has already completed the migration to DFS-R by querying the global state.</p>
@@ -1023,14 +1044,11 @@ Migration has reached a consistent state on all Domain Controllers.
 Succeeded.
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">ISTG picks lowest GUID DC by default</text><g class="anim-server-pulse"><rect x="180" y="120" width="160" height="80" rx="8" fill="rgba(96,165,250,0.25)" stroke="#93c5fd" stroke-width="2"/><text x="260" y="155" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="14" font-weight="700">Bridgehead Selection</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <div class="slide has-visual">
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <h2>SYSVOL Replication, Configuration (cont.)</h2>
                     <p>Forcing AD polling ensures the DFS-R service picks up any recent configuration changes without waiting for the next automatic cycle.</p>
@@ -1056,16 +1074,13 @@ Operation Succeeded - PollAD for member <span class="command">DC01.hexworth.loca
 <span class="command">SYSVOL</span>    *           C:\Windows\SYSVOL\sysvol      Logon server share
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">ISTG picks lowest GUID DC by default</text><g class="anim-server-pulse"><rect x="180" y="120" width="160" height="80" rx="8" fill="rgba(96,165,250,0.25)" stroke="#93c5fd" stroke-width="2"/><text x="260" y="155" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="14" font-weight="700">Bridgehead Selection</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <!-- Slide 11: Read-Only Domain Controllers (RODCs) -->
         <div class="slide has-visual">
             <h2>Read-Only Domain Controllers</h2>
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <p>RODCs provide AD authentication in branch offices with limited physical security.</p>
 
@@ -1107,16 +1122,13 @@ Operation Succeeded - PollAD for member <span class="command">DC01.hexworth.loca
                 <strong>Security Note:</strong> Configure the Password Replication Policy (PRP) to cache only passwords for users who regularly log on at that branch office.
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">Transitive replication path inference</text><g class="anim-server-pulse"><rect x="180" y="120" width="160" height="80" rx="8" fill="rgba(96,165,250,0.25)" stroke="#93c5fd" stroke-width="2"/><text x="260" y="155" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="14" font-weight="700">Site Link Bridges</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <!-- Slide 12: Lab Preview -->
         <div class="slide has-visual">
             <h2>Lab Preview: AD Sites & Replication</h2>
-            <div class="text-visual-grid">
+            <div class="text-visual-grid single-col">
                 <div class="tv-text">
                     <p>Practice configuring sites, subnets, and replication in both GUI and PowerShell.</p>
 
@@ -1152,10 +1164,7 @@ Operation Succeeded - PollAD for member <span class="command">DC01.hexworth.loca
                 <a href="cloud-pslab.module.html" class="lab-link" style="margin-left: 15px; background: linear-gradient(135deg, #3b82f6, #60a5fa);">Start PowerShell Lab</a>
             </div>
                 </div>
-                <div class="tv-visual">
-                    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg"><text x="260" y="22" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="13" font-weight="600">A→B + B→C means A→C automatically</text><g class="anim-server-pulse"><rect x="180" y="120" width="160" height="80" rx="8" fill="rgba(96,165,250,0.25)" stroke="#93c5fd" stroke-width="2"/><text x="260" y="155" text-anchor="middle" fill="#93c5fd" font-family="Segoe UI" font-size="14" font-weight="700">Transitivity</text></g></svg>
                 </div>
-            </div>
         </div>
 
         <!-- Navigation -->
