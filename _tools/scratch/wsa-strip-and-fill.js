@@ -54,6 +54,32 @@ const MODULE_CONFIGS = {
         ],
         contentFills: [],
     },
+    'm17-firewall-security': {
+        stripSignatures: [
+            { sig: 'New-NetFirewallRule + IIS Manager Allow',                  expected: 1 },  // S05
+            { sig: 'Service + edge traversal + IPsec require',                 expected: 2 },  // S06+S07
+            { sig: 'Get/Set/Remove-NetFirewallRule',                           expected: 1 },  // S08
+            { sig: 'Authenticate + encrypt + require domain creds',            expected: 1 },  // S09
+            { sig: 'Firewall log: who got blocked, who got through',           expected: 1 },  // S10
+            { sig: 'Size cap, location, allowed + blocked',                    expected: 1 },  // S11
+            { sig: 'Computer Config → Windows Defender Firewall',              expected: 3 },  // S12+S13+S14
+        ],
+        contentFills: [
+            // S12 Troubleshooting Firewall Issues
+            { anchor: '<p>Diagnose and resolve common firewall-related connectivity problems.</p>',
+              replacement: `<p>When a service won&#39;t accept connections, walk a three-question diagnostic: is the firewall the actual problem, which rule (or absent rule) is responsible, and is the rule being evaluated for this profile.</p>
+
+                    <ul>
+                        <li><strong>Is it the firewall?</strong> Temporarily disable Windows Firewall for the active profile (<code>Set-NetFirewallProfile -Profile Domain -Enabled False</code>). If the connection works, you&#39;ve confirmed firewall is the gate. Re-enable immediately after the test.</li>
+                        <li><strong>Which rule?</strong> Enable firewall logging (success + drops) and reproduce the connection attempt. The log shows the source/destination + which rule matched, or that no rule matched (default-deny path).</li>
+                        <li><strong>Which profile?</strong> Check the active profile (<code>Get-NetConnectionProfile</code>) — a rule scoped to Domain profile won&#39;t fire if the interface is currently classified as Public (common after VPN reconnect or network change).</li>
+                    </ul>
+
+                    <div class="info-box">
+                        <strong>Common gotchas:</strong> a network adapter classified as Public when it should be Domain (re-run network identification); an outbound rule blocking traffic you assumed was inbound-only; a rule disabled via Group Policy override of a locally-defined rule; ICMP blocked by default in some profiles (ping fails even when the actual service is reachable).
+                    </div>` },
+        ],
+    },
     'm16-backup-recovery': {
         stripSignatures: [
             { sig: 'VSS + dedupe + remote restore',                            expected: 1 },  // S04
