@@ -1054,6 +1054,14 @@ exports.hexAiSecurityEvent = onRequest({
  * Optional body fields:
  *   conversationId, missionId, persona, helpLevel, priority,
  *   toolInvocationDocIds, flaggedBySource, notes
+ *
+ * AI-28 autoloop optional body fields (default null when omitted):
+ *   defectId         (string)  Loop's defect identifier; format autoloop-pass-NNN-<hash>
+ *   retargetCount    (number)  0 on first targeting; incremented on retarget
+ *   resolutionSha    (string)  Merge-commit SHA on Task 3 PASS resolution
+ *   resolutionLog    (string)  Path + anchor to autoloop-done.md entry
+ * See _docs/operations/dr-hex-quality-log.md for full schema + write-path
+ * semantics (absent vs null behavior across create paths).
  */
 exports.hexAiQualityObservation = onRequest({
     region: 'us-central1',
@@ -1088,6 +1096,10 @@ exports.hexAiQualityObservation = onRequest({
         category, observation, studentQueryFirst60, modelResponseFirst200,
         conversationId, missionId, persona, helpLevel, priority,
         toolInvocationDocIds, flaggedBySource, notes,
+        // AI-28 autoloop: defect-tracking metadata for loop-emitted observations.
+        // All four default null when caller omits — voice_linter/drift_detector
+        // never populate these; only the autoloop fills them on docs it processes.
+        defectId, retargetCount, resolutionSha, resolutionLog,
     } = body;
 
     // Required-field validation. Reject early on missing or wrong-typed.
@@ -1145,6 +1157,14 @@ exports.hexAiQualityObservation = onRequest({
             notes: typeof notes === 'string' ? notes.slice(0, 500) : null,
             originalObservationId: null,
             fixCommit: null,
+            // AI-28 autoloop fields (default null — populated only by the
+            // loop on docs it targets/resolves; absent-or-null both mean
+            // "loop has not processed this observation yet" per the
+            // targeting query in dr-hex-quality-log.md).
+            defectId: typeof defectId === 'string' ? defectId : null,
+            retargetCount: typeof retargetCount === 'number' ? retargetCount : null,
+            resolutionSha: typeof resolutionSha === 'string' ? resolutionSha : null,
+            resolutionLog: typeof resolutionLog === 'string' ? resolutionLog : null,
         });
         res.status(200).json({ ok: true, id: docRef.id });
     } catch (e) {

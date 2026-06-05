@@ -4,6 +4,21 @@
 > while running Dr. Hex in production. **Distinct from code/chain bugs**
 > (which live in Sprint Master) and **validator findings** (Nexus triage).
 
+> **2026-06-05 — AI-28 autoloop schema extension.** This commit ships the
+> 4 new field documentation atomically with the CF (`functions/hex-ai-bridge.js`)
+> destructure + .add() extension. The CF accepts the 4 new fields from POST
+> bodies and writes nulls when callers omit them. Loop runner code is
+> deferred to loop-runner-build phase. Dashboard polish for these fields
+> is also deferred (Task 2 candidate of the loop once operational).
+>
+> **Point-in-time state at this commit:** the admin quality dashboard
+> (`_app/admin/dr-hex-quality.html`) does NOT render the 4 new fields
+> anywhere — table, modal detail view, summary strip all unchanged.
+> Loop-managed values visible only via Firestore Console until dashboard
+> polish phase ships rendering. This note is point-in-time and will become
+> stale once dashboard polish lands; remove it from this changelog at that
+> commit.
+
 ## What goes here
 
 Anything the model said or did *that wasn't a code failure* but still
@@ -74,6 +89,39 @@ Schema:
 | `fixCommit` | string\|null | When fixed, set to the commit hash that addressed it |
 | `statusChangedBy` | string\|null | UID of last operator to change `status`. Required by rules on any update that mutates `status`. |
 | `statusChangedAt` | timestamp\|null | When `status` was last changed. Required by rules on any update that mutates `status`. |
+| `defectId` | string\|null | **AI-28 autoloop only.** Null on CF / voice_linter / drift_detector creates. Set by autoloop on first targeting; format: `autoloop-pass-NNN-<short-hash>`. |
+| `retargetCount` | number\|null | **AI-28 autoloop only.** Null on CF creates. Set to 0 on first targeting; incremented on each retarget. Null = "loop has never seen this observation"; 0 = "loop has seen, never retargeted." |
+| `resolutionSha` | string\|null | **AI-28 autoloop only.** Null until loop merges a PR resolving the defect. Then set to merge-commit SHA via `git rev-parse HEAD` after Task 3 PASS merge. |
+| `resolutionLog` | string\|null | **AI-28 autoloop only.** Null until resolution. Then set to path of autoloop-done.md entry (e.g., `_tools/dr-hex-autoloop/logs/autoloop-done.md#pass-007-defect-abc123`). Log rotation/format TBD; deferred to loop-runner-build phase. |
+
+### Initial state of AI-28 autoloop fields by create path
+
+| Create path | defectId | retargetCount | resolutionSha | resolutionLog |
+|---|---|---|---|---|
+| CF `hexAiQualityObservation` (voice_linter, drift_detector, AI-26 emissions) | `null` (explicit) | `null` (explicit) | `null` (explicit) | `null` (explicit) |
+| `HexAIChatPanel.js` `addDoc` (admin flag-this-response button) | **absent** | **absent** | **absent** | **absent** |
+| Autoloop Admin SDK `.update()` on existing docs | populated | populated | populated (after Task 3 PASS) | populated (after Task 3 PASS) |
+
+**Autoloop targeting query must handle both null AND absent.** A Firestore query like `where('defectId', '==', null)` matches explicit-null docs but misses absent-field docs (Firestore semantic). The recommended pattern is to fetch by `status: open` ordered by `flaggedAt desc` with a page limit, then post-fetch-filter with JS `data.defectId == null` (loose equality catches both null AND undefined).
+
+Implementer note — paging behavior under post-fetch filtering: in a mature queue where most open docs already have `defectId` populated, a single page of size `LOOP_TARGETING_PAGE` may yield zero unprocessed candidates even though unprocessed docs exist further back. Implementer must handle zero-unprocessed-page by advancing the cursor (`startAfter(lastDoc)`) and re-fetching, up to a `LOOP_TARGETING_MAX_PAGES` ceiling. Recommended starting value: 5–10 pages.
+
+**Firestore rules constraint (known gap, deferred):** The `dr_hex_quality_observations` create rule uses `hasAll` (minimum-required), not `hasOnly` (closed whitelist). The 4 new autoloop fields are not enforced by rules — a client-SDK write that includes them with arbitrary values would not be blocked. The autoloop discipline writes only via firebase-admin SDK from the operator's machine (bypasses rules anyway), so this is not a runtime risk for the autoloop itself. Rules whitelist tightening is deferred to the dashboard polish phase when the new fields gain client-write surfaces; no sprint item exists yet.
+
+## AI-28 autoloop status family taxonomy
+
+The autoloop introduces dynamic status values for tracking defect-targeting state across passes. These are written by the loop only (Admin SDK); the admin dashboard's edit dropdown intentionally does NOT include the dynamic values (loop owns them).
+
+| Value pattern | Set by | Meaning |
+|---|---|---|
+| `open` | Any create path | Default initial state. Loop sees these as candidates for first-targeting. |
+| `targeted-pass-NNN` | Autoloop Task 1 | Loop has selected this defect for fix in pass NNN. Subsequent passes skip until resolution or retarget. |
+| `resolved-pass-NNN-by-<sha>` | Autoloop Task 3 PASS | Loop merged a PR resolving the defect; the `<sha>` is the merge-commit hash. |
+| `hazard-pass-NNN` | Autoloop Task 3 FAIL-regression | A previously-resolved defect broke. Loop halts via kill switch on this state. |
+| `dismissed` | **Operator only** (via dashboard or Firestore Console) | Defect explicitly removed from loop scope. Loop reads + skips; loop does NOT write `dismissed`. |
+
+The dashboard renders dynamic family values with prefix-mapped pill CSS classes (`targeted`/`resolved`/`hazard`/`dismissed`). Operator-editable values in the dashboard dropdown remain: `open | triaged | fixing | fixed | wontfix | duplicate | dismissed`. Loop-managed dynamic values cannot be set via the dashboard's UX whitelist guard.
+
 
 Security: admin-only read/write per `firestore.rules`. No delete (append-only —
 fix the issue, don't erase the record). The CLI helper uses Admin SDK
