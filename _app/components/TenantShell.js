@@ -205,6 +205,80 @@
         };
 
         console.log('%c[TENANT] Shell hidden — pill active for: ' + tenantName, 'color: #94a3b8');
+
+        // HEUR-030-class fix (2026-06-06): the visible-shell path's link
+        // rewriter at L384-441 is never registered when shellHidden=true
+        // (we return below before reaching L214 / L384). So a tenant student
+        // who hides the shell loses href rewriting and any
+        // <a href="/dashboard.html"> click sends them to main hex.
+        //
+        // Fix: run a parallel rewriter inside the shellHidden branch using
+        // tenantPeek.slug. Independent of the visible-shell rewriter — no
+        // shared variables (renamed hiddenHubUrl / hiddenOverrideLinks /
+        // hiddenObserver), no ES5 hoisting collisions in the IIFE scope.
+        //
+        // The __tenantShellHiddenRewriterRegistered guard IS necessary here
+        // (unlike the visible-shell __tenantShellExecuted at L214) because
+        // shellHidden returns below before L214. If TenantShell.js is loaded
+        // twice on a page (theoretically possible per AccessGuard/
+        // ModuleProgress/FirebaseAuth auto-loader logic), two observers
+        // would otherwise register.
+        //
+        // unauthorized.html stays in the rewrite list to match the
+        // visible-shell L401-402 behavior — consistency over surprise.
+        // Fail-CLOSED on missing slug: console.warn, no registration.
+        if (tenantPeek && tenantPeek.slug && !window.__tenantShellHiddenRewriterRegistered) {
+            window.__tenantShellHiddenRewriterRegistered = true;
+            var hiddenHubUrl = '/tenant/index.html?slug=' + encodeURIComponent(tenantPeek.slug);
+            var hiddenOverrideLinks = function() {
+                var targetUrl = (typeof TenantRouter !== 'undefined' && TenantRouter.isActive())
+                    ? TenantRouter.getUrl('dashboard')
+                    : hiddenHubUrl;
+                var links = document.querySelectorAll('a[href]');
+                for (var i = 0; i < links.length; i++) {
+                    var href = links[i].getAttribute('href');
+                    if (!href) continue;
+                    if (links[i].getAttribute('data-tenant-override')) continue;
+                    if (href.indexOf('dashboard.html') !== -1 ||
+                        href === '/' || href === '/index.html' ||
+                        href.indexOf('sorting.html') !== -1 ||
+                        href.indexOf('unauthorized.html') !== -1) {
+                        links[i].setAttribute('href', targetUrl);
+                        links[i].setAttribute('data-tenant-override', 'true');
+                    }
+                }
+            };
+            // Two DOMContentLoaded callbacks below do DIFFERENT things —
+            // not a copy-paste bug. First runs hiddenOverrideLinks; second
+            // attaches the MutationObserver. Sequenced via separate addEventListener
+            // calls. Matches the visible-shell pattern at L411-440.
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', hiddenOverrideLinks);
+            } else {
+                hiddenOverrideLinks();
+            }
+            setTimeout(hiddenOverrideLinks, 1000);
+            setTimeout(hiddenOverrideLinks, 3000);
+            if (typeof MutationObserver !== 'undefined') {
+                var hiddenObserver = new MutationObserver(function(mutations) {
+                    var hasNewLinks = false;
+                    for (var i = 0; i < mutations.length; i++) {
+                        if (mutations[i].addedNodes.length > 0) { hasNewLinks = true; break; }
+                    }
+                    if (hasNewLinks) hiddenOverrideLinks();
+                });
+                if (document.body) {
+                    hiddenObserver.observe(document.body, { childList: true, subtree: true });
+                } else {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        hiddenObserver.observe(document.body, { childList: true, subtree: true });
+                    });
+                }
+            }
+        } else if (!tenantPeek || !tenantPeek.slug) {
+            console.warn('[TENANT] Malformed tenant context (slug missing) — link rewriter disabled in shellHidden path');
+        }
+
         return; // ← Skip all shell injection
     }
 
