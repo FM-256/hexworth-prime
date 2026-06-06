@@ -63,3 +63,23 @@ If WSA labs/quizzes today use `overflow: scroll` or `min-height: 100vh` patterns
 ## Implementation blocked on operator input
 
 This document captures scoping; no code change made. When operator answers the open questions, the validator extension can be implemented per their decisions.
+
+---
+
+## Addendum (cron heartbeat 2026-06-06) — also blocks the simpler file-filter extension
+
+A separate, narrower extension was attempted during the cron heartbeat: extend OVERFLOW-001's file filter to include `*-presentation.module.html` (19 WSA cloud-presentation files using the same `.slide` container, 142 instances per m01 sample). The proposal was: one-line filter extension, zero detection-logic change.
+
+**Nancy PAUSE on this narrower extension** — real layout-model divergence:
+
+- **`.presentation.html` files:** `.slide` has explicit `min-height: 78vh / max-height: 84vh`. `clientHeight` is self-contained and reliable when validator forces `display:flex`.
+- **WSA `cloud-presentation.module.html` files:** `.slide` has NO explicit height. Height comes from flex chain `body(100vh, flex)` → `.slide-container(flex:1)` → `.slide(flex:1)`. At page load, all slides are `display:none` (no `.active`). When validator forces `display:flex` on one slide without adding `.active`, the parent `.slide-container` has resolved height of 0 (no flex children visible until then) — so `clientHeight` of the slide may resolve to 0 or arbitrary value, producing false-positive overflow findings on every slide.
+
+**Possible fix paths** (need empirical verification before implementation):
+1. Have the validator add `.active` class along with `display:flex` during measurement. Models student-visible state more accurately. Risks affecting existing `.presentation.html` measurements if their CSS treats `.active` specially.
+2. Pre-measure `.slide-container` clientHeight at page load and skip the file if it resolves to 0 (the height-from-flex case the existing logic doesn't model).
+3. Force a `.slide.active` class onto exactly one slide before any other measurement, then iterate normally.
+
+**Verification needed:** instrument a single WSA cloud-presentation.module.html through `_checkOne` with `console.log` of `.slide-container.clientHeight` and `.slide.clientHeight` at multiple points to confirm the layout-model behavior. Until verified, the simpler filter-only extension is unsafe — it would produce false positives.
+
+This addendum updates the scoping doc with a finer-grained option (file-filter extension only) that turned out to have the same underlying layout-assumption problem the broader task #12 work needs to resolve.
