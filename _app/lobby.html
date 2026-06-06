@@ -709,13 +709,26 @@
         localStorage.setItem('hexworth_course_id', co);
         localStorage.setItem('hexworth_class_name', cn || '');
 
-        // Multi-enrollment array — add this enrollment if not already present
+        // Multi-enrollment array — upsert: replace existing entry on
+        // re-enrollment, otherwise push new. Closes the stale-entry case
+        // when admin renames a class or join code is re-issued AND the
+        // re-enroll caller carries the updated metadata.
+        // Entry shape: {tenantSlug, classId, courseId, className}.
+        // NOTE: bare-object replace at the existsIdx site — any future
+        // fields added to the entry will be DROPPED on re-enrollment.
+        // Extend the `entry` literal AND any consumer when adding fields.
         var enrollments = _getEnrollments();
-        var exists = enrollments.some(function(e) { return e.classId === ci; });
-        if (!exists) {
-            enrollments.push({ tenantSlug: ts, classId: ci, courseId: co, className: cn || '' });
-            localStorage.setItem('hexworth_enrollments', JSON.stringify(enrollments));
+        var existsIdx = -1;
+        for (var i = 0; i < enrollments.length; i++) {
+            if (enrollments[i].classId === ci) { existsIdx = i; break; }
         }
+        var entry = { tenantSlug: ts, classId: ci, courseId: co, className: cn || '' };
+        if (existsIdx >= 0) {
+            enrollments[existsIdx] = entry;
+        } else {
+            enrollments.push(entry);
+        }
+        localStorage.setItem('hexworth_enrollments', JSON.stringify(enrollments));
     }
 
     function _getEnrollments() {
@@ -737,21 +750,102 @@
         localStorage.removeItem('hexworth_enrollments');
     }
 
-    // Remove a single enrollment from the array (used by Leave Class)
+    // Remove a single enrollment from the array (used by Leave Class).
+    //
+    // CONTRACT: when enrollments.length > 0 after this call, callers MUST route
+    // active-class state themselves:
+    //   remaining.length === 1 → _enterEnrolledState(remaining[0])
+    //   remaining.length > 1   → clear all 7 active-class keys, render picker
+    // Failure to route leaves stale storage pointing at removed class until
+    // next page load (where array is source of truth + _enterEnrolledState
+    // restore corrects it).
+    // Callers (grep 2026-06-06): btn-leave L1113. Phase B adds per-card × button.
     function _removeEnrollment(classId) {
         var enrollments = _getEnrollments();
         enrollments = enrollments.filter(function(e) { return e.classId !== classId; });
         localStorage.setItem('hexworth_enrollments', JSON.stringify(enrollments));
-        // If enrollments remain, set the first one as active for backward compat
-        if (enrollments.length > 0) {
-            var first = enrollments[0];
-            localStorage.setItem('hexworth_tenant_slug', first.tenantSlug);
-            localStorage.setItem('hexworth_class_id', first.classId);
-            localStorage.setItem('hexworth_course_id', first.courseId);
-            localStorage.setItem('hexworth_class_name', first.className || '');
-        } else {
+        if (enrollments.length === 0) {
             _clearEnrollment();
         }
+    }
+
+    // HTML entity escape — escapes all 5 special chars (& " ' < >). Safe for
+    // BOTH attribute interpolation (data-name="...") AND text-node-in-innerHTML
+    // (innerHTML construction including text content). Named _escAttr for
+    // brevity; semantically a general HTML escaper.
+    function _escAttr(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    // Canonical "make this enrollment the active single class" state transition.
+    // Owns the 7-key active-class storage contract (matches _saveEnrollment
+    // L697-714 minus the hexworth_enrollments array append AND minus the rich
+    // tenantConfig parameter). tenantConfig with branding is NOT stored in the
+    // enrollments array, so this helper cannot recover it from `e`. The
+    // preserve-when-matching pattern below keeps existing branding when the
+    // requested slug matches what storage already has (covers the 99% case of
+    // restoring your-only-tenant). Cross-tenant transitions write minimal
+    // {slug} — same as _saveEnrollment(...,null). Future enhancement: store
+    // tenantConfig in the array at enrollment time (schema migration).
+    //
+    // Replaces inline state-enrolled setup at L823-832 (localStorage path) and
+    // L864-871 (Firestore path). Called by btn-leave at L1113 with
+    // remaining.length === 1.
+    // Phase B.5: shared storage-writes helper. Extracted from
+    // _enterEnrolledState and the card-click handler in _showMultiEnrolled.
+    // Owns the 7-key active-class storage contract + preserve-when-matching
+    // JSON tier. Two of three storage-write call sites delegate here.
+    // _saveEnrollment is the third site — it still has its own block because
+    // it accepts a tenantConfig parameter; Phase C will unify by adding a
+    // level-1 tier here that reads e.tenantConfig when present.
+    function _writeActiveClassStorage(e) {
+        var tenantSlug = e.tenantSlug || '';
+        var classId = e.classId || '';
+        var existing = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant');
+        var existingParsed = null;
+        try { existingParsed = existing ? JSON.parse(existing) : null; } catch (parseErr) {}
+        var tenantJson;
+        if (existingParsed && existingParsed.slug === tenantSlug) {
+            tenantJson = existing;
+        } else {
+            tenantJson = JSON.stringify({ slug: tenantSlug });
+        }
+        sessionStorage.setItem('hexworth_tenant', tenantJson);
+        sessionStorage.setItem('hexworth_class', classId);
+        localStorage.setItem('hexworth_tenant', tenantJson);
+        localStorage.setItem('hexworth_tenant_slug', tenantSlug);
+        localStorage.setItem('hexworth_class_id', classId);
+        localStorage.setItem('hexworth_course_id', e.courseId || '');
+        localStorage.setItem('hexworth_class_name', e.className || '');
+    }
+
+    function _enterEnrolledState(e) {
+        if (!e || !e.classId) {
+            console.warn('[lobby] _enterEnrolledState called with malformed enrollment, falling back to state-code', e);
+            showState('state-code');
+            return;
+        }
+
+        var course = COURSE_MAP[e.courseId];
+        $('enrolled-class-name').textContent = e.className || 'Your Class';
+        $('enrolled-course').textContent = course ? course.name : e.courseId;
+        $('enrolled-icon').src = course ? course.icon : '/assets/images/icons/icon-globe.webp';
+
+        // Phase B.5: storage writes delegated to _writeActiveClassStorage.
+        // Preserve-when-matching pattern (100% production tenants use
+        // branding.dashboardVariant) lives in the helper now.
+        _writeActiveClassStorage(e);
+
+        // resolvedData narrow contract: {tenantSlug, classId, courseId}.
+        // Fields type/className/tournamentId from resolveJoinCode are NOT
+        // included — they belong to join-resolution flow, not post-enrollment.
+        resolvedData = { tenantSlug: e.tenantSlug, classId: e.classId, courseId: e.courseId };
+        showState('state-enrolled');
     }
 
     // ── Multi-Enrollment Class Picker ──
@@ -761,35 +855,98 @@
         var container = $('multi-class-list');
         container.innerHTML = enrollments.map(function(e) {
             var course = COURSE_MAP[e.courseId] || { name: e.courseId, icon: '/assets/images/icons/icon-books.webp' };
-            return '<button class="info-card" style="cursor:pointer;width:100%;text-align:left;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;" '
-                + 'data-tenant="' + (e.tenantSlug || '') + '" '
-                + 'data-class="' + (e.classId || '') + '" '
-                + 'data-course="' + (e.courseId || '') + '" '
-                + 'data-name="' + (e.className || '') + '">'
+            // Phase B card structure: <div> wrapper with sibling enter + leave
+            // buttons. <button> inside <button> is invalid HTML — required
+            // restructure to add a per-card × leave affordance.
+            return '<div class="info-card-row" style="display:flex;align-items:stretch;gap:0;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);border-radius:10px;overflow:hidden;">'
+                + '<button class="info-card-enter" style="cursor:pointer;flex:1;text-align:left;border:none;background:transparent;padding:14px 16px;display:flex;align-items:center;gap:12px;color:inherit;" '
+                + 'data-tenant="' + _escAttr(e.tenantSlug) + '" '
+                + 'data-class="' + _escAttr(e.classId) + '" '
+                + 'data-course="' + _escAttr(e.courseId) + '" '
+                + 'data-name="' + _escAttr(e.className) + '" '
+                + 'aria-label="Enter ' + _escAttr(e.className || course.name) + '">'
                 + '<img src="' + course.icon + '" alt="" style="width:36px;height:36px;border-radius:8px;">'
                 + '<div style="flex:1;">'
-                + '<div style="font-size:0.95rem;font-weight:600;color:#e2e8f0;">' + course.name + '</div>'
-                + '<div style="font-size:0.75rem;color:#64748b;">' + (e.className || e.courseId) + '</div>'
+                + '<div style="font-size:0.95rem;font-weight:600;color:#e2e8f0;">' + _escAttr(course.name) + '</div>'
+                + '<div style="font-size:0.75rem;color:#64748b;">' + _escAttr(e.className || e.courseId) + '</div>'
                 + '</div>'
                 + '<span style="color:#06b6d4;font-size:1.2rem;">&#8250;</span>'
-                + '</button>';
+                + '</button>'
+                + '<button class="info-card-leave" data-class="' + _escAttr(e.classId) + '" data-name="' + _escAttr(e.className || course.name) + '" '
+                + 'aria-label="Leave ' + _escAttr(e.className || course.name) + '" '
+                + 'title="Leave this class" '
+                + 'style="cursor:pointer;border:none;background:transparent;border-left:1px solid rgba(255,255,255,0.1);padding:0 14px;color:#64748b;font-size:1.1rem;transition:color 0.15s,background 0.15s;" '
+                + 'onmouseenter="this.style.color=\'#ef4444\';this.style.background=\'rgba(239,68,68,0.08)\'" '
+                + 'onmouseleave="this.style.color=\'#64748b\';this.style.background=\'transparent\'">&times;</button>'
+                + '</div>';
         }).join('');
 
-        // Click handler for each class card
-        container.querySelectorAll('button').forEach(function(btn) {
+        // Phase B: handler selectors narrowed to distinguish enter from leave.
+        //
+        // Enter handler — writes the 7-key active-class storage contract
+        // before navigating to the course hub. Mirrors _enterEnrolledState's
+        // storage writes (sessionStorage + localStorage tenant JSON that
+        // AccessGuard / TenantRouter depend on).
+        //
+        // NOTE on preserve-when-matching: in current flows the picker is
+        // reached AFTER an explicit storage clear (btn-leave multi-branch,
+        // per-card × multi-branch, OR Firestore multi-restore). So `existing`
+        // is typically null and preservation is inert — writes minimal {slug}
+        // JSON which loses branding.dashboardVariant. Same cross-tenant
+        // degradation as _saveEnrollment(...,null). Future schema migration
+        // (store tenantConfig in enrollments array) would close that gap.
+        // The check is kept as defense-in-depth for future paths that don't
+        // pre-clear storage.
+        container.querySelectorAll('button.info-card-enter').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                var ts = btn.dataset.tenant;
-                var ci = btn.dataset.class;
-                var co = btn.dataset.course;
-                var cn = btn.dataset.name;
-                // Set this class as active for ModuleProgress backward compat
-                localStorage.setItem('hexworth_tenant_slug', ts);
-                localStorage.setItem('hexworth_class_id', ci);
-                localStorage.setItem('hexworth_course_id', co);
-                localStorage.setItem('hexworth_class_name', cn);
-                // Navigate to course hub
-                var course = COURSE_MAP[co];
+                // Phase B.5: construct enrollment-shaped object from dataset,
+                // delegate writes to shared helper. Property names map DOM
+                // dataset keys to the helper's expected `e` fields — note
+                // dataset.class (data-class attribute) → enrollment.classId
+                // (matches storage key hexworth_class_id). Variable name
+                // `enrollment` distinguishes from the .map(function(e)) outer
+                // loop iterator.
+                var enrollment = {
+                    tenantSlug: btn.dataset.tenant || '',
+                    classId:    btn.dataset.class  || '',
+                    courseId:   btn.dataset.course || '',
+                    className:  btn.dataset.name   || ''
+                };
+                _writeActiveClassStorage(enrollment);
+                var course = COURSE_MAP[enrollment.courseId];
                 window.location.href = course ? course.href : '/dashboard.html';
+            });
+        });
+
+        // Leave handler — per-card × button. 3-way routing mirrors btn-leave
+        // (state-enrolled leave) so multi-state and single-state exits share
+        // the same contract.
+        container.querySelectorAll('button.info-card-leave').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var classId = btn.dataset.class;
+                var name = btn.dataset.name;
+                if (!confirm('Are you sure you want to leave "' + name + '"?')) return;
+                _removeEnrollment(classId);
+                resolvedData = null;
+                var remaining = _getEnrollments();
+                if (remaining.length === 0) {
+                    showState('state-code');
+                    setTimeout(function() { $('code-input').focus(); }, 100);
+                } else if (remaining.length === 1) {
+                    _enterEnrolledState(remaining[0]);
+                } else {
+                    // Multi-state: clear active-class storage so AccessGuard /
+                    // TenantShell / TenantRouter don't see stale tenant from
+                    // the just-removed class while picker re-renders.
+                    sessionStorage.removeItem('hexworth_tenant');
+                    sessionStorage.removeItem('hexworth_class');
+                    localStorage.removeItem('hexworth_tenant');
+                    localStorage.removeItem('hexworth_tenant_slug');
+                    localStorage.removeItem('hexworth_class_id');
+                    localStorage.removeItem('hexworth_course_id');
+                    localStorage.removeItem('hexworth_class_name');
+                    _showMultiEnrolled(remaining);
+                }
             });
         });
 
@@ -821,14 +978,9 @@
 
         // If localStorage has enrollments, show them
         if (enrollments.length === 1) {
-            // Single enrollment — show continue state (same as before)
-            const e = enrollments[0];
-            const course = COURSE_MAP[e.courseId];
-            $('enrolled-class-name').textContent = e.className || 'Your Class';
-            $('enrolled-course').textContent = course ? course.name : e.courseId;
-            $('enrolled-icon').src = course ? course.icon : '/assets/images/icons/icon-globe.webp';
-            resolvedData = { tenantSlug: e.tenantSlug, classId: e.classId, courseId: e.courseId };
-            showState('state-enrolled');
+            // Single enrollment — _enterEnrolledState writes the full 7-key
+            // storage contract and transitions to state-enrolled.
+            _enterEnrolledState(enrollments[0]);
             return;
         } else if (enrollments.length > 1) {
             // Multiple enrollments — show class picker
@@ -856,20 +1008,36 @@
                     }
 
                     if (firestoreEnrollments.length > 0) {
-                        // Restore localStorage for future visits
-                        firestoreEnrollments.forEach(function(e) {
-                            _saveEnrollment(e.tenantSlug, e.classId, e.courseId, e.className || '', null);
-                        });
+                        // Hydrate the enrollment ARRAY in localStorage without
+                        // touching active-class state. Avoids the last-write-wins
+                        // bug where _saveEnrollment's loop would overwrite
+                        // hexworth_tenant with each iteration's tenant.
+                        localStorage.setItem('hexworth_enrollments', JSON.stringify(
+                            firestoreEnrollments.map(function(e) {
+                                return {
+                                    tenantSlug: e.tenantSlug,
+                                    classId: e.classId,
+                                    courseId: e.courseId,
+                                    className: e.className || ''
+                                };
+                            })
+                        ));
 
                         if (firestoreEnrollments.length === 1) {
-                            const e = firestoreEnrollments[0];
-                            const course = COURSE_MAP[e.courseId];
-                            $('enrolled-class-name').textContent = 'Your Class';
-                            $('enrolled-course').textContent = course ? course.name : e.courseId;
-                            $('enrolled-icon').src = course ? course.icon : '/assets/images/icons/icon-globe.webp';
-                            resolvedData = { tenantSlug: e.tenantSlug, classId: e.classId, courseId: e.courseId };
-                            showState('state-enrolled');
+                            // _enterEnrolledState writes full 7-key contract for
+                            // the single enrollment, correctly.
+                            _enterEnrolledState(firestoreEnrollments[0]);
                         } else {
+                            // Multi-state: no class is "active" until user picks.
+                            // Clear active-class storage so AccessGuard etc. see
+                            // clean "no active tenant" while picker is shown.
+                            sessionStorage.removeItem('hexworth_tenant');
+                            sessionStorage.removeItem('hexworth_class');
+                            localStorage.removeItem('hexworth_tenant');
+                            localStorage.removeItem('hexworth_tenant_slug');
+                            localStorage.removeItem('hexworth_class_id');
+                            localStorage.removeItem('hexworth_course_id');
+                            localStorage.removeItem('hexworth_class_name');
                             _showMultiEnrolled(firestoreEnrollments);
                         }
                         return;
@@ -1096,7 +1264,10 @@
     $('btn-continue').addEventListener('click', () => {
         if (!resolvedData) return;
         if (resolvedData.tenantSlug && resolvedData.classId && resolvedData.courseId) {
-            _saveEnrollment(resolvedData.tenantSlug, resolvedData.classId, resolvedData.courseId, '');
+            // Pass resolvedData.className (matches the pattern at L1187 + L1239)
+            // — bare '' was creating divergence between the array entry and the
+            // hexworth_class_name flat key on btn-continue re-entry.
+            _saveEnrollment(resolvedData.tenantSlug, resolvedData.classId, resolvedData.courseId, resolvedData.className || '');
         }
 
         const course = COURSE_MAP[resolvedData.courseId];
@@ -1119,13 +1290,26 @@
             _clearEnrollment();
         }
         resolvedData = null;
-        // Check if other enrollments remain
+        // 3-way routing — match the contract that _enterEnrolledState owns.
         var remaining = _getEnrollments();
-        if (remaining.length > 0) {
-            _showMultiEnrolled(remaining);
-        } else {
+        if (remaining.length === 0) {
             showState('state-code');
             setTimeout(() => $('code-input').focus(), 100);
+        } else if (remaining.length === 1) {
+            _enterEnrolledState(remaining[0]);
+        } else {
+            // Multi-state: no class is "active" until user picks. Clear all
+            // active-class storage so AccessGuard / TenantShell / TenantRouter
+            // don't see stale tenant from the just-removed class while picker
+            // is shown.
+            sessionStorage.removeItem('hexworth_tenant');
+            sessionStorage.removeItem('hexworth_class');
+            localStorage.removeItem('hexworth_tenant');
+            localStorage.removeItem('hexworth_tenant_slug');
+            localStorage.removeItem('hexworth_class_id');
+            localStorage.removeItem('hexworth_course_id');
+            localStorage.removeItem('hexworth_class_name');
+            _showMultiEnrolled(remaining);
         }
     });
 

@@ -46,6 +46,8 @@
  * - HEUR-029: Looks-clickable but isn't — non-anchor element styled as clickable (role="link"/"button", cursor:pointer + tabindex, onkeydown navigation, or href on non-anchor) with no onclick attribute AND no class/id wired up via JS addEventListener('click') or .onclick assignment; mouse clicks silently fail
  * - HEUR-030: Course-hub tenant-leak — _app/houses/<h>/<c>/index.html has <a id="dashboardBtn"> but is missing the canonical TenantRouter rewrite IIFE. Tenant students clicking Dashboard leak to the house index (main hex) instead of their tenant dashboard. Detection requires BOTH `getElementById('dashboardBtn')` AND `TenantRouter.getUrl` present; if either is absent the rewriter isn't wired. HIGH (tenant-isolation breach). Canonical pattern: _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button").
  * - HEUR-030b: Programmatic navigation to platform page without TenantRouter. Detects (window.)?location.href= / .assign() / .replace() pointing at an absolute /dashboard.html | /sorting.html | /index.html | /unauthorized.html on tenant-context HTML, when the surrounding inline script has no TenantRouter check. Absolute path required (relative 'index.html' is course-hub-local navigation, not a leak — Nancy round 1 lesson 2026-06-05). HIGH. Pure regression protection (0 current findings).
+ * - QUIZ-002b: inline-graded quiz with ans:N pattern (QC-57 Pattern A — sub-variants A1 quoted "ans":N and A2 unquoted ans:N as a line-start object property). Files (.quiz.html OR .exam.html) that don't use QuizEngine but have inline `selectAnswer(idx) { if (idx === q.ans) ... }` grading. QUIZ-002 misses these because it requires QuizEngine. Severity HIGH (MEDIUM via practice-mode marker, same demotion as QUIZ-002). Inventory: _docs/operations/qc-57-client-grading-inventory.md.
+ * - HEUR-030f: Hard-coded https://hexworth.com/ URL as a nav target on tenant-context page. Patterns: <a href>, <form action>, location.href/assign/replace inside un-guarded inline scripts, PageTransition.navigateTo inside un-guarded inline scripts. SEO meta (canonical/og:url/ld+json) and resource URLs (img/script/link src) NOT flagged — structurally excluded by tag anchors and content types. Variable-assignment strings NOT flagged (audit 2026-06-06 found only 1 file, joinUrl, confirmed correct). HIGH.
  * - HEUR-030c: PageTransition.navigateTo to platform page without TenantRouter. PageTransition.js has zero TenantRouter integration (verified 2026-06-05). Any tenant-context call like PageTransition.navigateTo('dashboard.html') leaks the student to main hex. Scope: HTML under _app/houses/ and _app/tenant/, excluding _app/tenant/dashboard-X.html files which are platform pages themselves. HIGH. Pure regression protection (0 current findings).
  * - HEUR-030d: form action or iframe src to platform page on tenant-context. TenantShell's runtime overrideLinks() ONLY rewrites anchor href elements (verified at TenantShell.js:390); form actions and iframe srcs are not in its scope. Targets: /dashboard.html, /sorting.html, /index.html, /unauthorized.html. HIGH. Pure regression protection (0 current findings).
  * - HEUR-030e: Tenant-accessible HTML missing the TenantShell auto-loader chain AND has a leaking static href. Without AccessGuard.js / ModuleProgress.js / FirebaseAuth.js / TenantShell.js the runtime link rewriter is never injected, so every static href to a platform page leaks. Detection: file in scope + has leaking href + loads none of the 4 protectors. HIGH. Pure regression protection (0 current findings).
@@ -57,6 +59,7 @@
  * - HEUR-034: Infinite opacity 0→1 keyframe causes flicker. `@keyframes` definition starts at `opacity: 0` and ends at `opacity: 1`, AND the applying class declares `animation: ... infinite`. Creates a fade-in / fade-out flicker loop because each cycle resets opacity to 0. Caught on WSA m01 slides 17 and 26 drop-in animations (2026-05-29). MEDIUM (UX issue). Detection: parse `@keyframes` for `0%.*opacity:\s*0` AND `100%.*opacity:\s*1`; check applying class for `animation: ... infinite`.
  * - HEUR-035: Em-dash character in content. Per user style preference (memory `feedback_no_em_dashes`), the em-dash character (U+2014) should not appear in HTML content. Common alternatives: comma, colon, or period depending on grammar. Detection: count `—` characters outside `<style>`, `<script>`, and `code-block`/`pre` contexts. Going-forward enforcement only — legacy content allowlisted by file path.
  * - HEUR-036: has-visual class without SVG visual. Slide has `class="slide has-visual"` but its `<div class="slide-visual">` is empty or contains no `<svg>` element. Indicates a partially-built slide where the visual half is missing — companion bug to HEUR-031 (empty text wrapper). Detection: find each `class="...slide.*has-visual..."` block; check that the slide-visual child contains an `<svg`. MEDIUM (incomplete slide).
+ * - HEUR-037: <a target="_blank"> missing rel="noopener" (or rel="noreferrer" — per HTML spec noreferrer implies noopener). Tabnabbing risk via window.opener: new tab can redirect parent. Modern browsers (Chrome 88+, FF 79+, Safari 12.1+) default to implicit noopener but explicit attribute is HTML spec best practice. LOW severity — does NOT publish to Nexus triage queue per TRIAGE_SEVERITY_GATE=['critical','high']; guards against silent regression in future scans. ~35 current findings across 14 files. Detection: regex match `<a target="_blank">` that lacks both noopener and noreferrer tokens in rel attribute.
  */
 
 const fs = require('fs');
@@ -190,6 +193,7 @@ class HeuristicsValidator {
         issues.push(...this.checkEvalUsage(file));
         issues.push(...this.checkDocumentWrite(file));
         issues.push(...this.checkQuizConfiguration(file));
+        issues.push(...this.checkPatternAClientGrading(file));
         issues.push(...this.checkQuizRegression(file));
         issues.push(...this.checkQuizKeyAlignment(file));
         issues.push(...this.checkCustomQuizMissingKey(file));
@@ -216,6 +220,8 @@ class HeuristicsValidator {
         issues.push(...this.checkPageTransitionTenantLeak(file));
         issues.push(...this.checkFormIframeTenantLeak(file));
         issues.push(...this.checkMissingTenantAutoLoader(file));
+        issues.push(...this.checkAbsoluteHexworthUrlLeak(file));
+        issues.push(...this.checkBlankTargetMissingNoopener(file));
         issues.push(...this.checkCompleteQuizPctArg(file));
         issues.push(...this.checkResultButtonStandard(file));
         issues.push(...this.checkEmptySlideText(file));
@@ -1372,6 +1378,229 @@ class HeuristicsValidator {
             });
         }
         // serverGrading: true + no client answers = correct configuration, no issue
+
+        return issues;
+    }
+
+    /**
+     * HEUR-030f: Hard-coded https://hexworth.com/ URL on tenant-context as
+     * a nav target.
+     *
+     * Tenant isolation depends on TenantRouter.getUrl() for navigation.
+     * Hard-coded absolute hexworth.com URLs bypass TenantRouter and
+     * TenantShell's runtime overrideLinks rewriter.
+     *
+     * Patterns:
+     *   1. <a href="https://hexworth.com/..."> (HTML attribute, masked content)
+     *   2. <form action="https://hexworth.com/..."> (HTML attribute, masked content)
+     *   3. location.href/assign/replace + PageTransition.navigateTo with literal
+     *      hexworth.com URL, inside an inline script that has NO TenantRouter
+     *      guard — matches HEUR-030b/c per-block-guard precedent.
+     *
+     * NOT flagged (intentional):
+     *   - <link rel="canonical">, <meta property="og:url">, JSON-LD blobs —
+     *     SEO directives, not user-clickable. Pattern 1's <a\b anchor and
+     *     Pattern 2's <form\b anchor structurally exclude these tags.
+     *   - <img src>, <script src>, <link href> stylesheets — resources.
+     *   - Variable-assignment strings (var X = "https://hexworth.com/...") —
+     *     audit 2026-06-06 found only pis-kahoot-host.review.html (2 lines
+     *     of joinUrl), confirmed as the correct platform join URL. Documented
+     *     as known gap; revisit if more variable-assignment leaks surface.
+     *
+     * Severity: HIGH.
+     */
+    checkAbsoluteHexworthUrlLeak(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        const inScope = /(?:^|\/)_app\/(?:houses|tenant)\/.+\.html$/.test(file.path);
+        if (!inScope) return issues;
+        if (/_app\/tenant\/dashboard-[^/]+\.html$/.test(file.path)) return issues;
+
+        // Length-preserving comment mask — m.index aligns with content positions
+        const masked = content.replace(/<!--[\s\S]*?-->/g, function(m) {
+            return ' '.repeat(m.length);
+        });
+
+        // Patterns 1-2: HTML attribute context. <a\b and <form\b anchors
+        // structurally exclude <link>, <meta>, <img>, <script>, <iframe>.
+        const attrPatterns = [
+            { re: /<a\b[^>]*\bhref\s*=\s*["'](https?:\/\/hexworth\.com[^"']*)["']/gi, kind: '<a href>', fix: 'Convert to relative path so TenantShell.overrideLinks() rewrites when applicable, OR wrap with TenantRouter.getUrl().' },
+            { re: /<form\b[^>]*\baction\s*=\s*["'](https?:\/\/hexworth\.com[^"']*)["']/gi, kind: '<form action>', fix: 'Convert form action to relative path or compute via TenantRouter.getUrl() at submit time.' }
+        ];
+
+        for (const { re, kind, fix } of attrPatterns) {
+            let m;
+            while ((m = re.exec(masked)) !== null) {
+                issues.push({
+                    code: 'HEUR-030f',
+                    severity: 'high',
+                    category: 'heuristic',
+                    message: `${kind} hard-codes absolute hexworth.com URL '${m[1]}' — bypasses TenantRouter, leaks tenant context`,
+                    file: file.path,
+                    line: this.getLineNumber(content, m.index),
+                    fix: fix
+                });
+            }
+        }
+
+        // Patterns 3-4: JS context. Use _extractInlineScripts + per-block
+        // TenantRouter guard. Matches HEUR-030b/c precedent. JSON-LD
+        // <script type="application/ld+json"> blocks are extracted by
+        // _extractInlineScripts but won't match location.href= or
+        // PageTransition.navigateTo regex (JSON-LD is data, not JS code).
+        const scripts = this._extractInlineScripts(content);
+        const jsPatterns = [
+            { kindLabel: 'location nav', fix: 'Compute via TenantRouter: var url = (typeof TenantRouter !== "undefined" && TenantRouter.isActive()) ? TenantRouter.getUrl("...") : "...relative..."; location.href = url;' },
+            { kindLabel: 'PageTransition.navigateTo', fix: 'Wrap target via TenantRouter.getUrl() before passing to PageTransition.navigateTo.' }
+        ];
+
+        for (const script of scripts) {
+            if (/TenantRouter\s*\.\s*(?:getUrl|isActive|goToHub)/.test(script)) continue;
+
+            // Fresh regexes per block to reset lastIndex
+            const locRe = /(?:window\.)?location\s*\.\s*(?:href\s*=|assign\s*\(\s*|replace\s*\(\s*)\s*["'](https?:\/\/hexworth\.com[^"']*)["']/g;
+            const ptRe  = /PageTransition\s*\.\s*navigateTo\s*\(\s*["'](https?:\/\/hexworth\.com[^"']*)["']/g;
+
+            const reList = [
+                { re: locRe, ...jsPatterns[0] },
+                { re: ptRe,  ...jsPatterns[1] }
+            ];
+
+            for (const { re, kindLabel, fix } of reList) {
+                let m;
+                while ((m = re.exec(script)) !== null) {
+                    // Locate in original content — first occurrence (script blocks
+                    // may repeat; exact JS position requires extractor metadata
+                    // _extractInlineScripts doesn't surface).
+                    const lineIdx = content.indexOf(m[0]);
+                    issues.push({
+                        code: 'HEUR-030f',
+                        severity: 'high',
+                        category: 'heuristic',
+                        message: `${kindLabel} hard-codes absolute hexworth.com URL '${m[1]}' — bypasses TenantRouter, leaks tenant context`,
+                        file: file.path,
+                        line: this.getLineNumber(content, lineIdx >= 0 ? lineIdx : 0),
+                        fix: fix
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-037: <a target="_blank"> missing rel="noopener" (or noreferrer).
+     *
+     * Tabnabbing risk: without rel="noopener", the new tab can access
+     * window.opener and redirect the parent. Modern browsers (Chrome 88+,
+     * Firefox 79+, Safari 12.1+) default to implicit noopener for
+     * target="_blank", but explicit attribute is HTML spec best practice
+     * and covers legacy/embedded contexts.
+     *
+     * Per HTML spec, rel="noreferrer" implies noopener — accepted as
+     * sufficient by detection.
+     *
+     * Severity: LOW. Per TRIAGE_SEVERITY_GATE=['critical','high'] in
+     * nexus/publish.js, LOW findings do NOT publish to the Nexus triage
+     * queue — this rule guards against silent regressions in future
+     * scans without blocking deploys. Findings appear in EduScan output
+     * + TREASURE_MAP only.
+     *
+     * Edge case (0 current occurrences): a `>` literal inside an attribute
+     * value would truncate the [^>] tag match. Not handled — accepting
+     * theoretical false-negative for rule simplicity.
+     */
+    checkBlankTargetMissingNoopener(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+        if (!file.path.endsWith('.html')) return issues;
+
+        const tagRe = /<a\s[^>]*target\s*=\s*["']_blank["'][^>]*>/gi;
+        let m;
+        while ((m = tagRe.exec(content)) !== null) {
+            if (/\brel\s*=\s*["'][^"']*\b(noopener|noreferrer)\b/i.test(m[0])) continue;
+            issues.push({
+                code: 'HEUR-037',
+                severity: 'low',
+                category: 'heuristic',
+                message: '<a target="_blank"> missing rel="noopener" (or noreferrer) — tabnabbing risk via window.opener (modern browsers mitigate; explicit attribute is HTML spec best practice)',
+                file: file.path,
+                line: this.getLineNumber(content, m.index),
+                fix: 'Add rel="noopener noreferrer" to the anchor tag.'
+            });
+        }
+
+        return issues;
+    }
+
+    /**
+     * QUIZ-002b: inline-graded quiz with ans:N pattern (QC-57 Pattern A).
+     * Catches both sub-variants:
+     *   A1 quoted form:    "ans": N  (e.g., divergent/ethics-it, divergent/cybersecurity-policy)
+     *   A2 unquoted form:  ans:  N   (e.g., code/python-for-it, shield/infosec — line-anchored)
+     *
+     * QUIZ-002 only checks files that contain "QuizEngine". The QC-57
+     * inventory revealed quizzes that use a wholly inline custom grading
+     * pattern (no QuizEngine class, just selectAnswer(idx) { if (idx ===
+     * q.ans) ... }). These are invisible to QUIZ-002 because of its
+     * L1296 `if (!content.includes('QuizEngine')) return issues;` guard.
+     *
+     * Detection: file ends with .quiz.html OR .exam.html, has 3+
+     * "ans": N or 'ans': N matches, does NOT contain QuizEngine (else
+     * QUIZ-002 handles it), and does NOT have serverGrading or gradeQuiz
+     * invocation.
+     *
+     * Severity: HIGH (or MEDIUM if practice-mode marker present — same
+     * demotion rule as QUIZ-002, per feedback_severity_demotion_pattern.md).
+     *
+     * Sprint: QC-57. Inventory: _docs/operations/qc-57-client-grading-inventory.md.
+     */
+    checkPatternAClientGrading(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        // Scope: client-graded answer-bearing artifacts
+        const path = file.path || '';
+        if (!path.endsWith('.quiz.html') && !path.endsWith('.exam.html')) return issues;
+
+        // QUIZ-002 owns the QuizEngine path — avoid double-flagging
+        if (content.includes('QuizEngine')) return issues;
+
+        // Server-graded paths
+        if (/serverGrading\s*:\s*true/.test(content)) return issues;
+        if (/\bgradeQuiz\s*\(/.test(content)) return issues;
+
+        // Pattern A signature — at least 3 "ans": N occurrences to filter noise
+        // Union of A1 (quoted: "ans":N or 'ans':N) and A2 (unquoted: ans:N
+        // as a line-start object property). Line-anchor `^\s*` on the
+        // unquoted variant narrows to object-literal property context —
+        // avoids matching `var ans = ...`, `function ans(...)`, etc.
+        const ansRe = /^\s*(?:["']ans["']|ans)\s*:\s*\d+/gm;
+        const ansMatches = content.match(ansRe) || [];
+        if (ansMatches.length < 3) return issues;
+
+        // Practice-mode severity demotion (same logic as QUIZ-002)
+        const isPracticeMode =
+            /<html[^>]*\bdata-practice-mode\s*=\s*["']true["']/.test(content) ||
+            /<meta\s+name=["']hex-practice-mode["']\s+content=["']true["']/.test(content);
+
+        const firstMatch = content.search(ansRe);
+        issues.push({
+            code: 'QUIZ-002b',
+            severity: isPracticeMode ? 'medium' : 'high',
+            category: 'quiz',
+            message: isPracticeMode
+                ? 'Practice quiz uses inline custom grading with ans:N pattern (' + ansMatches.length + ' answers visible — quoted "ans":N and/or unquoted ans:N). Practice-mode demotes severity but answers still visible via View Source.'
+                : 'Quiz uses inline custom grading with ans:N pattern — answers visible via View Source (' + ansMatches.length + ' answers — quoted "ans":N and/or unquoted ans:N). QC-57 sprint Pattern A.',
+            file: file.path,
+            line: this.getLineNumber(content, firstMatch >= 0 ? firstMatch : 0),
+            fix: 'Refactor to QuizEngine + serverGrading: true. Seed answers to Firestore quiz_keys/. See _docs/operations/qc-57-client-grading-inventory.md for the QC-57 sprint plan.'
+        });
 
         return issues;
     }
@@ -3298,8 +3527,14 @@ class HeuristicsValidator {
         if (!inScope) return issues;
         if (/_app\/tenant\/dashboard-[^/]+\.html$/.test(file.path)) return issues;
 
-        // Strip HTML comments so commented-out examples don't fire.
-        const stripped = content.replace(/<!--[\s\S]*?-->/g, '');
+        // Length-preserving comment mask so m.index from the masked string
+        // aligns with positions in `content` for accurate line-number
+        // resolution. Destructive .replace(...,'') would shift positions and
+        // produce wrong line numbers for repeated matches (Nancy R4 fix
+        // 2026-06-06 — same fix applied below in HEUR-030f).
+        const masked = content.replace(/<!--[\s\S]*?-->/g, function(m) {
+            return ' '.repeat(m.length);
+        });
 
         const patterns = [
             { re: /<form\b[^>]*\baction\s*=\s*["']\/(dashboard|sorting|index|unauthorized)\.html["']/g, kind: 'form action' },
@@ -3308,15 +3543,14 @@ class HeuristicsValidator {
 
         for (const { re, kind } of patterns) {
             let m;
-            while ((m = re.exec(stripped)) !== null) {
-                const lineIdx = content.indexOf(m[0]);
+            while ((m = re.exec(masked)) !== null) {
                 issues.push({
                     code: 'HEUR-030d',
                     severity: 'high',
                     category: 'heuristic',
                     message: `${kind}="/${m[1]}.html" leaks tenant context — TenantShell only rewrites <a href>, not form/iframe`,
                     file: file.path,
-                    line: this.getLineNumber(content, lineIdx >= 0 ? lineIdx : 0),
+                    line: this.getLineNumber(content, m.index),
                     fix: `Compute target via TenantRouter.getUrl('${m[1]}') and set the attribute at runtime, OR convert to an <a href> so TenantShell's overrideLinks() rewrites it`
                 });
             }
