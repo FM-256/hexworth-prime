@@ -27,8 +27,14 @@ A Cloud Function is in non-ACTIVE state after deploy.
 Critical or high findings appeared that weren't present pre-deploy.
 
 1. `node _tools/eduscan/cli.js --severity critical,high` — see the findings
-2. If real bugs: revert the change and re-deploy
-3. If validator FPs: tune the validator (separate commit, with Nancy review) — DO NOT bypass via `--skip-post-verify` without operator-logged reason
+2. **Triage by source — which case is this?**
+   - **(a) Real bugs introduced by the deploy:** revert the change and re-deploy
+   - **(b) Validator false positives:** tune the validator (separate commit, with Nancy review) — DO NOT bypass via `--skip-post-verify` without operator-logged reason
+   - **(c) NEW HIGH-severity detection rule shipped in this deploy that surfaces PRE-EXISTING inventory:** these are not regressions — they're the rule's design intent. Confirm by:
+     - Diff: `git log -p master -- _tools/eduscan/validators/` since previous deploy — does the diff add a new HIGH-severity rule?
+     - Cross-check: do the new findings' code IDs match a rule added in this deploy's `_tools/eduscan/validators/syntax/heuristics.js` diff?
+     - If yes, **accept the flag as expected.** No revert needed; the rule did its job. Document the count delta in the deploy's commit message / sprint notes so future deploys see the same baseline.
+     - Example case: marathon 2026-06-06 shipped QUIZ-002b (Pattern A1+A2) catching 79 pre-existing client-graded quizzes — flagged post-verify but expected by design. Per memory `project_marathon_2026_06_06_complete`.
 
 ## Exit 3 — infrastructure failure (verification incomplete)
 
