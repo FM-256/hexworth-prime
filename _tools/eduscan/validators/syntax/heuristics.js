@@ -45,6 +45,9 @@
  * - HEUR-028: ModuleProgress.complete() signature mismatch — call does not follow the (houseId, moduleId, options) pattern; first arg is not a recognized house ID, or second arg appears to be a score/number instead of a module ID string
  * - HEUR-029: Looks-clickable but isn't — non-anchor element styled as clickable (role="link"/"button", cursor:pointer + tabindex, onkeydown navigation, or href on non-anchor) with no onclick attribute AND no class/id wired up via JS addEventListener('click') or .onclick assignment; mouse clicks silently fail
  * - HEUR-030: Course-hub tenant-leak — _app/houses/<h>/<c>/index.html has <a id="dashboardBtn"> but is missing the canonical TenantRouter rewrite IIFE. Tenant students clicking Dashboard leak to the house index (main hex) instead of their tenant dashboard. Detection requires BOTH `getElementById('dashboardBtn')` AND `TenantRouter.getUrl` present; if either is absent the rewriter isn't wired. HIGH (tenant-isolation breach). Canonical pattern: _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button").
+ * - HEUR-030c: PageTransition.navigateTo to platform page without TenantRouter. PageTransition.js has zero TenantRouter integration (verified 2026-06-05). Any tenant-context call like PageTransition.navigateTo('dashboard.html') leaks the student to main hex. Scope: HTML under _app/houses/ and _app/tenant/, excluding _app/tenant/dashboard-X.html files which are platform pages themselves. HIGH. Pure regression protection (0 current findings).
+ * - HEUR-030d: form action or iframe src to platform page on tenant-context. TenantShell's runtime overrideLinks() ONLY rewrites anchor href elements (verified at TenantShell.js:390); form actions and iframe srcs are not in its scope. Targets: /dashboard.html, /sorting.html, /index.html, /unauthorized.html. HIGH. Pure regression protection (0 current findings).
+ * - HEUR-030e: Tenant-accessible HTML missing the TenantShell auto-loader chain AND has a leaking static href. Without AccessGuard.js / ModuleProgress.js / FirebaseAuth.js / TenantShell.js the runtime link rewriter is never injected, so every static href to a platform page leaks. Detection: file in scope + has leaking href + loads none of the 4 protectors. HIGH. Pure regression protection (0 current findings).
  * - HEUR-COMPLETE-QUIZ-PCT: ModuleProgress.completeQuiz() called with raw `score` count instead of `pct` percentage. The function internally evaluates `score >= passingScore` so a 12/15 score (80%) is checked as `12 >= 70 = false` and completion never persists. Fires when (a) file computes `var pct = Math.round(...)`, AND (b) 3rd arg of completeQuiz is a bare identifier that is NOT pct/percent/percentage/integer-literal/Math.round expression. HIGH (completion silently fails).
  * - HEUR-RESULT-BUTTON-STANDARD: Quiz results-card uses pre-standard buttons — `<button onclick="restartQuiz()">Try Again</button>` or `<a class="btn-hub">Back to <Course> Hub</a>`. New standard is `[Review Answers]` (calls showReviewAnswers()) + `[Return to Hub]`. Mixed state (Review Answers present alongside old buttons) also flags. MEDIUM (UX drift, no grading bug).
  * - HEUR-031: Empty slide-text wrapper. Slide page has `<div class="slide-text">` with <20 chars of non-whitespace content. Class of bug: depth-tracking regex during a slide rebuild missed the matching `</div>` boundary when slide-content had no nested divs, leaving the text wrapper empty. Caught on WSA m01 slides 6, 17, 20 (2026-05-29). CRITICAL: literal lost content. Detection: scan for `<div class="slide-text">...</div>` blocks; strip tags + whitespace; flag if <20 chars remain.
@@ -208,6 +211,9 @@ class HeuristicsValidator {
         issues.push(...this.checkModuleProgressSignature(file));
         issues.push(...this.checkLooksClickableButIsnt(file));
         issues.push(...this.checkDashboardBtnTenantRewrite(file));
+        issues.push(...this.checkPageTransitionTenantLeak(file));
+        issues.push(...this.checkFormIframeTenantLeak(file));
+        issues.push(...this.checkMissingTenantAutoLoader(file));
         issues.push(...this.checkCompleteQuizPctArg(file));
         issues.push(...this.checkResultButtonStandard(file));
         issues.push(...this.checkEmptySlideText(file));
@@ -3160,6 +3166,150 @@ class HeuristicsValidator {
             fix: 'Add the canonical IIFE before </body>. See _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button") for the pattern.'
         });
 
+        return issues;
+    }
+
+    /**
+     * HEUR-030c: PageTransition.navigateTo to platform page without TenantRouter.
+     *
+     * PageTransition.js has zero TenantRouter integration (verified 2026-06-05).
+     * Any tenant-context call to PageTransition.navigateTo() targeting a
+     * platform page leaks the tenant student to main hex.
+     *
+     * Scope: _app/houses/**.html + _app/tenant/**.html, excluding
+     * _app/tenant/dashboard-*.html (those ARE platform pages themselves
+     * and legitimately route to /dashboard.html as fallback).
+     *
+     * Detection: extract inline scripts; flag PageTransition.navigateTo('X')
+     * where X is dashboard.html / sorting.html / index.html / unauthorized.html
+     * AND the surrounding script block has no TenantRouter.getUrl call.
+     *
+     * Severity: HIGH (matches HEUR-030 — tenant-isolation breach).
+     */
+    checkPageTransitionTenantLeak(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        const inScope = /(?:^|\/)_app\/(?:houses|tenant)\/.+\.html$/.test(file.path);
+        if (!inScope) return issues;
+        if (/_app\/tenant\/dashboard-[^/]+\.html$/.test(file.path)) return issues;
+
+        const scripts = this._extractInlineScripts(content);
+        // Absolute path required — bare 'dashboard.html' resolves relative
+        // to current dir and is NOT a platform-root leak. Same discipline
+        // Nancy enforced on HEUR-030b regex 2026-06-06.
+        const leakTargets = /^\/(?:dashboard|sorting|index|unauthorized)\.html$/;
+
+        for (const script of scripts) {
+            const callRe = /PageTransition\s*\.\s*navigateTo\s*\(\s*['"]([^'"]+)['"]/g;
+            let m;
+            while ((m = callRe.exec(script)) !== null) {
+                if (!leakTargets.test(m[1])) continue;
+                if (/TenantRouter\s*\.\s*getUrl/.test(script)) continue;
+                const lineIdx = content.indexOf(m[0]);
+                issues.push({
+                    code: 'HEUR-030c',
+                    severity: 'high',
+                    category: 'heuristic',
+                    message: `PageTransition.navigateTo('${m[1]}') leaks tenant context — PageTransition is not tenant-aware`,
+                    file: file.path,
+                    line: this.getLineNumber(content, lineIdx >= 0 ? lineIdx : 0),
+                    fix: `Compute url via TenantRouter first: var url = (typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getUrl('${m[1].replace(/^\//,'').replace(/\.html$/,'')}') : '${m[1]}'; PageTransition.navigateTo(url);`
+                });
+            }
+        }
+        return issues;
+    }
+
+    /**
+     * HEUR-030d: <form action> or <iframe src> to platform page on tenant-context.
+     *
+     * TenantShell's runtime overrideLinks() ONLY rewrites <a href> elements
+     * (TenantShell.js:390 — querySelectorAll('a[href]')). Form actions and
+     * iframe srcs are not in its scope. A form with action="/dashboard.html"
+     * submits the user out of tenant context regardless of TenantShell.
+     *
+     * Scope: same as HEUR-030c.
+     * Severity: HIGH.
+     */
+    checkFormIframeTenantLeak(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        const inScope = /(?:^|\/)_app\/(?:houses|tenant)\/.+\.html$/.test(file.path);
+        if (!inScope) return issues;
+        if (/_app\/tenant\/dashboard-[^/]+\.html$/.test(file.path)) return issues;
+
+        // Strip HTML comments so commented-out examples don't fire.
+        const stripped = content.replace(/<!--[\s\S]*?-->/g, '');
+
+        const patterns = [
+            { re: /<form\b[^>]*\baction\s*=\s*["']\/(dashboard|sorting|index|unauthorized)\.html["']/g, kind: 'form action' },
+            { re: /<iframe\b[^>]*\bsrc\s*=\s*["']\/(dashboard|sorting|index|unauthorized)\.html["']/g, kind: 'iframe src' }
+        ];
+
+        for (const { re, kind } of patterns) {
+            let m;
+            while ((m = re.exec(stripped)) !== null) {
+                const lineIdx = content.indexOf(m[0]);
+                issues.push({
+                    code: 'HEUR-030d',
+                    severity: 'high',
+                    category: 'heuristic',
+                    message: `${kind}="/${m[1]}.html" leaks tenant context — TenantShell only rewrites <a href>, not form/iframe`,
+                    file: file.path,
+                    line: this.getLineNumber(content, lineIdx >= 0 ? lineIdx : 0),
+                    fix: `Compute target via TenantRouter.getUrl('${m[1]}') and set the attribute at runtime, OR convert to an <a href> so TenantShell's overrideLinks() rewrites it`
+                });
+            }
+        }
+        return issues;
+    }
+
+    /**
+     * HEUR-030e: Tenant-accessible page missing the TenantShell auto-loader chain
+     * AND has a leaking static href.
+     *
+     * Without any of AccessGuard.js / ModuleProgress.js / FirebaseAuth.js /
+     * TenantShell.js loaded, the runtime overrideLinks() rewriter never
+     * runs and every static href to a platform page leaks. This rule only
+     * flags pages that BOTH lack the chain AND already contain a leaking
+     * href (otherwise a pure-content page with no nav is harmlessly
+     * loader-less).
+     *
+     * Scope: same as HEUR-030c.
+     * Severity: HIGH.
+     */
+    checkMissingTenantAutoLoader(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        const inScope = /(?:^|\/)_app\/(?:houses|tenant)\/.+\.html$/.test(file.path);
+        if (!inScope) return issues;
+        if (/_app\/tenant\/dashboard-[^/]+\.html$/.test(file.path)) return issues;
+
+        const stripped = content.replace(/<!--[\s\S]*?-->/g, '');
+
+        // Loader chain present?
+        const hasLoader = /<script\b[^>]*\bsrc\s*=\s*["'][^"']*\/(AccessGuard|ModuleProgress|FirebaseAuth|TenantShell)\.js["']/.test(stripped);
+        if (hasLoader) return issues;
+
+        // Only flag if there's actually a leaking href to fail-open against.
+        const hasLeakingHref = /<a\b[^>]*\bhref\s*=\s*["']\/(dashboard|sorting|index|unauthorized)\.html["']/.test(stripped);
+        if (!hasLeakingHref) return issues;
+
+        issues.push({
+            code: 'HEUR-030e',
+            severity: 'high',
+            category: 'heuristic',
+            message: 'Tenant-accessible page has static href to a platform page but loads none of AccessGuard.js / ModuleProgress.js / FirebaseAuth.js / TenantShell.js — runtime link rewriter is never injected',
+            file: file.path,
+            line: 1,
+            fix: 'Add <script src="/components/AccessGuard.js"></script> (or another component in the auto-loader chain) to <head>. The chain auto-injects TenantShell which rewrites platform-page hrefs at runtime via overrideLinks().'
+        });
         return issues;
     }
 
