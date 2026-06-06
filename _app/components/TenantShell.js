@@ -68,8 +68,26 @@
         var tenantName = (tenantPeek && tenantPeek.branding && tenantPeek.branding.platformName)
             || (tenantPeek && tenantPeek.name) || 'Tenant';
         var pillColor = (tenantPeek && tenantPeek.branding && tenantPeek.branding.primaryColor) || '#06b6d4';
+        var pillLogo  = (tenantPeek && tenantPeek.branding && tenantPeek.branding.logo) || null;
 
-        function injectPill() {
+        // Derive 2-char tenant initials. Verified by node execution against
+        // all 6 production tenant platformName values (2026-06-05):
+        //   "Dr. Norfleet" → DN
+        //   "Faculty Testing Primus" → FT
+        //   "Infosec/ethics-May-2026" → IE
+        //   "keiser university" → KU
+        //   "Python April 2026" → PA
+        //   "Dr. Wallace" → DW
+        // Split on whitespace, slash, dash, underscore, or period.
+        var deriveInitials = function(name) {
+            if (!name) return 'T';
+            var tokens = String(name).split(/[\s\/\-_.]+/).filter(Boolean);
+            if (tokens.length === 0) return 'T';
+            if (tokens.length === 1) return tokens[0].slice(0, 2).toUpperCase();
+            return (tokens[0][0] + tokens[1][0]).toUpperCase();
+        };
+
+        var injectPill = function() {
             if (!document.body) {
                 document.addEventListener('DOMContentLoaded', injectPill);
                 return;
@@ -77,34 +95,104 @@
             var pill = document.createElement('button');
             pill.id = 'tenant-reenter-pill';
             pill.title = 'Re-enter ' + tenantName + ' tenant view';
-            pill.textContent = tenantName;
+            pill.setAttribute('aria-label', pill.title);
+
+            // HEUR-008 STRUCTURAL FIX per CLAUDE.md Rule 5 + EduScan validator
+            // guidance at _tools/eduscan/validators/syntax/heuristics.js:813.
+            //
+            // position:fixed is reparented to the filtered ancestor when
+            // body.style.filter is set (dashboard.html Storm Gates line 5941
+            // + glitch firefly easter egg line 6629), causing the pill to
+            // teleport relative to scroll. position:absolute is immune.
+            // Y-axis pinned to viewport-bottom via rAF-throttled scroll
+            // listener; X-axis static `right` matches platform precedent
+            // (FluxCapacitor:641 pinFlux, SoundToggle:89 pinSound).
             pill.style.cssText = [
-                'position: fixed',
-                'top: 20px',
-                'right: 20px',
+                'position: absolute',
+                'right: 24px',
+                'width: 44px',
+                'height: 44px',
+                'border-radius: 50%',
                 'z-index: 99999',
                 'background: ' + pillColor,
                 'color: #fff',
                 'border: none',
-                'padding: 8px 16px',
-                'border-radius: 20px',
-                'font-size: 0.72rem',
-                'font-weight: 600',
-                'letter-spacing: 0.04em',
+                'padding: 0',
                 'cursor: pointer',
                 'box-shadow: 0 2px 12px rgba(0,0,0,0.3)',
-                'transition: all 0.2s',
-                'opacity: 0.85'
+                'transition: opacity 0.2s ease, transform 0.2s ease',
+                'opacity: 0.85',
+                'display: flex',
+                'align-items: center',
+                'justify-content: center',
+                'font-size: 0.85rem',
+                'font-weight: 700',
+                'overflow: hidden',
+                'line-height: 1'
             ].join(';');
+
+            if (pillLogo) {
+                var img = document.createElement('img');
+                img.src = pillLogo;
+                img.alt = '';
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+                pill.appendChild(img);
+            } else {
+                pill.textContent = deriveInitials(tenantName);
+            }
+
+            // Bottom-right stacking column on worst-case lab pages:
+            //   HexAIButton (position:fixed, bottom 24, height 64):
+            //       y = [24, 88] from viewport bottom
+            //   FluxCapacitor (position:absolute, JS pinFlux at top=viewportH-88):
+            //       same y-range as HexAIButton; FluxCapacitor and HexAIButton are
+            //       alternative AI surfaces, do not co-render on the same page
+            //   SoundToggle (position:absolute, JS pinSound at top=viewportH-136):
+            //       y = [92, 136] from viewport bottom
+            //   This pill (position:absolute, JS top=viewportH-188):
+            //       y = [144, 188] from viewport bottom — 8px above SoundToggle top
+            //
+            // Derivation: pill_offsetBottom = SoundToggle_top_from_bottom + gap
+            //                              = 136 + 8 = 144
+            // (SoundToggle_top_from_bottom = 136 is the JS pinSound constant,
+            // not the CSS `bottom: 92` value, which gets overridden by the JS.)
+            //
+            // Mobile note: isMobile() uses 600px threshold; SoundToggle's CSS
+            // mobile breakpoint is 500px but its JS pinSound overrides that
+            // at all widths. Mobile pill at bottom: 136 clears mobile
+            // HexAIButton (bottom 16, height 64 → top edge at 80) + SoundToggle
+            // by the same 8px margin as desktop.
+            var pendingFrame = null;
+            var isMobile = function() { return window.innerWidth <= 600; };
+            var repositionY = function() {
+                pendingFrame = null;
+                var offsetBottom = isMobile() ? 136 : 144;
+                pill.style.top = (window.scrollY + window.innerHeight - offsetBottom - 44) + 'px';
+            };
+            var updateRight = function() {
+                pill.style.right = (isMobile() ? 16 : 24) + 'px';
+            };
+            var scheduleReposition = function() {
+                if (pendingFrame !== null) return;
+                pendingFrame = requestAnimationFrame(repositionY);
+            };
+            repositionY();
+            updateRight();
+            window.addEventListener('scroll', scheduleReposition, { passive: true });
+            window.addEventListener('resize', function() {
+                updateRight();
+                scheduleReposition();
+            }, { passive: true });
+
             pill.addEventListener('mouseover', function() { this.style.opacity = '1'; this.style.transform = 'scale(1.05)'; });
-            pill.addEventListener('mouseout', function() { this.style.opacity = '0.85'; this.style.transform = 'scale(1)'; });
+            pill.addEventListener('mouseout',  function() { this.style.opacity = '0.85'; this.style.transform = 'scale(1)'; });
             pill.addEventListener('click', function() {
                 // Re-engage: clear the hidden flag from localStorage, reload into full shell
                 try { localStorage.removeItem(SHELL_HIDDEN_KEY); } catch (e) {}
                 window.location.reload();
             });
             document.body.appendChild(pill);
-        }
+        };
         injectPill();
 
         // Expose toggle API for external use
