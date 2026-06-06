@@ -12,14 +12,33 @@
 |---|---|---|---|
 | `3beea3d03` | fix(lobby): Phase A — tenant-context storage-contract refactor | 1 (lobby.html) | 0 critical/high, 11,736 total |
 | `600390d1b` | feat(lobby): Phase B — per-card × leave button on multi-state cards | 1 (lobby.html) | 0 critical/high, 11,736 total |
-| `f56244604` | feat(eduscan): add QUIZ-002b — inline-graded quiz detector (QC-57 Pattern A) | 1 (heuristics.js) | +46 high QUIZ-002b, 11,782 total |
+| `f56244604` | feat(eduscan): add QUIZ-002b — inline-graded quiz detector (QC-57 Pattern A1) | 1 (heuristics.js) | +46 high QUIZ-002b, 11,782 total |
 | `e8c118aca` | feat(eduscan): HEUR-030f absolute hexworth.com URL leak + HEUR-030d line-index fix | 1 (heuristics.js) | 0 new findings, 11,782 total |
+| `39e2ebfa7` | docs: this status report (intermediate snapshot — see addenda below) | 1 (md) | unchanged |
+| `719a8559d` | docs: OVERFLOW-001 WSA extension scoping (task #12/#13) | 1 (md) | unchanged |
+| `21c888951` | docs: OVERFLOW-001 scoping addendum — file-filter extension also blocked | 1 (md) | unchanged |
+| `c49d4ee41` | fix(eduscan): QUIZ-002b also catch unquoted ans:N (QC-57 Pattern A2) | 1 (heuristics.js) | +33 high QUIZ-002b, 11,815 total |
+| `97970e927` | data: QC-57 pre-staged answer arrays from 79 QUIZ-002b findings | 1 (json) | unchanged |
+
+**Final EduScan state:** 11,815 platform issues, 79 critical/high (all QUIZ-002b — the rule's design intent).
 
 ---
 
 ## EduScan rules added
 
-### QUIZ-002b — inline-graded quiz (QC-57 Pattern A) — 46 findings (HIGH)
+### QUIZ-002b — inline-graded quiz (QC-57 Pattern A1 + A2) — **79 findings (HIGH)**
+
+**A1 vs A2 sub-variants:**
+- A1: quoted form `"ans": N` — 46 findings (initial)
+- A2: unquoted form `ans: N` (line-anchored object property) — +33 additional findings discovered in second pass
+
+**Houses surfaced by A2 expansion:**
+- code/python-for-it (active COP1034C track) — pfi-w1/w2/w3/w4-final
+- shield/infosec — pis-w1/w2/w3/w4
+- matrix/adv-linux — ala-w1/w2/w3/w4
+- divergent/cybersecurity-policy — 16 weekly quizzes
+
+### QUIZ-002b — inline-graded quiz (QC-57 Pattern A1) — 46 findings (HIGH) — superseded by A2 expansion above
 
 **What it catches:** quizzes that don't use `QuizEngine` but have inline grading via `"ans": N` in question objects. The existing QUIZ-002 had a guard at L1296 (`if (!content.includes('QuizEngine')) return issues;`) that skipped these files entirely.
 
@@ -132,6 +151,24 @@ Per marathon orders: no merge to master until operator confirms after visual ver
 3. **XSS / apostrophe smoke**:
    - Inject className `"He said <\"Hi\"> Class"` — confirm no broken HTML, prompt shows escaped name
    - Inject className `"O'Brien's Lab Class"` — confirm raw apostrophe preserved, no broken HTML
+
+---
+
+## Pre-staged for operator-authorized session
+
+`_docs/operations/qc-57-answer-keys-extracted-2026-06-06.json` — answer arrays
+extracted from all 79 QUIZ-002b findings. JSON format:
+
+```json
+{ "quizId": { "file": "_app/...", "answers": [0,1,2,3,...], "count": N } }
+```
+
+Operator's authorized Firestore reseed session can use this directly for
+batch `db.collection('quiz_keys').doc(quizId).set({ answers, ... })`.
+Eliminates per-quiz manual answer-array extraction. **Caveat:** quizId
+derived from filename may not match HTML's moduleId (QC-54 lesson —
+A+ Core 1 prep-rounds had this mismatch). Operator MUST reconcile per-quiz
+before reseed.
 
 ---
 
