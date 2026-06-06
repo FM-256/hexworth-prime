@@ -46,7 +46,7 @@
  * - HEUR-029: Looks-clickable but isn't — non-anchor element styled as clickable (role="link"/"button", cursor:pointer + tabindex, onkeydown navigation, or href on non-anchor) with no onclick attribute AND no class/id wired up via JS addEventListener('click') or .onclick assignment; mouse clicks silently fail
  * - HEUR-030: Course-hub tenant-leak — _app/houses/<h>/<c>/index.html has <a id="dashboardBtn"> but is missing the canonical TenantRouter rewrite IIFE. Tenant students clicking Dashboard leak to the house index (main hex) instead of their tenant dashboard. Detection requires BOTH `getElementById('dashboardBtn')` AND `TenantRouter.getUrl` present; if either is absent the rewriter isn't wired. HIGH (tenant-isolation breach). Canonical pattern: _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button").
  * - HEUR-030b: Programmatic navigation to platform page without TenantRouter. Detects (window.)?location.href= / .assign() / .replace() pointing at an absolute /dashboard.html | /sorting.html | /index.html | /unauthorized.html on tenant-context HTML, when the surrounding inline script has no TenantRouter check. Absolute path required (relative 'index.html' is course-hub-local navigation, not a leak — Nancy round 1 lesson 2026-06-05). HIGH. Pure regression protection (0 current findings).
- * - QUIZ-002b: inline-graded quiz with "ans": N pattern (QC-57 Pattern A). Files (.quiz.html OR .exam.html) that don't use QuizEngine but have inline `selectAnswer(idx) { if (idx === q.ans) ... }` grading. QUIZ-002 misses these because it requires QuizEngine. Severity HIGH (MEDIUM via practice-mode marker, same demotion as QUIZ-002). Inventory: _docs/operations/qc-57-client-grading-inventory.md.
+ * - QUIZ-002b: inline-graded quiz with ans:N pattern (QC-57 Pattern A — sub-variants A1 quoted "ans":N and A2 unquoted ans:N as a line-start object property). Files (.quiz.html OR .exam.html) that don't use QuizEngine but have inline `selectAnswer(idx) { if (idx === q.ans) ... }` grading. QUIZ-002 misses these because it requires QuizEngine. Severity HIGH (MEDIUM via practice-mode marker, same demotion as QUIZ-002). Inventory: _docs/operations/qc-57-client-grading-inventory.md.
  * - HEUR-030f: Hard-coded https://hexworth.com/ URL as a nav target on tenant-context page. Patterns: <a href>, <form action>, location.href/assign/replace inside un-guarded inline scripts, PageTransition.navigateTo inside un-guarded inline scripts. SEO meta (canonical/og:url/ld+json) and resource URLs (img/script/link src) NOT flagged — structurally excluded by tag anchors and content types. Variable-assignment strings NOT flagged (audit 2026-06-06 found only 1 file, joinUrl, confirmed correct). HIGH.
  * - HEUR-030c: PageTransition.navigateTo to platform page without TenantRouter. PageTransition.js has zero TenantRouter integration (verified 2026-06-05). Any tenant-context call like PageTransition.navigateTo('dashboard.html') leaks the student to main hex. Scope: HTML under _app/houses/ and _app/tenant/, excluding _app/tenant/dashboard-X.html files which are platform pages themselves. HIGH. Pure regression protection (0 current findings).
  * - HEUR-030d: form action or iframe src to platform page on tenant-context. TenantShell's runtime overrideLinks() ONLY rewrites anchor href elements (verified at TenantShell.js:390); form actions and iframe srcs are not in its scope. Targets: /dashboard.html, /sorting.html, /index.html, /unauthorized.html. HIGH. Pure regression protection (0 current findings).
@@ -1490,7 +1490,10 @@ class HeuristicsValidator {
     }
 
     /**
-     * QUIZ-002b: inline-graded quiz with "ans": N pattern (QC-57 Pattern A).
+     * QUIZ-002b: inline-graded quiz with ans:N pattern (QC-57 Pattern A).
+     * Catches both sub-variants:
+     *   A1 quoted form:    "ans": N  (e.g., divergent/ethics-it, divergent/cybersecurity-policy)
+     *   A2 unquoted form:  ans:  N   (e.g., code/python-for-it, shield/infosec — line-anchored)
      *
      * QUIZ-002 only checks files that contain "QuizEngine". The QC-57
      * inventory revealed quizzes that use a wholly inline custom grading
@@ -1525,7 +1528,11 @@ class HeuristicsValidator {
         if (/\bgradeQuiz\s*\(/.test(content)) return issues;
 
         // Pattern A signature — at least 3 "ans": N occurrences to filter noise
-        const ansRe = /["']ans["']\s*:\s*\d+/g;
+        // Union of A1 (quoted: "ans":N or 'ans':N) and A2 (unquoted: ans:N
+        // as a line-start object property). Line-anchor `^\s*` on the
+        // unquoted variant narrows to object-literal property context —
+        // avoids matching `var ans = ...`, `function ans(...)`, etc.
+        const ansRe = /^\s*(?:["']ans["']|ans)\s*:\s*\d+/gm;
         const ansMatches = content.match(ansRe) || [];
         if (ansMatches.length < 3) return issues;
 
@@ -1540,8 +1547,8 @@ class HeuristicsValidator {
             severity: isPracticeMode ? 'medium' : 'high',
             category: 'quiz',
             message: isPracticeMode
-                ? 'Practice quiz uses inline custom grading with "ans": N pattern (' + ansMatches.length + ' answers visible). Practice-mode demotes severity but answers still visible via View Source.'
-                : 'Quiz uses inline custom grading with "ans": N pattern — answers visible via View Source (' + ansMatches.length + ' answers). QC-57 sprint Pattern A.',
+                ? 'Practice quiz uses inline custom grading with ans:N pattern (' + ansMatches.length + ' answers visible — quoted "ans":N and/or unquoted ans:N). Practice-mode demotes severity but answers still visible via View Source.'
+                : 'Quiz uses inline custom grading with ans:N pattern — answers visible via View Source (' + ansMatches.length + ' answers — quoted "ans":N and/or unquoted ans:N). QC-57 sprint Pattern A.',
             file: file.path,
             line: this.getLineNumber(content, firstMatch >= 0 ? firstMatch : 0),
             fix: 'Refactor to QuizEngine + serverGrading: true. Seed answers to Firestore quiz_keys/. See _docs/operations/qc-57-client-grading-inventory.md for the QC-57 sprint plan.'
