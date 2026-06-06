@@ -2,6 +2,23 @@
 
 Generated 2026-05-08. Total: 95 quizzes.
 
+**Live-state addendum 2026-06-06 (marathon branch):** current EduScan QUIZ-002b (now catching both Pattern A1 quoted `"ans":N` and A2 unquoted `ans:N` after marathon commit `c49d4ee41`) reports **79 findings**. Delta vs. 2026-05-08 audit:
+
+- ~16 inventory entries migrated since the original audit — notable: openstack quizzes via SEC-4/5 batches. These no longer fire QUIZ-002b.
+- Additional findings beyond the original list are folded into the 79 — some weekly-quiz tracks (code/python-for-it, shield/infosec, matrix/adv-linux) were not explicitly enumerated below but match Pattern A2 and surface now.
+
+For the live up-to-date list of currently-flagged files:
+```bash
+node _tools/eduscan/cli.js --json | \
+  jq -r '[.. | objects | select(.code=="QUIZ-002b") | .file] | unique[]'
+```
+
+Pre-staged answer arrays for operator-authorized Firestore reseed:
+```
+_docs/operations/qc-57-answer-keys-extracted-2026-06-06.json
+```
+(79 quizzes, ans values in document order; quizId derived from filename — operator must reconcile against HTML moduleId before reseed per QC-54 lesson).
+
 ## divergent/cybersecurity-policy — 16 quizzes
 
 | File | Pattern | Q# | Title | Answer pattern |
