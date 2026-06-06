@@ -45,6 +45,7 @@
  * - HEUR-028: ModuleProgress.complete() signature mismatch — call does not follow the (houseId, moduleId, options) pattern; first arg is not a recognized house ID, or second arg appears to be a score/number instead of a module ID string
  * - HEUR-029: Looks-clickable but isn't — non-anchor element styled as clickable (role="link"/"button", cursor:pointer + tabindex, onkeydown navigation, or href on non-anchor) with no onclick attribute AND no class/id wired up via JS addEventListener('click') or .onclick assignment; mouse clicks silently fail
  * - HEUR-030: Course-hub tenant-leak — _app/houses/<h>/<c>/index.html has <a id="dashboardBtn"> but is missing the canonical TenantRouter rewrite IIFE. Tenant students clicking Dashboard leak to the house index (main hex) instead of their tenant dashboard. Detection requires BOTH `getElementById('dashboardBtn')` AND `TenantRouter.getUrl` present; if either is absent the rewriter isn't wired. HIGH (tenant-isolation breach). Canonical pattern: _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button").
+ * - HEUR-030b: Programmatic navigation to platform page without TenantRouter. Detects (window.)?location.href= / .assign() / .replace() pointing at an absolute /dashboard.html | /sorting.html | /index.html | /unauthorized.html on tenant-context HTML, when the surrounding inline script has no TenantRouter check. Absolute path required (relative 'index.html' is course-hub-local navigation, not a leak — Nancy round 1 lesson 2026-06-05). HIGH. Pure regression protection (0 current findings).
  * - HEUR-030c: PageTransition.navigateTo to platform page without TenantRouter. PageTransition.js has zero TenantRouter integration (verified 2026-06-05). Any tenant-context call like PageTransition.navigateTo('dashboard.html') leaks the student to main hex. Scope: HTML under _app/houses/ and _app/tenant/, excluding _app/tenant/dashboard-X.html files which are platform pages themselves. HIGH. Pure regression protection (0 current findings).
  * - HEUR-030d: form action or iframe src to platform page on tenant-context. TenantShell's runtime overrideLinks() ONLY rewrites anchor href elements (verified at TenantShell.js:390); form actions and iframe srcs are not in its scope. Targets: /dashboard.html, /sorting.html, /index.html, /unauthorized.html. HIGH. Pure regression protection (0 current findings).
  * - HEUR-030e: Tenant-accessible HTML missing the TenantShell auto-loader chain AND has a leaking static href. Without AccessGuard.js / ModuleProgress.js / FirebaseAuth.js / TenantShell.js the runtime link rewriter is never injected, so every static href to a platform page leaks. Detection: file in scope + has leaking href + loads none of the 4 protectors. HIGH. Pure regression protection (0 current findings).
@@ -211,6 +212,7 @@ class HeuristicsValidator {
         issues.push(...this.checkModuleProgressSignature(file));
         issues.push(...this.checkLooksClickableButIsnt(file));
         issues.push(...this.checkDashboardBtnTenantRewrite(file));
+        issues.push(...this.checkLocationHrefTenantLeak(file));
         issues.push(...this.checkPageTransitionTenantLeak(file));
         issues.push(...this.checkFormIframeTenantLeak(file));
         issues.push(...this.checkMissingTenantAutoLoader(file));
@@ -3166,6 +3168,60 @@ class HeuristicsValidator {
             fix: 'Add the canonical IIFE before </body>. See _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button") for the pattern.'
         });
 
+        return issues;
+    }
+
+    /**
+     * HEUR-030b: Programmatic navigation to platform page without TenantRouter.
+     *
+     * Detects (window.)?location.href= / location.assign() / location.replace()
+     * targeting an absolute /dashboard.html | /sorting.html | /index.html |
+     * /unauthorized.html, when the surrounding inline script has NO
+     * TenantRouter check.
+     *
+     * Scope: HTML under _app/houses/ and _app/tenant/, excluding
+     * _app/tenant/dashboard-X.html (platform pages).
+     *
+     * ABSOLUTE PATH REQUIRED. Bare 'dashboard.html' resolves relative to
+     * the current directory and is NOT a platform-root leak. (Nancy round 1
+     * lesson 2026-06-05 — broad regex matched 35 relative `index.html`
+     * course-hub returns that were correct navigation patterns.)
+     *
+     * Severity: HIGH.
+     */
+    checkLocationHrefTenantLeak(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        const inScope = /(?:^|\/)_app\/(?:houses|tenant)\/.+\.html$/.test(file.path);
+        if (!inScope) return issues;
+        if (/_app\/tenant\/dashboard-[^/]+\.html$/.test(file.path)) return issues;
+
+        const scripts = this._extractInlineScripts(content);
+
+        for (const script of scripts) {
+            // Skip if this script block already gates with TenantRouter
+            if (/TenantRouter\s*\.\s*(?:getUrl|isActive|goToHub)/.test(script)) continue;
+            // Regex constructed inside loop to match HEUR-030c/d/e pattern
+            // (avoids /g flag lastIndex carryover across iterations — Nancy
+            // round 2 consistency requirement 2026-06-06).
+            const leakRe = /(?:window\.)?location\s*\.\s*(?:href\s*=|assign\s*\(\s*|replace\s*\(\s*)\s*['"](\/(?:dashboard|sorting|index|unauthorized)\.html)["']/g;
+            let m;
+            while ((m = leakRe.exec(script)) !== null) {
+                const lineIdx = content.indexOf(m[0]);
+                const targetKey = m[1].replace(/^\//, '').replace(/\.html$/, '');
+                issues.push({
+                    code: 'HEUR-030b',
+                    severity: 'high',
+                    category: 'heuristic',
+                    message: `Programmatic navigation to platform page '${m[1]}' without TenantRouter rewrite — tenant student leaks to main hex`,
+                    file: file.path,
+                    line: this.getLineNumber(content, lineIdx >= 0 ? lineIdx : 0),
+                    fix: `Wrap the redirect: var url = (typeof TenantRouter !== 'undefined' && TenantRouter.isActive()) ? TenantRouter.getUrl('${targetKey}') : '${m[1]}'; window.location.href = url;`
+                });
+            }
+        }
         return issues;
     }
 
