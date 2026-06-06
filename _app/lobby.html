@@ -783,6 +783,34 @@
     // Replaces inline state-enrolled setup at L823-832 (localStorage path) and
     // L864-871 (Firestore path). Called by btn-leave at L1113 with
     // remaining.length === 1.
+    // Phase B.5: shared storage-writes helper. Extracted from
+    // _enterEnrolledState and the card-click handler in _showMultiEnrolled.
+    // Owns the 7-key active-class storage contract + preserve-when-matching
+    // JSON tier. Two of three storage-write call sites delegate here.
+    // _saveEnrollment is the third site — it still has its own block because
+    // it accepts a tenantConfig parameter; Phase C will unify by adding a
+    // level-1 tier here that reads e.tenantConfig when present.
+    function _writeActiveClassStorage(e) {
+        var tenantSlug = e.tenantSlug || '';
+        var classId = e.classId || '';
+        var existing = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant');
+        var existingParsed = null;
+        try { existingParsed = existing ? JSON.parse(existing) : null; } catch (parseErr) {}
+        var tenantJson;
+        if (existingParsed && existingParsed.slug === tenantSlug) {
+            tenantJson = existing;
+        } else {
+            tenantJson = JSON.stringify({ slug: tenantSlug });
+        }
+        sessionStorage.setItem('hexworth_tenant', tenantJson);
+        sessionStorage.setItem('hexworth_class', classId);
+        localStorage.setItem('hexworth_tenant', tenantJson);
+        localStorage.setItem('hexworth_tenant_slug', tenantSlug);
+        localStorage.setItem('hexworth_class_id', classId);
+        localStorage.setItem('hexworth_course_id', e.courseId || '');
+        localStorage.setItem('hexworth_class_name', e.className || '');
+    }
+
     function _enterEnrolledState(e) {
         if (!e || !e.classId) {
             console.warn('[lobby] _enterEnrolledState called with malformed enrollment, falling back to state-code', e);
@@ -795,30 +823,10 @@
         $('enrolled-course').textContent = course ? course.name : e.courseId;
         $('enrolled-icon').src = course ? course.icon : '/assets/images/icons/icon-globe.webp';
 
-        var tenantSlug = e.tenantSlug || '';
-        var classId = e.classId;
-
-        // Preserve existing branding when restoring same-tenant context.
-        // 100% of production tenants use branding.dashboardVariant (per
-        // Firestore audit 2026-06-06). Minimal {slug} JSON would discard it
-        // and route students to wrong dashboard.
-        var existing = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant');
-        var existingParsed = null;
-        try { existingParsed = existing ? JSON.parse(existing) : null; } catch (parseErr) {}
-        var tenantJson;
-        if (existingParsed && existingParsed.slug === tenantSlug) {
-            tenantJson = existing;
-        } else {
-            tenantJson = JSON.stringify({ slug: tenantSlug });
-        }
-
-        sessionStorage.setItem('hexworth_tenant', tenantJson);
-        sessionStorage.setItem('hexworth_class', classId);
-        localStorage.setItem('hexworth_tenant', tenantJson);
-        localStorage.setItem('hexworth_tenant_slug', tenantSlug);
-        localStorage.setItem('hexworth_class_id', classId);
-        localStorage.setItem('hexworth_course_id', e.courseId || '');
-        localStorage.setItem('hexworth_class_name', e.className || '');
+        // Phase B.5: storage writes delegated to _writeActiveClassStorage.
+        // Preserve-when-matching pattern (100% production tenants use
+        // branding.dashboardVariant) lives in the helper now.
+        _writeActiveClassStorage(e);
 
         // resolvedData narrow contract: {tenantSlug, classId, courseId}.
         // Fields type/className/tournamentId from resolveJoinCode are NOT
@@ -878,29 +886,21 @@
         // pre-clear storage.
         container.querySelectorAll('button.info-card-enter').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                var ts = btn.dataset.tenant || '';
-                var ci = btn.dataset.class || '';
-                var co = btn.dataset.course || '';
-                var cn = btn.dataset.name || '';
-
-                var existing = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant');
-                var existingParsed = null;
-                try { existingParsed = existing ? JSON.parse(existing) : null; } catch (parseErr) {}
-                var tenantJson;
-                if (existingParsed && existingParsed.slug === ts) {
-                    tenantJson = existing;
-                } else {
-                    tenantJson = JSON.stringify({ slug: ts });
-                }
-
-                sessionStorage.setItem('hexworth_tenant', tenantJson);
-                sessionStorage.setItem('hexworth_class', ci);
-                localStorage.setItem('hexworth_tenant', tenantJson);
-                localStorage.setItem('hexworth_tenant_slug', ts);
-                localStorage.setItem('hexworth_class_id', ci);
-                localStorage.setItem('hexworth_course_id', co);
-                localStorage.setItem('hexworth_class_name', cn);
-                var course = COURSE_MAP[co];
+                // Phase B.5: construct enrollment-shaped object from dataset,
+                // delegate writes to shared helper. Property names map DOM
+                // dataset keys to the helper's expected `e` fields — note
+                // dataset.class (data-class attribute) → enrollment.classId
+                // (matches storage key hexworth_class_id). Variable name
+                // `enrollment` distinguishes from the .map(function(e)) outer
+                // loop iterator.
+                var enrollment = {
+                    tenantSlug: btn.dataset.tenant || '',
+                    classId:    btn.dataset.class  || '',
+                    courseId:   btn.dataset.course || '',
+                    className:  btn.dataset.name   || ''
+                };
+                _writeActiveClassStorage(enrollment);
+                var course = COURSE_MAP[enrollment.courseId];
                 window.location.href = course ? course.href : '/dashboard.html';
             });
         });
