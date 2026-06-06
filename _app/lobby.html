@@ -834,35 +834,49 @@
         var container = $('multi-class-list');
         container.innerHTML = enrollments.map(function(e) {
             var course = COURSE_MAP[e.courseId] || { name: e.courseId, icon: '/assets/images/icons/icon-books.webp' };
-            return '<button class="info-card" style="cursor:pointer;width:100%;text-align:left;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;" '
+            // Phase B card structure: <div> wrapper with sibling enter + leave
+            // buttons. <button> inside <button> is invalid HTML — required
+            // restructure to add a per-card × leave affordance.
+            return '<div class="info-card-row" style="display:flex;align-items:stretch;gap:0;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);border-radius:10px;overflow:hidden;">'
+                + '<button class="info-card-enter" style="cursor:pointer;flex:1;text-align:left;border:none;background:transparent;padding:14px 16px;display:flex;align-items:center;gap:12px;color:inherit;" '
                 + 'data-tenant="' + _escAttr(e.tenantSlug) + '" '
                 + 'data-class="' + _escAttr(e.classId) + '" '
                 + 'data-course="' + _escAttr(e.courseId) + '" '
-                + 'data-name="' + _escAttr(e.className) + '">'
+                + 'data-name="' + _escAttr(e.className) + '" '
+                + 'aria-label="Enter ' + _escAttr(e.className || course.name) + '">'
                 + '<img src="' + course.icon + '" alt="" style="width:36px;height:36px;border-radius:8px;">'
                 + '<div style="flex:1;">'
                 + '<div style="font-size:0.95rem;font-weight:600;color:#e2e8f0;">' + _escAttr(course.name) + '</div>'
                 + '<div style="font-size:0.75rem;color:#64748b;">' + _escAttr(e.className || e.courseId) + '</div>'
                 + '</div>'
                 + '<span style="color:#06b6d4;font-size:1.2rem;">&#8250;</span>'
-                + '</button>';
+                + '</button>'
+                + '<button class="info-card-leave" data-class="' + _escAttr(e.classId) + '" data-name="' + _escAttr(e.className || course.name) + '" '
+                + 'aria-label="Leave ' + _escAttr(e.className || course.name) + '" '
+                + 'title="Leave this class" '
+                + 'style="cursor:pointer;border:none;background:transparent;border-left:1px solid rgba(255,255,255,0.1);padding:0 14px;color:#64748b;font-size:1.1rem;transition:color 0.15s,background 0.15s;" '
+                + 'onmouseenter="this.style.color=\'#ef4444\';this.style.background=\'rgba(239,68,68,0.08)\'" '
+                + 'onmouseleave="this.style.color=\'#64748b\';this.style.background=\'transparent\'">&times;</button>'
+                + '</div>';
         }).join('');
 
-        // Card click handler — writes the 7-key active-class storage contract
-        // before navigating to the course hub. Mirrors _enterEnrolledState's
-        // storage writes (which also covers sessionStorage + localStorage
-        // tenant JSON that AccessGuard / TenantRouter depend on).
+        // Phase B: handler selectors narrowed to distinguish enter from leave.
         //
-        // NOTE on preserve-when-matching: in current Phase A flows, the picker
-        // is reached AFTER an explicit storage clear (btn-leave multi-branch
-        // OR Firestore multi-restore). So `existing` is typically null and
-        // preservation is inert — writes minimal {slug} JSON which loses
-        // branding.dashboardVariant. This is the same cross-tenant degradation
-        // as _saveEnrollment(...,null). Phase B / future schema migration
-        // should store tenantConfig in the enrollments array to recover it.
+        // Enter handler — writes the 7-key active-class storage contract
+        // before navigating to the course hub. Mirrors _enterEnrolledState's
+        // storage writes (sessionStorage + localStorage tenant JSON that
+        // AccessGuard / TenantRouter depend on).
+        //
+        // NOTE on preserve-when-matching: in current flows the picker is
+        // reached AFTER an explicit storage clear (btn-leave multi-branch,
+        // per-card × multi-branch, OR Firestore multi-restore). So `existing`
+        // is typically null and preservation is inert — writes minimal {slug}
+        // JSON which loses branding.dashboardVariant. Same cross-tenant
+        // degradation as _saveEnrollment(...,null). Future schema migration
+        // (store tenantConfig in enrollments array) would close that gap.
         // The check is kept as defense-in-depth for future paths that don't
         // pre-clear storage.
-        container.querySelectorAll('button').forEach(function(btn) {
+        container.querySelectorAll('button.info-card-enter').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var ts = btn.dataset.tenant || '';
                 var ci = btn.dataset.class || '';
@@ -888,6 +902,38 @@
                 localStorage.setItem('hexworth_class_name', cn);
                 var course = COURSE_MAP[co];
                 window.location.href = course ? course.href : '/dashboard.html';
+            });
+        });
+
+        // Leave handler — per-card × button. 3-way routing mirrors btn-leave
+        // (state-enrolled leave) so multi-state and single-state exits share
+        // the same contract.
+        container.querySelectorAll('button.info-card-leave').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var classId = btn.dataset.class;
+                var name = btn.dataset.name;
+                if (!confirm('Are you sure you want to leave "' + name + '"?')) return;
+                _removeEnrollment(classId);
+                resolvedData = null;
+                var remaining = _getEnrollments();
+                if (remaining.length === 0) {
+                    showState('state-code');
+                    setTimeout(function() { $('code-input').focus(); }, 100);
+                } else if (remaining.length === 1) {
+                    _enterEnrolledState(remaining[0]);
+                } else {
+                    // Multi-state: clear active-class storage so AccessGuard /
+                    // TenantShell / TenantRouter don't see stale tenant from
+                    // the just-removed class while picker re-renders.
+                    sessionStorage.removeItem('hexworth_tenant');
+                    sessionStorage.removeItem('hexworth_class');
+                    localStorage.removeItem('hexworth_tenant');
+                    localStorage.removeItem('hexworth_tenant_slug');
+                    localStorage.removeItem('hexworth_class_id');
+                    localStorage.removeItem('hexworth_course_id');
+                    localStorage.removeItem('hexworth_class_name');
+                    _showMultiEnrolled(remaining);
+                }
             });
         });
 
