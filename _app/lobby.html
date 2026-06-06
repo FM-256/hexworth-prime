@@ -709,13 +709,26 @@
         localStorage.setItem('hexworth_course_id', co);
         localStorage.setItem('hexworth_class_name', cn || '');
 
-        // Multi-enrollment array — add this enrollment if not already present
+        // Multi-enrollment array — upsert: replace existing entry on
+        // re-enrollment, otherwise push new. Closes the stale-entry case
+        // when admin renames a class or join code is re-issued AND the
+        // re-enroll caller carries the updated metadata.
+        // Entry shape: {tenantSlug, classId, courseId, className}.
+        // NOTE: bare-object replace at the existsIdx site — any future
+        // fields added to the entry will be DROPPED on re-enrollment.
+        // Extend the `entry` literal AND any consumer when adding fields.
         var enrollments = _getEnrollments();
-        var exists = enrollments.some(function(e) { return e.classId === ci; });
-        if (!exists) {
-            enrollments.push({ tenantSlug: ts, classId: ci, courseId: co, className: cn || '' });
-            localStorage.setItem('hexworth_enrollments', JSON.stringify(enrollments));
+        var existsIdx = -1;
+        for (var i = 0; i < enrollments.length; i++) {
+            if (enrollments[i].classId === ci) { existsIdx = i; break; }
         }
+        var entry = { tenantSlug: ts, classId: ci, courseId: co, className: cn || '' };
+        if (existsIdx >= 0) {
+            enrollments[existsIdx] = entry;
+        } else {
+            enrollments.push(entry);
+        }
+        localStorage.setItem('hexworth_enrollments', JSON.stringify(enrollments));
     }
 
     function _getEnrollments() {
@@ -1251,7 +1264,10 @@
     $('btn-continue').addEventListener('click', () => {
         if (!resolvedData) return;
         if (resolvedData.tenantSlug && resolvedData.classId && resolvedData.courseId) {
-            _saveEnrollment(resolvedData.tenantSlug, resolvedData.classId, resolvedData.courseId, '');
+            // Pass resolvedData.className (matches the pattern at L1187 + L1239)
+            // — bare '' was creating divergence between the array entry and the
+            // hexworth_class_name flat key on btn-continue re-entry.
+            _saveEnrollment(resolvedData.tenantSlug, resolvedData.classId, resolvedData.courseId, resolvedData.className || '');
         }
 
         const course = COURSE_MAP[resolvedData.courseId];
