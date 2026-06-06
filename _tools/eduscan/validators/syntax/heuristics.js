@@ -59,6 +59,7 @@
  * - HEUR-034: Infinite opacity 0→1 keyframe causes flicker. `@keyframes` definition starts at `opacity: 0` and ends at `opacity: 1`, AND the applying class declares `animation: ... infinite`. Creates a fade-in / fade-out flicker loop because each cycle resets opacity to 0. Caught on WSA m01 slides 17 and 26 drop-in animations (2026-05-29). MEDIUM (UX issue). Detection: parse `@keyframes` for `0%.*opacity:\s*0` AND `100%.*opacity:\s*1`; check applying class for `animation: ... infinite`.
  * - HEUR-035: Em-dash character in content. Per user style preference (memory `feedback_no_em_dashes`), the em-dash character (U+2014) should not appear in HTML content. Common alternatives: comma, colon, or period depending on grammar. Detection: count `—` characters outside `<style>`, `<script>`, and `code-block`/`pre` contexts. Going-forward enforcement only — legacy content allowlisted by file path.
  * - HEUR-036: has-visual class without SVG visual. Slide has `class="slide has-visual"` but its `<div class="slide-visual">` is empty or contains no `<svg>` element. Indicates a partially-built slide where the visual half is missing — companion bug to HEUR-031 (empty text wrapper). Detection: find each `class="...slide.*has-visual..."` block; check that the slide-visual child contains an `<svg`. MEDIUM (incomplete slide).
+ * - HEUR-037: <a target="_blank"> missing rel="noopener" (or rel="noreferrer" — per HTML spec noreferrer implies noopener). Tabnabbing risk via window.opener: new tab can redirect parent. Modern browsers (Chrome 88+, FF 79+, Safari 12.1+) default to implicit noopener but explicit attribute is HTML spec best practice. LOW severity — does NOT publish to Nexus triage queue per TRIAGE_SEVERITY_GATE=['critical','high']; guards against silent regression in future scans. ~35 current findings across 14 files. Detection: regex match `<a target="_blank">` that lacks both noopener and noreferrer tokens in rel attribute.
  */
 
 const fs = require('fs');
@@ -220,6 +221,7 @@ class HeuristicsValidator {
         issues.push(...this.checkFormIframeTenantLeak(file));
         issues.push(...this.checkMissingTenantAutoLoader(file));
         issues.push(...this.checkAbsoluteHexworthUrlLeak(file));
+        issues.push(...this.checkBlankTargetMissingNoopener(file));
         issues.push(...this.checkCompleteQuizPctArg(file));
         issues.push(...this.checkResultButtonStandard(file));
         issues.push(...this.checkEmptySlideText(file));
@@ -1484,6 +1486,52 @@ class HeuristicsValidator {
                     });
                 }
             }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-037: <a target="_blank"> missing rel="noopener" (or noreferrer).
+     *
+     * Tabnabbing risk: without rel="noopener", the new tab can access
+     * window.opener and redirect the parent. Modern browsers (Chrome 88+,
+     * Firefox 79+, Safari 12.1+) default to implicit noopener for
+     * target="_blank", but explicit attribute is HTML spec best practice
+     * and covers legacy/embedded contexts.
+     *
+     * Per HTML spec, rel="noreferrer" implies noopener — accepted as
+     * sufficient by detection.
+     *
+     * Severity: LOW. Per TRIAGE_SEVERITY_GATE=['critical','high'] in
+     * nexus/publish.js, LOW findings do NOT publish to the Nexus triage
+     * queue — this rule guards against silent regressions in future
+     * scans without blocking deploys. Findings appear in EduScan output
+     * + TREASURE_MAP only.
+     *
+     * Edge case (0 current occurrences): a `>` literal inside an attribute
+     * value would truncate the [^>] tag match. Not handled — accepting
+     * theoretical false-negative for rule simplicity.
+     */
+    checkBlankTargetMissingNoopener(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+        if (!file.path.endsWith('.html')) return issues;
+
+        const tagRe = /<a\s[^>]*target\s*=\s*["']_blank["'][^>]*>/gi;
+        let m;
+        while ((m = tagRe.exec(content)) !== null) {
+            if (/\brel\s*=\s*["'][^"']*\b(noopener|noreferrer)\b/i.test(m[0])) continue;
+            issues.push({
+                code: 'HEUR-037',
+                severity: 'low',
+                category: 'heuristic',
+                message: '<a target="_blank"> missing rel="noopener" (or noreferrer) — tabnabbing risk via window.opener (modern browsers mitigate; explicit attribute is HTML spec best practice)',
+                file: file.path,
+                line: this.getLineNumber(content, m.index),
+                fix: 'Add rel="noopener noreferrer" to the anchor tag.'
+            });
         }
 
         return issues;
