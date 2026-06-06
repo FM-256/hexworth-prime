@@ -131,6 +131,8 @@ Per marathon orders: no merge to master until operator confirms after visual ver
 
 **Branch preview URL:** https://hexworth-prime--marathon-yoj3gm8e.web.app (expires 2026-06-13)
 
+**Paste-ready DevTools snippets for the 7 scenarios:** `_docs/operations/lobby-verification-snippets-2026-06-06.md` — copy-paste into preview console, observe each scenario without manual storage manipulation.
+
 **Suggested verifications:**
 
 1. **Lobby × button** (`/lobby.html` with 2+ enrollments fixture in localStorage):
