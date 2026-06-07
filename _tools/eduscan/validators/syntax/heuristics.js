@@ -60,6 +60,7 @@
  * - HEUR-035: Em-dash character in content. Per user style preference (memory `feedback_no_em_dashes`), the em-dash character (U+2014) should not appear in HTML content. Common alternatives: comma, colon, or period depending on grammar. Detection: count `—` characters outside `<style>`, `<script>`, and `code-block`/`pre` contexts. Going-forward enforcement only — legacy content allowlisted by file path.
  * - HEUR-036: has-visual class without SVG visual. Slide has `class="slide has-visual"` but its `<div class="slide-visual">` is empty or contains no `<svg>` element. Indicates a partially-built slide where the visual half is missing — companion bug to HEUR-031 (empty text wrapper). Detection: find each `class="...slide.*has-visual..."` block; check that the slide-visual child contains an `<svg`. MEDIUM (incomplete slide).
  * - HEUR-037: <a target="_blank"> missing rel="noopener" (or rel="noreferrer" — per HTML spec noreferrer implies noopener). Tabnabbing risk via window.opener: new tab can redirect parent. Modern browsers (Chrome 88+, FF 79+, Safari 12.1+) default to implicit noopener but explicit attribute is HTML spec best practice. LOW severity — does NOT publish to Nexus triage queue per TRIAGE_SEVERITY_GATE=['critical','high']; guards against silent regression in future scans. ~35 current findings across 14 files. Detection: regex match `<a target="_blank">` that lacks both noopener and noreferrer tokens in rel attribute.
+ * - HEUR-038: WSA presentation slide-layout contract violation. WSA cloud-presentation.module.html files must match m01/m02's flex-chain layout contract. Five fingerprints (verified against m01 + m02 source 2026-06-06): (a) `.slide-container` rule contains `flex: 1`, `min-height: 0`, `display: flex`, `flex-direction: column`; (b) `.slide` rule contains `flex: 1`, `min-height: 0` AND lacks `border-radius`, `border: 1px solid`, fixed `min-height: Npx`; (c) `.slide-content` rule contains `flex: 1`, `min-height: 0`; (d) `!important` token count in file = 0; (e) file contains NONE of the breed-marker tokens that identify non-cat templates: `text-visual-grid`, `tv-text`, `tv-visual`, `presentation-container`, `slide-area`, `slide-header`, `page-header` (m01/m02 use `.slide.has-visual .slide-content` grid + `.slide-text` + `.slide-visual` + `.header` + `.slide-container` exclusively — any of the listed tokens means a different breed). Scope: files under `_app/houses/cloud/modules/wsa/` named `cloud-presentation.module.html`. HIGH severity (real-estate regression). Predicted output at land: m01+m02 PASS, m03-m19 FAIL with per-fingerprint reasons. Reference cat fixtures: m01-fundamentals, m02-active-directory. Known limitations: (1) substring-match on `flex: 1` would false-fail if a CSS-normalizing tool emits `flex: 1 1 0%` longhand; current files use verbatim `flex: 1`. (2) !important counter does not exclude prose comments containing the literal word; no current occurrences in cat fixtures.
  */
 
 const fs = require('fs');
@@ -230,6 +231,7 @@ class HeuristicsValidator {
         issues.push(...this.checkInfiniteOpacityFlicker(file));
         issues.push(...this.checkEmDashContent(file));
         issues.push(...this.checkHasVisualWithoutSvg(file));
+        issues.push(...this.checkWsaSlideLayoutContract(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -4369,6 +4371,127 @@ class HeuristicsValidator {
                 });
             }
         }
+        return issues;
+    }
+
+    /**
+     * HEUR-038: WSA presentation slide-layout contract violation.
+     *
+     * Cat-contract (verified against m01 + m02 source 2026-06-06):
+     *   • .slide-container rule contains: flex:1, min-height:0, display:flex, flex-direction:column
+     *   • .slide rule contains: flex:1, min-height:0; lacks: border-radius, border:1px solid, fixed min-height:Npx
+     *   • .slide-content rule contains: flex:1, min-height:0
+     *   • !important count in file = 0
+     *   • file contains NONE of these breed-marker tokens: text-visual-grid,
+     *     tv-text, tv-visual, presentation-container, slide-area, slide-header,
+     *     page-header (cat uses .slide.has-visual + .slide-text + .slide-visual
+     *     + .header + .slide-container; any of the forbidden tokens means
+     *     a different breed structurally even if the four outer rules match)
+     *
+     * Not-cat → single HIGH per file listing every failed fingerprint
+     * (Option A — surgery to fix is a coordinated transform per file).
+     *
+     * Scope guard: WSA only for now (files under
+     * _app/houses/cloud/modules/wsa/ named cloud-presentation.module.html).
+     * Pattern may generalize to other course presentations later — held
+     * narrow until proven.
+     *
+     * Reference fixtures (must PASS forever): m01-fundamentals,
+     * m02-active-directory.
+     *
+     * Known limitations:
+     *   - getRule() uses [^}]* — won't match if a rule body contains a
+     *     literal `}` (e.g., nested via Sass). m01/m02 are flat CSS.
+     *   - getRule() picks FIRST occurrence. m01/m02 main rules precede
+     *     @media overrides; first-match is correct.
+     *   - `flex: 1` substring match would false-fail on `flex: 1 1 0%`
+     *     longhand. Current cat files use verbatim `flex: 1`.
+     *   - !important counter does not exclude prose comments containing
+     *     the literal word; no current occurrences in cat fixtures.
+     */
+    checkWsaSlideLayoutContract(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        const filePath = file.path || '';
+        if (!filePath.includes('/houses/cloud/modules/wsa/')) return issues;
+        if (!filePath.endsWith('/cloud-presentation.module.html')) return issues;
+
+        // Helper: extract a CSS rule block by literal selector match.
+        // Matches `<selector> { ... }` with non-`}` body. Won't match
+        // combined selectors (e.g., `.a, .b { ... }`) — by design: a
+        // file using combined selectors instead of a clean dedicated
+        // rule IS a contract violation.
+        function getRule(selector) {
+            const esc = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const re = new RegExp(esc + '\\s*\\{([^}]*)\\}');
+            const m = content.match(re);
+            return m ? m[1] : null;
+        }
+
+        const failures = [];
+
+        // Fingerprint 1: .slide-container flex contract
+        const containerBlock = getRule('.slide-container');
+        if (!containerBlock) {
+            failures.push('.slide-container rule missing or uses combined selector');
+        } else {
+            const needs = ['flex: 1', 'min-height: 0', 'display: flex', 'flex-direction: column'];
+            const missing = needs.filter(n => !containerBlock.includes(n));
+            if (missing.length) failures.push('.slide-container missing: ' + missing.join(', '));
+        }
+
+        // Fingerprint 2: .slide flex contract + no card aesthetic
+        const slideBlock = getRule('.slide');
+        if (!slideBlock) {
+            failures.push('.slide rule missing or uses combined selector');
+        } else {
+            const needs = ['flex: 1', 'min-height: 0'];
+            const missing = needs.filter(n => !slideBlock.includes(n));
+            if (missing.length) failures.push('.slide missing: ' + missing.join(', '));
+            if (/border-radius\s*:/.test(slideBlock)) failures.push('.slide has forbidden border-radius (card aesthetic)');
+            if (/border\s*:\s*1px\s+solid/.test(slideBlock)) failures.push('.slide has forbidden border:1px solid');
+            const mh = slideBlock.match(/min-height\s*:\s*(\d+)(px|rem|em|vh)/);
+            if (mh && mh[1] !== '0') failures.push('.slide has forbidden fixed min-height: ' + mh[0]);
+        }
+
+        // Fingerprint 3: .slide-content flex contract
+        const contentBlock = getRule('.slide-content');
+        if (!contentBlock) {
+            failures.push('.slide-content rule missing or uses combined selector');
+        } else {
+            const needs = ['flex: 1', 'min-height: 0'];
+            const missing = needs.filter(n => !contentBlock.includes(n));
+            if (missing.length) failures.push('.slide-content missing: ' + missing.join(', '));
+        }
+
+        // Fingerprint 4: !important count = 0
+        const importantCount = (content.match(/!important/g) || []).length;
+        if (importantCount > 0) failures.push('!important count: ' + importantCount + ' (expected 0)');
+
+        // Fingerprint 5: forbidden breed-marker tokens. Cat (m01/m02) uses
+        // .slide.has-visual + .slide-text + .slide-visual + .header +
+        // .slide-container. Any of these tokens marks a different breed:
+        const breedMarkers = [
+            'text-visual-grid', 'tv-text', 'tv-visual',
+            'presentation-container', 'slide-area', 'slide-header', 'page-header'
+        ];
+        const breedHits = breedMarkers.filter(tok => content.includes(tok));
+        if (breedHits.length) failures.push('breed-marker tokens present: ' + breedHits.join(', '));
+
+        if (failures.length) {
+            issues.push({
+                code: 'HEUR-038',
+                severity: 'high',
+                category: 'heuristic',
+                message: 'WSA slide-layout contract violation — file does not match m01/m02 cat-fingerprint. Failed: ' + failures.join(' | '),
+                file: file.path,
+                line: 1,
+                fix: 'Match m02 contract: .slide-container { flex:1; min-height:0; display:flex; flex-direction:column; position:relative; overflow:hidden; }, .slide { display:none; flex:1; min-height:0; padding:14px 36px; box-sizing:border-box; overflow:hidden; }, .slide-content { width:100%; max-width:1400px; flex:1; min-height:0; overflow:hidden; }, zero !important. Reference: _app/houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html'
+            });
+        }
+
         return issues;
     }
 }
