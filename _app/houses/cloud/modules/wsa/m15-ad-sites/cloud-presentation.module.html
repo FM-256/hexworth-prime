@@ -286,26 +286,20 @@
             <h1>M15: AD Sites & Replication</h1>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>Active Directory Sites and Replication optimizes network traffic by controlling how and when directory data is replicated between domain controllers across different physical locations.</p>
-
+                    <p>AD Sites = control how replication moves between DC locations.</p>
             <div class="two-column">
                 <div class="column">
-                    <h2>What You'll Learn</h2>
+                    <h3>You'll Learn</h3>
                     <ul>
-                        <li>Understanding AD sites and subnets</li>
-                        <li>Configuring site links and costs</li>
-                        <li>Intrasite vs intersite replication</li>
-                        <li>Knowledge Consistency Checker (KCC)</li>
-                        <li>Troubleshooting replication issues</li>
+                        <li>Sites, subnets, site links</li>
+                        <li>Intra/intersite, KCC, troubleshoot</li>
                     </ul>
                 </div>
                 <div class="column">
-                    <h3>Prerequisites</h3>
+                    <h3>Prereqs</h3>
                     <ul>
-                        <li>Active Directory fundamentals (M02)</li>
-                        <li>DNS concepts (M08)</li>
-                        <li>Understanding of network topology</li>
-                        <li>Windows Server administration</li>
+                        <li>AD (M02), DNS (M08)</li>
+                        <li>Network topology basics</li>
                     </ul>
                 </div>
             </div>
@@ -323,46 +317,20 @@
             <h2>What Are AD Sites?</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>An AD site represents a set of well-connected IP subnets, typically a physical location with high-speed network connectivity.</p>
-
             <div class="two-column">
                 <div class="column">
-                    <h3>Site Purposes</h3>
+                    <h3>Purpose</h3>
                     <ul>
-                        <li>Control replication traffic flow</li>
-                        <li>Direct clients to local DCs</li>
-                        <li>Optimize DFS namespace referrals</li>
-                        <li>Control service location (printers, apps)</li>
+                        <li>Control replication flow</li>
+                        <li>Direct clients to local DC</li>
                     </ul>
                 </div>
                 <div class="column">
-                    <h3>Site Components</h3>
+                    <h3>Components</h3>
                     <ul>
-                        <li><strong>Sites:</strong> Logical containers for subnets</li>
-                        <li><strong>Subnets:</strong> IP ranges mapped to sites</li>
-                        <li><strong>Site Links:</strong> Connections between sites</li>
-                        <li><strong>Servers:</strong> DCs assigned to sites</li>
+                        <li>Sites + Subnets + Site Links</li>
+                        <li>Servers assigned to sites</li>
                     </ul>
-                </div>
-            </div>
-
-            <div class="diagram">
-                <h3 style="color: #60a5fa; margin-bottom: 20px;">Multi-Site Architecture</h3>
-                <div class="diagram-flow">
-                    <div class="diagram-box">
-                        <strong>HQ Site</strong><br>
-                        <small>10.0.0.0/16</small>
-                    </div>
-                    <div class="diagram-arrow">&#8596;</div>
-                    <div class="diagram-box">
-                        <strong>Branch Site</strong><br>
-                        <small>10.1.0.0/16</small>
-                    </div>
-                    <div class="diagram-arrow">&#8596;</div>
-                    <div class="diagram-box">
-                        <strong>DR Site</strong><br>
-                        <small>10.2.0.0/16</small>
-                    </div>
                 </div>
             </div>
                 </div>
@@ -377,20 +345,16 @@
             <h2>Subnets and Site Association</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>Subnets define IP address ranges. AD doesn&#39;t auto-discover which subnet belongs to which site — admins must REGISTER each subnet against a site, otherwise client→DC selection falls back to random.</p>
-
+                    <p>Admins must register each subnet → site. Unmapped = random DC.</p>
                     <ul>
-                        <li><strong>DC locator</strong> first tries the site-aware SRV query <code>_ldap._tcp.&lt;site&gt;._sites.dc._msdcs.<em>domain</em></code>. If the client&#39;s subnet isn&#39;t registered (no site match), it falls back to <code>_ldap._tcp.dc._msdcs.<em>domain</em></code> — returns every DC, client picks one essentially at random, possibly across a WAN link.</li>
-                        <li><strong>With mapping:</strong> the client&#39;s IP matches a registered subnet → site, and the response prefers DCs in that site (low-latency intra-site path)</li>
-                        <li>One subnet maps to exactly one site; one site can hold many subnets</li>
-                        <li>Branch-office subnets are the most commonly-forgotten — branch clients then hit corporate DCs and slow down logon</li>
+                        <li><strong>DC locator</strong> uses site-aware SRV; no match = falls back to all-DC list</li>
+                        <li>One subnet → one site; site → many subnets</li>
+                        <li>Branch subnets often forgotten → cross-WAN logon</li>
                     </ul>
 
                     <div class="code-block">
-<span class="comment"># Register a branch-office subnet against the Boston site</span>
+<span class="comment"># Register branch subnet + check NO_CLIENT_SITE</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSubnet -Name "10.20.0.0/24" -Site "Boston"</span>
-
-<span class="comment"># List unassigned-subnet warnings (clients hitting DCs without a site match)</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-Content $env:SystemRoot\debug\netlogon.log | Select-String "NO_CLIENT_SITE"</span>
                     </div>
                 </div>
@@ -405,30 +369,15 @@
                 <div class="slide-text">
                     <h2>Why Subnet Mapping Matters</h2>
             <ul>
-                <li>Clients use their IP to find the nearest DC</li>
-                <li>Unmapped subnets cause random DC selection</li>
-                <li>Performance and bandwidth suffer without proper mapping</li>
-                <li>GPO processing may use wrong site-linked policies</li>
+                <li>Clients find nearest DC via subnet→site</li>
+                <li>Unmapped = random DC, wrong GPO link</li>
             </ul>
 
-            <p>Creating a subnet and assigning it to a site tells AD which physical location that IP range belongs to, so clients on that network authenticate locally.</p>
             <div class="code-block">
-<span class="comment"># Associate the 10.1.0.0/16 IP range with the Branch-Office site</span>
+<span class="comment"># Create, list, reassign subnets</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSubnet -Name "10.1.0.0/16" -Site "Branch-Office"</span>
-            </div>
-
-<div class="code-block">
-<span class="comment"># List all subnets and their site assignments</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationSubnet -Filter * | Select Name, Site</span>
-            </div>
-
-<div class="code-block">
-<span class="comment"># Reassign an existing subnet to a different site</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Set-ADReplicationSubnet -Identity "10.1.0.0/16" -Site "New-Site"</span>
-            </div>
-
-            <div class="warning-box">
-                <strong>Best Practice:</strong> Document all IP subnets in your organization and ensure each is assigned to the correct site. Undocumented subnets lead to suboptimal authentication paths.
             </div>
                 </div>
                 <div class="slide-visual">
@@ -442,40 +391,28 @@
             <h2>Site Links</h2>
             <div class="slide-content single-col">
                 <div class="slide-text">
-                    <p>Site links define the replication paths between sites and control how AD data flows across WAN connections.</p>
-
             <div class="two-column">
                 <div class="column">
-                    <h3>Site Link Properties</h3>
+                    <h3>Properties</h3>
                     <ul>
-                        <li><strong>Cost:</strong> Lower = preferred path</li>
-                        <li><strong>Replication Interval:</strong> How often (min 15 min)</li>
-                        <li><strong>Schedule:</strong> When replication occurs</li>
-                        <li><strong>Transport:</strong> RPC (IP) or SMTP</li>
+                        <li>Cost (lower = preferred)</li>
+                        <li>Interval (min 15), schedule, transport</li>
                     </ul>
                 </div>
                 <div class="column">
-                    <h3>Default Site Link</h3>
+                    <h3>Default Link</h3>
                     <ul>
-                        <li>DEFAULTIPSITELINK created automatically</li>
-                        <li>Cost: 100</li>
-                        <li>Interval: 180 minutes</li>
-                        <li>Schedule: 24x7</li>
+                        <li>DEFAULTIPSITELINK auto-created</li>
+                        <li>Cost 100, interval 180, 24x7</li>
                     </ul>
                 </div>
             </div>
 
 <div class="code-block">
-<span class="comment"># Create a site link between HQ and Branch with fast replication</span>
+<span class="comment"># Create HQ↔Branch link, then lower its cost</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSiteLink -Name "HQ-Branch" -SitesIncluded HQ-Site,Branch-Site -Cost 50 -ReplicationFrequencyInMinutes 15</span>
-            </div>
-
-<div class="code-block">
-<span class="comment"># Lower the cost to make this the preferred replication path</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Set-ADReplicationSiteLink -Identity "HQ-Branch" -Cost 25</span>
             </div>
-
-            
                 </div>
                 </div>
         </div>
@@ -485,32 +422,22 @@
             <h2>Intrasite vs Intersite Replication</h2>
             <div class="slide-content single-col">
                 <div class="slide-text">
-                    <p>AD uses different replication strategies depending on whether DCs are in the same or different sites.</p>
-
             <div class="two-column">
                 <div class="column">
-                    <h3>Intrasite (Within Site)</h3>
+                    <h3>Intrasite</h3>
                     <ul>
-                        <li>Change notification-based</li>
-                        <li>Near-instant replication</li>
-                        <li>Uncompressed data transfer</li>
-                        <li>Ring topology by default</li>
-                        <li>Assumes high bandwidth/low latency</li>
+                        <li>Change-notify, near-instant</li>
+                        <li>Uncompressed, ring topology</li>
                     </ul>
                 </div>
                 <div class="column">
-                    <h3>Intersite (Between Sites)</h3>
+                    <h3>Intersite</h3>
                     <ul>
-                        <li>Schedule-based (default 180 min)</li>
-                        <li>Compressed data (60-80% reduction)</li>
-                        <li>Bridgehead servers handle transfers</li>
-                        <li>Designed for WAN conservation</li>
-                        <li>Can use notification for urgent changes</li>
+                        <li>Schedule (default 180 min)</li>
+                        <li>Compressed via bridgeheads</li>
                     </ul>
                 </div>
             </div>
-
-            <p style="margin-top: 6px;"><strong>Timing in practice:</strong> DC1→DC2 same site = 15 sec (notification). DC1→DC3 branch = 15-180 min (scheduled, compressed).</p>
                 </div>
                 </div>
         </div>
@@ -520,22 +447,17 @@
             <h2>Knowledge Consistency Checker (KCC)</h2>
             <div class="slide-content single-col">
                 <div class="slide-text">
-                    <p>The KCC is an automatic process that runs on every DC and builds the replication topology — the set of "connection objects" describing which DC pulls changes from which partner.</p>
-
+                    <p>KCC builds replication topology automatically.</p>
                     <ul>
-                        <li><strong>Runs every 15 minutes</strong> on each DC, evaluating local conditions and rebuilding connection objects as needed</li>
-                        <li><strong>Intrasite topology:</strong> for sites with ~7 or fewer DCs, KCC builds a full mesh — every DC is a direct partner, 1 hop between any pair. For larger sites it switches to a ring/partial-mesh where the guarantee is any DC reaches any other within 3 hops. Either way: no compression, change-notify driven (typically &lt; 1 minute).</li>
-                        <li><strong>Intersite topology:</strong> spanning tree via bridgehead servers, compressed payload, scheduled (default 180 minutes)</li>
-                        <li><strong>ISTG (Inter-Site Topology Generator):</strong> one DC per site is elected to handle intersite topology calculations on behalf of the site</li>
+                        <li>Runs every 15 min per DC</li>
+                        <li><strong>Intrasite:</strong> full mesh ≤7 DCs, else ring (3 hop max)</li>
+                        <li><strong>Intersite:</strong> spanning tree via bridgeheads, compressed</li>
+                        <li><strong>ISTG:</strong> one DC per site handles intersite calc</li>
                     </ul>
 
-                    <p>Manual intervention is rarely needed — admins typically only trigger a recalculation after major topology changes (new site, new DC, removed DC):</p>
-
                     <div class="code-block">
-<span class="comment"># Force the KCC to recompute the topology immediately</span>
+<span class="comment"># Force KCC recompute + show ISTG</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /kcc</span>
-
-<span class="comment"># Show the current ISTG for a site</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /istg</span>
                     </div>
                 </div>
@@ -567,29 +489,11 @@
             <div class="slide-content single-col">
                 <div class="slide-text">
                     <h2>KCC Functions (cont.)</h2>
-                    <p>Connection objects represent the replication partnerships that KCC has automatically created between domain controllers.</p>
+
             <div class="code-block">
-<span class="comment"># List all automatic replication connection objects</span>
+<span class="comment"># List connections + show replication errors</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationConnection -Filter *</span>
-            </div>
-
-<div class="code-block">
-<span class="comment"># Show only replication errors across all domain controllers</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /showrepl * /errorsonly</span>
-
-<span class="comment"># Expected output (healthy environment):</span>
-Replication Summary Start Time: 2025-01-15 09:30:00
-
-Beginning data collection for replication summary, this may take awhile:
-  ........
-
-<span class="command">Source DSA</span>          largest delta    fails/total %%   error
-<span class="command">DC01</span>                00m:15s          0 /   5    0
-<span class="command">DC02</span>                00m:15s          0 /   5    0
-            </div>
-
-            <div class="warning-box">
-                <strong>Don't Override KCC:</strong> While you can manually create connection objects, let KCC manage topology when possible. Manual connections are not automatically adjusted if servers fail.
             </div>
                 </div>
                 </div>
@@ -600,28 +504,17 @@ Beginning data collection for replication summary, this may take awhile:
             <h2>Bridgehead Servers</h2>
             <div class="slide-content single-col">
                 <div class="slide-text">
-                    <p>Bridgehead servers are the designated replication partners for intersite traffic.</p>
-
-            <h2>How Bridgehead Selection Works</h2>
+                    <p>Bridgeheads = designated intersite replication partners.</p>
+            <h3>Selection</h3>
             <ul>
-                <li>KCC automatically selects a bridgehead per site per partition</li>
-                <li>Selection based on DC GUID (lowest wins by default)</li>
-                <li>Preferred bridgeheads can be manually configured</li>
-                <li>If bridgehead fails, KCC selects new one automatically</li>
+                <li>KCC picks one per site per partition (lowest GUID)</li>
+                <li>Preferred can be set manually; KCC auto-fails-over</li>
             </ul>
 
-            <p>Querying the bridgeheadServerListBL attribute shows which DCs are currently acting as bridgehead servers for intersite replication.</p>
             <div class="code-block">
-<span class="comment"># Query which DCs are designated as bridgehead servers per site</span>
+<span class="comment"># Query current bridgeheads per site</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationSite -Filter * | Get-ADObject -Properties bridgeheadServerListBL</span>
             </div>
-
-<div class="code-block">
-<span class="comment"># Designate DC1 as the preferred bridgehead server for HQ-Site</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">Set-ADObject -Identity "CN=DC1,CN=Servers,CN=HQ-Site,CN=Sites,CN=Configuration,DC=hexworth,DC=local" -Add @{bridgeheadTransportList="CN=IP,CN=Inter-Site Transports,CN=Sites,CN=Configuration,DC=hexworth,DC=local"}</span>
-            </div>
-
-            
                 </div>
                 </div>
         </div>
@@ -652,27 +545,18 @@ Beginning data collection for replication summary, this may take awhile:
             <h2>Replication Troubleshooting</h2>
             <div class="slide-content single-col">
                 <div class="slide-text">
-                    <p>When replication breaks, walk a three-layer diagnostic flow: confirm connectivity, then confirm replication is happening, then confirm objects are converging.</p>
-
+                    <p>Three-layer diagnostic: connectivity → replication → convergence.</p>
                     <ul>
-                        <li><strong>Connectivity</strong> — Can DCs reach each other? Time skew &lt; 5 min? DNS SRV records resolving? RPC ports (135 + dynamic) open?</li>
-                        <li><strong>Replication</strong> — Are partners running? <code>repadmin /replsummary</code> shows global health; <code>repadmin /showrepl</code> shows per-partner USN + last-success time + error code.</li>
-                        <li><strong>Convergence</strong> — Are objects actually arriving everywhere? Create a test user/group on one DC, then verify it appears on partner DCs.</li>
+                        <li><strong>Connectivity:</strong> time skew, DNS SRV, RPC ports</li>
+                        <li><strong>Replication:</strong> repadmin /replsummary, /showrepl</li>
+                        <li><strong>Convergence:</strong> test object on partner DCs</li>
                     </ul>
 
                     <div class="code-block">
-<span class="comment"># Global health: which DCs have inbound replication failures?</span>
+<span class="comment"># Global health + per-DC detail + test suite</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /replsummary</span>
-
-<span class="comment"># Per-DC detail: who am I replicating from, when did it last succeed, what was the error?</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /showrepl &lt;dc-name&gt;</span>
-
-<span class="comment"># Test-suite view from MS&#39;s recommended tool</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">dcdiag /test:replications</span>
-                    </div>
-
-                    <div class="info-box">
-                        <strong>Common root causes (in order of frequency):</strong> time skew, DNS SRV records, firewall (RPC dynamic ports), stale tombstone/lingering objects, USN rollback after improper restore.
                     </div>
                 </div>
                 </div>
@@ -701,33 +585,17 @@ Beginning data collection for replication summary, this may take awhile:
             <div class="slide-content single-col">
                 <div class="slide-text">
                     <h2>Key Diagnostic Commands (cont.)</h2>
-                    <p>When you need changes propagated immediately, syncall forces replication across all DCs including transitive partners.</p>
+
             <div class="code-block">
-<span class="comment"># Force immediate replication from DC1 to all partners (push mode)</span>
+<span class="comment"># Force replication, check queue, list failures</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /syncall DC1 /AeD</span>
-            </div>
-
-<div class="code-block">
-<span class="comment"># Check if any replication operations are queued and waiting</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /queue</span>
-            </div>
-
-<div class="code-block">
-<span class="comment"># Query all replication failures across the domain using PowerShell</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationFailure -Target hexworth.local -Scope Domain</span>
-
-<span class="comment"># Expected output (healthy environment):</span>
-<span class="prompt">Server          FirstFailureTime   FailureCount   LastError   Partner</span>
-<span class="comment">------          ----------------   ------------   ---------   -------</span>
-<span class="comment">(no output = no failures detected)</span>
             </div>
 
-            <h2>Common Issues</h2>
+            <h3>Common Issues</h3>
             <ul>
-                <li><strong>DNS resolution:</strong> DCs can't find replication partners</li>
-                <li><strong>Firewall:</strong> RPC ports blocked (135, 49152-65535)</li>
-                <li><strong>Time sync:</strong> >5 min skew breaks Kerberos</li>
-                <li><strong>Lingering objects:</strong> Old objects on isolated DCs</li>
+                <li>DNS, RPC firewall, time skew &gt;5min, lingering objects</li>
             </ul>
                 </div>
                 </div>
@@ -803,29 +671,19 @@ Beginning data collection for replication summary, this may take awhile:
             <h2>Read-Only Domain Controllers</h2>
             <div class="slide-content single-col">
                 <div class="slide-text">
-                    <p>RODCs provide AD authentication in branch offices with limited physical security.</p>
-
-            <h2>RODC Characteristics</h2>
+                    <h3>RODC Characteristics</h3>
             <ul>
-                <li>One-way replication (receive only)</li>
+                <li>One-way replication, no AD changes</li>
                 <li>No passwords cached by default</li>
                 <li>Filtered attribute set for sensitive data</li>
-                <li>Cannot make changes to AD</li>
-                <li>Ideal for branch offices, DMZs</li>
+                <li>Best for branch / DMZ</li>
             </ul>
 
-            <p>Deploying an RODC to a branch site gives local users fast authentication without storing a writable copy of the AD database at a less-secure location.</p>
             <div class="code-block">
-<span class="comment"># Promote a server as a Read-Only Domain Controller in the branch site</span>
+<span class="comment"># Promote as RODC + allow branch passwords</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Install-ADDSDomainController -DomainName "hexworth.local" -ReadOnlyReplica:$true -SiteName "Branch-Site"</span>
-            </div>
-
-<div class="code-block">
-<span class="comment"># Allow the Branch-Users group to have passwords cached on the RODC</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Add-ADDomainControllerPasswordReplicationPolicy -Identity "RODC1" -AllowedList "Branch-Users"</span>
             </div>
-
-            
                 </div>
                 </div>
         </div>
@@ -835,34 +693,24 @@ Beginning data collection for replication summary, this may take awhile:
             <h2>Lab Preview: AD Sites & Replication</h2>
             <div class="slide-content single-col">
                 <div class="slide-text">
-                    <p>Practice configuring sites, subnets, and replication in both GUI and PowerShell.</p>
-
             <div class="two-column">
                 <div class="column">
-                    <h3>GUI Lab Tasks</h3>
+                    <h3>GUI Lab</h3>
                     <ul>
-                        <li>Create new AD sites</li>
-                        <li>Configure subnets and associations</li>
-                        <li>Create and modify site links</li>
-                        <li>View replication topology</li>
-                        <li>Force replication manually</li>
+                        <li>Create sites, subnets, links</li>
+                        <li>View topology, force replication</li>
                     </ul>
                 </div>
                 <div class="column">
-                    <h3>PowerShell Lab Tasks</h3>
+                    <h3>PowerShell Lab</h3>
                     <ul>
-                        <li>Create sites with New-ADReplicationSite</li>
-                        <li>Configure subnets via PowerShell</li>
-                        <li>Manage site links and costs</li>
-                        <li>Check replication status</li>
-                        <li>Troubleshoot with repadmin</li>
+                        <li>New-ADReplicationSite + subnets</li>
+                        <li>Site links + repadmin</li>
                     </ul>
                 </div>
             </div>
 
-            
-
-            <div style="text-align: center; margin-top: 30px;">
+            <div style="text-align: center; margin-top: 20px;">
                 <a href="cloud-guilab.module.html" class="lab-link">Start GUI Lab</a>
                 <a href="cloud-pslab.module.html" class="lab-link" style="margin-left: 15px; background: linear-gradient(135deg, #3b82f6, #60a5fa);">Start PowerShell Lab</a>
             </div>
