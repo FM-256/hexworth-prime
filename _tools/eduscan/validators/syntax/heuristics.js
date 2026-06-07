@@ -60,6 +60,7 @@
  * - HEUR-035: Em-dash character in content. Per user style preference (memory `feedback_no_em_dashes`), the em-dash character (U+2014) should not appear in HTML content. Common alternatives: comma, colon, or period depending on grammar. Detection: count `—` characters outside `<style>`, `<script>`, and `code-block`/`pre` contexts. Going-forward enforcement only — legacy content allowlisted by file path.
  * - HEUR-036: has-visual class without SVG visual. Slide has `class="slide has-visual"` but its `<div class="slide-visual">` is empty or contains no `<svg>` element. Indicates a partially-built slide where the visual half is missing — companion bug to HEUR-031 (empty text wrapper). Detection: find each `class="...slide.*has-visual..."` block; check that the slide-visual child contains an `<svg`. MEDIUM (incomplete slide).
  * - HEUR-037: <a target="_blank"> missing rel="noopener" (or rel="noreferrer" — per HTML spec noreferrer implies noopener). Tabnabbing risk via window.opener: new tab can redirect parent. Modern browsers (Chrome 88+, FF 79+, Safari 12.1+) default to implicit noopener but explicit attribute is HTML spec best practice. LOW severity — does NOT publish to Nexus triage queue per TRIAGE_SEVERITY_GATE=['critical','high']; guards against silent regression in future scans. ~35 current findings across 14 files. Detection: regex match `<a target="_blank">` that lacks both noopener and noreferrer tokens in rel attribute.
+ * - HEUR-039: WSA cat-contract `.has-visual .slide-text` content budget exceeded. Static companion to OVERFLOW-001b. For each `.slide.has-visual` div in a WSA cloud-presentation.module.html file, extracts the inner `.slide-text` body, strips HTML/entities/whitespace, and counts chars. Budget = 600 chars (empirical: m01/m02 reference deck's safe ceiling is 558c; boundary cases at 634-968c clip 14-53px at 1280×720; >800c clips reliably). HIGH severity. Scope: same as HEUR-038. NOTE: m01 + m02 are NOT passing fixtures for HEUR-039 — they have ~10-11 overflowing slides each that need content rewrite. They ARE the structural fixtures for HEUR-038 (CSS contract), which is independent of content density. Dedup-stable identifier: `line: slideIndex` (overall .slide div index in source order), so partial-trim edits don't generate ghost findings. Known limitations: (1) regex skips `<script>`/`<style>` early to avoid `</div>` in JS strings throwing depth; (2) class-token matched with `(?:^|\s)has-visual(?:\s|$)` to prevent prefix-substring false positives on hypothetical `has-visual-*` variants (none today). Predicted output ~212 findings across 19 WSA files (Nancy dry-run 2026-06-07).
  * - HEUR-038: WSA presentation slide-layout contract violation. WSA cloud-presentation.module.html files must match m01/m02's flex-chain layout contract. Five fingerprints (verified against m01 + m02 source 2026-06-06): (a) `.slide-container` rule contains `flex: 1`, `min-height: 0`, `display: flex`, `flex-direction: column`; (b) `.slide` rule contains `flex: 1`, `min-height: 0` AND lacks `border-radius`, `border: 1px solid`, fixed `min-height: Npx`; (c) `.slide-content` rule contains `flex: 1`, `min-height: 0`; (d) `!important` token count in file = 0; (e) file contains NONE of the breed-marker tokens that identify non-cat templates: `text-visual-grid`, `tv-text`, `tv-visual`, `presentation-container`, `slide-area`, `slide-header`, `page-header` (m01/m02 use `.slide.has-visual .slide-content` grid + `.slide-text` + `.slide-visual` + `.header` + `.slide-container` exclusively — any of the listed tokens means a different breed). Scope: files under `_app/houses/cloud/modules/wsa/` named `cloud-presentation.module.html`. HIGH severity (real-estate regression). Predicted output at land: m01+m02 PASS, m03-m19 FAIL with per-fingerprint reasons. Reference cat fixtures: m01-fundamentals, m02-active-directory. Known limitations: (1) substring-match on `flex: 1` would false-fail if a CSS-normalizing tool emits `flex: 1 1 0%` longhand; current files use verbatim `flex: 1`. (2) !important counter does not exclude prose comments containing the literal word; no current occurrences in cat fixtures.
  */
 
@@ -232,6 +233,7 @@ class HeuristicsValidator {
         issues.push(...this.checkEmDashContent(file));
         issues.push(...this.checkHasVisualWithoutSvg(file));
         issues.push(...this.checkWsaSlideLayoutContract(file));
+        issues.push(...this.checkWsaHasVisualTextBudget(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -4490,6 +4492,137 @@ class HeuristicsValidator {
                 line: 1,
                 fix: 'Match m02 contract: .slide-container { flex:1; min-height:0; display:flex; flex-direction:column; position:relative; overflow:hidden; }, .slide { display:none; flex:1; min-height:0; padding:14px 36px; box-sizing:border-box; overflow:hidden; }, .slide-content { width:100%; max-width:1400px; flex:1; min-height:0; overflow:hidden; }, zero !important. Reference: _app/houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html'
             });
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-039: WSA cat-contract `.has-visual .slide-text` content budget.
+     *
+     * Static companion to OVERFLOW-001b. Empirically, the cat-contract
+     * has-visual layout (2-column grid at 1280×720) provides ~217px of
+     * vertical space in `.slide-text`. Content authored above ~600 chars
+     * (excluding markup/whitespace) reliably clips.
+     *
+     * Threshold derivation (verified against m01/m02 + classifier 2026-06-07):
+     *   - m02 slide 18: 558 chars, 0px overflow (highest safe)
+     *   - m02 slide 19: 634 chars, +39px (boundary, tolerable)
+     *   - m01 slide 1: 968 chars, +14px (boundary, font-rendering grace)
+     *   - m11-iis slide 7: 1368 chars, +1241px (representative bad case)
+     *
+     * Importantly, m01/m02 ARE the reference fixtures for HEUR-038 (CSS
+     * contract) but they have content overflows too — HEUR-039 will fire
+     * on ~10-11 slides each for m01/m02. The two rules are independent.
+     *
+     * Scope: same as HEUR-038 (WSA cloud-presentation.module.html only).
+     */
+    checkWsaHasVisualTextBudget(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        const filePath = file.path || '';
+        if (!filePath.includes('/houses/cloud/modules/wsa/')) return issues;
+        if (!filePath.endsWith('/cloud-presentation.module.html')) return issues;
+
+        const THRESHOLD = 600;
+
+        // Balanced-div close: scans forward from `start`, returning the
+        // index of the matching </div> (or -1). Counts <div> opens and
+        // </div> closes in source order. Cat-contract files have clean
+        // structure (HEUR-038 enforces) so this is safe.
+        function findDivClose(s, start) {
+            let depth = 1;
+            const re = /<div\b|<\/div>/gi;
+            re.lastIndex = start;
+            let m;
+            while ((m = re.exec(s)) !== null) {
+                if (m[0].toLowerCase() === '</div>') {
+                    depth--;
+                    if (depth === 0) return m.index;
+                } else {
+                    depth++;
+                }
+            }
+            return -1;
+        }
+
+        // Strip text content from an HTML fragment. Removes <script>/<style>
+        // first (they contain non-prose tokens that would skew the count),
+        // then all tags, then decodes common entities, then collapses ws.
+        function extractText(html) {
+            return html
+                .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+                .replace(/<style\b[\s\S]*?<\/style>/gi, '')
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#?\w+;/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        // Match top-level slide div opens. Class attr starts with "slide"
+        // bounded by quote or space (excludes .slide-text/.slide-visual/etc).
+        const slideRe = /<div\b([^>]*\bclass="slide(?:\s[^"]*)?")[^>]*>/g;
+        let m;
+        let slideIndex = 0;
+
+        while ((m = slideRe.exec(content)) !== null) {
+            slideIndex++;
+            const classAttr = m[1];
+
+            // Tightened token boundary — prevents hypothetical
+            // `has-visual-*` prefix-substring false positives (per Nancy).
+            // Extracts the quoted class value first, then checks tokens.
+            const classValueMatch = classAttr.match(/class="([^"]*)"/);
+            const classValue = classValueMatch ? classValueMatch[1] : '';
+            if (!/(?:^|\s)has-visual(?:\s|$)/.test(classValue)) continue;
+
+            // Extract data-slide for human-friendly label (may be absent
+            // on non-redesigned modules — fall back to slideIndex).
+            const dsMatch = m[0].match(/data-slide="([^"]*)"/);
+            const dataSlide = dsMatch ? dsMatch[1] : null;
+
+            // Balanced-extract this slide's body
+            const slideBodyStart = m.index + m[0].length;
+            const slideBodyEnd = findDivClose(content, slideBodyStart);
+            if (slideBodyEnd === -1) continue;
+            const slideHtml = content.slice(slideBodyStart, slideBodyEnd);
+
+            // Find .slide-text within this slide body
+            const stRe = /<div\b[^>]*\bclass="slide-text(?:\s[^"]*)?"[^>]*>/;
+            const stMatch = slideHtml.match(stRe);
+            if (!stMatch) continue;
+
+            const stBodyStart = stMatch.index + stMatch[0].length;
+            const stBodyEnd = findDivClose(slideHtml, stBodyStart);
+            if (stBodyEnd === -1) continue;
+            const slideTextHtml = slideHtml.slice(stBodyStart, stBodyEnd);
+
+            const chars = extractText(slideTextHtml).length;
+
+            if (chars > THRESHOLD) {
+                const slideLabel = dataSlide && dataSlide !== String(slideIndex)
+                    ? `Slide ${slideIndex} (data-slide="${dataSlide}")`
+                    : `Slide ${slideIndex}`;
+                issues.push({
+                    code: 'HEUR-039',
+                    severity: 'high',
+                    category: 'heuristic',
+                    // Stable dedup identifier (per Nancy): slideIndex is
+                    // structural position in source, not content-derived,
+                    // so partial-trim edits don't generate ghost findings.
+                    line: slideIndex,
+                    file: filePath,
+                    message: `${slideLabel} .slide-text contains ${chars} chars (budget ${THRESHOLD}). Cat-contract has-visual layout will clip content at 1280×720.`,
+                    fix: `Reduce ${slideLabel} .slide-text content to ≤${THRESHOLD} chars, or split slide into two slides at a topic boundary. Cat-contract two-column grid gives ~217px tall text column at 1280×720; text above the budget clips silently (overflow:hidden on .slide). Companion rule OVERFLOW-001b confirms at render time.`
+                });
+            }
         }
 
         return issues;

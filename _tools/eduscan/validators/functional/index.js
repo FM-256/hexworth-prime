@@ -14,6 +14,7 @@ const BrowserPool = require('./browser');
 const RuntimeChecker = require('./runtime');
 const SmokeTests = require('./smoke');
 const SlideOverflowChecker = require('./slide-overflow');
+const SlideOverflowCatChecker = require('./slide-overflow-b');
 
 class FunctionalValidator {
     constructor(options = {}) {
@@ -73,6 +74,20 @@ class FunctionalValidator {
                 allIssues.push(...overflowResult.issues);
                 if (this.verbose) {
                     console.log(`[OVERFLOW] scanned=${overflowResult.summary.scanned} withOverflow=${overflowResult.summary.withOverflow} skipped=${overflowResult.summary.slideStyleSkipped}`);
+                }
+
+                // OVERFLOW-001b: cat-contract inner-content overflow detection
+                // (WSA cloud-presentation.module.html — measures .slide-content
+                // not .slide; see slide-overflow-b.js header for why)
+                const overflowCatChecker = new SlideOverflowCatChecker({
+                    browserPool: this.browserPool,
+                    rootPath: this.rootPath,
+                    verbose: this.verbose
+                });
+                const overflowCatResult = await overflowCatChecker.check(htmlFiles);
+                allIssues.push(...overflowCatResult.issues);
+                if (this.verbose) {
+                    console.log(`[OVERFLOW-cat] scanned=${overflowCatResult.summary.scanned} withOverflow=${overflowCatResult.summary.withOverflow} missingContract=${overflowCatResult.summary.missingContract}`);
                 }
             }
 
