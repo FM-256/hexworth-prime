@@ -57,6 +57,30 @@ When the loop doesn't terminate cleanly, identify which side broke before iterat
 
 Applies to **any** EduScan rule on **any** artifact — HTML, JS, JSON, CSS, lab walkthroughs, Confluence solutions, server-graded keys. This is how findings become fixes without re-introducing the same class of bug.
 
+## Case study: m03 surgery 2026-06-07
+
+First end-to-end application of the loop. 14 OVERFLOW-001b + 10 HEUR-039 findings on `_app/houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html`. Result: HEUR cleared to zero, OVERFLOW reduced to 4 residual sub-perceptual findings (13/74/62/84px), all student-visible content preserved.
+
+Three procedural lessons surfaced — they refine how to apply the loop, not the steps themselves:
+
+**Lesson 1: Nancy gates the FIRST instance of a fix shape, not every Edit.**
+
+Strict reading of CLAUDE.md says "Nancy before every Edit." Strict application would have meant 15+ Nancy dispatches just for m03's per-slide trims. Working interpretation that ran cleanly through the loop:
+
+- Slide 1 trim (section-removal shape) → Nancy ✓ → apply
+- Slide 2 split (split-at-topic-boundary shape) → Nancy ✓ → apply
+- Slides 4–22 trims (same section-removal shape) → no Nancy, apply mechanically
+
+Nancy validates the **pattern**, not the per-instance Edit. When a new shape variant emerges (a different fix mechanic on a different content shape), fresh Nancy. Same shape repeating → mechanical application is correct.
+
+**Lesson 2: Step 5 (QC) is the authoritative judge — not step 4 (rescan).**
+
+m03 finished with 4 residual OVERFLOW-001b findings, all sub-100px. Per validator output the loop wasn't "done." Per visual QC of the actual rendered slides, all student-visible content was intact. The loop correctly terminates on step 5 confirming the artifact behaves correctly, even when step 4 still reports findings. The diagnosis attribution table is exactly what determines this — see [[reference_validator_scan_defects_2026_06_07]] for the grounded data on HEUR-039 and OVERFLOW-001b defects this surgery surfaced.
+
+**Lesson 3: Pattern recognition trumps per-slide analysis once the dominant shape is identified.**
+
+After loop iteration 2 (slide 2), the dominant fix shape was clear: WSA cmdlet slides have an "Expected output" code-block that duplicates the right-panel SVG. Drop it, gain 150–250px, lose zero pedagogical content. Iterations 3–10 each became single-Edit operations instead of full design cycles. Documented in [[feedback_wsa_overflow_pattern]].
+
 ## Related
 
 - `_tools/eduscan/` — the scanner
@@ -65,6 +89,8 @@ Applies to **any** EduScan rule on **any** artifact — HTML, JS, JSON, CSS, lab
 - `[[reference_stale_sprint_findings_pattern]]` — when sprint state outlasts the rule fix (a step-4-skipped symptom)
 - `[[feedback_100_percent_sure]]` — render-verify before saying done (reinforces step 5)
 - `[[feedback_severity_demotion_pattern]]` — when step 5 reveals the rule's severity was wrong, not the fix
+- `[[feedback_wsa_overflow_pattern]]` — domain-specific pattern from m03 surgery (lesson 3 case study)
+- `[[reference_validator_scan_defects_2026_06_07]]` — HEUR-039 + OVERFLOW-001b defect data from m03
 
 ---
 
