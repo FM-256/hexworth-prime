@@ -343,41 +343,14 @@
             <h2>GPO Architecture</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>Group Policy Objects consist of two components stored in different locations.</p>
-
-            <div class="two-column">
-                <div class="column">
-                    <h3>Group Policy Container (GPC)</h3>
-                    <ul>
-                        <li>Stored in Active Directory</li>
-                        <li>Contains GPO metadata</li>
-                        <li>Version info, status, links</li>
-                        <li>Replicated via AD replication</li>
-                    </ul>
-                </div>
-                <div class="column">
-                    <h3>Group Policy Template (GPT)</h3>
-                    <ul>
-                        <li>Stored in SYSVOL</li>
-                        <li>Contains actual policy settings</li>
-                        <li>Scripts, ADM/ADMX files</li>
-                        <li>Replicated via DFS-R or FRS</li>
-                    </ul>
-                </div>
-            </div>
+                    <p>A GPO has two halves stored in different places. <strong>GPC</strong> (Container) = metadata in AD, replicates via AD replication. <strong>GPT</strong> (Template) = actual settings in SYSVOL, replicates via DFS-R.</p>
 
             <div class="code-block">
-<span class="comment"># SYSVOL GPT Location:</span>
-\\domain.local\SYSVOL\domain.local\Policies\{GPO-GUID}\
-
-<span class="comment"># GPT Structure:</span>
-├── Machine\              <span class="comment"># Computer settings</span>
-│   ├── Scripts\          <span class="comment"># Startup/shutdown scripts</span>
-│   └── Registry.pol      <span class="comment"># Registry-based settings</span>
-├── User\                 <span class="comment"># User settings</span>
-│   ├── Scripts\          <span class="comment"># Logon/logoff scripts</span>
-│   └── Registry.pol      <span class="comment"># Registry-based settings</span>
-└── GPT.ini               <span class="comment"># Version information</span>
+<span class="comment"># SYSVOL GPT layout</span>
+\\domain\SYSVOL\domain\Policies\{GPO-GUID}\
+├── Machine\Registry.pol  + Scripts\   <span class="comment"># computer settings</span>
+├── User\Registry.pol     + Scripts\   <span class="comment"># user settings</span>
+└── GPT.ini                            <span class="comment"># version</span>
             </div>
                 </div>
                 <div class="slide-visual">
@@ -416,37 +389,10 @@
             <h2>Computer vs User Configuration</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>GPOs contain two configuration sections that apply to different objects.</p>
+                    <p>Two configuration sections per GPO. <strong>Computer Config:</strong> applies at startup (firewall, software install). <strong>User Config:</strong> applies at logon (drives, scripts, settings).</p>
 
-            <div class="two-column">
-                <div class="column">
-                    <h3>Computer Configuration</h3>
-                    <ul>
-                        <li>Applies at computer startup</li>
-                        <li>Affects machine regardless of user</li>
-                        <li>Security settings, startup scripts</li>
-                        <li>Software installation (per-machine)</li>
-                        <li>Windows settings</li>
-                    </ul>
-                </div>
-                <div class="column">
-                    <h3>User Configuration</h3>
-                    <ul>
-                        <li>Applies at user logon</li>
-                        <li>Follows user to any computer</li>
-                        <li>Desktop settings, folder redirection</li>
-                        <li>Logon scripts</li>
-                        <li>Application settings</li>
-                    </ul>
-                </div>
-            </div>
-
-            <h2>Loopback Processing</h2>
-            <p>Applies user settings based on the computer's OU, not the user's OU.</p>
-            <ul>
-                <li><strong>Replace Mode:</strong> Only computer's GPO user settings apply</li>
-                <li><strong>Merge Mode:</strong> User's GPO settings apply, then computer's override</li>
-            </ul>
+            <h3>Loopback Processing</h3>
+            <p>Apply user settings based on the <strong>computer's OU</strong>, not the user's OU. <strong>Replace</strong> = only computer's user settings. <strong>Merge</strong> = user's settings, then computer's override.</p>
 
             
                 </div>
@@ -461,25 +407,11 @@
             <h2>Creating and Linking GPOs</h2>
             <div class="slide-content single-col">
                 <div class="slide-text">
-                    <p>A GPO and its link are separate concerns: the GPO lives in its own GPC (under <code>CN=Policies</code> in AD) + GPT (in SYSVOL); linking it means writing the <code>gpLink</code> attribute onto an OU, domain, or site container.</p>
-
-                    <ul>
-                        <li><strong>Create:</strong> <code>New-GPO</code> defines the policy object in the domain</li>
-                        <li><strong>Link:</strong> <code>New-GPLink</code> attaches that GPO to a scope (site, domain, or OU)</li>
-                        <li>An unlinked GPO exists but applies to nothing</li>
-                        <li>A GPO can be linked to many scopes; deleting the link doesn&#39;t delete the GPO</li>
-                    </ul>
+                    <p>GPO and link are separate. <code>New-GPO</code> creates the object; <code>New-GPLink</code> attaches it to a site, domain, or OU. An unlinked GPO applies to nothing; deleting a link doesn't delete the GPO.</p>
 
                     <div class="code-block">
-<span class="comment"># Create the GPO (defines what)</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">New-GPO -Name "SEC-Workstation-Baseline" -Comment "Security baseline for workstations"</span>
-
-<span class="comment"># Link it to where it applies (writes gpLink on the target OU)</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">New-GPLink -Name "SEC-Workstation-Baseline" -Target "OU=Workstations,DC=hexworth,DC=local"</span>
-                    </div>
-
-                    <div class="info-box">
-                        <strong>Tip:</strong> Test by creating a Test OU, linking the new GPO there, moving a test machine into the OU, and running <code>gpupdate /force</code> on that machine before linking to production scopes.
+<span class="prompt">PS&gt;</span> <span class="command">New-GPO -Name "SEC-Workstation-Baseline"</span>
+<span class="prompt">PS&gt;</span> <span class="command">New-GPLink -Name "SEC-Workstation-Baseline" -Target "OU=Workstations,DC=hexworth,DC=local"</span>
                     </div>
                 </div>
                 </div>
