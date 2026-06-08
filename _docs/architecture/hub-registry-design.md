@@ -1,6 +1,6 @@
 # HubRegistry Design Proposal
 
-**Status:** DRAFT — Nancy review pending
+**Status:** HubRegistry.js v1 exists with 19 entries (17 original + WSA + ALA added 2026-06-08). Schema is Nancy v1-reviewed (no `dashboardHref`, no `status` field — adapter functions handle routing per-consumer; YAGNI dropped `status` until beta/deprecated semantics defined). Script-tag injection into 13 consumer pages NOT YET DONE (deferred). CSP at `firebase.json` line 66 includes `script-src 'self'` so same-origin loading IS permitted — Nancy v1 concern 1 resolved. Consumer-refactor (Phase 2-3) deferred to future sprint.
 **Sprint:** Task #97 follow-up to Task #96 (tenant hub eligibility)
 **Created:** 2026-05-09
 

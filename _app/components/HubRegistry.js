@@ -222,6 +222,28 @@
             sortOrder: 120
         },
         {
+            id: 'wsa',
+            category: 'course',
+            catalogCode: 'CTS1328C',
+            label: 'Windows Server Administration',
+            sublabel: 'CTS1328C',
+            icon: '/assets/images/icons/icon-server.webp',
+            hubHref: '/houses/cloud/modules/wsa/index.html',
+            tenantAssignable: true,
+            sortOrder: 125
+        },
+        {
+            id: 'adv-linux',
+            category: 'course',
+            catalogCode: 'CTS4321C',
+            label: 'Advanced Linux Administration',
+            sublabel: 'CTS4321C',
+            icon: '/assets/images/icons/icon-terminal.webp',
+            hubHref: '/houses/matrix/adv-linux/index.html',
+            tenantAssignable: true,
+            sortOrder: 127
+        },
+        {
             id: 'ethics-it',
             category: 'course',
             catalogCode: 'CIS4253',
