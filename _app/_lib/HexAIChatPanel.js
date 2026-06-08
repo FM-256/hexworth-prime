@@ -565,6 +565,19 @@ class HexAIChatPanel extends HTMLElement {
         };
         try {
             const idToken = await auth.currentUser.getIdToken();
+            // 2026-06-08: phase_id telemetry for Dr. Hex phase_scaffolds (#83).
+            // Contract: labs that track their own phase state set
+            //   window.__hexAiPhase = 'phase_<N>'
+            // before/during student progress (idempotent). Pattern must
+            // match orchestrator validation (^phase_[0-9]{1,3}$) or the
+            // request is rejected. When unset, phase_id is null and the
+            // backend simply does not inject any phase scaffold (matches
+            // legacy behavior). Non-lab pages always send null. The
+            // backend gates injection on (phase_id present) AND (current
+            // help_level >= 3) AND (lab permits L3+); orchestrator-side
+            // sanity checks are the source of truth, not this frontend.
+            const rawPhase = typeof window.__hexAiPhase === 'string' ? window.__hexAiPhase.trim() : '';
+            const phaseId = /^phase_[0-9]{1,3}$/.test(rawPhase) ? rawPhase : null;
             const body = JSON.stringify({
                 message: msg,
                 house: this._house || null,
@@ -573,6 +586,7 @@ class HexAIChatPanel extends HTMLElement {
                 conversation_id: this._convId,
                 page_path: window.location.pathname,
                 page_title: document.title,
+                phase_id: phaseId,
             });
             const response = await fetch(STREAM_URL, {
                 method: 'POST',
