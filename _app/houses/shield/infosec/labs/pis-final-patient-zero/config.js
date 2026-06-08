@@ -5715,3 +5715,49 @@ const PISFinalConfig = {
 // should additionally namespace state by user UID via storageKey -- that
 // integration is a separate engine-level concern, not config-level.
 if (typeof PISFinalConfig !== 'undefined') PISFinalConfig.resetState();
+
+// =========================================================
+// 2026-06-08 — Dr. Hex phase_scaffolds telemetry (#83)
+// =========================================================
+// HexAIChatPanel reads window.__hexAiPhase on each /chat send and
+// forwards it to the orchestrator. The orchestrator gates phase-hint
+// injection on (phase_id present) AND (current_help_level >= 3) AND
+// (lab permits L3+). Without this hook, the 7 phase_scaffolds in
+// pis-final-patient-zero.yaml stay inert.
+//
+// Strategy: define __hexAiPhase as a GETTER that computes the phase
+// fresh on each read from engine.state.flagsFound. No imperative
+// updates needed on every flag capture; the chat panel sees current
+// state on every send. Pure derivation — engine state is the source
+// of truth.
+//
+// Phase derivation: the lowest incomplete numbered phase (1-7). If
+// flagN is in flagsFound, that phase is complete and the student
+// has advanced past it. If flagN is missing, the student is on
+// phase N. Phase 7 (Synthesis) completion means the lab is done;
+// we still report phase_7 in that case so an asking student gets
+// the wrap-up scaffold.
+(function () {
+    if (typeof window === 'undefined' || typeof PISFinalConfig === 'undefined') return;
+    // Idempotent installation — config.js may be re-evaluated on engine reset
+    if (Object.getOwnPropertyDescriptor(window, '__hexAiPhase') &&
+        Object.getOwnPropertyDescriptor(window, '__hexAiPhase').get) {
+        return;
+    }
+    Object.defineProperty(window, '__hexAiPhase', {
+        configurable: true,
+        get: function () {
+            try {
+                if (typeof BoxEngine === 'undefined' || !BoxEngine.state) return null;
+                const found = BoxEngine.state.flagsFound || [];
+                // Find the lowest N in 1..7 where flagN is NOT in found.
+                for (let n = 1; n <= 7; n++) {
+                    if (!found.includes('flag' + n)) return 'phase_' + n;
+                }
+                return 'phase_7'; // all flags captured; report final phase
+            } catch (e) {
+                return null;
+            }
+        }
+    });
+})();

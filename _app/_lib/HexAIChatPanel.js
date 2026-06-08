@@ -566,16 +566,32 @@ class HexAIChatPanel extends HTMLElement {
         try {
             const idToken = await auth.currentUser.getIdToken();
             // 2026-06-08: phase_id telemetry for Dr. Hex phase_scaffolds (#83).
-            // Contract: labs that track their own phase state set
-            //   window.__hexAiPhase = 'phase_<N>'
-            // before/during student progress (idempotent). Pattern must
-            // match orchestrator validation (^phase_[0-9]{1,3}$) or the
-            // request is rejected. When unset, phase_id is null and the
-            // backend simply does not inject any phase scaffold (matches
-            // legacy behavior). Non-lab pages always send null. The
-            // backend gates injection on (phase_id present) AND (current
-            // help_level >= 3) AND (lab permits L3+); orchestrator-side
-            // sanity checks are the source of truth, not this frontend.
+            // Contract: labs that track their own phase state expose it on
+            //   window.__hexAiPhase   →   returns 'phase_<N>' string (or null)
+            // The string is read on every chat send.
+            //
+            // RECOMMENDED implementation (used by pis-final-patient-zero):
+            // define `__hexAiPhase` as a GETTER via Object.defineProperty so
+            // the value derives fresh from engine state on each read:
+            //
+            //   Object.defineProperty(window, '__hexAiPhase', {
+            //       configurable: true,
+            //       get: function () { return derivePhaseFromState(); }
+            //   });
+            //
+            // WARNING: do NOT do `window.__hexAiPhase = 'phase_3'` after a
+            // getter has been installed. With a getter-only descriptor that
+            // assignment silently no-ops in sloppy mode (or throws in strict).
+            // If your lab needs imperative updates, install your own
+            // configurable getter that reads a closure-captured mutable.
+            //
+            // Pattern must match orchestrator validation (^phase_[0-9]{1,3}$)
+            // or the request is rejected. When unset / null, phase_id is null
+            // and the backend simply does not inject any phase scaffold
+            // (legacy behavior). Non-lab pages always send null. The backend
+            // gates injection on (phase_id present) AND (current_help_level
+            // >= 3) AND (lab permits L3+); orchestrator-side sanity checks
+            // are the source of truth, not this frontend.
             const rawPhase = typeof window.__hexAiPhase === 'string' ? window.__hexAiPhase.trim() : '';
             const phaseId = /^phase_[0-9]{1,3}$/.test(rawPhase) ? rawPhase : null;
             const body = JSON.stringify({
