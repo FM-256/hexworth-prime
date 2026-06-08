@@ -311,6 +311,31 @@ const ALAL01Config = {
 
     commands: {
 
+        // sudo -- prefix stripper that re-dispatches to the underlying command.
+        // The lab simulates a permissive sudoers context. Pedagogically: students
+        // learn 'sudo X' is X with elevated privileges. Every "Run: sudo X"
+        // instruction in error messages + welcome banner relies on this handler.
+        //
+        // IMPORTANT: Terminal.js has a built-in case 'sudo' at line ~277 that
+        // returns "Sorry, try again." if a custom handler returns null. ALL
+        // branches in this handler MUST return a string (empty string OK) --
+        // never null -- or students hit the hostile built-in trap.
+        'sudo': function(args, term, engine) {
+            if (args.length === 0) return 'usage: sudo <command> [args...]';
+            if (args[0] === '-v') return ''; // validate-only no-op
+            if (args[0] === 'sudo') return 'sudo: sudo: command not found'; // guard against sudo sudo X recursion
+            const realCmd = args[0];
+            const realArgs = args.slice(1);
+            const handler = engine.config.commands[realCmd];
+            if (typeof handler === 'function') {
+                const result = handler(realArgs, term, engine);
+                // Re-dispatched handler may return null (e.g. ls delegates to filesystem walker).
+                // Convert null to empty string so we do NOT fall through to the Terminal.js trap.
+                return result == null ? '' : result;
+            }
+            return `sudo: ${realCmd}: command not found`;
+        },
+
         // ip command -- interface management and route display
         'ip': function(args, term, engine) {
             const sub = args[0] || '';
