@@ -320,6 +320,7 @@ const ALAHunt1Config = {
             const action = args[2] || '';
 
             if (sub === 'link' && obj === 'show') {
+                engine.awardFlag('cmd6');
                 const eth1State = engine.config._serviceState.networking === 'active' ? 'UP' : 'DOWN';
                 const eth1Flags = engine.config._serviceState.networking === 'active'
                     ? 'BROADCAST,MULTICAST,UP,LOWER_UP'
@@ -331,6 +332,7 @@ const ALAHunt1Config = {
                 const iface = action;
                 const updown = args[3] || '';
                 if (iface === 'eth1' && updown === 'up') {
+                    engine.awardFlag('cmd5');
                     engine.config._serviceState.networking = 'active';
                     return '';
                 }
@@ -338,6 +340,7 @@ const ALAHunt1Config = {
             }
 
             if (sub === 'addr' || (sub === 'address' && !obj)) {
+                engine.awardFlag('cmd6');
                 const eth1Line = engine.config._serviceState.networking === 'active'
                     ? '3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP\n    inet 10.0.1.71/24 brd 10.0.1.255 scope global eth1\n       valid_lft forever preferred_lft forever'
                     : '3: eth1: <BROADCAST,MULTICAST> mtu 1500 qdisc fq_codel state DOWN\n    (no inet address assigned)';
@@ -379,6 +382,9 @@ const ALAHunt1Config = {
             const resolvedUnit = (unit === 'ssh') ? 'sshd' : unit;
 
             if (sub === 'status') {
+                if (unit) {
+                    engine.awardFlag('cmd2');
+                }
                 if (!unit) {
                     // Brief system overview
                     const degraded = Object.values(engine.config._serviceState).filter(s => s !== 'active').length;
@@ -433,6 +439,8 @@ const ALAHunt1Config = {
             }
 
             if (sub === 'start' || sub === 'restart') {
+                if (sub === 'start') engine.awardFlag('cmd10');
+                if (sub === 'restart') engine.awardFlag('cmd11');
                 // Enforce dependency ordering -- provide informative errors when deps not met
 
                 if (resolvedUnit === 'networking' || resolvedUnit === 'systemd-networkd') {
@@ -472,13 +480,6 @@ const ALAHunt1Config = {
                         return `Job for grid-monitor.service failed because a dependency job failed.\nDependency: grid-sync.service is not running.`;
                     }
                     engine.config._serviceState['grid-monitor'] = 'active';
-
-                    // Check if all 5 services are now active -- auto-award FLAG 1
-                    const allActive = ['networking', 'sshd', 'cron', 'grid-sync', 'grid-monitor']
-                        .every(s => engine.config._serviceState[s] === 'active');
-                    if (allActive) {
-                        engine.awardFlag('flag1');
-                    }
                     return '';
                 }
 
@@ -517,6 +518,7 @@ const ALAHunt1Config = {
             }
 
             if (sub === 'daemon-reload') {
+                engine.awardFlag('cmd12');
                 return '';
             }
 
@@ -540,6 +542,18 @@ const ALAHunt1Config = {
 
         // journalctl -- service journal output
         'journalctl': function(args, term, engine) {
+            // Detect combined short flags like -fu or -uf
+            const flat = args.join(' ');
+            const hasFollow = args.includes('-f') || args.some(a => /^-[a-z]*f[a-z]*$/.test(a));
+            const hasU     = args.includes('-u') || args.some(a => /^-[a-z]*u[a-z]*$/.test(a));
+            const hasN30   = args.includes('-n') && (args[args.indexOf('-n') + 1] === '30');
+            const hasNoPager = args.includes('--no-pager');
+            if (hasFollow && hasU) {
+                engine.awardFlag('cmd4');
+            }
+            if (hasU && hasN30 && hasNoPager) {
+                engine.awardFlag('cmd3');
+            }
             const uFlag = args.indexOf('-u');
             const unit = uFlag >= 0 ? (args[uFlag + 1] || '').replace(/\.service$/, '') : '';
             const n = args.indexOf('-n') >= 0 ? parseInt(args[args.indexOf('-n') + 1]) : 20;
@@ -616,11 +630,72 @@ const ALAHunt1Config = {
                     type: 'file',
                     content: '{"timestamp":"2026-04-10T13:45:00","service":"grid-monitor","status":"MONITOR_OK","nodes":4}\n{"timestamp":"2026-04-10T14:15:00","service":"grid-monitor","status":"MONITOR_OK","nodes":4}\n{"timestamp":"2026-04-10T14:31:44","service":"grid-sync","status":"SYNC_OK","nodes":4,"latency_ms":12}\n'
                 };
-                engine.awardFlag('flag2');
                 return `Swap file ".ops.log.swp" found.\nFile recovered. Using swap file "/var/log/cell-ops/.ops.log.swp".\n[Recovered] ops.log -- recovery complete. Saved as ops.log.recovered.\nCheck :!ls /var/log/cell-ops/ to verify.`;
             }
 
             return `[VIM simulation] Cannot open interactive editor in this terminal.\nTo recover the ops.log from its swap file, run:\n  vim -r /var/log/cell-ops/ops.log`;
+        },
+
+        // tmux -- session multiplexer (sim only; awards flag for cmd1)
+        'tmux': function(args, term, engine) {
+            engine.awardFlag('cmd1');
+            const sub = args[0] || 'new';
+            if (sub === 'new' || sub === 'new-session') {
+                const name = args.indexOf('-s') >= 0 ? args[args.indexOf('-s') + 1] : 'main';
+                return `[tmux] new session '${name}' created. (In this sim you stay in the same terminal; your work is now persistent across SSH drops.)`;
+            }
+            if (sub === 'ls' || sub === 'list-sessions') {
+                return `main: 1 windows (created Thu Apr 10 16:00:00 2026)`;
+            }
+            return `tmux: started session.`;
+        },
+
+        // screen -- alternative multiplexer (also cmd1)
+        'screen': function(args, term, engine) {
+            engine.awardFlag('cmd1');
+            return `[screen] session started.`;
+        },
+
+        // ss -- socket statistics
+        'ss': function(args, term, engine) {
+            // Any ss with -l (listen) flag awards cmd7
+            const flat = args.join('');
+            const hasL = args.some(a => /^-[a-z]*l[a-z]*$/.test(a));
+            if (hasL) {
+                engine.awardFlag('cmd7');
+            }
+            const hasT = args.some(a => /^-[a-z]*t[a-z]*$/.test(a));
+            const hasN = args.some(a => /^-[a-z]*n[a-z]*$/.test(a));
+            const hasP = args.some(a => /^-[a-z]*p[a-z]*$/.test(a));
+            if (hasT && hasL) {
+                const procCol = hasP ? '         Process' : '';
+                const procRows = hasP
+                    ? '\nLISTEN   0      4096    0.0.0.0:22          0.0.0.0:*          users:(("sshd",pid=9001,fd=3))\nLISTEN   0      511     0.0.0.0:80          0.0.0.0:*          users:(("nginx",pid=1845,fd=6))\nLISTEN   0      511     0.0.0.0:443         0.0.0.0:*          users:(("python3",pid=12847,fd=4))'
+                    : '\nLISTEN   0      4096    0.0.0.0:22          0.0.0.0:*\nLISTEN   0      511     0.0.0.0:80          0.0.0.0:*\nLISTEN   0      511     0.0.0.0:443         0.0.0.0:*';
+                return `State    Recv-Q Send-Q  Local Address:Port  Peer Address:Port${procCol}` + procRows;
+            }
+            return `Usage: ss [-tunap] [filter]\n  -t  TCP\n  -u  UDP\n  -l  listening\n  -n  numeric\n  -p  show process`;
+        },
+
+        // ps -- process snapshot
+        'ps': function(args, term, engine) {
+            const flat = args.join('');
+            const isEf = args.includes('-ef') || (args.includes('-e') && args.includes('-f'));
+            const isAux = args.includes('aux') || args.includes('-aux');
+            if (isEf || isAux) {
+                engine.awardFlag('cmd8');
+                if (isEf) {
+                    return `UID          PID    PPID  C STIME TTY          TIME CMD\nroot           1       0  0 Apr10 ?        00:00:09 /sbin/init\nroot         433       1  0 Apr10 ?        00:00:02 /lib/systemd/systemd-networkd\nroot         842       1  0 Apr10 ?        00:00:01 sshd: /usr/sbin/sshd -D\noperator    1421     842  0 16:34 pts/0    00:00:00 -bash\nroot       12847       1  0 16:30 ?        00:00:00 python3 /tmp/rogue.py\noperator    1432    1421  0 16:35 pts/0    00:00:00 ps -ef`;
+                }
+                return `USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nroot           1  0.0  0.1 167872 11392 ?        Ss   Apr10   0:09 /sbin/init\nroot         433  0.0  0.2  84512  9344 ?        Ss   Apr10   0:02 systemd-networkd\nroot         842  0.0  0.1  17448  6912 ?        Ss   Apr10   0:01 sshd: /usr/sbin/sshd -D\noperator    1421  0.0  0.1   8956  5120 pts/0    Ss   16:34   0:00 -bash\nroot       12847  0.1  0.3  62784 26432 ?        S    16:30   0:00 python3 /tmp/rogue.py`;
+            }
+            return `Usage: ps [-ef | aux]\n  -ef   full format, all processes\n  aux   BSD style, all users + processes`;
+        },
+
+        // grep -- pattern filter (awards cmd9 on any use)
+        'grep': function(args, term, engine) {
+            engine.awardFlag('cmd9');
+            return `[grep] runs against piped input; in this sim grep returns no output as a standalone invocation. Pipe into it from another command: e.g. journalctl -u grid-sync | grep -i error`;
         },
 
         // ls -- directory listing with awareness of recovered file
@@ -653,24 +728,20 @@ const ALAHunt1Config = {
     // ═══════════════════════════════════════════════════════
 
     flags: [
-        {
-            id: 'flag1',
-            value: 'FLAG{ala-hunt1-website-down_flag1_all_services_restored}',
-            label: 'All Services Restored',
-            description: 'All 5 services (networking, sshd, cron, grid-sync, grid-monitor) are active.',
-            points: 200,
-            // Awarded automatically by systemctl start grid-monitor when all deps are active
-            autoCheck: true
-        },
-        {
-            id: 'flag2',
-            value: 'FLAG{ala-hunt1-website-down_flag2_operations_log_recovered}',
-            label: 'Operations Log Recovered',
-            description: 'Recovered the truncated ops.log using the vim swap file.',
-            points: 200,
-            // Awarded automatically by the vim -r command handler
-            autoCheck: true
-        }
+        // One flag per scavenger hunt worksheet row. Auto-captured when the
+        // student runs the corresponding command in the terminal.
+        { id: 'cmd1',  value: 'FLAG{ala-hunt1_cmd01_persistent_session}',     label: '01 — Persistent session',         description: 'Opened a tmux/screen session.',                                points: 50, autoCheck: true },
+        { id: 'cmd2',  value: 'FLAG{ala-hunt1_cmd02_service_status}',         label: '02 — Service status',             description: 'Ran systemctl status against a service.',                      points: 50, autoCheck: true },
+        { id: 'cmd3',  value: 'FLAG{ala-hunt1_cmd03_log_last_30}',            label: '03 — Last 30 service log lines',  description: 'Ran journalctl -u <svc> -n 30 --no-pager.',                    points: 50, autoCheck: true },
+        { id: 'cmd4',  value: 'FLAG{ala-hunt1_cmd04_log_live_follow}',        label: '04 — Live-tail service log',      description: 'Ran journalctl -fu <svc> (or -f -u).',                         points: 50, autoCheck: true },
+        { id: 'cmd5',  value: 'FLAG{ala-hunt1_cmd05_interface_up}',           label: '05 — Bring interface up',         description: 'Ran ip link set <iface> up.',                                  points: 50, autoCheck: true },
+        { id: 'cmd6',  value: 'FLAG{ala-hunt1_cmd06_interface_show}',         label: '06 — Show interfaces',            description: 'Ran ip link show (or ip a/addr).',                             points: 50, autoCheck: true },
+        { id: 'cmd7',  value: 'FLAG{ala-hunt1_cmd07_listening_sockets}',      label: '07 — Listening TCP sockets',      description: 'Ran ss -tlnp (or -tln, -tlp).',                                points: 50, autoCheck: true },
+        { id: 'cmd8',  value: 'FLAG{ala-hunt1_cmd08_processes_all}',          label: '08 — All processes',              description: 'Ran ps -ef (or ps aux).',                                      points: 50, autoCheck: true },
+        { id: 'cmd9',  value: 'FLAG{ala-hunt1_cmd09_filter_lines}',           label: '09 — Filter lines (grep)',        description: 'Used grep.',                                                   points: 50, autoCheck: true },
+        { id: 'cmd10', value: 'FLAG{ala-hunt1_cmd10_service_start}',          label: '10 — Start a service',            description: 'Ran systemctl start <svc>.',                                   points: 50, autoCheck: true },
+        { id: 'cmd11', value: 'FLAG{ala-hunt1_cmd11_service_restart}',        label: '11 — Restart a service',          description: 'Ran systemctl restart <svc>.',                                 points: 50, autoCheck: true },
+        { id: 'cmd12', value: 'FLAG{ala-hunt1_cmd12_daemon_reload}',          label: '12 — Reload systemd manifest',    description: 'Ran systemctl daemon-reload.',                                 points: 50, autoCheck: true }
     ],
 
     // ═══════════════════════════════════════════════════════
