@@ -90,6 +90,34 @@ class AssessedArtifact:
 
 
 @dataclass
+class PhaseScaffold:
+    """A phase-aware Level-3 hint scaffold.
+
+    Authored per-lab in YAML under `phase_scaffolds:` keyed by phase_id
+    (e.g. `phase_1`, `phase_2`...). Each entry names the phase and provides
+    a hint that describes the METHOD (not the answer) appropriate for a
+    student stuck in that phase.
+
+    Injected into the system prompt by compose_system_prompt() when:
+      (1) the active context provides a matching `phase_id`, AND
+      (2) the session's current_help_level >= 3 (Level-3 is the lowest
+          level at which method-revealing hints are permitted), AND
+      (3) the lab's allowed_help_levels includes 3 or higher (per-lab
+          policy ceiling).
+
+    Phase IDs must follow `phase_<int>` naming. The orchestrator does NOT
+    enforce phase ordering — the frontend is responsible for telemetry-
+    derived phase detection.
+
+    Added 2026-06-08 for #83 (phase_scaffolds wiring). Prior to this
+    change the field was authored on disk but unparsed (LOAD-BEARING GATE
+    failure case per the Dr. Hex autoloop spec).
+    """
+    name: str
+    hint: str
+
+
+@dataclass
 class LabSkillMap:
     """The full per-lab Skill Map artifact."""
     lab_id: str
@@ -104,6 +132,7 @@ class LabSkillMap:
     secondary_skill: Optional[SkillLayer] = None
     flag_values: list[str] = field(default_factory=list)
     walkthrough_text: str = ""
+    phase_scaffolds: dict[str, PhaseScaffold] = field(default_factory=dict)
 
     @property
     def max_help_level(self) -> int:
@@ -257,6 +286,35 @@ def _validate_skill_map(data: dict, source: str) -> LabSkillMap:
             raise SkillMapValidationError(f"{source}.walkthrough_text: expected string, got {type(wt).__name__}")
         walkthrough_text = wt
 
+    # phase_scaffolds: optional dict of phase_id → {name, hint}. Authored
+    # per-lab; parsed here so it's a runtime-readable surface (no longer a
+    # trap field for the Dr. Hex autoloop). Phase-aware injection happens
+    # in main.compose_system_prompt; see #83.
+    phase_scaffolds: dict[str, PhaseScaffold] = {}
+    if "phase_scaffolds" in data and data["phase_scaffolds"] is not None:
+        raw_phases = data["phase_scaffolds"]
+        if not isinstance(raw_phases, dict):
+            raise SkillMapValidationError(
+                f"{source}.phase_scaffolds: expected mapping, got {type(raw_phases).__name__}"
+            )
+        for phase_id, phase_data in raw_phases.items():
+            if not isinstance(phase_id, str):
+                raise SkillMapValidationError(
+                    f"{source}.phase_scaffolds: key must be string, got {type(phase_id).__name__}"
+                )
+            phase_path = f"{source}.phase_scaffolds.{phase_id}"
+            if not isinstance(phase_data, dict):
+                raise SkillMapValidationError(
+                    f"{phase_path}: expected mapping with name+hint, got {type(phase_data).__name__}"
+                )
+            name = _require_field(phase_data, phase_path, "name", str).strip()
+            hint = _require_field(phase_data, phase_path, "hint", str).strip()
+            if not name:
+                raise SkillMapValidationError(f"{phase_path}.name: must not be empty")
+            if not hint:
+                raise SkillMapValidationError(f"{phase_path}.hint: must not be empty")
+            phase_scaffolds[phase_id] = PhaseScaffold(name=name, hint=hint)
+
     return LabSkillMap(
         lab_id=lab_id,
         lab_name=lab_name,
@@ -268,6 +326,7 @@ def _validate_skill_map(data: dict, source: str) -> LabSkillMap:
         transfer_prompt=transfer_prompt,
         flag_values=flag_values,
         walkthrough_text=walkthrough_text,
+        phase_scaffolds=phase_scaffolds,
     )
 
 

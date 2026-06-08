@@ -4,7 +4,24 @@
 > challenge." Without this, the Constitution's purpose statement is
 > built on an undefined term.
 >
-> Last updated: 2026-05-25 · v1.0 (spec)
+> Last updated: 2026-06-08 · v1.1
+> v1.1 (#83): `phase_scaffolds` now parsed by skill_map_loader.py
+> and injected into the system prompt by main.compose_system_prompt
+> when the request supplies `phase_id` and the active help_level >= 3.
+
+## Changelog
+
+- **2026-06-08 (#83, commit `<pending>`)** — `phase_scaffolds` is now
+  a parsed, runtime-read field. Previously it was authored on disk
+  (e.g. pis-final-patient-zero.yaml) but the loader did not parse it
+  and main.py did not inject it. Loader extension adds the
+  `PhaseScaffold` dataclass; `LabSkillMap.phase_scaffolds` is now a
+  validated `dict[phase_id → PhaseScaffold]`. compose_system_prompt
+  accepts a new `current_help_level: int` param and, when the request
+  context carries a `phase_id` matching an authored scaffold AND the
+  active help_level >= 3 AND the lab permits L3+, injects the
+  scaffold's hint as a "Phase hint" STUDENT CONTEXT line. forbidden_
+  disclosures and the voice_linter post-hoc filter still wrap output.
 
 ## 1. Why this exists
 

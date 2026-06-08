@@ -366,6 +366,20 @@ class ChatRequest(BaseModel):
         None,
         max_length=200,
     )
+    # 2026-06-08: phase_id is an optional telemetry signal from the
+    # frontend identifying which authored phase the student is in. When
+    # present AND the lab's skill_map defines a matching phase_scaffolds
+    # entry AND the active help_level >= 3, compose_system_prompt injects
+    # the phase-appropriate Level-3 hint into STUDENT CONTEXT. Phase IDs
+    # follow the `phase_<int>` convention; orchestrator does not validate
+    # ordering — frontend telemetry is the source of truth. Without this
+    # field, phase_scaffolds remain in the skill map but inert (matches
+    # legacy behavior). See #83 (phase_scaffolds wiring).
+    phase_id: str | None = Field(
+        None,
+        max_length=32,
+        pattern=r"^phase_[0-9]{1,3}$",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -397,11 +411,13 @@ def build_context_packet(req: ChatRequest) -> dict:
         # are on" — see commit log + Confluence rollout doc.
         "page_path": req.page_path,
         "page_title": req.page_title,
+        # 2026-06-08: phase telemetry for phase-aware Level-3 hint injection (#83).
+        "phase_id": req.phase_id,
     }
 
 
 def compose_system_prompt(persona: dict, help_level_suffix: str, context: dict,
-                          skill_map=None) -> str:
+                          skill_map=None, current_help_level: int = 0) -> str:
     """Layer order: voice-rule → persona → help-level → context.
 
     Persona is WRAPPED BY help-level, not the other way around — closes the
@@ -465,6 +481,31 @@ def compose_system_prompt(persona: dict, help_level_suffix: str, context: dict,
             "that are not part of this lab (e.g., do not invent log paths). "
             "Help-level ceiling above still applies."
         )
+
+    # 2026-06-08: phase-aware Level-3 hint injection (#83).
+    # Requires ALL of:
+    #   (a) skill_map.phase_scaffolds is non-empty (lab authored hints)
+    #   (b) context provides phase_id (frontend telemetry detected phase)
+    #   (c) phase_id matches an authored scaffold
+    #   (d) current_help_level >= 3 (Level-3 is the gate for method hints)
+    #   (e) skill_map.allowed_help_levels permits L3+ (per-lab policy)
+    # If gates pass: inject the scaffold's hint as a context line tagged
+    # "phase hint". The model treats it as L3 grounding, not as license to
+    # exceed the help-level ceiling. forbidden_disclosures and the
+    # voice_linter post-hoc filter still wrap any output.
+    if (
+        skill_map is not None
+        and getattr(skill_map, "phase_scaffolds", None)
+        and context.get("phase_id")
+        and current_help_level >= 3
+        and any(lv >= 3 for lv in skill_map.allowed_help_levels)
+    ):
+        phase = skill_map.phase_scaffolds.get(context["phase_id"])
+        if phase is not None:
+            hint_text = phase.hint.strip().replace("\n", " ")
+            context_lines.append(
+                f"- Phase hint (Level-3 scaffold for '{phase.name}'): {hint_text}"
+            )
 
     context_block = "\n\nSTUDENT CONTEXT:\n" + "\n".join(context_lines) if context_lines else ""
 
@@ -1154,7 +1195,7 @@ async def _resolve_request(req: ChatRequest) -> tuple[dict, int, str, str, str, 
     # present in the lab. Replaces the prior generic-IR behaviour where
     # the model would invent tools/paths not in the lab.
     sm_for_prompt = maybe_load_skill_map(req.mission_id) if req.mission_id else None
-    system = compose_system_prompt(persona, suffix, context, skill_map=sm_for_prompt)
+    system = compose_system_prompt(persona, suffix, context, skill_map=sm_for_prompt, current_help_level=level)
     model = req.model or DEFAULT_MODEL
     persona_slug = [s for s, p in PERSONAS.items() if p == persona][0]
 
