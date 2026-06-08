@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scavenger Hunt #1: The Website Is Down | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #050a06 0%, #060d08 50%, #08120a 100%);
+            min-height: 100vh; color: #d8e6dc; padding: 18px;
+            font-size: 15px; line-height: 1.5;
+        }
+
+        /* Back link */
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: #8b9e8e; text-decoration: none; font-size: 0.88rem;
+            padding: 6px 12px; border: 1px solid rgba(0,255,65,0.15);
+            border-radius: 6px; transition: all 0.2s; margin-bottom: 14px;
+        }
+        .back-link:hover { background: rgba(0,255,65,0.08); color: #00ff41; border-color: #00ff41; }
+
+        /* The box */
+        .box {
+            max-width: 1080px; margin: 0 auto;
+            background: rgba(255,255,255,0.02);
+            border: 2px solid #00ff41;
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0,255,65,0.08), inset 0 0 20px rgba(0,255,65,0.02);
+            overflow: hidden;
+        }
+
+        /* Box header bar (like a terminal title bar) */
+        .box-titlebar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 18px; background: rgba(0,255,65,0.08);
+            border-bottom: 1px solid rgba(0,255,65,0.2);
+        }
+        .titlebar-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .titlebar-dot.r { background: #ef4444; }
+        .titlebar-dot.y { background: #eab308; }
+        .titlebar-dot.g { background: #22c55e; }
+        .titlebar-label {
+            margin-left: auto; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem; color: #00ff41; letter-spacing: 0.08em;
+        }
+
+        .box-body { padding: 24px 28px; }
+
+        h1 {
+            font-size: 1.7rem; font-weight: 800; color: #f1f5f9; margin-bottom: 4px;
+        }
+        h1 .accent { color: #00ff41; }
+        .subtitle {
+            font-size: 1.05rem; color: #86efac; font-style: italic; margin-bottom: 18px;
+        }
+
+        /* Section heads */
+        .section-head {
+            font-size: 0.78rem; font-weight: 800; letter-spacing: 0.12em;
+            text-transform: uppercase; color: #00ff41;
+            border-bottom: 1px solid rgba(0,255,65,0.2);
+            padding-bottom: 4px; margin: 16px 0 10px;
+        }
+
+        /* Scenario panel */
+        .scenario {
+            background: rgba(0,255,65,0.04);
+            border-left: 3px solid #00ff41;
+            padding: 14px 18px; border-radius: 0 8px 8px 0;
+            font-size: 0.95rem; color: #c8e6cd; line-height: 1.6;
+        }
+        .scenario strong { color: #00ff41; }
+
+        /* Rules grid */
+        .rules-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .rule-card {
+            background: rgba(255,255,255,0.03);
+            border-left: 3px solid #10b981; border-radius: 0 6px 6px 0;
+            padding: 8px 12px; font-size: 0.86rem;
+        }
+        .rule-card strong { color: #10b981; }
+
+        /* Team header inputs */
+        .team-row {
+            display: grid; grid-template-columns: 1fr 2fr; gap: 12px;
+            margin-bottom: 14px;
+        }
+        .team-row label {
+            font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: #8b9e8e; display: block; margin-bottom: 3px;
+        }
+        .team-row input {
+            width: 100%; padding: 8px 12px;
+            background: rgba(0,0,0,0.4); border: 1px solid rgba(0,255,65,0.2);
+            border-radius: 6px; color: #f1f5f9; font-family: inherit; font-size: 0.92rem;
+        }
+        .team-row input:focus {
+            outline: none; border-color: #00ff41;
+            box-shadow: 0 0 0 3px rgba(0,255,65,0.15);
+        }
+
+        /* Question rows */
+        .q-row {
+            display: grid; grid-template-columns: 36px 1fr 220px;
+            gap: 12px; align-items: start;
+            padding: 10px 12px; margin-bottom: 6px;
+            background: rgba(255,255,255,0.025); border-radius: 8px;
+            border-left: 3px solid #475569;
+            transition: all 0.2s;
+        }
+        .q-row.correct { border-left-color: #22c55e; background: rgba(34,197,94,0.08); }
+        .q-row.wrong { border-left-color: #ef4444; background: rgba(239,68,68,0.06); }
+        .q-row.bonus { border-left-color: #eab308; background: rgba(234,179,8,0.04); }
+        .q-row.bonus.correct { border-left-color: #22c55e; background: rgba(34,197,94,0.08); }
+
+        .q-num {
+            font-size: 1.1rem; font-weight: 800; color: #00ff41;
+            text-align: center; padding-top: 4px;
+        }
+        .q-row.bonus .q-num { color: #eab308; }
+        .q-desc {
+            font-size: 0.92rem; color: #c8e6cd; line-height: 1.5;
+        }
+        .q-hint {
+            display: block; font-size: 0.82rem; color: #64748b;
+            font-style: italic; margin-top: 3px;
+        }
+        .q-input {
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.4); border: 1px solid rgba(0,255,65,0.2);
+            border-radius: 6px; color: #00ff41;
+            font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.92rem;
+            width: 100%;
+        }
+        .q-input:focus {
+            outline: none; border-color: #00ff41;
+            box-shadow: 0 0 0 3px rgba(0,255,65,0.15);
+        }
+        .q-input:disabled {
+            opacity: 0.7; cursor: not-allowed;
+        }
+        .q-feedback {
+            font-size: 0.78rem; margin-top: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .q-feedback.ok { color: #22c55e; }
+        .q-feedback.bad { color: #ef4444; }
+
+        /* Action bar */
+        .actions {
+            display: flex; gap: 12px; align-items: center;
+            margin-top: 18px; padding-top: 18px;
+            border-top: 1px solid rgba(0,255,65,0.15);
+        }
+        .btn {
+            padding: 10px 22px; border-radius: 6px; font-weight: 700;
+            font-size: 0.95rem; cursor: pointer; border: none;
+            font-family: inherit; transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #00ff41; color: #02080a;
+        }
+        .btn-primary:hover { background: #10b981; transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(0,255,65,0.3); }
+        .btn-secondary {
+            background: transparent; color: #8b9e8e;
+            border: 1px solid rgba(0,255,65,0.2);
+        }
+        .btn-secondary:hover { color: #00ff41; border-color: #00ff41; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Score readout */
+        .score-readout {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem; color: #8b9e8e;
+        }
+        .score-readout .num {
+            color: #00ff41; font-weight: 800; font-size: 1.4rem;
+        }
+        .score-readout .bonus {
+            color: #eab308; font-weight: 700; margin-left: 8px;
+        }
+
+        /* Result banner */
+        .result-banner {
+            display: none; margin-top: 16px;
+            padding: 16px 20px; border-radius: 8px;
+            font-size: 1rem; line-height: 1.5;
+        }
+        .result-banner.show { display: block; animation: dropIn 0.4s ease-out; }
+        .result-banner.win {
+            background: rgba(34,197,94,0.1); border: 2px solid #22c55e; color: #bbf7d0;
+        }
+        .result-banner.partial {
+            background: rgba(234,179,8,0.08); border: 2px solid #eab308; color: #fef9c3;
+        }
+        .result-banner.fail {
+            background: rgba(239,68,68,0.08); border: 2px solid #ef4444; color: #fee2e2;
+        }
+        .result-banner strong { display: block; font-size: 1.2rem; margin-bottom: 4px; }
+
+        @keyframes dropIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .rules-grid { grid-template-columns: 1fr; }
+            .team-row { grid-template-columns: 1fr; }
+            .q-row { grid-template-columns: 30px 1fr; }
+            .q-row > .q-input { grid-column: 1 / -1; }
+            .actions { flex-wrap: wrap; }
+            .score-readout { margin-left: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<a href="../index.html" class="back-link">&larr; Advanced Linux Hub</a>
+
+<div class="box">
+
+    <div class="box-titlebar">
+        <span class="titlebar-dot r"></span>
+        <span class="titlebar-dot y"></span>
+        <span class="titlebar-dot g"></span>
+        <span class="titlebar-label">SCAVENGER HUNT #1 &middot; IN-CLASS ACTIVITY</span>
+    </div>
+
+    <div class="box-body">
+
+        <h1>The <span class="accent">Website Is Down</span></h1>
+        <div class="subtitle">Linux Command Scavenger Hunt #1</div>
+
+        <div class="section-head">The Scenario</div>
+        <div class="scenario">
+            It is <strong>2:14am</strong>. The status page for hexworth.com is red. The on-call alert woke you up.
+            You SSH into the production web server. Nginx is supposed to be serving traffic on port 443, but something is wrong.
+            Your team has five minutes before the incident commander calls in.
+            For each step, type the Linux command (or short flag combination) you would use.
+        </div>
+
+        <div class="section-head">Rules</div>
+        <div class="rules-grid">
+            <div class="rule-card">Teams of <strong>2 or 3</strong>. Use any course resources.</div>
+            <div class="rule-card">First team correct: <strong>100/100</strong>. Other correct teams: <strong>95/100</strong>.</div>
+            <div class="rule-card">Each wrong answer: <strong>&minus;2 points</strong>. Order matters.</div>
+        </div>
+
+        <div class="section-head">Printable worksheet</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+            <a href="/houses/matrix/handouts/scavengerHunt-website-down.pdf"
+               download
+               style="display:inline-flex; align-items:center; gap:8px; padding:10px 16px; background:rgba(0,255,65,0.10); border:1px solid rgba(0,255,65,0.45); border-radius:6px; color:#bbf7d0; text-decoration:none; font-size:0.92rem; font-weight:600; transition:all 0.2s;"
+               onmouseover="this.style.background='rgba(0,255,65,0.18)'; this.style.borderColor='#00ff41';"
+               onmouseout="this.style.background='rgba(0,255,65,0.10)'; this.style.borderColor='rgba(0,255,65,0.45)';">
+                <span style="font-size:1.1em;">&#128190;</span> Download PDF
+            </a>
+            <a href="/houses/matrix/handouts/scavengerHunt-website-down.docx"
+               download
+               style="display:inline-flex; align-items:center; gap:8px; padding:10px 16px; background:rgba(96,165,250,0.10); border:1px solid rgba(96,165,250,0.35); border-radius:6px; color:#bfdbfe; text-decoration:none; font-size:0.92rem; font-weight:600; transition:all 0.2s;"
+               onmouseover="this.style.background='rgba(96,165,250,0.18)'; this.style.borderColor='#60a5fa';"
+               onmouseout="this.style.background='rgba(96,165,250,0.10)'; this.style.borderColor='rgba(96,165,250,0.35)';">
+                <span style="font-size:1.1em;">&#128462;</span> Download .docx (editable)
+            </a>
+        </div>
+        <div style="font-size:0.82rem; color:#8b9e8e; margin-bottom:14px; padding:8px 12px; border-left:2px solid rgba(0,255,65,0.25); background:rgba(0,255,65,0.04);">
+            Instructor: print one PDF per team. The .docx is editable if you want to adjust the wording before printing.
+        </div>
+
+        <div class="section-head">Team</div>
+        <div class="team-row">
+            <div>
+                <label for="teamName">Team name</label>
+                <input id="teamName" type="text" placeholder="e.g. Cell-071">
+            </div>
+            <div>
+                <label for="teamMembers">Members (2 or 3)</label>
+                <input id="teamMembers" type="text" placeholder="Smith, Patel, Garcia">
+            </div>
+        </div>
+
+        <div class="section-head">The Hunt &middot; 12 commands</div>
+
+        <div id="mainQuestions"></div>
+
+        <div class="section-head">Bonus &middot; +5 each, no penalty</div>
+
+        <div id="bonusQuestions"></div>
+
+        <div class="actions">
+            <button id="submitBtn" class="btn btn-primary">Submit &amp; Score</button>
+            <button id="resetBtn" class="btn btn-secondary">Reset</button>
+            <div class="score-readout">
+                Score: <span class="num" id="scoreNum">&mdash;</span> / 100
+                <span class="bonus" id="bonusNum"></span>
+            </div>
+        </div>
+
+        <div id="resultBanner" class="result-banner"></div>
+
+    </div>
+</div>
+
+<script>
+// ============ ANSWER KEY ============
+// Each item: list of acceptable answers (case + whitespace normalized).
+// Accept the canonical form + reasonable variants. Comparison is lower-case
+// + trim + collapse whitespace.
+
+const QUESTIONS = [
+    {
+        n: 1,
+        desc: "Open a persistent terminal session that will survive if your SSH connection drops mid-investigation.",
+        hint: "Step 1 — set up",
+        answers: ["tmux", "tmux new", "tmux new-session", "screen"]
+    },
+    {
+        n: 2,
+        desc: "Check whether the nginx service is active, failed, or stopped — get a one-screen summary including recent log lines.",
+        hint: "Step 2 — what state is the service in?",
+        answers: ["systemctl status nginx", "sudo systemctl status nginx", "service nginx status"]
+    },
+    {
+        n: 3,
+        desc: "Show the last 30 log entries from the nginx service only, no pager.",
+        hint: "Step 3 — why did it fail?",
+        answers: ["journalctl -u nginx -n 30 --no-pager", "journalctl -u nginx -n 30", "journalctl --no-pager -u nginx -n 30", "journalctl -n 30 -u nginx --no-pager"]
+    },
+    {
+        n: 4,
+        desc: "Watch nginx's log live as you make changes (like tail -f, but the systemd-native way).",
+        hint: "useful during the fix",
+        answers: ["journalctl -fu nginx", "journalctl -f -u nginx", "journalctl -u nginx -f"]
+    },
+    {
+        n: 5,
+        desc: "List every TCP socket in LISTEN state, numeric ports, and show which process is holding each socket. Filter to source port 443.",
+        hint: "Step 4 — what is holding port 443?",
+        answers: ["sudo ss -tlnp 'sport = :443'", "ss -tlnp 'sport = :443'", "sudo ss -tlnp sport = :443", "sudo ss -tlnp \"sport = :443\""]
+    },
+    {
+        n: 6,
+        desc: "Show the running processes for all users in full long-listing format.",
+        hint: "extra context on the rogue process",
+        answers: ["ps -ef", "ps ef", "ps aux", "ps -aux"]
+    },
+    {
+        n: 7,
+        desc: "Filter lines from a stream where they match a given pattern.",
+        hint: "narrowing log output",
+        answers: ["grep"]
+    },
+    {
+        n: 8,
+        desc: "Pluck a specific whitespace-separated column from each line of input.",
+        hint: "extracting the PID or source IP",
+        answers: ["awk", "awk '{print $1}'", "cut"]
+    },
+    {
+        n: 9,
+        desc: "Terminate a running process by its PID.",
+        hint: "Step 5 — kill the offender",
+        answers: ["kill", "sudo kill", "kill -9", "sudo kill -9"]
+    },
+    {
+        n: 10,
+        desc: "Restart a systemd service.",
+        hint: "Step 6 — bring nginx back up",
+        answers: ["systemctl restart nginx", "sudo systemctl restart nginx", "service nginx restart"]
+    },
+    {
+        n: 11,
+        desc: "Re-read a service's config file without dropping existing connections (when supported).",
+        hint: "softer than restart, config-only changes",
+        answers: ["systemctl reload nginx", "sudo systemctl reload nginx", "service nginx reload"]
+    },
+    {
+        n: 12,
+        desc: "From the command line, fetch only the HTTP response headers from a URL (no body).",
+        hint: "Step 7 — verify the website is up",
+        answers: ["curl -I", "curl --head", "curl -I https://localhost", "curl -I https://localhost -k", "curl -I -k https://localhost"]
+    }
+];
+
+const BONUS = [
+    {
+        n: "B1",
+        desc: 'Combine "start the service AND enable it on boot" in one command.',
+        hint: "",
+        answers: ["systemctl enable --now nginx", "sudo systemctl enable --now nginx", "systemctl enable --now"]
+    },
+    {
+        n: "B2",
+        desc: "Write the one command that proves the website is now serving HTTPS with response code 200.",
+        hint: "",
+        answers: ["curl -I https://localhost -k", "curl -I -k https://localhost", "curl -I https://localhost/ -k", "curl -I -k https://localhost/"]
+    },
+    {
+        n: "B3",
+        desc: "From the fix step, list the full one-line chain (kill the PID, then restart nginx) using && to chain.",
+        hint: "PID 12847 in the scenario",
+        answers: [
+            "sudo kill 12847 && sudo systemctl restart nginx",
+            "kill 12847 && systemctl restart nginx",
+            "sudo kill 12847&&sudo systemctl restart nginx"
+        ]
+    }
+];
+
+// ============ RENDER ============
+function normalize(s) {
+    return (s || '').toLowerCase().trim().replace(/\s+/g, ' ').replace(/\s*=\s*/g, ' = ');
+}
+function makeRow(q, isBonus) {
+    const row = document.createElement('div');
+    row.className = 'q-row' + (isBonus ? ' bonus' : '');
+    row.dataset.idx = (isBonus ? 'b-' : 'q-') + q.n;
+    const hintHtml = q.hint ? '<span class="q-hint">' + q.hint + '</span>' : '';
+    row.innerHTML =
+        '<div class="q-num">' + q.n + '</div>' +
+        '<div class="q-desc">' + q.desc + hintHtml + '<div class="q-feedback" style="display:none"></div></div>' +
+        '<input class="q-input" type="text" placeholder="" autocomplete="off" spellcheck="false">';
+    return row;
+}
+
+const mainEl = document.getElementById('mainQuestions');
+const bonusEl = document.getElementById('bonusQuestions');
+QUESTIONS.forEach(q => mainEl.appendChild(makeRow(q, false)));
+BONUS.forEach(q => bonusEl.appendChild(makeRow(q, true)));
+
+// ============ SCORING ============
+function score() {
+    let correct = 0;
+    let wrong = 0;
+    let bonusCorrect = 0;
+
+    function check(q, rowSel) {
+        const row = document.querySelector('[data-idx="' + rowSel + '"]');
+        const input = row.querySelector('.q-input');
+        const fb = row.querySelector('.q-feedback');
+        const given = normalize(input.value);
+        if (!given) {
+            row.classList.remove('correct', 'wrong');
+            fb.style.display = 'none';
+            return null; // skipped
+        }
+        const ok = q.answers.some(a => normalize(a) === given);
+        row.classList.remove('correct', 'wrong');
+        row.classList.add(ok ? 'correct' : 'wrong');
+        fb.style.display = 'block';
+        if (ok) {
+            fb.className = 'q-feedback ok';
+            fb.textContent = '✓ correct';
+        } else {
+            fb.className = 'q-feedback bad';
+            fb.textContent = '✗ expected: ' + q.answers[0];
+        }
+        return ok;
+    }
+
+    QUESTIONS.forEach(q => {
+        const r = check(q, 'q-' + q.n);
+        if (r === true) correct++;
+        else if (r === false) wrong++;
+    });
+
+    BONUS.forEach(q => {
+        const r = check(q, 'b-' + q.n);
+        if (r === true) bonusCorrect++;
+    });
+
+    const pointsPerCorrect = 100 / QUESTIONS.length;
+    let raw = Math.round(correct * pointsPerCorrect) - (wrong * 2);
+    if (raw < 0) raw = 0;
+    if (raw > 100) raw = 100;
+    const bonus = bonusCorrect * 5;
+
+    document.getElementById('scoreNum').textContent = raw;
+    document.getElementById('bonusNum').textContent = bonus ? ' + ' + bonus + ' bonus' : '';
+
+    const banner = document.getElementById('resultBanner');
+    banner.className = 'result-banner show';
+    if (correct === QUESTIONS.length && wrong === 0) {
+        banner.classList.add('win');
+        banner.innerHTML = '<strong>All 12 correct.</strong> First team finished correctly earns 100/100; later teams earn 95/100. Bonus +' + bonus + '. Raise your hand.';
+    } else if (correct >= QUESTIONS.length * 0.75) {
+        banner.classList.add('partial');
+        banner.innerHTML = '<strong>' + correct + ' of ' + QUESTIONS.length + ' correct, ' + wrong + ' wrong.</strong> Score: ' + raw + '/100' + (bonus ? ' + ' + bonus + ' bonus' : '') + '. Review the wrong rows and try again.';
+    } else {
+        banner.classList.add('fail');
+        banner.innerHTML = '<strong>' + correct + ' of ' + QUESTIONS.length + ' correct, ' + wrong + ' wrong.</strong> Score: ' + raw + '/100. Check the W1 lecture deck and the man pages, then try again.';
+    }
+}
+
+function reset() {
+    document.querySelectorAll('.q-row').forEach(r => {
+        r.classList.remove('correct', 'wrong');
+        const fb = r.querySelector('.q-feedback');
+        fb.style.display = 'none';
+    });
+    document.querySelectorAll('.q-input').forEach(i => { i.value = ''; });
+    document.getElementById('scoreNum').textContent = '—';
+    document.getElementById('bonusNum').textContent = '';
+    document.getElementById('resultBanner').className = 'result-banner';
+    document.getElementById('resultBanner').innerHTML = '';
+    document.getElementById('teamName').focus();
+}
+
+document.getElementById('submitBtn').addEventListener('click', score);
+document.getElementById('resetBtn').addEventListener('click', reset);
+
+// Enter inside any q-input → trigger submit
+document.querySelectorAll('.q-input').forEach(i => {
+    i.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            score();
+        }
+    });
+});
+</script>
+
+<hex-ai-button house="matrix"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+
+</body>
+</html>
