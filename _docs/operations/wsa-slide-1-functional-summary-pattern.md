@@ -79,7 +79,7 @@ m01 example (longer form):
 
 m02 example (compact form):
 
-> **Where this fits:** Foundation #2 of WSA. AD = 30-35% of **AZ-800**.
+> **Where this fits:** Foundation #2 of WSA. AD = 25-30% of **AZ-800**. **AD PowerShell (★)** is the automation pillar of AD itself.
 
 **Rule of thumb:** keep it under 200 characters to leave HEUR-039 budget room. Cite CTS1328C as the course anchor. AZ-800 weight is optional — include if the module hits a high-weight exam domain.
 
