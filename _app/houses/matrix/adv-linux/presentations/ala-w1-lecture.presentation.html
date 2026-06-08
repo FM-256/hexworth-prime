@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 1 Lecture Companion | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #050a06 0%, #060d08 50%, #08120a 100%);
+            color: #d8e6dc; font-size: 16px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 28px 36px 78px; overflow: hidden;
+            animation: slideIn 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(28px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .slide-inner { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 18px; }
+
+        /* progress + nav */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #10b981 0%, #00ff41 100%);
+            transition: width 0.45s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+            background: rgba(5, 10, 6, 0.95); border-top: 1px solid rgba(0, 255, 65, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #8b9e8e;
+            border: 1px solid rgba(0, 255, 65, 0.15);
+            padding: 9px 24px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+            font-family: inherit;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(0, 255, 65, 0.1); color: #00ff41; border-color: #00ff41; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.84rem; padding: 9px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.84rem; min-width: 100px; text-align: center; }
+
+        #complete-btn { display: none; background: #10b981; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+            font-family: inherit; }
+        #complete-btn:hover { background: #00ff41; color: #000; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0, 255, 65, 0.4); }
+
+        /* typography */
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; opacity: 0.85; }
+        .slide-title { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; text-align: center; line-height: 1.18; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-title .accent-emerald { color: #10b981; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+        .slide-title .accent-gold { color: #eab308; }
+        .slide-title .accent-red { color: #ef4444; }
+        .slide-subtitle { font-size: 1.05rem; color: #8b9e8e; text-align: center; max-width: 880px; margin: 0 auto; }
+
+        /* hero title slide */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 3rem; font-weight: 900; color: #f1f5f9; line-height: 1.12; letter-spacing: -0.01em; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-hero .lead { font-size: 1.2rem; color: #8b9e8e; max-width: 720px; }
+        .title-meta-row { display: flex; gap: 32px; justify-content: center; margin-top: 12px; font-size: 0.85rem; color: #64748b; }
+        .title-meta-row span { border-left: 2px solid #1f2a22; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* cards */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 16px 18px; border-left: 3px solid #00ff41;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        .slide.active .card:nth-child(1) { animation-delay: 0.18s; }
+        .slide.active .card:nth-child(2) { animation-delay: 0.32s; }
+        .slide.active .card:nth-child(3) { animation-delay: 0.46s; }
+        .slide.active .card:nth-child(4) { animation-delay: 0.60s; }
+        .slide.active .card:nth-child(5) { animation-delay: 0.74s; }
+        .slide.active .card:nth-child(6) { animation-delay: 0.88s; }
+
+        .card .card-label { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.9rem; color: #b8c5bb; line-height: 1.5; }
+        .card.c-green { border-left-color: #00ff41; background: rgba(0, 255, 65, 0.04); }
+        .card.c-emerald { border-left-color: #10b981; background: rgba(16, 185, 129, 0.05); }
+        .card.c-cyan  { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.05); }
+        .card.c-gold  { border-left-color: #eab308; background: rgba(234, 179, 8, 0.05); }
+        .card.c-red   { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+        .card.c-purple { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.05); }
+        .card.c-blue  { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
+
+        /* callouts */
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.05); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 12px 18px;
+            font-size: 0.95rem; color: #b8d4be; font-style: italic; line-height: 1.55;
+        }
+        .box { border-radius: 8px; padding: 14px 18px; font-size: 0.92rem; }
+        .box-green { background: rgba(0, 255, 65, 0.07); border: 1px solid rgba(0, 255, 65, 0.28); color: #c8e6cd; }
+        .box-emerald { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); color: #c8e6cd; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.8; }
+
+        /* lecture agenda items */
+        .agenda-row {
+            display: grid; grid-template-columns: 60px 1fr auto; gap: 18px;
+            align-items: center; padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            border-left: 3px solid #00ff41;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        .agenda-num { font-size: 1.8rem; font-weight: 800; color: #00ff41; text-align: center; opacity: 0.75; }
+        .agenda-text { display: flex; flex-direction: column; gap: 2px; }
+        .agenda-text .agenda-title { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+        .agenda-text .agenda-sub   { font-size: 0.85rem; color: #8b9e8e; }
+        .agenda-time { font-size: 0.78rem; font-weight: 700; color: #64748b; letter-spacing: 0.08em; }
+        .slide.active .agenda-row:nth-child(1) { animation-delay: 0.20s; }
+        .slide.active .agenda-row:nth-child(2) { animation-delay: 0.36s; }
+        .slide.active .agenda-row:nth-child(3) { animation-delay: 0.52s; }
+        .slide.active .agenda-row:nth-child(4) { animation-delay: 0.68s; }
+
+        /* diagrams */
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 6px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.5; r: 4; } 50% { opacity: 1; r: 6; } }
+        @keyframes pulseGlow { 0%, 100% { filter: drop-shadow(0 0 4px currentColor); } 50% { filter: drop-shadow(0 0 14px currentColor); } }
+        @keyframes flowRight { 0% { transform: translateX(-6px); opacity: 0.3; } 50% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(6px); opacity: 0.3; } }
+        @keyframes signalSend { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes expandOut { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes orbitGlow { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+        /* terminal */
+        .terminal {
+            background: #02080a; border: 1px solid rgba(0, 255, 65, 0.18);
+            border-radius: 8px; padding: 14px 16px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.86rem; color: #c8e6cd; line-height: 1.55;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        }
+        .terminal .t-prompt { color: #00ff41; font-weight: 700; }
+        .terminal .t-cmd    { color: #f1f5f9; }
+        .terminal .t-out    { color: #8b9e8e; }
+        .terminal .t-comment { color: #5a6e5f; font-style: italic; }
+        .terminal .t-flag   { color: #eab308; }
+        .terminal .t-cursor { color: #00ff41; animation: blink 1.2s step-end infinite; }
+
+        /* two-col layout */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 12px; } .slide-title { font-size: 1.7rem; } .title-hero .big-title { font-size: 2.2rem; } .terminal { font-size: 0.78rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-2, .card-grid-4 { grid-template-columns: 1fr; } .two-col { grid-template-columns: 1fr; } .slide-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Week 1 Lecture Companion | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:4%"></div>
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Lecture Companion &nbsp;|&nbsp; Week 1 of 4 &nbsp;|&nbsp; CTS4321C &middot; Course Objectives 1 &amp; 2</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Grid Connection &mdash;<br>
+                <span class="accent">CLI Operations + Networking</span>
+            </div>
+            <div class="lead">
+                The command line that runs everything, the service manager that holds it up, and the network layer that makes it useful.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>25 Slides</span>
+            <span>4 Topic Blocks</span>
+            <span>Operational</span>
+            <span>Bring a terminal</span>
+        </div>
+        <div class="scenario-strip" style="margin-top:14px;">
+            This deck is the instructor companion. The 4 topic decks (CLI Operations, systemd, Network Config, Network Diagnostics) hold the drilldown. This deck holds the throughline.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 2 — THE WEEK AHEAD ============ -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 25 &nbsp;|&nbsp; The Week Ahead</div>
+        <div class="slide-title">Four Topics, <span class="accent">One System</span></div>
+        <div class="slide-subtitle">Every Week 1 deck is a different layer of the same machine. Today we walk the whole stack.</div>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin-top:6px;">
+            <div class="agenda-row">
+                <div class="agenda-num">1</div>
+                <div class="agenda-text">
+                    <div class="agenda-title">CLI Operations &mdash; the Power Tools</div>
+                    <div class="agenda-sub">Pipes, processes, job control, stream editors. Your scalpel.</div>
+                </div>
+                <div class="agenda-time">~12 min</div>
+            </div>
+            <div class="agenda-row">
+                <div class="agenda-num">2</div>
+                <div class="agenda-text">
+                    <div class="agenda-title">systemd &mdash; the Service Authority</div>
+                    <div class="agenda-sub">Units, journalctl, timers, dependencies. The thing that keeps things running.</div>
+                </div>
+                <div class="agenda-time">~12 min</div>
+            </div>
+            <div class="agenda-row">
+                <div class="agenda-num">3</div>
+                <div class="agenda-text">
+                    <div class="agenda-title">Network Configuration &mdash; the Stack</div>
+                    <div class="agenda-sub">ip, netplan, NetworkManager. How a Linux box talks to the rest of the world.</div>
+                </div>
+                <div class="agenda-time">~12 min</div>
+            </div>
+            <div class="agenda-row">
+                <div class="agenda-num">4</div>
+                <div class="agenda-text">
+                    <div class="agenda-title">Network Diagnostics &mdash; the Toolbox</div>
+                    <div class="agenda-sub">ss, tcpdump, dig, traceroute. When the network won't behave, this is what you reach for.</div>
+                </div>
+                <div class="agenda-time">~12 min</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3 — THE BIG PICTURE ============ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 25 &nbsp;|&nbsp; The Big Picture</div>
+        <div class="slide-title">How These Four <span class="accent">Fit Together</span></div>
+        <div class="slide-subtitle">A request comes in. Every layer either lets it through or fails. Each Week 1 topic owns one of those layers.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 820 180" width="820" height="180" xmlns="http://www.w3.org/2000/svg">
+                <!-- User -->
+                <rect x="10" y="60" width="100" height="60" rx="8" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="60" y="86" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="13" font-weight="700">USER</text>
+                <text x="60" y="104" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="10">curl, ssh, browser</text>
+
+                <!-- arrow -->
+                <line x1="113" y1="90" x2="173" y2="90" stroke="#00ff41" stroke-width="2" stroke-dasharray="6 3" style="animation: signalSend 1.4s linear infinite"/>
+                <polygon points="173,90 163,85 163,95" fill="#00ff41"/>
+
+                <!-- CLI -->
+                <rect x="175" y="60" width="120" height="60" rx="8" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="235" y="83" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="700">CLI</text>
+                <text x="235" y="102" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">your scalpel</text>
+
+                <!-- arrow -->
+                <line x1="298" y1="90" x2="358" y2="90" stroke="#00ff41" stroke-width="2" stroke-dasharray="6 3" style="animation: signalSend 1.4s linear infinite 0.3s"/>
+                <polygon points="358,90 348,85 348,95" fill="#00ff41"/>
+
+                <!-- systemd -->
+                <rect x="360" y="60" width="120" height="60" rx="8" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="2"/>
+                <text x="420" y="83" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="700">systemd</text>
+                <text x="420" y="102" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">the hospital</text>
+
+                <!-- arrow -->
+                <line x1="483" y1="90" x2="543" y2="90" stroke="#00ff41" stroke-width="2" stroke-dasharray="6 3" style="animation: signalSend 1.4s linear infinite 0.6s"/>
+                <polygon points="543,90 533,85 533,95" fill="#00ff41"/>
+
+                <!-- Network -->
+                <rect x="545" y="60" width="120" height="60" rx="8" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="605" y="83" text-anchor="middle" fill="#cffafe" font-family="Inter" font-size="13" font-weight="700">Network</text>
+                <text x="605" y="102" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">the bloodstream</text>
+
+                <!-- arrow -->
+                <line x1="668" y1="90" x2="728" y2="90" stroke="#00ff41" stroke-width="2" stroke-dasharray="6 3" style="animation: signalSend 1.4s linear infinite 0.9s"/>
+                <polygon points="728,90 718,85 718,95" fill="#00ff41"/>
+
+                <!-- World -->
+                <rect x="730" y="60" width="80" height="60" rx="8" fill="rgba(234,179,8,0.10)" stroke="#eab308" stroke-width="2"/>
+                <text x="770" y="86" text-anchor="middle" fill="#fef9c3" font-family="Inter" font-size="13" font-weight="700">WORLD</text>
+                <text x="770" y="104" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="10">prod, peers</text>
+
+                <!-- pulse markers along path -->
+                <circle cx="143" cy="90" r="5" fill="#00ff41" style="animation: pulse 2s ease-in-out infinite"/>
+                <circle cx="328" cy="90" r="5" fill="#00ff41" style="animation: pulse 2s ease-in-out infinite 0.6s"/>
+                <circle cx="513" cy="90" r="5" fill="#00ff41" style="animation: pulse 2s ease-in-out infinite 1.2s"/>
+                <circle cx="698" cy="90" r="5" fill="#00ff41" style="animation: pulse 2s ease-in-out infinite 1.8s"/>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">CLI is the scalpel</div>
+                <div class="card-desc">Small, sharp, composable. Everything else in this deck is reachable from a shell with three keystrokes.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label">systemd is the hospital</div>
+                <div class="card-desc">It schedules, watches, restarts, logs. If your service is alive on a modern Linux box, systemd is the reason.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Networking is the bloodstream</div>
+                <div class="card-desc">Configure it correctly and you don't notice. Misconfigure one rule and the whole machine looks broken.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK A: CLI OPERATIONS ============ -->
+
+<!-- ============ SLIDE 4 — UNIX PHILOSOPHY ============ -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 25 &nbsp;|&nbsp; Topic 1: CLI Operations</div>
+        <div class="slide-title">The <span class="accent">Unix Philosophy</span></div>
+        <div class="slide-subtitle">Small tools, doing one thing well, connected by pipes. The whole Linux command line follows from this one idea.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 700 130" width="700" height="130" xmlns="http://www.w3.org/2000/svg">
+                <!-- Tool 1: ps -->
+                <rect x="30" y="40" width="120" height="50" rx="6" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="90" y="62" text-anchor="middle" fill="#c8e6cd" font-family="JetBrains Mono" font-size="13" font-weight="700">ps -ef</text>
+                <text x="90" y="78" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">lists processes</text>
+
+                <!-- pipe -->
+                <text x="170" y="70" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="20" font-weight="700">|</text>
+
+                <!-- Tool 2: grep -->
+                <rect x="200" y="40" width="120" height="50" rx="6" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="260" y="62" text-anchor="middle" fill="#c8e6cd" font-family="JetBrains Mono" font-size="13" font-weight="700">grep nginx</text>
+                <text x="260" y="78" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">filters lines</text>
+
+                <!-- pipe -->
+                <text x="340" y="70" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="20" font-weight="700">|</text>
+
+                <!-- Tool 3: awk -->
+                <rect x="370" y="40" width="120" height="50" rx="6" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="430" y="62" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="13" font-weight="700">awk '{print $2}'</text>
+                <text x="430" y="78" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">picks a column</text>
+
+                <!-- pipe -->
+                <text x="510" y="70" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="20" font-weight="700">|</text>
+
+                <!-- Tool 4: xargs -->
+                <rect x="540" y="40" width="130" height="50" rx="6" fill="rgba(234,179,8,0.10)" stroke="#eab308" stroke-width="2"/>
+                <text x="605" y="62" text-anchor="middle" fill="#fef9c3" font-family="JetBrains Mono" font-size="13" font-weight="700">xargs kill</text>
+                <text x="605" y="78" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">runs the kill</text>
+
+                <!-- caption -->
+                <text x="350" y="120" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="12" font-style="italic">Four tools. One sentence. "Kill every nginx process."</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Do one thing well</div>
+                <div class="card-desc">A good Linux tool does ONE job. <code>grep</code> filters. <code>sort</code> sorts. <code>cut</code> picks columns. Nothing more.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label">Text is the interface</div>
+                <div class="card-desc">Every tool reads text from stdin, writes text to stdout. That's why piping works at all. No exotic data formats.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Compose with pipes</div>
+                <div class="card-desc">Solutions emerge from chaining. The shell is a dataflow language pretending to be a command prompt.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 5 — PIPES BEYOND THE BASICS ============ -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 25</div>
+        <div class="slide-title">Pipes: <span class="accent">More Than You Think</span></div>
+        <div class="slide-subtitle">stdout to stdin is just the first move. Process substitution opens up tools that expect filenames.</div>
+
+        <div class="two-col">
+            <div class="terminal">
+<span class="t-comment"># the basic pipe — stdout into stdin</span>
+<span class="t-prompt">$</span> <span class="t-cmd">cat access.log | grep 500 | wc -l</span>
+<span class="t-out">237</span>
+
+<span class="t-comment"># process substitution — pretend command is a file</span>
+<span class="t-prompt">$</span> <span class="t-cmd">diff &lt;(ls /etc/init.d) &lt;(ls /etc/rc3.d)</span>
+<span class="t-out">3a4
+&gt; S15rsyslog</span>
+
+<span class="t-comment"># tee — branch the stream</span>
+<span class="t-prompt">$</span> <span class="t-cmd">ps -ef | tee snapshot.txt | grep nginx</span>
+<span class="t-out">www-data  4521  1  0  Jun07  ?  00:00:01 nginx: worker</span>
+<span class="t-cursor">_</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-green">
+                    <div class="card-label"><code>|</code> stdout → stdin</div>
+                    <div class="card-desc">The classic. Output of left side becomes input of right side. Chains as long as you need.</div>
+                </div>
+                <div class="card c-emerald">
+                    <div class="card-label"><code>&lt;(cmd)</code> process substitution</div>
+                    <div class="card-desc">Wraps a command's output as a temporary file. Lets you feed pipelines into tools like <code>diff</code> that want filenames.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label"><code>tee</code> — branch the stream</div>
+                    <div class="card-desc">Write the data to a file AND pass it down the pipe. Useful for capturing what you grepped.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 6 — JOB CONTROL ============ -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 25</div>
+        <div class="slide-title">Job Control: <span class="accent">fg, bg, disown</span></div>
+        <div class="slide-subtitle">When a long-running task is blocking your terminal. The three commands that move it out of your way without killing it.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 170" width="720" height="170" xmlns="http://www.w3.org/2000/svg">
+                <!-- foreground -->
+                <rect x="20" y="40" width="150" height="80" rx="8" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="95" y="65" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="700">FOREGROUND</text>
+                <text x="95" y="85" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">blocks your terminal</text>
+                <text x="95" y="103" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="11">./long-task.sh</text>
+
+                <!-- arrow Ctrl+Z -->
+                <line x1="172" y1="80" x2="232" y2="80" stroke="#eab308" stroke-width="2" marker-end="url(#arr1)"/>
+                <text x="202" y="74" text-anchor="middle" fill="#fef9c3" font-family="JetBrains Mono" font-size="11" font-weight="700">Ctrl+Z</text>
+                <text x="202" y="98" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="9">suspend</text>
+
+                <!-- stopped -->
+                <rect x="235" y="40" width="150" height="80" rx="8" fill="rgba(234,179,8,0.10)" stroke="#eab308" stroke-width="2"/>
+                <text x="310" y="65" text-anchor="middle" fill="#fef9c3" font-family="Inter" font-size="13" font-weight="700">STOPPED</text>
+                <text x="310" y="85" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="11">paused, not killed</text>
+                <text x="310" y="103" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono" font-size="11">jobs &rarr; [1]+ Stopped</text>
+
+                <!-- arrow bg -->
+                <line x1="387" y1="80" x2="447" y2="80" stroke="#10b981" stroke-width="2" marker-end="url(#arr1)"/>
+                <text x="417" y="74" text-anchor="middle" fill="#10b981" font-family="JetBrains Mono" font-size="11" font-weight="700">bg</text>
+                <text x="417" y="98" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="9">resume in bg</text>
+
+                <!-- background -->
+                <rect x="450" y="40" width="150" height="80" rx="8" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="525" y="65" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="700">BACKGROUND</text>
+                <text x="525" y="85" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">runs, terminal free</text>
+                <text x="525" y="103" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="11">still tied to shell</text>
+
+                <!-- arrow disown -->
+                <line x1="602" y1="80" x2="662" y2="80" stroke="#a855f7" stroke-width="2" marker-end="url(#arr1)"/>
+                <text x="632" y="74" text-anchor="middle" fill="#e9d5ff" font-family="JetBrains Mono" font-size="11" font-weight="700">disown</text>
+
+                <!-- detached -->
+                <rect x="660" y="40" width="50" height="80" rx="8" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="685" y="65" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="11" font-weight="700">FREE</text>
+                <text x="685" y="100" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">survives</text>
+                <text x="685" y="112" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">logout</text>
+
+                <defs>
+                    <marker id="arr1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#94a3b8"/>
+                    </marker>
+                </defs>
+
+                <text x="360" y="155" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="12" font-style="italic">Or skip the whole dance: prefix with <tspan font-family="JetBrains Mono" fill="#00ff41">&amp;</tspan>, run it in <tspan font-family="JetBrains Mono" fill="#00ff41">tmux</tspan>, or write a <tspan font-family="JetBrains Mono" fill="#00ff41">.service</tspan> unit.</text>
+            </svg>
+        </div>
+
+        <div class="box box-emerald">
+            <div class="box-label">Operational rule</div>
+            If a task should outlive your SSH session, don't use job control &mdash; use <code>tmux</code> or <code>systemd-run</code>. Job control is for "I started this thing and now I want my prompt back."
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 7 — STREAM EDITORS ============ -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 25</div>
+        <div class="slide-title">Stream Editors: <span class="accent">awk, sed, grep</span></div>
+        <div class="slide-subtitle">Three tools that work on streams of text. Picking the right one saves a script.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label"><code>grep</code> &mdash; find lines</div>
+                <div class="card-desc">Filters lines matching a pattern. Read-only. Fast. The first thing you reach for in any log file.</div>
+                <div class="card-desc" style="margin-top:6px; font-family:'JetBrains Mono'; color:#00ff41; font-size:0.82rem;">grep ERROR /var/log/syslog</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label"><code>sed</code> &mdash; edit lines</div>
+                <div class="card-desc">Substitution and deletion on a stream. Use it to rewrite config files, anonymize logs, or fix typos across many files.</div>
+                <div class="card-desc" style="margin-top:6px; font-family:'JetBrains Mono'; color:#10b981; font-size:0.82rem;">sed -i 's/debug=true/debug=false/' app.conf</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label"><code>awk</code> &mdash; columns + logic</div>
+                <div class="card-desc">A small programming language for tabular data. Columns, conditionals, math. When you need "sum column 3 where column 1 is X."</div>
+                <div class="card-desc" style="margin-top:6px; font-family:'JetBrains Mono'; color:#06b6d4; font-size:0.82rem;">awk '$9==500 {sum+=$10} END{print sum}' access.log</div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="text-align:center;">
+            <strong>Decision rule:</strong>
+            need to FIND a line &rarr; <code>grep</code>. need to REWRITE a line &rarr; <code>sed</code>. need columns or math &rarr; <code>awk</code>.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 8 — APPLIED PIPELINE ============ -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 25 &nbsp;|&nbsp; CLI Synthesis</div>
+        <div class="slide-title">The Applied Pipeline: <span class="accent">Failed Auth Analysis</span></div>
+        <div class="slide-subtitle">An incident report in one line. Six tools, working together, to answer "who is trying to break in?"</div>
+
+        <div class="terminal" style="margin-top:6px;">
+<span class="t-comment"># top 10 source IPs by failed-auth count, in the last hour</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -u ssh --since "1 hour ago" \
+    | grep "Failed password" \
+    | awk '{print $11}' \
+    | sort \
+    | uniq -c \
+    | sort -rn \
+    | head -10</span>
+
+<span class="t-out">    142 192.0.2.55
+     87 198.51.100.7
+     43 203.0.113.14
+     12 198.51.100.198
+     ...</span>
+<span class="t-cursor">_</span>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">journalctl + grep</div>
+                <div class="card-desc">Pull SSH logs from the last hour, filter to the failed-auth lines only. Time-bounded log query, no greps of giant files.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label">awk + sort</div>
+                <div class="card-desc">Pluck column 11 (the source IP). Sort so identical IPs land next to each other &mdash; required for the next step.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">uniq -c | sort -rn | head</div>
+                <div class="card-desc">Count duplicates. Sort by count, descending. Take the top 10. The Unix Philosophy in action &mdash; tiny tools, big answer.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK B: SYSTEMD ============ -->
+
+<!-- ============ SLIDE 9 — WHAT IS SYSTEMD ============ -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 25 &nbsp;|&nbsp; Topic 2: systemd</div>
+        <div class="slide-title">What Is <span class="accent">systemd?</span></div>
+        <div class="slide-subtitle">The first process the kernel starts. PID 1. Everything else on a modern Linux box runs because systemd let it.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 760 200" width="760" height="200" xmlns="http://www.w3.org/2000/svg">
+                <!-- kernel -->
+                <rect x="20" y="80" width="100" height="50" rx="6" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="70" y="100" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="13" font-weight="700">KERNEL</text>
+                <text x="70" y="118" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="10">starts...</text>
+
+                <line x1="123" y1="105" x2="180" y2="105" stroke="#00ff41" stroke-width="2" marker-end="url(#arr9)"/>
+
+                <!-- systemd (center) -->
+                <rect x="185" y="55" width="200" height="100" rx="10" fill="rgba(0,255,65,0.12)" stroke="#00ff41" stroke-width="3"/>
+                <text x="285" y="84" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="16" font-weight="800">systemd</text>
+                <text x="285" y="103" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="11" font-weight="700">PID 1</text>
+                <text x="285" y="125" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">init + service mgr</text>
+                <text x="285" y="140" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">+ journal + timer + socket</text>
+
+                <!-- managed services radiating out -->
+                <line x1="388" y1="80" x2="430" y2="40" stroke="#10b981" stroke-width="1.5" stroke-dasharray="3 2"/>
+                <rect x="430" y="20" width="120" height="40" rx="6" fill="rgba(16,185,129,0.10)" stroke="#10b981"/>
+                <text x="490" y="38" text-anchor="middle" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10" font-weight="700">nginx.service</text>
+                <text x="490" y="51" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">web server</text>
+
+                <line x1="388" y1="100" x2="430" y2="100" stroke="#10b981" stroke-width="1.5" stroke-dasharray="3 2"/>
+                <rect x="430" y="80" width="120" height="40" rx="6" fill="rgba(16,185,129,0.10)" stroke="#10b981"/>
+                <text x="490" y="98" text-anchor="middle" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10" font-weight="700">sshd.service</text>
+                <text x="490" y="111" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">remote access</text>
+
+                <line x1="388" y1="125" x2="430" y2="160" stroke="#10b981" stroke-width="1.5" stroke-dasharray="3 2"/>
+                <rect x="430" y="140" width="120" height="40" rx="6" fill="rgba(16,185,129,0.10)" stroke="#10b981"/>
+                <text x="490" y="158" text-anchor="middle" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10" font-weight="700">backup.timer</text>
+                <text x="490" y="171" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">nightly cron-replacement</text>
+
+                <!-- pulse rings around systemd -->
+                <circle cx="285" cy="105" r="55" fill="none" stroke="#00ff41" stroke-width="1" opacity="0.3" style="animation: pulseGlow 3s ease-in-out infinite"/>
+
+                <!-- journal -->
+                <line x1="285" y1="158" x2="285" y2="190" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="3 2"/>
+                <rect x="220" y="180" width="130" height="20" rx="4" fill="rgba(6,182,212,0.10)" stroke="#06b6d4"/>
+                <text x="285" y="194" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="10" font-weight="700">journalctl &rarr; logs</text>
+
+                <!-- legend -->
+                <text x="650" y="55" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">starts</text>
+                <text x="650" y="70" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">restarts on crash</text>
+                <text x="650" y="85" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">schedules</text>
+                <text x="650" y="100" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">limits resources</text>
+                <text x="650" y="115" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">captures stdout</text>
+                <text x="650" y="130" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">cleans up on stop</text>
+
+                <defs>
+                    <marker id="arr9" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#00ff41"/>
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="box box-green" style="text-align:center;">
+            <strong>The mental model:</strong> systemd replaced init, cron, inetd, syslog, and parts of crond &mdash; with a unified config language (unit files) and a single tool to manage them all (<code>systemctl</code>).
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10 — UNIT FILE ANATOMY ============ -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 25</div>
+        <div class="slide-title">Anatomy of a <span class="accent">.service</span> File</div>
+        <div class="slide-subtitle">Three sections. Every service unit on the system looks like this.</div>
+
+        <div class="two-col">
+            <div class="terminal">
+<span class="t-comment"># /etc/systemd/system/api.service</span>
+
+<span class="t-flag">[Unit]</span>
+<span class="t-cmd">Description=Hexworth API
+After=network-online.target postgresql.service
+Wants=network-online.target</span>
+
+<span class="t-flag">[Service]</span>
+<span class="t-cmd">Type=simple
+User=api
+WorkingDirectory=/opt/api
+ExecStart=/opt/api/bin/server
+Restart=on-failure
+RestartSec=5s</span>
+
+<span class="t-flag">[Install]</span>
+<span class="t-cmd">WantedBy=multi-user.target</span>
+<span class="t-cursor">_</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-green">
+                    <div class="card-label">[Unit] &mdash; identity + ordering</div>
+                    <div class="card-desc">What this service is. What it needs to be running first (<code>After</code>). What pulls it in (<code>Wants</code>). The dependency graph happens here.</div>
+                </div>
+                <div class="card c-emerald">
+                    <div class="card-label">[Service] &mdash; how to run it</div>
+                    <div class="card-desc">The actual exec line. The user it runs as. What happens when it crashes (<code>Restart=on-failure</code>). This is the meat.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label">[Install] &mdash; when to start it</div>
+                    <div class="card-desc">Which target pulls this in at boot. <code>multi-user.target</code> = normal headless server. Only matters if you ran <code>systemctl enable</code>.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 11 — SYSTEMCTL DAILY 6 ============ -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 25</div>
+        <div class="slide-title"><span class="accent">systemctl</span> &mdash; the Daily Six</div>
+        <div class="slide-subtitle">Six commands cover 95% of what you'll do with services. Memorize these.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label"><code>start</code> / <code>stop</code></div>
+                <div class="card-desc">Start a service right now. Stop a service right now. Doesn't affect what happens at next boot.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label"><code>restart</code> / <code>reload</code></div>
+                <div class="card-desc"><strong>restart</strong> = stop + start. <strong>reload</strong> = re-read config without dropping connections (if the service supports it).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label"><code>enable</code> / <code>disable</code></div>
+                <div class="card-desc">Make a service start at boot. Or don't. Combine: <code>systemctl enable --now nginx</code> &mdash; enable AND start in one command.</div>
+            </div>
+        </div>
+
+        <div class="terminal" style="margin-top:6px;">
+<span class="t-prompt">$</span> <span class="t-cmd">systemctl status nginx</span>
+<span class="t-out">&#x25CF; nginx.service - The NGINX HTTP and reverse proxy server
+     Loaded: loaded (/etc/systemd/system/nginx.service; <span style="color:#00ff41">enabled</span>; preset: enabled)
+     Active: <span style="color:#00ff41">active (running)</span> since Sat 2026-06-07 14:23:01 EST; 4h 12min ago
+       Docs: https://nginx.org/en/docs/
+    Process: 1842 ExecStartPre=/usr/sbin/nginx -t -q (code=exited, status=0/SUCCESS)
+   Main PID: 1845 (nginx)
+      Tasks: 5 (limit: 4612)
+     Memory: 12.4M
+        CPU: 234ms
+     CGroup: /system.slice/nginx.service
+             &#x251C;&#x2500;1845 "nginx: master process /usr/sbin/nginx"
+             &#x2514;&#x2500;1846 "nginx: worker process"</span>
+<span class="t-cursor">_</span>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Gotcha</div>
+            Edit a unit file? Run <code>systemctl daemon-reload</code> BEFORE restart. systemd caches unit files in memory; without daemon-reload your edit is invisible.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 12 — JOURNALCTL ============ -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 25</div>
+        <div class="slide-title"><span class="accent">journalctl</span> &mdash; Log Query, the Modern Way</div>
+        <div class="slide-subtitle">No more <code>tail -f /var/log/syslog | grep service</code>. Indexed, structured, queryable.</div>
+
+        <div class="two-col">
+            <div class="terminal">
+<span class="t-comment"># last 50 lines of nginx</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -u nginx -n 50</span>
+
+<span class="t-comment"># follow live (-f), errors only (-p err)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -fu nginx -p err</span>
+
+<span class="t-comment"># everything since 1 hour ago</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl --since "1 hour ago"</span>
+
+<span class="t-comment"># everything from this boot, errors+</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -b 0 -p warning</span>
+
+<span class="t-comment"># kernel ring buffer (dmesg replacement)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -k</span>
+<span class="t-cursor">_</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-green">
+                    <div class="card-label"><code>-u &lt;service&gt;</code></div>
+                    <div class="card-desc">Filter by unit. The single most useful flag. <code>-u nginx</code>, <code>-u sshd</code>, etc.</div>
+                </div>
+                <div class="card c-emerald">
+                    <div class="card-label"><code>-p &lt;priority&gt;</code></div>
+                    <div class="card-desc">Filter by log level. <code>err</code>, <code>warning</code>, <code>info</code>, <code>debug</code>. Stops the noise.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label"><code>-b &lt;N&gt;</code></div>
+                    <div class="card-desc"><code>-b 0</code> = this boot. <code>-b -1</code> = the previous boot. Essential for debugging crash-and-reboot loops.</div>
+                </div>
+                <div class="card c-gold">
+                    <div class="card-label"><code>-f</code></div>
+                    <div class="card-desc">Follow mode. Like <code>tail -f</code> but on the journal. Combine with <code>-u</code> to live-tail one service.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 13 — TIMER UNITS ============ -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 25</div>
+        <div class="slide-title">Timer Units: <span class="accent">cron, Replaced</span></div>
+        <div class="slide-subtitle">Scheduled jobs as systemd units. Better logging, dependency-aware, and visible to <code>systemctl status</code>.</div>
+
+        <div class="two-col">
+            <div class="terminal">
+<span class="t-comment"># /etc/systemd/system/backup.timer</span>
+<span class="t-flag">[Unit]</span>
+<span class="t-cmd">Description=Nightly DB backup</span>
+
+<span class="t-flag">[Timer]</span>
+<span class="t-cmd">OnCalendar=*-*-* 02:00:00
+Persistent=true</span>
+
+<span class="t-flag">[Install]</span>
+<span class="t-cmd">WantedBy=timers.target</span>
+
+<span class="t-comment"># enable + start</span>
+<span class="t-prompt">$</span> <span class="t-cmd">systemctl enable --now backup.timer</span>
+
+<span class="t-comment"># see when it'll fire next</span>
+<span class="t-prompt">$</span> <span class="t-cmd">systemctl list-timers</span>
+<span class="t-out">NEXT                        LEFT          LAST  UNIT
+Mon 2026-06-08 02:00:00 EST  5h 47min      —     backup.timer</span>
+<span class="t-cursor">_</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-green">
+                    <div class="card-label">cron vs timer &mdash; the win</div>
+                    <div class="card-desc">cron logs go to mail. Timer logs go to <code>journalctl -u backup</code> with structured metadata. You actually find them when something fails.</div>
+                </div>
+                <div class="card c-emerald">
+                    <div class="card-label"><code>Persistent=true</code></div>
+                    <div class="card-desc">If the machine was off when the timer should have fired, run it now. cron silently misses; timers don't have to.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label">Dependency-aware</div>
+                    <div class="card-desc">The .timer triggers a .service. The .service can <code>Requires=postgresql.service</code>. Your backup won't run before the DB is up.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK C: NETWORK CONFIGURATION ============ -->
+
+<!-- ============ SLIDE 14 — THE LINUX NETWORK STACK ============ -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 25 &nbsp;|&nbsp; Topic 3: Network Configuration</div>
+        <div class="slide-title">The Linux <span class="accent">Network Stack</span></div>
+        <div class="slide-subtitle">Layers. Each one has a CLI tool. Each one has its own way to fail.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 280" width="720" height="280" xmlns="http://www.w3.org/2000/svg">
+                <!-- L7 -->
+                <rect x="160" y="20" width="400" height="34" rx="6" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="200" y="42" fill="#e9d5ff" font-family="Inter" font-size="13" font-weight="700">APPLICATION</text>
+                <text x="555" y="42" text-anchor="end" fill="#94a3b8" font-family="JetBrains Mono" font-size="11">curl, ssh, nginx</text>
+
+                <!-- L4 -->
+                <rect x="160" y="64" width="400" height="34" rx="6" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="200" y="86" fill="#cffafe" font-family="Inter" font-size="13" font-weight="700">TRANSPORT (TCP / UDP)</text>
+                <text x="555" y="86" text-anchor="end" fill="#94a3b8" font-family="JetBrains Mono" font-size="11">ss, netstat, conntrack</text>
+
+                <!-- L3 -->
+                <rect x="160" y="108" width="400" height="34" rx="6" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="200" y="130" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="700">NETWORK (IP, routing)</text>
+                <text x="555" y="130" text-anchor="end" fill="#94a3b8" font-family="JetBrains Mono" font-size="11">ip addr, ip route, ping</text>
+
+                <!-- L2 -->
+                <rect x="160" y="152" width="400" height="34" rx="6" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="200" y="174" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="700">LINK (Ethernet, ARP)</text>
+                <text x="555" y="174" text-anchor="end" fill="#94a3b8" font-family="JetBrains Mono" font-size="11">ip link, ethtool, arp</text>
+
+                <!-- L1 -->
+                <rect x="160" y="196" width="400" height="34" rx="6" fill="rgba(234,179,8,0.10)" stroke="#eab308" stroke-width="2"/>
+                <text x="200" y="218" fill="#fef9c3" font-family="Inter" font-size="13" font-weight="700">PHYSICAL (NIC, cable)</text>
+                <text x="555" y="218" text-anchor="end" fill="#94a3b8" font-family="JetBrains Mono" font-size="11">ethtool, dmesg</text>
+
+                <!-- direction arrows -->
+                <line x1="100" y1="40" x2="100" y2="220" stroke="#00ff41" stroke-width="2" stroke-dasharray="3 2" marker-end="url(#arrd)"/>
+                <text x="100" y="14" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="10" font-weight="700">"app sends"</text>
+                <text x="100" y="240" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="10" font-weight="700">"out on the wire"</text>
+
+                <text x="660" y="14" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="10" font-weight="700">"app receives"</text>
+                <line x1="660" y1="220" x2="660" y2="40" stroke="#eab308" stroke-width="2" stroke-dasharray="3 2" marker-end="url(#arru)"/>
+                <text x="660" y="240" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="10" font-weight="700">"in from the wire"</text>
+
+                <text x="360" y="265" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="12" font-style="italic">When debugging: start at the bottom. Cable in? Link up? IP set? Route exists? Port open? App listening?</text>
+
+                <defs>
+                    <marker id="arrd" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#00ff41"/></marker>
+                    <marker id="arru" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#eab308"/></marker>
+                </defs>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 15 — IP, THE MODERN WAY ============ -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 25</div>
+        <div class="slide-title"><span class="accent">ip</span> &mdash; the Modern Way</div>
+        <div class="slide-subtitle">One tool replaces five. <code>ifconfig</code>, <code>route</code>, <code>arp</code>, <code>iptunnel</code>, <code>vconfig</code> are all dead. Stop using them.</div>
+
+        <div class="two-col">
+            <div class="terminal">
+<span class="t-comment"># show all interfaces and their state</span>
+<span class="t-prompt">$</span> <span class="t-cmd">ip link show</span>
+<span class="t-out">2: ens18: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500
+    link/ether bc:24:11:5e:a3:f2</span>
+
+<span class="t-comment"># show IPs on all interfaces</span>
+<span class="t-prompt">$</span> <span class="t-cmd">ip -br addr</span>
+<span class="t-out">lo      UNKNOWN  127.0.0.1/8 ::1/128
+ens18   UP       10.0.0.42/24 fe80::be24:11ff:fe5e:a3f2/64</span>
+
+<span class="t-comment"># show routing table</span>
+<span class="t-prompt">$</span> <span class="t-cmd">ip route</span>
+<span class="t-out">default via 10.0.0.1 dev ens18 proto static
+10.0.0.0/24 dev ens18 proto kernel scope link src 10.0.0.42</span>
+
+<span class="t-comment"># add an IP (ephemeral &mdash; survives until reboot)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo ip addr add 10.0.0.55/24 dev ens18</span>
+<span class="t-cursor">_</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-green">
+                    <div class="card-label">Three sub-commands cover 90%</div>
+                    <div class="card-desc"><code>ip link</code> (interfaces), <code>ip addr</code> (addresses), <code>ip route</code> (routes). Add <code>-br</code> for brief output that's actually readable.</div>
+                </div>
+                <div class="card c-emerald">
+                    <div class="card-label">ip commands are ephemeral</div>
+                    <div class="card-desc">Changes survive until reboot. Use them to TEST. Use netplan (next slide) to MAKE THEM STICK.</div>
+                </div>
+                <div class="card c-red">
+                    <div class="card-label">Why <code>ifconfig</code> is dead</div>
+                    <div class="card-desc">Doesn't know about VLANs, bonds, or modern interface naming. Hasn't been maintained in years. Some distros don't even install it.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 16 — NETPLAN ============ -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 25</div>
+        <div class="slide-title">Netplan &mdash; <span class="accent">Ubuntu's Config Layer</span></div>
+        <div class="slide-subtitle">One YAML file. Netplan generates the actual config for whichever backend your system uses.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 130" width="720" height="130" xmlns="http://www.w3.org/2000/svg">
+                <!-- YAML -->
+                <rect x="20" y="38" width="180" height="54" rx="8" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="110" y="60" text-anchor="middle" fill="#c8e6cd" font-family="JetBrains Mono" font-size="13" font-weight="700">netplan YAML</text>
+                <text x="110" y="80" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">/etc/netplan/*.yaml</text>
+
+                <!-- arrow netplan apply -->
+                <line x1="200" y1="65" x2="280" y2="65" stroke="#00ff41" stroke-width="2" marker-end="url(#arrn)"/>
+                <text x="240" y="58" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="11" font-weight="700">netplan apply</text>
+
+                <!-- generator -->
+                <rect x="285" y="38" width="160" height="54" rx="8" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="365" y="60" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="12" font-weight="700">netplan generate</text>
+                <text x="365" y="80" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">picks backend</text>
+
+                <!-- split arrow -->
+                <line x1="445" y1="55" x2="540" y2="38" stroke="#06b6d4" stroke-width="2" marker-end="url(#arrn2)"/>
+                <line x1="445" y1="75" x2="540" y2="92" stroke="#a855f7" stroke-width="2" marker-end="url(#arrn3)"/>
+
+                <!-- networkd -->
+                <rect x="545" y="20" width="160" height="40" rx="6" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="625" y="38" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="11" font-weight="700">systemd-networkd</text>
+                <text x="625" y="52" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">server default</text>
+
+                <!-- NM -->
+                <rect x="545" y="75" width="160" height="40" rx="6" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="625" y="93" text-anchor="middle" fill="#e9d5ff" font-family="JetBrains Mono" font-size="11" font-weight="700">NetworkManager</text>
+                <text x="625" y="107" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">desktop default</text>
+
+                <defs>
+                    <marker id="arrn" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#00ff41"/></marker>
+                    <marker id="arrn2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#06b6d4"/></marker>
+                    <marker id="arrn3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#a855f7"/></marker>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="terminal">
+<span class="t-comment"># /etc/netplan/01-static.yaml &mdash; static IP, gateway, DNS</span>
+<span class="t-cmd">network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    ens18:
+      addresses: [10.0.0.42/24]
+      routes:
+        - to: default
+          via: 10.0.0.1
+      nameservers:
+        addresses: [1.1.1.1, 8.8.8.8]</span>
+
+<span class="t-comment"># test before commit &mdash; auto-rollback in 120s if you lose connection</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo netplan try</span>
+<span class="t-cursor">_</span>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Gotcha</div>
+            <code>netplan apply</code> writes the config and rolls forward. <code>netplan try</code> tests it with auto-rollback. <strong>Always use <code>try</code> for remote machines.</strong>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 17 — NM vs networkd vs Netplan ============ -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 25</div>
+        <div class="slide-title">NM vs networkd vs Netplan: <span class="accent">When to Use Which</span></div>
+        <div class="slide-subtitle">All three coexist on a modern Ubuntu box. Knowing which one is in charge is half the battle.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">systemd-networkd</div>
+                <div class="card-desc"><strong>Use on:</strong> servers, headless boxes, containers.</div>
+                <div class="card-desc" style="margin-top:6px;">Tiny footprint. No dependencies. Config-file driven. Default Netplan backend on Ubuntu Server.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">NetworkManager</div>
+                <div class="card-desc"><strong>Use on:</strong> desktops, laptops, anything with Wi-Fi.</div>
+                <div class="card-desc" style="margin-top:6px;">Handles roaming, VPN, captive portals. Has a GUI. Default on Ubuntu Desktop, Fedora, RHEL.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Netplan (front-end)</div>
+                <div class="card-desc"><strong>Use on:</strong> all Ubuntu, both server and desktop.</div>
+                <div class="card-desc" style="margin-top:6px;">Not a backend. Just writes the right config for whichever backend is in charge. <code>renderer:</code> field picks.</div>
+            </div>
+        </div>
+
+        <div class="box box-emerald" style="text-align:center;">
+            <strong>The rule:</strong> on Ubuntu, write Netplan. Don't edit <code>/etc/systemd/network/*.network</code> or <code>nmcli</code> connections directly &mdash; Netplan will overwrite them on next <code>apply</code>.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 18 — BONDING & VLANS ============ -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 25</div>
+        <div class="slide-title">Bonding &amp; VLANs: <span class="accent">Production Patterns</span></div>
+        <div class="slide-subtitle">Bond for redundancy. VLAN for isolation. Both as Netplan YAML, both common on servers.</div>
+
+        <div class="two-col">
+            <div class="terminal">
+<span class="t-comment"># active-backup bond + VLAN tag</span>
+<span class="t-cmd">network:
+  version: 2
+  ethernets:
+    eno1: {}
+    eno2: {}
+  bonds:
+    bond0:
+      interfaces: [eno1, eno2]
+      parameters:
+        mode: active-backup
+        primary: eno1
+        mii-monitor-interval: 100
+  vlans:
+    bond0.42:
+      id: 42
+      link: bond0
+      addresses: [10.42.0.10/24]</span>
+<span class="t-cursor">_</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-green">
+                    <div class="card-label">active-backup bond</div>
+                    <div class="card-desc">Two NICs, only one carries traffic. If the active link drops, the other takes over in &lt;1s. Works with any switch.</div>
+                </div>
+                <div class="card c-emerald">
+                    <div class="card-label">802.3ad (LACP) bond</div>
+                    <div class="card-desc">Both NICs active, traffic load-balanced. Doubles throughput. Requires switch-side LACP config.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label">VLAN on bond</div>
+                    <div class="card-desc">Layer 2 segmentation. <code>bond0.42</code> = traffic tagged with VLAN 42 rides on top of the bond. Common in multi-tenant data centers.</div>
+                </div>
+                <div class="card c-gold">
+                    <div class="card-label">Decision rule</div>
+                    <div class="card-desc">Switch speaks LACP? Use 802.3ad. Doesn't? Use active-backup. Don't guess.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK D: NETWORK DIAGNOSTICS ============ -->
+
+<!-- ============ SLIDE 19 — DIAGNOSTIC METHODOLOGY ============ -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 25 &nbsp;|&nbsp; Topic 4: Network Diagnostics</div>
+        <div class="slide-title">Diagnostic <span class="accent">Methodology</span></div>
+        <div class="slide-subtitle">When the network is broken, the wrong move is to guess. The right move is to walk the layers, from physical up.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 720 220" width="720" height="220" xmlns="http://www.w3.org/2000/svg">
+                <!-- 5 boxes in a row, with arrow -->
+                <rect x="20" y="80" width="120" height="60" rx="6" fill="rgba(234,179,8,0.10)" stroke="#eab308" stroke-width="2"/>
+                <text x="80" y="105" text-anchor="middle" fill="#fef9c3" font-family="Inter" font-size="12" font-weight="700">PHYSICAL</text>
+                <text x="80" y="123" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono" font-size="10">ethtool, dmesg</text>
+
+                <line x1="142" y1="110" x2="172" y2="110" stroke="#00ff41" stroke-width="2" marker-end="url(#arrm)"/>
+
+                <rect x="174" y="80" width="120" height="60" rx="6" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="234" y="105" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="12" font-weight="700">LINK</text>
+                <text x="234" y="123" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono" font-size="10">ip link, arp</text>
+
+                <line x1="296" y1="110" x2="326" y2="110" stroke="#00ff41" stroke-width="2" marker-end="url(#arrm)"/>
+
+                <rect x="328" y="80" width="120" height="60" rx="6" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="388" y="105" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="12" font-weight="700">IP / ROUTE</text>
+                <text x="388" y="123" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono" font-size="10">ip addr, ping</text>
+
+                <line x1="450" y1="110" x2="480" y2="110" stroke="#00ff41" stroke-width="2" marker-end="url(#arrm)"/>
+
+                <rect x="482" y="80" width="120" height="60" rx="6" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="542" y="105" text-anchor="middle" fill="#cffafe" font-family="Inter" font-size="12" font-weight="700">DNS / PORT</text>
+                <text x="542" y="123" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono" font-size="10">dig, ss</text>
+
+                <line x1="604" y1="110" x2="634" y2="110" stroke="#00ff41" stroke-width="2" marker-end="url(#arrm)"/>
+
+                <rect x="636" y="80" width="60" height="60" rx="6" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="666" y="105" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="12" font-weight="700">APP</text>
+                <text x="666" y="123" text-anchor="middle" fill="#94a3b8" font-family="JetBrains Mono" font-size="10">curl</text>
+
+                <!-- labels above -->
+                <text x="80" y="65" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">"link lights on?"</text>
+                <text x="234" y="65" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">"up + cabled?"</text>
+                <text x="388" y="65" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">"can I ping it?"</text>
+                <text x="542" y="65" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">"name resolves? port open?"</text>
+                <text x="666" y="65" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">"speaks HTTP?"</text>
+
+                <text x="360" y="180" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="13" font-style="italic">If a step fails, you stop there. Don't move up the stack until the layer below is solid.</text>
+                <text x="360" y="200" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11" font-style="italic">95% of "the network is broken" is actually one of these layers, in this order.</text>
+
+                <defs>
+                    <marker id="arrm" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#00ff41"/></marker>
+                </defs>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 20 — SS ============ -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 25</div>
+        <div class="slide-title"><span class="accent">ss</span> &mdash; What's Listening, What's Connected</div>
+        <div class="slide-subtitle"><code>netstat</code> is deprecated and slow. <code>ss</code> reads kernel socket data directly and supports filters that actually work.</div>
+
+        <div class="terminal" style="margin-top:6px;">
+<span class="t-comment"># what's listening on TCP (numeric ports, show process)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo ss -tlnp</span>
+<span class="t-out">State    Recv-Q Send-Q  Local Address:Port  Peer Address:Port  Process
+LISTEN   0      4096    0.0.0.0:22          0.0.0.0:*          users:(("sshd",pid=842,fd=3))
+LISTEN   0      511     0.0.0.0:80          0.0.0.0:*          users:(("nginx",pid=1845,fd=6))
+LISTEN   0      511     0.0.0.0:443         0.0.0.0:*          users:(("nginx",pid=1845,fd=7))</span>
+
+<span class="t-comment"># established connections to port 443</span>
+<span class="t-prompt">$</span> <span class="t-cmd">ss -tn state established '( dport = :443 or sport = :443 )'</span>
+
+<span class="t-comment"># count established by remote IP (top talkers)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">ss -tn state established | awk 'NR&gt;1 {print $4}' | cut -d: -f1 | sort | uniq -c | sort -rn | head</span>
+<span class="t-cursor">_</span>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label"><code>-t</code> TCP, <code>-u</code> UDP</div>
+                <div class="card-desc">Filter by transport. Add both for everything: <code>ss -tul</code>.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label"><code>-l</code> listening only</div>
+                <div class="card-desc">"What ports is this box accepting on?" Single most-asked question in production.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label"><code>-p</code> show process</div>
+                <div class="card-desc">Maps each socket to the process holding it. Requires root for processes you don't own.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 21 — PING + TRACEROUTE ============ -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 25</div>
+        <div class="slide-title">ping + traceroute: <span class="accent">Connectivity vs Path</span></div>
+        <div class="slide-subtitle">Two questions, two tools. "Can I reach it?" and "How am I getting there?"</div>
+
+        <div class="two-col">
+            <div>
+                <div class="card c-green" style="margin-bottom:10px;">
+                    <div class="card-label"><code>ping</code> &mdash; is it reachable?</div>
+                    <div class="card-desc">ICMP echo. Round-trip time. Packet loss percentage. Tells you "the target is alive and accepting ICMP."</div>
+                </div>
+                <div class="terminal">
+<span class="t-prompt">$</span> <span class="t-cmd">ping -c 4 10.0.0.1</span>
+<span class="t-out">PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.
+64 bytes from 10.0.0.1: icmp_seq=1 ttl=64 time=0.45 ms
+64 bytes from 10.0.0.1: icmp_seq=2 ttl=64 time=0.32 ms
+
+--- 10.0.0.1 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss
+rtt min/avg/max/mdev = 0.301/0.371/0.453/0.057 ms</span>
+                </div>
+            </div>
+
+            <div>
+                <div class="card c-emerald" style="margin-bottom:10px;">
+                    <div class="card-label"><code>traceroute</code> &mdash; which hop is slow?</div>
+                    <div class="card-desc">Sends packets with increasing TTL. Each router along the path replies. Shows you the path AND which hop is slow or unresponsive.</div>
+                </div>
+                <div class="terminal">
+<span class="t-prompt">$</span> <span class="t-cmd">traceroute -n hexworth.com</span>
+<span class="t-out"> 1  10.0.0.1     0.3 ms  0.4 ms  0.4 ms
+ 2  192.168.1.1  8.2 ms  7.9 ms  8.1 ms
+ 3  10.21.4.7    12  ms  11 ms  12 ms
+ 4  * * *
+ 5  142.250.65.78 24 ms 23 ms 24 ms</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Gotcha</div>
+            ICMP can be filtered &mdash; a "no reply" doesn't always mean broken. Try <code>mtr</code> for a live, continuously-updating view that smooths out single-packet weirdness.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 22 — DIG ============ -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 25</div>
+        <div class="slide-title"><span class="accent">dig</span> &mdash; DNS Interrogation</div>
+        <div class="slide-subtitle">When name resolution is wrong, <code>dig</code> tells you exactly which server gave you which answer. No more guessing.</div>
+
+        <div class="terminal">
+<span class="t-comment"># basic: ask your default resolver for an A record</span>
+<span class="t-prompt">$</span> <span class="t-cmd">dig hexworth.com</span>
+<span class="t-out">;; ANSWER SECTION:
+hexworth.com.    300  IN  A  151.101.65.91</span>
+
+<span class="t-comment"># short answer only</span>
+<span class="t-prompt">$</span> <span class="t-cmd">dig +short hexworth.com</span>
+<span class="t-out">151.101.65.91</span>
+
+<span class="t-comment"># trace from root &mdash; see who actually answers</span>
+<span class="t-prompt">$</span> <span class="t-cmd">dig +trace hexworth.com</span>
+<span class="t-out">.    NS  a.root-servers.net.
+com. NS  a.gtld-servers.net.
+hexworth.com. NS  ns1.dns.example.</span>
+
+<span class="t-comment"># ask a specific resolver (bypass your local config)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">dig @1.1.1.1 hexworth.com</span>
+<span class="t-cursor">_</span>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">+short</div>
+                <div class="card-desc">Just the answer, no headers. Useful in scripts.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label">+trace</div>
+                <div class="card-desc">Walk from root → TLD → authoritative. Reveals which server in the chain is giving you the wrong answer.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">@&lt;server&gt;</div>
+                <div class="card-desc">Bypass your /etc/resolv.conf. Compare what 1.1.1.1 vs 8.8.8.8 vs your internal resolver return for the same name.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 23 — TCPDUMP ============ -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 25</div>
+        <div class="slide-title"><span class="accent">tcpdump</span> &mdash; When Text Isn't Enough</div>
+        <div class="slide-subtitle">Sometimes the only way to know what's actually on the wire is to look at the packets. tcpdump shows you exactly that.</div>
+
+        <div class="two-col">
+            <div class="terminal">
+<span class="t-comment"># capture on interface, no DNS lookups, show ASCII</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo tcpdump -i ens18 -n -A 'port 80'</span>
+
+<span class="t-comment"># DNS queries only</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo tcpdump -i any -n 'udp port 53'</span>
+
+<span class="t-comment"># write to file for offline analysis (wireshark)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo tcpdump -i ens18 -w /tmp/cap.pcap \
+    'host 10.0.0.5 and port 443'</span>
+
+<span class="t-comment"># count packets per source IP</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo tcpdump -i ens18 -n -c 1000 \
+    | awk '{print $3}' | sort | uniq -c | sort -rn</span>
+<span class="t-cursor">_</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-green">
+                    <div class="card-label"><code>-i &lt;iface&gt;</code></div>
+                    <div class="card-desc">Pick the interface. <code>-i any</code> captures across all interfaces &mdash; useful when you don't know which one the traffic is on.</div>
+                </div>
+                <div class="card c-emerald">
+                    <div class="card-label">BPF filters (the expression at the end)</div>
+                    <div class="card-desc">Capture filter language. <code>host X</code>, <code>port N</code>, <code>tcp</code>, <code>icmp</code>. Combine with <code>and</code> / <code>or</code> / <code>not</code>.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label"><code>-w file.pcap</code></div>
+                    <div class="card-desc">Write binary capture. Open in Wireshark for deep analysis. Better than trying to read tcpdump's ASCII output for complex protocols.</div>
+                </div>
+                <div class="card c-red">
+                    <div class="card-label">Production warning</div>
+                    <div class="card-desc">tcpdump on a busy interface can drop packets and burn CPU. Use BPF filters tightly. Use <code>-c N</code> to cap.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 24 — SYNTHESIS SCENARIO ============ -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 25 &nbsp;|&nbsp; Synthesis</div>
+        <div class="slide-title">W1 in One Scenario: <span class="accent">"The Website Is Down"</span></div>
+        <div class="slide-subtitle">2am page. The status page is red. You SSH in. Five minutes to find it. Every Week 1 tool, in order.</div>
+
+        <div class="terminal">
+<span class="t-comment"># [step 1] CLI &mdash; open a persistent session you won't lose</span>
+<span class="t-prompt">$</span> <span class="t-cmd">tmux new -s incident</span>
+
+<span class="t-comment"># [step 2] systemd &mdash; is the service even running?</span>
+<span class="t-prompt">$</span> <span class="t-cmd">systemctl status nginx</span>
+<span class="t-out">Active: <span style="color:#ef4444">failed (Result: exit-code)</span> since Sun 2026-06-08 02:14:33 EST; 8min ago</span>
+
+<span class="t-comment"># [step 3] systemd &mdash; why did it fail? Read the logs.</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -u nginx -n 30 --no-pager</span>
+<span class="t-out">nginx: [emerg] bind() to 0.0.0.0:443 failed (98: Address already in use)</span>
+
+<span class="t-comment"># [step 4] Network &mdash; what IS holding port 443?</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo ss -tlnp 'sport = :443'</span>
+<span class="t-out">LISTEN  0  4096  0.0.0.0:443  0.0.0.0:*  users:(("python3",pid=12847,fd=4))</span>
+
+<span class="t-comment"># [step 5] Diagnosis: a rogue python script on 443. Kill it, restart nginx.</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo kill 12847 &amp;&amp; sudo systemctl restart nginx</span>
+<span class="t-prompt">$</span> <span class="t-cmd">curl -I https://localhost/ -k</span>
+<span class="t-out">HTTP/2 200</span>
+<span class="t-cursor">_</span>
+        </div>
+
+        <div class="box box-green" style="text-align:center;">
+            <strong>Four blocks, five minutes:</strong> CLI gave you the session &middot; systemd told you what failed and why &middot; ss showed you the actual conflict &middot; diagnosis ended at the right answer instead of a guess.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 25 — END / RESOURCES ============ -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 25</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">End of Week 1</span></div>
+            <div class="lead">You can now operate a Linux box from the command line, manage services, configure the network, and debug what's broken. The rest of the course builds on this.</div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Drilldown Decks (this week)</div>
+                <div class="card-desc">ALA-01 CLI &middot; ALA-02 systemd &middot; ALA-03 Network Config &middot; ALA-04 Network Diag. ~135 slides total. Hit any that felt thin in lecture.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label">Week 1 Lab + Quiz</div>
+                <div class="card-desc">ALA-L01 through L03 in the hub. Week 1 quiz to lock the concepts in. Both before next class.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Next Week: Perimeter Defense</div>
+                <div class="card-desc">W2 puts security on top of what we did today. Firewalls, authentication, antivirus, package management. Bring questions about hardening.</div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:14px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ============ NAV ============ -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Advanced Linux</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 25</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 25;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w1-lecture', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
