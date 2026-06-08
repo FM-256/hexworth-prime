@@ -51,7 +51,7 @@ const ALAHunt1Config = {
     lore: {
         intro: 'IN-CLASS SCAVENGER HUNT #1. Work in teams of 2 or 3. Open the printed worksheet your instructor handed out -- for each row you fill in, you also need to capture the corresponding flag in this box. First team to capture all flags AND finish the worksheet correctly wins. Your team is on call for Cell-071. The grid-monitor service is dark; Grid Command needs it back. Diagnose what failed and bring it up. As you work, write the exact commands you run on the scavenger hunt sheet.',
         scenario: 'A voltage spike at 14:31 dropped the eth1 interface. grid-sync requires network-online.target; grid-monitor requires grid-sync. The whole dependency chain above networking collapsed. The services never recovered because the restart timer expired before the interface came back up. The operations log was mid-write when power failed. Your job: SSH session is open. Use the W1 tool families -- systemctl, journalctl, ip, ss, the CLI -- to diagnose and fix. Each command on your worksheet is one a real Linux engineer would run here.',
-        outro: 'All five services are running. Cell-071 is back on the grid. Grid Command acknowledges recovery. Now finish the worksheet -- the commands you ran are your answers. Submit to your instructor when both are complete.'
+        outro: 'All five services are running and Cell-071 can reach the outside world. Grid Command acknowledges recovery. Now finish the worksheet -- the commands you ran are your answers. Submit to your instructor when both are complete.'
     },
 
     // ═══════════════════════════════════════════════════════
@@ -312,6 +312,32 @@ const ALAHunt1Config = {
     // ═══════════════════════════════════════════════════════
 
     commands: {
+
+        // sudo -- prefix stripper that re-dispatches to the underlying command.
+        // The lab simulates a permissive sudoers context (see /etc/sudoers.d entry
+        // at line ~127). Pedagogically: students learn 'sudo X' is X with elevated
+        // privileges. Every "Run: sudo X" instruction in error messages + welcome
+        // banner relies on this handler.
+        //
+        // IMPORTANT: Terminal.js has a built-in case 'sudo' that returns
+        // "Sorry, try again." if a custom handler returns null. ALL branches in
+        // this handler MUST return a string (empty string OK) -- never null --
+        // or students hit the hostile built-in trap.
+        'sudo': function(args, term, engine) {
+            if (args.length === 0) return 'usage: sudo <command> [args...]';
+            if (args[0] === '-v') return ''; // validate-only no-op
+            if (args[0] === 'sudo') return 'sudo: sudo: command not found'; // guard against sudo sudo X recursion
+            const realCmd = args[0];
+            const realArgs = args.slice(1);
+            const handler = engine.config.commands[realCmd];
+            if (typeof handler === 'function') {
+                const result = handler(realArgs, term, engine);
+                // Re-dispatched handler may return null (e.g. ls delegates to filesystem walker).
+                // Convert null to empty string so we do NOT fall through to the Terminal.js trap.
+                return result == null ? '' : result;
+            }
+            return `sudo: ${realCmd}: command not found`;
+        },
 
         // ip command -- interface management and route display
         'ip': function(args, term, engine) {
@@ -598,6 +624,26 @@ const ALAHunt1Config = {
                 return `PING 10.0.1.1 (10.0.1.1) 56(84) bytes of data.\nFrom 10.0.0.71 icmp_seq=1 Destination Host Unreachable\n\n--- 10.0.1.1 ping statistics ---\n1 packets transmitted, 0 received, +1 errors, 100% packet loss\n\neth1 is DOWN -- grid network unreachable`;
             }
 
+            // External target (anything not handled above). When networking is
+            // repaired, a successful ping verifies the troubleshooting worked --
+            // captures cmd13. RFC1918 guard: 10.x / 172.16-31.x / 192.168.x are
+            // LAN ranges and do NOT count as "external connectivity verification."
+            // The lab's own ranges are 10.0.0.x and 10.0.1.x; the explicit if-chain
+            // above handles the cell's own IPs (10.0.0.1, 10.0.1.1, 127.0.0.1).
+            // This branch awards cmd13 only for non-private addresses or hostnames.
+            const isRfc1918 = /^10\./.test(target) || /^192\.168\./.test(target) ||
+                              /^172\.(1[6-9]|2[0-9]|3[01])\./.test(target);
+            const isLocalish = target === 'localhost' || target.startsWith('127.');
+
+            if (engine.config._serviceState.networking === 'active' && !isRfc1918 && !isLocalish) {
+                engine.awardFlag('cmd13');
+                return `PING ${target} (${target}) 56(84) bytes of data.\n64 bytes from ${target}: icmp_seq=1 ttl=56 time=14.2 ms\n64 bytes from ${target}: icmp_seq=2 ttl=56 time=14.5 ms\n64 bytes from ${target}: icmp_seq=3 ttl=56 time=14.3 ms\n64 bytes from ${target}: icmp_seq=4 ttl=56 time=14.7 ms\n\n--- ${target} ping statistics ---\n4 packets transmitted, 4 received, 0% packet loss\nrtt min/avg/max/mdev = 14.2/14.4/14.7/0.2 ms`;
+            }
+
+            if (engine.config._serviceState.networking === 'active' && isRfc1918) {
+                return `PING ${target} (${target}) 56(84) bytes of data.\nFrom 10.0.0.71 icmp_seq=1 Destination Host Unreachable\n\n--- ${target} ping statistics ---\n1 packets transmitted, 0 received, +1 errors, 100% packet loss\n\nNote: ${target} is not on a directly-reachable subnet.`;
+            }
+
             return `ping: connect: Network is unreachable`;
         },
 
@@ -741,7 +787,8 @@ const ALAHunt1Config = {
         { id: 'cmd9',  value: 'FLAG{ala-hunt1_cmd09_filter_lines}',           label: '09 — Filter lines (grep)',        description: 'Used grep.',                                                   points: 50, autoCheck: true },
         { id: 'cmd10', value: 'FLAG{ala-hunt1_cmd10_service_start}',          label: '10 — Start a service',            description: 'Ran systemctl start <svc>.',                                   points: 50, autoCheck: true },
         { id: 'cmd11', value: 'FLAG{ala-hunt1_cmd11_service_restart}',        label: '11 — Restart a service',          description: 'Ran systemctl restart <svc>.',                                 points: 50, autoCheck: true },
-        { id: 'cmd12', value: 'FLAG{ala-hunt1_cmd12_daemon_reload}',          label: '12 — Reload systemd manifest',    description: 'Ran systemctl daemon-reload.',                                 points: 50, autoCheck: true }
+        { id: 'cmd12', value: 'FLAG{ala-hunt1_cmd12_daemon_reload}',          label: '12 — Reload systemd manifest',    description: 'Ran systemctl daemon-reload.',                                 points: 50, autoCheck: true },
+        { id: 'cmd13', value: 'FLAG{ala-hunt1_cmd13_verify_connectivity}',    label: '13 — Verify external connectivity', description: 'Successfully pinged an external host after fixing networking.', points: 50, autoCheck: true }
     ],
 
     // ═══════════════════════════════════════════════════════
@@ -751,7 +798,7 @@ const ALAHunt1Config = {
     scoring: {
         base: 1000,
         minScore: 0,
-        maxScore: 400,
+        maxScore: 650,
         hintPenalty: true,
         wrongFlagPenalty: -25,
         speedBonus: { threshold: 900000, points: 100 },
