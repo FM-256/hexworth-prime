@@ -51,7 +51,11 @@ const ALAHunt1Config = {
     lore: {
         intro: 'IN-CLASS SCAVENGER HUNT #1. Work in teams of 2 or 3. Open the printed worksheet your instructor handed out -- for each row you fill in, you also need to capture the corresponding flag in this box. First team to capture all flags AND finish the worksheet correctly wins. Your team is on call for Cell-071. The grid-monitor service is dark; Grid Command needs it back. Diagnose what failed and bring it up. As you work, write the exact commands you run on the scavenger hunt sheet.',
         scenario: 'A voltage spike at 14:31 dropped the eth1 interface. grid-sync requires network-online.target; grid-monitor requires grid-sync. The whole dependency chain above networking collapsed. The services never recovered because the restart timer expired before the interface came back up. The operations log was mid-write when power failed. Your job: SSH session is open. Use the W1 tool families -- systemctl, journalctl, ip, ss, the CLI -- to diagnose and fix. Each command on your worksheet is one a real Linux engineer would run here.',
-        outro: 'All five services are running and Cell-071 can reach the outside world. Grid Command acknowledges recovery. Now finish the worksheet -- the commands you ran are your answers. Submit to your instructor when both are complete.'
+        outro: 'All five services are running and Cell-071 can reach the outside world. Grid Command acknowledges recovery. Now finish the worksheet -- the commands you ran are your answers. Submit to your instructor when both are complete.',
+        downloads: [
+            { label: 'Scavenger hunt worksheet', url: '/houses/matrix/handouts/scavengerHunt-website-down.pdf', kind: 'PDF' },
+            { label: 'Scavenger hunt worksheet (editable)', url: '/houses/matrix/handouts/scavengerHunt-website-down.docx', kind: 'DOCX' }
+        ]
     },
 
     // ═══════════════════════════════════════════════════════

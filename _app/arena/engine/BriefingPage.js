@@ -537,6 +537,28 @@ const BriefingPage = (function () {
         html += '<p class="bp-briefing-text">' + _esc(introText) + '</p>';
         html += '</div>';
 
+        // Downloads — printable handouts (worksheets, cheat-sheets, reference
+        // PDFs). Optional; only renders if lore.downloads is a non-empty array.
+        // Each entry: { label, url, kind?: 'PDF'|'DOCX'|... }.
+        if (config.lore && Array.isArray(config.lore.downloads) && config.lore.downloads.length > 0) {
+            html += '<div class="bp-section">';
+            html += '<div class="bp-section-label">Worksheet &amp; Handouts</div>';
+            html += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">';
+            for (var d = 0; d < config.lore.downloads.length; d++) {
+                var dl = config.lore.downloads[d] || {};
+                if (!dl.url || !dl.label) continue;
+                var kindLabel = dl.kind ? ' (' + _esc(dl.kind) + ')' : '';
+                html += '<a href="' + _esc(dl.url) + '" download target="_blank" rel="noopener" ' +
+                    'style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;' +
+                    'background:rgba(0,255,65,0.08);border:1px solid rgba(0,255,65,0.35);' +
+                    'border-radius:6px;color:#bbf7d0;text-decoration:none;font-size:0.9rem;font-weight:600;">' +
+                    '<span style="font-size:1.1em;">&#128190;</span> ' + _esc(dl.label) + kindLabel +
+                    '</a>';
+            }
+            html += '</div>';
+            html += '</div>';
+        }
+
         // Lab Goals — plain-English skill bullets (optional; sits between
         // narrative scenario and cert-mapped objectives so practical "what
         // you'll do" reads first, cert mapping reads as reference)
