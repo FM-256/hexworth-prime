@@ -554,7 +554,11 @@ const ALAL01Config = {
         'netplan': function(args, term, engine) {
             if (args[0] === 'apply') {
                 if (engine.config._serviceState.networking !== 'active') {
-                    return `** (generate): WARNING **: eth1 state is DOWN -- bringing up via configuration\n(applied)\neth1 configured with 10.0.1.71/24`;
+                    // Actually bring eth1 up -- previously the handler returned
+                    // a success message but never mutated state, so eth1 stayed
+                    // DOWN and dependent services kept failing.
+                    engine.config._serviceState.networking = 'active';
+                    return `** (generate): WARNING **: eth1 state was DOWN -- bringing up via configuration\n(applied)\neth1 configured with 10.0.1.71/24\nnetwork-online.target now reachable`;
                 }
                 return `(nothing changed)`;
             }
