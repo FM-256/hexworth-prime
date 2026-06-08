@@ -2511,7 +2511,8 @@
             'security-plus': 'shield',
             'security-plus-crypto': 'key',
             'signal-toolkit': 'signal',
-            'wsa': 'cloud'
+            'wsa': 'cloud',
+            'adv-linux': 'matrix'
         };
 
         function cbIconImg(val) {
