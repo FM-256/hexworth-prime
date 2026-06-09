@@ -2,13 +2,15 @@
 
 **Status:** AUTHORITATIVE — defines the visual register for slide right panels across WSA, ALA, PIS, and Ethics decks
 **Created:** 2026-06-09
-**Last revised:** 2026-06-09 (v3 — pedagogical principle + register acid test, concreteness axis (multi-bin), proof gate with explicit sign-off language, animation spec, banned-SHAPE clarification after rich-render trap, prompt template fix after Nancy v3-draft review)
+**Last revised:** 2026-06-09 (v4 — pedagogical principle reframed to textbook-depth + TLDR-mnemonic after m10 ship validated the model. Imagen 3 promoted to default. Animation made optional. Typography spec + em-dash policy + m10 success case study added.)
 
 **Trigger v1 (2026-06-08):** Operator correction after 85-SVG fan-out shipped (commits `53dd531c4`..`be6b11bdf`) — boxes-with-text instead of illustrated infographics.
 
 **Trigger v2 (2026-06-09):** Operator correction after 321 fal.ai Recraft V3 images shipped (commits `925ba32c6` + `8515c478b` + `486fcc0a0`) — "advertising flyers" with garbled labels and decorative isometric scenes instead of real labeled architecture diagrams.
 
-**Trigger v3 (2026-06-09):** Operator correction after 321 rich-render HTML+CSS+SVG composite images shipped (commit `c8ec7a084`) — "those are just tables that is not what we want yo went back to doing bs." The rich-render output dressed the same LLM-laid-out boxes-with-text failure in a different format (Chromium-composited WebP instead of inline SVG). v2 ban was read literally (no inline SVG) instead of structurally (no LLM-arranged labeled rectangles in any form). v3 retargets the ban at the **shape**, not the format.
+**Trigger v3 (2026-06-09):** Operator correction after 321 rich-render HTML+CSS+SVG composite images shipped (commit `c8ec7a084`) — "those are just tables that is not what we want yo went back to doing bs." v3 retargeted the ban at the **shape**, not the format.
+
+**Trigger v4 (2026-06-09):** Operator model clarification during m10 rebuild — "the image is the tldr... the left is the text book." v3 had framed both panels as parallel-encoding the same information. The actual model is dual-encoding the same TEACHING POINT at DIFFERENT DEPTHS: text panel is the textbook chapter, visual panel is the mnemonic gist. v4 reframes §1 around this, plus folds in everything proven during the m10 ship: Imagen 3 as default, no-scroll typography spec, em-dash policy, static-visual acceptability under operator approval.
 
 ---
 
@@ -28,33 +30,43 @@ Quote the relevant line back in your work-block plan before generating any visua
 
 ## §1. The pedagogical principle (the rule the rest of the doc serves)
 
-The left text panel and the right visual panel **carry the same information through different encodings.** They reinforce each other; they do not decorate each other.
+The left text panel and the right visual panel **teach the same point at different depths,** for dual-coding pedagogical reinforcement. They reinforce each other; they do not decorate each other.
 
-- **Verbal-text encoding (left):** paragraphs, bullet lists, code blocks
-- **Spatial-visual encoding (right):** illustrated objects, motion, flow direction, time-ordering
+- **LEFT panel = textbook depth.** Multi-paragraph teaching: context, the why, the when, the implications, the real-world consequence. The student reads this for the full lesson. Should land like a textbook chapter, not a bullet summary.
+- **RIGHT panel = TLDR / mnemonic.** Illustrated visual that distills the textbook into a single visual gestalt with 3 to 5 KEY anchors. The student glances at this for the mental hook that helps them remember the lesson.
 
-The visual must teach what the text describes. Not echo it as boxes. Not gesture at the topic with stock icons. Not summarize the bullets in another shape.
+**Order of reading:** text first (gets the lesson), visual second (gets the mnemonic). Together they reinforce via dual-coding — verbal-text encoding + spatial-visual encoding of the same teaching point.
+
+The visual does NOT need to enumerate every label, field, or term from the text. The text carries those. The visual carries the gestalt. Trying to put 11 technical labels in the visual reproduces the v2 fal.ai garbled-labels failure (see §14). Keep visual labels minimal: 3 to 5 anchors per visual is the safe range.
 
 ### §1.1 The acid test (two clauses, both must pass)
 
-**Clause A — information equivalence.** Show a student the slide text alone — they read it and form a mental model. Show the same student the slide visual alone — they should form the same mental model. If the visual alone does not teach the point, the slide fails.
+**Clause A — teaching-point equivalence.** Show a student the slide text alone: they read it and form a mental model of the teaching point. Show the same student the slide visual alone: they should form the same teaching point in summary form (not the same level of detail, but the same point). If the visual alone does not communicate the teaching point's gist, the slide fails Clause A.
 
-**Clause B — register equivalence.** Place the candidate visual side-by-side with one of the reference images in `~/hexworth-shared/images/format & content comparison/` (`siem.gif`, `routing protocols.jpg`, `datacenter-networking.jpg`, `reverse shell.jpg`). They must read as belonging to the same visual universe — illustrated educator-creator infographics. If the candidate reads as a labeled table, a wireframe, a styled bullet list, or a flowchart — it fails Clause B regardless of how well it passes Clause A.
+**Clause B — register equivalence.** Place the candidate visual side-by-side with one of the reference images in `~/hexworth-shared/images/format & content comparison/` (`siem.gif`, `routing protocols.jpg`, `datacenter-networking.jpg`, `reverse shell.jpg`). They must read as belonging to the same visual universe: illustrated educator-creator infographics. If the candidate reads as a labeled table, a wireframe, a styled bullet list, or a flowchart, it fails Clause B regardless of how well it passes Clause A.
 
-**Why two clauses:** information equivalence alone passed the rich-render tables (they DID encode the slide content accurately). The operator's rejection was register — "those are just tables." Register is what the reference set teaches; information is what the slide content provides. Both must converge.
+**Why two clauses:** the rich-render tables passed an information-equivalence test (they DID encode the slide content) but failed register — the operator's rejection was "those are just tables." Register is what the reference set teaches; teaching point is what the slide content provides. Both must converge.
 
 ### §1.2 What this rules out
 
-- Column-bullet "tables" — the text reformatted as boxes. Passes Clause A, fails Clause B.
-- Wireframes / sketch-style line drawings — fail Clause B (wrong register).
-- Stock icons of the topic (a generic server icon for a slide about authentication) — fail Clause A (they identify the subject without teaching anything about it).
-- Module-wide context recycled across all slides — fail Clause A (same generic scene with title swapped does not teach the slide-specific point).
-- LLM-arranged labeled rectangles in ANY output format (inline SVG, HTML+CSS+SVG composite, Chromium-rendered WebP, Mermaid output, D2 output, PlantUML, ASCII-art, Tikz) — fail Clause B.
+- Column-bullet "tables": the text reformatted as boxes. Passes Clause A, fails Clause B.
+- Wireframes / sketch-style line drawings: fail Clause B (wrong register).
+- Stock icons of the topic (a generic server icon for a slide about authentication): fail Clause A (they identify the subject without teaching anything about it).
+- Module-wide context recycled across all slides: fail Clause A (same generic scene with title swapped does not teach the slide-specific point).
+- LLM-arranged labeled rectangles in ANY output format (inline SVG, HTML+CSS+SVG composite, Chromium-rendered WebP, Mermaid output, D2 output, PlantUML, ASCII-art, Tikz): fail Clause B.
+- Visuals trying to enumerate every technical term/field/label from the text: text panel carries those; visual carries the gestalt.
 
 ### §1.3 The reciprocal
 
-- For a concrete topic (RAID, network packets, certificate chains, drive layouts), the visual shows the actual physical things — drives drawn as drives with parity stripes visibly distributed across them; packets with header fields labeled and traveling across a wire; certificates in a real chain with arrows of trust.
-- For an abstract topic (authentication exchange, GPO inheritance, token passing), the visual shows the motion — the token literally moving from client to server to KDC, the GPO literally cascading down an OU tree, with the action happening over time.
+- For a concrete topic (RAID, network packets, certificate chains, drive layouts), the visual shows the actual physical things: drives drawn as drives with parity stripes visibly distributed, packets with header fields labeled and traveling across a wire, certificates in a real chain with arrows of trust.
+- For an abstract topic (authentication exchange, GPO inheritance, token passing), the visual shows the motion: the token moving from client to server to KDC, the GPO cascading down an OU tree, the action happening over time.
+
+### §1.4 Implications for slide composition
+
+- **Text panel will be long.** Textbook depth means multiple paragraphs per slide. Plan for it.
+- **Visual labels will be sparse.** 3 to 5 anchors maximum. Everything else lives in the text.
+- **No scroll allowed** (see §11). If textbook content does not fit the panel at the typography spec, split the slide. Operator has standing license to add slides where pedagogy demands.
+- **Static visuals are acceptable** under this model where animation does not add teaching value — the m10 ship (2026-06-09) shipped static illustrated TLDRs with operator approval. Animation is preferred for time-ordered process flows; static is fine for concrete-object visuals where the gestalt is spatial, not temporal.
 
 ---
 
@@ -247,10 +259,12 @@ Do NOT add motion to elements not named above. No ambient particles, no gradient
 
 | Model | Endpoint | Cost (approx) | Notes |
 |---|---|---|---|
-| FLUX 1.1 Pro | `fal-ai/flux-pro/v1.1` | ~$0.05 | High quality, photorealistic-leaning |
-| FLUX 1.1 Pro Ultra | `fal-ai/flux-pro/v1.1-ultra` | ~$0.10 | Higher resolution, more detailed |
-| Recraft V3 | `fal-ai/recraft-v3` | ~$0.04–0.10 | Best for designed infographics with text + icons |
-| Imagen 3 | `fal-ai/imagen3` | ~$0.04 | Strong on text rendering |
+| **Imagen 3 (default for label-bearing technical slides)** | `fal-ai/imagen3` | ~$0.04 | Reliably renders technical labels (AD, GPC, SYSVOL, GPT, GUID) on m10 ship 2026-06-09. Use for any slide where label accuracy matters. Aspect 16:9 native. Prompt cap is generous; ~1000 chars works. |
+| Recraft V3 | `fal-ai/recraft-v3` | ~$0.04–0.10 | Designed-infographic register, but **garbles technical labels** (m10 case: ACID→ACL, ADmrx→ADMX, Luhed→Joined). Use only for pure illustration without label-accuracy requirements. 1000-char prompt cap. |
+| FLUX 1.1 Pro | `fal-ai/flux-pro/v1.1` | ~$0.05 | High quality, photorealistic-leaning. Untested for technical labels at the m10 ship. |
+| FLUX 1.1 Pro Ultra | `fal-ai/flux-pro/v1.1-ultra` | ~$0.10 | Higher resolution variant. |
+
+**Selection rule:** if the visual will have any specific technical labels (protocol names, port numbers, command names, AD/file path components), **default to Imagen 3**. Recraft V3 is for register-driven illustration where you can drop labels entirely or use only 1-2 generic ones.
 
 ### §8.2 Image-to-video animation
 
@@ -328,7 +342,11 @@ git show e35d88bc2:_app/assets/images/wsa-visuals/m12-remote-desktop/rds-archite
 
 ## §10. Animation specification
 
-**File format:** GIF (default). MP4 or animated WebP acceptable if file size exceeds 5 MB.
+**Animation is preferred but not mandatory.** Confirmed at m10 ship 2026-06-09: static illustrated TLDR webps were operator-approved when the topic gestalt is spatial (GPO Architecture, Computer vs User Config) rather than time-ordered. Animation is the correct format when the slide teaches a sequence, a state transition, or a flow that motion makes obvious; static is acceptable when the visual's job is a single spatial mnemonic. Pick by topic, not by default.
+
+When animating, the specification below applies.
+
+**File format:** GIF (default for animated). MP4 or animated WebP acceptable if file size exceeds 5 MB.
 
 **Duration:** 4–8 seconds per loop. Reference `siem.gif` is ~6s.
 
@@ -348,6 +366,50 @@ git show e35d88bc2:_app/assets/images/wsa-visuals/m12-remote-desktop/rds-archite
 - Slide text says "the worker drains while a new one starts" → old worker fades, new worker fills, request queue visibly empties from old and fills new
 
 **Banned motion:** generic ambient motion (gradient pulse, particle dust, idle glow, camera shake) that does not enact a slide verb. If the motion does not teach, it does not ship.
+
+---
+
+## §10.5 Typography for textbook-density slide-text (m10 ship pattern)
+
+The textbook-depth left panel (§1) requires multiple paragraphs per slide. The CSS that fits this content at 1280×720 with zero overflow, proven on the m10 ship 2026-06-09:
+
+```css
+.slide p, .slide li {
+    font-size: 0.92rem;
+    line-height: 1.45;
+    margin-bottom: 8px;
+}
+.slide ul { margin-left: 22px; margin-bottom: 10px; }
+.slide li { margin-bottom: 4px; }
+.slide.has-visual h2 { font-size: 1.3rem; margin: 2px 0 10px; }
+.slide.has-visual .code-block {
+    font-size: 0.8rem;
+    padding: 10px 14px;
+    margin: 8px 0;
+    line-height: 1.4;
+}
+```
+
+**No scroll allowed on slides.** Scroll-within-text-panel was explicitly rejected ("scrollbar is bad business"). If textbook content does not fit at this typography, the slide must be split. Operator has standing license to add slides where pedagogy demands.
+
+**Verify with puppeteer probe at 1280×720.** Probe script template at `/tmp/m10-isolated-probe.js` (preserved from m10 ship). Builds a standalone test page per slide, measures `.slide-text` `scrollHeight` vs `clientHeight`, flags any overflow >4px.
+
+---
+
+## §10.6 Em-dash policy
+
+Em-dashes (`—`, `&mdash;`) are banned per `feedback_no_em_dashes`. Substitution patterns proven on the m10 ship (118 instances stripped):
+
+| Pattern | Replacement | Use |
+|---|---|---|
+| `<h2>X &mdash; Y</h2>` | `<h2>X: Y</h2>` | Slide titles use colon |
+| `<strong>X</strong> &mdash; Y` | `<strong>X.</strong> Y` | Definitional intro becomes new sentence |
+| `<em>X</em> &mdash; Y` | `<em>X</em>. Y` | Emphasis break becomes new sentence |
+| `<code>X</code> &mdash; Y` | `<code>X</code>: Y` | Code-reference followed by explanation |
+| ` &mdash; ` (mid-prose) | `, ` or `. ` | Comma for clause continuation, period for full break |
+| ` — ` (Unicode mid-prose) | same as above | Unicode and HTML-entity forms equally banned |
+
+Strip-script template at `/tmp/m10-strip-emdashes.py`. After applying, re-run the overflow probe — em-dash replacements typically shrink text by 0-2 lines per slide.
 
 ---
 
@@ -437,6 +499,32 @@ Shipped 85 LLM-authored inline SVG visuals across m10-m17. Each was rectangles +
 
 321 fal.ai Recraft V3 images shipped to production across m01-m19. Operator pulled up m12, called the result "a disaster... advertising flyers." Every slide image had the title stamped on top, a stock isometric office scene below, and the module-wide bullet list pasted as a poster or overlay. Garbled text labels — "(CL)" instead of "(CAL)", "VD1" instead of "VDI", port numbers "35" "49" instead of "3389" "443". Process failure: prompt template was `title + per-module-context-bullet-list + style`. Same generic scene per module with title swapped. Tool choice (image-gen for label-dense architecture) was wrong, not the prompt — but I treated it as a prompt-engineering problem and iterated on prompts instead of re-classifying via §2.
 
+### 2026-06-09 — m10 textbook+TLDR ship (FIRST SUCCESS under v4 model)
+
+**Commit `074a08bcd`** shipped m10 group-policy deck under the textbook+TLDR model. 17 slides (slide 1 unchanged + 16 content slides). All 16 visuals via Imagen 3 (fal.ai endpoint `fal-ai/imagen3`, 16:9). Total fal.ai cost ~$0.80. Operator sign-off: "this is what we want this is perfect."
+
+**What worked:**
+
+- **Model:** textbook-depth left + illustrated TLDR right. The visual carried 3-5 anchors per slide (e.g., AD/GPC, SYSVOL/GPT, GUID). The text panel carried all the technical detail (replication protocols, security descriptors, GUID-as-join-key implications). Dual-coding pedagogy intact.
+- **Tool choice:** Imagen 3 (not Recraft V3). Recraft V3 garbled the technical labels (ACID→ACL, ADmrx→ADMX, Luhed→Joined, jorined→joined). Imagen 3 rendered them correctly.
+- **Editorial license:** operator authorized adding/merging slides as pedagogy demanded. Merged old 6+7 (Best Practices split was overflow artifact, not pedagogy). Merged old 9+10 (How It Works split was the same). 19 → 17 slides net.
+- **No scroll:** typography spec at §10.5 plus selective text trims got 17/17 slides to 0px overflow at 1280×720. Verified with puppeteer probe before deploy.
+- **Em-dash strip:** 118 instances replaced per §10.6 patterns. Grammar held after replacement.
+- **Static visuals shipped under operator approval:** the m10 slides did NOT animate. Operator approved static under the textbook+TLDR model when the topic gestalt is spatial rather than temporal (see §10).
+
+**What failed and was reverted:**
+
+- **Scroll-on-text-panel attempt:** added `overflow-y: auto` to `.slide-text` to handle long content. Operator: "a scroll is bad business. that is what we have been getting away from." Reverted. Replaced with tightened typography + selective trim + slide-split-when-needed.
+- **First slide-2 GPO Architecture visual via Recraft V3:** prompt enumerated 11 specific labels (GPC, GPT, AD, SYSVOL, GUID, Registry.pol, ACL, ADMX, name, version, link list). Recraft V3 garbled half of them. Halted per §3.2 (3-iterations halt-and-re-pick), reduced labels to 5 (AD, GPC, SYSVOL, GPT, GUID), switched to Imagen 3. Worked.
+
+**Lessons folded into this doc:**
+
+- §1 reframed from "parallel-encoding same info" to "textbook+TLDR different depths"
+- §8.1 Imagen 3 promoted to default for label-bearing slides
+- §10 animation made optional under operator approval
+- §10.5 NEW typography spec
+- §10.6 NEW em-dash policy
+
 ### 2026-06-09 — Rich-render HTML+CSS+SVG composite fan-out (v3 trigger)
 
 321 webps re-generated via HTML+CSS+SVG composite → headless Chromium → PNG → WebP pipeline. Operator: *"those are just tables that is not what we want yo went back to doing bs."* Process failure: read the v2 ban literally (no inline SVG) instead of structurally (no LLM-arranged labeled rectangles in any form). Believed I had escaped the ban by changing the output format. Same shape, different dress. v3 retargets the ban at the SHAPE, not the format (see §5). Additional process failure: also ran the pipeline on m01-m09 which were out of scope — the operator's brief was m10+ and I overrode 135 hand-designed inline-SVG monomial visuals.
@@ -485,10 +573,11 @@ Shipped 85 LLM-authored inline SVG visuals across m10-m17. Each was rectangles +
 
 ## §17. How to apply this standard to existing decks
 
-### §17.1 In scope (m10-m19, the current rework block)
+### §17.1 In scope (m10-m19 rework block)
 
-- All 186 slides currently shipping LLM-rich-render webps (commit `c8ec7a084`) need replacement per this standard.
-- Each module: classify each slide via §2 multi-bin, route via §4 using dominant bin, prove ONE proof per distinct shape, fan out only after operator sign-off in §3.1 language.
+- **m10 group-policy: SHIPPED 2026-06-09** under the textbook+TLDR model. Commit `074a08bcd`. 17 slides. Imagen 3 visuals. Operator-approved.
+- **m11-m19: PENDING** under the same model.
+- Each remaining module: textbook-depth text rewrite + Imagen 3 illustrated TLDR + tightened typography + em-dash strip + puppeteer overflow probe before deploy. Pipeline templates preserved at `/tmp/m10-slides-config.py`, `/tmp/m10-gen-visuals.py`, `/tmp/m10-splice.py`, `/tmp/m10-strip-emdashes.py`, `/tmp/m10-isolated-probe.js`.
 
 ### §17.2 Out of scope (do not touch)
 
@@ -516,6 +605,7 @@ Shipped 85 LLM-authored inline SVG visuals across m10-m17. Each was rectangles +
 
 ## §19. Changelog
 
+- **2026-06-09 (v4):** Reframed §1 from "parallel-encoding same information" to "textbook depth + TLDR mnemonic, same teaching point at different depths." Acid test Clause A updated to "teaching-point equivalence" (gist match), not "information equivalence" (1-to-1 detail match). Added §1.4 implications for slide composition (text panel long, visual labels sparse 3-5 anchors max, no scroll, static acceptable under operator approval). §8.1 reordered: Imagen 3 promoted to default for label-bearing technical slides (proven on m10 ship; Recraft V3 garbles labels). §10 made animation preferred-but-not-mandatory based on m10 static-shipped precedent. NEW §10.5 typography spec for textbook-density slide-text (proven 0-overflow at 1280×720). NEW §10.6 em-dash policy with substitution patterns. §14 added m10 success case study (commit `074a08bcd`, operator sign-off "this is what we want this is perfect"). §17.1 updated to show m10 shipped, m11-m19 pending with same pattern. Pipeline templates referenced.
 - **2026-06-09 (v3):** Added §0 memory-recall-first step, §1 pedagogical principle as foundation, §1.1 acid test with TWO clauses (information equivalence + register equivalence — register clause added after Nancy v3-draft review caught that information equivalence alone could pass rich-render tables), §2 concreteness axis with MULTI-BIN classification (bins are not mutually exclusive — added after Nancy v3-draft review caught that mutually-exclusive bins fail on protocol-exchange slides), §3 proof gate with §3.1 specific sign-off language and §3.2 halt-and-re-pick trigger, §5 banned-SHAPE list (format-independent), §7.2 / §7.3 prompt templates that translate slide steps into VISUAL ACTIONS not text overlays (added after Nancy v3-draft review caught that the previous "numbered steps: [list]" field would reproduce the v2 garbled-text failure), §10 animation specification (duration / fps / file size / motion principle), §12 gate-count pacing honesty (replacing prior invented clock-time estimates), §13 QC bar applying both acid test clauses. All emoji removed per CLAUDE.md rule #2. §9.2 canonical Graphviz example now points at git ref `e35d88bc2` explicitly because the at-HEAD path is the banned rich-render output.
 - **2026-06-09 (v2):** Added Graphviz `dot` as the default tool for architecture / flow / comparison / state / hierarchy slides. Demoted fal.ai to "illustration-only" register. Added failure-mode case study documenting the 321-image flyer batch. Added canonical `.dot` example reference at `_planning/wsa-visuals/m12-remote-desktop/s02-rds-architecture.dot`. Banned LLM-authored topical SVG explicitly.
 - **2026-06-09 (v1):** Initial doc. Established illustrated infographic (animated GIF via fal.ai) as the default register. Documented LLM-SVG box-and-text as the wrong shape after 85-SVG fan-out failure (commits `53dd531c4`..`be6b11bdf`).
