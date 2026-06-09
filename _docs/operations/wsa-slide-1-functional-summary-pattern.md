@@ -85,6 +85,8 @@ m02 example (compact form):
 
 ### Element 4: Module-map SVG (the journey snake)
 
+> **Note (added 2026-06-09):** This element is an EXCEPTION to [`slide-right-panel-visual-standard.md`](./slide-right-panel-visual-standard.md). The module-map is **structural navigation** (9 stops on a snake path with traveling indicator) — not a topical illustration — so authored SVG is the correct format here. The visual-standard's "use illustrated animated GIF" rule applies to topical right-panel visuals on SLIDES 2-N, not to this slide-1 navigation map.
+
 The right-panel SVG that makes this a "functional" summary. Specification:
 
 - **viewBox:** `0 0 480 340`

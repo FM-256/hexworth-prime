@@ -3,6 +3,12 @@
 **Audience:** anyone (human or agent) working WSA cat-contract overflow findings on `cloud-presentation.module.html` files.
 **Status:** stable — calibrated across m01, m02, m03, m04. Apply to m05–m19 as-is.
 
+> **⚠ READ FIRST for right-panel visual authoring:**
+> [`slide-right-panel-visual-standard.md`](./slide-right-panel-visual-standard.md) is authoritative for what goes in the `slide-visual` div.
+> **Default = illustrated animated GIF generated via fal.ai, NOT LLM-authored SVG box-and-text.**
+> This cookbook covers content density of the LEFT panel (slide-text); the visual standard covers the RIGHT panel.
+
+
 ## TLDR
 
 Nine fix patterns that bring WSA `cloud-presentation.module.html` files to HEUR-039 = 0 and OVERFLOW-001b residuals all ≤ ~85px (boundary-tolerable per the loop's step 5). Refined across m01, m02, m03, m04 — all four are now full cats.
