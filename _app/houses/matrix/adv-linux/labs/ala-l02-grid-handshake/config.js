@@ -325,7 +325,15 @@ const ALAL02Config = {
 
         // ping -- test connectivity with MTU/DF awareness
         'ping': function(args, term, engine) {
-            const target = args.find(a => !a.startsWith('-')) || '';
+            // Destination is the first positional arg. Skip flags AND their values
+            // (e.g. `-M do`, `-s 1472`, `-c 4`) so `ping -M do -s 1472 172.16.0.1`
+            // targets the IP, not the flag value "do".
+            const VALUE_FLAGS = new Set(['-s', '-c', '-W', '-M', '-i', '-t']);
+            let target = '';
+            for (let i = 0; i < args.length; i++) {
+                if (args[i].startsWith('-')) { if (VALUE_FLAGS.has(args[i])) i++; continue; }
+                target = args[i]; break;
+            }
             const sizeIdx = args.indexOf('-s');
             const pktSize = sizeIdx >= 0 ? parseInt(args[sizeIdx + 1]) : 56;
             const dfFlag = args.includes('-M') && args[args.indexOf('-M') + 1] === 'do';
