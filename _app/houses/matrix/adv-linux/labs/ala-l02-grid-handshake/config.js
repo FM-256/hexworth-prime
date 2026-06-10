@@ -211,6 +211,26 @@ const ALAL02Config = {
 
     commands: {
 
+        // sudo -- prefix stripper that re-dispatches to the underlying command.
+        // Mirrors the working handler in ala-l01. Terminal.js has a hostile
+        // built-in case 'sudo' (~line 277) that prints "Sorry, try again." for
+        // any sudo command unless a custom handler intercepts it first. ALL
+        // branches MUST return a string (empty string OK) -- never null. Every
+        // "Run: sudo ip ..." hint and error message in this lab relies on this.
+        'sudo': function(args, term, engine) {
+            if (args.length === 0) return 'usage: sudo <command> [args...]';
+            if (args[0] === '-v') return '';
+            if (args[0] === 'sudo') return 'sudo: sudo: command not found';
+            const realCmd = args[0];
+            const realArgs = args.slice(1);
+            const handler = engine.config.commands[realCmd];
+            if (typeof handler === 'function') {
+                const result = handler(realArgs, term, engine);
+                return result == null ? '' : result;
+            }
+            return `sudo: ${realCmd}: command not found`;
+        },
+
         // ip command -- route management and interface MTU changes
         'ip': function(args, term, engine) {
             const sub = args[0] || '';
@@ -257,7 +277,7 @@ const ALAL02Config = {
 
                 if (routeAction === 'add') {
                     // ip route add <net> via <gw> [dev <dev>]
-                    const net = args[3] || '';
+                    const net = args[2] || '';
                     const viaIdx = args.indexOf('via');
                     const gw = viaIdx >= 0 ? args[viaIdx + 1] : '';
                     const devIdx = args.indexOf('dev');
@@ -288,7 +308,7 @@ const ALAL02Config = {
                 }
 
                 if (routeAction === 'del' || routeAction === 'delete') {
-                    const net = args[3] || '';
+                    const net = args[2] || '';
                     if (engine.config._netState.routes[net]) {
                         delete engine.config._netState.routes[net];
                         return '';

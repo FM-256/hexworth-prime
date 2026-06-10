@@ -727,7 +727,7 @@ const ALAL01Config = {
         },
         {
             id: 'hint2',
-            text: 'The ops.log was being written when power failed. Check the log directory for recovery artifacts: ls -la /var/log/cell-ops/ -- look for hidden files.',
+            text: 'The ops.log was being written when power failed. Check the log directory for recovery artifacts: ls -la /var/log/cell-ops/ -- look for a hidden .swp file. Recover it with: vim -r /var/log/cell-ops/ops.log',
             cost: 50,
             penalty: -50
         },

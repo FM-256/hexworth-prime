@@ -308,6 +308,25 @@ const ALAL03Config = {
 
     commands: {
 
+        // sudo -- prefix stripper that re-dispatches to the underlying command.
+        // Mirrors the working handler in ala-l01. /etc/sudoers.d/operator grants
+        // sudo for kill/find/cat/ss/ps, so students are invited to prefix sudo;
+        // without this handler Terminal.js's hostile built-in (~line 277) would
+        // print "Sorry, try again." ALL branches MUST return a string, never null.
+        'sudo': function(args, term, engine) {
+            if (args.length === 0) return 'usage: sudo <command> [args...]';
+            if (args[0] === '-v') return '';
+            if (args[0] === 'sudo') return 'sudo: sudo: command not found';
+            const realCmd = args[0];
+            const realArgs = args.slice(1);
+            const handler = engine.config.commands[realCmd];
+            if (typeof handler === 'function') {
+                const result = handler(realArgs, term, engine);
+                return result == null ? '' : result;
+            }
+            return `sudo: ${realCmd}: command not found`;
+        },
+
         // ps -- show running processes; rogue process always appears while running
         'ps': function(args, term, engine) {
             const rp = engine.config._rogueProcess;
@@ -691,7 +710,7 @@ const ALAL03Config = {
         },
         {
             id: 'hint3',
-            text: 'Check crontabs for all users, not just root and operator: for user in $(cut -d: -f1 /etc/passwd); do crontab -l -u $user 2>/dev/null; done -- look for @reboot entries.',
+            text: 'Persistence usually hides in a crontab. The svc-grid account is the one that was compromised, so inspect its crontab directly: cat /var/spool/cron/crontabs/svc-grid (or find /var/spool/cron) -- look for an @reboot entry.',
             cost: 50,
             penalty: -50
         }
