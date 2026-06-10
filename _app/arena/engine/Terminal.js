@@ -140,6 +140,12 @@ class TerminalInstance {
 
     /** Resolve a relative or absolute path against the current working directory */
     _resolvePath(path) {
+        // Expand ~ to the user's home dir so `cat ~/notes.txt`, `cd ~`, etc. work
+        // for EVERY command (previously only `ls` expanded ~, so cat/head/find/cd
+        // on a ~ path failed — walkthroughs use `cat ~/notes.txt`). Only touches
+        // paths that start with ~, which otherwise always fail, so it cannot regress.
+        if (path === '~') path = '/home/' + this.user;
+        else if (path.startsWith('~/')) path = '/home/' + this.user + path.slice(1);
         if (!path.startsWith('/')) {
             path = this.cwd + '/' + path;
         }
