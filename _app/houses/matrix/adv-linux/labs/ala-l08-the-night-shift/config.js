@@ -18,6 +18,7 @@ const ALAL08Config = {
     accent: '#22d3ee',
     storageKey: 'hexworth_lab_ala_l08',
     registryId: 'ala-l08-the-night-shift',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_l08',
 
     // ═══════════════════════════════════════════════════════
@@ -142,15 +143,15 @@ const ALAL08Config = {
                             children: {
                                 'check-rotation.sh': {
                                     type: 'file',
-                                    content: '#!/bin/bash\n# Verifies log rotation ran on all three cells\n# Checks /var/log/archive/ on each cell for compressed log\nCELLS="cell-14 cell-27 cell-33"\nPASS=0\nFAIL=0\n\nfor cell in $CELLS; do\n    count=$(ssh "$cell" "ls /var/log/archive/*.log.gz 2>/dev/null | wc -l")\n    if [ "$count" -ge 1 ]; then\n        echo "[PASS] $cell: archive exists"\n        PASS=$((PASS+1))\n    else\n        echo "[FAIL] $cell: no archive found in /var/log/archive/"\n        FAIL=$((FAIL+1))\n    fi\ndone\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{log_rotation_verified_on_all_three_cells}"\nfi\n'
+                                    content: '#!/bin/bash\n# Verifies log rotation ran on all three cells\n# Checks /var/log/archive/ on each cell for compressed log\nCELLS="cell-14 cell-27 cell-33"\nPASS=0\nFAIL=0\n\nfor cell in $CELLS; do\n    count=$(ssh "$cell" "ls /var/log/archive/*.log.gz 2>/dev/null | wc -l")\n    if [ "$count" -ge 1 ]; then\n        echo "[PASS] $cell: archive exists"\n        PASS=$((PASS+1))\n    else\n        echo "[FAIL] $cell: no archive found in /var/log/archive/"\n        FAIL=$((FAIL+1))\n    fi\ndone\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{ala-l08-the-night-shift_flag1_log_rotation_verifie}"\nfi\n'
                                 },
                                 'check-backup.sh': {
                                     type: 'file',
-                                    content: '#!/bin/bash\n# Verifies /var/backups/cell-XX/ structure exists with correct layout\nPASS=0\nFAIL=0\n\nfor cell in cell-14 cell-27 cell-33; do\n    dir="/var/backups/$cell"\n    if [ -d "$dir" ] && [ "$(ls -A "$dir")" ]; then\n        echo "[PASS] $cell: backup directory exists at $dir"\n        PASS=$((PASS+1))\n    else\n        echo "[FAIL] $cell: /var/backups/$cell/ is empty or does not exist"\n        FAIL=$((FAIL+1))\n    fi\ndone\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{incremental_rsync_backup_verified}"\nfi\n'
+                                    content: '#!/bin/bash\n# Verifies /var/backups/cell-XX/ structure exists with correct layout\nPASS=0\nFAIL=0\n\nfor cell in cell-14 cell-27 cell-33; do\n    dir="/var/backups/$cell"\n    if [ -d "$dir" ] && [ "$(ls -A "$dir")" ]; then\n        echo "[PASS] $cell: backup directory exists at $dir"\n        PASS=$((PASS+1))\n    else\n        echo "[FAIL] $cell: /var/backups/$cell/ is empty or does not exist"\n        FAIL=$((FAIL+1))\n    fi\ndone\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{ala-l08-the-night-shift_flag2_backup_script_verifi}"\nfi\n'
                                 },
                                 'check-health.sh': {
                                     type: 'file',
-                                    content: '#!/bin/bash\n# Verifies health-check.sh exists, is in crontab, and produces correct report format\nSCRIPT=/opt/cell-services/scripts/health-check.sh\nPASS=0\nFAIL=0\n\n[ -x "$SCRIPT" ] && PASS=$((PASS+1)) || { echo "[FAIL] $SCRIPT not found or not executable"; FAIL=$((FAIL+1)); }\ncrontab -l 2>/dev/null | grep -q "health-check.sh" && PASS=$((PASS+1)) || { echo "[FAIL] health-check.sh not found in crontab"; FAIL=$((FAIL+1)); }\nls /var/log/health-*.txt 2>/dev/null | head -1 | xargs grep -q "PASS\\|FAIL" 2>/dev/null && PASS=$((PASS+1)) || { echo "[FAIL] No health report found in /var/log/"; FAIL=$((FAIL+1)); }\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{health_check_scheduled_and_reporting}"\nfi\n'
+                                    content: '#!/bin/bash\n# Verifies health-check.sh exists, is in crontab, and produces correct report format\nSCRIPT=/opt/cell-services/scripts/health-check.sh\nPASS=0\nFAIL=0\n\n[ -x "$SCRIPT" ] && PASS=$((PASS+1)) || { echo "[FAIL] $SCRIPT not found or not executable"; FAIL=$((FAIL+1)); }\ncrontab -l 2>/dev/null | grep -q "health-check.sh" && PASS=$((PASS+1)) || { echo "[FAIL] health-check.sh not found in crontab"; FAIL=$((FAIL+1)); }\nls /var/log/health-*.txt 2>/dev/null | head -1 | xargs grep -q "PASS\\|FAIL" 2>/dev/null && PASS=$((PASS+1)) || { echo "[FAIL] No health report found in /var/log/"; FAIL=$((FAIL+1)); }\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{ala-l08-the-night-shift_flag3_health_check_schedul}"\nfi\n'
                                 }
                             }
                         }
@@ -555,7 +556,7 @@ const ALAL08Config = {
                 return `[FAIL] No archive files found on any cell.\nRun /opt/cell-services/scripts/rotate-logs.sh first.`;
             }
             engine.awardFlag('flag1');
-            return `[PASS] cell-14: archive exists (ops-${new Date().toISOString().slice(0, 10)}.log.gz)\n[PASS] cell-27: archive exists (ops-${new Date().toISOString().slice(0, 10)}.log.gz)\n[PASS] cell-33: archive exists (ops-${new Date().toISOString().slice(0, 10)}.log.gz)\nFLAG: FLAG{log_rotation_verified_on_all_three_cells}`;
+            return `[PASS] cell-14: archive exists (ops-${new Date().toISOString().slice(0, 10)}.log.gz)\n[PASS] cell-27: archive exists (ops-${new Date().toISOString().slice(0, 10)}.log.gz)\n[PASS] cell-33: archive exists (ops-${new Date().toISOString().slice(0, 10)}.log.gz)\nFLAG: FLAG{ala-l08-the-night-shift_flag1_log_rotation_verifie}`;
         },
 
         '/opt/verify/check-backup.sh': function(args, term, engine) {
@@ -563,7 +564,7 @@ const ALAL08Config = {
                 return `[FAIL] /var/backups/cell-14/ is empty or does not exist.\nRun /opt/cell-services/scripts/backup.sh first.`;
             }
             engine.awardFlag('flag2');
-            return `[PASS] cell-14: backup directory exists at /var/backups/cell-14/\n[PASS] cell-27: backup directory exists at /var/backups/cell-27/\n[PASS] cell-33: backup directory exists at /var/backups/cell-33/\nFLAG: FLAG{incremental_rsync_backup_verified}`;
+            return `[PASS] cell-14: backup directory exists at /var/backups/cell-14/\n[PASS] cell-27: backup directory exists at /var/backups/cell-27/\n[PASS] cell-33: backup directory exists at /var/backups/cell-33/\nFLAG: FLAG{ala-l08-the-night-shift_flag2_backup_script_verifi}`;
         },
 
         '/opt/verify/check-health.sh': function(args, term, engine) {
@@ -577,7 +578,7 @@ const ALAL08Config = {
                 return `[FAIL] health-check.sh not found in crontab.\nAdd via: crontab -e\nRequired entry: 0 5 * * * /opt/cell-services/scripts/health-check.sh >> /var/log/health-$(date +\\%F).txt 2>&1`;
             }
             engine.awardFlag('flag3');
-            return `[PASS] /opt/cell-services/scripts/health-check.sh exists and is executable\n[PASS] health-check.sh found in crontab (0 5 * * *)\n[PASS] Health report found in /var/log/ with PASS/FAIL entries\nFLAG: FLAG{health_check_scheduled_and_reporting}`;
+            return `[PASS] /opt/cell-services/scripts/health-check.sh exists and is executable\n[PASS] health-check.sh found in crontab (0 5 * * *)\n[PASS] Health report found in /var/log/ with PASS/FAIL entries\nFLAG: FLAG{ala-l08-the-night-shift_flag3_health_check_schedul}`;
         },
 
         // crontab -- manage cron entries

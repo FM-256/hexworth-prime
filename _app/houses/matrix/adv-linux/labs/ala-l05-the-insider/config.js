@@ -18,6 +18,7 @@ const ALAL05Config = {
     accent: '#22d3ee',
     storageKey: 'hexworth_lab_ala_l05',
     registryId: 'ala-l05-the-insider',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_l05',
 
     // ═══════════════════════════════════════════════════════

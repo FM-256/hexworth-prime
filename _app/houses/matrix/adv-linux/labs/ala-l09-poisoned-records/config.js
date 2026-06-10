@@ -18,6 +18,7 @@ const ALAL09Config = {
     accent: '#f59e0b',
     storageKey: 'hexworth_lab_ala_l09',
     registryId: 'ala-l09-poisoned-records',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_l09',
 
     // ═══════════════════════════════════════════════════════
@@ -250,6 +251,26 @@ const ALAL09Config = {
 
     commands: {
 
+        // sudo -- prefix stripper that re-dispatches to the underlying command.
+        // Mirrors the working handler in ala-l01. Every remediation line in this
+        // lab (check-restoration.sh, hint3, MISSION) is sudo-prefixed (sudo cp,
+        // sudo named-checkzone, sudo rndc, sudo tee); without this handler they hit
+        // Terminal.js's hostile built-in (~line 277) and print "Sorry, try again."
+        // ALL branches MUST return a string (empty string OK), never null.
+        'sudo': function(args, term, engine) {
+            if (args.length === 0) return 'usage: sudo <command> [args...]';
+            if (args[0] === '-v') return '';
+            if (args[0] === 'sudo') return 'sudo: sudo: command not found';
+            const realCmd = args[0];
+            const realArgs = args.slice(1);
+            const handler = engine.config.commands[realCmd];
+            if (typeof handler === 'function') {
+                const result = handler(realArgs, term, engine);
+                return result == null ? '' : result;
+            }
+            return `sudo: ${realCmd}: command not found`;
+        },
+
         // diff -- compare zone files
         'diff': function(args, term, engine) {
             const a = args[0] || '';
@@ -447,10 +468,19 @@ const ALAL09Config = {
         },
 
         // Run verification scripts
+        // bash -- run a verify script by the path/name given (previously hardcoded
+        // to check-restoration.sh, so `bash .../check-hardening.sh` wrongly ran the
+        // restoration check and flag2 could never be evaluated). Resolve the .sh arg
+        // to its command key (exact path, or /opt/verify/<basename>) and dispatch.
         'bash': function(args, term, engine) {
-            return term.config.commands['/opt/verify/check-restoration.sh']
-                ? term.config.commands['/opt/verify/check-restoration.sh'](args, term, engine)
-                : null;
+            const arg = (args || []).find(a => a.includes('.sh')) || '';
+            const base = arg.split('/').pop();
+            const key = term.config.commands[arg] ? arg
+                      : (term.config.commands['/opt/verify/' + base] ? '/opt/verify/' + base : '');
+            if (key && typeof term.config.commands[key] === 'function') {
+                return term.config.commands[key](args.slice(1), term, engine);
+            }
+            return `bash: ${arg || (args && args[0]) || ''}: No such file or directory`;
         },
 
         '/opt/verify/check-restoration.sh': function(args, term, engine) {
@@ -618,7 +648,7 @@ const ALAL09Config = {
         },
         {
             id: 'hint3',
-            text: 'For hardening: add allow-update { none; }; to the zone declaration in named.conf.local. Then: chown -R bind:bind /etc/bind/zones && chmod 640 /etc/bind/zones/* and tsig-keygen sector7-xfer | sudo tee /etc/bind/tsig-sector7.key',
+            text: 'Harden in three separate steps (run each as its own command). 1) Lock the zone against dynamic updates: edit the declaration with vi /etc/bind/named.conf.local and add allow-update { none; };. 2) Tighten permissions: chmod 640 /etc/bind/zones/db.sector7.matrix.net. 3) Generate the transfer key: tsig-keygen sector7-xfer. Then re-run /opt/verify/check-hardening.sh.',
             cost: 50,
             penalty: -50
         }

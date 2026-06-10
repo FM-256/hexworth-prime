@@ -20,6 +20,7 @@ const ALAHunt1Config = {
     accent: '#00ff41',
     storageKey: 'hexworth_lab_ala_hunt1',
     registryId: 'ala-hunt1-website-down',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_hunt1',
 
     // ═══════════════════════════════════════════════════════

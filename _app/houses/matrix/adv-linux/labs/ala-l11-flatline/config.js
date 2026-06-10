@@ -18,6 +18,7 @@ const ALAL11Config = {
     accent: '#ef4444',
     storageKey: 'hexworth_lab_ala_l11',
     registryId: 'ala-l11-flatline',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_l11',
 
     // ═══════════════════════════════════════════════════════

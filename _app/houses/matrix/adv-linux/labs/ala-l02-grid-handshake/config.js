@@ -18,6 +18,7 @@ const ALAL02Config = {
     accent: '#22d3ee',
     storageKey: 'hexworth_lab_ala_l02',
     registryId: 'ala-l02-grid-handshake',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_l02',
 
     // ═══════════════════════════════════════════════════════
@@ -243,7 +244,9 @@ const ALAL02Config = {
             }
 
             if (sub === 'link' && obj === 'set') {
-                const iface = action;
+                // Accept both `ip link set eth1 mtu N` and the canonical
+                // `ip link set dev eth1 mtu N` (explicit `dev` keyword form).
+                const iface = action === 'dev' ? (args[3] || '') : action;
                 const mtuFlag = args.indexOf('mtu');
                 if (mtuFlag >= 0) {
                     const newMtu = parseInt(args[mtuFlag + 1]);

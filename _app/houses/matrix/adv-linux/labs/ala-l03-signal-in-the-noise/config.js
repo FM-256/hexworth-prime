@@ -18,6 +18,7 @@ const ALAL03Config = {
     accent: '#f97316',
     storageKey: 'hexworth_lab_ala_l03',
     registryId: 'ala-l03-signal-in-the-noise',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_l03',
 
     // ═══════════════════════════════════════════════════════

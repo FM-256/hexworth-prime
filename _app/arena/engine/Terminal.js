@@ -182,19 +182,45 @@ class TerminalInstance {
     // ────────────────────────────────────────────────
 
     /** Parse and execute a command line, dispatching to built-in or custom handlers */
-    _execute(line) {
+    _execute(line, _suppressPrompt) {
         const trimmed = line.trim();
-        // Print the command line
-        this._appendLine(this._getPromptText() + trimmed, 'term-cmd');
+        // Print the command line (skipped for && sub-segments — prompt already shown)
+        if (!_suppressPrompt) this._appendLine(this._getPromptText() + trimmed, 'term-cmd');
 
         if (!trimmed) {
             this._scrollToBottom();
             return;
         }
 
-        // Add to history
-        this.history.push(trimmed);
-        this.historyIndex = -1;
+        // Add to history (top-level lines only, not && sub-segments)
+        if (!_suppressPrompt) {
+            this.history.push(trimmed);
+            this.historyIndex = -1;
+        }
+
+        // ── && sequencing (opt-in via config.shellChaining) ──────────
+        // Real shells run "A && B" left to right; the lab walkthroughs (and
+        // students) use it heavily, e.g. `cd /opt/verify && ./check-alpha.sh`.
+        // Opt-in ONLY: command-injection CTF boxes (e.g. a3-phantom-shell) pass
+        // && through to a custom handler as an injection payload, so the engine
+        // must leave it intact unless the box explicitly sets shellChaining: true.
+        // The sim has no exit codes, so segments run in order (no short-circuit).
+        if (this.config.shellChaining && !_suppressPrompt) {
+            const andSegments = this._splitAndSegments(trimmed);
+            if (andSegments.length > 1) {
+                // Log the full typed line once; sub-segments suppress their own log.
+                if (this.engine && this.engine._logEvent) {
+                    this.engine._logEvent('command', {
+                        cmd: trimmed,
+                        type: 'chain',
+                        phase: this.engine._classifyCommand ? this.engine._classifyCommand(trimmed) : 'OTHER'
+                    });
+                }
+                andSegments.forEach(seg => { if (seg) this._execute(seg, true); });
+                this._scrollToBottom();
+                return;
+            }
+        }
 
         // ── Pipe handling ─────────────────────────────────────────
         // Split on " | " outside quoted strings. If more than one
@@ -225,7 +251,9 @@ class TerminalInstance {
         const isCustom = !!customCommands[cmd];
 
         // Research instrumentation: log every command to BoxEngine event log
-        if (this.engine && this.engine._logEvent) {
+        // (&& sub-segments are suppressed — the full chained line is logged once
+        // in the shellChaining branch above, so analytics see what was typed).
+        if (!_suppressPrompt && this.engine && this.engine._logEvent) {
             this.engine._logEvent('command', {
                 cmd: trimmed,
                 type: isCustom ? 'custom' : 'builtin',
@@ -292,6 +320,24 @@ class TerminalInstance {
     // specific patterns the walkthroughs teach. Designed to make
     // the literal walkthrough commands work; not a full shell.
     // ────────────────────────────────────────────────
+
+    /** Split a command line on top-level "&&" (outside quotes). Each returned
+     *  segment is one command in an A && B && C chain. Quotes are preserved so
+     *  the segment can be re-parsed by _parseLine. Used only when the box opts in
+     *  via config.shellChaining (see _execute). */
+    _splitAndSegments(line) {
+        const segs = [];
+        let cur = '', q = null;
+        for (let i = 0; i < line.length; i++) {
+            const c = line[i];
+            if (q) { cur += c; if (c === q) q = null; continue; }   // inside a quote
+            if (c === '"' || c === "'") { q = c; cur += c; continue; }
+            if (c === '&' && line[i + 1] === '&') { segs.push(cur.trim()); cur = ''; i++; continue; }
+            cur += c;
+        }
+        segs.push(cur.trim());
+        return segs.filter(s => s.length > 0);
+    }
 
     /** Split a command line on top-level pipe characters (outside quotes). */
     _splitPipeSegments(line) {

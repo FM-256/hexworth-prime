@@ -18,6 +18,7 @@ const ALAL10Config = {
     accent: '#a78bfa',
     storageKey: 'hexworth_lab_ala_l10',
     registryId: 'ala-l10-ghost-in-the-cell',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_l10',
 
     // ═══════════════════════════════════════════════════════

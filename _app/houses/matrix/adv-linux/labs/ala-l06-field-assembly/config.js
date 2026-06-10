@@ -18,6 +18,7 @@ const ALAL06Config = {
     accent: '#22d3ee',
     storageKey: 'hexworth_lab_ala_l06',
     registryId: 'ala-l06-field-assembly',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_l06',
 
     // ═══════════════════════════════════════════════════════

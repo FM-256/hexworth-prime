@@ -18,6 +18,7 @@ const ALAL07Config = {
     accent: '#22d3ee',
     storageKey: 'hexworth_lab_ala_l07',
     registryId: 'ala-l07-name-authority',
+    shellChaining: true,   // enable real-shell A && B chaining (walkthroughs use it)
     trackerKey: 'lab_ala_l07',
 
     // ═══════════════════════════════════════════════════════
@@ -169,15 +170,15 @@ const ALAL07Config = {
                             children: {
                                 'check-forward.sh': {
                                     type: 'file',
-                                    content: '#!/bin/bash\n# Queries all 6 hostnames, CNAME, and MX from 10.0.1.1\n# Awards FLAG 1 when all resolve correctly\nHOSTS="cell-071 cell-088 cell-034 cell-016 cell-049 grid-api grid-mail"\nZONE="sector7.matrix.net"\nNS="10.0.1.1"\nPASS=0\nFAIL=0\n\nfor h in $HOSTS; do\n    r=$(dig +short "${h}.${ZONE}" @${NS} 2>/dev/null)\n    if [ -n "$r" ]; then\n        echo "[PASS] ${h}.${ZONE} -> $r"\n        PASS=$((PASS+1))\n    else\n        echo "[FAIL] ${h}.${ZONE} -- no answer"\n        FAIL=$((FAIL+1))\n    fi\ndone\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{forward_zone_all_six_hosts_resolve}"\nfi\n'
+                                    content: '#!/bin/bash\n# Queries all 6 hostnames, CNAME, and MX from 10.0.1.1\n# Awards FLAG 1 when all resolve correctly\nHOSTS="cell-071 cell-088 cell-034 cell-016 cell-049 grid-api grid-mail"\nZONE="sector7.matrix.net"\nNS="10.0.1.1"\nPASS=0\nFAIL=0\n\nfor h in $HOSTS; do\n    r=$(dig +short "${h}.${ZONE}" @${NS} 2>/dev/null)\n    if [ -n "$r" ]; then\n        echo "[PASS] ${h}.${ZONE} -> $r"\n        PASS=$((PASS+1))\n    else\n        echo "[FAIL] ${h}.${ZONE} -- no answer"\n        FAIL=$((FAIL+1))\n    fi\ndone\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{ala-l07-name-authority_flag1_forward_zone_operati}"\nfi\n'
                                 },
                                 'check-reverse.sh': {
                                     type: 'file',
-                                    content: '#!/bin/bash\n# PTR queries for all 6 IPs from 10.0.1.1\n# Awards FLAG 2 when all resolve correctly\nIPS="10.0.1.71 10.0.1.88 10.0.1.34 10.0.1.16 10.0.1.49 10.0.1.10"\nNS="10.0.1.1"\nPASS=0\nFAIL=0\n\nfor ip in $IPS; do\n    r=$(dig +short -x "${ip}" @${NS} 2>/dev/null)\n    if [ -n "$r" ]; then\n        echo "[PASS] $ip -> $r"\n        PASS=$((PASS+1))\n    else\n        echo "[FAIL] $ip -- no PTR record"\n        FAIL=$((FAIL+1))\n    fi\ndone\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{reverse_zone_all_six_ptrs_resolve}"\nfi\n'
+                                    content: '#!/bin/bash\n# PTR queries for all 6 IPs from 10.0.1.1\n# Awards FLAG 2 when all resolve correctly\nIPS="10.0.1.71 10.0.1.88 10.0.1.34 10.0.1.16 10.0.1.49 10.0.1.10"\nNS="10.0.1.1"\nPASS=0\nFAIL=0\n\nfor ip in $IPS; do\n    r=$(dig +short -x "${ip}" @${NS} 2>/dev/null)\n    if [ -n "$r" ]; then\n        echo "[PASS] $ip -> $r"\n        PASS=$((PASS+1))\n    else\n        echo "[FAIL] $ip -- no PTR record"\n        FAIL=$((FAIL+1))\n    fi\ndone\n\nif [ $FAIL -eq 0 ]; then\n    echo "FLAG: FLAG{ala-l07-name-authority_flag2_reverse_zone_operati}"\nfi\n'
                                 },
                                 'check-transfer.sh': {
                                     type: 'file',
-                                    content: '#!/bin/bash\n# Initiates AXFR from secondary (10.0.1.2)\n# Awards FLAG 3 when transfer succeeds\necho "Initiating AXFR from 10.0.1.2..."\nresult=$(dig AXFR sector7.matrix.net @10.0.1.1 2>/dev/null | grep -c "IN")\nif [ "$result" -ge 8 ]; then\n    echo "[PASS] AXFR transfer succeeded. $result records transferred."\n    echo "FLAG: FLAG{zone_transfer_configured_and_verified}"\nelse\n    echo "[FAIL] AXFR returned insufficient records."\n    echo "Check: allow-transfer { 10.0.1.2; }; in zone declaration"\nfi\n'
+                                    content: '#!/bin/bash\n# Initiates AXFR from secondary (10.0.1.2)\n# Awards FLAG 3 when transfer succeeds\necho "Initiating AXFR from 10.0.1.2..."\nresult=$(dig AXFR sector7.matrix.net @10.0.1.1 2>/dev/null | grep -c "IN")\nif [ "$result" -ge 8 ]; then\n    echo "[PASS] AXFR transfer succeeded. $result records transferred."\n    echo "FLAG: FLAG{ala-l07-name-authority_flag3_zone_transfer_config}"\nelse\n    echo "[FAIL] AXFR returned insufficient records."\n    echo "Check: allow-transfer { 10.0.1.2; }; in zone declaration"\nfi\n'
                                 }
                             }
                         }
@@ -543,7 +544,7 @@ const ALAL07Config = {
             const ips = ['10.0.1.71', '10.0.1.88', '10.0.1.34', '10.0.1.16', '10.0.1.49', '10.0.1.71', '10.0.1.10'];
             const lines = hosts.map((h, i) => `[PASS] ${h}.sector7.matrix.net -> ${ips[i]}`);
             engine.awardFlag('flag1');
-            return lines.join('\n') + `\nFLAG: FLAG{forward_zone_all_six_hosts_resolve}`;
+            return lines.join('\n') + `\nFLAG: FLAG{ala-l07-name-authority_flag1_forward_zone_operati}`;
         },
 
         // /opt/verify/check-reverse.sh -- awards Flag 2
@@ -564,7 +565,7 @@ const ALAL07Config = {
             ];
             const lines = pairs.map(([ip, ptr]) => `[PASS] ${ip} -> ${ptr}`);
             engine.awardFlag('flag2');
-            return lines.join('\n') + `\nFLAG: FLAG{reverse_zone_all_six_ptrs_resolve}`;
+            return lines.join('\n') + `\nFLAG: FLAG{ala-l07-name-authority_flag2_reverse_zone_operati}`;
         },
 
         // /opt/verify/check-transfer.sh -- awards Flag 3
@@ -579,7 +580,7 @@ const ALAL07Config = {
                 return `[FAIL] AXFR transfer REFUSED.\nAdd to zone declaration in named.conf.local:\n  allow-transfer { 10.0.1.2; };`;
             }
             engine.awardFlag('flag3');
-            return `[PASS] Initiating AXFR from 10.0.1.2...\n[PASS] AXFR transfer succeeded. 12 records transferred.\nFLAG: FLAG{zone_transfer_configured_and_verified}`;
+            return `[PASS] Initiating AXFR from 10.0.1.2...\n[PASS] AXFR transfer succeeded. 12 records transferred.\nFLAG: FLAG{ala-l07-name-authority_flag3_zone_transfer_config}`;
         },
 
         // ping
