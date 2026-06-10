@@ -205,7 +205,7 @@ const ALAL05Config = {
                             children: {
                                 'test-2fa.sh': {
                                     type: 'file',
-                                    content: '#!/bin/bash\n# Verification script: confirms 2FA is active on sshd\n# Checks PAM config and sshd_config for required directives\nset -e\n\nPAM_OK=0\nSSHD_OK=0\n\ngrep -q "pam_google_authenticator.so" /etc/pam.d/sshd && PAM_OK=1\ngrep -q "KbdInteractiveAuthentication yes" /etc/ssh/sshd_config && SSHD_OK=1\n\nif [ $PAM_OK -eq 1 ] && [ $SSHD_OK -eq 1 ]; then\n    echo "[PASS] 2FA configuration verified."\n    echo "[PASS] pam_google_authenticator.so present in /etc/pam.d/sshd"\n    echo "[PASS] KbdInteractiveAuthentication enabled in sshd_config"\n    echo "FLAG: FLAG{two_factor_authentication_configured}"\nelse\n    [ $PAM_OK -eq 0 ] && echo "[FAIL] pam_google_authenticator.so not found in /etc/pam.d/sshd"\n    [ $SSHD_OK -eq 0 ] && echo "[FAIL] KbdInteractiveAuthentication not set to yes in sshd_config"\nfi\n'
+                                    content: '#!/bin/bash\n# Verification script: confirms 2FA is active on sshd\n# Checks PAM config and sshd_config for required directives\nset -e\n\nPAM_OK=0\nSSHD_OK=0\n\ngrep -q "pam_google_authenticator.so" /etc/pam.d/sshd && PAM_OK=1\ngrep -q "KbdInteractiveAuthentication yes" /etc/ssh/sshd_config && SSHD_OK=1\n\nif [ $PAM_OK -eq 1 ] && [ $SSHD_OK -eq 1 ]; then\n    echo "[PASS] 2FA configuration verified."\n    echo "[PASS] pam_google_authenticator.so present in /etc/pam.d/sshd"\n    echo "[PASS] KbdInteractiveAuthentication enabled in sshd_config"\n    echo "FLAG: FLAG{ala-l05-the-insider_flag1_2fa_configured}"\nelse\n    [ $PAM_OK -eq 0 ] && echo "[FAIL] pam_google_authenticator.so not found in /etc/pam.d/sshd"\n    [ $SSHD_OK -eq 0 ] && echo "[FAIL] KbdInteractiveAuthentication not set to yes in sshd_config"\nfi\n'
                                 }
                             }
                         }
@@ -449,7 +449,7 @@ const ALAL05Config = {
             }
             // All checks pass -- award Flag 1
             engine.awardFlag('flag1');
-            return `[PASS] 2FA configuration verified.\n[PASS] pam_google_authenticator.so present in /etc/pam.d/sshd\n[PASS] KbdInteractiveAuthentication enabled in sshd_config\n[PASS] sshd reloaded with new configuration\n\nFLAG: FLAG{two_factor_authentication_configured}`;
+            return `[PASS] 2FA configuration verified.\n[PASS] pam_google_authenticator.so present in /etc/pam.d/sshd\n[PASS] KbdInteractiveAuthentication enabled in sshd_config\n[PASS] sshd reloaded with new configuration\n\nFLAG: FLAG{ala-l05-the-insider_flag1_2fa_configured}`;
         },
 
         // systemctl -- sshd management only for this lab
@@ -482,7 +482,7 @@ const ALAL05Config = {
             if (hasIP && hasMethod) {
                 engine.config._state.breachAnswered = true;
                 engine.awardFlag('flag2');
-                return `[CORRECT] Entry vector: 203.0.113.77 via password authentication.\nFLAG: FLAG{breach_vector_identified_password_from_203_0_113_77}`;
+                return `[CORRECT] Entry vector: 203.0.113.77 via password authentication.\nFLAG: FLAG{ala-l05-the-insider_flag2_entry_vector_identif}`;
             }
             if (hasIP && !hasMethod) {
                 return `[PARTIAL] IP address correct. What authentication method was used? (hint: check the auth.log Accepted line)`;
@@ -502,7 +502,7 @@ const ALAL05Config = {
 
             if (hasShadow && hasPasswd && hasKeys) {
                 engine.awardFlag('flag3');
-                return `[CORRECT] All three accessed resources identified:\n  1. /etc/shadow (read via sudo)\n  2. /etc/passwd (copied to /tmp/.p via sudo)\n  3. /home/**/*.key files (enumerated via sudo find)\nFLAG: FLAG{files_accessed_shadow_passwd_key_enumeration}`;
+                return `[CORRECT] All three accessed resources identified:\n  1. /etc/shadow (read via sudo)\n  2. /etc/passwd (copied to /tmp/.p via sudo)\n  3. /home/**/*.key files (enumerated via sudo find)\nFLAG: FLAG{ala-l05-the-insider_flag3_accessed_files_liste}`;
             }
             const missing = [];
             if (!hasShadow) missing.push('/etc/shadow');

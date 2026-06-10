@@ -154,11 +154,11 @@ const ALAL06Config = {
                             children: {
                                 'test-install.sh': {
                                     type: 'file',
-                                    content: '#!/bin/bash\n# Verifies gridmon is installed correctly via checkinstall\n# Checks: binary exists at /usr/local/bin/gridmon, dpkg record present, --version works\nset -e\n\nBIN_OK=0\nPKG_OK=0\n\n[ -x /usr/local/bin/gridmon ] && BIN_OK=1\ndpkg -l gridmon 2>/dev/null | grep -q "^ii" && PKG_OK=1\n\nif [ $BIN_OK -eq 1 ] && [ $PKG_OK -eq 1 ]; then\n    echo "[PASS] /usr/local/bin/gridmon exists and is executable"\n    echo "[PASS] dpkg records gridmon as installed"\n    /usr/local/bin/gridmon --version\n    echo "FLAG: FLAG{gridmon_compiled_and_packaged_with_checkinstall}"\nelse\n    [ $BIN_OK -eq 0 ] && echo "[FAIL] /usr/local/bin/gridmon not found. Did you run make install or checkinstall?"\n    [ $PKG_OK -eq 0 ] && echo "[FAIL] dpkg has no record of gridmon. Use checkinstall instead of make install."\nfi\n'
+                                    content: '#!/bin/bash\n# Verifies gridmon is installed correctly via checkinstall\n# Checks: binary exists at /usr/local/bin/gridmon, dpkg record present, --version works\nset -e\n\nBIN_OK=0\nPKG_OK=0\n\n[ -x /usr/local/bin/gridmon ] && BIN_OK=1\ndpkg -l gridmon 2>/dev/null | grep -q "^ii" && PKG_OK=1\n\nif [ $BIN_OK -eq 1 ] && [ $PKG_OK -eq 1 ]; then\n    echo "[PASS] /usr/local/bin/gridmon exists and is executable"\n    echo "[PASS] dpkg records gridmon as installed"\n    /usr/local/bin/gridmon --version\n    echo "FLAG: FLAG{ala-l06-field-assembly_flag1_gridmon_compiled_and}"\nelse\n    [ $BIN_OK -eq 0 ] && echo "[FAIL] /usr/local/bin/gridmon not found. Did you run make install or checkinstall?"\n    [ $PKG_OK -eq 0 ] && echo "[FAIL] dpkg has no record of gridmon. Use checkinstall instead of make install."\nfi\n'
                                 },
                                 'run-capture.sh': {
                                     type: 'file',
-                                    content: '#!/bin/bash\n# Simulates network traffic on UDP port 9001 and verifies gridmon captured the payload\n# The hidden signature is embedded in the pcap as ASCII text\nset -e\n\nPCAP=/tmp/capture.pcap\n\nif [ ! -f "$PCAP" ]; then\n    echo "[FAIL] /tmp/capture.pcap not found."\n    echo "Run: gridmon --capture --interface eth0 --filter \'udp port 9001\' --output /tmp/capture.pcap"\n    exit 1\nfi\n\nSIG=$(strings "$PCAP" | grep "SECTOR7_SIG")\nif [ -n "$SIG" ]; then\n    echo "[PASS] Sector signature captured in pcap."\n    echo "[PASS] Payload: $SIG"\n    echo "FLAG: FLAG{sector_signature_captured_on_udp_9001}"\nelse\n    echo "[FAIL] Sector signature not found in capture file. Was gridmon running when traffic was injected?"\nfi\n'
+                                    content: '#!/bin/bash\n# Simulates network traffic on UDP port 9001 and verifies gridmon captured the payload\n# The hidden signature is embedded in the pcap as ASCII text\nset -e\n\nPCAP=/tmp/capture.pcap\n\nif [ ! -f "$PCAP" ]; then\n    echo "[FAIL] /tmp/capture.pcap not found."\n    echo "Run: gridmon --capture --interface eth0 --filter \'udp port 9001\' --output /tmp/capture.pcap"\n    exit 1\nfi\n\nSIG=$(strings "$PCAP" | grep "SECTOR7_SIG")\nif [ -n "$SIG" ]; then\n    echo "[PASS] Sector signature captured in pcap."\n    echo "[PASS] Payload: $SIG"\n    echo "FLAG: FLAG{ala-l06-field-assembly_flag2_sector_signature_cap}"\nelse\n    echo "[FAIL] Sector signature not found in capture file. Was gridmon running when traffic was injected?"\nfi\n'
                                 }
                             }
                         }
@@ -474,7 +474,7 @@ const ALAL06Config = {
                 return `[FAIL] /usr/local/bin/gridmon not found. Did you run checkinstall?\n[FAIL] dpkg has no record of gridmon.`;
             }
             engine.awardFlag('flag1');
-            return `[PASS] /usr/local/bin/gridmon exists and is executable\n[PASS] dpkg records gridmon as installed\ngridmon 2.1.0 (grid-capture enabled)\nFLAG: FLAG{gridmon_compiled_and_packaged_with_checkinstall}`;
+            return `[PASS] /usr/local/bin/gridmon exists and is executable\n[PASS] dpkg records gridmon as installed\ngridmon 2.1.0 (grid-capture enabled)\nFLAG: FLAG{ala-l06-field-assembly_flag1_gridmon_compiled_and}`;
         },
 
         // /opt/verify/run-capture.sh -- awards Flag 2
@@ -483,7 +483,7 @@ const ALAL06Config = {
                 return `[FAIL] /tmp/capture.pcap not found.\nRun: gridmon --capture --interface eth0 --filter 'udp port 9001' --output /tmp/capture.pcap`;
             }
             engine.awardFlag('flag2');
-            return `[PASS] Sector signature captured in pcap.\n[PASS] Payload: SECTOR7_SIG:a9f3e7c2b1d4\nFLAG: FLAG{sector_signature_captured_on_udp_9001}`;
+            return `[PASS] Sector signature captured in pcap.\n[PASS] Payload: SECTOR7_SIG:a9f3e7c2b1d4\nFLAG: FLAG{ala-l06-field-assembly_flag2_sector_signature_cap}`;
         },
 
         // ping -- limited to local mesh
