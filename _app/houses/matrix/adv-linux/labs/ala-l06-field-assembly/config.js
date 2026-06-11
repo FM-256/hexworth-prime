@@ -377,9 +377,14 @@ const ALAL06Config = {
                     return `Warning: checksum not verified. Run sha256sum -c /opt/archive/gridmon-2.1.0.tar.gz.sha256 first.\ngridmon-2.1.0/\ngridmon-2.1.0/configure\ngridmon-2.1.0/src/main.c\n[extracted -- but verify the checksum before proceeding]`;
                 }
                 engine.config._state.sourceExtracted = true;
-                // Create the extracted source directory in the filesystem
-                const cwd = engine.getCurrentDir ? engine.getCurrentDir() : '/home/operator';
-                term.fs['/'].children.home.children.operator.children['gridmon-2.1.0'] = {
+                // Create the extracted source directory in the CURRENT working directory.
+                // Real tar extracts relative to cwd; the walkthrough runs this from /opt/archive
+                // (step 2 cd /opt/archive), so `cd gridmon-2.1.0` must resolve there — not under
+                // /home/operator. Fall back to ~ if cwd can't be resolved to a directory node.
+                const cwdNode = (term._getNode && term._getNode(term.cwd)) || null;
+                const destNode = (cwdNode && cwdNode.children) ? cwdNode
+                    : term.fs['/'].children.home.children.operator;
+                destNode.children['gridmon-2.1.0'] = {
                     type: 'dir',
                     children: {
                         'configure': { type: 'file', content: '#!/bin/bash\n# gridmon configure script\necho "checking for libpcap... yes"\necho "checking for libssl... yes"\necho "configure: creating ./Makefile"\n' },
