@@ -285,6 +285,16 @@
             border: 1px solid rgba(96, 165, 250, 0.3); transition: all 0.3s; white-space: nowrap;
         }
         .lab-links a:hover { background: #60a5fa; color: #000; transform: translateY(-2px); }
+        /* ── overlay-label frame: DOM labels over text-free isometric art (m15 rebuild, m14 pattern) ── */
+        .visual-overlay-stage { position: relative; width: 100%; max-width: 100%; max-height: 100%; }
+        .visual-overlay-stage img { width: 100%; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; display: block; }
+        .ov-band { position: absolute; left: 0; right: 0; background: rgba(10,16,40,0.86); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); padding: 8px 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.45); }
+        .ov-top { top: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; border-radius: 6px 6px 0 0; }
+        .ov-bot { bottom: 0; border-radius: 0 0 6px 6px; }
+        .ov-title { font-weight: 800; font-size: 0.95rem; color: #93c5fd; letter-spacing: 0.04em; }
+        .ov-tag { font-size: 0.68rem; color: #cbd5e1; letter-spacing: 0.06em; white-space: nowrap; }
+        .ov-cap { font-size: 0.72rem; color: #e2e8f0; line-height: 1.45; text-align: center; display: block; }
+        .ov-cap strong { color: #ffd86b; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -350,455 +360,419 @@
             </div>
         </div>
 
-        <!-- Slide 2: What Are AD Sites? -->
+        <!-- What Are AD Sites? -->
         <div class="slide has-visual">
             <h2>What Are AD Sites?</h2>
             <div class="slide-content">
                 <div class="slide-text">
-            <div class="two-column">
-                <div class="column">
-                    <h3>Purpose</h3>
-                    <ul>
-                        <li>Control replication flow</li>
-                        <li>Direct clients to local DC</li>
-                    </ul>
-                </div>
-                <div class="column">
-                    <h3>Components</h3>
-                    <ul>
-                        <li>Sites + Subnets + Site Links</li>
-                        <li>Servers assigned to sites</li>
-                    </ul>
-                </div>
-            </div>
+<p>An Active Directory <strong>site</strong> is a logical object that represents a well-connected portion of your physical network, normally a single geographic location such as a data center or branch office. AD has no inherent sense of geography, so sites are how you teach the directory where things physically are and how expensive it is to talk between them.</p>
+<p><strong>The building blocks.</strong> A site is defined by the IP <em>subnets</em> mapped to it, the <em>domain controllers</em> placed in it, and the <em>site links</em> that connect it to other sites. A subnet belongs to exactly one site; a site can own many subnets. Every DC is assigned to the site whose subnet contains its IP address.</p>
+<p><strong>Two jobs sites do.</strong> First, they govern replication: traffic inside a site is immediate and uncompressed, while traffic between sites is scheduled, compressed, and routed along the site links you control. Second, they steer clients: when a workstation logs on, the DC Locator hands it the site-aware SRV records for its own subnet, so it authenticates against a local DC instead of one across the WAN.</p>
+<p><strong>Why it matters.</strong> Forget to map a branch subnet and its clients fall back to the full DC list, often authenticating over a slow WAN link. That is the number-one cause of "logons are slow at the branch."</p>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/what-are-ad-sites.webp" alt="What Are AD Sites?" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="Three geographic sites, each housing a domain controller, connected by replication links.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/what-are-ad-sites.webp" alt="Three geographic sites, each housing a domain controller, connected by replication links.">
+                        <div class="ov-band ov-top"><span class="ov-title">AD Sites</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Site = physical topology in AD.</strong> Subnets &middot; DCs &middot; Site Links &nbsp;|&nbsp; Jobs: throttle replication + send clients to the nearest DC</span></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Slide 3: Subnets and Site Association -->
+        <!-- Subnets and Site Association -->
         <div class="slide has-visual">
             <h2>Subnets and Site Association</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>Admins must register each subnet → site. Unmapped = random DC.</p>
-                    <ul>
-                        <li><strong>DC locator</strong> uses site-aware SRV; no match = falls back to all-DC list</li>
-                        <li>One subnet → one site; site → many subnets</li>
-                        <li>Branch subnets often forgotten → cross-WAN logon</li>
-                    </ul>
-
-                    <div class="code-block">
-<span class="comment"># Register branch subnet + check NO_CLIENT_SITE</span>
+<p>A subnet object is the bridge between an IP range and a site. Administrators must register each subnet and associate it with the site that owns it. Until that mapping exists, AD cannot tell which clients are "local" to which domain controllers.</p>
+<p><strong>How clients use it.</strong> When a client boots, the DC Locator process compares the client's IP against the registered subnets, finds the matching site, and returns the site-specific SRV records so the client binds to a DC in its own location. With no matching subnet the client receives the full list of DCs and may authenticate against any one of them, frequently the wrong one across a WAN link.</p>
+<p><strong>The relationship.</strong> One subnet maps to exactly one site, but a site can hold many subnets. Branch subnets are the ones most often forgotten, which is why "no client site" events in the netlogon log are a classic branch-office symptom.</p>
+<div class="code-block">
+<span class="comment"># Register a branch subnet, then audit for unmapped clients</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSubnet -Name "10.20.0.0/24" -Site "Boston"</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-Content $env:SystemRoot\debug\netlogon.log | Select-String "NO_CLIENT_SITE"</span>
-                    </div>
+</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/subnets-and-site-association.webp" alt="Subnets and Site Association" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="An IP subnet bound by an arrow to one site building, other subnets unbound.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/subnets-and-site-association.webp" alt="An IP subnet bound by an arrow to one site building, other subnets unbound.">
+                        <div class="ov-band ov-top"><span class="ov-title">Subnet to Site</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>One subnet to one site.</strong> DC Locator uses site-aware SRV records &nbsp;|&nbsp; Unmapped subnet = random DC across the WAN</span></div>
+                    </div>
                 </div>
             </div>
         </div>
 
+        <!-- Why Subnet Mapping Matters -->
         <div class="slide has-visual">
+            <h2>Why Subnet Mapping Matters</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <h2>Why Subnet Mapping Matters</h2>
-            <ul>
-                <li>Clients find nearest DC via subnet→site</li>
-                <li>Unmapped = random DC, wrong GPO link</li>
-            </ul>
-
-            <div class="code-block">
-<span class="comment"># Create, list, reassign subnets</span>
+<p>Subnet-to-site mapping is not a cosmetic detail. It is the data the DC Locator relies on to keep authentication, policy, and file access local. Get it wrong and the symptoms surface far from the cause.</p>
+<p><strong>What breaks when a subnet is unmapped.</strong> Clients pick a random domain controller, often one across a slow WAN link, so logons drag. Site-linked Group Policy and the site's DFS referrals resolve to the wrong location. Even Exchange and other site-aware services route clients to distant servers.</p>
+<p><strong>The fix is registration discipline.</strong> Every production subnet should be registered to its site before clients live there. Treat a new branch network as incomplete until its subnet object exists, and audit the netlogon log periodically for clients that found no site.</p>
+<div class="code-block">
+<span class="comment"># Create, list, and reassign subnets</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSubnet -Name "10.1.0.0/16" -Site "Branch-Office"</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationSubnet -Filter * | Select Name, Site</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Set-ADReplicationSubnet -Identity "10.1.0.0/16" -Site "New-Site"</span>
-            </div>
+</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/why-subnet-mapping-matters.webp" alt="Why Subnet Mapping Matters" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="A branch workstation reaching a distant DC over a long link while a local DC sits idle.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/why-subnet-mapping-matters.webp" alt="A branch workstation reaching a distant DC over a long link while a local DC sits idle.">
+                        <div class="ov-band ov-top"><span class="ov-title">Why Mapping Matters</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Unmapped subnet = wrong DC.</strong> Slow cross-WAN logon &middot; wrong site-linked GPOs &middot; wrong DFS referrals</span></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Slide 4: Site Links -->
+        <!-- Site Links -->
         <div class="slide has-visual">
             <h2>Site Links</h2>
             <div class="slide-content">
                 <div class="slide-text">
-            <div class="two-column">
-                <div class="column">
-                    <h3>Properties</h3>
-                    <ul>
-                        <li>Cost (lower = preferred)</li>
-                        <li>Interval (min 15), schedule, transport</li>
-                    </ul>
-                </div>
-                <div class="column">
-                    <h3>Default Link</h3>
-                    <ul>
-                        <li>DEFAULTIPSITELINK auto-created</li>
-                        <li>Cost 100, interval 180, 24x7</li>
-                    </ul>
-                </div>
-            </div>
-
+<p>A site link is the object that says two or more sites are allowed to replicate, and on what terms. The KCC uses site links to build the intersite replication topology, so their properties directly control how AD data flows across your WAN.</p>
+<p><strong>The properties that matter.</strong> <em>Cost</em> expresses how expensive a path is; when multiple links could carry replication, the lower total cost wins. <em>Replication interval</em> sets how often intersite replication runs (15 minutes minimum, 180 by default). <em>Schedule</em> can restrict replication to off-hours windows. <em>Transport</em> is normally IP (RPC over IP); the legacy SMTP transport is essentially never used today.</p>
+<p><strong>The default link.</strong> Every domain starts with DEFAULTIPSITELINK (cost 100, interval 180, available 24x7). It works, but real designs create purpose-named links with tuned cost and schedule so replication follows the actual network paths and budgets.</p>
 <div class="code-block">
-<span class="comment"># Create HQ↔Branch link, then lower its cost</span>
+<span class="comment"># Create an HQ-to-Branch link, then lower its cost to prefer it</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">New-ADReplicationSiteLink -Name "HQ-Branch" -SitesIncluded HQ-Site,Branch-Site -Cost 50 -ReplicationFrequencyInMinutes 15</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Set-ADReplicationSiteLink -Identity "HQ-Branch" -Cost 25</span>
-            </div>
+</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/site-links.webp" alt="Site Links" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="Two sites joined by one link carrying a cost dial and a schedule clock.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/site-links.webp" alt="Two sites joined by one link carrying a cost dial and a schedule clock.">
+                        <div class="ov-band ov-top"><span class="ov-title">Site Links</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Links connect sites for replication.</strong> Cost (lower wins) &middot; Interval (min 15) &middot; Schedule &middot; Transport</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
-        <!-- Slide 5: Intrasite vs Intersite Replication -->
+        <!-- Intrasite vs Intersite Replication -->
         <div class="slide has-visual">
             <h2>Intrasite vs Intersite Replication</h2>
             <div class="slide-content">
                 <div class="slide-text">
-            <div class="two-column">
-                <div class="column">
-                    <h3>Intrasite</h3>
-                    <ul>
-                        <li>Change-notify, near-instant</li>
-                        <li>Uncompressed, ring topology</li>
-                    </ul>
-                </div>
-                <div class="column">
-                    <h3>Intersite</h3>
-                    <ul>
-                        <li>Schedule (default 180 min)</li>
-                        <li>Compressed via bridgeheads</li>
-                    </ul>
-                </div>
-            </div>
+<p>Active Directory replicates the same data two different ways depending on whether the partners are in the same site or different sites. The distinction is entirely about cost: intra-site links are assumed fast and free, inter-site links are assumed slow and metered.</p>
+<p><strong>Intrasite replication.</strong> Within a site, replication is change-notification driven and near-instant. A DC that takes a change notifies its partners within about 15 seconds, and the data is sent uncompressed because bandwidth is plentiful. The KCC wires intra-site DCs into a ring with extra connections so no DC is more than three hops from any other.</p>
+<p><strong>Intersite replication.</strong> Between sites, replication follows the site link schedule (default every 180 minutes), and the payload is compressed (roughly 10:1) to conserve WAN bandwidth. It flows through bridgehead servers rather than every DC talking to every other DC. The trade is freshness for efficiency: branch DCs are slightly behind, but the link is not saturated.</p>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/intrasite-vs-intersite-replication.webp" alt="Intrasite vs Intersite Replication" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="Instant replication inside one site versus scheduled compressed replication between sites.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/intrasite-vs-intersite-replication.webp" alt="Instant replication inside one site versus scheduled compressed replication between sites.">
+                        <div class="ov-band ov-top"><span class="ov-title">Intrasite vs Intersite</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Inside a site: instant + uncompressed.</strong> Between sites: scheduled + compressed via bridgeheads</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
-        <!-- Slide 6: The Knowledge Consistency Checker (KCC) -->
+        <!-- Knowledge Consistency Checker (KCC) -->
         <div class="slide has-visual">
             <h2>Knowledge Consistency Checker (KCC)</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>KCC builds replication topology automatically.</p>
-                    <ul>
-                        <li>Runs every 15 min per DC</li>
-                        <li><strong>Intrasite:</strong> full mesh ≤7 DCs, else ring (3 hop max)</li>
-                        <li><strong>Intersite:</strong> spanning tree via bridgeheads, compressed</li>
-                        <li><strong>ISTG:</strong> one DC per site handles intersite calc</li>
-                    </ul>
-
-                    <div class="code-block">
-<span class="comment"># Force KCC recompute + show ISTG</span>
+<p>The Knowledge Consistency Checker is the built-in process that designs the replication topology for you. Rather than an administrator hand-wiring which DC replicates with which, the KCC computes the connection objects automatically and keeps them current as the environment changes.</p>
+<p><strong>What it does.</strong> The KCC runs on every domain controller every 15 minutes. For intra-site partners it builds a ring (a full mesh when there are seven or fewer DCs) and guarantees no more than three hops between any two DCs. For inter-site replication it builds a least-cost spanning tree from the site links and routes traffic through bridgeheads, compressed.</p>
+<p><strong>The ISTG.</strong> One DC per site is elected the Inter-Site Topology Generator and owns the inter-site calculations for that site. If you add or remove DCs and do not want to wait for the next cycle, you can force a recompute.</p>
+<div class="code-block">
+<span class="comment"># Force the KCC to recompute and show the current ISTG</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /kcc</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /istg</span>
+</div>
+                </div>
+                <div class="slide-visual">
+                    <div class="visual-overlay-stage" aria-label="An automated engine of gears drawing replication connections between domain controllers.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/knowledge-consistency-checker-kcc.webp" alt="An automated engine of gears drawing replication connections between domain controllers.">
+                        <div class="ov-band ov-top"><span class="ov-title">KCC</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>KCC auto-builds the replication topology.</strong> Runs every 15 min &middot; intra-site ring &middot; inter-site spanning tree via ISTG</span></div>
                     </div>
                 </div>
-                <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/knowledge-consistency-checker-kcc.webp" alt="Knowledge Consistency Checker (KCC)" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
-                </div>
-                </div>
-        </div>
-
-        <div class="slide has-visual">
-            <div class="slide-content">
-                <div class="slide-text">
-                    <h2>KCC Functions</h2>
-            <ul>
-                <li>Runs on every DC every 15 minutes</li>
-                <li>Creates intrasite connection objects automatically</li>
-                <li>Calculates intersite topology from site links</li>
-                <li>Rebuilds topology when DCs are added/removed</li>
-                <li>Ensures no more than 3 hops between any DCs in a site</li>
-            </ul>
-
-            <p>When you add or remove DCs, force the KCC to rebuild the replication topology immediately rather than waiting for its 15-minute cycle.</p>
-            <div class="code-block">
-<span class="comment"># Trigger the KCC to recalculate the replication topology now</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /kcc</span>
             </div>
-                </div>
-                <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/kcc-functions.webp" alt="KCC Functions" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
-                </div>
-                </div>
         </div>
 
+        <!-- KCC Functions -->
         <div class="slide has-visual">
+            <h2>KCC Functions</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <h2>KCC Functions (cont.)</h2>
+<p>The KCC's job is ongoing, not one-time. It continuously maintains the set of connection objects that define who replicates with whom, adapting the topology whenever the domain's shape changes.</p>
+<p><strong>Its core responsibilities.</strong> It runs on every DC every 15 minutes. It creates intra-site connection objects automatically, calculates the inter-site topology from the site links, and rebuilds the whole topology when DCs are added or removed. Throughout, it enforces the three-hop maximum inside a site so convergence stays fast.</p>
+<p><strong>When to intervene.</strong> The KCC is self-healing, so manual connection objects are rarely needed. The one common action is forcing an immediate rebuild after a topology change rather than waiting out the 15-minute cycle.</p>
+<div class="code-block">
+<span class="comment"># Trigger the KCC to recalculate the topology now</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /kcc</span>
+</div>
+                </div>
+                <div class="slide-visual">
+                    <div class="visual-overlay-stage" aria-label="An automation engine wiring several domain controllers into a ring topology.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/kcc-functions.webp" alt="An automation engine wiring several domain controllers into a ring topology.">
+                        <div class="ov-band ov-top"><span class="ov-title">KCC Functions</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Builds + maintains connection objects.</strong> Per DC every 15 min &middot; rebuilds on DC add/remove &middot; max 3 hops</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            <div class="code-block">
-<span class="comment"># List connections + show replication errors</span>
+        <!-- KCC Functions (cont.) -->
+        <div class="slide has-visual">
+            <h2>KCC Functions (cont.)</h2>
+            <div class="slide-content">
+                <div class="slide-text">
+<p>Because the KCC owns the topology, the practical skill is reading what it produced and confirming the resulting connections are healthy. Two commands cover the day-to-day inspection.</p>
+<p><strong>Listing connections.</strong> Each connection object names a source DC and the schedule on which the local DC pulls from it. Reviewing them confirms the KCC built the partnerships you expect, especially after adding a site or a DC.</p>
+<p><strong>Surfacing failures fast.</strong> On a large forest the full replication report is noisy, so filtering to errors only is how you find the one broken partnership without scrolling past dozens of healthy ones.</p>
+<div class="code-block">
+<span class="comment"># List connection objects, then show only replication errors</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationConnection -Filter *</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /showrepl * /errorsonly</span>
-            </div>
+</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/kcc-functions-cont.webp" alt="KCC Functions (cont.)" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="Domain controllers wired by KCC-generated connection objects, errors highlighted.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/kcc-functions-cont.webp" alt="Domain controllers wired by KCC-generated connection objects, errors highlighted.">
+                        <div class="ov-band ov-top"><span class="ov-title">Connection Objects</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Inspect what the KCC built.</strong> List connection objects &middot; surface only the replication errors</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
-        <!-- Slide 7: Bridgehead Servers -->
+        <!-- Bridgehead Servers -->
         <div class="slide has-visual">
             <h2>Bridgehead Servers</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>Bridgeheads = designated intersite replication partners.</p>
-            <h3>Selection</h3>
-            <ul>
-                <li>KCC picks one per site per partition (lowest GUID)</li>
-                <li>Preferred can be set manually; KCC auto-fails-over</li>
-            </ul>
-
-            <div class="code-block">
-<span class="comment"># Query current bridgeheads per site</span>
+<p>A bridgehead server is the domain controller a site uses to exchange replication with other sites. Instead of every DC in Site A talking to every DC in Site B, the bridgeheads on each side handle the inter-site traffic and then replicate locally to their own site's DCs. This keeps WAN connections few and compression effective.</p>
+<p><strong>How they are chosen.</strong> The KCC (specifically the ISTG) selects one bridgehead per site per directory partition, by default the DC with the lowest GUID. You can designate preferred bridgeheads manually, but if a preferred bridgehead fails the KCC will only fail over automatically when no preferred ones remain, so designating just one is a common self-inflicted outage.</p>
+<p><strong>Operational note.</strong> Let the KCC manage bridgeheads unless you have a specific reason (such as forcing replication onto a DC with the best WAN link). If you do set preferred bridgeheads, set more than one.</p>
+<div class="code-block">
+<span class="comment"># Query the current bridgeheads per site</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationSite -Filter * | Get-ADObject -Properties bridgeheadServerListBL</span>
-            </div>
+</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/bridgehead-servers.webp" alt="Bridgehead Servers" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="One designated DC per site funneling all intersite replication across the link.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/bridgehead-servers.webp" alt="One designated DC per site funneling all intersite replication across the link.">
+                        <div class="ov-band ov-top"><span class="ov-title">Bridgehead Servers</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>One DC per site per partition fronts intersite replication.</strong> KCC auto-selects &middot; can be preferred manually &middot; auto-failover</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
-        <!-- Slide 8: Site Link Bridges -->
+        <!-- Site Link Bridges -->
         <div class="slide has-visual">
             <h2>Site Link Bridges</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>Site link bridges control whether transitive replication is allowed across site links.</p>
-
-            <h3>Transitivity (default: ON)</h3>
-            <ul>
-                <li>All site links are bridged by default — Site A ↔ B + B ↔ C means A can replicate to C via B</li>
-                <li>Disable bridging when you need explicit control (e.g., hub-and-spoke topology)</li>
-                <li>Create manual bridges for specific paths only</li>
-            </ul>
-
-            <div class="warning-box">
-                <strong>When to disable:</strong> Only in complex hub-and-spoke networks where you need explicit control over which sites can talk to which.
-            </div>
+<p>A site link bridge controls whether replication is transitive across site links. With bridging on, a chain of links behaves like one connected path; with it off, replication only flows directly along each individual link.</p>
+<p><strong>The default behavior.</strong> "Bridge all site links" is enabled by default, which means if Site A links to Site B and Site B links to Site C, then A can replicate to C through B even without a direct A-to-C link. For most networks (where the underlying IP network is fully routed) this is exactly what you want and requires no thought.</p>
+<p><strong>When to turn it off.</strong> Disable automatic bridging only in complex hub-and-spoke designs where the physical network does not allow every site to reach every other site. Then you create explicit site link bridges for just the paths that are actually routable, giving you precise control over which sites can replicate through which.</p>
+<div class="highlight-box"><strong>Rule of thumb:</strong> leave bridging on unless your WAN is not fully routed. Turning it off without a real topology reason creates replication gaps that are painful to diagnose.</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/site-link-bridges.webp" alt="Site Link Bridges" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="Sites A, B, C where a bridge lets A reach C transitively through B.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/site-link-bridges.webp" alt="Sites A, B, C where a bridge lets A reach C transitively through B.">
+                        <div class="ov-band ov-top"><span class="ov-title">Site Link Bridges</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Transitivity is ON by default.</strong> A&harr;B + B&harr;C means A reaches C via B &nbsp;|&nbsp; Disable only for hub-and-spoke control</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
-        <!-- Slide 9: Replication Troubleshooting -->
+        <!-- Replication Troubleshooting -->
         <div class="slide has-visual">
             <h2>Replication Troubleshooting</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>Three-layer diagnostic: connectivity → replication → convergence.</p>
-                    <ul>
-                        <li><strong>Connectivity:</strong> time skew, DNS SRV, RPC ports</li>
-                        <li><strong>Replication:</strong> repadmin /replsummary, /showrepl</li>
-                        <li><strong>Convergence:</strong> test object on partner DCs</li>
-                    </ul>
-
-                    <div class="code-block">
-<span class="comment"># Global health + per-DC detail + test suite</span>
+<p>Replication problems almost always resolve into one of three layers, and checking them in order keeps you from chasing the wrong thing. Work from the network up to the data.</p>
+<p><strong>Layer 1, connectivity.</strong> Confirm the plumbing: time skew under five minutes (Kerberos breaks past it), DNS SRV records resolving, and the RPC ports open through any firewall. Most "replication" tickets are really one of these three.</p>
+<p><strong>Layer 2, replication.</strong> With connectivity good, ask AD itself. <code>repadmin /replsummary</code> gives a one-screen health roll-up across every DC, and <code>repadmin /showrepl</code> gives the per-partner detail with the last success and any error code.</p>
+<p><strong>Layer 3, convergence.</strong> Finally prove data actually flows: make a harmless change on one DC and confirm it appears on its partners within the expected window.</p>
+<div class="code-block">
+<span class="comment"># Global health, per-DC detail, and the replication test suite</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /replsummary</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /showrepl &lt;dc-name&gt;</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">dcdiag /test:replications</span>
+</div>
+                </div>
+                <div class="slide-visual">
+                    <div class="visual-overlay-stage" aria-label="A DC with a health dashboard of green and red indicators inspecting a replication link.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/replication-troubleshooting.webp" alt="A DC with a health dashboard of green and red indicators inspecting a replication link.">
+                        <div class="ov-band ov-top"><span class="ov-title">Troubleshooting</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Three layers: connectivity &rarr; replication &rarr; convergence.</strong> Time/DNS/RPC, then repadmin, then test on partners</span></div>
                     </div>
                 </div>
-                <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/replication-troubleshooting.webp" alt="Replication Troubleshooting" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
-                </div>
-                </div>
+            </div>
         </div>
 
+        <!-- Key Diagnostic Commands -->
         <div class="slide has-visual">
+            <h2>Key Diagnostic Commands</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <h2>Key Diagnostic Commands</h2>
-
-            <p>The replication summary gives a quick health check across every DC, showing the largest replication delay and failure count for each partner.</p>
-            <div class="code-block">
-<span class="comment"># Get a high-level replication health summary for all DCs</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /replsummary</span>
-            </div>
-
+<p>The repadmin tool is the workhorse for replication diagnostics. The two read-only commands below are where every investigation begins, before you change anything.</p>
+<p><strong>The summary view.</strong> <code>repadmin /replsummary</code> produces a compact table covering every DC, showing the largest replication delay and the count of failures for each partner. It answers "is anything wrong, and where" in a single screen, which is why it is the first command to run.</p>
+<p><strong>The detail view.</strong> Once the summary points at a suspect DC, <code>repadmin /showrepl</code> on that DC lists each inbound partner, the last successful replication time, and the specific error code for any failure. That error code is what you take into the fix.</p>
 <div class="code-block">
-<span class="comment"># Show detailed replication status for a specific domain controller</span>
+<span class="comment"># Whole-forest replication health roll-up</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /replsummary</span>
+</div>
+<div class="code-block">
+<span class="comment"># Detailed inbound replication status for one DC</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /showrepl DC1</span>
-            </div>
+</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/key-diagnostic-commands.webp" alt="Key Diagnostic Commands" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="A diagnostic console showing a replication summary across domain controllers.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/key-diagnostic-commands.webp" alt="A diagnostic console showing a replication summary across domain controllers.">
+                        <div class="ov-band ov-top"><span class="ov-title">Diagnostics: Read</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Start broad, then drill in.</strong> /replsummary = whole-forest health &middot; /showrepl = one DC in detail</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
+        <!-- Key Diagnostic Commands (cont.) -->
         <div class="slide has-visual">
+            <h2>Key Diagnostic Commands (cont.)</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <h2>Key Diagnostic Commands (cont.)</h2>
-
-            <div class="code-block">
-<span class="comment"># Force replication, check queue, list failures</span>
+<p>After reading the state, these commands let you push replication and confirm the backlog is clearing. Use them once you understand the error, not as a reflex.</p>
+<p><strong>Forcing and inspecting.</strong> <code>repadmin /syncall</code> with the absolute, enterprise, and pushed flags forces a DC to replicate with all partners immediately. <code>repadmin /queue</code> shows the pending inbound replication backlog so you can watch it drain. <code>Get-ADReplicationFailure</code> returns the failures as objects you can sort and report on.</p>
+<p><strong>The usual culprits.</strong> When replication is genuinely broken, the cause is almost always DNS misconfiguration, RPC blocked by a firewall, time skew greater than five minutes, or lingering objects left by a DC that was offline past the tombstone lifetime.</p>
+<div class="code-block">
+<span class="comment"># Force replication, watch the queue, list failures</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /syncall DC1 /AeD</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">repadmin /queue</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Get-ADReplicationFailure -Target hexworth.local -Scope Domain</span>
-            </div>
-
-            <h3>Common Issues</h3>
-            <ul>
-                <li>DNS, RPC firewall, time skew &gt;5min, lingering objects</li>
-            </ul>
+</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/key-diagnostic-commands-cont.webp" alt="Key Diagnostic Commands (cont.)" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="A console forcing replication and listing the pending queue and failures.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/key-diagnostic-commands-cont.webp" alt="A console forcing replication and listing the pending queue and failures.">
+                        <div class="ov-band ov-top"><span class="ov-title">Diagnostics: Act</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Force, inspect, and confirm.</strong> /syncall to push &middot; /queue for backlog &middot; Get-ADReplicationFailure for the list</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
-        <!-- Slide 10: SYSVOL Replication -->
+        <!-- SYSVOL Replication -->
         <div class="slide has-visual">
             <h2>SYSVOL Replication</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <p>SYSVOL contains Group Policy templates and scripts that must be synchronized across all DCs.</p>
-
-            <div class="two-column">
-                <div class="column">
-                    <h3>FRS (Legacy)</h3>
-                    <ul>
-                        <li>File Replication Service</li>
-                        <li>Used in Windows 2000/2003</li>
-                        <li>Single-master conflict resolution</li>
-                        <li>Deprecated - should migrate away</li>
-                    </ul>
-                </div>
-                <div class="column">
-                    <h3>DFS-R (Modern)</h3>
-                    <ul>
-                        <li>Distributed File System Replication</li>
-                        <li>Default since Windows Server 2008</li>
-                        <li>RDC for bandwidth efficiency</li>
-                        <li>Better conflict handling</li>
-                    </ul>
-                </div>
-            </div>
+<p>SYSVOL is the shared folder, present on every domain controller, that holds Group Policy templates and logon scripts. Because policy must be identical everywhere, SYSVOL has to replicate to all DCs, and it does so with its own engine separate from normal AD replication.</p>
+<p><strong>FRS, the legacy engine.</strong> The File Replication Service shipped with Windows 2000 and 2003. It replicates whole files, resolves conflicts with a crude single-master model, and is fragile at scale. FRS is deprecated and unsupported on modern Windows Server; any domain still using it should migrate.</p>
+<p><strong>DFS-R, the modern engine.</strong> Distributed File System Replication has been the default for SYSVOL since Windows Server 2008. It uses Remote Differential Compression to send only the changed blocks of a file, handles conflicts gracefully, and scales to large, multi-site environments. New domains use it automatically.</p>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/sysvol-replication.webp" alt="SYSVOL Replication" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="A SYSVOL folder syncing identically between two domain controllers.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/sysvol-replication.webp" alt="A SYSVOL folder syncing identically between two domain controllers.">
+                        <div class="ov-band ov-top"><span class="ov-title">SYSVOL Replication</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>SYSVOL carries GPOs + scripts to every DC.</strong> FRS (legacy) &rarr; DFS-R (modern, default since 2008)</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
+        <!-- SYSVOL Replication, Configuration -->
         <div class="slide has-visual">
+            <h2>SYSVOL Replication, Configuration</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <h2>SYSVOL Replication, Configuration</h2>
-                    <p>Before migrating from FRS, check whether your domain has already completed the migration to DFS-R by querying the global state.</p>
-            <div class="code-block">
-<span class="comment"># Check the current SYSVOL replication migration state</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">dfsrmig /getglobalstate</span>
-
-<span class="comment"># Verify all DCs have reached the target migration state</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">dfsrmig /getmigrationstate</span>
-            </div>
-                </div>
-                <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/sysvol-replication-configuration.webp" alt="SYSVOL Replication, Configuration" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
-                </div>
-                </div>
-        </div>
-
-        <div class="slide has-visual">
-            <div class="slide-content">
-                <div class="slide-text">
-                    <h2>SYSVOL Replication, Configuration (cont.)</h2>
-                    <p>Forcing AD polling ensures the DFS-R service picks up any recent configuration changes without waiting for the next automatic cycle.</p>
-            <div class="code-block">
-<span class="comment"># Force DFS-R to poll Active Directory for configuration changes</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">dfsrdiag pollad</span>
-            </div>
-
+<p>If you inherit a domain, the first SYSVOL question is which engine it actually uses and, if a migration is underway, how far it has progressed. The dfsrmig tool answers both before you touch anything.</p>
+<p><strong>The global state.</strong> <code>dfsrmig /getglobalstate</code> reports the migration target the domain is moving toward: Start (0), Prepared (1), Redirected (2), or Eliminated (3, FRS fully removed). It tells you the intended destination of the migration.</p>
+<p><strong>The per-DC state.</strong> <code>dfsrmig /getmigrationstate</code> confirms whether every domain controller has actually reached that target. A migration is only complete when all DCs report the same state as the global target; a single lagging DC blocks finalization.</p>
 <div class="code-block">
-<span class="comment"># Confirm the SYSVOL share exists and is accessible</span>
-<span class="prompt">PS C:\&gt;</span> <span class="command">Get-SmbShare -Name SYSVOL</span>
-            </div>
+<span class="comment"># Check the SYSVOL migration target, then per-DC progress</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">dfsrmig /getglobalstate</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">dfsrmig /getmigrationstate</span>
+</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/sysvol-replication-configuration-cont.webp" alt="SYSVOL Replication, Configuration (cont.)" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="A DFS-R engine between two DCs with a configuration panel and migration state readout.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/sysvol-replication-configuration.webp" alt="A DFS-R engine between two DCs with a configuration panel and migration state readout.">
+                        <div class="ov-band ov-top"><span class="ov-title">Check Migration State</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Know your state before you migrate.</strong> getglobalstate = target &middot; getmigrationstate = per-DC progress</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
-        <!-- Slide 11: Read-Only Domain Controllers (RODCs) -->
+        <!-- SYSVOL Replication, Configuration (cont.) -->
+        <div class="slide has-visual">
+            <h2>SYSVOL Replication, Configuration (cont.)</h2>
+            <div class="slide-content">
+                <div class="slide-text">
+<p>After a configuration change, DFS-R does not pick it up instantly; it polls Active Directory on a schedule. When you need the change applied now, force the poll and then confirm the share is healthy.</p>
+<p><strong>Forcing the poll.</strong> <code>dfsrdiag pollad</code> tells the DFS Replication service to read its configuration from AD immediately instead of waiting for the next automatic cycle. Run it on the DCs you just reconfigured so they converge without delay.</p>
+<p><strong>Confirming the share.</strong> The ultimate proof that SYSVOL replication is working is that the SYSVOL share exists and is accessible. <code>Get-SmbShare -Name SYSVOL</code> verifies the DC is actually advertising the share that clients and Group Policy depend on.</p>
+<div class="code-block">
+<span class="comment"># Force a config poll, then confirm the SYSVOL share is published</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">dfsrdiag pollad</span>
+<span class="prompt">PS C:\&gt;</span> <span class="command">Get-SmbShare -Name SYSVOL</span>
+</div>
+                </div>
+                <div class="slide-visual">
+                    <div class="visual-overlay-stage" aria-label="DFS-R polling Active Directory and the SYSVOL share confirmed available.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/sysvol-replication-configuration-cont.webp" alt="DFS-R polling Active Directory and the SYSVOL share confirmed available.">
+                        <div class="ov-band ov-top"><span class="ov-title">Verify SYSVOL</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Push config + confirm the share.</strong> dfsrdiag pollad = pick up changes now &middot; Get-SmbShare = SYSVOL is live</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Read-Only Domain Controllers -->
         <div class="slide has-visual">
             <h2>Read-Only Domain Controllers</h2>
             <div class="slide-content">
                 <div class="slide-text">
-                    <h3>RODC Characteristics</h3>
-            <ul>
-                <li>One-way replication, no AD changes</li>
-                <li>No passwords cached by default</li>
-                <li>Filtered attribute set for sensitive data</li>
-                <li>Best for branch / DMZ</li>
-            </ul>
-
-            <div class="code-block">
-<span class="comment"># Promote as RODC + allow branch passwords</span>
+<p>A Read-Only Domain Controller is a domain controller designed for locations you cannot fully secure, such as a branch office or a DMZ. It holds a copy of the directory but cannot be used to change it, which limits the damage if the box is stolen or compromised.</p>
+<p><strong>What makes it safe.</strong> Replication is one-way: an RODC pulls changes from writable DCs but never pushes, so a tampered RODC cannot poison the rest of AD. It caches no account passwords by default, and a filtered attribute set keeps designated sensitive attributes off the RODC entirely.</p>
+<p><strong>Selective password caching.</strong> To let branch users log on even when the WAN is down, you add their accounts to the RODC's Password Replication Policy allowed list, so only those passwords are cached locally. If the RODC is stolen, only that small, known set of credentials is at risk and can be reset.</p>
+<div class="code-block">
+<span class="comment"># Promote an RODC, then allow a branch group's passwords to cache</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Install-ADDSDomainController -DomainName "hexworth.local" -ReadOnlyReplica:$true -SiteName "Branch-Site"</span>
 <span class="prompt">PS C:\&gt;</span> <span class="command">Add-ADDomainControllerPasswordReplicationPolicy -Identity "RODC1" -AllowedList "Branch-Users"</span>
-            </div>
+</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/read-only-domain-controllers.webp" alt="Read-Only Domain Controllers" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="A branch RODC with a one-way read-only arrow, no outbound replication to HQ.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/read-only-domain-controllers.webp" alt="A branch RODC with a one-way read-only arrow, no outbound replication to HQ.">
+                        <div class="ov-band ov-top"><span class="ov-title">RODC</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>RODC = safe DC for risky locations.</strong> One-way replication &middot; no cached passwords by default &middot; filtered attribute set</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
-        <!-- Slide 12: Lab Preview -->
+        <!-- Lab Preview: AD Sites &amp; Replication -->
         <div class="slide has-visual">
-            <h2>Lab Preview: AD Sites & Replication</h2>
+            <h2>Lab Preview: AD Sites &amp; Replication</h2>
             <div class="slide-content">
                 <div class="slide-text">
-            <div class="two-column">
-                <div class="column">
-                    <h3>GUI Lab</h3>
-                    <ul>
-                        <li>Create sites, subnets, links</li>
-                        <li>View topology, force replication</li>
-                    </ul>
-                </div>
-                <div class="column">
-                    <h3>PowerShell Lab</h3>
-                    <ul>
-                        <li>New-ADReplicationSite + subnets</li>
-                        <li>Site links + repadmin</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div style="text-align: center; margin-top: 20px;">
-                <a href="cloud-guilab.module.html" class="lab-link">Start GUI Lab</a>
-                <a href="cloud-pslab.module.html" class="lab-link" style="margin-left: 15px; background: linear-gradient(135deg, #3b82f6, #60a5fa);">Start PowerShell Lab</a>
-            </div>
+<p>The labs put this module into your hands. You will build a multi-site topology from nothing and then verify replication actually follows the design you created, the same workflow you would run on a real network.</p>
+<p><strong>In the GUI lab</strong> you create sites, add subnets and associate them, build site links with tuned cost and schedule, view the resulting topology, and force replication to watch it converge.</p>
+<p><strong>In the PowerShell lab</strong> you script the same build with <code>New-ADReplicationSite</code>, the subnet and site-link cmdlets, then drive and verify replication with <code>repadmin</code>. Doing it both ways cements which knob lives where.</p>
+<div class="highlight-box"><strong>Goal:</strong> by the end you can stand up a site topology, map subnets correctly, tune replication across links, and diagnose a broken partner with repadmin and dcdiag.</div>
                 </div>
                 <div class="slide-visual">
-                    <img src="/assets/images/wsa-visuals/m15-ad-sites/lab-preview-ad-sites-replication.webp" alt="Lab Preview: AD Sites & Replication" style="width:100%; height:auto; max-height:100%; object-fit:contain; border-radius:6px;">
+                    <div class="visual-overlay-stage" aria-label="A lab workbench with a console and a multi-site topology hologram, ready to start.">
+                        <img src="/assets/images/wsa-visuals/m15-ad-sites/lab-preview-ad-sites-replication.webp" alt="A lab workbench with a console and a multi-site topology hologram, ready to start.">
+                        <div class="ov-band ov-top"><span class="ov-title">Lab Preview</span><span class="ov-tag">CTS1328C &middot; AZ-800</span></div>
+                        <div class="ov-band ov-bot"><span class="ov-cap"><strong>Build it, then prove it.</strong> GUI: sites, subnets, links, topology &nbsp;|&nbsp; PowerShell: scripted build + forced replication</span></div>
+                    </div>
                 </div>
-                </div>
+            </div>
         </div>
 
         <!-- Navigation -->
