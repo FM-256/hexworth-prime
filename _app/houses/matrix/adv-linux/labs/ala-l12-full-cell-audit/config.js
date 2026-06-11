@@ -742,6 +742,20 @@ const ALAL12Config = {
             return 'Usage: apt [install|update|remove] [packages]';
         },
 
+        // mv -- file move. The only walkthrough use is finalizing the AIDE
+        // baseline (aide.db.new -> aide.db); the doc states this sets the AIDE
+        // state. mv is not a Terminal.js builtin, so without this the documented
+        // `sudo mv ...` step prints "command not found". Silent success like real mv.
+        'mv': function(args, term, engine) {
+            const rest = args.filter(a => !a.startsWith('-'));
+            const dst = rest[rest.length - 1] || '';
+            if (dst.includes('aide.db')) {
+                engine.config._aideInstalled = true;
+                return '';
+            }
+            return '';
+        },
+
         // aide -- integrity check and initialization
         'aide': function(args, term, engine) {
             if (!engine.config._aideInstalled) {

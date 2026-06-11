@@ -540,11 +540,12 @@ const ALAL08Config = {
 
             const reportContent = lines.join('\n') + '\n';
 
-            // Write health report to filesystem
-            term.fs['/'].children.var.children.log.children[`health-${date}.txt`] = {
-                type: 'file',
-                content: reportContent
-            };
+            // Write health report to filesystem: the dated archive plus a stable
+            // health-report.txt "latest" copy (the walkthrough cats the latter, since
+            // $(date +%F) substitution is not expanded in this sandbox shell).
+            const reportNode = { type: 'file', content: reportContent };
+            term.fs['/'].children.var.children.log.children[`health-${date}.txt`] = reportNode;
+            term.fs['/'].children.var.children.log.children['health-report.txt'] = reportNode;
 
             engine.config._state.healthScriptRan = true;
             return reportContent;
