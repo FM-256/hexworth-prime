@@ -122,16 +122,28 @@ def md_to_storage(md):
         return "".join(html)
 
     def inline_md(s):
-        # Escape XML special chars first (but preserve already-encoded entities)
+        # Protect inline code spans FIRST so emphasis/link regexes never run inside
+        # them — otherwise `code` containing * or [..](..) (e.g. regexes) corrupts the
+        # XHTML (a stray <em>/<a> with no close → mismatched tag → 400 on publish).
+        code_spans = []
+        def _stash(m):
+            code_spans.append(m.group(1))
+            return f"\x00C{len(code_spans) - 1}\x00"
+        s = re.sub(r"`([^`]+)`", _stash, s)
+        # Escape XML special chars in the non-code text
         s = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        # Inline code: `code`
-        s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         # Bold: **text**
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         # Italic: *text* (lazy — match single asterisk pairs)
         s = re.sub(r"(?<![*])\*([^*\n]+)\*(?![*])", r"<em>\1</em>", s)
         # Links: [text](url)
         s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', s)
+        # Restore code spans, escaping their literal contents
+        def _restore(m):
+            c = code_spans[int(m.group(1))]
+            c = c.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            return f"<code>{c}</code>"
+        s = re.sub(r"\x00C(\d+)\x00", _restore, s)
         return s
 
     for line in md.split("\n"):
