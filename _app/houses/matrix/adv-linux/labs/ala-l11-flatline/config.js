@@ -293,6 +293,24 @@ const ALAL11Config = {
 
     commands: {
 
+        // sudo -- prefix stripper that re-dispatches to the underlying command.
+        // Mirrors ala-l01. The walkthrough prefixes crontab/systemctl/nano/logrotate
+        // steps with sudo; without this handler they hit Terminal.js's hostile
+        // built-in (~line 277) -> "Sorry, try again." ALL branches return a string.
+        'sudo': function(args, term, engine) {
+            if (args.length === 0) return 'usage: sudo <command> [args...]';
+            if (args[0] === '-v') return '';
+            if (args[0] === 'sudo') return 'sudo: sudo: command not found';
+            const realCmd = args[0];
+            const realArgs = args.slice(1);
+            const handler = engine.config.commands[realCmd];
+            if (typeof handler === 'function') {
+                const result = handler(realArgs, term, engine);
+                return result == null ? '' : result;
+            }
+            return `sudo: ${realCmd}: command not found`;
+        },
+
         // top -- process view, shows CPU spike from grid-index.sh
         'top': function(args, term, engine) {
             const bFlag = args.includes('-b') || args.includes('-bn1') || args.includes('-n');

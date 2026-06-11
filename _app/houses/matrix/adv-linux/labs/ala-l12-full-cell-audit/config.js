@@ -326,6 +326,25 @@ const ALAL12Config = {
 
     commands: {
 
+        // sudo -- prefix stripper that re-dispatches to the underlying command.
+        // Mirrors ala-l01. This audit lab's walkthrough prefixes most remediation
+        // (netplan/nano/ufw/systemctl/apt/aide/cat/crontab) with sudo; without this
+        // handler they hit Terminal.js's hostile built-in (~line 277). ALL branches
+        // return a string (empty string OK), never null.
+        'sudo': function(args, term, engine) {
+            if (args.length === 0) return 'usage: sudo <command> [args...]';
+            if (args[0] === '-v') return '';
+            if (args[0] === 'sudo') return 'sudo: sudo: command not found';
+            const realCmd = args[0];
+            const realArgs = args.slice(1);
+            const handler = engine.config.commands[realCmd];
+            if (typeof handler === 'function') {
+                const result = handler(realArgs, term, engine);
+                return result == null ? '' : result;
+            }
+            return `sudo: ${realCmd}: command not found`;
+        },
+
         // ip -- interface management
         'ip': function(args, term, engine) {
             const sub    = args[0] || '';

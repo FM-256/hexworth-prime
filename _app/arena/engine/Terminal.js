@@ -453,6 +453,26 @@ class TerminalInstance {
                 if (args[0] === '-c') return String(chars);
                 return `    ${lines}    ${words}    ${chars}`;
             }
+            case 'sort': {
+                // Supports -r (reverse), -n (numeric), -h (human sizes: 4.2G > 892M).
+                // Flags may be combined, e.g. `sort -rh` (used by `du -h | sort -rh`).
+                const flags = args.filter(a => a.startsWith('-')).join('');
+                const reverse = flags.includes('r');
+                const human = flags.includes('h');
+                const numeric = flags.includes('n');
+                const sizeToBytes = (s) => {
+                    const m = String(s).trim().match(/^([\d.]+)\s*([KMGT])?/i);
+                    if (!m) return -Infinity;
+                    const mult = { K: 1e3, M: 1e6, G: 1e9, T: 1e12 }[(m[2] || '').toUpperCase()] || 1;
+                    return parseFloat(m[1]) * mult;
+                };
+                let lines = (stdin || '').split('\n').filter(l => l.length > 0);
+                if (human) lines.sort((a, b) => sizeToBytes(a) - sizeToBytes(b));
+                else if (numeric) lines.sort((a, b) => parseFloat(a) - parseFloat(b));
+                else lines.sort();
+                if (reverse) lines.reverse();
+                return lines.join('\n');
+            }
         }
 
         // Unknown command in a pipeline — error out
