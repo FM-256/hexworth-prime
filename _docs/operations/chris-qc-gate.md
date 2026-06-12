@@ -54,9 +54,11 @@ Chris is in the mandatory-gate family with Nancy (`adversarial-reviewer`), Karl,
 
 Chris judges; he never edits.
 
-## Future enforcement (not yet wired)
+## Enforcement (wired into deploy.sh)
 
-Agent-gate is live now. A harder enforcement option (deferred, operator decision): add a pre-deploy check in `deploy.sh` that requires a recorded Chris PASS for content/feature deploys, the way the smoke gate and Nexus gate work. Until then, Chris is enforced by the mandatory-gate rule, not mechanically.
+Both layers are live:
+- **Agent-gate** — the mandatory-gate rule: dispatch `chris` before presenting/shipping substantive work.
+- **Deploy gate (`deploy.sh` Gate 1.5)** — a hosting deploy requires a recorded Chris PASS matching the current HEAD. After the `chris` subagent returns PASS, record it with `_tools/deploy/record-chris-pass.sh "<scope>"` (writes `_tools/deploy/.chris-pass` with the commit SHA). A missing or stale marker blocks the deploy with guidance. Bypass for a trivial change with `./deploy.sh --skip-chris --skip-chris-reason "<text>"` (audit-logged to `_tools/deploy/chris-skip-audit.log`). Defense-in-depth, NOT a security boundary (same philosophy as the deploy-in-progress lock).
 
 ## Related
 
