@@ -67,6 +67,7 @@ cd _tools/nexus && node nexus.js status                # QC health across all to
 
 | Document | Lines | Covers |
 |----------|-------|--------|
+| [chris-qc-gate.md](operations/chris-qc-gate.md) | — | **Chris** — mandatory Purpose + Quality-Bar QC gate. Before presenting/shipping substantive operator-facing work, the `chris` subagent forces concrete answers to what is it FOR / what's the bar / does it meet it WITH EVIDENCE, and defaults to BLOCK. Sibling to Nancy/Karl/Bridget; distinct lane (purpose+bar of finished work). Agent at `~/.claude/agents/chris.md` |
 | [box-qc-protocol.md](operations/box-qc-protocol.md) | — | **How to QC a CTF/box lab** — replay the walkthrough verbatim through the live engine; two gates (flags + command response); command-extraction failure modes; recurring lab-defect catalog; Terminal.js engine constraints; sync/ship + honesty rules. From the ALA sweep 2026-06-10/11 |
 | [ala-walkthrough-command-qc-2026-06-11.md](operations/ala-walkthrough-command-qc-2026-06-11.md) | 593 | Command-response QC report for all 13 ALA labs — per-lab command→engine-response transcript, 45/45 flags, 0 error steps; example of the box-qc-protocol report deliverable |
 | [gap-analysis.md](operations/gap-analysis.md) | 747 | Cross-house content gaps, missing modules, incomplete tracks, priority backfill list |
