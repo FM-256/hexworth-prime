@@ -3,6 +3,7 @@
 #
 # Gates (in order, cheapest to most expensive):
 #   1. Branch check    : must be on master (CLAUDE.md Rule #10) — no override
+#   1.5 Chris gate     : recorded Chris purpose+bar QC PASS must match HEAD — --skip-chris bypass (with reason)
 #   2. Nexus gate      : static-analysis quality scan — --force bypass
 #   3. Smoke gate      : real-browser pre-render check (Puppeteer) — --skip-smoke bypass
 #   4. firebase deploy --only hosting
@@ -19,6 +20,9 @@
 #   ./deploy.sh --skip-indexnow     Skip IndexNow ping (Bing/Yandex/etc. notification)
 #   ./deploy.sh --skip-post-verify --skip-post-verify-reason "<text>"
 #                                   Skip post-verify (audit-logged with reason)
+#   ./deploy.sh --skip-chris --skip-chris-reason "<text>"
+#                                   Skip Chris quality gate for a trivial change (audit-logged)
+#   (Record a Chris PASS after the 'chris' subagent approves: _tools/deploy/record-chris-pass.sh "<scope>")
 #   ./deploy.sh --force --skip-smoke   Skip BOTH gates (explicit, audit-trail-friendly)
 #
 # Branch check is hard-fail by design — for non-master deploys, use:
@@ -56,10 +60,18 @@ SKIP_INDEXNOW=false
 SKIP_POST_VERIFY=false
 SKIP_POST_VERIFY_REASON=""   # initialized for set -u safety
 SKIP_POST_VERIFY_NEXT=false
+SKIP_CHRIS=false
+SKIP_CHRIS_REASON=""         # initialized for set -u safety
+SKIP_CHRIS_NEXT=false
 for arg in "$@"; do
     if [[ "$SKIP_POST_VERIFY_NEXT" == "true" ]]; then
         SKIP_POST_VERIFY_REASON="$arg"
         SKIP_POST_VERIFY_NEXT=false
+        continue
+    fi
+    if [[ "$SKIP_CHRIS_NEXT" == "true" ]]; then
+        SKIP_CHRIS_REASON="$arg"
+        SKIP_CHRIS_NEXT=false
         continue
     fi
     case "$arg" in
@@ -70,6 +82,8 @@ for arg in "$@"; do
         --skip-indexnow)            SKIP_INDEXNOW=true ;;
         --skip-post-verify)         SKIP_POST_VERIFY=true ;;
         --skip-post-verify-reason)  SKIP_POST_VERIFY_NEXT=true ;;
+        --skip-chris)               SKIP_CHRIS=true ;;
+        --skip-chris-reason)        SKIP_CHRIS_NEXT=true ;;
         *)                          echo -e "${RED}Unknown flag: $arg${NC}"; exit 1 ;;
     esac
 done
@@ -87,6 +101,18 @@ if [[ "$SKIP_POST_VERIFY" == "true" && -z "$SKIP_POST_VERIFY_REASON" ]]; then
     echo -e "${RED}--skip-post-verify requires --skip-post-verify-reason \"<text>\" for audit trail${NC}"
     exit 1
 fi
+if [[ "$SKIP_CHRIS_NEXT" == "true" ]]; then
+    echo -e "${RED}--skip-chris-reason requires a value (e.g., --skip-chris-reason \"<text>\")${NC}"
+    exit 1
+fi
+if [[ -n "$SKIP_CHRIS_REASON" && "$SKIP_CHRIS" == "false" ]]; then
+    echo -e "${RED}--skip-chris-reason supplied without --skip-chris; the reason would be silently swallowed.${NC}"
+    exit 1
+fi
+if [[ "$SKIP_CHRIS" == "true" && -z "$SKIP_CHRIS_REASON" ]]; then
+    echo -e "${RED}--skip-chris requires --skip-chris-reason \"<text>\" for audit trail${NC}"
+    exit 1
+fi
 
 # ── Gate 1: Branch check (no override) ───────────────────────────────
 echo -e "${BOLD}[1/7]${NC} Branch safety check..."
@@ -102,6 +128,37 @@ if [ "$CURRENT_BRANCH" != "master" ]; then
 fi
 echo -e "${GREEN}✓${NC} on master"
 echo ""
+
+# ── Gate 1.5: Chris quality gate (purpose+bar PASS recorded for this HEAD) ──
+# Defense-in-depth, NOT a security boundary (same philosophy as the deploy lock):
+# requires a recorded Chris PASS matching the current commit before a hosting
+# deploy of student-facing content/features. Record one after the 'chris' subagent
+# returns PASS:  _tools/deploy/record-chris-pass.sh "<scope>"
+CHRIS_MARKER="$SCRIPT_DIR/_tools/deploy/.chris-pass"
+if [ "$SKIP_CHRIS" = true ]; then
+    echo -e "${BOLD}[1.5/7]${NC} Chris gate ${YELLOW}[SKIPPED]${NC} — reason: $SKIP_CHRIS_REASON"
+    mkdir -p "$SCRIPT_DIR/_tools/deploy"
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) SKIP-CHRIS $(git rev-parse --short HEAD) :: $SKIP_CHRIS_REASON" \
+        >> "$SCRIPT_DIR/_tools/deploy/chris-skip-audit.log"
+    echo ""
+else
+    echo -e "${BOLD}[1.5/7]${NC} Chris quality gate..."
+    HEAD_SHA="$(git rev-parse HEAD)"
+    if [ -f "$CHRIS_MARKER" ] && grep -q "$HEAD_SHA" "$CHRIS_MARKER"; then
+        echo -e "${GREEN}✓${NC} Chris PASS recorded for HEAD ($(git rev-parse --short HEAD))"
+        echo ""
+    else
+        echo ""
+        echo -e "${RED}DEPLOY BLOCKED${NC}: no Chris PASS recorded for HEAD ($(git rev-parse --short HEAD))"
+        echo ""
+        echo "Substantive content/feature deploys require a Chris quality-gate PASS."
+        echo "Dispatch the 'chris' subagent on the work; on PASS, record it:"
+        echo "  _tools/deploy/record-chris-pass.sh \"<scope>\""
+        echo "For a trivial change that does not need Chris:"
+        echo "  ./deploy.sh --skip-chris --skip-chris-reason \"<text>\""
+        exit 1
+    fi
+fi
 
 # ── Gate 2: Nexus static-analysis gate ───────────────────────────────
 if [ "$FORCE" = true ]; then
