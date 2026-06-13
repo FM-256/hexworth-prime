@@ -443,7 +443,31 @@
             <button class="ph-pill" data-filter="time" data-value="medium">Medium</button>
             <button class="ph-pill" data-filter="time" data-value="long">Long</button>
         </div>
+        <div class="ph-filter-sep"></div>
+        <div class="ph-filter-group">
+            <span class="ph-filter-label">Career Path</span>
+            <!-- Populated at runtime from CareerPaths (only paths that have >=1 project, so no empty results) -->
+            <select class="ph-career-select" id="phCareerSelect" aria-label="Filter projects by career path">
+                <option value="all">All Paths</option>
+            </select>
+        </div>
     </div>
+
+    <!-- Career-path bridge styles (P3b): filter dropdown + per-card career chips -->
+    <style>
+        .ph-career-select {
+            background: #0f1729; color: #cbd5e1; border: 1px solid #334155;
+            border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 0.85rem;
+            cursor: pointer; outline: none; max-width: 240px;
+        }
+        .ph-career-select:focus { border-color: #8b5cf6; }
+        .ph-card-careers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .ph-career-chip {
+            font-size: 0.68rem; letter-spacing: 0.02em; padding: 2px 9px; border-radius: 999px;
+            background: rgba(139,92,246,0.12); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.28);
+            white-space: nowrap;
+        }
+    </style>
 
     <!-- Sections container -->
     <div class="ph-sections" id="phSections"></div>
@@ -456,12 +480,14 @@
     <!-- Footer -->
     <div class="ph-footer">HEXWORTH PRIME &mdash; PROJECTS v1.0</div>
 
+    <script src="../career/CareerPaths.js"></script>
     <script src="ProjectsData.js"></script>
     <script>
     (function() {
         // State
         let activeDiff = 'all';
         let activeTime = 'all';
+        let activeCareer = 'all';   // selected career-path id, or 'all' (P3b bridge)
 
         // Time buckets
         function timeBucket(min) {
@@ -576,6 +602,9 @@
                     card.dataset.time = timeBucket(proj.minutes);
                     card.dataset.house = houseId;
                     card.dataset.id = proj.id;
+                    // P3b: career-path tags drive the career filter + the per-card chips below.
+                    const careers = proj.careerRoles || [];
+                    card.dataset.careers = careers.join(',');
 
                     const linked = hasPage.has(proj.id);
                     if (linked) card.style.cursor = 'pointer';
@@ -588,7 +617,12 @@
                             '<span class="ph-badge" style="background:' + diff.color + '18;color:' + diff.color + ';border:1px solid ' + diff.color + '30">' + diff.label + '</span>' +
                             '<span class="ph-card-time"><img src="/assets/images/icons/icon-clock.webp" alt="">' + fmtTime(proj.minutes) + '</span>' +
                             '<span class="ph-card-xp" style="color:' + house.primary + '">' + proj.xp.toLocaleString() + ' XP</span>' +
-                        '</div>';
+                        '</div>' +
+                        // P3b: "careers this prepares you for" chips (project -> career direction); only for tagged projects.
+                        (careers.length ? '<div class="ph-card-careers">' + careers.map(function(rid) {
+                            var p = (typeof CareerPaths !== 'undefined') ? CareerPaths.get(rid) : null;
+                            return '<span class="ph-career-chip">' + (p ? p.name : rid) + '</span>';
+                        }).join('') + '</div>' : '');
 
                     // Click to open project page
                     if (linked) {
@@ -617,6 +651,28 @@
             });
         }
 
+        // P3b: populate the Career Path dropdown from CareerPaths, grouped, including ONLY paths
+        // that have >=1 tagged project (so a selection never yields an empty catalog).
+        function buildCareerFilter() {
+            const sel = document.getElementById('phCareerSelect');
+            if (!sel || typeof CareerPaths === 'undefined') return;
+            CareerPaths.groups.forEach(function(group) {
+                const paths = CareerPaths.getByGroup(group).filter(function(p) {
+                    return ProjectsData.getByCareerRole(p.id).length > 0;
+                });
+                if (!paths.length) return;
+                const og = document.createElement('optgroup');
+                og.label = group;
+                paths.forEach(function(p) {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    og.appendChild(opt);
+                });
+                sel.appendChild(og);
+            });
+        }
+
         // Filter logic
         function applyFilters() {
             const sections = document.querySelectorAll('.ph-section');
@@ -629,7 +685,9 @@
                 cards.forEach(card => {
                     const matchDiff = activeDiff === 'all' || card.dataset.difficulty === activeDiff;
                     const matchTime = activeTime === 'all' || card.dataset.time === activeTime;
-                    const show = matchDiff && matchTime;
+                    // Career match: activeCareer is 'all' or a real path id; untagged cards (careers='') never match a path.
+                    const matchCareer = activeCareer === 'all' || (card.dataset.careers || '').split(',').indexOf(activeCareer) !== -1;
+                    const show = matchDiff && matchTime && matchCareer;
                     card.style.display = show ? '' : 'none';
                     if (show) sectionVisible++;
                 });
@@ -676,8 +734,18 @@
             applyFilters();
         });
 
+        // P3b: Career Path dropdown handler (career -> projects direction).
+        const careerSelect = document.getElementById('phCareerSelect');
+        if (careerSelect) {
+            careerSelect.addEventListener('change', function() {
+                activeCareer = this.value;
+                applyFilters();
+            });
+        }
+
         // Init
         buildSections();
+        buildCareerFilter();
         updateStats(ProjectsData.getCount());
     })();
     </script>
