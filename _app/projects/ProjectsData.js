@@ -135,41 +135,41 @@ const ProjectsData = {
     // -------------------------------------------------------------------------
     projects: [
         // ── "My First..." Starter Series (18 projects) ──
-        { id: 'starter-first-webpage',   house: 'web',        title: 'My First Web Page',    description: 'Create your very first web page from scratch using HTML and CSS.',                                    difficulty: 'beginner', minutes: 30, xp: 250, careerRoles: ['software-developer'] },
-        { id: 'starter-first-app',       house: 'code',       title: 'My First App',         description: 'Build your first Python application — a personal quiz game that asks questions and keeps score.',     difficulty: 'beginner', minutes: 30, xp: 250, careerRoles: ['software-developer'] },
-        { id: 'starter-first-gui',       house: 'code',       title: 'My First GUI',         description: 'Build your first graphical application using Python and tkinter — a click counter with buttons.',     difficulty: 'beginner', minutes: 45, xp: 250, careerRoles: ['software-developer'] },
-        { id: 'starter-first-api',       house: 'code',       title: 'My First API',         description: 'Build your first web API with Python and Flask — create endpoints that return data and accept input.',difficulty: 'beginner', minutes: 30, xp: 250, careerRoles: ['software-developer'] },
-        { id: 'starter-first-database',  house: 'code',       title: 'My First Database',    description: 'Create your first database, write SQL queries, and build a Python app that stores real data.',         difficulty: 'beginner', minutes: 45, xp: 250, careerRoles: ['software-developer'] },
-        { id: 'starter-first-script',    house: 'script',     title: 'My First Script',      description: 'Write your first Bash script that organizes messy files into folders automatically.',                  difficulty: 'beginner', minutes: 30, xp: 250, careerRoles: ['sysadmin', 'devops-engineer'] },
-        { id: 'starter-first-server',    house: 'cloud',      title: 'My First Server',      description: 'Spin up your first virtual machine, connect via SSH, and serve your first web page.',                 difficulty: 'beginner', minutes: 45, xp: 250, careerRoles: ['cloud-engineer', 'sysadmin'] },
-        { id: 'starter-first-container', house: 'cloud',      title: 'My First Container',   description: 'Run your first Docker container, build your first image, and understand why containers matter.',      difficulty: 'beginner', minutes: 30, xp: 250, careerRoles: ['cloud-engineer', 'devops-engineer'] },
-        { id: 'starter-first-network',   house: 'web',        title: 'My First Network',     description: 'Discover your own network — find your IP, trace a route, and understand how data travels.',           difficulty: 'beginner', minutes: 30, xp: 250, careerRoles: ['network-engineer'] },
-        { id: 'starter-first-hack',      house: 'dark-arts',  title: 'My First Hack',        description: 'Complete your first ethical hacking challenge — scan, find, exploit, and capture the flag.',          difficulty: 'beginner', minutes: 45, xp: 250, careerRoles: ['penetration-tester'] },
-        { id: 'starter-first-firewall',  house: 'shield',     title: 'My First Firewall',    description: 'Configure your first firewall rules — block traffic, allow services, and learn network defense.',     difficulty: 'beginner', minutes: 30, xp: 250, careerRoles: ['soc-analyst'] },
-        { id: 'starter-first-scan',      house: 'eye',        title: 'My First Scan',        description: 'Use Nmap to scan your own network — discover hosts, identify services, see through a hacker\'s eyes.',difficulty: 'beginner', minutes: 30, xp: 250, careerRoles: ['penetration-tester', 'soc-analyst'] },
-        { id: 'starter-first-bot',       house: 'divergent',  title: 'My First Bot',         description: 'Build your first Discord bot that responds to commands, tells jokes, and runs in your server.',       difficulty: 'beginner', minutes: 45, xp: 250, careerRoles: ['software-developer'] },
-        { id: 'starter-first-pipeline',  house: 'code',       title: 'My First Pipeline',    description: 'Set up your first CI/CD pipeline with GitHub Actions — every push automatically tests your code.',    difficulty: 'beginner', minutes: 30, xp: 250, careerRoles: ['devops-engineer'] },
-        { id: 'starter-first-agent',     house: 'ai',         title: 'My First Agent',       description: 'Build your first AI agent in Copilot Studio — an adaptive Level 1-5 path from a talking study assistant to an autonomous operations agent.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio'], skills: ['AI agents', 'prompt design', 'tool use', 'grounding'], prerequisites: [], careerRoles: ['ai-engineer', 'devops-engineer'] },
-        { id: 'starter-first-workflow',  house: 'ai',         title: 'My First Workflow',    description: 'Build your first automated workflow in Power Automate — grow one Help-Desk Intake flow across an adaptive Level 1-5 path: trigger, branching, AI, approvals, scheduled ops.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Power Automate'], skills: ['workflow automation', 'triggers', 'branching', 'approvals'], prerequisites: [], careerRoles: ['devops-engineer', 'ai-engineer'] },
-        { id: 'starter-first-knowledge-base', house: 'ai',    title: 'My First Knowledge Base', description: 'Build your first knowledge base in Copilot Studio — grow one Help-Desk KB across an adaptive Level 1-5 path: ingest, organize, retrieval quality, citations and grounding guardrails, freshness. Learn how RAG grounds an AI in your sources.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio'], skills: ['RAG', 'retrieval', 'grounding', 'knowledge management'], prerequisites: [], careerRoles: ['ai-engineer'] },
-        { id: 'starter-first-tool',      house: 'ai',         title: 'My First Tool',        description: 'Turn an agent from a talker into a doer — build one tool it can call and grow it across an adaptive Level 1-5 path: call a built-in action, wrap your own flow, input/output schemas, auth and guardrails, errors/retries/observability. The bridge between My First Agent and My First Workflow.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['function calling', 'custom connectors', 'API integration', 'auth and secrets'], prerequisites: ['starter-first-workflow'], careerRoles: ['ai-engineer'] },
+        { id: 'starter-first-webpage',   house: 'web',        title: 'My First Web Page',    description: 'Create your very first web page from scratch using HTML and CSS.',                                    difficulty: 'beginner', minutes: 30, xp: 250, phases: 4, careerRoles: ['software-developer'] },
+        { id: 'starter-first-app',       house: 'code',       title: 'My First App',         description: 'Build your first Python application — a personal quiz game that asks questions and keeps score.',     difficulty: 'beginner', minutes: 30, xp: 250, phases: 4, careerRoles: ['software-developer'] },
+        { id: 'starter-first-gui',       house: 'code',       title: 'My First GUI',         description: 'Build your first graphical application using Python and tkinter — a click counter with buttons.',     difficulty: 'beginner', minutes: 45, xp: 250, phases: 4, careerRoles: ['software-developer'] },
+        { id: 'starter-first-api',       house: 'code',       title: 'My First API',         description: 'Build your first web API with Python and Flask — create endpoints that return data and accept input.',difficulty: 'beginner', minutes: 30, xp: 250, phases: 4, careerRoles: ['software-developer'] },
+        { id: 'starter-first-database',  house: 'code',       title: 'My First Database',    description: 'Create your first database, write SQL queries, and build a Python app that stores real data.',         difficulty: 'beginner', minutes: 45, xp: 250, phases: 4, careerRoles: ['software-developer'] },
+        { id: 'starter-first-script',    house: 'script',     title: 'My First Script',      description: 'Write your first Bash script that organizes messy files into folders automatically.',                  difficulty: 'beginner', minutes: 30, xp: 250, phases: 4, careerRoles: ['sysadmin', 'devops-engineer'] },
+        { id: 'starter-first-server',    house: 'cloud',      title: 'My First Server',      description: 'Spin up your first virtual machine, connect via SSH, and serve your first web page.',                 difficulty: 'beginner', minutes: 45, xp: 250, phases: 4, careerRoles: ['cloud-engineer', 'sysadmin'] },
+        { id: 'starter-first-container', house: 'cloud',      title: 'My First Container',   description: 'Run your first Docker container, build your first image, and understand why containers matter.',      difficulty: 'beginner', minutes: 30, xp: 250, phases: 4, careerRoles: ['cloud-engineer', 'devops-engineer'] },
+        { id: 'starter-first-network',   house: 'web',        title: 'My First Network',     description: 'Discover your own network — find your IP, trace a route, and understand how data travels.',           difficulty: 'beginner', minutes: 30, xp: 250, phases: 4, careerRoles: ['network-engineer'] },
+        { id: 'starter-first-hack',      house: 'dark-arts',  title: 'My First Hack',        description: 'Complete your first ethical hacking challenge — scan, find, exploit, and capture the flag.',          difficulty: 'beginner', minutes: 45, xp: 250, phases: 4, careerRoles: ['penetration-tester'] },
+        { id: 'starter-first-firewall',  house: 'shield',     title: 'My First Firewall',    description: 'Configure your first firewall rules — block traffic, allow services, and learn network defense.',     difficulty: 'beginner', minutes: 30, xp: 250, phases: 4, careerRoles: ['soc-analyst'] },
+        { id: 'starter-first-scan',      house: 'eye',        title: 'My First Scan',        description: 'Use Nmap to scan your own network — discover hosts, identify services, see through a hacker\'s eyes.',difficulty: 'beginner', minutes: 30, xp: 250, phases: 4, careerRoles: ['penetration-tester', 'soc-analyst'] },
+        { id: 'starter-first-bot',       house: 'divergent',  title: 'My First Bot',         description: 'Build your first Discord bot that responds to commands, tells jokes, and runs in your server.',       difficulty: 'beginner', minutes: 45, xp: 250, phases: 4, careerRoles: ['software-developer'] },
+        { id: 'starter-first-pipeline',  house: 'code',       title: 'My First Pipeline',    description: 'Set up your first CI/CD pipeline with GitHub Actions — every push automatically tests your code.',    difficulty: 'beginner', minutes: 30, xp: 250, phases: 4, careerRoles: ['devops-engineer'] },
+        { id: 'starter-first-agent',     house: 'ai',         title: 'My First Agent',       description: 'Build your first AI agent in Copilot Studio — an adaptive Level 1-5 path from a talking study assistant to an autonomous operations agent.', difficulty: 'beginner', minutes: 30, xp: 250, phases: 5, technologies: ['Microsoft Copilot Studio'], skills: ['AI agents', 'prompt design', 'tool use', 'grounding'], prerequisites: [], careerRoles: ['ai-engineer', 'devops-engineer'] },
+        { id: 'starter-first-workflow',  house: 'ai',         title: 'My First Workflow',    description: 'Build your first automated workflow in Power Automate — grow one Help-Desk Intake flow across an adaptive Level 1-5 path: trigger, branching, AI, approvals, scheduled ops.', difficulty: 'beginner', minutes: 30, xp: 250, phases: 5, technologies: ['Power Automate'], skills: ['workflow automation', 'triggers', 'branching', 'approvals'], prerequisites: [], careerRoles: ['devops-engineer', 'ai-engineer'] },
+        { id: 'starter-first-knowledge-base', house: 'ai',    title: 'My First Knowledge Base', description: 'Build your first knowledge base in Copilot Studio — grow one Help-Desk KB across an adaptive Level 1-5 path: ingest, organize, retrieval quality, citations and grounding guardrails, freshness. Learn how RAG grounds an AI in your sources.', difficulty: 'beginner', minutes: 30, xp: 250, phases: 5, technologies: ['Microsoft Copilot Studio'], skills: ['RAG', 'retrieval', 'grounding', 'knowledge management'], prerequisites: [], careerRoles: ['ai-engineer'] },
+        { id: 'starter-first-tool',      house: 'ai',         title: 'My First Tool',        description: 'Turn an agent from a talker into a doer — build one tool it can call and grow it across an adaptive Level 1-5 path: call a built-in action, wrap your own flow, input/output schemas, auth and guardrails, errors/retries/observability. The bridge between My First Agent and My First Workflow.', difficulty: 'beginner', minutes: 30, xp: 250, phases: 5, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['function calling', 'custom connectors', 'API integration', 'auth and secrets'], prerequisites: ['starter-first-workflow'], careerRoles: ['ai-engineer'] },
 
         // ── AI Series Capstone (advanced — assembles the four "My First" AI rungs into one system) ──
-        { id: 'ai-build-your-department', house: 'ai',        title: 'Build Your First Department', description: 'The AI series capstone — assemble the Agent, Workflow, Knowledge Base, and Tool you built into one self-running Help-Desk Department. Learn multi-agent orchestration across a Level 1-5 integration ladder: assemble the team, route the work, hand-offs and shared context, supervision and guardrails, operate and improve.', difficulty: 'advanced', minutes: 60, xp: 1000, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['multi-agent orchestration', 'routing', 'supervision', 'observability'], prerequisites: ['starter-first-agent', 'starter-first-workflow', 'starter-first-knowledge-base', 'starter-first-tool'], careerRoles: ['ai-engineer'] },
+        { id: 'ai-build-your-department', house: 'ai',        title: 'Build Your First Department', description: 'The AI series capstone — assemble the Agent, Workflow, Knowledge Base, and Tool you built into one self-running Help-Desk Department. Learn multi-agent orchestration across a Level 1-5 integration ladder: assemble the team, route the work, hand-offs and shared context, supervision and guardrails, operate and improve.', difficulty: 'advanced', minutes: 60, xp: 1000, phases: 5, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['multi-agent orchestration', 'routing', 'supervision', 'observability'], prerequisites: ['starter-first-agent', 'starter-first-workflow', 'starter-first-knowledge-base', 'starter-first-tool'], careerRoles: ['ai-engineer'] },
 
         // ── Foundations & Setup (first VM / cloud / git / lab — registered 2026-06-13; XP preserved from each page, to be reconciled under the unified ladder at P6) ──
-        { id: 'cloud-ec2-first-server',  house: 'cloud',      title: 'Launch Your First EC2 Instance', description: 'Launch your first AWS EC2 virtual server, connect over SSH, and serve a web page from the cloud.', difficulty: 'beginner', minutes: 60, xp: 250, careerRoles: ['cloud-engineer'] },
-        { id: 'cloud-oracle-free-vm',    house: 'cloud',      title: 'Spin Up a Free Oracle Cloud VM', description: 'Provision an always-free Oracle Cloud compute VM, connect via SSH, and run your first cloud workload at no cost.', difficulty: 'beginner', minutes: 45, xp: 200, careerRoles: ['cloud-engineer'] },
-        { id: 'cloud-s3-static-site',    house: 'cloud',      title: 'Host a Static Website on AWS S3', description: 'Host a static website on AWS S3 — create a bucket, upload your site, and serve it publicly over the web.', difficulty: 'beginner', minutes: 45, xp: 200, careerRoles: ['cloud-engineer'] },
-        { id: 'darkarts-kali-setup',     house: 'dark-arts',  title: 'Set Up Your Kali Linux Attack VM', description: 'Build your first Kali Linux attack VM — install, configure, and verify the offensive-security toolkit in a safe, isolated lab.', difficulty: 'beginner', minutes: 60, xp: 200, careerRoles: ['penetration-tester'] },
-        { id: 'forge-home-lab',          house: 'forge',      title: 'Build a 3-VM Home Lab', description: 'Build a 3-VM home lab on an isolated network — router, server, and client — the foundation for hands-on security practice.', difficulty: 'journeyman', minutes: 180, xp: 500, careerRoles: ['sysadmin'] },
-        { id: 'forge-virtualbox-first-vm', house: 'forge',    title: 'Create Your First Virtual Machine', description: 'Create your first virtual machine in VirtualBox — install a guest OS, configure resources, and take your first snapshot.', difficulty: 'beginner', minutes: 60, xp: 200, careerRoles: ['sysadmin'] },
-        { id: 'forge-vmware-first-vm',   house: 'forge',      title: 'Build a VM with VMware Workstation', description: 'Build your first virtual machine in VMware Workstation — install a guest OS, configure networking, and manage snapshots.', difficulty: 'beginner', minutes: 60, xp: 200, careerRoles: ['sysadmin'] },
-        { id: 'shield-firewall-iptables', house: 'shield',    title: 'Build a Firewall with iptables', description: 'Build a working Linux firewall with iptables — write rules to allow services, block traffic, and defend a host.', difficulty: 'beginner', minutes: 60, xp: 250, careerRoles: ['soc-analyst'] },
-        { id: 'starter-calculator',      house: 'code',       title: 'Build a Calculator App', description: 'Build your first calculator app — handle user input, perform arithmetic, and manage operations and errors.', difficulty: 'beginner', minutes: 60, xp: 200, careerRoles: ['software-developer'] },
-        { id: 'starter-first-repo',      house: 'code',       title: 'Your First Git Repository', description: 'Create your first Git repository — initialize, commit, branch, and push your code to GitHub.', difficulty: 'beginner', minutes: 30, xp: 100, careerRoles: ['software-developer'] },
-        { id: 'starter-github-profile',  house: 'code',       title: 'Create Your GitHub Profile README', description: 'Create a standout GitHub profile README — the special repository that introduces you to the developer world.', difficulty: 'beginner', minutes: 30, xp: 100, careerRoles: ['software-developer'] },
-        { id: 'starter-portfolio-site',  house: 'web',        title: 'Build a Portfolio Website with GitHub Pages', description: 'Build and publish a personal portfolio website for free with GitHub Pages — show your projects to the world.', difficulty: 'beginner', minutes: 120, xp: 300, careerRoles: ['software-developer'] },
+        { id: 'cloud-ec2-first-server',  house: 'cloud',      title: 'Launch Your First EC2 Instance', description: 'Launch your first AWS EC2 virtual server, connect over SSH, and serve a web page from the cloud.', difficulty: 'beginner', minutes: 60, xp: 250, phases: 5, careerRoles: ['cloud-engineer'] },
+        { id: 'cloud-oracle-free-vm',    house: 'cloud',      title: 'Spin Up a Free Oracle Cloud VM', description: 'Provision an always-free Oracle Cloud compute VM, connect via SSH, and run your first cloud workload at no cost.', difficulty: 'beginner', minutes: 45, xp: 200, phases: 5, careerRoles: ['cloud-engineer'] },
+        { id: 'cloud-s3-static-site',    house: 'cloud',      title: 'Host a Static Website on AWS S3', description: 'Host a static website on AWS S3 — create a bucket, upload your site, and serve it publicly over the web.', difficulty: 'beginner', minutes: 45, xp: 200, phases: 5, careerRoles: ['cloud-engineer'] },
+        { id: 'darkarts-kali-setup',     house: 'dark-arts',  title: 'Set Up Your Kali Linux Attack VM', description: 'Build your first Kali Linux attack VM — install, configure, and verify the offensive-security toolkit in a safe, isolated lab.', difficulty: 'beginner', minutes: 60, xp: 200, phases: 5, careerRoles: ['penetration-tester'] },
+        { id: 'forge-home-lab',          house: 'forge',      title: 'Build a 3-VM Home Lab', description: 'Build a 3-VM home lab on an isolated network — router, server, and client — the foundation for hands-on security practice.', difficulty: 'journeyman', minutes: 180, xp: 500, phases: 5, careerRoles: ['sysadmin'] },
+        { id: 'forge-virtualbox-first-vm', house: 'forge',    title: 'Create Your First Virtual Machine', description: 'Create your first virtual machine in VirtualBox — install a guest OS, configure resources, and take your first snapshot.', difficulty: 'beginner', minutes: 60, xp: 200, phases: 5, careerRoles: ['sysadmin'] },
+        { id: 'forge-vmware-first-vm',   house: 'forge',      title: 'Build a VM with VMware Workstation', description: 'Build your first virtual machine in VMware Workstation — install a guest OS, configure networking, and manage snapshots.', difficulty: 'beginner', minutes: 60, xp: 200, phases: 5, careerRoles: ['sysadmin'] },
+        { id: 'shield-firewall-iptables', house: 'shield',    title: 'Build a Firewall with iptables', description: 'Build a working Linux firewall with iptables — write rules to allow services, block traffic, and defend a host.', difficulty: 'beginner', minutes: 60, xp: 250, phases: 5, careerRoles: ['soc-analyst'] },
+        { id: 'starter-calculator',      house: 'code',       title: 'Build a Calculator App', description: 'Build your first calculator app — handle user input, perform arithmetic, and manage operations and errors.', difficulty: 'beginner', minutes: 60, xp: 200, phases: 5, careerRoles: ['software-developer'] },
+        { id: 'starter-first-repo',      house: 'code',       title: 'Your First Git Repository', description: 'Create your first Git repository — initialize, commit, branch, and push your code to GitHub.', difficulty: 'beginner', minutes: 30, xp: 100, phases: 5, careerRoles: ['software-developer'] },
+        { id: 'starter-github-profile',  house: 'code',       title: 'Create Your GitHub Profile README', description: 'Create a standout GitHub profile README — the special repository that introduces you to the developer world.', difficulty: 'beginner', minutes: 30, xp: 100, phases: 5, careerRoles: ['software-developer'] },
+        { id: 'starter-portfolio-site',  house: 'web',        title: 'Build a Portfolio Website with GitHub Pages', description: 'Build and publish a personal portfolio website for free with GitHub Pages — show your projects to the world.', difficulty: 'beginner', minutes: 120, xp: 300, phases: 5, careerRoles: ['software-developer'] },
 
         // ── Featured Projects ──
         {
@@ -179,7 +179,7 @@ const ProjectsData = {
             description: 'Design, build, and launch a faceless YouTube channel from scratch — from niche selection and AI-powered content creation to SEO optimization and monetization strategy.',
             difficulty: 'advanced',
             minutes: 180,
-            xp: 1000, careerRoles: ['ai-engineer']
+            xp: 1000, phases: 6, careerRoles: ['ai-engineer']
         },
         {
             id: 'script-system-monitor',
@@ -188,7 +188,7 @@ const ProjectsData = {
             description: 'Create a live-updating terminal dashboard that displays CPU, memory, disk, and process stats using pure Bash scripting.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250, careerRoles: ['devops-engineer', 'sysadmin']
+            xp: 250, phases: 5, careerRoles: ['devops-engineer', 'sysadmin']
         },
         {
             id: 'shield-log-analyzer',
@@ -197,7 +197,7 @@ const ProjectsData = {
             description: 'Parse and correlate security logs from multiple sources to detect suspicious patterns and generate incident summaries.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['soc-analyst']
+            xp: 500, phases: 5, careerRoles: ['soc-analyst']
         },
         {
             id: 'darkarts-port-scanner',
@@ -242,7 +242,7 @@ const ProjectsData = {
             description: 'Render interactive network maps from device data, showing connections, traffic flow, and node status in real time.',
             difficulty: 'journeyman',
             minutes: 120,
-            xp: 500, careerRoles: ['network-engineer']
+            xp: 500, phases: 5, careerRoles: ['network-engineer']
         },
         {
             id: 'cloud-container-checker',
@@ -251,7 +251,7 @@ const ProjectsData = {
             description: 'Monitor Docker containers for health status, resource usage, and restart policies with alerting and dashboards.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['cloud-engineer', 'devops-engineer']
+            xp: 500, phases: 5, careerRoles: ['cloud-engineer', 'devops-engineer']
         },
         {
             id: 'key-password-vault',
@@ -260,7 +260,7 @@ const ProjectsData = {
             description: 'Create an encrypted password manager with AES-256 encryption, master key derivation, and secure clipboard integration.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['security-architect', 'appsec-engineer']
+            xp: 1000, phases: 5, careerRoles: ['security-architect', 'appsec-engineer']
         },
         {
             id: 'ai-threat-classifier',
@@ -269,7 +269,7 @@ const ProjectsData = {
             description: 'Train a classifier that categorizes security alerts by severity, type, and recommended response using ML techniques.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['ai-engineer', 'soc-analyst']
+            xp: 500, phases: 5, careerRoles: ['ai-engineer', 'soc-analyst']
         },
         {
             id: 'matrix-packet-visualizer',
@@ -278,7 +278,7 @@ const ProjectsData = {
             description: 'Capture and visualize network packets in real time, decoding headers and displaying protocol hierarchies.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['soc-analyst', 'data-analyst']
+            xp: 1000, phases: 5, careerRoles: ['soc-analyst', 'data-analyst']
         },
         {
             id: 'divergent-multi-tool',
@@ -298,7 +298,7 @@ const ProjectsData = {
             description: 'Transform a headless Raspberry Pi into an autonomous automation hub with cron jobs, GPIO triggers, health monitoring, and alert notifications.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250, careerRoles: ['sysadmin', 'devops-engineer']
+            xp: 250, phases: 5, careerRoles: ['sysadmin', 'devops-engineer']
         },
         {
             id: 'web-pi-network-probe',
@@ -307,7 +307,7 @@ const ProjectsData = {
             description: 'Deploy a Raspberry Pi as a network monitoring station with ping sweeps, port checks, uptime logging, and a live Flask dashboard.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['network-engineer', 'sysadmin']
+            xp: 500, phases: 5, careerRoles: ['network-engineer', 'sysadmin']
         },
         {
             id: 'cloud-pi-homelab',
@@ -325,7 +325,7 @@ const ProjectsData = {
             description: 'Deploy a Raspberry Pi as a passive intrusion detection system using Suricata with custom alert dashboards and automated iptables blocking.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['soc-analyst']
+            xp: 1000, phases: 5, careerRoles: ['soc-analyst']
         },
 
         // ── Hardware Projects: ELEGOO Mega R3 Kit ────────────────────────────
@@ -363,7 +363,7 @@ const ProjectsData = {
             description: 'Build a two-factor access control system with RFID badge scanning, keypad PIN entry, servo door lock, LCD status, and brute-force lockout.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['hardware-engineer', 'security-architect']
+            xp: 500, phases: 5, careerRoles: ['hardware-engineer', 'security-architect']
         },
 
         // ── Hardware Projects: ESP32 CYD (Cheap Yellow Display) ──────────────
@@ -383,7 +383,7 @@ const ProjectsData = {
             description: 'Capture raw 802.11 frames in promiscuous mode on an ESP32 CYD, classify packet types, and render real-time traffic graphs with channel hopping.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['soc-analyst', 'data-analyst']
+            xp: 1000, phases: 5, careerRoles: ['soc-analyst', 'data-analyst']
         },
         {
             id: 'ai-network-anomaly',
@@ -392,7 +392,7 @@ const ProjectsData = {
             description: 'Monitor WiFi environments on an ESP32 CYD, fingerprint devices, detect anomalies like new devices and deauth floods, and log trends to microSD.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['ai-engineer', 'soc-analyst']
+            xp: 1000, phases: 5, careerRoles: ['ai-engineer', 'soc-analyst']
         },
         {
             id: 'divergent-field-terminal',
@@ -421,7 +421,7 @@ const ProjectsData = {
             description: 'Wire PIR motion and reed switch sensors into an arm/disarm alarm system with distinct buzzer patterns and timestamped serial event logs.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250, careerRoles: ['hardware-engineer', 'soc-analyst']
+            xp: 250, phases: 5, careerRoles: ['hardware-engineer', 'soc-analyst']
         },
         {
             id: 'script-data-logger',
@@ -430,7 +430,7 @@ const ProjectsData = {
             description: 'Log timestamped sensor readings to an SD card as CSV with an RTC module, then visualize the data with a Python matplotlib script.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250, careerRoles: ['hardware-engineer', 'data-analyst']
+            xp: 250, phases: 5, careerRoles: ['hardware-engineer', 'data-analyst']
         },
         {
             id: 'code-arduino-pipeline',
@@ -468,7 +468,7 @@ const ProjectsData = {
             description: 'Containerize a Flask app with Docker, write Kubernetes manifests, deploy with kubectl, and manage scaling, health checks, and rolling updates.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['devops-engineer', 'cloud-engineer']
+            xp: 1000, phases: 5, careerRoles: ['devops-engineer', 'cloud-engineer']
         },
         {
             id: 'cloud-terraform-infra',
@@ -486,7 +486,7 @@ const ProjectsData = {
             description: 'Deploy a production API with Nginx as reverse proxy. Configure SSL termination, rate limiting, caching, load balancing, and security headers.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['devops-engineer', 'cloud-engineer']
+            xp: 500, phases: 5, careerRoles: ['devops-engineer', 'cloud-engineer']
         },
         {
             id: 'ai-rag-chatbot',
@@ -495,7 +495,7 @@ const ProjectsData = {
             description: 'Build a Retrieval-Augmented Generation chatbot using LangChain and vector databases. Index documents, embed queries, and generate accurate responses.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['ai-engineer']
+            xp: 500, phases: 5, careerRoles: ['ai-engineer']
         },
         {
             id: 'ai-intrusion-detector',
@@ -504,7 +504,7 @@ const ProjectsData = {
             description: 'Train machine learning classifiers on network traffic datasets to detect intrusions. Compare Random Forest, SVM, and neural network approaches.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['ai-engineer', 'soc-analyst']
+            xp: 500, phases: 6, careerRoles: ['ai-engineer', 'soc-analyst']
         },
         {
             id: 'ai-research-agent',
@@ -513,7 +513,7 @@ const ProjectsData = {
             description: 'Build an autonomous research agent that searches the web, summarizes findings, and generates reports using CrewAI and LangChain orchestration.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['ai-engineer']
+            xp: 1000, phases: 5, careerRoles: ['ai-engineer']
         },
         {
             id: 'darkarts-metasploit',
@@ -540,7 +540,7 @@ const ProjectsData = {
             description: 'Extract data from APIs and files, transform with Python and pandas, load into SQLite, and schedule with cron. Includes error handling and logging.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['data-analyst', 'devops-engineer']
+            xp: 500, phases: 5, careerRoles: ['data-analyst', 'devops-engineer']
         },
         {
             id: 'script-github-actions',
@@ -549,7 +549,7 @@ const ProjectsData = {
             description: 'Create custom GitHub Actions in Bash and Python. Automate code scanning, TODO tracking, deployment notifications, and CI/CD workflows.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['devops-engineer']
+            xp: 500, phases: 5, careerRoles: ['devops-engineer']
         },
         {
             id: 'matrix-data-viz',
@@ -558,7 +558,7 @@ const ProjectsData = {
             description: 'Analyze datasets with pandas, create publication-quality visualizations with matplotlib and seaborn, and build interactive charts for data exploration.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250, careerRoles: ['data-analyst']
+            xp: 250, phases: 5, careerRoles: ['data-analyst']
         },
         {
             id: 'matrix-time-series',
@@ -567,7 +567,7 @@ const ProjectsData = {
             description: 'Forecast trends using LSTM neural networks. Preprocess time-series data, build sequence models, evaluate predictions, and deploy with Flask.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['data-analyst', 'ai-engineer']
+            xp: 1000, phases: 5, careerRoles: ['data-analyst', 'ai-engineer']
         },
         {
             id: 'web-rest-api',
@@ -576,7 +576,7 @@ const ProjectsData = {
             description: 'Design and build a RESTful API with Express.js and MongoDB. Implement authentication, RBAC, file uploads, pagination, and structured error handling.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['software-developer']
+            xp: 500, phases: 5, careerRoles: ['software-developer']
         },
         {
             id: 'key-blockchain',
@@ -594,7 +594,7 @@ const ProjectsData = {
             description: 'Train a machine learning model to classify network traffic as normal or malicious. Build a real-time detection pipeline with alerting and dashboards.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['soc-analyst', 'ai-engineer']
+            xp: 1000, phases: 5, careerRoles: ['soc-analyst', 'ai-engineer']
         },
         {
             id: 'eye-selenium-testing',
@@ -650,7 +650,7 @@ const ProjectsData = {
             description: 'Build a professional portfolio site with HTML5 and CSS3 featuring responsive grid layout, parallax hero, project showcase, contact form, and theme toggle.',
             difficulty: 'beginner',
             minutes: 45,
-            xp: 250, careerRoles: ['software-developer']
+            xp: 250, phases: 5, careerRoles: ['software-developer']
         },
         {
             id: 'web-react-router',
@@ -659,7 +659,7 @@ const ProjectsData = {
             description: 'Build a dynamic product catalog using React Router with nested routes, URL parameters, search/filter, product detail pages, and shopping cart state.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['software-developer']
+            xp: 500, phases: 6, careerRoles: ['software-developer']
         },
         {
             id: 'cloud-budget-fern',
@@ -668,7 +668,7 @@ const ProjectsData = {
             description: 'Build a real-time budget app using Firebase, Express, React, and Node.js with authentication, transaction CRUD, category budgets, and spending charts.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['software-developer', 'cloud-engineer']
+            xp: 500, phases: 6, careerRoles: ['software-developer', 'cloud-engineer']
         },
         {
             id: 'cloud-django-eks',
@@ -677,7 +677,7 @@ const ProjectsData = {
             description: 'Deploy a Django application on Amazon EKS using Docker, Kubernetes manifests, AWS CLI, EKS cluster management, load balancers, and rolling deployments.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['devops-engineer', 'cloud-engineer']
+            xp: 1000, phases: 6, careerRoles: ['devops-engineer', 'cloud-engineer']
         },
         {
             id: 'ai-explainable-ml',
@@ -686,7 +686,7 @@ const ProjectsData = {
             description: 'Use explainable AI to interpret ML models with SHAP values, LIME, and feature importance. Compare Logistic Regression, Random Forest, and Neural Networks.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['ai-engineer', 'data-analyst']
+            xp: 1000, phases: 5, careerRoles: ['ai-engineer', 'data-analyst']
         },
         {
             id: 'ai-reinforcement-taxi',
@@ -695,7 +695,7 @@ const ProjectsData = {
             description: 'Train a reinforcement learning agent using Q-learning and SARSA. Implement reward shaping, epsilon-greedy exploration, and convergence analysis.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['ai-engineer']
+            xp: 500, phases: 5, careerRoles: ['ai-engineer']
         },
         {
             id: 'ai-music-generation',
@@ -704,7 +704,7 @@ const ProjectsData = {
             description: 'Generate original music using AudioCraft and neural audio synthesis. Customize genre, tempo, and instrumentation through prompt engineering.',
             difficulty: 'beginner',
             minutes: 45,
-            xp: 250, careerRoles: ['ai-engineer']
+            xp: 250, phases: 5, careerRoles: ['ai-engineer']
         },
         {
             id: 'matrix-sentiment-nlp',
@@ -713,7 +713,7 @@ const ProjectsData = {
             description: 'Apply NLP for sentiment analysis using VADER and Gensim. Process social media text, build word embeddings, classify polarity, and visualize trends.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['data-analyst', 'ai-engineer']
+            xp: 500, phases: 5, careerRoles: ['data-analyst', 'ai-engineer']
         },
         {
             id: 'matrix-climate-analysis',
@@ -722,7 +722,7 @@ const ProjectsData = {
             description: 'Explore climate change impacts through data analysis and weather forecasting. Apply prediction techniques, time-series decomposition, and interactive visualizations.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['data-analyst']
+            xp: 500, phases: 5, careerRoles: ['data-analyst']
         },
         {
             id: 'matrix-customer-segmentation',
@@ -731,7 +731,7 @@ const ProjectsData = {
             description: 'Implement k-means clustering for customer segmentation. Analyze purchase patterns, optimize cluster count with elbow method, and visualize segment profiles.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['data-analyst', 'ai-engineer']
+            xp: 500, phases: 5, careerRoles: ['data-analyst', 'ai-engineer']
         },
         {
             id: 'darkarts-web-scraping',
@@ -749,7 +749,7 @@ const ProjectsData = {
             description: 'Build a Python pipeline that extracts YouTube transcripts via API, tokenizes text with NLTK, applies extractive summarization, and generates concise summaries.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['software-developer', 'data-analyst']
+            xp: 500, phases: 5, careerRoles: ['software-developer', 'data-analyst']
         },
         {
             id: 'script-web-crawler',
@@ -758,7 +758,7 @@ const ProjectsData = {
             description: 'Build a Node.js web crawler using Cheerio for HTML parsing. Implement BFS URL discovery, respect robots.txt, extract structured data, and export results.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250, careerRoles: ['software-developer']
+            xp: 250, phases: 5, careerRoles: ['software-developer']
         },
         {
             id: 'key-nft-marketplace',
@@ -767,7 +767,7 @@ const ProjectsData = {
             description: 'Develop an Ethereum NFT marketplace using Solidity and Hardhat. Implement ERC-721 minting, listing, trading, and a React frontend with MetaMask integration.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['software-developer', 'appsec-engineer']
+            xp: 1000, phases: 6, careerRoles: ['software-developer', 'appsec-engineer']
         },
         {
             id: 'key-secure-doc-storage',
@@ -776,7 +776,7 @@ const ProjectsData = {
             description: 'Build a blockchain-based document storage system with hash verification, on-chain authenticity proofs, access control lists, and tamper-proof audit trails.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['security-architect', 'software-developer']
+            xp: 1000, phases: 6, careerRoles: ['security-architect', 'software-developer']
         },
         {
             id: 'shield-fake-news',
@@ -785,7 +785,7 @@ const ProjectsData = {
             description: 'Build a fake news detector with Scikit-learn. Train on labeled datasets, implement TF-IDF features, compare Naive Bayes vs SVM classifiers, and evaluate accuracy.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['ai-engineer']
+            xp: 500, phases: 6, careerRoles: ['ai-engineer']
         },
         {
             id: 'eye-playwright-testing',
@@ -841,7 +841,7 @@ const ProjectsData = {
             description: 'Build an e-learning website with Flask and SQLAlchemy featuring course catalog, search, user enrollment, progress tracking, and responsive Bootstrap design.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['software-developer']
+            xp: 500, phases: 5, careerRoles: ['software-developer']
         },
         {
             id: 'cloud-helm-charts',
@@ -850,7 +850,7 @@ const ProjectsData = {
             description: 'Create and publish Helm charts for Kubernetes. Write templates with values.yaml, implement dependencies, test with helm lint, and publish to Artifact Hub.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000, careerRoles: ['devops-engineer']
+            xp: 1000, phases: 6, careerRoles: ['devops-engineer']
         },
         {
             id: 'cloud-aws-vpc',
@@ -859,7 +859,7 @@ const ProjectsData = {
             description: 'Learn AWS networking by building a VPC with subnets, security groups, NACLs, route tables, internet gateway, and NAT gateway for secure architecture.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['cloud-security-engineer', 'cloud-engineer']
+            xp: 500, phases: 6, careerRoles: ['cloud-security-engineer', 'cloud-engineer']
         },
         {
             id: 'cloud-serverless-django',
@@ -877,7 +877,7 @@ const ProjectsData = {
             description: 'Build an AI chatbot with Rasa. Create training data, define intents and entities, build conversation flows, train the NLU pipeline, and deploy with Flask.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['ai-engineer']
+            xp: 500, phases: 5, careerRoles: ['ai-engineer']
         },
         {
             id: 'ai-face-detection',
@@ -886,7 +886,7 @@ const ProjectsData = {
             description: 'Implement face detection using Dlib and DNN in OpenCV. Build HOG and SSD detectors, benchmark accuracy and speed, and visualize bounding boxes.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250, careerRoles: ['ai-engineer']
+            xp: 250, phases: 5, careerRoles: ['ai-engineer']
         },
         {
             id: 'ai-data-augmentation',
@@ -895,7 +895,7 @@ const ProjectsData = {
             description: 'Enhance ML model performance with data augmentation using OpenCV, TensorFlow, and imgaug. Apply rotation, flipping, color jitter, noise, and cutout transforms.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['ai-engineer', 'data-analyst']
+            xp: 500, phases: 5, careerRoles: ['ai-engineer', 'data-analyst']
         },
         {
             id: 'matrix-plotly-viz',
@@ -904,7 +904,7 @@ const ProjectsData = {
             description: 'Build interactive visualizations with Plotly.js featuring histograms, pie charts, scatter plots, 3D surfaces, animated transitions, and drill-down tooltips.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250, careerRoles: ['data-analyst']
+            xp: 250, phases: 5, careerRoles: ['data-analyst']
         },
         {
             id: 'matrix-stock-analysis',
@@ -913,7 +913,7 @@ const ProjectsData = {
             description: 'Explore stock market trends with Python using candlestick charts, moving averages, volume analysis, correlation heatmaps, and predictive modeling.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['data-analyst']
+            xp: 500, phases: 6, careerRoles: ['data-analyst']
         },
         {
             id: 'matrix-kafka-streaming',
@@ -922,7 +922,7 @@ const ProjectsData = {
             description: 'Build a real-time streaming pipeline with Apache Kafka. Implement producers, consumers, topic partitioning, event processing, and live visualization.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500, careerRoles: ['data-analyst', 'devops-engineer']
+            xp: 500, phases: 5, careerRoles: ['data-analyst', 'devops-engineer']
         },
         {
             id: 'key-brownie-contracts',
@@ -931,7 +931,7 @@ const ProjectsData = {
             description: 'Develop and deploy Ethereum smart contracts using Brownie with Solidity. Write tests, deployment scripts, and interact via Python console on testnet.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['software-developer', 'appsec-engineer']
+            xp: 500, phases: 5, careerRoles: ['software-developer', 'appsec-engineer']
         },
         {
             id: 'shield-aws-cognito',
@@ -940,7 +940,7 @@ const ProjectsData = {
             description: 'Implement user authentication with AWS Cognito. Configure user pools, identity pools, MFA, OAuth flows, JWT validation, and role-based access control.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['cloud-security-engineer', 'appsec-engineer']
+            xp: 500, phases: 5, careerRoles: ['cloud-security-engineer', 'appsec-engineer']
         },
         {
             id: 'darkarts-puppeteer',
@@ -958,7 +958,7 @@ const ProjectsData = {
             description: 'Create a data pipeline with Python using Kedro and hvPlot. Implement ingestion, transformation nodes, DAG execution, and an interactive dashboard.',
             difficulty: 'journeyman',
             minutes: 60,
-            xp: 500, careerRoles: ['data-analyst', 'devops-engineer']
+            xp: 500, phases: 5, careerRoles: ['data-analyst', 'devops-engineer']
         },
         {
             id: 'eye-pytorch-onnx',

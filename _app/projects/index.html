@@ -462,6 +462,9 @@
         }
         .ph-career-select:focus { border-color: #8b5cf6; }
         .ph-card-careers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .ph-card-progress { margin-top: 8px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.03em; }
+        .ph-card-progress.is-complete { color: #4ade80; }
+        .ph-card-progress.is-progress { color: #fbbf24; }
         .ph-career-chip {
             font-size: 0.68rem; letter-spacing: 0.02em; padding: 2px 9px; border-radius: 999px;
             background: rgba(139,92,246,0.12); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.28);
@@ -482,6 +485,9 @@
 
     <script src="../career/CareerPaths.js"></script>
     <script src="ProjectsData.js"></script>
+    <!-- P4b: Firebase auth + cross-device progress sync (index-visit model) -->
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="ProjectsProgressSync.js"></script>
     <script>
     (function() {
         // State
@@ -561,7 +567,9 @@
                         (careers.length ? '<div class="ph-card-careers">' + careers.map(function(rid) {
                             var p = (typeof CareerPaths !== 'undefined') ? CareerPaths.get(rid) : null;
                             return '<span class="ph-career-chip">' + (p ? p.name : rid) + '</span>';
-                        }).join('') + '</div>' : '');
+                        }).join('') + '</div>' : '') +
+                        // P4b: progress badge slot (filled by renderProgress from localStorage); only for projects with phases.
+                        (proj.phases ? '<div class="ph-card-progress" data-pid="' + proj.id + '" data-phases="' + proj.phases + '"></div>' : '');
 
                     // Click to open project page
                     if (linked) {
@@ -611,6 +619,28 @@
                 sel.appendChild(og);
             });
         }
+
+        // P4b: render per-project progress badges from the per-page localStorage trackers
+        // (hex_project_<id> = {phase:bool}). Runs at init (local) and again after the cloud
+        // sync merges remote progress. Untagged/no-phase projects get no badge.
+        function renderProgress() {
+            document.querySelectorAll('.ph-card-progress[data-phases]').forEach(function(el) {
+                var total = parseInt(el.dataset.phases, 10) || 0;
+                if (!total) return;
+                var done = 0;
+                try {
+                    var st = JSON.parse(localStorage.getItem('hex_project_' + el.dataset.pid)) || {};
+                    // Count only numeric phase keys so stray metadata can't inflate the count.
+                    for (var k in st) { if (/^\d+$/.test(k) && st[k]) done++; }
+                } catch (e) { done = 0; }
+                // ASCII-only labels (no glyphs — EduScan no-emoji); color conveys state.
+                if (done <= 0) { el.textContent = ''; el.className = 'ph-card-progress'; }
+                else if (done >= total) { el.textContent = 'Completed'; el.className = 'ph-card-progress is-complete'; }
+                else { el.textContent = done + ' / ' + total + ' phases'; el.className = 'ph-card-progress is-progress'; }
+            });
+        }
+        // ProjectsProgressSync calls this after it merges cloud progress into localStorage.
+        window.__hexProjectsProgressChanged = renderProgress;
 
         // Filter logic
         function applyFilters() {
@@ -685,6 +715,7 @@
         // Init
         buildSections();
         buildCareerFilter();
+        renderProgress();
         updateStats(ProjectsData.getCount());
     })();
     </script>
