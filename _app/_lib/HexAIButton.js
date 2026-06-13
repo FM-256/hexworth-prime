@@ -57,6 +57,9 @@ class HexAIButton extends HTMLElement {
         this._previousState = null;
         this._authUser = null;
         this._chatPanel = null;
+        // True while an admin demo has manually previewed a state; suppresses
+        // visibilitychange-triggered server refetches so the preview isn't clobbered.
+        this._previewActive = false;
     }
 
     connectedCallback() {
@@ -205,7 +208,9 @@ class HexAIButton extends HTMLElement {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' &&
                 Date.now() - lastRefetch > 30000 &&
-                this._authUser && this._missionId) {
+                this._authUser && this._missionId &&
+                // Don't clobber a manually-previewed state (admin demo) on tab regain.
+                !this._previewActive) {
                 lastRefetch = Date.now();
                 this._fetchState();
             }
@@ -213,6 +218,8 @@ class HexAIButton extends HTMLElement {
     }
 
     async _fetchState() {
+        // A real server fetch always exits preview mode — the live state wins.
+        this._previewActive = false;
         try {
             const result = await ambientStateFn({
                 mission_id: this._missionId,
@@ -256,6 +263,32 @@ class HexAIButton extends HTMLElement {
         this._state = data.state;
         // Store the suggested prompt for the chat panel to pre-fill
         this._suggestedPrompt = data.suggested_prompt;
+    }
+
+    // previewState(state) — ADMIN/DEMO helper only. Applies a mood-ring state
+    // directly, bypassing the server ambient classifier and its time-windowed
+    // priority (celebrating masks all states for 60s; active/insistent are blocked
+    // for 20min after any capture), so the admin demo can show each emotion on
+    // demand. Gated behind the `preview-mode` attribute, which only the admin demo
+    // sets — a no-op on the 2,400+ student lab pages, so an accidental/injected
+    // call can't make Dr. Hex misreport a student's real state. Real state always
+    // comes from _fetchState(); any server fetch clears _previewActive and wins.
+    previewState(state) {
+        if (!this.hasAttribute('preview-mode')) return;
+        // Keep in sync with STATE_CONFIG in functions/hex-ai-state-classifier.js
+        const PREVIEW = {
+            calm:        { color: '#67e8f9', pulse_ms: 0,    suggested_prompt: 'Ask me anything about this lab' },
+            noticing:    { color: '#fbbf24', pulse_ms: 4000, suggested_prompt: 'Hint?' },
+            active:      { color: '#fb923c', pulse_ms: 2000, suggested_prompt: 'Want a hint on what to try next?' },
+            insistent:   { color: '#ef4444', pulse_ms: 700,  suggested_prompt: "Let's pair on this — click here" },
+            celebrating: { color: '#a78bfa', pulse_ms: 1500, suggested_prompt: 'Nice — onto the next?' },
+        };
+        const cfg = PREVIEW[state];
+        if (!cfg) return;
+        // Suppress visibilitychange refetch (see _bindEvents) so a tab-regain
+        // during a live demo can't overwrite the previewed state.
+        this._previewActive = true;
+        this._applyState({ state, ...cfg });
     }
 
     _openChat() {
