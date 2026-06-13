@@ -4,10 +4,21 @@
  * Central data store for all house projects. Each house has one capstone
  * project with difficulty, estimated time, and XP reward.
  *
+ * Each project: { id, house, title, description, difficulty, minutes, xp }.
+ * Optional enrichment fields (P2, additive — absent on un-backfilled projects):
+ *   technologies: string[]   — tech stack shown on the card / used for filtering
+ *   skills:       string[]   — competencies the project builds
+ *   prerequisites:string[]   — project ids that should be done first (mission-chain graph)
+ *   careerRoles:  string[]   — career-role ids this project maps to (vocab finalized in P3)
+ *   (unlocks is NOT stored — it is the computed inverse of prerequisites, via getUnlocks)
+ *
  * Usage:
  *   ProjectsData.get('script-system-monitor')
  *   ProjectsData.getByHouse('shield')
  *   ProjectsData.getByDifficulty('beginner')
+ *   ProjectsData.getByTechnology('Power Automate')
+ *   ProjectsData.getPrerequisites('ai-build-your-department')
+ *   ProjectsData.getUnlocks('starter-first-workflow')
  */
 
 const ProjectsData = {
@@ -134,13 +145,13 @@ const ProjectsData = {
         { id: 'starter-first-scan',      house: 'eye',        title: 'My First Scan',        description: 'Use Nmap to scan your own network — discover hosts, identify services, see through a hacker\'s eyes.',difficulty: 'beginner', minutes: 30, xp: 250 },
         { id: 'starter-first-bot',       house: 'divergent',  title: 'My First Bot',         description: 'Build your first Discord bot that responds to commands, tells jokes, and runs in your server.',       difficulty: 'beginner', minutes: 45, xp: 250 },
         { id: 'starter-first-pipeline',  house: 'code',       title: 'My First Pipeline',    description: 'Set up your first CI/CD pipeline with GitHub Actions — every push automatically tests your code.',    difficulty: 'beginner', minutes: 30, xp: 250 },
-        { id: 'starter-first-agent',     house: 'ai',         title: 'My First Agent',       description: 'Build your first AI agent in Copilot Studio — an adaptive Level 1-5 path from a talking study assistant to an autonomous operations agent.', difficulty: 'beginner', minutes: 30, xp: 250 },
-        { id: 'starter-first-workflow',  house: 'ai',         title: 'My First Workflow',    description: 'Build your first automated workflow in Power Automate — grow one Help-Desk Intake flow across an adaptive Level 1-5 path: trigger, branching, AI, approvals, scheduled ops.', difficulty: 'beginner', minutes: 30, xp: 250 },
-        { id: 'starter-first-knowledge-base', house: 'ai',    title: 'My First Knowledge Base', description: 'Build your first knowledge base in Copilot Studio — grow one Help-Desk KB across an adaptive Level 1-5 path: ingest, organize, retrieval quality, citations and grounding guardrails, freshness. Learn how RAG grounds an AI in your sources.', difficulty: 'beginner', minutes: 30, xp: 250 },
-        { id: 'starter-first-tool',      house: 'ai',         title: 'My First Tool',        description: 'Turn an agent from a talker into a doer — build one tool it can call and grow it across an adaptive Level 1-5 path: call a built-in action, wrap your own flow, input/output schemas, auth and guardrails, errors/retries/observability. The bridge between My First Agent and My First Workflow.', difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-agent',     house: 'ai',         title: 'My First Agent',       description: 'Build your first AI agent in Copilot Studio — an adaptive Level 1-5 path from a talking study assistant to an autonomous operations agent.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio'], skills: ['AI agents', 'prompt design', 'tool use', 'grounding'], prerequisites: [], careerRoles: ['ai-engineer', 'automation-specialist'] },
+        { id: 'starter-first-workflow',  house: 'ai',         title: 'My First Workflow',    description: 'Build your first automated workflow in Power Automate — grow one Help-Desk Intake flow across an adaptive Level 1-5 path: trigger, branching, AI, approvals, scheduled ops.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Power Automate'], skills: ['workflow automation', 'triggers', 'branching', 'approvals'], prerequisites: [], careerRoles: ['automation-specialist', 'ai-engineer'] },
+        { id: 'starter-first-knowledge-base', house: 'ai',    title: 'My First Knowledge Base', description: 'Build your first knowledge base in Copilot Studio — grow one Help-Desk KB across an adaptive Level 1-5 path: ingest, organize, retrieval quality, citations and grounding guardrails, freshness. Learn how RAG grounds an AI in your sources.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio'], skills: ['RAG', 'retrieval', 'grounding', 'knowledge management'], prerequisites: [], careerRoles: ['ai-engineer'] },
+        { id: 'starter-first-tool',      house: 'ai',         title: 'My First Tool',        description: 'Turn an agent from a talker into a doer — build one tool it can call and grow it across an adaptive Level 1-5 path: call a built-in action, wrap your own flow, input/output schemas, auth and guardrails, errors/retries/observability. The bridge between My First Agent and My First Workflow.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['function calling', 'custom connectors', 'API integration', 'auth and secrets'], prerequisites: ['starter-first-workflow'], careerRoles: ['ai-engineer'] },
 
         // ── AI Series Capstone (advanced — assembles the four "My First" AI rungs into one system) ──
-        { id: 'ai-build-your-department', house: 'ai',        title: 'Build Your First Department', description: 'The AI series capstone — assemble the Agent, Workflow, Knowledge Base, and Tool you built into one self-running Help-Desk Department. Learn multi-agent orchestration across a Level 1-5 integration ladder: assemble the team, route the work, hand-offs and shared context, supervision and guardrails, operate and improve.', difficulty: 'advanced', minutes: 60, xp: 1000 },
+        { id: 'ai-build-your-department', house: 'ai',        title: 'Build Your First Department', description: 'The AI series capstone — assemble the Agent, Workflow, Knowledge Base, and Tool you built into one self-running Help-Desk Department. Learn multi-agent orchestration across a Level 1-5 integration ladder: assemble the team, route the work, hand-offs and shared context, supervision and guardrails, operate and improve.', difficulty: 'advanced', minutes: 60, xp: 1000, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['multi-agent orchestration', 'routing', 'supervision', 'observability'], prerequisites: ['starter-first-agent', 'starter-first-workflow', 'starter-first-knowledge-base', 'starter-first-tool'], careerRoles: ['ai-engineer', 'ai-solutions-architect'] },
 
         // ── Foundations & Setup (first VM / cloud / git / lab — registered 2026-06-13; XP preserved from each page, to be reconciled under the unified ladder at P6) ──
         { id: 'cloud-ec2-first-server',  house: 'cloud',      title: 'Launch Your First EC2 Instance', description: 'Launch your first AWS EC2 virtual server, connect over SSH, and serve a web page from the cloud.', difficulty: 'beginner', minutes: 60, xp: 250 },
@@ -991,6 +1002,34 @@ const ProjectsData = {
     /** Get all projects at a difficulty tier. */
     getByDifficulty(diff) {
         return this.projects.filter(p => p.difficulty === diff);
+    },
+
+    // ── P2 enrichment queries (optional fields: technologies[], skills[], prerequisites[], careerRoles[]) ──
+
+    /** Get all projects that use a given technology (e.g. 'Power Automate'). */
+    getByTechnology(tech) {
+        return this.projects.filter(p => (p.technologies || []).includes(tech));
+    },
+
+    /** Distinct, sorted list of every technology declared across all projects. */
+    getAllTechnologies() {
+        return [...new Set(this.projects.flatMap(p => p.technologies || []))].sort();
+    },
+
+    /** Get all projects mapped to a given career-role id (controlled vocab finalized in P3). */
+    getByCareerRole(role) {
+        return this.projects.filter(p => (p.careerRoles || []).includes(role));
+    },
+
+    /** Resolve a project's prerequisites to project objects (skips unknown ids). */
+    getPrerequisites(id) {
+        const p = this.get(id);
+        return p ? (p.prerequisites || []).map(pid => this.get(pid)).filter(Boolean) : [];
+    },
+
+    /** Computed inverse of prerequisites: projects that this one unlocks (no stored field to drift). */
+    getUnlocks(id) {
+        return this.projects.filter(p => (p.prerequisites || []).includes(id));
     },
 
     /** Get house metadata. */
