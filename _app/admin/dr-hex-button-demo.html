@@ -39,7 +39,7 @@
         <p style="font-size:0.85rem;color:#8a8a9a">Mission ID: <code>demo-mission-button</code></p>
         <button id="simulate-attempt">Submit "incorrect" attempt</button>
         <button id="simulate-capture">Submit successful capture (celebrate)</button>
-        <button id="simulate-reset" class="danger">Clear all attempts (reset)</button>
+        <button id="simulate-reset">Why no manual reset? (state ages out)</button>
         <button id="fetch-state">Manually re-fetch state</button>
         <div style="margin-top:12px;font-size:0.85rem;color:#a0a0a0">Watch the floating button (bottom-right) — it should change color + pulse based on state.</div>
     </div>
@@ -98,8 +98,12 @@
         import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged }
             from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
-        import { getFirestore, collection, addDoc, deleteDoc, query, where, getDocs, serverTimestamp, Timestamp }
-            from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+        // 2026-06-13: record attempts via the hexAiRecordLabAttempt callable, NOT direct
+        // Firestore writes. flag_attempts/flag_captures/lab_attempts are server-only
+        // (firestore.rules has no client write rule), so direct addDoc was silently denied
+        // and the ambient state never changed. The callable writes lab_attempts server-side.
+        import { getFunctions, httpsCallable }
+            from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-functions.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M",
@@ -111,7 +115,8 @@
         };
         const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
+        const functions = getFunctions(app, 'us-central1');
+        const recordAttempt = httpsCallable(functions, 'hexAiRecordLabAttempt');
 
         const MISSION = 'demo-mission-button';
 
@@ -133,43 +138,37 @@
             }
         });
 
+        // Record an INCORRECT attempt via the server callable (writes lab_attempts). A unique
+        // exercise_id each click makes each attempt a distinct uncaptured exercise, so they
+        // accumulate toward the noticing(>=2/5min) -> active(>=4/10min) -> insistent(>=6/20min) ramp.
         $('simulate-attempt').addEventListener('click', async () => {
             const user = auth.currentUser;
             if (!user) { log('not signed in'); return; }
-            await addDoc(collection(db, `users/${user.uid}/flag_attempts`), {
-                boxId: MISSION,
-                flagId: `demo-flag-${Math.floor(Math.random()*1e6)}`,
-                sessionId: 'demo-session',
-                timestamp: serverTimestamp(),
-            });
-            log('logged incorrect attempt');
-            // Trigger the button's event-driven refetch
-            window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+            const exerciseId = 'demo-' + Math.floor(Math.random() * 1e9).toString(36);
+            try {
+                await recordAttempt({ mission_id: MISSION, exercise_id: exerciseId, correct: false });
+                log('recorded incorrect attempt (' + exerciseId + ')');
+                window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+            } catch (e) { log('record failed: ' + (e.code || e.message)); }
         });
 
+        // Record a CORRECT attempt (capture). The ambient function projects a correct lab attempt
+        // into captures, so a capture in the last 60s fires the 'celebrating' (purple) state.
         $('simulate-capture').addEventListener('click', async () => {
             const user = auth.currentUser;
             if (!user) { log('not signed in'); return; }
-            await addDoc(collection(db, `users/${user.uid}/flag_captures`), {
-                boxId: MISSION,
-                flagId: 'demo-flag-correct',
-                sessionId: 'demo-session',
-                capturedAt: serverTimestamp(),
-            });
-            log('logged capture');
-            window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+            try {
+                await recordAttempt({ mission_id: MISSION, exercise_id: 'demo-capture', correct: true });
+                log('recorded capture (celebrate)');
+                window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+            } catch (e) { log('record failed: ' + (e.code || e.message)); }
         });
 
-        $('simulate-reset').addEventListener('click', async () => {
-            const user = auth.currentUser;
-            if (!user) { log('not signed in'); return; }
-            const aSnap = await getDocs(query(collection(db, `users/${user.uid}/flag_attempts`),
-                where('boxId', '==', MISSION)));
-            for (const d of aSnap.docs) await deleteDoc(d.ref);
-            const cSnap = await getDocs(query(collection(db, `users/${user.uid}/flag_captures`),
-                where('boxId', '==', MISSION)));
-            for (const d of cSnap.docs) await deleteDoc(d.ref);
-            log(`cleared ${aSnap.size} attempts + ${cSnap.size} captures`);
+        // lab_attempts is server-managed (no client write/delete rule), so there is no manual
+        // clear. State auto-resets as attempts age out of the 5/10/20-min windows (and celebrating
+        // out of the 60s window). This button just explains that and re-fetches.
+        $('simulate-reset').addEventListener('click', () => {
+            log('no manual clear — state auto-resets as attempts age out (celebrating 60s; incorrect windows 5/10/20 min)');
             window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
         });
 
