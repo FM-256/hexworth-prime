@@ -96,7 +96,11 @@
 
     <script type="module">
         import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged }
+        // 2026-06-13: demo auto-signs-in ANONYMOUSLY on load (no Google popup). The popup was the
+        // real blocker — if it's dismissed/blocked, auth.currentUser stays null and every test
+        // button silently bails ("not signed in"). The mood-ring only needs an authenticated user,
+        // and anonymous auth gives a frictionless demo session that works for anyone.
+        import { getAuth, signInAnonymously, onAuthStateChanged }
             from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
         // 2026-06-13: record attempts via the hexAiRecordLabAttempt callable, NOT direct
         // Firestore writes. flag_attempts/flag_captures/lab_attempts are server-only
@@ -128,13 +132,17 @@
             $('log').scrollTop = $('log').scrollHeight;
         }
 
-        onAuthStateChanged(auth, async (user) => {
+        // Auto-establish a demo session: when signed out, sign in anonymously (no popup).
+        // The test buttons require an authenticated user; this makes the demo work on load.
+        onAuthStateChanged(auth, (user) => {
             if (user) {
-                $('auth-status').textContent = `Signed in as ${user.email}`;
+                $('auth-status').textContent = `Demo session ready (${user.uid.slice(0, 8)}…)`;
             } else {
-                $('auth-status').innerHTML = '<button id="signin">Sign in with Google</button>';
-                document.getElementById('signin').onclick = () =>
-                    signInWithPopup(auth, new GoogleAuthProvider()).catch(console.error);
+                $('auth-status').textContent = 'Starting demo session…';
+                signInAnonymously(auth).catch((e) => {
+                    $('auth-status').textContent = 'Auth failed: ' + (e.code || e.message)
+                        + ' — anonymous sign-in may be disabled for this project.';
+                });
             }
         });
 
