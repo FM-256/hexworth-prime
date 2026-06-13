@@ -116,10 +116,10 @@ const ProjectsData = {
     },
 
     // -------------------------------------------------------------------------
-    // Project definitions — 104 total (12 software + 16 hardware + 60 educative + 1 content + 15 "My First" starter).
+    // Project definitions — 105 total (12 software + 16 hardware + 60 educative + 1 content + 16 "My First" starter).
     // -------------------------------------------------------------------------
     projects: [
-        // ── "My First..." Starter Series (15 projects) ──
+        // ── "My First..." Starter Series (16 projects) ──
         { id: 'starter-first-webpage',   house: 'web',        title: 'My First Web Page',    description: 'Create your very first web page from scratch using HTML and CSS.',                                    difficulty: 'beginner', minutes: 30, xp: 250 },
         { id: 'starter-first-app',       house: 'code',       title: 'My First App',         description: 'Build your first Python application — a personal quiz game that asks questions and keeps score.',     difficulty: 'beginner', minutes: 30, xp: 250 },
         { id: 'starter-first-gui',       house: 'code',       title: 'My First GUI',         description: 'Build your first graphical application using Python and tkinter — a click counter with buttons.',     difficulty: 'beginner', minutes: 45, xp: 250 },
@@ -135,6 +135,7 @@ const ProjectsData = {
         { id: 'starter-first-bot',       house: 'divergent',  title: 'My First Bot',         description: 'Build your first Discord bot that responds to commands, tells jokes, and runs in your server.',       difficulty: 'beginner', minutes: 45, xp: 250 },
         { id: 'starter-first-pipeline',  house: 'code',       title: 'My First Pipeline',    description: 'Set up your first CI/CD pipeline with GitHub Actions — every push automatically tests your code.',    difficulty: 'beginner', minutes: 30, xp: 250 },
         { id: 'starter-first-agent',     house: 'ai',         title: 'My First Agent',       description: 'Build your first AI agent in Copilot Studio — an adaptive Level 1-5 path from a talking study assistant to an autonomous operations agent.', difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-workflow',  house: 'ai',         title: 'My First Workflow',    description: 'Build your first automated workflow in Power Automate — grow one Help-Desk Intake flow across an adaptive Level 1-5 path: trigger, branching, AI, approvals, scheduled ops.', difficulty: 'beginner', minutes: 30, xp: 250 },
 
         // ── Featured Projects ──
         {
