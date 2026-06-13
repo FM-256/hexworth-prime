@@ -10,6 +10,10 @@
  *   skills:       string[]   — competencies the project builds
  *   prerequisites:string[]   — project ids that should be done first (mission-chain graph)
  *   careerRoles:  string[]   — career-role ids this project maps to (vocab finalized in P3)
+ *   hasPage:      boolean    — P4a: set false ONLY if a registered project has no landing page.
+ *                              Default (absent) = clickable. The index keys off this, not a
+ *                              hardcoded list, so a project can't be registered-but-unclickable.
+ *                              qc-projects.py guards the inverse (registered + no file = 404).
  *   (unlocks is NOT stored — it is the computed inverse of prerequisites, via getUnlocks)
  *
  * Usage:
