@@ -145,13 +145,13 @@ const ProjectsData = {
         { id: 'starter-first-scan',      house: 'eye',        title: 'My First Scan',        description: 'Use Nmap to scan your own network — discover hosts, identify services, see through a hacker\'s eyes.',difficulty: 'beginner', minutes: 30, xp: 250 },
         { id: 'starter-first-bot',       house: 'divergent',  title: 'My First Bot',         description: 'Build your first Discord bot that responds to commands, tells jokes, and runs in your server.',       difficulty: 'beginner', minutes: 45, xp: 250 },
         { id: 'starter-first-pipeline',  house: 'code',       title: 'My First Pipeline',    description: 'Set up your first CI/CD pipeline with GitHub Actions — every push automatically tests your code.',    difficulty: 'beginner', minutes: 30, xp: 250 },
-        { id: 'starter-first-agent',     house: 'ai',         title: 'My First Agent',       description: 'Build your first AI agent in Copilot Studio — an adaptive Level 1-5 path from a talking study assistant to an autonomous operations agent.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio'], skills: ['AI agents', 'prompt design', 'tool use', 'grounding'], prerequisites: [], careerRoles: ['ai-engineer', 'automation-specialist'] },
-        { id: 'starter-first-workflow',  house: 'ai',         title: 'My First Workflow',    description: 'Build your first automated workflow in Power Automate — grow one Help-Desk Intake flow across an adaptive Level 1-5 path: trigger, branching, AI, approvals, scheduled ops.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Power Automate'], skills: ['workflow automation', 'triggers', 'branching', 'approvals'], prerequisites: [], careerRoles: ['automation-specialist', 'ai-engineer'] },
+        { id: 'starter-first-agent',     house: 'ai',         title: 'My First Agent',       description: 'Build your first AI agent in Copilot Studio — an adaptive Level 1-5 path from a talking study assistant to an autonomous operations agent.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio'], skills: ['AI agents', 'prompt design', 'tool use', 'grounding'], prerequisites: [], careerRoles: ['ai-engineer', 'devops-engineer'] },
+        { id: 'starter-first-workflow',  house: 'ai',         title: 'My First Workflow',    description: 'Build your first automated workflow in Power Automate — grow one Help-Desk Intake flow across an adaptive Level 1-5 path: trigger, branching, AI, approvals, scheduled ops.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Power Automate'], skills: ['workflow automation', 'triggers', 'branching', 'approvals'], prerequisites: [], careerRoles: ['devops-engineer', 'ai-engineer'] },
         { id: 'starter-first-knowledge-base', house: 'ai',    title: 'My First Knowledge Base', description: 'Build your first knowledge base in Copilot Studio — grow one Help-Desk KB across an adaptive Level 1-5 path: ingest, organize, retrieval quality, citations and grounding guardrails, freshness. Learn how RAG grounds an AI in your sources.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio'], skills: ['RAG', 'retrieval', 'grounding', 'knowledge management'], prerequisites: [], careerRoles: ['ai-engineer'] },
         { id: 'starter-first-tool',      house: 'ai',         title: 'My First Tool',        description: 'Turn an agent from a talker into a doer — build one tool it can call and grow it across an adaptive Level 1-5 path: call a built-in action, wrap your own flow, input/output schemas, auth and guardrails, errors/retries/observability. The bridge between My First Agent and My First Workflow.', difficulty: 'beginner', minutes: 30, xp: 250, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['function calling', 'custom connectors', 'API integration', 'auth and secrets'], prerequisites: ['starter-first-workflow'], careerRoles: ['ai-engineer'] },
 
         // ── AI Series Capstone (advanced — assembles the four "My First" AI rungs into one system) ──
-        { id: 'ai-build-your-department', house: 'ai',        title: 'Build Your First Department', description: 'The AI series capstone — assemble the Agent, Workflow, Knowledge Base, and Tool you built into one self-running Help-Desk Department. Learn multi-agent orchestration across a Level 1-5 integration ladder: assemble the team, route the work, hand-offs and shared context, supervision and guardrails, operate and improve.', difficulty: 'advanced', minutes: 60, xp: 1000, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['multi-agent orchestration', 'routing', 'supervision', 'observability'], prerequisites: ['starter-first-agent', 'starter-first-workflow', 'starter-first-knowledge-base', 'starter-first-tool'], careerRoles: ['ai-engineer', 'ai-solutions-architect'] },
+        { id: 'ai-build-your-department', house: 'ai',        title: 'Build Your First Department', description: 'The AI series capstone — assemble the Agent, Workflow, Knowledge Base, and Tool you built into one self-running Help-Desk Department. Learn multi-agent orchestration across a Level 1-5 integration ladder: assemble the team, route the work, hand-offs and shared context, supervision and guardrails, operate and improve.', difficulty: 'advanced', minutes: 60, xp: 1000, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['multi-agent orchestration', 'routing', 'supervision', 'observability'], prerequisites: ['starter-first-agent', 'starter-first-workflow', 'starter-first-knowledge-base', 'starter-first-tool'], careerRoles: ['ai-engineer'] },
 
         // ── Foundations & Setup (first VM / cloud / git / lab — registered 2026-06-13; XP preserved from each page, to be reconciled under the unified ladder at P6) ──
         { id: 'cloud-ec2-first-server',  house: 'cloud',      title: 'Launch Your First EC2 Instance', description: 'Launch your first AWS EC2 virtual server, connect over SSH, and serve a web page from the cloud.', difficulty: 'beginner', minutes: 60, xp: 250 },
@@ -184,7 +184,7 @@ const ProjectsData = {
             description: 'Create a live-updating terminal dashboard that displays CPU, memory, disk, and process stats using pure Bash scripting.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250
+            xp: 250, careerRoles: ['devops-engineer', 'sysadmin']
         },
         {
             id: 'shield-log-analyzer',
@@ -193,7 +193,7 @@ const ProjectsData = {
             description: 'Parse and correlate security logs from multiple sources to detect suspicious patterns and generate incident summaries.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500
+            xp: 500, careerRoles: ['soc-analyst']
         },
         {
             id: 'darkarts-port-scanner',
@@ -211,7 +211,7 @@ const ProjectsData = {
             description: 'Aggregate open-source intelligence from multiple APIs into a unified dashboard for target reconnaissance.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500
+            xp: 500, careerRoles: ['forensics-analyst', 'soc-analyst']
         },
         {
             id: 'code-cli-task-manager',
@@ -220,7 +220,7 @@ const ProjectsData = {
             description: 'Design a command-line task tracker with priorities, due dates, tags, and persistent JSON storage.',
             difficulty: 'beginner',
             minutes: 45,
-            xp: 250
+            xp: 250, careerRoles: ['software-developer']
         },
         {
             id: 'forge-flashcard-engine',
@@ -238,7 +238,7 @@ const ProjectsData = {
             description: 'Render interactive network maps from device data, showing connections, traffic flow, and node status in real time.',
             difficulty: 'journeyman',
             minutes: 120,
-            xp: 500
+            xp: 500, careerRoles: ['network-engineer']
         },
         {
             id: 'cloud-container-checker',
@@ -247,7 +247,7 @@ const ProjectsData = {
             description: 'Monitor Docker containers for health status, resource usage, and restart policies with alerting and dashboards.',
             difficulty: 'journeyman',
             minutes: 90,
-            xp: 500
+            xp: 500, careerRoles: ['cloud-engineer', 'devops-engineer']
         },
         {
             id: 'key-password-vault',
@@ -256,7 +256,7 @@ const ProjectsData = {
             description: 'Create an encrypted password manager with AES-256 encryption, master key derivation, and secure clipboard integration.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000
+            xp: 1000, careerRoles: ['security-architect', 'appsec-engineer']
         },
         {
             id: 'ai-threat-classifier',
@@ -274,7 +274,7 @@ const ProjectsData = {
             description: 'Capture and visualize network packets in real time, decoding headers and displaying protocol hierarchies.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000
+            xp: 1000, careerRoles: ['soc-analyst', 'data-analyst']
         },
         {
             id: 'divergent-multi-tool',
@@ -283,7 +283,7 @@ const ProjectsData = {
             description: 'Engineer a modular CLI framework with pluggable subcommands spanning networking, crypto, forensics, and automation.',
             difficulty: 'pro',
             minutes: 150,
-            xp: 2000
+            xp: 2000, careerRoles: ['sysadmin', 'soc-analyst']
         },
 
         // ── Hardware Projects: Raspberry Pi ──────────────────────────────────
@@ -332,7 +332,7 @@ const ProjectsData = {
             description: 'Wire DHT11, ultrasonic, and photoresistor sensors to an Arduino Mega with an LCD multi-screen dashboard and LED threshold alerts.',
             difficulty: 'beginner',
             minutes: 60,
-            xp: 250
+            xp: 250, careerRoles: ['hardware-engineer']
         },
         {
             id: 'code-serial-console',
@@ -518,7 +518,7 @@ const ProjectsData = {
             description: 'Master the Metasploit Framework for penetration testing. Enumerate targets, select exploits, configure payloads, pivot through networks, and document findings.',
             difficulty: 'advanced',
             minutes: 120,
-            xp: 1000
+            xp: 1000, careerRoles: ['penetration-tester']
         },
         {
             id: 'darkarts-recon-automation',
