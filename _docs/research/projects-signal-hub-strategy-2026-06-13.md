@@ -54,7 +54,7 @@ This plan was adversarially reviewed twice (see [Adversarial review](#adversaria
 | Phase | Action | Notes / risk |
 |---|---|---|
 | **P0** | Wire the 5 AI-series projects into `hasPage` + register | **Done & deployed** — they were registered in `ProjectsData.js` but missing from `index.html:511` `hasPage` Set, so live-but-unclickable. Fixed; hasPage = 108 = registry parity. |
-| **P1** | Register the 12 verified-complete orphans | **Two-part**: add to `ProjectsData.js` AND `hasPage` (hasPage alone leaves them carded-but-invisible / invisible-but-clickable). Spot-check a sample via the Chris gate. Low risk. |
+| **P1** | ~~Register 12 "verified-complete" orphans~~ → **Rebuild + register 12 migration-broken orphans** — DONE | The orphans were NOT complete: the Chris spot-check found all 12 were malformed (two spliced HTML fragments / duplicate `<head>`/`<body>`) plus per-page defects (wrong emblem, rotated/misaligned checkpoints, no Related Training, shared bogus case ref). My div-balance sweep and two prior reviews missed this — Chris caught it. All 12 rebuilt from salvaged content via a deterministic generator, **each Chris-gated PASS**, registered (`ProjectsData` 120 total) + wired into `hasPage`, deployed. A durable QC sweep with a duplicate-document check was added (`_tools/scratch/qc-projects.py`). |
 | **P2** | Extend `ProjectsData` schema: optional `skills[] / prerequisites[] / technologies[] / careerRoles[] / unlocks[]` | Additive, no breakage; Signal proves the shape; backfill incrementally. Powers scorecards, mission chains, and the career bridge. |
 | **P3** | Career → catalog bridge | **Greenfield**: define a role↔project/Signal-ID cross-reference schema + a bridge component. The career infra exists but has zero ID contract — this is a build, not "wiring". Highest value-per-effort. |
 | **P4** | `hasPage` → declarative field in `ProjectsData` + add `projects_progress` sync (parallel to `SignalProgressSync`, zero migration) | **Lightweight** — Projects is already data-driven, so this is "catch up to Signal's pattern", **not** a unified engine. Leave Signal's engine untouched. |
@@ -78,7 +78,7 @@ Two rounds (`adversarial-reviewer`), both [PAUSE] → resolved:
 
 ## Related follow-on
 
-- **QC of existing projects** (the original task that surfaced this): structural/standards layer is clean — 0 broken links, 0 stubs, 0 missing titles, no real emoji/AI-attribution across 120 pages. Content quality is high (the critique agreed). The real defects were *visibility* (orphans, hasPage gap), now being addressed here.
+- **QC of existing projects** (the original task that surfaced this): the registered catalog's structural/standards layer is clean — 0 broken links, 0 stubs, 0 missing titles, no real emoji/AI-attribution. BUT the 12 unregistered orphans were malformed (duplicate-document defect) — a class a div-balance sweep does not catch. Lesson applied: the QC sweep now checks for duplicate `<head>`/`<body>`/`<!DOCTYPE>` (`_tools/scratch/qc-projects.py`); a proper EduScan rule is a sensible follow-on. Content quality of the registered pages is high (the critique agreed). The dominant remaining problem is *visibility/navigation*, addressed by P2–P6.
 - **Projects-hub structure reassessment**: the `ProjectsData.js:4` "each house has one capstone" comment is stale; the tiered-capstone model (see the AI series) needs a platform-wide pass — folds into P2/P6.
 
 ## Key file references
