@@ -25,3 +25,11 @@ To update an existing page after editing the `.md` (do NOT re-`publish`, that cr
 
 QC standard: replay each walkthrough VERBATIM through the real BoxEngine (the student's
 exact commands, not config-derived sequences). Harness: /tmp/ala-vrun.js (job JSON {url,cfg,cmds}).
+
+---
+
+## Professional PDFs (added 2026-06-13)
+
+Each walkthrough is also rendered to a branded instructor PDF and attached to its Confluence page.
+- Generate: `python3 _tools/scratch/build-ala-pdfs.py [file.md ...]` (no args = all 13) — python-markdown + WeasyPrint, branded template (title page, running header, page-numbered Instructor-Only footer). Output PDFs land next to the .md in the shared ALA folder.
+- Attach to Confluence: `python3 _tools/confluence/attach-ala-pdfs.py [file.pdf ...]` (no args = all 13) — uploads to each page's child/attachment. Re-uploading identical bytes returns a 400 no-op (already attached); changed content creates a new version.
