@@ -116,10 +116,10 @@ const ProjectsData = {
     },
 
     // -------------------------------------------------------------------------
-    // Project definitions — 106 total (12 software + 16 hardware + 60 educative + 1 content + 17 "My First" starter).
+    // Project definitions — 107 total (12 software + 16 hardware + 60 educative + 1 content + 18 "My First" starter).
     // -------------------------------------------------------------------------
     projects: [
-        // ── "My First..." Starter Series (17 projects) ──
+        // ── "My First..." Starter Series (18 projects) ──
         { id: 'starter-first-webpage',   house: 'web',        title: 'My First Web Page',    description: 'Create your very first web page from scratch using HTML and CSS.',                                    difficulty: 'beginner', minutes: 30, xp: 250 },
         { id: 'starter-first-app',       house: 'code',       title: 'My First App',         description: 'Build your first Python application — a personal quiz game that asks questions and keeps score.',     difficulty: 'beginner', minutes: 30, xp: 250 },
         { id: 'starter-first-gui',       house: 'code',       title: 'My First GUI',         description: 'Build your first graphical application using Python and tkinter — a click counter with buttons.',     difficulty: 'beginner', minutes: 45, xp: 250 },
@@ -137,6 +137,7 @@ const ProjectsData = {
         { id: 'starter-first-agent',     house: 'ai',         title: 'My First Agent',       description: 'Build your first AI agent in Copilot Studio — an adaptive Level 1-5 path from a talking study assistant to an autonomous operations agent.', difficulty: 'beginner', minutes: 30, xp: 250 },
         { id: 'starter-first-workflow',  house: 'ai',         title: 'My First Workflow',    description: 'Build your first automated workflow in Power Automate — grow one Help-Desk Intake flow across an adaptive Level 1-5 path: trigger, branching, AI, approvals, scheduled ops.', difficulty: 'beginner', minutes: 30, xp: 250 },
         { id: 'starter-first-knowledge-base', house: 'ai',    title: 'My First Knowledge Base', description: 'Build your first knowledge base in Copilot Studio — grow one Help-Desk KB across an adaptive Level 1-5 path: ingest, organize, retrieval quality, citations and grounding guardrails, freshness. Learn how RAG grounds an AI in your sources.', difficulty: 'beginner', minutes: 30, xp: 250 },
+        { id: 'starter-first-tool',      house: 'ai',         title: 'My First Tool',        description: 'Turn an agent from a talker into a doer — build one tool it can call and grow it across an adaptive Level 1-5 path: call a built-in action, wrap your own flow, input/output schemas, auth and guardrails, errors/retries/observability. The bridge between My First Agent and My First Workflow.', difficulty: 'beginner', minutes: 30, xp: 250 },
 
         // ── Featured Projects ──
         {
