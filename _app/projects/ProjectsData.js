@@ -116,7 +116,7 @@ const ProjectsData = {
     },
 
     // -------------------------------------------------------------------------
-    // Project definitions — 108 total (12 software + 16 hardware + 60 educative + 1 content + 18 "My First" starter + 1 AI capstone).
+    // Project definitions — 120 total (12 software + 16 hardware + 60 educative + 1 content + 18 "My First" starter + 1 AI capstone + 12 foundations/setup).
     // -------------------------------------------------------------------------
     projects: [
         // ── "My First..." Starter Series (18 projects) ──
@@ -141,6 +141,20 @@ const ProjectsData = {
 
         // ── AI Series Capstone (advanced — assembles the four "My First" AI rungs into one system) ──
         { id: 'ai-build-your-department', house: 'ai',        title: 'Build Your First Department', description: 'The AI series capstone — assemble the Agent, Workflow, Knowledge Base, and Tool you built into one self-running Help-Desk Department. Learn multi-agent orchestration across a Level 1-5 integration ladder: assemble the team, route the work, hand-offs and shared context, supervision and guardrails, operate and improve.', difficulty: 'advanced', minutes: 60, xp: 1000 },
+
+        // ── Foundations & Setup (first VM / cloud / git / lab — registered 2026-06-13; XP preserved from each page, to be reconciled under the unified ladder at P6) ──
+        { id: 'cloud-ec2-first-server',  house: 'cloud',      title: 'Launch Your First EC2 Instance', description: 'Launch your first AWS EC2 virtual server, connect over SSH, and serve a web page from the cloud.', difficulty: 'beginner', minutes: 60, xp: 250 },
+        { id: 'cloud-oracle-free-vm',    house: 'cloud',      title: 'Spin Up a Free Oracle Cloud VM', description: 'Provision an always-free Oracle Cloud compute VM, connect via SSH, and run your first cloud workload at no cost.', difficulty: 'beginner', minutes: 45, xp: 200 },
+        { id: 'cloud-s3-static-site',    house: 'cloud',      title: 'Host a Static Website on AWS S3', description: 'Host a static website on AWS S3 — create a bucket, upload your site, and serve it publicly over the web.', difficulty: 'beginner', minutes: 45, xp: 200 },
+        { id: 'darkarts-kali-setup',     house: 'dark-arts',  title: 'Set Up Your Kali Linux Attack VM', description: 'Build your first Kali Linux attack VM — install, configure, and verify the offensive-security toolkit in a safe, isolated lab.', difficulty: 'beginner', minutes: 60, xp: 200 },
+        { id: 'forge-home-lab',          house: 'forge',      title: 'Build a 3-VM Home Lab', description: 'Build a 3-VM home lab on an isolated network — router, server, and client — the foundation for hands-on security practice.', difficulty: 'journeyman', minutes: 180, xp: 500 },
+        { id: 'forge-virtualbox-first-vm', house: 'forge',    title: 'Create Your First Virtual Machine', description: 'Create your first virtual machine in VirtualBox — install a guest OS, configure resources, and take your first snapshot.', difficulty: 'beginner', minutes: 60, xp: 200 },
+        { id: 'forge-vmware-first-vm',   house: 'forge',      title: 'Build a VM with VMware Workstation', description: 'Build your first virtual machine in VMware Workstation — install a guest OS, configure networking, and manage snapshots.', difficulty: 'beginner', minutes: 60, xp: 200 },
+        { id: 'shield-firewall-iptables', house: 'shield',    title: 'Build a Firewall with iptables', description: 'Build a working Linux firewall with iptables — write rules to allow services, block traffic, and defend a host.', difficulty: 'beginner', minutes: 60, xp: 250 },
+        { id: 'starter-calculator',      house: 'code',       title: 'Build a Calculator App', description: 'Build your first calculator app — handle user input, perform arithmetic, and manage operations and errors.', difficulty: 'beginner', minutes: 60, xp: 200 },
+        { id: 'starter-first-repo',      house: 'code',       title: 'Your First Git Repository', description: 'Create your first Git repository — initialize, commit, branch, and push your code to GitHub.', difficulty: 'beginner', minutes: 30, xp: 100 },
+        { id: 'starter-github-profile',  house: 'code',       title: 'Create Your GitHub Profile README', description: 'Create a standout GitHub profile README — the special repository that introduces you to the developer world.', difficulty: 'beginner', minutes: 30, xp: 100 },
+        { id: 'starter-portfolio-site',  house: 'web',        title: 'Build a Portfolio Website with GitHub Pages', description: 'Build and publish a personal portfolio website for free with GitHub Pages — show your projects to the world.', difficulty: 'beginner', minutes: 120, xp: 300 },
 
         // ── Featured Projects ──
         {
