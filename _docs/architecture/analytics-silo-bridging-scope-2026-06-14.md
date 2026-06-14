@@ -8,7 +8,13 @@
 | **Related** | `student-analytics-v2.md` · memory `reference_analytics_silo_architecture` |
 
 ## VERDICT (read this first)
-Student progress **is saved and safe** (51 students). Analytics are blank due to a **compute gap in one component**, not lost data or a read-path problem. **Fixable**, low-risk, read/compute-only.
+Student progress **is saved and safe** (51 students). Analytics are blank due to a **compute gap in one component**, not lost data or a read-path problem. **Fixable**, low-risk, read/compute-only for modules+quizzes.
+
+## ELEVATED REQUIREMENT (operator, 2026-06-14): TRACK ALL CONTENT
+The fix must surface **all content types**, not just modules+quizzes. Two dimensions:
+- **Measure:** include modules + quizzes **+ labs**. Labs live in silo 2 (`users/{uid}/flag_captures`) → the labs bridge is **NO LONGER deferrable**; it's required for full tracking (else lab progress stays invisible).
+- **Capture (audit):** verify every content type each course uses actually emits a saved completion. Known gaps to audit: uneven module wiring (some WSA presentations emit nothing — 2 id formats `cloud-wsa-m*-presentation` vs `wsa-m*-pres`), `labsCompleted`/`chaptersCompleted`/`totalTimeSpent` unused. Catch any content that silently emits nothing.
+This changes the build from "modules+quizzes now, labs later" to "all-content tracking." The labs bridge (silo 2 → surfaced in `instructor.html`) is in-scope. Bridge stays **add-only / progress-safe** (see §Progress Safety).
 
 ## THE 2 LIVE CLASSES (the whole reason for this work)
 Tenant `summer-2026`, instructorUid `PjfqXptQ6sdLJbgPHr6DB2geZ5y2`:
