@@ -46,6 +46,9 @@ const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const functions = getFunctions(app, 'us-central1');
 const ambientStateFn = httpsCallable(functions, 'hexAiAmbientState');
+// Server-only attempt recorder (anti-cheat: clients can't write lab_attempts
+// directly). Used by the window.__hexLabRecord global the button registers below.
+const recordLabFn = httpsCallable(functions, 'hexAiRecordLabAttempt');
 
 class HexAIButton extends HTMLElement {
     constructor() {
@@ -65,6 +68,33 @@ class HexAIButton extends HTMLElement {
     connectedCallback() {
         this._missionId = this.getAttribute('mission-id') || null;
         this._house = this.getAttribute('house') || null;
+
+        // Register the page-level lab-attempt recorder, keyed to THIS button's
+        // mission-id — the exact id the mood-ring queries. Callers (QuizEngine's
+        // _recordHexLabAttempt, lab check functions) invoke window.__hexLabRecord
+        // without needing to know the id; arg1 is an ignored hint kept for call-site
+        // compatibility. This is why the irregular moduleId↔mission-id mismatch
+        // across quiz pages doesn't matter — we always record under mission-id.
+        // NOTE: on the ~22 key pages an inline block reassigns this global AFTER us
+        // (module order); harmless — those pass their own correct mission-id.
+        if (this._missionId && typeof window !== 'undefined') {
+            window.__hexLabRecord = (_idHint, exerciseId, correct) => {
+                if (!auth.currentUser) return Promise.resolve();
+                return recordLabFn({
+                    mission_id: this._missionId,
+                    exercise_id: String(exerciseId),
+                    correct: !!correct,
+                })
+                    // Dispatch ONLY on success so a failed record never nudges a
+                    // refetch. The button's own _bindEvents listener catches this
+                    // and refetches state (800ms debounce) — no record, no loop.
+                    .then(() => window.dispatchEvent(
+                        new CustomEvent('hexworth:lab-attempt-submitted')))
+                    .catch(e => console.warn(
+                        '[HexAIButton] lab attempt record failed:', e?.message || e));
+            };
+        }
+
         this._render();
         this._bindEvents();
         onAuthStateChanged(auth, (user) => {

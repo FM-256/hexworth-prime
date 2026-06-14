@@ -1144,10 +1144,12 @@ class QuizEngine {
      * skipped to preserve QC-8 anti-cheat (no mid-quiz correctness
      * exposure).
      *
-     * window.__hexLabRecord is set by /_lib/HexAILabAttempt.js, which is
-     * imported on every page that mounts <hex-ai-button>. If absent
-     * (e.g. quiz page without the button), this is a silent no-op.
-     * recordLabAttempt itself swallows failures, so this can never
+     * window.__hexLabRecord is registered by /_lib/HexAIButton.js in its
+     * connectedCallback, keyed to the button's own mission-id (so the id we
+     * pass here is just a hint — the button records under its mission-id,
+     * which is what the mood-ring queries). Set on every page that mounts
+     * <hex-ai-button>. If absent (e.g. quiz page without the button), this
+     * is a silent no-op. The recorder swallows failures, so this can never
      * disrupt the quiz UX.
      */
     _recordHexLabAttempt(results) {

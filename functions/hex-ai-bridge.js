@@ -1310,10 +1310,24 @@ exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
 
     // Project lab_attempts into the classifier's same shape with
     // synthetic flagIds. Every lab attempt becomes an entry in `attempts`
-    // (so it counts toward incorrect-attempt windows). On correct=true the
-    // SAME synthetic flagId also lands in `captures` (so the celebrating
-    // state fires) and in the capturedFlagIds set (so the same lab
-    // exercise won't count as incorrect after a correct submission).
+    // (so it counts toward incorrect-attempt windows). On correct=true a
+    // hands-on LAB exercise also lands in `captures` (so the celebrating
+    // state fires — solving a lab task is a win worth celebrating).
+    //
+    // QUIZZES are the exception (operator decision 2026-06-13): a passed
+    // quiz settles the ring to CALM, not celebrating — 'celebrating' is
+    // reserved for CTF flag captures and lab solves, not routine chapter
+    // quizzes. So exerciseId==='quiz' is NOT projected into `captures`.
+    // It still lands in `attempts` and in capturedFlagIds (below), so the
+    // pass reads as "most recent was correct" → calm.
+    //
+    // CONSEQUENCE (pre-existing, via the all-time `allLabCorrectSnap` query
+    // below — NOT scoped to the 20-min window): once a student has EVER
+    // passed this quiz, its synthetic flagId is permanently marked captured,
+    // so later retake-fails do NOT register as incorrect and the ring stays
+    // calm on retakes. Intended: a previously-passed quiz is low-stakes
+    // practice and shouldn't alarm. Struggle IS signalled for students who
+    // have not yet passed (the common case).
     const labFlagIdFor = (missionId, exerciseId) => `lab:${missionId}:${exerciseId}`;
     for (const d of labAttemptsSnap.docs) {
         const row = d.data();
@@ -1321,7 +1335,7 @@ exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
         if (!ts) continue;
         const fid = labFlagIdFor(row.missionId, row.exerciseId || '');
         attempts.push({ ts, flagId: fid });
-        if (row.correct === true) {
+        if (row.correct === true && row.exerciseId !== 'quiz') {
             captures.push({ ts, flagId: fid });
         }
     }
