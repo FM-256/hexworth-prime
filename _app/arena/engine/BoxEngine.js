@@ -24,6 +24,24 @@ const BoxEngine = {
         this._coOpMode = false;
         this._vsMode = false;
 
+        // Dr. Hex mood-ring (Phase 2): mount the floating help button keyed to this
+        // box's registryId — the exact id written to flag_attempts/flag_captures, so
+        // hexAiAmbientState reads the right CTF activity. 'no-escalate' keeps it
+        // calm-and-available on CTF (celebrates on capture; never nags on wrong
+        // flags, which are normal exploration). Idempotent. Independent of box DOM
+        // (position:fixed on body), so safe to mount here at session start.
+        if (config.registryId && !document.querySelector('hex-ai-button')) {
+            const fab = document.createElement('hex-ai-button');
+            fab.setAttribute('mission-id', config.registryId);
+            fab.setAttribute('house', config.house || 'eye');
+            fab.setAttribute('no-escalate', '');
+            document.body.appendChild(fab);
+            const mod = document.createElement('script');
+            mod.type = 'module';
+            mod.src = '/_lib/HexAIButton.js';
+            document.head.appendChild(mod);
+        }
+
         // Check if co-op mode is available
         if (typeof CoOpLobby !== 'undefined') {
             // Show lobby to choose Solo, Co-Op, or VS
@@ -1713,6 +1731,11 @@ const BoxEngine = {
                 boxId: boxId,
                 flagId: flagId,
                 stateProof: stateProof
+            }).then(() => {
+                // Capture is now written server-side — nudge the Dr. Hex mood-ring
+                // to refetch so it celebrates. (The _reportFlagCapture dispatch above
+                // fires before this server write lands; this one catches the timing.)
+                try { window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted')); } catch (e) {}
             }).catch(() => {}); // silent — don't block gameplay
         }
 
@@ -2327,6 +2350,13 @@ const BoxEngine = {
                 }
             }
         } catch (e) { /* silent */ }
+
+        // Nudge the Dr. Hex mood-ring to refetch so it celebrates this capture.
+        // flag_captures is written server-side by validateFlag before this runs;
+        // the button's own 800ms debounce covers propagation. Non-fatal.
+        try {
+            window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+        } catch (e) { /* mood-ring is a side-channel */ }
     },
 
     /**

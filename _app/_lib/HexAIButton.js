@@ -279,6 +279,17 @@ class HexAIButton extends HTMLElement {
     _applyState(data) {
         const btn = this.shadowRoot.querySelector('button.dr-hex-fab');
         if (!btn) return;
+        // no-escalate (CTF/Arena): wrong flag attempts are normal exploration, not
+        // struggle — collapse the noticing/active/insistent ramp to calm so the
+        // button stays available (one click for help) without nagging. Celebrating
+        // (flag capture) and calm pass through unchanged.
+        if (this.hasAttribute('no-escalate') &&
+            (data.state === 'noticing' || data.state === 'active' || data.state === 'insistent')) {
+            // Force the neutral prompt — keeping the escalated server prompt (e.g.
+            // "Let's pair on this") would mismatch the calm visual in the chat pre-fill.
+            data = { state: 'calm', color: '#67e8f9', pulse_ms: 0,
+                suggested_prompt: 'Ask me anything about this box' };
+        }
         btn.style.setProperty('--hex-bg', data.color);
         btn.style.setProperty('--hex-pulse-ms', `${data.pulse_ms || 2000}ms`);
         btn.classList.remove('pulse', 'celebrating');
