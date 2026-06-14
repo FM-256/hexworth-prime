@@ -24098,6 +24098,110 @@ const ContentRegistry = {
     // ═══════════════════════════════════════════════════════════════
 
     paths: {
+        // ── Analytics-alignment paths (added 2026-06-14) ──────────────────────
+        // Make the instructor dashboard COUNT completions students already emit.
+        // Module lists are 1:1 with the ids pages actually save (verified by grep),
+        // so existing progress retroactively counts (WSA) / counts going forward (ALA).
+        // Additive only — changes no emitted id and no saved record (merge:true writes
+        // are add-only; ContentRegistry is read/display-side). ALA path id is 'ala-w'
+        // (not 'adv-linux') so the page-side sync heuristic matches 'ala-w*' module ids.
+        // Scope: presentations/labs only; quizzes (quizScores silo) + ALA arena labs
+        // (flag_captures silo) are surfaced separately (silo-bridging effort).
+        'ala-w': {
+            id: 'ala-w',
+            title: 'Advanced Linux Administration',
+            icon: '<img src="/assets/images/icons/icon-terminal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            certification: 'CTS4321C',
+            difficulty: 'advanced',
+            estimatedHours: 45,
+            color: '#22c55e',
+            modules: [
+                'ala-w1-cli',
+                'ala-w1-lecture',
+                'ala-w1-network-config',
+                'ala-w1-network-diag',
+                'ala-w1-systemd',
+                'ala-w2-antivirus',
+                'ala-w2-authentication',
+                'ala-w2-firewalls',
+                'ala-w2-packages',
+                'ala-w3-automation',
+                'ala-w3-bash-scripting',
+                'ala-w3-bind-deployment',
+                'ala-w3-dns-fundamentals',
+                'ala-w4-file-integrity',
+                'ala-w4-log-management',
+                'ala-w4-performance'
+            ]
+        },
+
+        'wsa': {
+            id: 'wsa',
+            title: 'Windows Server Administration',
+            icon: '<img src="/assets/images/icons/icon-server.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            certification: 'AZ-800 / CTS1328C',
+            difficulty: 'intermediate',
+            estimatedHours: 60,
+            color: '#0ea5e9',
+            modules: [
+                'cloud-gauntlet',
+                'cloud-gauntlet-advanced',
+                'cloud-wsa-m01-guilab',
+                'cloud-wsa-m02-guilab',
+                'cloud-wsa-m03-guilab',
+                'cloud-wsa-m03-pslab',
+                'cloud-wsa-m04-guilab',
+                'cloud-wsa-m04-pslab',
+                'cloud-wsa-m05-guilab',
+                'cloud-wsa-m05-presentation',
+                'cloud-wsa-m05-pslab',
+                'cloud-wsa-m06-guilab',
+                'cloud-wsa-m06-presentation',
+                'cloud-wsa-m06-pslab',
+                'cloud-wsa-m07-guilab',
+                'cloud-wsa-m07-pslab',
+                'cloud-wsa-m08-guilab',
+                'cloud-wsa-m08-pslab',
+                'cloud-wsa-m09-guilab',
+                'cloud-wsa-m09-pslab',
+                'cloud-wsa-m10-guilab',
+                'cloud-wsa-m10-presentation',
+                'cloud-wsa-m10-pslab',
+                'cloud-wsa-m11-guilab',
+                'cloud-wsa-m11-presentation',
+                'cloud-wsa-m11-pslab',
+                'cloud-wsa-m12-guilab',
+                'cloud-wsa-m12-presentation',
+                'cloud-wsa-m12-pslab',
+                'cloud-wsa-m13-guilab',
+                'cloud-wsa-m13-presentation',
+                'cloud-wsa-m13-pslab',
+                'cloud-wsa-m14-guilab',
+                'cloud-wsa-m14-pslab',
+                'cloud-wsa-m15-guilab',
+                'cloud-wsa-m15-pslab',
+                'cloud-wsa-m16-guilab',
+                'cloud-wsa-m16-pslab',
+                'cloud-wsa-m17-guilab',
+                'cloud-wsa-m17-pslab',
+                'cloud-wsa-m18-pslab',
+                'cloud-wsa-m19-pslab',
+                'wsa-m01-pres',
+                'wsa-m02-pres',
+                'wsa-m03-pres',
+                'wsa-m04-pres',
+                'wsa-m07-pres',
+                'wsa-m08-pres',
+                'wsa-m09-pres',
+                'wsa-m14-pres',
+                'wsa-m15-pres',
+                'wsa-m16-pres',
+                'wsa-m17-pres',
+                'wsa-m18-pres',
+                'wsa-m19-pres'
+            ]
+        },
+
         // ORPHAN RESOLVED - moved to content section during ISSUE-009 fix (Dec 29, 2025)
         // Original was incorrectly placed in paths section, now properly located near eye-log-analysis (line ~2289)
         // 'eye-soc-simulator': {
