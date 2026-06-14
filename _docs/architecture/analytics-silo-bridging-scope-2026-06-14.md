@@ -1,80 +1,97 @@
-# Analytics Silo-Bridging — Scope & Progress-Preservation Plan
+# Tenant-Class Analytics — Diagnosis, Measurement Model & Fix Scope
 
 | | |
 |---|---|
-| **Status** | Scoped — not yet built (decision pending: tactical bridge vs advance analytics-v2) |
+| **Status** | Explored + measurement model CONFIRMED — not yet built (no code changed) |
 | **Effective** | 2026-06-14 |
-| **Prereq shipped** | ContentRegistry path alignment (`ala-w` + `wsa`), commit `d0579cd8f` |
+| **Scope driver** | 2 live classes in the `summer-2026` tenant (WSA, ALA) whose instructor analytics read blank |
+| **Prereq shipped** | ContentRegistry path alignment (`ala-w` + `wsa`), commit `d0579cd8f` — see note in §7 |
 | **Related** | `_docs/architecture/student-analytics-v2.md` · memory `reference_analytics_silo_architecture` |
 
 ## TLDR
 
-Student progress lives in **three silos**; the instructor dashboard reads only **one**. We shipped a safe, config-only fix that lights up module/presentation completions for ALA + WSA (silo 1). The remaining gap — **arena labs (`flag_captures`) and quizzes (`quizScores`) never reach the dashboard** — is the "silo-bridging" work scoped here. **Recommended approach: Cloud-Function triggers that mirror those silos into the dashboard's silo, add-only.** The non-negotiable constraint is **no loss of saved user progress**; the preservation plan (below) makes progress structurally incapable of being lost — source silos are never modified, every write is additive, and any historical backfill is snapshot-backed and idempotent.
+The instructor analytics in the **tenant instructor area** (`dashboard.html` → `InstructorDashboard.js`) read blank for the live `summer-2026` WSA and ALA classes. Root cause: **the dashboard reads the wrong document, the wrong field, and depends on assignments that aren't used.** Student progress *is* saved (34 ALA / 17 WSA students) — in `tenants/{t}/classes/{c}/progress` as `modulesCompleted`/`quizScores` — but the dashboard reads top-level `classes/{c}/progress.completions` (empty) and short-circuits when a class has no assignments. This is **universal across all tenants**, not ALA/WSA-specific. The fix is **read-side only**: read the tenant-nested doc, compute a % from `modulesCompleted` + passed `quizScores` against a `courseId → module-list` manifest derived from the course hub. **Zero progress writes** (labs, a third silo, are a deferred add-only follow-on). The measurement model is confirmed in §3.
 
 ---
 
-## 1 — Background: the three silos and the two gates
+## 1 — Root cause
 
-The canonical instructor dashboard is `dashboard.html` → `InstructorDashboard.js` → ContentRegistry. (`handler-dashboard.html` + `LearningPaths.PATHS` is legacy.) It computes completion = (student completions whose id is in the assigned path's modules) ÷ total.
+The canonical instructor view is `dashboard.html` → `InstructorDashboard.js` (TenantShell opens `/dashboard.html`). It computes per-student completion = (completions matching assigned module ids) ÷ (assignment module count).
 
-| Silo | Firestore path | Written by | Holds | Dashboard reads |
-|---|---|---|---|---|
-| **1** | `classes/{c}/progress/{uid}.completions` | `ProgressManager.syncToFirestore` → `AssignmentManager.submitProgress` (two-gated) | module / presentation completions | **yes** |
-| **2** | `users/{uid}/flag_captures/{boxId}_{flagId}` (per-user) | BoxEngine (server `validateFlag`/`validateAction`) | arena boxes + **ALA labs** (`ala-l01..12`, `ala-hunt1` — BoxEngine boxes under `houses/matrix/adv-linux/labs/*/index.html`) | no |
-| **3** | `tenants/{t}/classes/{c}/progress/{uid}.quizScores` | `syncClassProgress` CF (`functions/index.js`) | quiz scores (incl. WSA `m01`..`m19`) | no |
+Three independent breakers, all in that view:
 
-A completion only reaches silo 1 if it passes both gates (`ProgressManager.js:409-442`):
+1. **Wrong document.** `AssignmentManager.getClassProgress` reads top-level `classes/{c}/progress` (`AssignmentManager.js:302`). The live data is **tenant-nested** at `tenants/{t}/classes/{c}/progress` — top-level is empty for every tenant class.
+2. **Wrong field/schema.** The dashboard reads `studentData.completions{}` (`InstructorDashboard.js:975, 983`). Tenant docs hold `modulesCompleted[]` / `quizScores{}` / `labsCompleted[]` (written by the `syncClassProgress` CF) — there is no `completions` map.
+3. **Assignment dependency.** `updateCompletionStats` short-circuits to `--` when `classAssignments.length === 0` (`:1150`), and `getAssignedModuleIds`/`getTotalModuleCount` derive everything from assignments (`:940-983`). The live classes use no assignments.
 
-- **Gate 1 (page-side):** module pages do not load ContentRegistry, so it uses a prefix heuristic — `normalize(moduleId).includes(normalize(assignedPathId))` (`:422-426`).
-- **Gate 2 (dashboard-side):** `getAssignedModuleIds()` = `ContentRegistry.paths[assignedId].modules`; only matching completions are counted (`InstructorDashboard.js:957`, `:975-986`).
+Three progress silos exist; the dashboard reads only silo 1 (which is empty for tenant classes):
 
-## 2 — What already shipped (prereq)
+| Silo | Path | Holds | Dashboard reads |
+|---|---|---|---|
+| 1 | `classes/{c}/progress.completions` (top-level) | (empty for tenant classes) | yes |
+| 2 | `users/{uid}/flag_captures/{boxId}_{flagId}` | arena boxes + **ALA labs** | no |
+| 3 | `tenants/{t}/classes/{c}/progress` (`modulesCompleted`/`quizScores`/`labsCompleted`) | **the real per-class progress** | no |
 
-`ContentRegistry.paths['ala-w']` (16 presentation ids) + `['wsa']` (55 ids) — 1:1 with emitted ids. Fixes silo-1 attribution: WSA labs/presentations count retroactively (data already in silo 1 via the Gate-1 heuristic); ALA presentations count going forward. Config-only, progress-safe. Commit `d0579cd8f`.
+## 2 — Exploration findings
 
-## 3 — The remaining gap
+- **#1 Universal.** Every tenant (`summer-2026`, `infosecethics-may-2026`, `python-april-2026`, `test-x`, `keiser-university`, `faculty-testing-primus`, `dr-norfleet`) shows the same pattern: real progress tenant-nested as `modulesCompleted`/`quizScores`; top-level `completions` = 0; mostly no assignments. Even the 44-student `ethics-it` class (which has 1 assignment) is invisible. So the tenant-instructor analytics view has never surfaced tenant-class progress.
+- **#2 What the instructor sees today.** Enrolled count is correct (roster loads from `ClassManager.getClassMembers`, `:875`). The roster lists students (names/emails). But every student's Progress shows **0%** (`calculateStudentProgress` reads the empty top-level `completions`, `:914/975`), and the aggregate shows **`Completion = --`, `Labs = 0`, `At-Risk = 0`** (the `classAssignments.length===0` short-circuit, `:1150`).
+- **#5 Schema (what's populated).** Per-student tenant doc fields: `modulesCompleted[]` (**primary signal** — ALA avg 1.2/max 10; WSA avg 0.1), `quizScores{}` (**secondary** — ALA `ala-w1-quiz` ~13/34), `lastActive`, `enrolledAt`, identity fields. **Empty/unused:** `labsCompleted` (labs are in silo 2), `chaptersCompleted`, `currentChapter` (all = 1), `totalTimeSpent` (all = 0).
+- **#4 Denominator.** The authoritative course module set is the **course hub** — `houses/matrix/adv-linux/index.html` (~54 ids) and `houses/cloud/modules/wsa/index.html` (~57 ids). Its ids match what students save (`ala-r1..r5`, `ala-w1-cli`, `ala-w1-quiz`, `cloud-wsa-m*`, `wsa-m*-pres`). ContentRegistry `ala-w` (16) is a subset; LearningPaths diverges. The hub denominator includes labs (`ala-l01..12`), which live in silo 2 — so labs must be excluded from the % denominator (or bridged) to keep 100% reachable.
 
-Silos 2 and 3 are never read by the dashboard:
-- **ALA labs** are BoxEngine boxes → `flag_captures` (silo 2). Invisible.
-- **Quizzes** (WSA + any) → `quizScores` (silo 3, in the `tenants/...` doc, which the dashboard does not read). Invisible.
+## 3 — Measurement model (CONFIRMED 2026-06-14)
 
-## 4 — Options
+- **Component complete** if it's in `modulesCompleted`, **or** it's a quiz with `quizScores[id] >= 70`.
+- **Per-student %** = complete components ÷ **course non-lab components** (denominator = a `courseId → module-list` manifest derived from the hub, labs excluded).
+- **Display:** Modules X/Y (headline %) · Quizzes A/B passed + avg score · **Labs = separate "pending"** (delivered later via the silo-2 bridge).
+- **Quizzes:** counted in the % *and* shown separately. **Labs:** deferred. **Pass threshold:** 70%.
+- **Numerator source:** `modulesCompleted` + `quizScores` from the tenant-nested doc (both already populated).
+- **Implementation is read-side only** for modules+quizzes → zero progress writes.
+
+## 4 — Blast radius (`InstructorDashboard.js`, 4,128 lines)
+
+Contained to ~6 functions in one feature path; the large Arena/CTF analytics block is a separate concern.
+
+| Function | Lines | Change |
+|---|---|---|
+| `loadClassProgress` → `getClassProgress` | 1123-1137 (+ `AssignmentManager.js:302`) | read **tenant-nested** progress |
+| `calculateStudentProgress` | 973-987 | count `modulesCompleted` + passed `quizScores` ÷ courseId manifest |
+| `getTotalModuleCount` / `getAssignedModuleIds` / `getAssignmentModuleCount` | 940-983 | courseId-manifest-derived denominator |
+| `updateCompletionStats` | 1141-1185 | drop the `classAssignments.length===0` short-circuit; compute from model |
+| `renderAnalytics` charts | 1235-1489 | recompute; the **assignment chart** has no data for assignment-less classes (hide/repurpose) |
+| `showStudentDetail` | 2292-2313 | same model rework |
+| `renderRoster` badge | 915 | works once `calculateStudentProgress` is fixed |
+
+**Trap — two different `completions`:** lines **1593-2024** build `studentMap[uid].completions[boxId]` from **Arena flag activity** (`arenaActivity`), not the progress-doc `completions`. That is a **separate feature; out of scope** — the module-model change must not touch it.
+
+**Lowest-risk shape:** add a **courseId-driven branch** that activates when a class has no assignments (read tenant-nested, compute against the hub manifest), leaving the existing assignment path intact for assignment-using classes. Additive, not a rewrite.
+
+**New data needed:** a `courseId → module-list` manifest (from the hub) for `wsa` and `adv-linux`, labs excluded.
+
+## 5 — Progress-preservation plan (non-negotiable)
+
+**Core guarantee:** data only ever flows **source → (read) → display**. For modules+quizzes the fix performs **no writes at all** — it reads already-saved `modulesCompleted`/`quizScores` and computes a number. The deferred labs piece is the only write, and it is **add-only**. Mechanisms (all in-codebase):
+
+1. **Modules+quizzes view: zero writes.** Pure read/compute; no progress doc is written.
+2. **Add-only writes (`merge:true`)** — only relevant to the labs bridge (`AssignmentManager.submitProgress:258-272` deep-merges one key; never overwrites/reverts).
+3. **Completion monotonicity** — `ProgressRestore.js` + `SyncUtils.deepMerge` keep completion moving only forward.
+4. **Snapshot before any backfill** — `functions/snapshot-prog003-affected-progress.js` pattern (restore point).
+5. **Idempotent** — re-runnable triggers/backfill; no double-count.
+6. **No emission changes, no key renames** — students keep saving via the same paths; the save flow is untouched.
+
+## 6 — Labs (deferred silo-2 bridge)
+
+Labs (`ala-l01..12`, arena boxes) live in `users/{uid}/flag_captures` (per-user), not the per-class doc. Surfacing them is a separate, add-only effort. Options (recommend **H**):
 
 | | Approach | Pros | Cons |
 |---|---|---|---|
-| **H (recommended)** | CF Firestore triggers mirror `flag_captures` + `quizScores` → silo-1 completions | Centralized; reuses existing `analytics-v2.js` `onDocumentCreated` trigger infra; no per-page or dashboard edits; backfillable | Needs a box/quiz → course mapping + an idempotent historical backfill; a functions deploy |
-| **U** | BoxEngine/QuizEngine write to silo 1 directly | One write path | Box ids `ala-l*` and bare quiz ids `m01` fail the Gate-1 heuristic → id/path rework across many pages (emission-adjacent, riskier) |
-| **R** | Dashboard cross-reads all three silos and merges | No writes, no migration | Adds cross-collection reads to the 10k-line high-risk dashboard; `flag_captures` is per-user (awkward fan-out) |
+| **H** | CF trigger mirrors `flag_captures` → per-class progress (add-only) | reuses `analytics-v2.js` trigger infra; backfillable; no per-page edits | box→course mapping + idempotent backfill; functions deploy |
+| **U** | Box completion writes to the class doc client-side | one write path | box ids fail the page heuristic; per-page rework |
+| **R** | Dashboard cross-reads `flag_captures` | no writes | per-user fan-out; reads in the large dashboard file |
 
-**Recommendation: H.** On a box completion (all flags captured) or quiz pass, a trigger writes `completions[id] = {completed:true, score?}` (merge) into the student's class progress doc; a course manifest maps box/quiz ids → course; a one-time idempotent backfill mirrors history.
+Strategic note: this overlaps with **analytics-v2** (`student-analytics-v2.md`, trigger-based, "Phase 1 cleared"). Fork: tactical bridge (H) vs advance analytics-v2.
 
-**Strategic note.** This is what **analytics-v2** (`_docs/architecture/student-analytics-v2.md`, "Phase 1 cleared," already trigger-based) was designed to unify. The real fork is **tactical bridge (H) now** vs **advance analytics-v2** (the durable architecture). H is the faster contained win; analytics-v2 is the long-term unification. Decide before building.
+## 7 — Notes & open items
 
-## 5 — Progress-Preservation Plan (non-negotiable)
-
-**Core guarantee:** user progress is never the thing we change. We only ever *read* a source silo and *add* a derived completion to silo 1. Every store that holds real student progress (`flag_captures`, `quizScores`, `completions`) remains the source of truth, untouched. If everything we add were deleted, no student would lose anything.
-
-Six mechanisms enforce this (all already in the codebase):
-
-1. **Add-only writes (`merge:true`).** `AssignmentManager.submitProgress` (`:258-272`) deep-merges a single nested completion key — it never overwrites the `completions` map, never flips a completion to false. The only write the bridge performs is this one.
-2. **Completion monotonicity.** `ProgressRestore.js` + `SyncUtils.deepMerge` (truthy-wins / `Math.max`) ensure cross-device sync only moves completion forward, never reverts.
-3. **Snapshot before backfill.** The one-time historical backfill runs only after a read-only snapshot of every affected progress doc (the `functions/snapshot-prog003-affected-progress.js` pattern) — the restore point.
-4. **Idempotent by construction.** A completion is boolean-true; re-running a trigger or the backfill yields the same write. Safe to re-run; no double-count, no corruption.
-5. **No emission changes, no key renames.** The bridge changes nothing about what pages save or how keys are named. If a future cleanup ever needs a rename (bare `m01` quiz ids, `quizquiz`), it uses `ModuleProgress.migrateLegacyKey` + a **server-side** migration first (to avoid the documented `syncBidirectional` ping-pong) — but the bridge itself never requires it.
-6. **Ongoing capture undisturbed.** Students keep saving via the same paths (`ModuleProgress.complete`, BoxEngine `flag_captures`, QuizEngine). The bridge sits on top; the save flow is unaltered, so there is no window where new progress stops being recorded.
-
-**Operational playbook (build order):**
-
-1. Build the trigger/mirror logic; verify on a throwaway **test class** with synthetic students — confirm completions appear and source silos are byte-for-byte unchanged.
-2. **Snapshot** production progress (restore point).
-3. Deploy behind the Nancy → Chris gate.
-4. Run the **idempotent backfill**; reconcile counts against the snapshot.
-5. **Reversible:** triggers can be disabled and mirrored completions removed without touching any source silo (the mirror is purely additive).
-
-**Worst case** is a missing *derived* count — fixed by re-running the idempotent, snapshot-backed backfill. Saved progress itself is structurally protected: data only ever flows source → (read) → additive mirror.
-
-## 6 — Open decisions
-
-1. **Tactical bridge (H) vs advance analytics-v2** — which path.
-2. **Course-manifest shape for non-module items** — how box ids (`ala-l*`) and quiz ids (`m01`..`m19`) map to a course (extend the ContentRegistry path `.modules`, or a separate map).
-3. **Quiz id cleanup** — leave bare `m01` (works once bridged) or namespace them (`cloud-wsa-m01-quiz`) via a guarded migration. Not required for bridging.
+- **The shipped registry fix (`d0579cd8f`, paths `ala-w`/`wsa`) is INERT for these tenant classes** — it serves the assignment+`completions` pipeline, which tenant classes don't use. It is additive/progress-safe (leave it, or back it out — no effect on the tenant-class fix).
+- **Open:** build the `courseId → module-list` manifest (hub-derived) for `wsa` + `adv-linux`; decide assignment-chart handling for assignment-less classes; then implement the courseId branch through the Nancy → Chris gate; deploy; read-only verify against the 2 live classes.
