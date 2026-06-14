@@ -1328,6 +1328,15 @@ exports.hexAiAmbientState = onCall(cfOptions, async (request) => {
     // calm on retakes. Intended: a previously-passed quiz is low-stakes
     // practice and shouldn't alarm. Struggle IS signalled for students who
     // have not yet passed (the common case).
+    //
+    // SCOPE: this retake-calm applies to STANDALONE quiz pages, where QuizEngine
+    // records the whole quiz under exercise_id='quiz'. It does NOT apply to a quiz
+    // EMBEDDED in a lab page: the Phase-3 lab observer records each wrong answer
+    // under that element's own exercise id (only correct answers use 'quiz'), so a
+    // previously-passed embedded quiz CAN still escalate on repeated wrong retakes —
+    // which is intended for labs (a struggling student on a lab should get noticed,
+    // even on a retake). Standalone quizzes and embedded-lab quizzes differ here by
+    // design.
     const labFlagIdFor = (missionId, exerciseId) => `lab:${missionId}:${exerciseId}`;
     for (const d of labAttemptsSnap.docs) {
         const row = d.data();

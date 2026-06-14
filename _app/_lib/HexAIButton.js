@@ -77,7 +77,11 @@ class HexAIButton extends HTMLElement {
         // across quiz pages doesn't matter — we always record under mission-id.
         // NOTE: on the ~22 key pages an inline block reassigns this global AFTER us
         // (module order); harmless — those pass their own correct mission-id.
-        if (this._missionId && typeof window !== 'undefined') {
+        // Skipped on no-escalate (CTF) buttons: those drive state purely from
+        // flag_attempts/flag_captures, never lab_attempts, so leaving the global
+        // unregistered prevents any future in-box code from accidentally writing
+        // lab_attempts under a box registryId and corrupting its ambient state.
+        if (this._missionId && typeof window !== 'undefined' && !this.hasAttribute('no-escalate')) {
             window.__hexLabRecord = (_idHint, exerciseId, correct) => {
                 if (!auth.currentUser) return Promise.resolve();
                 return recordLabFn({
@@ -235,11 +239,18 @@ class HexAIButton extends HTMLElement {
         const btn = this.shadowRoot.querySelector('button.dr-hex-fab');
         btn.addEventListener('click', () => this._openChat());
 
-        // Refetch state after a lab attempt is submitted
+        // Refetch state after a lab attempt is submitted. Debounce-TRAILING: reset
+        // the timer on each event so rapid bursts collapse to ONE refetch, fired
+        // 800ms after the LAST event. This both dedups (e.g. the Arena awardFlag path
+        // dispatches twice — an early one from _reportFlagCapture and a post-write one
+        // from validateAction) AND keeps the timing correct (the refetch lands after
+        // the final, server-committed event), so we never waste a CF call or miss the
+        // capture. 800ms also lets the Firestore commit propagate.
+        let labAttemptTimer = null;
         window.addEventListener('hexworth:lab-attempt-submitted', () => {
             if (this._authUser && this._missionId) {
-                // Small delay to let Firestore commit propagate
-                setTimeout(() => this._fetchState(), 800);
+                clearTimeout(labAttemptTimer);
+                labAttemptTimer = setTimeout(() => this._fetchState(), 800);
             }
         });
 
