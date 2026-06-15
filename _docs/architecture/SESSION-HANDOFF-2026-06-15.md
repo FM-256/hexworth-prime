@@ -43,7 +43,7 @@ Doc: `wsa-quiz-review-scope-2026-06-15.md`. Goal: post-submission per-question r
 - **OPEN DECISION:** length/density inconsistent (W1=6pp, W2=26pp, W3=12pp, W4=20pp). Operator's "similar to Week 1" intent = tight quick-reference. Pending decision: normalize all to ~W1 density (trim verbose config dumps to command tables + playbooks) or leave at current depth.
 
 ## Cross-cutting FOLLOW-UP
-- Add `ala-w2-lecture`, `ala-w3-lecture`, `ala-w4-lecture` to `_app/tenant/adv-linux-map.js` analytics denominator (parallel to `ala-w1-lecture`) so the companions count in cohort completion. One small edit + deploy. (They record completions either way; just don't show in completion-rate math until added.)
+- ~~Add ala-w2/w3/w4-lecture to adv-linux-map.js~~ — DONE + deployed (denominator 27→30; all 4 companions now counted in cohort completion).
 
 ---
 
@@ -52,6 +52,6 @@ Doc: `wsa-quiz-review-scope-2026-06-15.md`. Goal: post-submission per-question r
 2. **Continue WSA quiz content:** Karl-confirm M17, then author M16↓ (or per operator's order) via the proven loop.
 3. **Build WSA code pilot legs 2–4** (gradeQuiz + engine + preview/seed/deploy) so M01/M18/M19 review goes live end-to-end.
 4. **Normalize ALA manuals** to W1 quick-ref density (operator decision pending).
-5. **Add the 3 lecture ids to adv-linux-map.js** (quick follow-up).
+5. ~~Add the 3 lecture ids to adv-linux-map.js~~ — DONE (live; denominator 30).
 
 Diagnostics + tooling preserved in `_tools/diagnostics/tenant-analytics/` and `_tools/diagnostics/quiz-explanations/` (all read-only except the clearly-gated `--apply` seed/backfill scripts).
