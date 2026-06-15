@@ -95,10 +95,10 @@ window.ALAHunt2Config = {
 
     desktop: {
         icons: [
-            { id: 'terminal',  label: 'Terminal',    icon: '🖥️', app: 'terminal' },
-            { id: 'notes',     label: 'Notes',       icon: '📝',    app: 'notes'    },
-            { id: 'hints',     label: 'Hints',       icon: '💡',    app: 'hints'    },
-            { id: 'flags',     label: 'Submit Flag', icon: '🚩',    app: 'flags'    }
+            { id: 'terminal',  label: 'Terminal',    icon: '\uD83D\uDDA5\uFE0F', app: 'terminal' },
+            { id: 'notes',     label: 'Notes',       icon: '\uD83D\uDCDD',    app: 'notes'    },
+            { id: 'hints',     label: 'Hints',       icon: '\uD83D\uDCA1',    app: 'hints'    },
+            { id: 'flags',     label: 'Submit Flag', icon: '\uD83D\uDEA9',    app: 'flags'    }
         ]
     },
 
