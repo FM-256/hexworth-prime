@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 4 Lecture Companion | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #050a06 0%, #060d08 50%, #08120a 100%);
+            color: #d8e6dc; font-size: 16px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 28px 36px 78px; overflow: hidden;
+            animation: slideIn 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(28px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .slide-inner { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 18px; }
+
+        /* progress + nav */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #10b981 0%, #00ff41 100%);
+            transition: width 0.45s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+            background: rgba(5, 10, 6, 0.95); border-top: 1px solid rgba(0, 255, 65, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #8b9e8e;
+            border: 1px solid rgba(0, 255, 65, 0.15);
+            padding: 9px 24px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+            font-family: inherit;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(0, 255, 65, 0.1); color: #00ff41; border-color: #00ff41; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.84rem; padding: 9px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.84rem; min-width: 100px; text-align: center; }
+
+        #complete-btn { display: none; background: #10b981; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+            font-family: inherit; }
+        #complete-btn:hover { background: #00ff41; color: #000; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0, 255, 65, 0.4); }
+
+        /* typography */
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; opacity: 0.85; }
+        .slide-title { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; text-align: center; line-height: 1.18; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-title .accent-emerald { color: #10b981; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+        .slide-title .accent-gold { color: #eab308; }
+        .slide-title .accent-red { color: #ef4444; }
+        .slide-subtitle { font-size: 1.05rem; color: #8b9e8e; text-align: center; max-width: 880px; margin: 0 auto; }
+
+        /* hero title slide */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 3rem; font-weight: 900; color: #f1f5f9; line-height: 1.12; letter-spacing: -0.01em; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-hero .lead { font-size: 1.2rem; color: #8b9e8e; max-width: 720px; }
+        .title-meta-row { display: flex; gap: 32px; justify-content: center; margin-top: 12px; font-size: 0.85rem; color: #64748b; }
+        .title-meta-row span { border-left: 2px solid #1f2a22; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* cards */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 16px 18px; border-left: 3px solid #00ff41;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        .slide.active .card:nth-child(1) { animation-delay: 0.18s; }
+        .slide.active .card:nth-child(2) { animation-delay: 0.32s; }
+        .slide.active .card:nth-child(3) { animation-delay: 0.46s; }
+        .slide.active .card:nth-child(4) { animation-delay: 0.60s; }
+        .slide.active .card:nth-child(5) { animation-delay: 0.74s; }
+        .slide.active .card:nth-child(6) { animation-delay: 0.88s; }
+
+        .card .card-label { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.9rem; color: #b8c5bb; line-height: 1.5; }
+        .card.c-green { border-left-color: #00ff41; background: rgba(0, 255, 65, 0.04); }
+        .card.c-emerald { border-left-color: #10b981; background: rgba(16, 185, 129, 0.05); }
+        .card.c-cyan  { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.05); }
+        .card.c-gold  { border-left-color: #eab308; background: rgba(234, 179, 8, 0.05); }
+        .card.c-red   { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+        .card.c-purple { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.05); }
+        .card.c-blue  { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
+
+        /* callouts */
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.05); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 12px 18px;
+            font-size: 0.95rem; color: #b8d4be; font-style: italic; line-height: 1.55;
+        }
+        .box { border-radius: 8px; padding: 14px 18px; font-size: 0.92rem; }
+        .box-green { background: rgba(0, 255, 65, 0.07); border: 1px solid rgba(0, 255, 65, 0.28); color: #c8e6cd; }
+        .box-emerald { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); color: #c8e6cd; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-gold  { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.8; }
+
+        /* lecture agenda items */
+        .agenda-row {
+            display: grid; grid-template-columns: 60px 1fr auto; gap: 18px;
+            align-items: center; padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            border-left: 3px solid #00ff41;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        .agenda-num { font-size: 1.8rem; font-weight: 800; color: #00ff41; text-align: center; opacity: 0.75; }
+        .agenda-text { display: flex; flex-direction: column; gap: 2px; }
+        .agenda-text .agenda-title { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+        .agenda-text .agenda-sub   { font-size: 0.85rem; color: #8b9e8e; }
+        .agenda-time { font-size: 0.78rem; font-weight: 700; color: #64748b; letter-spacing: 0.08em; }
+        .slide.active .agenda-row:nth-child(1) { animation-delay: 0.20s; }
+        .slide.active .agenda-row:nth-child(2) { animation-delay: 0.36s; }
+        .slide.active .agenda-row:nth-child(3) { animation-delay: 0.52s; }
+        .slide.active .agenda-row:nth-child(4) { animation-delay: 0.68s; }
+
+        /* diagrams */
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 6px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.5; r: 4; } 50% { opacity: 1; r: 6; } }
+        @keyframes pulseGlow { 0%, 100% { filter: drop-shadow(0 0 4px currentColor); } 50% { filter: drop-shadow(0 0 14px currentColor); } }
+        @keyframes flowRight { 0% { transform: translateX(-6px); opacity: 0.3; } 50% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(6px); opacity: 0.3; } }
+        @keyframes signalSend { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes expandOut { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+        @keyframes dashFlow { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+
+        /* terminal */
+        .terminal {
+            background: #02080a; border: 1px solid rgba(0, 255, 65, 0.18);
+            border-radius: 8px; padding: 14px 16px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.86rem; color: #c8e6cd; line-height: 1.55;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .terminal .t-prompt { color: #00ff41; font-weight: 700; }
+        .terminal .t-cmd    { color: #f1f5f9; }
+        .terminal .t-out    { color: #8b9e8e; }
+        .terminal .t-comment { color: #5a6e5f; font-style: italic; }
+        .terminal .t-flag   { color: #eab308; }
+        .terminal .t-cursor { color: #00ff41; animation: blink 1.2s step-end infinite; }
+
+        /* two-col layout */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 12px; } .slide-title { font-size: 1.7rem; } .title-hero .big-title { font-size: 2.2rem; } .terminal { font-size: 0.78rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-2, .card-grid-4 { grid-template-columns: 1fr; } .two-col { grid-template-columns: 1fr; } .slide-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Week 4 Lecture Companion | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:4%"></div>
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Lecture Companion &nbsp;|&nbsp; Week 4 of 4 &nbsp;|&nbsp; CTS4321C &middot; Course Objective 7</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Integrity &amp; Performance &mdash;<br>
+                <span class="accent">Detection, Forensics, and Evidence</span>
+            </div>
+            <div class="lead">
+                The final week. File integrity monitoring, performance analysis, and log management are not three separate topics &mdash; they are the detection layer that proves whether your hardened system stayed hardened.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>25 Slides</span>
+            <span>3 Topic Blocks</span>
+            <span>Final Week</span>
+            <span>Bring a terminal</span>
+        </div>
+        <div class="scenario-strip" style="margin-top:14px;">
+            This deck is the instructor companion. The three topic decks (File Integrity, Performance, Log Management) hold the drilldown. This deck holds the throughline: how these three systems work together to detect, diagnose, and prove what happened.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 2 — THE WEEK AHEAD ============ -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 25 &nbsp;|&nbsp; The Week Ahead</div>
+        <div class="slide-title">Three Stops, <span class="accent">One Detection Layer</span></div>
+        <div class="slide-subtitle">The final week of CTS4321C. This is where defense becomes evidence.</div>
+
+        <div class="diagram" style="margin-top:6px;">
+            <svg viewBox="0 0 1100 280" width="1100" height="280" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="w4path" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#10b981" stop-opacity="0.7"/>
+                        <stop offset="50%" stop-color="#06b6d4" stop-opacity="0.7"/>
+                        <stop offset="100%" stop-color="#a855f7" stop-opacity="0.7"/>
+                    </linearGradient>
+                    <radialGradient id="w4mark">
+                        <stop offset="0%" stop-color="#fff" stop-opacity="1"/>
+                        <stop offset="50%" stop-color="#00ff41" stop-opacity="0.6"/>
+                        <stop offset="100%" stop-color="#00ff41" stop-opacity="0"/>
+                    </radialGradient>
+                    <path id="w4road" d="M 120 110 L 980 110"/>
+                </defs>
+
+                <!-- the road -->
+                <line x1="120" y1="110" x2="980" y2="110" stroke="url(#w4path)" stroke-width="4" stroke-dasharray="8 6">
+                    <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.6s" repeatCount="indefinite"/>
+                </line>
+
+                <!-- traveling marker -->
+                <circle r="22" fill="url(#w4mark)"><animateMotion dur="14s" repeatCount="indefinite"><mpath href="#w4road"/></animateMotion></circle>
+                <circle r="6" fill="#fff"><animateMotion dur="14s" repeatCount="indefinite"><mpath href="#w4road"/></animateMotion></circle>
+
+                <!-- Stop 1: File Integrity -->
+                <g>
+                    <circle cx="200" cy="110" r="32" fill="rgba(16,185,129,0.18)" stroke="#10b981" stroke-width="3"/>
+                    <text x="200" y="118" text-anchor="middle" fill="#10b981" font-family="Inter" font-size="22" font-weight="800">1</text>
+                    <text x="200" y="62" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="14" font-weight="700">File Integrity</text>
+                    <text x="200" y="80" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">the ground truth</text>
+                    <text x="200" y="178" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">sha256sum &middot; AIDE &middot; auditd</text>
+                    <text x="200" y="196" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">was anything changed?</text>
+                    <text x="200" y="222" text-anchor="middle" fill="#64748b" font-family="JetBrains Mono" font-size="9" letter-spacing="0.1em">~15 MIN</text>
+                </g>
+
+                <!-- Stop 2: Performance -->
+                <g>
+                    <circle cx="550" cy="110" r="32" fill="rgba(6,182,212,0.18)" stroke="#06b6d4" stroke-width="3"/>
+                    <text x="550" y="118" text-anchor="middle" fill="#06b6d4" font-family="Inter" font-size="22" font-weight="800">2</text>
+                    <text x="550" y="62" text-anchor="middle" fill="#cffafe" font-family="Inter" font-size="14" font-weight="700">Performance</text>
+                    <text x="550" y="80" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">the vital signs</text>
+                    <text x="550" y="178" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">top &middot; vmstat &middot; iostat &middot; sar</text>
+                    <text x="550" y="196" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">is the system healthy now?</text>
+                    <text x="550" y="222" text-anchor="middle" fill="#64748b" font-family="JetBrains Mono" font-size="9" letter-spacing="0.1em">~15 MIN</text>
+                </g>
+
+                <!-- Stop 3: Log Management -->
+                <g>
+                    <circle cx="900" cy="110" r="32" fill="rgba(168,85,247,0.18)" stroke="#a855f7" stroke-width="3"/>
+                    <text x="900" y="118" text-anchor="middle" fill="#a855f7" font-family="Inter" font-size="22" font-weight="800">3</text>
+                    <text x="900" y="62" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="14" font-weight="700">Log Management</text>
+                    <text x="900" y="80" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">the timeline</text>
+                    <text x="900" y="178" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">journald &middot; rsyslog &middot; logrotate</text>
+                    <text x="900" y="196" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">what happened and when?</text>
+                    <text x="900" y="222" text-anchor="middle" fill="#64748b" font-family="JetBrains Mono" font-size="9" letter-spacing="0.1em">~15 MIN</text>
+                </g>
+
+                <!-- end marker -->
+                <text x="550" y="262" text-anchor="middle" fill="#86efac" font-family="Inter" font-size="13" font-style="italic">~50 minutes &middot; 3 detection disciplines &middot; final week of CTS4321C</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3 — THE BIG PICTURE ============ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 25 &nbsp;|&nbsp; The Big Picture</div>
+        <div class="slide-title">How the Three <span class="accent">Work Together</span></div>
+        <div class="slide-subtitle">An attacker gets in. Each Week 4 system answers a different question about the event. Together they form a complete forensic picture.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 1060 200" width="1060" height="200" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="bigArr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#94a3b8"/>
+                    </marker>
+                </defs>
+
+                <!-- Event box -->
+                <rect x="10" y="60" width="140" height="60" rx="8" fill="rgba(239,68,68,0.10)" stroke="#ef4444" stroke-width="2"/>
+                <text x="80" y="84" text-anchor="middle" fill="#fee2e2" font-family="Inter" font-size="13" font-weight="700">INCIDENT</text>
+                <text x="80" y="104" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="10">attacker / misconfiguration</text>
+
+                <line x1="153" y1="90" x2="210" y2="90" stroke="#10b981" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="210,90 200,85 200,95" fill="#10b981"/>
+
+                <!-- FIM box -->
+                <rect x="212" y="60" width="200" height="60" rx="8" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="312" y="82" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="700">FILE INTEGRITY</text>
+                <text x="312" y="100" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">What files changed? Were binaries replaced?</text>
+
+                <line x1="414" y1="90" x2="466" y2="90" stroke="#06b6d4" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="466,90 456,85 456,95" fill="#06b6d4"/>
+
+                <!-- Perf box -->
+                <rect x="468" y="60" width="200" height="60" rx="8" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="568" y="82" text-anchor="middle" fill="#cffafe" font-family="Inter" font-size="13" font-weight="700">PERFORMANCE</text>
+                <text x="568" y="100" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">Is the system degraded? CPU mining? I/O anomaly?</text>
+
+                <line x1="670" y1="90" x2="722" y2="90" stroke="#a855f7" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="722,90 712,85 712,95" fill="#a855f7"/>
+
+                <!-- Logs box -->
+                <rect x="724" y="60" width="200" height="60" rx="8" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="824" y="82" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="13" font-weight="700">LOGS</text>
+                <text x="824" y="100" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">Who did what, exactly when? Timeline of events.</text>
+
+                <!-- pulse markers -->
+                <circle cx="183" cy="90" r="5" fill="#10b981" style="animation: pulse 2s ease-in-out infinite"/>
+                <circle cx="441" cy="90" r="5" fill="#06b6d4" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+                <circle cx="697" cy="90" r="5" fill="#a855f7" style="animation: pulse 2s ease-in-out infinite 1s"/>
+
+                <!-- caption -->
+                <text x="530" y="178" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="12" font-style="italic">Three questions. Three answers. Together: complete forensic reconstruction of the event.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-emerald">
+                <div class="card-label">FIM answers: what changed?</div>
+                <div class="card-desc">AIDE and sha256sum tell you whether files in <code style="color:#10b981;font-family:monospace">/usr/bin</code>, <code style="color:#10b981;font-family:monospace">/etc/ssh</code>, or <code style="color:#10b981;font-family:monospace">/etc/cron.d</code> were modified after your known-good baseline. This is the integrity layer.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Performance answers: what is the system doing?</div>
+                <div class="card-desc">An XMRig cryptominer shows up as anomalous CPU. A web shell exfiltrating data shows up as unexpected I/O and network traffic. Performance tools detect active compromise symptoms.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Logs answer: when and by whom?</div>
+                <div class="card-desc">Logs provide the forensic timeline. journald and rsyslog record the exact sequence of events with timestamps. Centralized logging ensures that evidence survives even if the local system is wiped.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK A: FILE INTEGRITY ============ -->
+
+<!-- ============ SLIDE 4 — FIM FUNDAMENTALS ============ -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 25 &nbsp;|&nbsp; Topic 1: File Integrity</div>
+        <div class="slide-title">File Integrity: <span class="accent">The Ground Truth</span></div>
+        <div class="slide-subtitle">You cannot trust your tools if your tools have been replaced. A cryptographic baseline created before the attack is the only way to detect this.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 1000 180" width="1000" height="180" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="ficArr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#94a3b8"/>
+                    </marker>
+                </defs>
+
+                <!-- Clean system -->
+                <rect x="10" y="50" width="150" height="70" rx="8" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="85" y="76" text-anchor="middle" fill="#10b981" font-family="Inter" font-size="12" font-weight="700">CLEAN SYSTEM</text>
+                <text x="85" y="96" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">/usr/bin/ls hash = a1b2c3</text>
+                <text x="85" y="110" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">/etc/ssh hash = d4e5f6</text>
+
+                <!-- sha256sum arrow -->
+                <line x1="163" y1="85" x2="210" y2="85" stroke="#10b981" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="210,85 200,80 200,90" fill="#10b981"/>
+
+                <!-- Baseline DB -->
+                <rect x="212" y="42" width="170" height="86" rx="8" fill="rgba(0,255,65,0.08)" stroke="#00ff41" stroke-width="2.5"/>
+                <text x="297" y="66" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="12" font-weight="800">BASELINE DB</text>
+                <text x="297" y="84" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">aide.db</text>
+                <text x="297" y="100" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">chattr +i</text>
+                <text x="297" y="116" text-anchor="middle" fill="#64748b" font-family="Inter" font-size="9" font-style="italic">immutable, off-host copy</text>
+
+                <!-- time passes arrow -->
+                <line x1="384" y1="85" x2="434" y2="85" stroke="#eab308" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="434,85 424,80 424,90" fill="#eab308"/>
+                <text x="409" y="76" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="9" font-style="italic">days/weeks</text>
+
+                <!-- Current state -->
+                <rect x="436" y="50" width="160" height="70" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="2"/>
+                <text x="516" y="76" text-anchor="middle" fill="#fee2e2" font-family="Inter" font-size="12" font-weight="700">CURRENT STATE</text>
+                <text x="516" y="96" text-anchor="middle" fill="#ef4444" font-family="JetBrains Mono" font-size="9">/usr/bin/ls hash = ZZ9Z99</text>
+                <text x="516" y="110" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">/etc/ssh hash = d4e5f6</text>
+
+                <!-- compare arrow -->
+                <line x1="598" y1="85" x2="645" y2="85" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="645,85 635,80 635,90" fill="#ef4444"/>
+
+                <!-- AIDE check -->
+                <rect x="647" y="50" width="160" height="70" rx="8" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="2.5"/>
+                <text x="727" y="74" text-anchor="middle" fill="#ef4444" font-family="Inter" font-size="12" font-weight="800">AIDE --CHECK</text>
+                <text x="727" y="94" text-anchor="middle" fill="#fee2e2" font-family="Inter" font-size="11">Changed: /usr/bin/ls</text>
+                <text x="727" y="110" text-anchor="middle" fill="#ef4444" font-family="Inter" font-size="11" font-weight="700">ALERT</text>
+
+                <!-- alert pulse -->
+                <circle cx="850" cy="85" r="18" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="2">
+                    <animate attributeName="r" values="18;26;18" dur="1.4s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.4s" repeatCount="indefinite"/>
+                </circle>
+                <text x="850" y="89" text-anchor="middle" fill="#ef4444" font-family="Inter" font-size="10" font-weight="800">!</text>
+
+                <text x="500" y="162" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="12" font-style="italic">FIM is detective, not preventive. It tells you a file changed. The value is in the detection window and the forensic evidence it creates.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-emerald">
+                <div class="card-label">What rootkits do</div>
+                <div class="card-desc">Rootkits replace system binaries: <code style="color:#10b981;font-family:monospace">ls</code>, <code style="color:#10b981;font-family:monospace">ps</code>, <code style="color:#10b981;font-family:monospace">netstat</code>, <code style="color:#10b981;font-family:monospace">find</code>. The tools you use to investigate are themselves compromised. Only an out-of-band baseline can detect this.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hash algorithm matters</div>
+                <div class="card-desc">MD5 is cryptographically broken &mdash; collisions can be engineered, meaning an attacker can craft a malicious file with the same MD5. Use SHA-256 for all production integrity work.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Database protection</div>
+                <div class="card-desc">If an attacker can modify both the target files and the AIDE database, they cover their tracks. Store the database on read-only media or a separate monitoring server. <code style="color:#ef4444;font-family:monospace">chattr +i</code> adds a local layer but is not sufficient alone.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 5 — AIDE LIFECYCLE ============ -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 25</div>
+        <div class="slide-title">AIDE: <span class="accent">Init, Check, Update</span></div>
+        <div class="slide-subtitle">Three operations form the AIDE lifecycle. The cycle only works if it runs automatically and alerts on findings.</div>
+
+        <div class="two-col">
+            <div class="terminal" style="font-size:0.84rem;">
+<span class="t-comment"># Install and initialize on a known-clean system</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo apt install aide aide-common -y</span>
+
+<span class="t-comment"># Build the initial database (takes several minutes)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo aideinit</span>
+<span class="t-out">AIDE, version 0.17.3
+Generating database...done.</span>
+
+<span class="t-comment"># Activate the new database</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo cp /var/lib/aide/aide.db.new \
+  /var/lib/aide/aide.db</span>
+
+<span class="t-comment"># Run a check (compare current state vs baseline)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo aide --check</span>
+<span class="t-out">Changed entries:
+/usr/bin/python3.10
+  Sha256: expected vs ZZ9Z99...</span>
+
+<span class="t-comment"># After an authorized change: update the baseline</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo aide --update</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo mv /var/lib/aide/aide.db.new \
+  /var/lib/aide/aide.db</span>
+
+<span class="t-comment"># Check only a specific directory</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo aide --check --limit=/etc/ssh</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-gold">
+                    <div class="box-label">Config: exclude dynamic paths</div>
+                    In <code style="color:#eab308;font-family:monospace">/etc/aide/aide.conf</code>, exclude directories that change constantly. <code style="color:#eab308;font-family:monospace">!/var/log</code>, <code style="color:#eab308;font-family:monospace">!/var/run</code>, <code style="color:#eab308;font-family:monospace">!/proc</code>, <code style="color:#eab308;font-family:monospace">!/sys</code>. Focus monitoring on <code style="color:#eab308;font-family:monospace">/usr/bin</code>, <code style="color:#eab308;font-family:monospace">/etc/ssh</code>, <code style="color:#eab308;font-family:monospace">/etc/cron.d</code>, <code style="color:#eab308;font-family:monospace">/etc/pam.d</code>.
+                </div>
+                <div class="box box-emerald">
+                    <div class="box-label">Exit codes tell the whole story</div>
+                    <code style="color:#10b981;font-family:monospace">aide --check</code> returns 0 for no changes, 1 for changes detected, 2 for errors. Automate alerting in <code style="color:#10b981;font-family:monospace">/etc/cron.daily/aide-check</code>: mail results when exit code is non-zero.
+                </div>
+                <div class="box box-red">
+                    <div class="box-label">Never baseline a possibly-compromised system</div>
+                    Running <code style="color:#ef4444;font-family:monospace">aideinit</code> on a system that may already be compromised makes the compromise the baseline. Always initialize immediately after a fresh, verified deployment.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 6 — AUDITD ============ -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 25</div>
+        <div class="slide-title"><span class="accent">auditd</span> &mdash; Syscall-Level Auditing</div>
+        <div class="slide-subtitle">AIDE detects that /etc/passwd changed. auditd tells you which process, which user, and at exactly what time.</div>
+
+        <div class="two-col">
+            <div class="terminal" style="font-size:0.83rem;">
+<span class="t-comment"># Install the audit daemon</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo apt install auditd audispd-plugins -y</span>
+
+<span class="t-comment"># Watch /etc/passwd for write + attribute changes</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo auditctl -w /etc/passwd \
+  -p wa -k passwd-changes</span>
+
+<span class="t-comment"># Watch /etc/sudoers</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo auditctl -w /etc/sudoers \
+  -p wa -k sudoers-changes</span>
+
+<span class="t-comment"># Watch for privilege escalation syscalls</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo auditctl -a always,exit \
+  -F arch=b64 -S execve \
+  -F uid=0 -k root-exec</span>
+
+<span class="t-comment"># Search audit log by key</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo ausearch -k passwd-changes</span>
+<span class="t-out">type=SYSCALL msg=audit(1749251234.123:892):
+  uid=1001 auid=1001 pid=14823 comm="vim"
+  exe="/usr/bin/vim" key="passwd-changes"</span>
+
+<span class="t-comment"># Persistent rules: /etc/audit/rules.d/hardened.rules</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo augenrules --load</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-cyan">
+                    <div class="card-label">-w / -p / -k flags</div>
+                    <div class="card-desc"><code style="color:#06b6d4;font-family:monospace">-w</code> sets the watch path. <code style="color:#06b6d4;font-family:monospace">-p wa</code> watches for write (<code style="color:#06b6d4;font-family:monospace">w</code>) and attribute changes (<code style="color:#06b6d4;font-family:monospace">a</code>). <code style="color:#06b6d4;font-family:monospace">-k</code> assigns a searchable key tag. The key is what you use with <code style="color:#06b6d4;font-family:monospace">ausearch -k</code> to find events quickly.</div>
+                </div>
+                <div class="card c-gold">
+                    <div class="card-label">auditd vs AIDE</div>
+                    <div class="card-desc">AIDE runs on a schedule and detects accumulated drift. auditd fires in real time at the syscall level. Deploy both: AIDE as your periodic integrity check, auditd as your real-time trip wire on specific critical files.</div>
+                </div>
+                <div class="box box-green" style="margin-top:0;">
+                    <div class="box-label">FIM synthesis: two layers</div>
+                    File integrity monitoring works best in two layers: AIDE as the broad periodic sweep of the entire filesystem, and auditd as the real-time alert on the files you care about most. AIDE catches what auditd was not watching; auditd catches it the moment it happens.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 7 — FIM SYNTHESIS ============ -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 25 &nbsp;|&nbsp; File Integrity Synthesis</div>
+        <div class="slide-title">FIM Mental Model: <span class="accent">Three Questions</span></div>
+        <div class="slide-subtitle">Every file integrity alert you receive should be answerable with one of these three questions. If you cannot answer them, your response process is not complete.</div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
+            <div style="display:grid; grid-template-columns: 64px 1fr; gap:16px; align-items:center; padding:14px 18px; background:rgba(16,185,129,0.06); border-left:3px solid #10b981; border-radius:0 8px 8px 0;">
+                <svg viewBox="0 0 64 64" width="64" height="64">
+                    <circle cx="32" cy="32" r="28" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="2"/>
+                    <text x="32" y="39" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="22" font-weight="800">?</text>
+                </svg>
+                <div>
+                    <div style="font-size:1.05rem; font-weight:700; color:#c8e6cd; margin-bottom:4px;">Was this change authorized?</div>
+                    <div style="font-size:0.9rem; color:#b8c5bb; line-height:1.5;">Cross-reference with your change management record. A package update that touched <code style="color:#10b981;font-family:monospace">/usr/bin/python3</code> is expected. A change to <code style="color:#10b981;font-family:monospace">/usr/bin/ls</code> after no package updates is not. Every AIDE alert starts here.</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 64px 1fr; gap:16px; align-items:center; padding:14px 18px; background:rgba(234,179,8,0.05); border-left:3px solid #eab308; border-radius:0 8px 8px 0;">
+                <svg viewBox="0 0 64 64" width="64" height="64">
+                    <circle cx="32" cy="32" r="28" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="2"/>
+                    <text x="32" y="39" text-anchor="middle" fill="#fef9c3" font-family="Inter" font-size="22" font-weight="800">!</text>
+                </svg>
+                <div>
+                    <div style="font-size:1.05rem; font-weight:700; color:#fef9c3; margin-bottom:4px;">What process made the change?</div>
+                    <div style="font-size:0.9rem; color:#b8c5bb; line-height:1.5;">If auditd was watching the file, <code style="color:#eab308;font-family:monospace">ausearch -k</code> gives you the PID, the executable, and the user. Cross-reference with <code style="color:#eab308;font-family:monospace">journalctl</code> for the surrounding context.</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 64px 1fr; gap:16px; align-items:center; padding:14px 18px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <svg viewBox="0 0 64 64" width="64" height="64">
+                    <circle cx="32" cy="32" r="28" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="2"/>
+                    <text x="32" y="39" text-anchor="middle" fill="#fee2e2" font-family="Inter" font-size="22" font-weight="800">&#x2713;</text>
+                </svg>
+                <div>
+                    <div style="font-size:1.05rem; font-weight:700; color:#fee2e2; margin-bottom:4px;">Should this file ever change on a running system?</div>
+                    <div style="font-size:0.9rem; color:#b8c5bb; line-height:1.5;">Files in <code style="color:#ef4444;font-family:monospace">/usr/bin</code>, <code style="color:#ef4444;font-family:monospace">/usr/sbin</code>, <code style="color:#ef4444;font-family:monospace">/etc/ssh</code>, <code style="color:#ef4444;font-family:monospace">/etc/pam.d</code> should never change without an explicit package update or configuration change. A change to these paths with no package manager activity is a strong indicator of compromise.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK B: PERFORMANCE ============ -->
+
+<!-- ============ SLIDE 8 — PERFORMANCE INVESTIGATION MODEL ============ -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 25 &nbsp;|&nbsp; Topic 2: Performance</div>
+        <div class="slide-title">Performance: <span class="accent">Start Broad, Narrow Fast</span></div>
+        <div class="slide-subtitle">Do not tune before you have measured. The USE method &mdash; Utilization, Saturation, Errors &mdash; is the framework for every subsystem.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 900 170" width="900" height="170" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="perfArr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#94a3b8"/>
+                    </marker>
+                </defs>
+
+                <!-- Step 1 -->
+                <rect x="10" y="40" width="160" height="70" rx="8" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="90" y="66" text-anchor="middle" fill="#10b981" font-family="Inter" font-size="12" font-weight="700">1. OBSERVE</text>
+                <text x="90" y="84" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">top / htop</text>
+                <text x="90" y="100" text-anchor="middle" fill="#64748b" font-family="Inter" font-size="9" font-style="italic">30-second snapshot</text>
+
+                <line x1="173" y1="75" x2="222" y2="75" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#perfArr)"/>
+
+                <!-- Step 2 -->
+                <rect x="224" y="40" width="180" height="70" rx="8" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="314" y="63" text-anchor="middle" fill="#06b6d4" font-family="Inter" font-size="12" font-weight="700">2. ISOLATE</text>
+                <text x="314" y="81" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">CPU | MEM | I/O | NET</text>
+                <text x="314" y="99" text-anchor="middle" fill="#64748b" font-family="Inter" font-size="9" font-style="italic">which subsystem?</text>
+
+                <line x1="406" y1="75" x2="456" y2="75" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#perfArr)"/>
+
+                <!-- Step 3 -->
+                <rect x="458" y="40" width="200" height="70" rx="8" fill="rgba(234,179,8,0.10)" stroke="#eab308" stroke-width="2"/>
+                <text x="558" y="63" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="12" font-weight="700">3. QUANTIFY</text>
+                <text x="558" y="81" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">iostat / vmstat / sar</text>
+                <text x="558" y="99" text-anchor="middle" fill="#64748b" font-family="Inter" font-size="9" font-style="italic">measure vs baseline</text>
+
+                <line x1="660" y1="75" x2="710" y2="75" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#perfArr)"/>
+
+                <!-- Step 4 -->
+                <rect x="712" y="40" width="160" height="70" rx="8" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2.5"/>
+                <text x="792" y="63" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="12" font-weight="700">4. ACT</text>
+                <text x="792" y="81" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">Tune / Scale / Kill</text>
+                <text x="792" y="99" text-anchor="middle" fill="#64748b" font-family="Inter" font-size="9" font-style="italic">only after step 3</text>
+
+                <text x="450" y="150" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="12" font-style="italic">Brendan Gregg's USE method: for every resource, check Utilization, Saturation, and Errors.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-emerald">
+                <div class="card-label">High CPU: next step</div>
+                <div class="card-desc">High <code style="color:#10b981;font-family:monospace">us%</code> = user-space problem; identify with <code style="color:#10b981;font-family:monospace">top -bn1</code> sorted by CPU. High <code style="color:#10b981;font-family:monospace">wa%</code> = I/O wait; the bottleneck is disk, not CPU. High <code style="color:#10b981;font-family:monospace">sy%</code> = excessive syscalls; investigate with <code style="color:#10b981;font-family:monospace">strace</code>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Memory: read "available" not "free"</div>
+                <div class="card-desc">Linux fills free RAM with disk cache. The <code style="color:#06b6d4;font-family:monospace">free</code> column is always small and that is fine. The <code style="color:#06b6d4;font-family:monospace">available</code> column is the real answer. Non-zero <code style="color:#06b6d4;font-family:monospace">si</code>/<code style="color:#06b6d4;font-family:monospace">so</code> in <code style="color:#06b6d4;font-family:monospace">vmstat</code> is the real memory pressure signal.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Baseline is mandatory</div>
+                <div class="card-desc">A load average of 8 on a 4-core machine means saturation. The same load on a 32-core machine is light. <code style="color:#eab308;font-family:monospace">nproc</code> gives core count. <code style="color:#eab308;font-family:monospace">sar</code> gives historical baseline. Never diagnose without knowing what "normal" looks like.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 9 — TOP + VMSTAT PATTERNS ============ -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 25</div>
+        <div class="slide-title"><span class="accent">top + vmstat</span> &mdash; Reading the Warning Signs</div>
+        <div class="slide-subtitle">The most important fields in both tools. Know these cold &mdash; the incident commander will ask you for a read in under 60 seconds.</div>
+
+        <div class="two-col">
+            <div>
+                <div class="box box-cyan" style="margin-bottom:10px;">
+                    <div class="box-label">top CPU line &mdash; what to watch</div>
+                    <code style="color:#06b6d4;font-family:monospace">us</code> user space &middot; <code style="color:#06b6d4;font-family:monospace">sy</code> kernel &middot; <code style="color:#06b6d4;font-family:monospace">wa</code> I/O wait &middot; <code style="color:#06b6d4;font-family:monospace">st</code> hypervisor steal.<br>
+                    High <code style="color:#06b6d4;font-family:monospace">wa</code> = disk bottleneck. High <code style="color:#06b6d4;font-family:monospace">st</code> = noisy neighbor on a VM.
+                </div>
+                <div class="terminal" style="font-size:0.80rem;">
+<span class="t-comment"># top header (4-core machine)</span>
+<span class="t-out">%Cpu(s):  8.2 us  1.4 sy  0.0 ni 86.1 id
+         3.3 wa  0.0 hi  0.0 si  0.0 st</span>
+<span class="t-comment"># 3.3 wa = I/O wait is worth investigating
+# check iostat -xz 2 next</span>
+
+<span class="t-comment"># Process state 'D' = cannot kill with SIGKILL</span>
+<span class="t-comment"># uninterruptible sleep = waiting on I/O</span>
+<span class="t-comment"># Many D-state processes = disk/NFS issue</span>
+
+<span class="t-comment"># Sort by memory in top: press M
+# Sort by CPU: press P
+# Per-CPU breakdown: press 1</span>
+                </div>
+            </div>
+            <div>
+                <div class="box box-gold" style="margin-bottom:10px;">
+                    <div class="box-label">vmstat columns &mdash; the red flags</div>
+                    <code style="color:#eab308;font-family:monospace">r</code> &gt; CPU count = CPU saturated. <code style="color:#eab308;font-family:monospace">b</code> &gt; 0 = I/O bottleneck. <code style="color:#eab308;font-family:monospace">si</code>/<code style="color:#eab308;font-family:monospace">so</code> &gt; 0 = swapping = memory exhaustion. <code style="color:#eab308;font-family:monospace">wa</code> &gt; 20 = disk is the limit.
+                </div>
+                <div class="terminal" style="font-size:0.80rem;">
+<span class="t-comment"># vmstat 1 5 (1-second, 5 samples)</span>
+<span class="t-out"># r  b   swpd   free  buff  cache
+# 2  0      0  98304  2048 524288
+# si   so    bi    bo   in   cs
+#  0    0     0   144  380  750</span>
+<span class="t-comment"># si/so are both 0: memory is fine</span>
+<span class="t-comment"># b is 0: no processes in uninterruptible sleep</span>
+
+<span class="t-comment"># If si/so were non-zero: swapping = bad
+# Investigate with: free -h, top (sort by RES)
+# ps aux --sort=-%mem | head -10</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10 — IOSTAT + SAR ============ -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 25</div>
+        <div class="slide-title"><span class="accent">iostat + sar</span> &mdash; Disk and History</div>
+        <div class="slide-subtitle">iostat shows what the disk is doing now. sar shows what it was doing last night &mdash; the only tool for investigating past performance events.</div>
+
+        <div class="two-col">
+            <div class="terminal" style="font-size:0.82rem;">
+<span class="t-comment"># iostat -xz: extended stats, skip idle devices</span>
+<span class="t-prompt">$</span> <span class="t-cmd">iostat -xz 2 3</span>
+<span class="t-out"># Device: r/s  w/s  await %util aqu-sz
+# sda:   10.2 45.3   8.23  68.4   0.37
+# nvme0:  2.1  8.4   0.42   4.1   0.01</span>
+<span class="t-comment"># %util 68% on sda: high but not saturated
+# await 8ms on HDD: acceptable
+# aqu-sz 0.37: small queue = not backed up</span>
+
+<span class="t-comment"># Find which process drives disk I/O</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo iotop -o</span>
+<span class="t-out"># TID   USER  DISK READ  DISK WRITE  COMMAND
+# 8342  mysql   0.00 B/s  18.42 M/s  mysqld</span>
+            </div>
+            <div class="terminal" style="font-size:0.82rem;">
+<span class="t-comment"># sar: install sysstat, enable collection</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo apt install sysstat -y</span>
+<span class="t-comment"># Enable: set ENABLED="true" in
+# /etc/default/sysstat, restart sysstat</span>
+
+<span class="t-comment"># CPU history: what happened this morning?</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sar -u 1 --since "02:30" --until "03:00"</span>
+
+<span class="t-comment"># Memory history</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sar -r 1 5</span>
+<span class="t-comment"># %memused > 95%: follow with:
+# ps aux --sort=-%mem | head -10</span>
+
+<span class="t-comment"># Disk I/O history</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sar -d -p 1 3</span>
+
+<span class="t-comment"># Network history</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sar -n DEV 1 3</span>
+            </div>
+        </div>
+
+        <div class="box box-red" style="margin-top:4px;">
+            <div class="box-label">The forensic performance pattern</div>
+            An incident happened at 02:47. <code style="color:#ef4444;font-family:monospace">sar</code> gives you the performance record for that window. Look for CPU spike (cryptominer), sudden I/O spike (exfiltration), or memory exhaustion (runaway process). If <code style="color:#ef4444;font-family:monospace">sar</code> is not running, you have no historical view &mdash; the evidence is gone.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 11 — PERFORMANCE SYNTHESIS ============ -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 25 &nbsp;|&nbsp; Performance Synthesis</div>
+        <div class="slide-title">Performance Mental Model: <span class="accent">The Security Angle</span></div>
+        <div class="slide-subtitle">Performance anomalies are often the first visible signal of an active compromise. These are the patterns that connect performance to security.</div>
+
+        <div style="display:flex; flex-direction:column; gap:9px; margin-top:4px;">
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#ef4444; text-align:center; margin-top:2px;">1</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fee2e2; margin-bottom:3px;">Sustained high CPU with unknown process</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">A cryptominer running as a hidden process. <code style="color:#ef4444;font-family:monospace">top</code> shows 90%+ CPU. The process name may be disguised as <code style="color:#ef4444;font-family:monospace">kworker</code> or a legitimate-looking name.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Investigate</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;"><code style="color:#00ff41;font-family:monospace">ps aux --sort=-%cpu | head -10</code>. Check the process binary path with <code style="color:#00ff41;font-family:monospace">ls -la /proc/PID/exe</code>. Run AIDE check on the binary.</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(234,179,8,0.05); border-left:3px solid #eab308; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#eab308; text-align:center; margin-top:2px;">2</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fef9c3; margin-bottom:3px;">Unexpected I/O spike at off-hours</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;"><code style="color:#eab308;font-family:monospace">sar -d</code> shows a large write burst at 03:14 AM when no scheduled jobs were running. Could be data exfiltration staging.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Investigate</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;"><code style="color:#00ff41;font-family:monospace">journalctl --since "03:10" --until "03:20"</code> to find the source. Cross-reference with <code style="color:#00ff41;font-family:monospace">ausearch</code> if auditd was watching the target directory.</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(168,85,247,0.05); border-left:3px solid #a855f7; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#a855f7; text-align:center; margin-top:2px;">3</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#e9d5ff; margin-bottom:3px;">Many processes in D state</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;"><code style="color:#a855f7;font-family:monospace">top</code> shows 8 processes in uninterruptible sleep. System appears frozen. Cannot kill with SIGKILL. Common cause: hung NFS mount, failing disk.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Investigate</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;"><code style="color:#00ff41;font-family:monospace">iostat -xz 2</code> to check disk error counters. <code style="color:#00ff41;font-family:monospace">journalctl -k -p err</code> for kernel errors. Check <code style="color:#00ff41;font-family:monospace">dmesg</code> for I/O errors.</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK C: LOG MANAGEMENT ============ -->
+
+<!-- ============ SLIDE 12 — TWO LOG SYSTEMS ============ -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 25 &nbsp;|&nbsp; Topic 3: Log Management</div>
+        <div class="slide-title">Two Log Systems: <span class="accent">journald and rsyslog</span></div>
+        <div class="slide-subtitle">Modern Ubuntu runs both. They serve different purposes and complement each other. Use each for what it is good at.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 1020 170" width="1020" height="170" xmlns="http://www.w3.org/2000/svg">
+                <!-- Sources -->
+                <rect x="10" y="20" width="120" height="30" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="70" y="38" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="10">kernel + systemd units</text>
+                <rect x="10" y="58" width="120" height="30" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="70" y="76" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="10">app stdout/stderr</text>
+                <rect x="10" y="96" width="120" height="30" rx="6" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="70" y="114" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="10">audit events</text>
+
+                <!-- All sources to journald -->
+                <line x1="132" y1="35" x2="185" y2="70" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5 3"><animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.4s" repeatCount="indefinite"/></line>
+                <line x1="132" y1="73" x2="185" y2="73" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5 3"><animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.4s" repeatCount="indefinite"/></line>
+                <line x1="132" y1="111" x2="185" y2="76" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5 3"><animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.4s" repeatCount="indefinite"/></line>
+
+                <!-- journald -->
+                <rect x="187" y="44" width="140" height="58" rx="8" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="257" y="68" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="13" font-weight="800">journald</text>
+                <text x="257" y="86" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">binary journal</text>
+                <text x="257" y="99" text-anchor="middle" fill="#64748b" font-family="Inter" font-size="8">/var/log/journal/</text>
+
+                <!-- journald to journalctl -->
+                <line x1="327" y1="60" x2="385" y2="40" stroke="#00ff41" stroke-width="1.5" stroke-dasharray="5 3"><animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.3s" repeatCount="indefinite"/></line>
+                <rect x="387" y="20" width="120" height="40" rx="6" fill="rgba(0,255,65,0.08)" stroke="#00ff41" stroke-width="1.5"/>
+                <text x="447" y="44" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="12" font-weight="700">journalctl</text>
+
+                <!-- journald to rsyslog -->
+                <line x1="327" y1="84" x2="385" y2="100" stroke="#eab308" stroke-width="1.5" stroke-dasharray="5 3"><animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.3s" repeatCount="indefinite"/></line>
+                <circle cx="356" cy="92" r="5" fill="#eab308"><animate attributeName="r" values="5;7;5" dur="1.3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;1;0.5" dur="1.3s" repeatCount="indefinite"/></circle>
+
+                <!-- rsyslog -->
+                <rect x="387" y="80" width="140" height="58" rx="8" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="2"/>
+                <text x="457" y="104" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="13" font-weight="800">rsyslog</text>
+                <text x="457" y="122" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">plain text routing</text>
+                <text x="457" y="133" text-anchor="middle" fill="#64748b" font-family="Inter" font-size="8">/var/log/*.log</text>
+
+                <!-- rsyslog to files -->
+                <line x1="527" y1="109" x2="590" y2="95" stroke="#eab308" stroke-width="1.5" stroke-dasharray="5 3"><animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.3s" repeatCount="indefinite"/></line>
+                <rect x="592" y="78" width="130" height="34" rx="6" fill="rgba(234,179,8,0.06)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="657" y="99" text-anchor="middle" fill="#eab308" font-family="JetBrains Mono" font-size="10">/var/log/auth.log</text>
+
+                <!-- rsyslog to remote -->
+                <line x1="527" y1="125" x2="590" y2="132" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 3"><animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.3s" repeatCount="indefinite"/></line>
+                <rect x="592" y="118" width="130" height="34" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="657" y="139" text-anchor="middle" fill="#ef4444" font-family="JetBrains Mono" font-size="10">@siem:514 (forward)</text>
+
+                <!-- SIEM -->
+                <line x1="724" y1="109" x2="780" y2="109" stroke="#a855f7" stroke-width="2" stroke-dasharray="6 3"><animate attributeName="stroke-dashoffset" from="20" to="0" dur="1.2s" repeatCount="indefinite"/></line>
+                <rect x="782" y="84" width="130" height="58" rx="8" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="847" y="108" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="12" font-weight="700">Central SIEM</text>
+                <text x="847" y="128" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">Survives host compromise</text>
+
+                <text x="510" y="162" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11" font-style="italic">journald for local investigation. rsyslog for forwarding to SIEM. Both for a complete picture.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Use journalctl when:</div>
+                <div class="card-desc">Investigating what a specific service did. Real-time following. Boot messages. Kernel messages. Filtering by unit, user, priority, or time window. All of this is local, fast, and structured.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use rsyslog when:</div>
+                <div class="card-desc">Forwarding to a SIEM or central server. Long-term retention. Integration with legacy tools expecting plain text. Routing high-volume logs to separate files. Ensuring evidence survives if the host is wiped.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 13 — JOURNALCTL OPERATIONS ============ -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 25</div>
+        <div class="slide-title">journalctl: <span class="accent">The Investigation Commands</span></div>
+        <div class="slide-subtitle">The commands you will reach for during every incident. Learn these until they are reflexive.</div>
+
+        <div class="two-col">
+            <div class="terminal" style="font-size:0.82rem;">
+<span class="t-comment"># Real-time follow (like tail -f)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -f</span>
+
+<span class="t-comment"># Filter by service unit</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -u nginx -f</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -u nginx -u mysql</span>
+
+<span class="t-comment"># Filter by priority (error and above)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -p err --since "1 hour ago"</span>
+
+<span class="t-comment"># Incident investigation: all errors in window</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -p err \
+  --since "2026-06-15 02:40" \
+  --until "2026-06-15 03:00" \
+  --no-pager</span>
+
+<span class="t-comment"># Specific service in incident window</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -u nginx \
+  --since "2026-06-15 02:40"</span>
+
+<span class="t-comment"># Kernel messages only</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -k -p err</span>
+
+<span class="t-comment"># Previous boot (survived a reboot?)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -b -1 -p err</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-green">
+                    <div class="box-label">Incident investigation pattern</div>
+                    Start with all errors across all services in the incident window. This gives you the sequence of failures before diving into any specific service. A cascade usually starts with one root cause &mdash; the sequence reveals it.
+                </div>
+                <div class="box box-emerald">
+                    <div class="box-label">Persistent journal</div>
+                    By default, journals may be volatile (lost on reboot). Make persistent by creating the directory:<br>
+                    <code style="color:#10b981;font-family:monospace;display:block;margin-top:6px;">sudo mkdir -p /var/log/journal</code>
+                    Then set <code style="color:#10b981;font-family:monospace">Storage=persistent</code> in <code style="color:#10b981;font-family:monospace">/etc/systemd/journald.conf</code> and restart <code style="color:#10b981;font-family:monospace">systemd-journald</code>.
+                </div>
+                <div class="box box-gold">
+                    <div class="box-label">Disk usage + retention</div>
+                    <code style="color:#eab308;font-family:monospace">journalctl --disk-usage</code> shows how much space the journal is using. Clean old entries with <code style="color:#eab308;font-family:monospace">journalctl --vacuum-time=30d</code>. Set <code style="color:#eab308;font-family:monospace">SystemMaxUse=2G</code> in <code style="color:#eab308;font-family:monospace">journald.conf</code> for automatic capping.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 14 — RSYSLOG + LOG FORWARDING ============ -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 25</div>
+        <div class="slide-title">rsyslog: <span class="accent">Forwarding and the @ Syntax</span></div>
+        <div class="slide-subtitle">Forwarding logs off the source host is the foundation of a tamper-resistant evidence chain. Protocol choice determines reliability.</div>
+
+        <div class="two-col">
+            <div class="terminal" style="font-size:0.82rem;">
+<span class="t-comment"># /etc/rsyslog.conf: routing + forwarding</span>
+
+<span class="t-comment"># Auth events: separate file for security review</span>
+<span class="t-flag">auth,authpriv.*</span>    <span class="t-cmd">/var/log/auth.log</span>
+
+<span class="t-comment"># Cron: dedicated file</span>
+<span class="t-flag">cron.*</span>             <span class="t-cmd">/var/log/cron.log</span>
+
+<span class="t-comment"># Custom app on local0 facility</span>
+<span class="t-flag">local0.*</span>           <span class="t-cmd">/var/log/sector/app.log</span>
+
+<span class="t-comment"># Forward all via UDP (single @)</span>
+<span class="t-flag">*.*</span>                <span class="t-cmd">@10.0.1.200:514</span>
+
+<span class="t-comment"># Forward all via TCP (double @@)</span>
+<span class="t-flag">*.*</span>                <span class="t-cmd">@@siem.sector.local:514</span>
+
+<span class="t-comment"># Forward only errors to SIEM (reduce volume)</span>
+<span class="t-flag">*.err</span>              <span class="t-cmd">@@siem.sector.local:514</span>
+
+<span class="t-comment"># Validate config before restarting</span>
+<span class="t-prompt">$</span> <span class="t-cmd">rsyslogd -N1</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo systemctl restart rsyslog</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-cyan">
+                    <div class="card-label">@ vs @@ &mdash; protocol choice</div>
+                    <div class="card-desc">Single <code style="color:#06b6d4;font-family:monospace">@</code> = UDP: fast, fire-and-forget, no delivery guarantee. Double <code style="color:#06b6d4;font-family:monospace">@@</code> = TCP: connection-oriented, detects delivery failure. For a SIEM feeding security investigations, use TCP. For high-volume telemetry where loss is acceptable, UDP.</div>
+                </div>
+                <div class="card c-red">
+                    <div class="card-label">Why forward at all?</div>
+                    <div class="card-desc">An attacker with root access can delete local logs. If logs were only local, the evidence is gone. Centralized logging to a server the attacker cannot reach ensures the forensic timeline survives the incident.</div>
+                </div>
+                <div class="box box-green" style="margin-top:0;">
+                    <div class="box-label">logrotate: keep disk under control</div>
+                    <code style="color:#00ff41;font-family:monospace">/etc/logrotate.conf</code> and <code style="color:#00ff41;font-family:monospace">/etc/logrotate.d/</code> control rotation. Standard pattern: daily rotation, 30-day retention, compress old files. Without logrotate, <code style="color:#00ff41;font-family:monospace">/var/log/</code> fills the disk and takes the system down.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 15 — SYSLOG PRIORITIES ============ -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 25</div>
+        <div class="slide-title">Syslog Priorities: <span class="accent">Facility.Priority Routing</span></div>
+        <div class="slide-subtitle">Every rsyslog rule is a facility.priority pair. Understanding the taxonomy is the key to building correct routing rules.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 1080 100" width="1080" height="100" xmlns="http://www.w3.org/2000/svg">
+                <text x="10" y="18" fill="#64748b" font-family="Inter" font-size="10" font-weight="700">SEVERITY  &rarr;</text>
+                <!-- Priority bars 0-7 -->
+                <rect x="100" y="8" width="118" height="36" rx="4" fill="rgba(239,68,68,0.25)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="159" y="24" text-anchor="middle" fill="#ef4444" font-family="Inter" font-size="11" font-weight="800">0 emerg</text>
+                <text x="159" y="40" text-anchor="middle" fill="#ef4444" font-family="Inter" font-size="9">system unusable</text>
+
+                <rect x="224" y="8" width="118" height="36" rx="4" fill="rgba(239,68,68,0.18)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="283" y="24" text-anchor="middle" fill="#ef4444" font-family="Inter" font-size="11" font-weight="800">1 alert</text>
+                <text x="283" y="40" text-anchor="middle" fill="#ef4444" font-family="Inter" font-size="9">immediate action</text>
+
+                <rect x="348" y="8" width="118" height="36" rx="4" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="407" y="24" text-anchor="middle" fill="#ef4444" font-family="Inter" font-size="11" font-weight="800">2 crit</text>
+                <text x="407" y="40" text-anchor="middle" fill="#ef4444" font-family="Inter" font-size="9">critical conditions</text>
+
+                <rect x="472" y="8" width="118" height="36" rx="4" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="531" y="24" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="11" font-weight="800">3 err</text>
+                <text x="531" y="40" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="9">error conditions</text>
+
+                <rect x="596" y="8" width="118" height="36" rx="4" fill="rgba(234,179,8,0.10)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="655" y="24" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="11" font-weight="800">4 warning</text>
+                <text x="655" y="40" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="9">warning conditions</text>
+
+                <rect x="720" y="8" width="118" height="36" rx="4" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="779" y="24" text-anchor="middle" fill="#06b6d4" font-family="Inter" font-size="11" font-weight="800">5 notice</text>
+                <text x="779" y="40" text-anchor="middle" fill="#06b6d4" font-family="Inter" font-size="9">significant event</text>
+
+                <rect x="844" y="8" width="118" height="36" rx="4" fill="rgba(0,255,65,0.08)" stroke="#00ff41" stroke-width="1.5"/>
+                <text x="903" y="24" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="11" font-weight="800">6 info</text>
+                <text x="903" y="40" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="9">informational</text>
+
+                <text x="540" y="86" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11" font-style="italic">journalctl -p err &rarr; shows err(3) and above. rsyslog *.warning &rarr; routes warning(4) and above. Lower number = higher severity.</text>
+            </svg>
+        </div>
+
+        <div class="two-col">
+            <div>
+                <div class="box box-emerald" style="margin-bottom:10px;">
+                    <div class="box-label">Facilities (source classification)</div>
+                    <code style="color:#10b981;font-family:monospace">kern</code> kernel &middot; <code style="color:#10b981;font-family:monospace">auth/authpriv</code> authentication &middot; <code style="color:#10b981;font-family:monospace">cron</code> cron jobs &middot; <code style="color:#10b981;font-family:monospace">daemon</code> system daemons &middot; <code style="color:#10b981;font-family:monospace">local0..local7</code> custom applications. Use <code style="color:#10b981;font-family:monospace">logger -t myapp -p local0.info</code> to emit from scripts.
+                </div>
+            </div>
+            <div>
+                <div class="box box-cyan">
+                    <div class="box-label">Selector syntax</div>
+                    <code style="color:#06b6d4;font-family:monospace">*.*</code> all facilities, all priorities. <code style="color:#06b6d4;font-family:monospace">*.err</code> all facilities, error and above. <code style="color:#06b6d4;font-family:monospace">auth.*</code> all auth messages. <code style="color:#06b6d4;font-family:monospace">*.warning;auth.none</code> all warnings except auth. <code style="color:#06b6d4;font-family:monospace">kern.=crit</code> kernel at exactly crit (not above).
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 16 — THE SYNTHESIS SCENARIO ============ -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 25 &nbsp;|&nbsp; Synthesis</div>
+        <div class="slide-title">W4 in One Scenario: <span class="accent">"The Silent Compromise"</span></div>
+        <div class="slide-subtitle">A sector node was breached three weeks ago. No one noticed. The three Week 4 systems reconstruct what happened.</div>
+
+        <div class="diagram" style="margin-top:4px;">
+            <svg viewBox="0 0 1100 460" width="1100" height="460" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="synArr" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><polygon points="0 0, 9 4, 0 8" fill="#94a3b8"/></marker>
+                </defs>
+
+                <!-- Step 1: FIM -->
+                <circle cx="60" cy="42" r="22" fill="rgba(16,185,129,0.18)" stroke="#10b981" stroke-width="2"/>
+                <text x="60" y="48" text-anchor="middle" fill="#10b981" font-family="Inter" font-size="14" font-weight="800">1</text>
+                <rect x="100" y="16" width="980" height="52" rx="8" fill="rgba(16,185,129,0.05)" stroke="#10b981" stroke-width="1.5"/>
+                <text x="120" y="36" fill="#10b981" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">FILE INTEGRITY &mdash; /usr/bin/ls hash mismatch detected</text>
+                <text x="120" y="54" fill="#c8e6cd" font-family="JetBrains Mono" font-size="12"><tspan font-weight="700">aide --check</tspan> shows 3 system binaries replaced + <tspan font-weight="700">/etc/cron.d</tspan> modified</text>
+
+                <line x1="60" y1="68" x2="60" y2="90" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#synArr)"/>
+
+                <!-- Step 2: auditd -->
+                <circle cx="60" cy="118" r="22" fill="rgba(16,185,129,0.18)" stroke="#10b981" stroke-width="2"/>
+                <text x="60" y="124" text-anchor="middle" fill="#10b981" font-family="Inter" font-size="14" font-weight="800">2</text>
+                <rect x="100" y="92" width="980" height="52" rx="8" fill="rgba(16,185,129,0.05)" stroke="#10b981" stroke-width="1.5"/>
+                <text x="120" y="112" fill="#10b981" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">AUDITD &mdash; who wrote to /usr/bin/ls ?</text>
+                <text x="120" y="130" fill="#c8e6cd" font-family="JetBrains Mono" font-size="12"><tspan font-weight="700">ausearch -k binary-changes</tspan> returns: uid=33 (www-data), exe=/bin/cp, 03:14:22</text>
+
+                <line x1="60" y1="144" x2="60" y2="168" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#synArr)"/>
+
+                <!-- Step 3: Performance -->
+                <circle cx="60" cy="196" r="22" fill="rgba(6,182,212,0.18)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="60" y="202" text-anchor="middle" fill="#06b6d4" font-family="Inter" font-size="14" font-weight="800">3</text>
+                <rect x="100" y="170" width="980" height="52" rx="8" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="120" y="190" fill="#06b6d4" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">PERFORMANCE &mdash; sar shows CPU spike starting 03:14</text>
+                <text x="120" y="208" fill="#c8e6cd" font-family="JetBrains Mono" font-size="12"><tspan font-weight="700">sar -u</tspan> shows 97% CPU from 03:14 to 06:30 &mdash; cryptominer installed via cron</text>
+
+                <line x1="60" y1="222" x2="60" y2="246" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#synArr)"/>
+
+                <!-- Step 4: Logs -->
+                <circle cx="60" cy="274" r="22" fill="rgba(168,85,247,0.18)" stroke="#a855f7" stroke-width="2"/>
+                <text x="60" y="280" text-anchor="middle" fill="#a855f7" font-family="Inter" font-size="14" font-weight="800">4</text>
+                <rect x="100" y="248" width="980" height="52" rx="8" fill="rgba(168,85,247,0.05)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="120" y="268" fill="#a855f7" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">LOGS &mdash; journalctl reconstructs the full sequence</text>
+                <text x="120" y="286" fill="#c8e6cd" font-family="JetBrains Mono" font-size="12"><tspan font-weight="700">journalctl --since "03:10" -p err</tspan> shows nginx error, web shell upload, then binary replacement</text>
+
+                <line x1="60" y1="300" x2="60" y2="324" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#synArr)"/>
+
+                <!-- Result -->
+                <circle cx="60" cy="352" r="22" fill="rgba(0,255,65,0.25)" stroke="#00ff41" stroke-width="2.5"/>
+                <text x="60" y="358" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="14" font-weight="800">+</text>
+                <rect x="100" y="326" width="980" height="52" rx="8" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="120" y="346" fill="#00ff41" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">RESULT &mdash; complete forensic reconstruction</text>
+                <text x="120" y="364" fill="#c8e6cd" font-family="JetBrains Mono" font-size="12">initial vector identified &middot; timeline established &middot; scope of compromise mapped &middot; evidence preserved</text>
+
+                <rect x="20" y="400" width="1060" height="50" rx="10" fill="rgba(0,255,65,0.08)" stroke="#00ff41" stroke-width="2"/>
+                <text x="550" y="420" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="13" font-weight="800">THREE SYSTEMS, ONE FORENSIC PICTURE</text>
+                <text x="550" y="440" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="12">FIM found what changed &middot; auditd found who &middot; performance found the impact &middot; logs found the timeline</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 17 — CROSS-CONNECTIONS ============ -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 25</div>
+        <div class="slide-title">The <span class="accent">Cross-Connections</span></div>
+        <div class="slide-subtitle">These three topics are deeply entangled. Where they touch is where the strongest detection capability comes from.</div>
+
+        <div class="card-grid">
+            <div class="card c-emerald">
+                <div class="card-label">FIM + auditd: real-time + periodic</div>
+                <div class="card-desc">AIDE is your periodic sweep. auditd fires the moment a watched file changes. Deploy both: auditd on the files you care about most, AIDE as the broad sweep that catches what auditd was not watching.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Performance + logs: correlation</div>
+                <div class="card-desc">A CPU spike in <code style="color:#06b6d4;font-family:monospace">sar</code> at 03:14 and an error in <code style="color:#06b6d4;font-family:monospace">journalctl</code> at 03:12 are correlated events. The timestamp overlap is the evidence. Without both, neither finding is actionable.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">FIM + logs: change evidence</div>
+                <div class="card-desc">AIDE tells you <code style="color:#a855f7;font-family:monospace">/etc/sudoers</code> changed. journalctl tells you which user was active at that timestamp. Together they prove whether the change was authorized or malicious.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">All three feed the SIEM</div>
+                <div class="card-desc">AIDE alerting emails, auditd records, journald entries, and performance metrics all route through rsyslog to the central SIEM. A SIEM correlation rule that fires on "FIM alert within 10 minutes of performance spike" is a high-fidelity compromise detector.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Logs must outlive the incident</div>
+                <div class="card-desc">If logs are only local and the attacker wipes them, the evidence is gone. Centralized rsyslog forwarding ensures the timeline survives. This is why <code style="color:#ef4444;font-family:monospace">ForwardToSyslog=yes</code> in journald.conf and <code style="color:#ef4444;font-family:monospace">@@siem:514</code> in rsyslog.conf are not optional.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">sar + FIM: timing the compromise</div>
+                <div class="card-desc"><code style="color:#3b82f6;font-family:monospace">sar</code> data gives you the exact minute performance changed. Cross-reference with the AIDE-detected file change timestamp to narrow the compromise window to minutes, not days.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 18 — COMMON MISTAKES ============ -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 25</div>
+        <div class="slide-title">Common Mistakes: <span class="accent-red">What Goes Wrong</span></div>
+        <div class="slide-subtitle">These are the errors instructors see most often in labs. Each one has a clear root cause and a fix.</div>
+
+        <div style="display:flex; flex-direction:column; gap:9px; margin-top:4px;">
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#ef4444; text-align:center; margin-top:2px;">1</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fee2e2; margin-bottom:3px;">AIDE initialized on a potentially-compromised system</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Running <code style="color:#ef4444;font-family:monospace">aideinit</code> after the fact. The compromise becomes the baseline. Future checks show nothing because the attacker's changes are now "normal."</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Fix</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Always initialize immediately after a clean, verified deployment. Treat a post-breach AIDE init as meaningless. Restore from a known-clean snapshot first.</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#ef4444; text-align:center; margin-top:2px;">2</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fee2e2; margin-bottom:3px;">Monitoring /var/log and /proc in AIDE</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">AIDE reports hundreds of changes every run because log files and <code style="color:#ef4444;font-family:monospace">/proc</code> change constantly. Operators ignore the noise, defeating the purpose of FIM.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Fix</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Exclude <code style="color:#00ff41;font-family:monospace">!/var/log</code>, <code style="color:#00ff41;font-family:monospace">!/proc</code>, <code style="color:#00ff41;font-family:monospace">!/sys</code>, <code style="color:#00ff41;font-family:monospace">!/dev</code>, <code style="color:#00ff41;font-family:monospace">!/var/run</code> in <code style="color:#00ff41;font-family:monospace">/etc/aide/aide.conf</code>. Focus on <code style="color:#00ff41;font-family:monospace">/usr/bin</code>, <code style="color:#00ff41;font-family:monospace">/etc/ssh</code>, <code style="color:#00ff41;font-family:monospace">/etc/pam.d</code>.</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#ef4444; text-align:center; margin-top:2px;">3</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fee2e2; margin-bottom:3px;">Diagnosing performance without a baseline</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Seeing load average 6.0 and assuming it is a problem without knowing the system's normal. <code style="color:#ef4444;font-family:monospace">nproc</code> might say 8 cores, making 6.0 light utilization. Or it might say 4, making 6.0 saturation.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Fix</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Enable <code style="color:#00ff41;font-family:monospace">sysstat</code> on every server. Always run <code style="color:#00ff41;font-family:monospace">nproc</code> before interpreting load average. Use <code style="color:#00ff41;font-family:monospace">sar -u</code> to establish historical norms before diagnosing deviations.</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#ef4444; text-align:center; margin-top:2px;">4</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fee2e2; margin-bottom:3px;">Journal is volatile (lost on reboot)</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">The system reboots after an incident. The journal was in <code style="color:#ef4444;font-family:monospace">/run/log/journal/</code> (RAM-backed). All evidence from before the reboot is gone.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Fix</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;"><code style="color:#00ff41;font-family:monospace">mkdir -p /var/log/journal</code> and set <code style="color:#00ff41;font-family:monospace">Storage=persistent</code> in <code style="color:#00ff41;font-family:monospace">journald.conf</code>. Also forward to rsyslog: logs that live only locally are still vulnerable to root-level deletion.</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 19 — THE W4 CHECKLIST ============ -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 25</div>
+        <div class="slide-title">The W4 <span class="accent">Verification Checklist</span></div>
+        <div class="slide-subtitle">One page. Three categories. Every item here is a concrete task students can verify with a command.</div>
+
+        <div class="card-grid">
+            <div style="background:rgba(16,185,129,0.04); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#10b981; margin-bottom:8px;">File Integrity</div>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.88rem; color:#b8c5bb;">
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>AIDE installed and initialized on clean system</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Dynamic paths excluded from aide.conf</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>aide --check runs daily via cron</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Database stored with chattr +i</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>auditd watches /etc/passwd, /etc/sudoers</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>ausearch -k test confirms audit rules active</div>
+                </div>
+            </div>
+            <div style="background:rgba(6,182,212,0.04); border:1px solid rgba(6,182,212,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#06b6d4; margin-bottom:8px;">Performance</div>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.88rem; color:#b8c5bb;">
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>sysstat installed and enabled for sar collection</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>nproc documented as the load average baseline</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>sar -u, sar -r, sar -d all returning data</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>No D-state processes in top</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>vmstat si/so columns are zero</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>iostat %util under 80% on all disks</div>
+                </div>
+            </div>
+            <div style="background:rgba(168,85,247,0.04); border:1px solid rgba(168,85,247,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#a855f7; margin-bottom:8px;">Log Management</div>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.88rem; color:#b8c5bb;">
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Journal is persistent (Storage=persistent)</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>journalctl -b returns entries from current boot</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>rsyslog forwarding configured (@@siem:514)</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>rsyslogd -N1 passes syntax check</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>logrotate configured for /var/log/*.log</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>journalctl --disk-usage under SystemMaxUse</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 20 — VERIFICATION COMMANDS ============ -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 25</div>
+        <div class="slide-title">Verification: <span class="accent">How to Confirm It Works</span></div>
+        <div class="slide-subtitle">A detection control that cannot be verified is a guess. Each discipline has a specific command that proves the state.</div>
+
+        <div style="display:flex; flex-direction:column; gap:9px; margin-top:4px;">
+
+            <div style="display:grid; grid-template-columns: 100px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(16,185,129,0.05); border-left:3px solid #10b981; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#10b981; text-transform:uppercase; letter-spacing:0.06em;">FIM</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">sudo aide --check --verbose=2</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Runs a full integrity check. Exit 0 = no changes. Exit 1 = changes detected. Review report immediately.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 100px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(16,185,129,0.05); border-left:3px solid #10b981; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#10b981; text-transform:uppercase; letter-spacing:0.06em;">AUDIT</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">sudo auditctl -l</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Lists all active audit rules. Confirm your -w watches appear. An empty list means auditd has no rules loaded.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 100px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(6,182,212,0.05); border-left:3px solid #06b6d4; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#06b6d4; text-transform:uppercase; letter-spacing:0.06em;">PERF</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">sar -u 1 3</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Three 1-second CPU snapshots. Confirms sysstat is collecting. If "not available", check /etc/default/sysstat ENABLED=true.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 100px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(6,182,212,0.05); border-left:3px solid #06b6d4; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#06b6d4; text-transform:uppercase; letter-spacing:0.06em;">PERF</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">iostat -xz 2 2</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Two samples of extended disk stats. Confirm %util, await, and aqu-sz are in healthy ranges for each device.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 100px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(168,85,247,0.05); border-left:3px solid #a855f7; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#a855f7; text-transform:uppercase; letter-spacing:0.06em;">LOGS</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">journalctl -b --disk-usage</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Confirms journal is persistent (not just /run) and shows disk usage. A healthy system returns several hundred MB of indexed journal data.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 100px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(168,85,247,0.05); border-left:3px solid #a855f7; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#a855f7; text-transform:uppercase; letter-spacing:0.06em;">LOGS</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">rsyslogd -N1</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Dry-run config validation. Reports any syntax errors before restarting rsyslog. Always run before applying config changes.</div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 21 — FULL CELL AUDIT CAPSTONE ============ -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 25</div>
+        <div class="slide-title">The Capstone: <span class="accent">Full Cell Audit</span></div>
+        <div class="slide-subtitle">The capstone project puts all four weeks of CTS4321C together. You do not build a tool &mdash; you conduct a real investigation.</div>
+
+        <div class="card-grid-2">
+            <div style="background:rgba(0,255,65,0.05); border:1px solid rgba(0,255,65,0.2); border-radius:10px; padding:16px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#00ff41; margin-bottom:8px;">What you do</div>
+                <div style="display:flex; flex-direction:column; gap:6px; font-size:0.88rem; color:#b8c5bb;">
+                    <div style="display:flex; gap:10px;"><span style="color:#00ff41; font-weight:700; min-width:20px;">1.</span><span>Run a full AIDE check on your sector node and document every finding</span></div>
+                    <div style="display:flex; gap:10px;"><span style="color:#00ff41; font-weight:700; min-width:20px;">2.</span><span>Verify auditd watches are active and test them with a deliberate file touch</span></div>
+                    <div style="display:flex; gap:10px;"><span style="color:#00ff41; font-weight:700; min-width:20px;">3.</span><span>Pull a 24-hour performance baseline from sar and identify any anomalies</span></div>
+                    <div style="display:flex; gap:10px;"><span style="color:#00ff41; font-weight:700; min-width:20px;">4.</span><span>Query journalctl for the last 24 hours of error-level events and explain each one</span></div>
+                    <div style="display:flex; gap:10px;"><span style="color:#00ff41; font-weight:700; min-width:20px;">5.</span><span>Verify rsyslog is forwarding to the central server and confirm receipt</span></div>
+                    <div style="display:flex; gap:10px;"><span style="color:#00ff41; font-weight:700; min-width:20px;">6.</span><span>Produce a written audit report: finding, evidence, severity, recommendation</span></div>
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-gold">
+                    <div class="box-label">The four-week foundation underneath</div>
+                    Week 1 built the box (CLI, systemd, networking). Week 2 hardened it (UFW, PAM, ClamAV, packages). Week 3 automated it (DNS, bash, cron). Week 4 proved it stayed hardened. The capstone is the evidence that the whole stack held.
+                </div>
+                <div class="box box-red">
+                    <div class="box-label">What gets graded</div>
+                    Not whether your system is clean. Whether you can find, document, and explain findings at the appropriate severity level. An unexplained finding with no recommendation is a failing submission.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 22 — FINAL EXAM FRAMING ============ -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 25</div>
+        <div class="slide-title">Final Exam: <span class="accent">What to Expect</span></div>
+        <div class="slide-subtitle">The final exam covers all four weeks. These are the concept clusters that carry the most weight based on the course objectives.</div>
+
+        <div class="card-grid-2">
+            <div style="background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#ef4444; margin-bottom:8px;">Weeks 1 + 2 (Obj 1-4)</div>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.88rem; color:#b8c5bb;">
+                    <div><span style="color:#ef4444; margin-right:8px;">&rsaquo;</span>CLI fundamentals + systemd unit management</div>
+                    <div><span style="color:#ef4444; margin-right:8px;">&rsaquo;</span>Networking: ip, ss, hostname resolution</div>
+                    <div><span style="color:#ef4444; margin-right:8px;">&rsaquo;</span>UFW default-deny and rule management</div>
+                    <div><span style="color:#ef4444; margin-right:8px;">&rsaquo;</span>SSH hardening and sshd_config directives</div>
+                    <div><span style="color:#ef4444; margin-right:8px;">&rsaquo;</span>PAM stacking and fail2ban</div>
+                    <div><span style="color:#ef4444; margin-right:8px;">&rsaquo;</span>Package trust chain and GPG verification</div>
+                </div>
+            </div>
+            <div style="background:rgba(0,255,65,0.04); border:1px solid rgba(0,255,65,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#00ff41; margin-bottom:8px;">Weeks 3 + 4 (Obj 5-7)</div>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.88rem; color:#b8c5bb;">
+                    <div><span style="color:#00ff41; margin-right:8px;">&rsaquo;</span>DNS resolution and BIND configuration</div>
+                    <div><span style="color:#00ff41; margin-right:8px;">&rsaquo;</span>Bash scripting: conditionals, loops, functions</div>
+                    <div><span style="color:#00ff41; margin-right:8px;">&rsaquo;</span>AIDE: init, check, update cycle + config</div>
+                    <div><span style="color:#00ff41; margin-right:8px;">&rsaquo;</span>auditd: -w -p -k flags and ausearch</div>
+                    <div><span style="color:#00ff41; margin-right:8px;">&rsaquo;</span>Performance: top, vmstat, iostat, sar</div>
+                    <div><span style="color:#00ff41; margin-right:8px;">&rsaquo;</span>journalctl time filtering and rsyslog forwarding</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="margin-top:6px;">
+            Scenario-based questions are common on the final. Expect: "You see X in top. What is your next command?" or "AIDE reports Y changed. What is your response?" and "journalctl shows Z at 02:47. What does this mean?" Practice answering these out loud, not just reading the slides.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 23 — WEEK 4 COMPLETE ============ -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 25</div>
+        <div class="slide-title">Four Weeks Complete &mdash; <span class="accent">The Full Stack</span></div>
+        <div class="slide-subtitle">Every layer from Week 1 through Week 4 is in production on your sector node. This is the complete picture.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 1100 200" width="1100" height="200" xmlns="http://www.w3.org/2000/svg">
+                <!-- W1 -->
+                <rect x="20" y="30" width="240" height="110" rx="10" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <circle cx="55" cy="62" r="14" fill="#00ff41"/>
+                <path d="M 49 62 L 54 67 L 62 57" stroke="#02080a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="80" y="62" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="800">WEEK 1</text>
+                <text x="40" y="86" fill="#8b9e8e" font-family="Inter" font-size="11">Grid Connection</text>
+                <text x="40" y="104" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">CLI &middot; systemd &middot; networking</text>
+                <text x="40" y="120" fill="#64748b" font-family="Inter" font-size="9" font-style="italic">Obj 1 &amp; 2</text>
+
+                <line x1="260" y1="90" x2="286" y2="90" stroke="#00ff41" stroke-width="2"/>
+                <polygon points="286,90 276,85 276,95" fill="#00ff41"/>
+
+                <!-- W2 -->
+                <rect x="290" y="30" width="240" height="110" rx="10" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <circle cx="325" cy="62" r="14" fill="#00ff41"/>
+                <path d="M 319 62 L 324 67 L 332 57" stroke="#02080a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="350" y="62" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="800">WEEK 2</text>
+                <text x="310" y="86" fill="#8b9e8e" font-family="Inter" font-size="11">Perimeter Defense</text>
+                <text x="310" y="104" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">UFW &middot; PAM &middot; ClamAV &middot; apt</text>
+                <text x="310" y="120" fill="#64748b" font-family="Inter" font-size="9" font-style="italic">Obj 3 &amp; 4</text>
+
+                <line x1="530" y1="90" x2="556" y2="90" stroke="#00ff41" stroke-width="2"/>
+                <polygon points="556,90 546,85 546,95" fill="#00ff41"/>
+
+                <!-- W3 -->
+                <rect x="560" y="30" width="240" height="110" rx="10" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <circle cx="595" cy="62" r="14" fill="#00ff41"/>
+                <path d="M 589 62 L 594 67 L 602 57" stroke="#02080a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="620" y="62" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="800">WEEK 3</text>
+                <text x="580" y="86" fill="#8b9e8e" font-family="Inter" font-size="11">Sector Authority</text>
+                <text x="580" y="104" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">DNS &middot; BIND &middot; bash &middot; cron</text>
+                <text x="580" y="120" fill="#64748b" font-family="Inter" font-size="9" font-style="italic">Obj 5 &amp; 6</text>
+
+                <line x1="800" y1="90" x2="826" y2="90" stroke="#00ff41" stroke-width="2"/>
+                <polygon points="826,90 816,85 816,95" fill="#00ff41"/>
+
+                <!-- W4 -->
+                <rect x="830" y="20" width="240" height="130" rx="10" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="3"/>
+                <circle cx="865" cy="56" r="14" fill="#10b981"/>
+                <path d="M 859 56 L 864 61 L 872 51" stroke="#02080a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="892" y="56" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="800">WEEK 4</text>
+                <text x="850" y="76" fill="#10b981" font-family="Inter" font-size="11" font-weight="700">Integrity &amp; Performance</text>
+                <text x="850" y="96" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">AIDE &middot; auditd &middot; sar</text>
+                <text x="850" y="112" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">journald &middot; rsyslog</text>
+                <text x="850" y="130" fill="#64748b" font-family="Inter" font-size="9" font-style="italic">Obj 7 &mdash; COMPLETE</text>
+
+                <text x="550" y="180" text-anchor="middle" fill="#86efac" font-family="Inter" font-size="13" font-style="italic">CTS4321C complete &middot; you built it, hardened it, automated it, and proved it stayed hardened.</text>
+            </svg>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:4px;">
+            <div style="background:rgba(0,255,65,0.05); border-left:3px solid #00ff41; border-radius:0 8px 8px 0; padding:10px 14px;">
+                <div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:3px;">Before the final exam</div>
+                <div style="font-size:0.85rem; color:#b8c5bb;">Review the W4 quiz &middot; Complete the capstone Full Cell Audit &middot; Practice the verification commands cold from memory</div>
+            </div>
+            <div style="background:rgba(16,185,129,0.05); border-left:3px solid #10b981; border-radius:0 8px 8px 0; padding:10px 14px;">
+                <div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:3px;">Drilldown decks (this week)</div>
+                <div style="font-size:0.85rem; color:#b8c5bb;">ALA-07 File Integrity &middot; ALA-08 Performance &middot; ALA-09 Log Management &mdash; ~105 slides total</div>
+            </div>
+            <div style="background:rgba(168,85,247,0.05); border-left:3px solid #a855f7; border-radius:0 8px 8px 0; padding:10px 14px;">
+                <div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:3px;">Week 4 quiz</div>
+                <div style="font-size:0.85rem; color:#b8c5bb;">10 questions &middot; 70% to pass &middot; Covers AIDE, auditd, top, vmstat, iostat, sar, journalctl, rsyslog</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 24 — FINAL EXAM COMING ============ -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 25</div>
+        <div class="slide-title">Week 4 Complete &mdash; <span class="accent">What Comes Next</span></div>
+        <div class="slide-subtitle">This is the final week of CTS4321C. The capstone and the final exam close out the course.</div>
+
+        <div class="diagram" style="margin-top:6px;">
+            <svg viewBox="0 0 1100 200" width="1100" height="200" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="arr24" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><polygon points="0 0, 9 4, 0 8" fill="#00ff41"/></marker>
+                    <marker id="arr24g" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><polygon points="0 0, 9 4, 0 8" fill="#94a3b8"/></marker>
+                </defs>
+
+                <!-- W3 done -->
+                <rect x="20" y="40" width="240" height="100" rx="10" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <circle cx="55" cy="68" r="14" fill="#00ff41"/>
+                <path d="M 49 68 L 54 73 L 62 63" stroke="#02080a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="80" y="68" fill="#c8e6cd" font-family="Inter" font-size="14" font-weight="800">WEEK 3 &mdash; DONE</text>
+                <text x="80" y="86" fill="#8b9e8e" font-family="Inter" font-size="11">Sector Authority</text>
+                <text x="40" y="112" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">DNS &middot; BIND &middot; bash &middot; cron</text>
+                <text x="40" y="128" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">Obj 5 &amp; 6</text>
+
+                <line x1="260" y1="90" x2="286" y2="90" stroke="#00ff41" stroke-width="2" marker-end="url(#arr24)"/>
+
+                <!-- W4 done -->
+                <rect x="290" y="30" width="240" height="120" rx="10" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="2.5"/>
+                <circle cx="325" cy="62" r="14" fill="#10b981"/>
+                <path d="M 319 62 L 324 67 L 332 57" stroke="#02080a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="350" y="62" fill="#c8e6cd" font-family="Inter" font-size="14" font-weight="800">WEEK 4 &mdash; DONE</text>
+                <text x="350" y="80" fill="#10b981" font-family="Inter" font-size="11">Integrity &amp; Performance</text>
+                <text x="310" y="104" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">AIDE &middot; sar &middot; journald</text>
+                <text x="310" y="120" fill="#10b981" font-family="Inter" font-size="10" font-style="italic">Obj 7 complete</text>
+
+                <line x1="530" y1="90" x2="556" y2="90" stroke="#10b981" stroke-width="2" marker-end="url(#arr24)"/>
+
+                <!-- Capstone -->
+                <rect x="560" y="30" width="240" height="120" rx="10" fill="rgba(234,179,8,0.08)" stroke="#eab308" stroke-width="2" stroke-dasharray="4 3">
+                    <animate attributeName="stroke-dashoffset" from="0" to="14" dur="1.6s" repeatCount="indefinite"/>
+                </rect>
+                <circle cx="595" cy="62" r="14" fill="rgba(234,179,8,0.18)" stroke="#eab308" stroke-width="2"/>
+                <text x="595" y="67" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="14" font-weight="800">C</text>
+                <text x="625" y="62" fill="#fef9c3" font-family="Inter" font-size="14" font-weight="800">CAPSTONE</text>
+                <text x="625" y="80" fill="#8b9e8e" font-family="Inter" font-size="11">Full Cell Audit</text>
+                <text x="580" y="104" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">AIDE + sar + journalctl</text>
+                <text x="580" y="120" fill="#eab308" font-family="Inter" font-size="10" font-style="italic">audit report + evidence</text>
+
+                <line x1="800" y1="90" x2="826" y2="90" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr24g)"/>
+
+                <!-- Final Exam -->
+                <rect x="830" y="30" width="240" height="120" rx="10" fill="rgba(168,85,247,0.08)" stroke="#a855f7" stroke-width="2" stroke-dasharray="4 3">
+                    <animate attributeName="stroke-dashoffset" from="0" to="14" dur="1.6s" repeatCount="indefinite"/>
+                </rect>
+                <circle cx="865" cy="62" r="14" fill="rgba(168,85,247,0.18)" stroke="#a855f7" stroke-width="2"/>
+                <text x="865" y="67" text-anchor="middle" fill="#a855f7" font-family="Inter" font-size="14" font-weight="800">F</text>
+                <text x="893" y="62" fill="#e9d5ff" font-family="Inter" font-size="14" font-weight="800">FINAL EXAM</text>
+                <text x="893" y="80" fill="#8b9e8e" font-family="Inter" font-size="11">All Objectives 1&ndash;7</text>
+                <text x="850" y="104" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">scenario-based questions</text>
+                <text x="850" y="120" fill="#a855f7" font-family="Inter" font-size="10" font-style="italic">four weeks tested as one system</text>
+
+                <text x="550" y="180" text-anchor="middle" fill="#86efac" font-family="Inter" font-size="13" font-style="italic">CTS4321C &middot; the capstone proves your cell works. The final exam proves you understand why.</text>
+            </svg>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:6px;">
+            <div style="background:rgba(16,185,129,0.05); border-left:3px solid #10b981; border-radius:0 8px 8px 0; padding:10px 14px;">
+                <div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:3px;">Drilldown decks (this week)</div>
+                <div style="font-size:0.85rem; color:#b8c5bb;">ALA-07 File Integrity &middot; ALA-08 Performance Analysis &middot; ALA-09 Log Management &mdash; ~105 slides</div>
+            </div>
+            <div style="background:rgba(234,179,8,0.05); border-left:3px solid #eab308; border-radius:0 8px 8px 0; padding:10px 14px;">
+                <div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:3px;">Capstone: Full Cell Audit</div>
+                <div style="font-size:0.85rem; color:#b8c5bb;">AIDE check + auditd verification + sar baseline + journalctl query + written audit report</div>
+            </div>
+            <div style="background:rgba(168,85,247,0.05); border-left:3px solid #a855f7; border-radius:0 8px 8px 0; padding:10px 14px;">
+                <div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:3px;">Final exam prep</div>
+                <div style="font-size:0.85rem; color:#b8c5bb;">Week 4 quiz first &middot; All four week-quizzes as review &middot; Practice scenario answers out loud &middot; Know your verification commands</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 25 — END ============ -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 25</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">End of Week 4</span></div>
+            <div class="lead">File integrity monitoring, performance analysis, and log management. The detection layer is live. The course is complete.</div>
+        </div>
+
+        <div class="diagram" style="margin-top:6px;">
+            <svg viewBox="0 0 1100 160" width="1100" height="160" xmlns="http://www.w3.org/2000/svg">
+                <g>
+                    <rect x="20" y="30" width="240" height="80" rx="10" fill="rgba(0,255,65,0.12)" stroke="#00ff41" stroke-width="2"/>
+                    <circle cx="55" cy="58" r="14" fill="#00ff41"/>
+                    <path d="M 49 58 L 54 63 L 62 53" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="80" y="58" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="800">FOUNDATION</text>
+                    <text x="40" y="84" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">CLI &middot; systemd &middot; networking</text>
+                    <text x="40" y="100" fill="#8b9e8e" font-family="Inter" font-size="9" font-style="italic">W1 &mdash; Obj 1 &amp; 2</text>
+                </g>
+
+                <line x1="262" y1="70" x2="290" y2="70" stroke="#00ff41" stroke-width="2" stroke-dasharray="4 2"/>
+
+                <g>
+                    <rect x="294" y="30" width="240" height="80" rx="10" fill="rgba(0,255,65,0.12)" stroke="#00ff41" stroke-width="2"/>
+                    <circle cx="329" cy="58" r="14" fill="#00ff41"/>
+                    <path d="M 323 58 L 328 63 L 336 53" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="354" y="58" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="800">HARDENED</text>
+                    <text x="314" y="84" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">UFW &middot; PAM &middot; ClamAV &middot; apt</text>
+                    <text x="314" y="100" fill="#8b9e8e" font-family="Inter" font-size="9" font-style="italic">W2 &mdash; Obj 3 &amp; 4</text>
+                </g>
+
+                <line x1="536" y1="70" x2="564" y2="70" stroke="#00ff41" stroke-width="2" stroke-dasharray="4 2"/>
+
+                <g>
+                    <rect x="568" y="30" width="240" height="80" rx="10" fill="rgba(0,255,65,0.12)" stroke="#00ff41" stroke-width="2"/>
+                    <circle cx="603" cy="58" r="14" fill="#00ff41"/>
+                    <path d="M 597 58 L 602 63 L 610 53" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="628" y="58" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="800">AUTOMATED</text>
+                    <text x="588" y="84" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">DNS &middot; BIND &middot; bash &middot; cron</text>
+                    <text x="588" y="100" fill="#8b9e8e" font-family="Inter" font-size="9" font-style="italic">W3 &mdash; Obj 5 &amp; 6</text>
+                </g>
+
+                <line x1="810" y1="70" x2="838" y2="70" stroke="#10b981" stroke-width="2" stroke-dasharray="4 2"/>
+
+                <g>
+                    <rect x="842" y="20" width="240" height="100" rx="10" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="3"/>
+                    <circle cx="877" cy="56" r="14" fill="#10b981"/>
+                    <path d="M 871 56 L 876 61 L 884 51" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="902" y="56" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="800">VERIFIED</text>
+                    <text x="862" y="80" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">AIDE &middot; sar &middot; journald</text>
+                    <text x="862" y="96" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">auditd &middot; rsyslog</text>
+                    <text x="862" y="108" fill="#10b981" font-family="Inter" font-size="9" font-style="italic">W4 &mdash; Obj 7 &mdash; COMPLETE</text>
+                </g>
+
+                <text x="550" y="148" text-anchor="middle" fill="#86efac" font-family="Inter" font-size="13" font-style="italic">CTS4321C &middot; built it &middot; hardened it &middot; automated it &middot; proved it. That is the full stack.</text>
+            </svg>
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ============ NAV ============ -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Advanced Linux</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 25</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 25;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w4-lecture', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

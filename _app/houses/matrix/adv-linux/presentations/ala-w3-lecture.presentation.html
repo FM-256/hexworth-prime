@@ -1,0 +1,1613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 3 Lecture Companion | Advanced Linux Administration</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #050a06 0%, #060d08 50%, #08120a 100%);
+            color: #d8e6dc; font-size: 16px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 28px 36px 78px; overflow: hidden;
+            animation: slideIn 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(28px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .slide-inner { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 18px; }
+
+        /* progress + nav */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #10b981 0%, #00ff41 100%);
+            transition: width 0.45s ease; z-index: 200;
+        }
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 62px;
+            background: rgba(5, 10, 6, 0.95); border-top: 1px solid rgba(0, 255, 65, 0.12);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05); color: #8b9e8e;
+            border: 1px solid rgba(0, 255, 65, 0.15);
+            padding: 9px 24px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+            font-family: inherit;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(0, 255, 65, 0.1); color: #00ff41; border-color: #00ff41; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.84rem; padding: 9px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.84rem; min-width: 100px; text-align: center; }
+
+        #complete-btn { display: none; background: #10b981; color: #fff; border: none;
+            padding: 10px 28px; border-radius: 6px; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+            font-family: inherit; }
+        #complete-btn:hover { background: #00ff41; color: #000; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0, 255, 65, 0.4); }
+
+        /* typography */
+        .slide-meta { font-size: 0.78rem; color: #00ff41; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; opacity: 0.85; }
+        .slide-title { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; text-align: center; line-height: 1.18; }
+        .slide-title .accent { color: #00ff41; }
+        .slide-title .accent-emerald { color: #10b981; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+        .slide-title .accent-gold { color: #eab308; }
+        .slide-title .accent-red { color: #ef4444; }
+        .slide-subtitle { font-size: 1.05rem; color: #8b9e8e; text-align: center; max-width: 880px; margin: 0 auto; }
+
+        /* hero title slide */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .title-hero .big-title { font-size: 3rem; font-weight: 900; color: #f1f5f9; line-height: 1.12; letter-spacing: -0.01em; }
+        .title-hero .big-title .accent { color: #00ff41; }
+        .title-hero .lead { font-size: 1.2rem; color: #8b9e8e; max-width: 720px; }
+        .title-meta-row { display: flex; gap: 32px; justify-content: center; margin-top: 12px; font-size: 0.85rem; color: #64748b; }
+        .title-meta-row span { border-left: 2px solid #1f2a22; padding-left: 32px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* cards */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .card {
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            padding: 16px 18px; border-left: 3px solid #00ff41;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        .slide.active .card:nth-child(1) { animation-delay: 0.18s; }
+        .slide.active .card:nth-child(2) { animation-delay: 0.32s; }
+        .slide.active .card:nth-child(3) { animation-delay: 0.46s; }
+        .slide.active .card:nth-child(4) { animation-delay: 0.60s; }
+        .slide.active .card:nth-child(5) { animation-delay: 0.74s; }
+        .slide.active .card:nth-child(6) { animation-delay: 0.88s; }
+
+        .card .card-label { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+        .card .card-desc  { font-size: 0.9rem; color: #b8c5bb; line-height: 1.5; }
+        .card.c-green  { border-left-color: #00ff41; background: rgba(0, 255, 65, 0.04); }
+        .card.c-emerald { border-left-color: #10b981; background: rgba(16, 185, 129, 0.05); }
+        .card.c-cyan   { border-left-color: #06b6d4; background: rgba(6, 182, 212, 0.05); }
+        .card.c-gold   { border-left-color: #eab308; background: rgba(234, 179, 8, 0.05); }
+        .card.c-red    { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+        .card.c-purple { border-left-color: #a855f7; background: rgba(168, 85, 247, 0.05); }
+        .card.c-blue   { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
+
+        /* callouts */
+        .scenario-strip {
+            background: rgba(0, 255, 65, 0.05); border-left: 3px solid #00ff41;
+            border-radius: 0 8px 8px 0; padding: 12px 18px;
+            font-size: 0.95rem; color: #b8d4be; font-style: italic; line-height: 1.55;
+        }
+        .box { border-radius: 8px; padding: 14px 18px; font-size: 0.92rem; }
+        .box-green  { background: rgba(0, 255, 65, 0.07); border: 1px solid rgba(0, 255, 65, 0.28); color: #c8e6cd; }
+        .box-emerald { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); color: #c8e6cd; }
+        .box-cyan   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-gold   { background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.3); color: #fef9c3; }
+        .box-red    { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; opacity: 0.8; }
+
+        /* lecture agenda items */
+        .agenda-row {
+            display: grid; grid-template-columns: 60px 1fr auto; gap: 18px;
+            align-items: center; padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.03); border-radius: 10px;
+            border-left: 3px solid #00ff41;
+            opacity: 0; animation: cardIn 0.5s ease-out forwards;
+        }
+        .agenda-num { font-size: 1.8rem; font-weight: 800; color: #00ff41; text-align: center; opacity: 0.75; }
+        .agenda-text { display: flex; flex-direction: column; gap: 2px; }
+        .agenda-text .agenda-title { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+        .agenda-text .agenda-sub   { font-size: 0.85rem; color: #8b9e8e; }
+        .agenda-time { font-size: 0.78rem; font-weight: 700; color: #64748b; letter-spacing: 0.08em; }
+        .slide.active .agenda-row:nth-child(1) { animation-delay: 0.20s; }
+        .slide.active .agenda-row:nth-child(2) { animation-delay: 0.36s; }
+        .slide.active .agenda-row:nth-child(3) { animation-delay: 0.52s; }
+        .slide.active .agenda-row:nth-child(4) { animation-delay: 0.68s; }
+
+        /* diagrams */
+        .diagram { display: flex; justify-content: center; align-items: center; padding: 6px 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+
+        @keyframes pulse { 0%, 100% { opacity: 0.5; r: 4; } 50% { opacity: 1; r: 6; } }
+        @keyframes pulseGlow { 0%, 100% { filter: drop-shadow(0 0 4px currentColor); } 50% { filter: drop-shadow(0 0 14px currentColor); } }
+        @keyframes flowRight { 0% { transform: translateX(-6px); opacity: 0.3; } 50% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(6px); opacity: 0.3; } }
+        @keyframes signalSend { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes expandOut { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+        @keyframes dashFlow { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+
+        /* terminal */
+        .terminal {
+            background: #02080a; border: 1px solid rgba(0, 255, 65, 0.18);
+            border-radius: 8px; padding: 14px 16px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.86rem; color: #c8e6cd; line-height: 1.55;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .terminal .t-prompt  { color: #00ff41; font-weight: 700; }
+        .terminal .t-cmd     { color: #f1f5f9; }
+        .terminal .t-out     { color: #8b9e8e; }
+        .terminal .t-comment { color: #5a6e5f; font-style: italic; }
+        .terminal .t-flag    { color: #eab308; }
+        .terminal .t-cursor  { color: #00ff41; animation: blink 1.2s step-end infinite; }
+
+        /* two-col layout */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
+
+        /* responsive */
+        @media (max-height: 720px) { .slide-inner { gap: 12px; } .slide-title { font-size: 1.7rem; } .title-hero .big-title { font-size: 2.2rem; } .terminal { font-size: 0.78rem; } }
+        @media (max-width: 768px)  { .card-grid, .card-grid-2, .card-grid-4 { grid-template-columns: 1fr; } .two-col { grid-template-columns: 1fr; } .slide-title { font-size: 1.4rem; } }
+    </style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Week 3 Lecture Companion | Advanced Linux Administration</h1>
+
+<div id="progress-bar" style="width:4%"></div>
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Lecture Companion &nbsp;|&nbsp; Week 3 of 4 &nbsp;|&nbsp; CTS4321C &middot; Course Objectives 5 &amp; 6</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Sector Authority &mdash;<br>
+                <span class="accent">DNS + BIND + Bash + Automation</span>
+            </div>
+            <div class="lead">
+                The hardened box from Week 2 now needs a name, a voice, and a brain. DNS gives it identity. BIND makes it authoritative. Bash and cron make it self-operating.
+            </div>
+        </div>
+        <div class="title-meta-row">
+            <span>25 Slides</span>
+            <span>4 Topic Blocks</span>
+            <span>Infrastructure-Focused</span>
+            <span>Bring a terminal</span>
+        </div>
+        <div class="scenario-strip" style="margin-top:14px;">
+            This deck is the instructor companion. The 4 topic decks (DNS Fundamentals, BIND9 Deployment, Bash Scripting, Linux Automation) hold the drilldown. This deck holds the throughline.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 2 — THE WEEK AHEAD ============ -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 25 &nbsp;|&nbsp; The Week Ahead</div>
+        <div class="slide-title">Four Stops, <span class="accent">One Authority</span></div>
+        <div class="slide-subtitle">Last week you locked the door. This week you hang a sign, give the place a name, and teach it to run itself.</div>
+
+        <div class="diagram" style="margin-top:6px;">
+            <svg viewBox="0 0 1100 280" width="1100" height="280" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="w3path" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.6"/>
+                        <stop offset="33%" stop-color="#10b981" stop-opacity="0.6"/>
+                        <stop offset="66%" stop-color="#eab308" stop-opacity="0.6"/>
+                        <stop offset="100%" stop-color="#a855f7" stop-opacity="0.6"/>
+                    </linearGradient>
+                    <radialGradient id="w3mark">
+                        <stop offset="0%" stop-color="#fff" stop-opacity="1"/>
+                        <stop offset="50%" stop-color="#00ff41" stop-opacity="0.6"/>
+                        <stop offset="100%" stop-color="#00ff41" stop-opacity="0"/>
+                    </radialGradient>
+                    <path id="w3road" d="M 80 110 L 1020 110"/>
+                </defs>
+                <line x1="80" y1="110" x2="1020" y2="110" stroke="url(#w3path)" stroke-width="4" stroke-dasharray="8 6">
+                    <animate attributeName="stroke-dashoffset" from="0" to="-28" dur="1.6s" repeatCount="indefinite"/>
+                </line>
+                <circle r="22" fill="url(#w3mark)"><animateMotion dur="14s" repeatCount="indefinite"><mpath href="#w3road"/></animateMotion></circle>
+                <circle r="6" fill="#fff"><animateMotion dur="14s" repeatCount="indefinite"><mpath href="#w3road"/></animateMotion></circle>
+
+                <!-- Stop 1: DNS -->
+                <g>
+                    <circle cx="160" cy="110" r="32" fill="rgba(6,182,212,0.18)" stroke="#06b6d4" stroke-width="3"/>
+                    <text x="160" y="118" text-anchor="middle" fill="#06b6d4" font-family="Inter" font-size="22" font-weight="800">1</text>
+                    <text x="160" y="62" text-anchor="middle" fill="#cffafe" font-family="Inter" font-size="14" font-weight="700">DNS Fundamentals</text>
+                    <text x="160" y="80" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">the naming layer</text>
+                    <text x="160" y="178" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">hierarchy &middot; records &middot; resolution</text>
+                    <text x="160" y="196" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">A, MX, CNAME, PTR, SOA</text>
+                    <text x="160" y="222" text-anchor="middle" fill="#64748b" font-family="JetBrains Mono" font-size="9" letter-spacing="0.1em">~12 MIN</text>
+                </g>
+
+                <!-- Stop 2: BIND -->
+                <g>
+                    <circle cx="430" cy="110" r="32" fill="rgba(16,185,129,0.18)" stroke="#10b981" stroke-width="3"/>
+                    <text x="430" y="118" text-anchor="middle" fill="#10b981" font-family="Inter" font-size="22" font-weight="800">2</text>
+                    <text x="430" y="62" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="14" font-weight="700">BIND9 Deployment</text>
+                    <text x="430" y="80" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">the authority</text>
+                    <text x="430" y="178" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">named.conf &middot; zone files &middot; rndc</text>
+                    <text x="430" y="196" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">forward + reverse zones</text>
+                    <text x="430" y="222" text-anchor="middle" fill="#64748b" font-family="JetBrains Mono" font-size="9" letter-spacing="0.1em">~12 MIN</text>
+                </g>
+
+                <!-- Stop 3: Bash -->
+                <g>
+                    <circle cx="700" cy="110" r="32" fill="rgba(234,179,8,0.18)" stroke="#eab308" stroke-width="3"/>
+                    <text x="700" y="118" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="22" font-weight="800">3</text>
+                    <text x="700" y="62" text-anchor="middle" fill="#fef9c3" font-family="Inter" font-size="14" font-weight="700">Bash Scripting</text>
+                    <text x="700" y="80" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">the language</text>
+                    <text x="700" y="178" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">variables &middot; conditionals &middot; loops</text>
+                    <text x="700" y="196" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">functions &middot; set -euo pipefail</text>
+                    <text x="700" y="222" text-anchor="middle" fill="#64748b" font-family="JetBrains Mono" font-size="9" letter-spacing="0.1em">~12 MIN</text>
+                </g>
+
+                <!-- Stop 4: Automation -->
+                <g>
+                    <circle cx="970" cy="110" r="32" fill="rgba(168,85,247,0.18)" stroke="#a855f7" stroke-width="3"/>
+                    <text x="970" y="118" text-anchor="middle" fill="#a855f7" font-family="Inter" font-size="22" font-weight="800">4</text>
+                    <text x="970" y="62" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="14" font-weight="700">Automation</text>
+                    <text x="970" y="80" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">the scheduler</text>
+                    <text x="970" y="178" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">cron &middot; systemd timers &middot; at</text>
+                    <text x="970" y="196" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">idempotent &middot; observable</text>
+                    <text x="970" y="222" text-anchor="middle" fill="#64748b" font-family="JetBrains Mono" font-size="9" letter-spacing="0.1em">~12 MIN</text>
+                </g>
+
+                <text x="550" y="262" text-anchor="middle" fill="#86efac" font-family="Inter" font-size="13" font-style="italic">~50 minutes &middot; 4 infrastructure layers &middot; everything builds on Week 2's hardened foundation</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 3 — THE BIG PICTURE ============ -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 25 &nbsp;|&nbsp; The Big Picture</div>
+        <div class="slide-title">How These Four <span class="accent">Fit Together</span></div>
+        <div class="slide-subtitle">DNS names the infrastructure. BIND makes those names authoritative on your network. Bash writes the operations logic. Automation runs it without humans.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 980 190" width="980" height="190" xmlns="http://www.w3.org/2000/svg">
+                <!-- Foundation box -->
+                <rect x="10" y="60" width="120" height="60" rx="8" fill="rgba(0,255,65,0.08)" stroke="#00ff41" stroke-width="2"/>
+                <text x="70" y="84" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="700">W2 HARDENED</text>
+                <text x="70" y="102" text-anchor="middle" fill="#94a3b8" font-family="Inter" font-size="10">UFW + PAM + AV + apt</text>
+
+                <line x1="133" y1="90" x2="183" y2="90" stroke="#06b6d4" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="183,90 173,85 173,95" fill="#06b6d4"/>
+
+                <!-- DNS layer -->
+                <rect x="185" y="60" width="150" height="60" rx="8" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="260" y="84" text-anchor="middle" fill="#cffafe" font-family="Inter" font-size="13" font-weight="700">DNS</text>
+                <text x="260" y="102" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">hierarchy + records</text>
+
+                <line x1="338" y1="90" x2="388" y2="90" stroke="#10b981" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="388,90 378,85 378,95" fill="#10b981"/>
+
+                <!-- BIND layer -->
+                <rect x="390" y="60" width="150" height="60" rx="8" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="465" y="84" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="13" font-weight="700">BIND9</text>
+                <text x="465" y="102" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">authoritative server</text>
+
+                <line x1="543" y1="90" x2="593" y2="90" stroke="#eab308" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="593,90 583,85 583,95" fill="#eab308"/>
+
+                <!-- Bash layer -->
+                <rect x="595" y="60" width="150" height="60" rx="8" fill="rgba(234,179,8,0.10)" stroke="#eab308" stroke-width="2"/>
+                <text x="670" y="84" text-anchor="middle" fill="#fef9c3" font-family="Inter" font-size="13" font-weight="700">BASH</text>
+                <text x="670" y="102" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">operations logic</text>
+
+                <line x1="748" y1="90" x2="798" y2="90" stroke="#a855f7" stroke-width="2" stroke-dasharray="6 3"/>
+                <polygon points="798,90 788,85 788,95" fill="#a855f7"/>
+
+                <!-- Automation layer -->
+                <rect x="800" y="60" width="160" height="60" rx="8" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="880" y="84" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="13" font-weight="700">AUTOMATION</text>
+                <text x="880" y="102" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">cron + systemd timers</text>
+
+                <!-- pulse markers -->
+                <circle cx="158" cy="90" r="5" fill="#06b6d4" style="animation: pulse 2s ease-in-out infinite"/>
+                <circle cx="363" cy="90" r="5" fill="#10b981" style="animation: pulse 2s ease-in-out infinite 0.5s"/>
+                <circle cx="568" cy="90" r="5" fill="#eab308" style="animation: pulse 2s ease-in-out infinite 1s"/>
+                <circle cx="773" cy="90" r="5" fill="#a855f7" style="animation: pulse 2s ease-in-out infinite 1.5s"/>
+
+                <text x="490" y="170" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="12" font-style="italic">Each layer depends on the previous. BIND serves names only if DNS concepts are right. Automation only works if scripts are sound.</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">DNS is the mental model</div>
+                <div class="card-desc">Before you type a single BIND directive you need to know what the hierarchy is, what each record type does, and why the SOA serial matters. Every misconfiguration traces back to a conceptual gap.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label">BIND is the implementation</div>
+                <div class="card-desc">BIND9 translates the DNS mental model into a running service. <code style="color:#10b981;background:rgba(16,185,129,0.1);padding:1px 5px;border-radius:3px;font-family:monospace">named.conf</code>, zone files, and <code style="color:#10b981;background:rgba(16,185,129,0.1);padding:1px 5px;border-radius:3px;font-family:monospace">rndc</code> are the three operational surfaces you touch every day.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Bash + cron close the loop</div>
+                <div class="card-desc">Scripts automate the work that ties the layers together: health checks on named, zone serial increment scripts, log rotation, backup jobs. Without automation, you are the cron daemon.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK A: DNS FUNDAMENTALS ============ -->
+
+<!-- ============ SLIDE 4 — DNS: THE HIERARCHY ============ -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 25 &nbsp;|&nbsp; Topic 1: DNS Fundamentals</div>
+        <div class="slide-title">DNS: <span class="accent">The Hierarchy in 60 Seconds</span></div>
+        <div class="slide-subtitle">A distributed, delegated, globally consistent database. Authority flows downward from 13 root server clusters.</div>
+
+        <div class="diagram">
+            <svg viewBox="0 0 900 200" width="900" height="200" xmlns="http://www.w3.org/2000/svg">
+                <!-- Root -->
+                <circle cx="450" cy="28" r="24" fill="rgba(0,255,65,0.18)" stroke="#00ff41" stroke-width="2.5"/>
+                <text x="450" y="32" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="13" font-weight="800">. (root)</text>
+
+                <!-- Lines to TLDs -->
+                <line x1="380" y1="52" x2="200" y2="88" stroke="#06b6d4" stroke-width="1.5" opacity="0.6"/>
+                <line x1="430" y1="52" x2="370" y2="88" stroke="#06b6d4" stroke-width="1.5" opacity="0.6"/>
+                <line x1="470" y1="52" x2="530" y2="88" stroke="#06b6d4" stroke-width="1.5" opacity="0.6"/>
+                <line x1="520" y1="52" x2="700" y2="88" stroke="#06b6d4" stroke-width="1.5" opacity="0.6"/>
+
+                <!-- TLDs -->
+                <rect x="140" y="88" width="120" height="30" rx="6" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="200" y="108" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="12">.com</text>
+                <rect x="310" y="88" width="120" height="30" rx="6" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="370" y="108" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="12">.org</text>
+                <rect x="470" y="88" width="120" height="30" rx="6" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="530" y="108" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="12">.net</text>
+                <rect x="640" y="88" width="120" height="30" rx="6" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="700" y="108" text-anchor="middle" fill="#cffafe" font-family="JetBrains Mono" font-size="12">.io</text>
+
+                <!-- Lines to SLDs -->
+                <line x1="170" y1="118" x2="120" y2="152" stroke="#10b981" stroke-width="1.5" opacity="0.6"/>
+                <line x1="230" y1="118" x2="290" y2="152" stroke="#10b981" stroke-width="1.5" opacity="0.6"/>
+
+                <!-- SLDs -->
+                <rect x="50" y="152" width="140" height="30" rx="6" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1.5"/>
+                <text x="120" y="172" text-anchor="middle" fill="#c8e6cd" font-family="JetBrains Mono" font-size="11">hexworth.com</text>
+                <rect x="220" y="152" width="150" height="30" rx="6" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1.5"/>
+                <text x="295" y="172" text-anchor="middle" fill="#c8e6cd" font-family="JetBrains Mono" font-size="11">example.com</text>
+
+                <!-- Host labels below hexworth -->
+                <text x="75" y="196" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">ops.</text>
+                <text x="120" y="196" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">www.</text>
+                <text x="165" y="196" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">mail.</text>
+
+                <!-- delegation label -->
+                <text x="750" y="135" text-anchor="start" fill="#8b9e8e" font-family="Inter" font-size="11" font-style="italic">delegation flows</text>
+                <text x="750" y="149" text-anchor="start" fill="#8b9e8e" font-family="Inter" font-size="11" font-style="italic">downward via NS</text>
+                <line x1="746" y1="126" x2="700" y2="118" stroke="#8b9e8e" stroke-width="1" stroke-dasharray="3 2"/>
+
+                <!-- pulse -->
+                <circle cx="450" cy="28" r="5" fill="#00ff41" style="animation: pulse 2s ease-in-out infinite"/>
+            </svg>
+        </div>
+
+        <div class="two-col" style="margin-top:4px;">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-cyan">
+                    <div class="box-label">FQDN reads right to left</div>
+                    <code style="color:#06b6d4;font-family:monospace">ops.hexworth.com.</code> &mdash; the trailing dot is the root. Read: host, then domain, then TLD, then root. Zone files require the trailing dot on all absolute names. Omit it and BIND appends the zone origin, silently misdelegating.
+                </div>
+                <div class="box box-green">
+                    <div class="box-label">Delegation is the core concept</div>
+                    The root delegates <code style="color:#00ff41;font-family:monospace">.com</code> to Verisign. Verisign delegates <code style="color:#00ff41;font-family:monospace">hexworth.com</code> to your name servers. You own everything below that cut. NS records are the delegation mechanism at every level.
+                </div>
+            </div>
+            <div class="terminal" style="font-size:0.83rem;">
+<span class="t-comment"># Walk the hierarchy manually with dig</span>
+<span class="t-prompt">$</span> <span class="t-cmd">dig NS .</span>
+<span class="t-out">; ANSWER: a.root-servers.net. ... m.root-servers.net.</span>
+
+<span class="t-prompt">$</span> <span class="t-cmd">dig NS com.</span>
+<span class="t-out">; ANSWER: a.gtld-servers.net. ... m.gtld-servers.net.</span>
+
+<span class="t-prompt">$</span> <span class="t-cmd">dig NS hexworth.com</span>
+<span class="t-out">; ANSWER: ns1.hexworth.com. ns2.hexworth.com.</span>
+
+<span class="t-comment"># +trace does the full walk in one command</span>
+<span class="t-prompt">$</span> <span class="t-cmd">dig +trace A ops.hexworth.com</span>
+<span class="t-out">; root -> .com TLD -> hexworth.com auth -> answer</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 5 — DNS RECORD TYPES ============ -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 25</div>
+        <div class="slide-title">The Record Types <span class="accent">You Must Know</span></div>
+        <div class="slide-subtitle">DNS is not just an address book. Seven record types carry different data for different purposes. The quiz tests all seven.</div>
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+            <div style="display:grid; grid-template-columns: 70px 1fr 1fr; gap:12px; align-items:center; padding:9px 14px; background:rgba(0,255,65,0.04); border-left:3px solid #00ff41; border-radius:0 8px 8px 0;">
+                <code style="color:#00ff41;font-family:monospace;font-size:1rem;font-weight:800;">A</code>
+                <div style="font-size:0.88rem;color:#b8c5bb;">name &rarr; IPv4 address</div>
+                <code style="color:#8b9e8e;font-family:monospace;font-size:0.82rem;">ops 300 IN A 10.0.1.50</code>
+            </div>
+            <div style="display:grid; grid-template-columns: 70px 1fr 1fr; gap:12px; align-items:center; padding:9px 14px; background:rgba(6,182,212,0.04); border-left:3px solid #06b6d4; border-radius:0 8px 8px 0;">
+                <code style="color:#06b6d4;font-family:monospace;font-size:1rem;font-weight:800;">AAAA</code>
+                <div style="font-size:0.88rem;color:#b8c5bb;">name &rarr; IPv6 address</div>
+                <code style="color:#8b9e8e;font-family:monospace;font-size:0.82rem;">ops 300 IN AAAA 2001:db8::50</code>
+            </div>
+            <div style="display:grid; grid-template-columns: 70px 1fr 1fr; gap:12px; align-items:center; padding:9px 14px; background:rgba(16,185,129,0.04); border-left:3px solid #10b981; border-radius:0 8px 8px 0;">
+                <code style="color:#10b981;font-family:monospace;font-size:1rem;font-weight:800;">CNAME</code>
+                <div style="font-size:0.88rem;color:#b8c5bb;">alias name &rarr; canonical name (not IP)</div>
+                <code style="color:#8b9e8e;font-family:monospace;font-size:0.82rem;">www IN CNAME ops.hexworth.com.</code>
+            </div>
+            <div style="display:grid; grid-template-columns: 70px 1fr 1fr; gap:12px; align-items:center; padding:9px 14px; background:rgba(234,179,8,0.04); border-left:3px solid #eab308; border-radius:0 8px 8px 0;">
+                <code style="color:#eab308;font-family:monospace;font-size:1rem;font-weight:800;">MX</code>
+                <div style="font-size:0.88rem;color:#b8c5bb;">mail routing, priority number (lower = preferred)</div>
+                <code style="color:#8b9e8e;font-family:monospace;font-size:0.82rem;">@ IN MX 10 mail1.hexworth.com.</code>
+            </div>
+            <div style="display:grid; grid-template-columns: 70px 1fr 1fr; gap:12px; align-items:center; padding:9px 14px; background:rgba(168,85,247,0.04); border-left:3px solid #a855f7; border-radius:0 8px 8px 0;">
+                <code style="color:#a855f7;font-family:monospace;font-size:1rem;font-weight:800;">NS</code>
+                <div style="font-size:0.88rem;color:#b8c5bb;">delegates zone to these name servers</div>
+                <code style="color:#8b9e8e;font-family:monospace;font-size:0.82rem;">@ IN NS ns1.hexworth.com.</code>
+            </div>
+            <div style="display:grid; grid-template-columns: 70px 1fr 1fr; gap:12px; align-items:center; padding:9px 14px; background:rgba(239,68,68,0.04); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <code style="color:#ef4444;font-family:monospace;font-size:1rem;font-weight:800;">PTR</code>
+                <div style="font-size:0.88rem;color:#b8c5bb;">IP &rarr; hostname (reverse lookup, lives in in-addr.arpa)</div>
+                <code style="color:#8b9e8e;font-family:monospace;font-size:0.82rem;">50 IN PTR ops.hexworth.com.</code>
+            </div>
+            <div style="display:grid; grid-template-columns: 70px 1fr 1fr; gap:12px; align-items:center; padding:9px 14px; background:rgba(59,130,246,0.04); border-left:3px solid #3b82f6; border-radius:0 8px 8px 0;">
+                <code style="color:#3b82f6;font-family:monospace;font-size:1rem;font-weight:800;">SOA</code>
+                <div style="font-size:0.88rem;color:#b8c5bb;">Start of Authority &mdash; zone metadata, serial, timing</div>
+                <code style="color:#8b9e8e;font-family:monospace;font-size:0.82rem;">@ IN SOA ns1... (2026040901 3600...)</code>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="margin-top:4px;">
+            <div class="box-label">Two rules that show up on every quiz</div>
+            1. CNAME cannot coexist with other records at the same name &mdash; and cannot live at the zone apex (<code style="color:#eab308;font-family:monospace">@</code>). 2. MX records must point to hostnames, never IP addresses, never CNAMEs.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 6 — RESOLUTION FLOW ============ -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 25</div>
+        <div class="slide-title">Resolution: <span class="accent">Recursive vs. Authoritative</span></div>
+        <div class="slide-subtitle">Two server roles that beginners constantly conflate. The distinction determines security posture, caching behavior, and zone ownership.</div>
+
+        <div class="diagram" style="margin-top:4px;">
+            <svg viewBox="0 0 1060 200" width="1060" height="200" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="resArr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#94a3b8"/>
+                    </marker>
+                </defs>
+                <!-- Client -->
+                <rect x="10" y="80" width="100" height="50" rx="6" fill="rgba(168,85,247,0.10)" stroke="#a855f7" stroke-width="2"/>
+                <text x="60" y="100" text-anchor="middle" fill="#e9d5ff" font-family="Inter" font-size="12" font-weight="700">CLIENT</text>
+                <text x="60" y="118" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">getaddrinfo()</text>
+
+                <line x1="113" y1="105" x2="158" y2="105" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#resArr)"/>
+
+                <!-- Recursive resolver -->
+                <rect x="160" y="65" width="200" height="80" rx="8" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="260" y="92" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="14" font-weight="800">RECURSIVE</text>
+                <text x="260" y="108" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">walks root &rarr; TLD &rarr; auth</text>
+                <text x="260" y="124" text-anchor="middle" fill="#8b9e8e" font-family="JetBrains Mono" font-size="9">caches results for TTL duration</text>
+                <text x="260" y="138" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9" font-style="italic">8.8.8.8 / 1.1.1.1 / unbound</text>
+
+                <!-- resolver to root -->
+                <line x1="360" y1="90" x2="420" y2="70" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#resArr)"/>
+                <line x1="360" y1="105" x2="420" y2="105" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#resArr)"/>
+                <line x1="360" y1="120" x2="420" y2="140" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#resArr)"/>
+
+                <!-- Root / TLD / Auth boxes -->
+                <rect x="422" y="54" width="90" height="30" rx="5" fill="rgba(0,255,65,0.06)" stroke="#00ff41" stroke-width="1"/>
+                <text x="467" y="74" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="10">root .</text>
+                <rect x="422" y="90" width="90" height="30" rx="5" fill="rgba(6,182,212,0.06)" stroke="#06b6d4" stroke-width="1"/>
+                <text x="467" y="110" text-anchor="middle" fill="#06b6d4" font-family="JetBrains Mono" font-size="10">.com TLD</text>
+                <rect x="422" y="126" width="90" height="30" rx="5" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="1.5"/>
+                <text x="467" y="146" text-anchor="middle" fill="#10b981" font-family="JetBrains Mono" font-size="10">auth server</text>
+
+                <!-- answer flow back -->
+                <line x1="515" y1="141" x2="580" y2="165" stroke="#10b981" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#resArr)"/>
+
+                <!-- divider -->
+                <line x1="560" y1="20" x2="560" y2="185" stroke="#1f2a22" stroke-width="1.5" stroke-dasharray="5 4"/>
+                <text x="560" y="14" text-anchor="middle" fill="#475569" font-family="Inter" font-size="9">vs</text>
+
+                <!-- Authoritative box -->
+                <rect x="580" y="55" width="220" height="100" rx="8" fill="rgba(16,185,129,0.10)" stroke="#10b981" stroke-width="2"/>
+                <text x="690" y="82" text-anchor="middle" fill="#10b981" font-family="Inter" font-size="14" font-weight="800">AUTHORITATIVE</text>
+                <text x="690" y="100" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">holds zone data, answers with</text>
+                <text x="690" y="116" text-anchor="middle" fill="#00ff41" font-family="JetBrains Mono" font-size="11" font-weight="700">aa (Authoritative Answer)</text>
+                <text x="690" y="133" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9">does NOT recurse for external names</text>
+                <text x="690" y="148" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="9" font-style="italic">BIND9 / NSD / PowerDNS</text>
+
+                <!-- zone files -->
+                <rect x="820" y="65" width="230" height="80" rx="8" fill="rgba(16,185,129,0.05)" stroke="#10b981" stroke-width="1"/>
+                <text x="838" y="86" fill="#10b981" font-family="Inter" font-size="10" font-weight="700">Zone files it owns:</text>
+                <text x="838" y="104" fill="#c8e6cd" font-family="JetBrains Mono" font-size="9">hexworth.com. (forward)</text>
+                <text x="838" y="119" fill="#c8e6cd" font-family="JetBrains Mono" font-size="9">1.0.10.in-addr.arpa. (reverse)</text>
+                <text x="838" y="136" fill="#8b9e8e" font-family="Inter" font-size="8" font-style="italic">queries for other zones: REFUSED</text>
+            </svg>
+        </div>
+
+        <div class="box box-red" style="margin-top:4px;">
+            <div class="box-label">Security rule</div>
+            An open recursive resolver &mdash; one that recurses for any internet client &mdash; enables DNS amplification DDoS attacks. Restrict recursion: <code style="color:#ef4444;font-family:monospace">allow-recursion { 127.0.0.1; 10.0.0.0/8; };</code> in <code style="color:#ef4444;font-family:monospace">named.conf.options</code>.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 7 — DNS SYNTHESIS ============ -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 25 &nbsp;|&nbsp; DNS Synthesis</div>
+        <div class="slide-title">DNS Mental Model: <span class="accent">Three Diagnostic Questions</span></div>
+        <div class="slide-subtitle">When DNS is broken, students freeze. These three questions narrow any DNS failure to a single failure domain in under two minutes.</div>
+
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
+            <div style="display:grid; grid-template-columns: 64px 1fr; gap:16px; align-items:center; padding:14px 18px; background:rgba(6,182,212,0.05); border-left:3px solid #06b6d4; border-radius:0 8px 8px 0;">
+                <svg viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="28" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="2"/><text x="32" y="39" text-anchor="middle" fill="#cffafe" font-family="Inter" font-size="22" font-weight="800">1</text></svg>
+                <div>
+                    <div style="font-size:1.05rem; font-weight:700; color:#cffafe; margin-bottom:4px;">Is it a local cache problem?</div>
+                    <div style="font-size:0.9rem; color:#b8c5bb; line-height:1.5;">Run <code style="color:#06b6d4;font-family:monospace">dig +short A hostname</code> against 8.8.8.8 directly. If that returns the correct answer but your host does not, the problem is your resolver cache or <code style="color:#06b6d4;font-family:monospace">/etc/resolv.conf</code>, not the authoritative server.</div>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 64px 1fr; gap:16px; align-items:center; padding:14px 18px; background:rgba(16,185,129,0.05); border-left:3px solid #10b981; border-radius:0 8px 8px 0;">
+                <svg viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="28" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="2"/><text x="32" y="39" text-anchor="middle" fill="#c8e6cd" font-family="Inter" font-size="22" font-weight="800">2</text></svg>
+                <div>
+                    <div style="font-size:1.05rem; font-weight:700; color:#c8e6cd; margin-bottom:4px;">Does the authoritative server have the record?</div>
+                    <div style="font-size:0.9rem; color:#b8c5bb; line-height:1.5;">Query the authoritative server directly: <code style="color:#10b981;font-family:monospace">dig @ns1.matrix.internal A ops.matrix.internal</code>. Look for the <code style="color:#10b981;font-family:monospace">aa</code> flag in the response. No <code style="color:#10b981;font-family:monospace">aa</code> flag means you did not hit the authoritative server.</div>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 64px 1fr; gap:16px; align-items:center; padding:14px 18px; background:rgba(234,179,8,0.05); border-left:3px solid #eab308; border-radius:0 8px 8px 0;">
+                <svg viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="28" fill="rgba(234,179,8,0.15)" stroke="#eab308" stroke-width="2"/><text x="32" y="39" text-anchor="middle" fill="#fef9c3" font-family="Inter" font-size="22" font-weight="800">3</text></svg>
+                <div>
+                    <div style="font-size:1.05rem; font-weight:700; color:#fef9c3; margin-bottom:4px;">Is the zone file syntactically correct?</div>
+                    <div style="font-size:0.9rem; color:#b8c5bb; line-height:1.5;">Run <code style="color:#eab308;font-family:monospace">named-checkzone matrix.internal /etc/bind/db.matrix.internal</code> and <code style="color:#eab308;font-family:monospace">named-checkconf</code>. BIND silently refuses to load a zone with syntax errors. Always run both tools before reloading named.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK B: BIND9 ============ -->
+
+<!-- ============ SLIDE 8 — BIND9 FILE LAYOUT ============ -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 25 &nbsp;|&nbsp; Topic 2: BIND9 Deployment</div>
+        <div class="slide-title">BIND9: <span class="accent">Install to Running in Five Steps</span></div>
+        <div class="slide-subtitle">Berkeley Internet Name Domain 9. Install it, disable the systemd-resolved conflict, configure, validate, reload. Repeat the validate-reload cycle every time.</div>
+
+        <div class="terminal">
+<span class="t-comment"># Step 1: Install</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo apt update && sudo apt install -y bind9 bind9utils bind9-doc</span>
+
+<span class="t-comment"># Step 2: Disable systemd-resolved stub (conflicts on :53)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo systemctl restart systemd-resolved</span>
+
+<span class="t-comment"># Step 3: Verify named owns port 53</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo ss -tulnp | grep ':53'</span>
+<span class="t-out">udp  UNCONN 0  0  0.0.0.0:53  *:*  users:(("named",pid=3241,fd=20))</span>
+<span class="t-out">tcp  LISTEN 0  10 0.0.0.0:53  *:*  users:(("named",pid=3241,fd=21))</span>
+
+<span class="t-comment"># Step 4 — after editing conf or zone files: ALWAYS validate first</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo named-checkconf</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo named-checkzone matrix.internal /etc/bind/db.matrix.internal</span>
+<span class="t-out">zone matrix.internal/IN: loaded serial 2026040901
+OK</span>
+
+<span class="t-comment"># Step 5: Reload (live reload — no service restart needed)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo rndc reload</span>
+<span class="t-out">server reload successful</span>
+        </div>
+
+        <div class="box box-gold" style="margin-top:4px;">
+            <div class="box-label">AppArmor restricts named</div>
+            Ubuntu ships AppArmor profiles for named. Zone files MUST live in <code style="color:#eab308;font-family:monospace">/etc/bind/</code> or <code style="color:#eab308;font-family:monospace">/var/cache/bind/</code>. Files placed in <code style="color:#eab308;font-family:monospace">/tmp</code> or <code style="color:#eab308;font-family:monospace">/home</code> silently fail to load &mdash; named logs a permission denied, and the zone never starts.
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 9 — named.conf LAYOUT ============ -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 25</div>
+        <div class="slide-title">named.conf: <span class="accent">Three Files, One Config</span></div>
+        <div class="slide-subtitle">Ubuntu splits BIND9 configuration across three included files. Know which one to edit for each type of change.</div>
+
+        <div class="two-col">
+            <div class="terminal" style="font-size:0.82rem;">
+<span class="t-comment">// named.conf.options  -- global security posture</span>
+acl <span class="t-flag">"trusted"</span> {
+  127.0.0.1;
+  10.0.0.0/8;
+  192.168.0.0/16;
+};
+options {
+  directory <span class="t-flag">"/var/cache/bind"</span>;
+  recursion yes;
+  allow-recursion { trusted; };
+  allow-query { trusted; };
+  allow-transfer { none; };
+  forwarders { 8.8.8.8; 1.1.1.1; };
+  forward only;
+  dnssec-validation auto;
+  listen-on { any; };
+};
+<span class="t-comment">// named.conf.local   -- your zones</span>
+zone <span class="t-flag">"matrix.internal"</span> {
+  type master;
+  file <span class="t-flag">"/etc/bind/db.matrix.internal"</span>;
+  allow-transfer { 10.0.1.11; };
+  notify yes;
+};
+zone <span class="t-flag">"1.0.10.in-addr.arpa"</span> {
+  type master;
+  file <span class="t-flag">"/etc/bind/db.10.0.1"</span>;
+  allow-transfer { 10.0.1.11; };
+};
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-green">
+                    <div class="box-label">File responsibilities</div>
+                    <strong>named.conf</strong> &mdash; only includes the others. Never edit it.<br>
+                    <strong>named.conf.options</strong> &mdash; global options, ACLs, forwarders, recursion policy.<br>
+                    <strong>named.conf.local</strong> &mdash; your zone declarations.<br>
+                    <strong>named.conf.default-zones</strong> &mdash; root hints, localhost. Never edit it.
+                </div>
+                <div class="box box-cyan">
+                    <div class="box-label">Zone types</div>
+                    <code style="color:#06b6d4;font-family:monospace">type master</code> &mdash; this server is authoritative, owns the writable zone file.<br>
+                    <code style="color:#06b6d4;font-family:monospace">type slave</code> &mdash; pulls zone data from the master via AXFR zone transfer. Stored in <code style="color:#06b6d4;font-family:monospace">/var/cache/bind/</code>.
+                </div>
+                <div class="box box-emerald">
+                    <div class="box-label">allow-transfer</div>
+                    Default is <code style="color:#10b981;font-family:monospace">allow-transfer { none; };</code> in options. Override per-zone to permit only your secondary server IP. An open allow-transfer leaks your entire zone to any requester.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 10 — ZONE FILE ANATOMY ============ -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 25</div>
+        <div class="slide-title">Zone File: <span class="accent">SOA Serial Is the Clock</span></div>
+        <div class="slide-subtitle">Every zone file starts with a SOA. The serial is the only field secondaries check before deciding whether to transfer. Forget to increment it and your secondaries never update.</div>
+
+        <div class="terminal" style="font-size:0.83rem;">
+<span class="t-comment">; /etc/bind/db.matrix.internal  (semicolons = comments in zone files)</span>
+<span class="t-flag">$TTL</span>    3600       <span class="t-comment">; default TTL for records without an explicit TTL</span>
+
+<span class="t-flag">@</span>   IN  SOA  ns1.matrix.internal.  admin.matrix.internal. (
+              2026040901   <span class="t-comment">; serial: YYYYMMDDnn -- MUST increment on every edit</span>
+              3600         <span class="t-comment">; refresh: secondary re-checks primary every 1 hour</span>
+              900          <span class="t-comment">; retry: on refresh failure, retry after 15 min</span>
+              604800       <span class="t-comment">; expire: secondary stops answering after 7 days</span>
+              300          <span class="t-comment">; minimum TTL (negative cache / NXDOMAIN TTL)</span>
+          )
+
+<span class="t-comment">; NS records -- required, both must have glue A records</span>
+<span class="t-flag">@</span>           IN  NS      ns1.matrix.internal.
+<span class="t-flag">@</span>           IN  NS      ns2.matrix.internal.
+
+ns1         IN  A       10.0.1.10      <span class="t-comment">; glue record</span>
+ns2         IN  A       10.0.1.11      <span class="t-comment">; glue record</span>
+ops         IN  A       10.0.1.50
+db1         IN  A       10.0.1.60
+www         IN  CNAME   ops.matrix.internal.   <span class="t-comment">; trailing dot required</span>
+<span class="t-flag">@</span>           IN  MX  10  mail.matrix.internal.
+mail        IN  A       10.0.1.70
+<span class="t-flag">@</span>           IN  TXT     "v=spf1 mx -all"
+        </div>
+
+        <div class="two-col" style="margin-top:4px;">
+            <div class="box box-red">
+                <div class="box-label">Serial increment rule</div>
+                Increment the serial on EVERY zone file edit, no exceptions. Convention: <code style="color:#ef4444;font-family:monospace">YYYYMMDDnn</code>. The secondary compares its serial to the primary's. Equal or lower = no transfer. Wrong serial = stale secondary = split-brain DNS.
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">The trailing dot rule</div>
+                Any FQDN in a zone file requires a trailing dot. Without it, BIND appends the zone origin. <code style="color:#eab308;font-family:monospace">ops.matrix.internal</code> (no dot) becomes <code style="color:#eab308;font-family:monospace">ops.matrix.internal.matrix.internal.</code> &mdash; silently wrong.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK C: BASH SCRIPTING ============ -->
+
+<!-- ============ SLIDE 11 — BASH SCRIPT SKELETON ============ -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 25 &nbsp;|&nbsp; Topic 3: Bash Scripting</div>
+        <div class="slide-title">Every Script Starts <span class="accent">Here</span></div>
+        <div class="slide-subtitle">The production script skeleton. Six lines at the top prevent an entire class of bugs. Non-negotiable for anything that runs unattended.</div>
+
+        <div class="terminal">
+<span class="t-comment">#!/usr/bin/env bash</span>
+<span class="t-comment"># script-name.sh — one-line description of what this script does</span>
+<span class="t-comment"># Usage: ./script-name.sh [OPTIONS] &lt;argument&gt;</span>
+
+<span class="t-prompt">set</span> <span class="t-flag">-euo pipefail</span>          <span class="t-comment"># exit on error, unset vars, pipe failures</span>
+<span class="t-flag">IFS</span>=$'\n\t'               <span class="t-comment"># safe word splitting: newlines + tabs only</span>
+
+<span class="t-comment"># Constants (UPPER_CASE)</span>
+<span class="t-flag">readonly</span> SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+<span class="t-flag">readonly</span> LOG_FILE="/var/log/sector/$(basename "$0" .sh).log"
+
+<span class="t-comment"># Functions declared before main logic</span>
+log() { echo "[$(date +%T)] $*" | tee -a "$LOG_FILE"; }
+die() { echo "[ERROR] $*" &gt;&2; exit 1; }
+
+<span class="t-comment"># Argument guard</span>
+[[ $# -lt 1 ]] && die "Usage: $0 &lt;node-name&gt;"
+NODE="$1"
+
+<span class="t-comment"># Temp file with automatic cleanup</span>
+TMPFILE="/tmp/scan-$$-${NODE}.txt"
+<span class="t-flag">trap</span> 'rm -f "$TMPFILE"' EXIT
+
+log "Script started. Target: $NODE"
+        </div>
+
+        <div class="card-grid" style="margin-top:4px;">
+            <div class="card c-red">
+                <div class="card-label">set -e exits on error</div>
+                <div class="card-desc">Without <code style="color:#ef4444;font-family:monospace">-e</code>, a script that fails halfway keeps running. Commands after a failed <code style="color:#ef4444;font-family:monospace">cp</code> or <code style="color:#ef4444;font-family:monospace">mkdir</code> still execute, often with destructive results.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">set -u catches typos</div>
+                <div class="card-desc"><code style="color:#eab308;font-family:monospace">-u</code> treats unset variables as errors. Without it, <code style="color:#eab308;font-family:monospace">rm -rf "$DIIR/"</code> (typo: two I's) expands to <code style="color:#eab308;font-family:monospace">rm -rf /</code> and deletes the filesystem.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label">trap EXIT = guaranteed cleanup</div>
+                <div class="card-desc"><code style="color:#10b981;font-family:monospace">trap 'rm -f "$TMPFILE"' EXIT</code> runs whether the script exits normally, hits an error, or receives a signal. Temp files never leak.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 12 — CONDITIONALS AND LOOPS ============ -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 25</div>
+        <div class="slide-title">Conditionals + Loops: <span class="accent">The Operational Core</span></div>
+        <div class="slide-subtitle">Most real scripts are conditionals and loops. The key decisions: use <code style="color:#00ff41;font-family:monospace">[[ ]]</code> not <code style="color:#00ff41;font-family:monospace">[ ]</code>, quote every variable, use <code style="color:#00ff41;font-family:monospace">"$@"</code> not <code style="color:#00ff41;font-family:monospace">$*</code>.</div>
+
+        <div class="two-col">
+            <div class="terminal" style="font-size:0.82rem;">
+<span class="t-comment"># [[ ]] is the bash conditional -- safer than [ ]</span>
+<span class="t-prompt">if</span> [[ <span class="t-flag">-z</span> "$TARGET" ]]; then
+  die "TARGET is empty"
+<span class="t-prompt">elif</span> [[ "$TARGET" == *".internal" ]]; then
+  log "Internal host"
+<span class="t-prompt">else</span>
+  log "External host"
+<span class="t-prompt">fi</span>
+
+<span class="t-comment"># Regex test with =~</span>
+<span class="t-prompt">if</span> [[ "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+  log "Valid IPv4: $IP"
+<span class="t-prompt">fi</span>
+
+<span class="t-comment"># File tests</span>
+[[ <span class="t-flag">-f</span> "$FILE" ]] && log "File exists"
+[[ <span class="t-flag">-d</span> "$DIR"  ]] || die "Directory missing"
+[[ <span class="t-flag">-x</span> "$BIN"  ]] || die "Not executable"
+
+<span class="t-comment"># for loop over all arguments safely</span>
+<span class="t-prompt">for</span> node in <span class="t-flag">"$@"</span>; do
+  ping -c1 -W1 "$node" &gt;/dev/null 2&gt;&1 \
+    && log "$node UP" || log "$node DOWN"
+<span class="t-prompt">done</span>
+
+<span class="t-comment"># while read loop -- safe for files with spaces</span>
+<span class="t-prompt">while</span> IFS= <span class="t-cmd">read</span> -r line; do
+  log "Processing: $line"
+<span class="t-prompt">done</span> &lt; /etc/hosts
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-gold">
+                    <div class="box-label">Quoting rule: always double-quote</div>
+                    <code style="color:#eab308;font-family:monospace">"$VAR"</code> not <code style="color:#eab308;font-family:monospace">$VAR</code>. An unquoted variable containing a space splits into two words. An unquoted <code style="color:#eab308;font-family:monospace">*</code> glob-expands against the filesystem. Both are silent, destructive bugs.
+                </div>
+                <div class="box box-green">
+                    <div class="box-label">$@ vs $*</div>
+                    <code style="color:#00ff41;font-family:monospace">"$@"</code> expands each argument as a separate quoted word. <code style="color:#00ff41;font-family:monospace">"$*"</code> concatenates all arguments into one word. Always use <code style="color:#00ff41;font-family:monospace">"$@"</code> in loops.
+                </div>
+                <div class="box box-cyan">
+                    <div class="box-label">Exit codes are your return values</div>
+                    Every command exits with <code style="color:#06b6d4;font-family:monospace">$?</code>. 0 = success, non-zero = failure. Chain with <code style="color:#06b6d4;font-family:monospace">&&</code> (run if previous succeeded) and <code style="color:#06b6d4;font-family:monospace">||</code> (run if previous failed).
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 13 — FUNCTIONS AND ARRAYS ============ -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 25</div>
+        <div class="slide-title">Functions + Arrays: <span class="accent">Reusable Operations Logic</span></div>
+        <div class="slide-subtitle">Functions give scripts structure and testability. Arrays hold ordered lists without the word-splitting hazards of flat strings.</div>
+
+        <div class="two-col">
+            <div class="terminal" style="font-size:0.82rem;">
+<span class="t-comment"># Functions: declare before calling</span>
+check_service() {
+  <span class="t-flag">local</span> svc="$1"        <span class="t-comment"># local = function scope only</span>
+  if systemctl is-active --quiet "$svc"; then
+    log "[OK]  $svc running"
+    return 0
+  else
+    log "[FAIL] $svc stopped"
+    return 1
+  fi
+}
+
+check_service named || die "named is not running"
+
+<span class="t-comment"># Arrays: indexed</span>
+NODES=("ops" "db1" "mail" "ns1")
+echo "First node: ${NODES[0]}"
+echo "All nodes:  ${NODES[@]}"
+echo "Count:      ${#NODES[@]}"
+
+for node in "${NODES[@]}"; do
+  check_service "$node" || true    <span class="t-comment"># || true: don't exit on failure</span>
+done
+
+<span class="t-comment"># Associative arrays (declare -A)</span>
+declare -A SERVICES
+SERVICES["dns"]="named"
+SERVICES["web"]="nginx"
+SERVICES["db"]="postgresql"
+
+for role in "${!SERVICES[@]}"; do
+  check_service "${SERVICES[$role]}"
+done
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-emerald">
+                    <div class="box-label">local scope is mandatory</div>
+                    Always declare loop counters and working variables inside functions with <code style="color:#10b981;font-family:monospace">local</code>. Without it, the variable leaks to global scope and overwrites caller variables of the same name. Silent, intermittent, extremely hard to debug.
+                </div>
+                <div class="box box-green">
+                    <div class="box-label">Array expansion syntax</div>
+                    <code style="color:#00ff41;font-family:monospace">${NODES[@]}</code> &mdash; all elements as separate words (correct in loops).<br>
+                    <code style="color:#00ff41;font-family:monospace">${NODES[*]}</code> &mdash; all elements joined (usually wrong).<br>
+                    <code style="color:#00ff41;font-family:monospace">${#NODES[@]}</code> &mdash; count.<br>
+                    <code style="color:#00ff41;font-family:monospace">${!ASSOC[@]}</code> &mdash; all keys of an associative array.
+                </div>
+                <div class="box box-cyan">
+                    <div class="box-label">Return values from functions</div>
+                    Bash functions return exit codes (0-255), not data. To return a string, use <code style="color:#06b6d4;font-family:monospace">echo</code> and command substitution: <code style="color:#06b6d4;font-family:monospace">result=$(my_function)</code>.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ BLOCK D: AUTOMATION ============ -->
+
+<!-- ============ SLIDE 14 — CRON SYNTAX ============ -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 25 &nbsp;|&nbsp; Topic 4: Automation</div>
+        <div class="slide-title">Cron: <span class="accent">The Five-Field Schedule</span></div>
+        <div class="slide-subtitle">Five fields. The most common admin mistake is getting the order wrong. Burn this into memory: minute, hour, day-of-month, month, day-of-week.</div>
+
+        <div class="diagram" style="margin-top:4px;">
+            <svg viewBox="0 0 1060 90" width="1060" height="90" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="20" width="140" height="50" rx="6" fill="rgba(0,255,65,0.18)" stroke="#00ff41" stroke-width="2"/>
+                <text x="80" y="42" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="13" font-weight="800">MINUTE</text>
+                <text x="80" y="58" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">0&ndash;59</text>
+
+                <rect x="162" y="20" width="140" height="50" rx="6" fill="rgba(0,255,65,0.14)" stroke="#00ff41" stroke-width="2"/>
+                <text x="232" y="42" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="13" font-weight="800">HOUR</text>
+                <text x="232" y="58" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">0&ndash;23</text>
+
+                <rect x="314" y="20" width="140" height="50" rx="6" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="384" y="42" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="11" font-weight="800">DAY OF MONTH</text>
+                <text x="384" y="58" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">1&ndash;31</text>
+
+                <rect x="466" y="20" width="140" height="50" rx="6" fill="rgba(0,255,65,0.07)" stroke="#00ff41" stroke-width="2"/>
+                <text x="536" y="42" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="13" font-weight="800">MONTH</text>
+                <text x="536" y="58" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">1&ndash;12</text>
+
+                <rect x="618" y="20" width="140" height="50" rx="6" fill="rgba(0,255,65,0.04)" stroke="#00ff41" stroke-width="2"/>
+                <text x="688" y="42" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="11" font-weight="800">DAY OF WEEK</text>
+                <text x="688" y="58" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11">0&ndash;7 (0=Sun)</text>
+
+                <line x1="778" y1="45" x2="810" y2="45" stroke="#00ff41" stroke-width="2" style="animation:signalSend 1s linear infinite"/>
+                <polygon points="810,41 820,45 810,49" fill="#00ff41"/>
+
+                <rect x="824" y="20" width="220" height="50" rx="6" fill="rgba(6,182,212,0.10)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="934" y="42" text-anchor="middle" fill="#06b6d4" font-family="Inter" font-size="13" font-weight="800">COMMAND</text>
+                <text x="934" y="58" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="10">/usr/local/bin/script.sh</text>
+
+                <text x="530" y="82" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="11" font-style="italic">*  *  *  *  *  command  &mdash; every field * means "every valid value"</text>
+            </svg>
+        </div>
+
+        <div class="terminal">
+<span class="t-comment"># Common patterns every admin must recognize</span>
+<span class="t-flag">30 2  *  *  *</span>   /usr/local/bin/backup.sh      <span class="t-comment"># daily at 02:30</span>
+<span class="t-flag">0  4  *  *  1</span>   /usr/local/bin/weekly-audit.sh <span class="t-comment"># every Monday at 04:00</span>
+<span class="t-flag">*/15 * * * *</span>   /usr/local/bin/check-dns.sh   <span class="t-comment"># every 15 minutes</span>
+<span class="t-flag">0  0  1  *  *</span>   /usr/local/bin/monthly.sh     <span class="t-comment"># 1st of month at midnight</span>
+<span class="t-flag">0  8  *  *  1-5</span>  /usr/local/bin/workday.sh     <span class="t-comment"># weekdays at 08:00</span>
+<span class="t-flag">0  6,12,18 * * *</span>  /usr/local/bin/sync.sh       <span class="t-comment"># three times a day</span>
+
+<span class="t-comment"># /etc/cron.d drop-in format adds a username field</span>
+<span class="t-flag">30 2 * * *</span>  root  /usr/local/bin/sector-backup.sh >> /var/log/backup.log 2>&1
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 15 — CRON FAILURE MODES ============ -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 25</div>
+        <div class="slide-title">Why Cron Jobs Fail: <span class="accent-red">The Environment Problem</span></div>
+        <div class="slide-subtitle">Cron runs with a minimal environment. Jobs that work perfectly interactively fail silently in cron for one consistent reason: PATH.</div>
+
+        <div class="two-col">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-red">
+                    <div class="card-label">Minimal PATH</div>
+                    <div class="card-desc">Cron's default PATH is <code style="color:#ef4444;font-family:monospace">/usr/bin:/bin</code>. Commands in <code style="color:#ef4444;font-family:monospace">/usr/local/bin</code>, <code style="color:#ef4444;font-family:monospace">/usr/sbin</code>, or user-specific locations are not found. Always use absolute paths or set PATH explicitly at the crontab top.</div>
+                </div>
+                <div class="card c-gold">
+                    <div class="card-label">No profile loaded</div>
+                    <div class="card-desc">Cron does not source <code style="color:#eab308;font-family:monospace">~/.bashrc</code> or <code style="color:#eab308;font-family:monospace">/etc/profile</code>. Environment variables, aliases, and functions defined there are invisible. Scripts must be self-contained or explicitly source what they need.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label">Redirect output or lose it</div>
+                    <div class="card-desc">Cron mails output to the local user account. On most production systems that mail queue is never read. Redirect both stdout and stderr: <code style="color:#06b6d4;font-family:monospace">&gt;&gt; /var/log/myjob.log 2&gt;&amp;1</code></div>
+                </div>
+            </div>
+            <div class="terminal" style="font-size:0.82rem;">
+<span class="t-comment"># Pattern: set PATH at the top of every crontab</span>
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""          <span class="t-comment"># suppress mail output</span>
+SHELL=/bin/bash
+
+<span class="t-comment"># Pattern: capture all output with a timestamp</span>
+30 2 * * * root /usr/local/bin/backup.sh \
+  >> /var/log/backup.log 2>&1
+
+<span class="t-comment"># Debug a failing cron job</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo grep CRON /var/log/syslog | tail -20</span>
+<span class="t-out">Jun 15 02:30:01 ns1 CRON[4421]: (root) CMD (/usr/local/bin/backup.sh)</span>
+
+<span class="t-comment"># Test the script in a cron-like environment</span>
+<span class="t-prompt">$</span> <span class="t-cmd">env -i HOME=/root SHELL=/bin/bash PATH=/usr/bin:/bin \</span>
+<span class="t-cmd">  /usr/local/bin/backup.sh</span>
+<span class="t-out">bash: named-checkconf: command not found</span>
+<span class="t-comment"># Conclusion: add /usr/sbin to the script's PATH</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 16 — SYSTEMD TIMERS ============ -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 25</div>
+        <div class="slide-title">systemd Timers: <span class="accent">The Modern Replacement</span></div>
+        <div class="slide-subtitle">systemd timers solve cron's two biggest problems: no logging integration and missed runs vanish silently. Use timers for new work on Ubuntu 22.04.</div>
+
+        <div class="two-col">
+            <div class="terminal" style="font-size:0.82rem;">
+<span class="t-comment"># Two files per timer: .service + .timer</span>
+<span class="t-comment"># /etc/systemd/system/dns-check.service</span>
+[Unit]
+Description=DNS Health Check
+After=network.target named.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/check-dns.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dns-check
+
+<span class="t-comment"># /etc/systemd/system/dns-check.timer</span>
+[Unit]
+Description=DNS Health Check Timer
+
+[Timer]
+OnCalendar=*:0/15        <span class="t-comment"># every 15 minutes</span>
+Persistent=true          <span class="t-comment"># catch missed runs on next boot</span>
+Unit=dns-check.service
+
+[Install]
+WantedBy=timers.target
+
+<span class="t-comment"># Enable and start</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo systemctl enable --now dns-check.timer</span>
+<span class="t-prompt">$</span> <span class="t-cmd">sudo systemctl list-timers --all</span>
+<span class="t-prompt">$</span> <span class="t-cmd">journalctl -u dns-check.service -n 20</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-emerald">
+                    <div class="box-label">Why timers beat cron</div>
+                    Output goes to journalctl, no mail configuration needed. <code style="color:#10b981;font-family:monospace">Persistent=true</code> catches missed runs (cron's biggest gap). <code style="color:#10b981;font-family:monospace">After=named.service</code> expresses dependencies. <code style="color:#10b981;font-family:monospace">systemctl list-timers</code> shows next scheduled run.
+                </div>
+                <div class="box box-gold">
+                    <div class="box-label">OnCalendar syntax</div>
+                    <code style="color:#eab308;font-family:monospace">daily</code> &mdash; once per day at midnight.<br>
+                    <code style="color:#eab308;font-family:monospace">weekly</code> &mdash; Monday at midnight.<br>
+                    <code style="color:#eab308;font-family:monospace">*:0/15</code> &mdash; every 15 minutes.<br>
+                    <code style="color:#eab308;font-family:monospace">Mon..Fri 08:00</code> &mdash; weekdays at 8am.<br>
+                    Validate with <code style="color:#eab308;font-family:monospace">systemd-analyze calendar 'Mon..Fri 08:00'</code>
+                </div>
+                <div class="box box-cyan">
+                    <div class="box-label">When to keep cron</div>
+                    Simple per-user jobs where a .service unit is overkill. Legacy scripts already deployed. Cross-platform scripts that need to run on non-systemd systems. For everything else on Ubuntu 22.04, use timers.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 17 — SYNTHESIS SCENARIO ============ -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 25 &nbsp;|&nbsp; Synthesis</div>
+        <div class="slide-title">W3 in One Scenario: <span class="accent">"The DNS Authority Node"</span></div>
+        <div class="slide-subtitle">Build a self-operating, authoritative DNS server for the matrix.internal domain. Four Week 3 layers applied in order.</div>
+
+        <div class="diagram" style="margin-top:4px;">
+            <svg viewBox="0 0 1100 400" width="1100" height="400" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="synArr3" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><polygon points="0 0, 9 4, 0 8" fill="#94a3b8"/></marker>
+                </defs>
+
+                <circle cx="60" cy="42" r="22" fill="rgba(6,182,212,0.18)" stroke="#06b6d4" stroke-width="2"/>
+                <text x="60" y="48" text-anchor="middle" fill="#06b6d4" font-family="Inter" font-size="14" font-weight="800">1</text>
+                <rect x="100" y="16" width="980" height="52" rx="8" fill="rgba(6,182,212,0.05)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="120" y="36" fill="#06b6d4" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">DNS DESIGN &mdash; choose record types before touching BIND</text>
+                <text x="120" y="54" fill="#c8e6cd" font-family="JetBrains Mono" font-size="11"><tspan font-weight="700">A records for each host &middot; PTR for reverse &middot; MX for mail &middot; CNAME for www alias &middot; SOA serial YYYYMMDDnn</tspan></text>
+
+                <line x1="60" y1="68" x2="60" y2="90" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#synArr3)"/>
+
+                <circle cx="60" cy="118" r="22" fill="rgba(16,185,129,0.18)" stroke="#10b981" stroke-width="2"/>
+                <text x="60" y="124" text-anchor="middle" fill="#10b981" font-family="Inter" font-size="14" font-weight="800">2</text>
+                <rect x="100" y="92" width="980" height="52" rx="8" fill="rgba(16,185,129,0.05)" stroke="#10b981" stroke-width="1.5"/>
+                <text x="120" y="112" fill="#10b981" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">BIND9 DEPLOYMENT &mdash; validate every edit before reloading</text>
+                <text x="120" y="130" fill="#c8e6cd" font-family="JetBrains Mono" font-size="11"><tspan font-weight="700">named-checkconf &amp;&amp; named-checkzone matrix.internal /etc/bind/db.matrix.internal &amp;&amp; rndc reload</tspan></text>
+
+                <line x1="60" y1="144" x2="60" y2="168" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#synArr3)"/>
+
+                <circle cx="60" cy="196" r="22" fill="rgba(234,179,8,0.18)" stroke="#eab308" stroke-width="2"/>
+                <text x="60" y="202" text-anchor="middle" fill="#eab308" font-family="Inter" font-size="14" font-weight="800">3</text>
+                <rect x="100" y="170" width="980" height="52" rx="8" fill="rgba(234,179,8,0.05)" stroke="#eab308" stroke-width="1.5"/>
+                <text x="120" y="190" fill="#eab308" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">BASH HEALTH SCRIPT &mdash; write check-dns.sh with set -euo pipefail</text>
+                <text x="120" y="208" fill="#c8e6cd" font-family="JetBrains Mono" font-size="11"><tspan font-weight="700">dig @127.0.0.1 +short A ops.matrix.internal | grep -q "10.0.1.50" || die "DNS broken"</tspan></text>
+
+                <line x1="60" y1="222" x2="60" y2="246" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#synArr3)"/>
+
+                <circle cx="60" cy="274" r="22" fill="rgba(168,85,247,0.18)" stroke="#a855f7" stroke-width="2"/>
+                <text x="60" y="280" text-anchor="middle" fill="#a855f7" font-family="Inter" font-size="14" font-weight="800">4</text>
+                <rect x="100" y="248" width="980" height="52" rx="8" fill="rgba(168,85,247,0.05)" stroke="#a855f7" stroke-width="1.5"/>
+                <text x="120" y="268" fill="#a855f7" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">AUTOMATION &mdash; systemd timer runs check-dns.sh every 15 minutes</text>
+                <text x="120" y="286" fill="#c8e6cd" font-family="JetBrains Mono" font-size="11"><tspan font-weight="700">OnCalendar=*:0/15 &middot; Persistent=true &middot; journalctl -u dns-check -f</tspan></text>
+
+                <line x1="60" y1="300" x2="60" y2="324" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#synArr3)"/>
+
+                <circle cx="60" cy="352" r="22" fill="rgba(0,255,65,0.25)" stroke="#00ff41" stroke-width="2.5"/>
+                <text x="60" y="358" text-anchor="middle" fill="#00ff41" font-family="Inter" font-size="14" font-weight="800">+</text>
+                <rect x="100" y="326" width="980" height="52" rx="8" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <text x="120" y="346" fill="#00ff41" font-family="Inter" font-size="11" font-weight="800" letter-spacing="0.05em">RESULT &mdash; a self-monitoring authoritative DNS node</text>
+                <text x="120" y="364" fill="#c8e6cd" font-family="JetBrains Mono" font-size="12">names resolve correctly &middot; secondaries stay in sync &middot; anomalies auto-detected &middot; logs in journalctl</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 18 — CROSS-CONNECTIONS ============ -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 25</div>
+        <div class="slide-title">The <span class="accent">Cross-Connections</span></div>
+        <div class="slide-subtitle">Week 3 topics are not isolated modules. Each touches the others in operational practice. These are the joints that make the system coherent.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">DNS + BIND validation</div>
+                <div class="card-desc">You cannot correctly configure BIND zone files without understanding DNS record semantics first. <code style="color:#06b6d4;font-family:monospace">named-checkzone</code> validates BIND syntax; knowing DNS tells you whether the data itself is correct.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Bash + BIND operations</div>
+                <div class="card-desc">Zone serial increment, zone file templating, AXFR verification, and named reload are all repeatable operations &mdash; exactly what bash scripts are for. Scripting BIND operations turns a 10-step manual procedure into one idempotent command.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Automation + DNS health</div>
+                <div class="card-desc">A systemd timer running a <code style="color:#a855f7;font-family:monospace">dig</code>-based health check catches DNS outages before users do. <code style="color:#a855f7;font-family:monospace">Persistent=true</code> means a maintenance window does not silently skip the health check that was scheduled during it.</div>
+            </div>
+            <div class="card c-emerald">
+                <div class="card-label">Bash + automation</div>
+                <div class="card-desc">A cron job is only as reliable as the script it calls. <code style="color:#10b981;font-family:monospace">set -euo pipefail</code> and logging via <code style="color:#10b981;font-family:monospace">tee</code> turn a fragile script into one whose failures are visible in the job log rather than silently discarded.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">W2 firewall + BIND</div>
+                <div class="card-desc">BIND listens on port 53 UDP and TCP. The UFW rule <code style="color:#ef4444;font-family:monospace">ufw allow 53</code> must be added for clients to reach it. The W2 default-deny policy means named will be silently unreachable without this rule.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">systemd + everything</div>
+                <div class="card-desc">named itself runs as a systemd service. <code style="color:#3b82f6;font-family:monospace">systemctl status named</code>, <code style="color:#3b82f6;font-family:monospace">journalctl -u named -p err</code>, and the <code style="color:#3b82f6;font-family:monospace">After=named.service</code> dependency chain from Week 1 are the operational surface for all of BIND9's runtime behavior.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 19 — COMMON MISTAKES ============ -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 25</div>
+        <div class="slide-title">Common Mistakes: <span class="accent-red">What Goes Wrong</span></div>
+        <div class="slide-subtitle">These are the four errors instructors see most often across labs. Each has an exact root cause and a two-command fix.</div>
+
+        <div style="display:flex; flex-direction:column; gap:9px; margin-top:4px;">
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#ef4444; text-align:center; margin-top:2px;">1</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fee2e2; margin-bottom:3px;">Missing trailing dot in zone file</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;"><code style="color:#ef4444;font-family:monospace">www IN CNAME ops.matrix.internal</code> (no trailing dot) makes BIND append the zone origin, creating the nonsense FQDN <code style="color:#ef4444;font-family:monospace">ops.matrix.internal.matrix.internal.</code> Resolution silently fails.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Fix</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Every FQDN in a zone file ends with a dot. Run <code style="color:#00ff41;font-family:monospace">named-checkzone</code> &mdash; it catches absolute name references missing the dot.</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#ef4444; text-align:center; margin-top:2px;">2</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fee2e2; margin-bottom:3px;">SOA serial not incremented after zone edit</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Secondary name servers compare their serial to the primary. If the serial did not change, they do not transfer. Your edit is live on ns1 but ns2 serves stale data. Split-brain DNS follows.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Fix</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Increment the serial before every zone reload. Convention: <code style="color:#00ff41;font-family:monospace">YYYYMMDDnn</code>. Force a secondary transfer immediately: <code style="color:#00ff41;font-family:monospace">rndc retransfer partner.example</code></div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#ef4444; text-align:center; margin-top:2px;">3</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fee2e2; margin-bottom:3px;">Cron job works interactively, fails silently</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Script uses <code style="color:#ef4444;font-family:monospace">rndc</code> or <code style="color:#ef4444;font-family:monospace">named-checkconf</code>. Both live in <code style="color:#ef4444;font-family:monospace">/usr/sbin</code>. Cron's PATH is <code style="color:#ef4444;font-family:monospace">/usr/bin:/bin</code>. Command not found. No output because output is not redirected. Job "runs" with no effect.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Fix</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Add <code style="color:#00ff41;font-family:monospace">PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</code> at the top of the crontab and redirect output: <code style="color:#00ff41;font-family:monospace">&gt;&gt; /var/log/job.log 2&gt;&amp;1</code></div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 40px 1fr 1fr; gap:14px; align-items:start; padding:10px 14px; background:rgba(239,68,68,0.05); border-left:3px solid #ef4444; border-radius:0 8px 8px 0;">
+                <div style="font-size:1.4rem; font-weight:800; color:#ef4444; text-align:center; margin-top:2px;">4</div>
+                <div>
+                    <div style="font-size:0.88rem; font-weight:700; color:#fee2e2; margin-bottom:3px;">Bash script continues after a failed command</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Without <code style="color:#ef4444;font-family:monospace">set -e</code>, a script that fails to create a directory will attempt to write files into a non-existent path. Without <code style="color:#ef4444;font-family:monospace">set -u</code>, a typo in a variable name expands to empty string, silently processing nothing.</div>
+                </div>
+                <div>
+                    <div style="font-size:0.84rem; font-weight:700; color:#00ff41; margin-bottom:3px;">Fix</div>
+                    <div style="font-size:0.84rem; color:#b8c5bb;">Line two of every script: <code style="color:#00ff41;font-family:monospace">set -euo pipefail</code>. No exceptions for scripts that run unattended or modify system state.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 20 — THE W3 CHECKLIST ============ -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 25</div>
+        <div class="slide-title">The W3 <span class="accent">Sector Authority Checklist</span></div>
+        <div class="slide-subtitle">One page. Four categories. Every item is verifiable with a single command.</div>
+
+        <div class="card-grid-2">
+            <div style="background:rgba(6,182,212,0.04); border:1px solid rgba(6,182,212,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#06b6d4; margin-bottom:8px;">DNS Fundamentals</div>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.88rem; color:#b8c5bb;">
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Can explain recursive vs. authoritative distinction</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Knows all 7 required record types (A, AAAA, CNAME, MX, NS, PTR, SOA)</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Understands TTL and its effect on caching</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Can use dig to query any record type from any server</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Knows why CNAME cannot live at zone apex</div>
+                </div>
+            </div>
+            <div style="background:rgba(16,185,129,0.04); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#10b981; margin-bottom:8px;">BIND9 Deployment</div>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.88rem; color:#b8c5bb;">
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>BIND9 installed and named owns port 53</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>named.conf.options restricts recursion to trusted ACL</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Forward zone file passes named-checkzone</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Reverse zone file created (PTR records match A records)</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>SOA serial uses YYYYMMDDnn format</div>
+                </div>
+            </div>
+            <div style="background:rgba(234,179,8,0.04); border:1px solid rgba(234,179,8,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#eab308; margin-bottom:8px;">Bash Scripting</div>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.88rem; color:#b8c5bb;">
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>All scripts start with #!/usr/bin/env bash + set -euo pipefail</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>All variable expansions double-quoted</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Functions use local variables</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Exit codes checked and logged</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Temp files cleaned up via trap EXIT</div>
+                </div>
+            </div>
+            <div style="background:rgba(168,85,247,0.04); border:1px solid rgba(168,85,247,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#a855f7; margin-bottom:8px;">Automation</div>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.88rem; color:#b8c5bb;">
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>At least one job scheduled (cron or systemd timer)</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>Cron jobs use absolute paths or explicit PATH= at top</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>All output redirected to a log file</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>systemd timer uses Persistent=true</div>
+                    <div><span style="color:#00ff41; font-family:monospace; margin-right:8px;">&#x25A1;</span>systemctl list-timers shows next scheduled run</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 21 — VERIFICATION COMMANDS ============ -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 25</div>
+        <div class="slide-title">Verification: <span class="accent">How to Confirm It Works</span></div>
+        <div class="slide-subtitle">A configuration that cannot be verified is a guess. Each W3 layer has a specific command that proves operational state.</div>
+
+        <div style="display:flex; flex-direction:column; gap:9px; margin-top:4px;">
+
+            <div style="display:grid; grid-template-columns: 90px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(6,182,212,0.05); border-left:3px solid #06b6d4; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#06b6d4; text-transform:uppercase; letter-spacing:0.06em;">DNS</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">dig +short A ops.matrix.internal</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Should return 10.0.1.50. Empty = record missing or named not running.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 90px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(6,182,212,0.05); border-left:3px solid #06b6d4; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#06b6d4; text-transform:uppercase; letter-spacing:0.06em;">DNS</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">dig -x 10.0.1.50 +short</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Reverse lookup. Should return ops.matrix.internal. Verifies PTR zone.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 90px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(16,185,129,0.05); border-left:3px solid #10b981; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#10b981; text-transform:uppercase; letter-spacing:0.06em;">BIND9</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">sudo named-checkconf && echo OK</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Zero output + exit 0 = named.conf is syntactically valid. Must run before every reload.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 90px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(16,185,129,0.05); border-left:3px solid #10b981; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#10b981; text-transform:uppercase; letter-spacing:0.06em;">BIND9</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">sudo rndc status</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Shows named version, uptime, and number of zones loaded. Confirms control channel works.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 90px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(234,179,8,0.05); border-left:3px solid #eab308; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#eab308; text-transform:uppercase; letter-spacing:0.06em;">BASH</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">bash -n script.sh</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Syntax-check without executing. Zero output = no syntax errors. Run before first deployment.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 90px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(168,85,247,0.05); border-left:3px solid #a855f7; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#a855f7; text-transform:uppercase; letter-spacing:0.06em;">CRON</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">sudo grep CRON /var/log/syslog | tail -10</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Confirms cron invoked the job. Check for CMD entry with correct command path.</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 90px 1fr 360px; gap:14px; align-items:center; padding:10px 14px; background:rgba(168,85,247,0.05); border-left:3px solid #a855f7; border-radius:0 8px 8px 0;">
+                <div style="font-size:0.78rem; font-weight:700; color:#a855f7; text-transform:uppercase; letter-spacing:0.06em;">TIMER</div>
+                <code style="color:#c8e6cd; font-family:'JetBrains Mono','Courier New',monospace; font-size:0.88rem;">systemctl list-timers --all</code>
+                <div style="font-size:0.84rem; color:#8b9e8e; font-style:italic;">Shows NEXT run time and LAST trigger. Confirms timer is active and scheduled correctly.</div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 22 — THE W3 TOOLCHAIN IN ONE VIEW ============ -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 25</div>
+        <div class="slide-title">W3 Toolchain: <span class="accent">One Reference View</span></div>
+        <div class="slide-subtitle">Every command a student needs to operate this week's stack, grouped by layer. Print this. Tape it up.</div>
+
+        <div class="card-grid-2">
+            <div style="background:rgba(6,182,212,0.04); border:1px solid rgba(6,182,212,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#06b6d4; margin-bottom:8px;">DNS Diagnostics</div>
+                <div style="display:flex; flex-direction:column; gap:4px; font-family:monospace; font-size:0.84rem; color:#b8c5bb;">
+                    <div><span style="color:#06b6d4;">dig A hostname</span> &mdash; forward lookup</div>
+                    <div><span style="color:#06b6d4;">dig -x 10.0.1.50</span> &mdash; reverse lookup</div>
+                    <div><span style="color:#06b6d4;">dig MX domain</span> &mdash; mail exchanger</div>
+                    <div><span style="color:#06b6d4;">dig +trace A hostname</span> &mdash; walk hierarchy</div>
+                    <div><span style="color:#06b6d4;">dig @8.8.8.8 +short A host</span> &mdash; bypass local resolver</div>
+                    <div><span style="color:#06b6d4;">nslookup hostname ns1.domain</span> &mdash; quick test</div>
+                </div>
+            </div>
+            <div style="background:rgba(16,185,129,0.04); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#10b981; margin-bottom:8px;">BIND9 Operations</div>
+                <div style="display:flex; flex-direction:column; gap:4px; font-family:monospace; font-size:0.84rem; color:#b8c5bb;">
+                    <div><span style="color:#10b981;">named-checkconf</span> &mdash; validate config</div>
+                    <div><span style="color:#10b981;">named-checkzone zone /path/db</span> &mdash; validate zone</div>
+                    <div><span style="color:#10b981;">rndc reload</span> &mdash; live reload all zones</div>
+                    <div><span style="color:#10b981;">rndc reload matrix.internal</span> &mdash; reload one zone</div>
+                    <div><span style="color:#10b981;">rndc status</span> &mdash; daemon status</div>
+                    <div><span style="color:#10b981;">journalctl -u named -p err</span> &mdash; errors only</div>
+                </div>
+            </div>
+            <div style="background:rgba(234,179,8,0.04); border:1px solid rgba(234,179,8,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#eab308; margin-bottom:8px;">Bash Validation</div>
+                <div style="display:flex; flex-direction:column; gap:4px; font-family:monospace; font-size:0.84rem; color:#b8c5bb;">
+                    <div><span style="color:#eab308;">bash -n script.sh</span> &mdash; syntax check only</div>
+                    <div><span style="color:#eab308;">bash -x script.sh</span> &mdash; trace execution</div>
+                    <div><span style="color:#eab308;">shellcheck script.sh</span> &mdash; static analysis</div>
+                    <div><span style="color:#eab308;">echo $?</span> &mdash; last exit code</div>
+                    <div><span style="color:#eab308;">set -euo pipefail</span> &mdash; safety harness</div>
+                    <div><span style="color:#eab308;">trap 'cleanup' EXIT</span> &mdash; guaranteed cleanup</div>
+                </div>
+            </div>
+            <div style="background:rgba(168,85,247,0.04); border:1px solid rgba(168,85,247,0.2); border-radius:10px; padding:14px 18px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#a855f7; margin-bottom:8px;">Automation Management</div>
+                <div style="display:flex; flex-direction:column; gap:4px; font-family:monospace; font-size:0.84rem; color:#b8c5bb;">
+                    <div><span style="color:#a855f7;">crontab -e</span> &mdash; edit user crontab</div>
+                    <div><span style="color:#a855f7;">crontab -l</span> &mdash; list user crontab</div>
+                    <div><span style="color:#a855f7;">grep CRON /var/log/syslog</span> &mdash; cron log</div>
+                    <div><span style="color:#a855f7;">systemctl list-timers --all</span> &mdash; all timers</div>
+                    <div><span style="color:#a855f7;">journalctl -u timer-name</span> &mdash; timer output</div>
+                    <div><span style="color:#a855f7;">systemd-analyze calendar 'daily'</span> &mdash; validate schedule</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 23 — LOOKING AHEAD ============ -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 25</div>
+        <div class="slide-title">Week 3 Complete &mdash; <span class="accent">What Comes Next</span></div>
+        <div class="slide-subtitle">Week 4 closes the loop: integrity verification, audit logging, and performance analysis on the infrastructure you now have running.</div>
+
+        <div class="diagram" style="margin-top:6px;">
+            <svg viewBox="0 0 1100 200" width="1100" height="200" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="arr23" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><polygon points="0 0, 9 4, 0 8" fill="#00ff41"/></marker>
+                    <marker id="arr23g" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><polygon points="0 0, 9 4, 0 8" fill="#94a3b8"/></marker>
+                </defs>
+
+                <!-- W1 done -->
+                <rect x="20" y="40" width="240" height="100" rx="10" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <circle cx="55" cy="68" r="14" fill="#00ff41"/>
+                <path d="M 49 68 L 54 73 L 62 63" stroke="#02080a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="80" y="68" fill="#c8e6cd" font-family="Inter" font-size="14" font-weight="800">WEEK 1 &mdash; DONE</text>
+                <text x="80" y="86" fill="#8b9e8e" font-family="Inter" font-size="11">Grid Connection</text>
+                <text x="40" y="112" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">CLI &middot; systemd &middot; ip &middot; ss</text>
+                <text x="40" y="128" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">COs 1 &amp; 2 covered</text>
+
+                <line x1="260" y1="90" x2="286" y2="90" stroke="#00ff41" stroke-width="2" marker-end="url(#arr23)"/>
+
+                <!-- W2 done -->
+                <rect x="290" y="40" width="240" height="100" rx="10" fill="rgba(0,255,65,0.10)" stroke="#00ff41" stroke-width="2"/>
+                <circle cx="325" cy="68" r="14" fill="#00ff41"/>
+                <path d="M 319 68 L 324 73 L 332 63" stroke="#02080a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="350" y="68" fill="#c8e6cd" font-family="Inter" font-size="14" font-weight="800">WEEK 2 &mdash; DONE</text>
+                <text x="350" y="86" fill="#8b9e8e" font-family="Inter" font-size="11">Perimeter Defense</text>
+                <text x="310" y="112" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">UFW &middot; PAM &middot; ClamAV &middot; apt</text>
+                <text x="310" y="128" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">COs 3 &amp; 4 covered</text>
+
+                <line x1="530" y1="90" x2="556" y2="90" stroke="#00ff41" stroke-width="2" marker-end="url(#arr23)"/>
+
+                <!-- W3 done now -->
+                <rect x="560" y="40" width="240" height="100" rx="10" fill="rgba(0,255,65,0.15)" stroke="#00ff41" stroke-width="2.5"/>
+                <circle cx="595" cy="68" r="14" fill="#00ff41"/>
+                <path d="M 589 68 L 594 73 L 602 63" stroke="#02080a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="620" y="68" fill="#c8e6cd" font-family="Inter" font-size="14" font-weight="800">WEEK 3 &mdash; DONE</text>
+                <text x="620" y="86" fill="#8b9e8e" font-family="Inter" font-size="11">Sector Authority</text>
+                <text x="580" y="112" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">DNS &middot; BIND &middot; bash &middot; cron</text>
+                <text x="580" y="128" fill="#00ff41" font-family="Inter" font-size="10" font-style="italic">COs 5 &amp; 6 covered</text>
+
+                <line x1="800" y1="90" x2="826" y2="90" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr23g)"/>
+
+                <!-- W4 next -->
+                <rect x="830" y="40" width="240" height="100" rx="10" fill="rgba(148,163,184,0.04)" stroke="#475569" stroke-width="1.5"/>
+                <circle cx="865" cy="68" r="14" fill="rgba(148,163,184,0.08)" stroke="#475569" stroke-width="2"/>
+                <text x="865" y="73" text-anchor="middle" fill="#8b9e8e" font-family="Inter" font-size="14" font-weight="800">4</text>
+                <text x="892" y="68" fill="#94a3b8" font-family="Inter" font-size="14" font-weight="800">WEEK 4 &mdash; NEXT</text>
+                <text x="892" y="86" fill="#8b9e8e" font-family="Inter" font-size="11">Integrity Verification</text>
+                <text x="850" y="112" fill="#8b9e8e" font-family="JetBrains Mono" font-size="10">AIDE &middot; audit &middot; perf &middot; logs</text>
+                <text x="850" y="128" fill="#8b9e8e" font-family="Inter" font-size="10" font-style="italic">knowing when something changed</text>
+
+                <text x="550" y="180" text-anchor="middle" fill="#86efac" font-family="Inter" font-size="13" font-style="italic">CTS4321C &middot; DNS + automation running. Week 4 proves nothing changed without authorization.</text>
+            </svg>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:6px;">
+            <div style="background:rgba(0,255,65,0.05); border-left:3px solid #00ff41; border-radius:0 8px 8px 0; padding:10px 14px;">
+                <div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:3px;">Drilldown decks (this week)</div>
+                <div style="font-size:0.85rem; color:#b8c5bb;">ALA-W3-DNS &middot; ALA-W3-BIND &middot; ALA-05 Bash &middot; ALA-06 Automation &mdash; ~138 slides</div>
+            </div>
+            <div style="background:rgba(16,185,129,0.05); border-left:3px solid #10b981; border-radius:0 8px 8px 0; padding:10px 14px;">
+                <div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:3px;">Before next class</div>
+                <div style="font-size:0.85rem; color:#b8c5bb;">W3 labs: BIND zone deployment, bash health script, systemd timer &middot; Week 3 quiz (70% to pass)</div>
+            </div>
+            <div style="background:rgba(168,85,247,0.05); border-left:3px solid #a855f7; border-radius:0 8px 8px 0; padding:10px 14px;">
+                <div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin-bottom:3px;">W4: Integrity Verification</div>
+                <div style="font-size:0.85rem; color:#b8c5bb;">AIDE file integrity, auditd, performance analysis, log management. The system tells you what happened.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 24 — DISCUSSION QUESTIONS ============ -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 25</div>
+        <div class="slide-title">Discussion &amp; <span class="accent">Lab Bridges</span></div>
+        <div class="slide-subtitle">Three open questions to drive discussion. No right answer in 30 seconds. Bring your reasoning.</div>
+
+        <div style="display:flex; flex-direction:column; gap:14px; margin-top:6px;">
+            <div style="padding:18px 22px; background:rgba(6,182,212,0.06); border:1px solid rgba(6,182,212,0.25); border-radius:10px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#06b6d4; margin-bottom:8px;">DNS Question</div>
+                <div style="font-size:1.0rem; color:#f1f5f9; font-weight:600; margin-bottom:6px;">You lower the TTL on an A record from 3600 to 60 seconds before a planned IP migration. What does that actually change about resolver behavior, and when should you lower it?</div>
+                <div style="font-size:0.88rem; color:#8b9e8e; font-style:italic;">Thread pull: caching, stale records, migration windows, the 24-hour-ahead rule, vs. always keeping TTL low.</div>
+            </div>
+
+            <div style="padding:18px 22px; background:rgba(234,179,8,0.06); border:1px solid rgba(234,179,8,0.25); border-radius:10px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#eab308; margin-bottom:8px;">Bash Question</div>
+                <div style="font-size:1.0rem; color:#f1f5f9; font-weight:600; margin-bottom:6px;">A bash script runs successfully in your terminal but fails every night in cron. What is your five-minute debugging procedure?</div>
+                <div style="font-size:0.88rem; color:#8b9e8e; font-style:italic;">Thread pull: PATH, env -i test, output redirection, syslog grep, absolute paths vs. relative, set -x tracing.</div>
+            </div>
+
+            <div style="padding:18px 22px; background:rgba(168,85,247,0.06); border:1px solid rgba(168,85,247,0.25); border-radius:10px;">
+                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#a855f7; margin-bottom:8px;">Architecture Question</div>
+                <div style="font-size:1.0rem; color:#f1f5f9; font-weight:600; margin-bottom:6px;">You have a cron job that has been running for 18 months. No one knows what it does or if it's still needed. What do you do before deleting it?</div>
+                <div style="font-size:0.88rem; color:#8b9e8e; font-style:italic;">Thread pull: log analysis, process observation, disable vs. delete, change management, the we-do-not-destroy principle.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ SLIDE 25 — END ============ -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 25</div>
+        <div class="title-hero">
+            <div class="big-title"><span class="accent">End of Week 3</span></div>
+            <div class="lead">DNS hierarchy, authoritative BIND9 deployment, bash scripting discipline, and cron + systemd automation. The sector now has a name, an authority, and a brain.</div>
+        </div>
+
+        <div class="diagram" style="margin-top:6px;">
+            <svg viewBox="0 0 1100 150" width="1100" height="150" xmlns="http://www.w3.org/2000/svg">
+                <g>
+                    <rect x="20" y="30" width="240" height="80" rx="10" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="2"/>
+                    <circle cx="55" cy="58" r="14" fill="#06b6d4"/>
+                    <path d="M 49 58 L 54 63 L 62 53" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="80" y="58" fill="#cffafe" font-family="Inter" font-size="14" font-weight="800">DNS</text>
+                    <text x="40" y="84" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">hierarchy &middot; records &middot; dig</text>
+                    <text x="40" y="100" fill="#8b9e8e" font-family="Inter" font-size="9" font-style="italic">COs 5 &amp; 6</text>
+                </g>
+                <line x1="262" y1="70" x2="290" y2="70" stroke="#00ff41" stroke-width="2" stroke-dasharray="4 2"/>
+                <g>
+                    <rect x="294" y="30" width="240" height="80" rx="10" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="2"/>
+                    <circle cx="329" cy="58" r="14" fill="#10b981"/>
+                    <path d="M 323 58 L 328 63 L 336 53" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="354" y="58" fill="#c8e6cd" font-family="Inter" font-size="14" font-weight="800">BIND9</text>
+                    <text x="314" y="84" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">named &middot; zones &middot; rndc</text>
+                    <text x="314" y="100" fill="#8b9e8e" font-family="Inter" font-size="9" font-style="italic">COs 5 &amp; 6</text>
+                </g>
+                <line x1="536" y1="70" x2="564" y2="70" stroke="#00ff41" stroke-width="2" stroke-dasharray="4 2"/>
+                <g>
+                    <rect x="568" y="30" width="240" height="80" rx="10" fill="rgba(234,179,8,0.12)" stroke="#eab308" stroke-width="2"/>
+                    <circle cx="603" cy="58" r="14" fill="#eab308"/>
+                    <path d="M 597 58 L 602 63 L 610 53" stroke="#000" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="628" y="58" fill="#fef9c3" font-family="Inter" font-size="14" font-weight="800">BASH</text>
+                    <text x="588" y="84" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">set -euo &middot; functions &middot; trap</text>
+                    <text x="588" y="100" fill="#8b9e8e" font-family="Inter" font-size="9" font-style="italic">COs 5 &amp; 6</text>
+                </g>
+                <line x1="810" y1="70" x2="838" y2="70" stroke="#00ff41" stroke-width="2" stroke-dasharray="4 2"/>
+                <g>
+                    <rect x="842" y="30" width="240" height="80" rx="10" fill="rgba(168,85,247,0.12)" stroke="#a855f7" stroke-width="2"/>
+                    <circle cx="877" cy="58" r="14" fill="#a855f7"/>
+                    <path d="M 871 58 L 876 63 L 884 53" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <text x="902" y="58" fill="#e9d5ff" font-family="Inter" font-size="14" font-weight="800">AUTOMATION</text>
+                    <text x="862" y="84" fill="#c8e6cd" font-family="JetBrains Mono" font-size="10">cron &middot; systemd timers</text>
+                    <text x="862" y="100" fill="#8b9e8e" font-family="Inter" font-size="9" font-style="italic">COs 5 &amp; 6</text>
+                </g>
+                <text x="550" y="140" text-anchor="middle" fill="#86efac" font-family="Inter" font-size="13" font-style="italic">CTS4321C &middot; sector authority established. Week 4 verifies nothing changed without authorization.</text>
+            </svg>
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- ============ NAV ============ -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Advanced Linux</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 25</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 25;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('matrix', 'ala-w3-lecture', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
