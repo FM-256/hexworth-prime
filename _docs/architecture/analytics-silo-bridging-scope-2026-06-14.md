@@ -2,10 +2,27 @@
 
 | | |
 |---|---|
-| **Status** | Fully diagnosed · model confirmed · right component identified · **NOT YET BUILT** (no code changed to the tenant system) |
-| **Updated** | 2026-06-14 |
-| **Verdict** | **Fixable** — contained, read/compute-only fix in one file; progress guaranteed safe |
+| **Status** | **ALA SHIPPED & LIVE** (2026-06-15, commit `53d9ad2be`, deploy verified) · WSA deferred (capture bug) |
+| **Updated** | 2026-06-15 |
+| **Verdict** | **Fixed for ALA** — read/compute-only; progress untouched. WSA needs a write-path capture fix. |
 | **Related** | `student-analytics-v2.md` · memory `reference_analytics_silo_architecture` |
+
+## CORRECTION TO PRIOR DIAGNOSIS + WHAT SHIPPED (2026-06-15)
+The earlier verdict below ("the compute uses assignments / has no courseId denominator") was **wrong**. The truth, found this session:
+- `instructor.html` **already** computes completion from `getActiveCourseMap()` (keyed by courseId) reading `modulesCompleted`/`quizScores`. The **course maps `adv-linux-map.js` + `wsa-map.js` were empty "Coming Soon" STUBS** → empty denominator → blank. The fix = **populate the maps**, not rewrite the compute.
+- **SHIPPED for ALA:** populated `adv-linux-map.js` with 27 non-lab items (5 chapters), every id verified against live `ModuleProgress.complete/completeQuiz` save calls AND real captured progress (`ala-w1-cli`×11, `ala-w1-quiz`×13, etc.). Labs excluded (flag_captures silo).
+- **PLUS a compute fix (Chris-caught, structural):** metrics summed RAW `modulesCompleted/quizScores/labsCompleted` lengths, but courses share a per-house progress silo (Matrix `pc-*`/`pv-*` write `ModuleProgress.complete('matrix',...)` into the same array) → percentages could exceed 100%. Added `getActiveCourseItemIds()`; ALL metrics (roster — also removed a hardcoded `/42` denominator — stat cards, quiz-dist + module charts, student detail, class report + per-quiz breakdown) now count ONLY course-map items. Stub maps fall back to raw (no change for unmapped courses). Also fixed a pre-existing `isCourseClass` var-hoist bug.
+- **Verified:** sim on 34 live students → max 37%, all ≤100%; contamination test old 67% vs new 11%. Zero writes; `getStudentProgress` unchanged. Nancy ×2 + Chris PASS. Deploy smoke 10/0; post-verify flag was the standing 79-HIGH QC-57 backlog (not this change).
+
+### REMAINING FOLLOW-ONS (named, not dropped)
+1. **WSA capture bug (biggest):** prod read shows only `wsa-m01-pres` reached the tenant doc (1/17), `quizScores` empty, WSA quizzes never call `completeQuiz`, midterm/capstone write nothing. WSA needs a **write-path** fix + operator decision (progress-safety gate). `wsa-map.js` left as stub on purpose (a populated map would show misleading ~0%). WSA manifest already extracted (80 items, id-format split `wsa-m*-pres` vs `cloud-wsa-m*-presentation` for m05/06/10/11/12/13) — ready to populate once capture is fixed.
+2. **ALA labs bridge:** `flag_captures` → surface in instructor.html (ala-l01..l12). Add-only/progress-safe.
+3. **Audit other populated maps** for completeness (compute is now map-constrained platform-wide; only ALA verified vs live data). Populated maps sharing silos: server-plus/cloud, md-100+md-101/forge, isc2-cc+infosec/shield, divergent's three, code's two.
+4. **Cosmetic:** strip em-dashes from the new code comments (HEUR-035 LOW) on the next deploy.
+5. **Browser spot-check:** verify the live ALA instructor view renders (auth-gated; needs a real instructor account).
+
+---
+*(Original diagnosis below — kept for history; superseded by the correction above.)*
 
 ## VERDICT (read this first)
 Student progress **is saved and safe** (51 students). Analytics are blank due to a **compute gap in one component**, not lost data or a read-path problem. **Fixable**, low-risk, read/compute-only for modules+quizzes.
