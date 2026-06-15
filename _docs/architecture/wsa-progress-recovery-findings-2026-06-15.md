@@ -100,6 +100,19 @@ Confirmed:
 
 WHY THIS IS PAUSED (deliberately, not abandoned): the fix edits the live progress pipeline for ALL WSA students; the id/type routing has several unreconciled inconsistencies; and it should be built + tested (preview channel + test account) rather than rushed. The urgent problem (analytics blank, "lost" data) is already resolved by the map + backfill. Recommended next block: (a) reconcile the id scheme end-to-end (page → ModuleProgress → CF → class doc → map), (b) bridge quizzes via the single `WSAProgress.markComplete` chokepoint (progress.js:88), (c) test on a preview channel with a test enrollment before prod.
 
+### The "Cloud Sync" button is NOT a fix for tenant classes (it targets the handler system)
+A natural question: doesn't the dashboard's Cloud Sync button already do this? No — it writes to the wrong class system. `syncAllLocalProgress()` (`_app/dashboard.html:8805`):
+- **IS WSA-aware on the read side:** `checkLocalCompletion()` reads `wsa-course-progress` (`dashboard.html:8411/8430/8458`), so it can detect WSA work in localStorage.
+- **But writes handler-side:** its final step is `AssignmentManager.submitProgress(cls.id, contentId, …)` (`dashboard.html:8890`), which writes **top-level `classes/{c}/progress.completions`** (the handler system). The classes it iterates come from `ClassManager.getStudentClasses` (handler classes — `classCode`/`handlerName`, `dashboard.html:8915/8920`).
+
+The live `summer-2026` classes are **tenant** classes (`tenants/{t}/classes/{c}/progress`, `modulesCompleted`/`quizScores`), populated only by the `syncClassProgress` CF (`functions/index.js:5174`). The instructor dashboard reads only the tenant location. So the Cloud Sync button's output lands in the handler system the tenant dashboard never reads — the same two-parallel-class-systems split behind the original blank analytics.
+
+| | Cloud Sync button writes | Tenant dashboard reads |
+|---|---|---|
+| Location | `classes/{c}/progress.completions` (handler) | `tenants/{t}/classes/{c}/progress.modulesCompleted` (tenant) |
+
+Implication for the forward fix: the fix must route WSA completions through the **tenant** path (`ModuleProgress` → `syncClassProgress` CF), NOT the Cloud Sync button. (The button could be a second, separate fix for handler-class students, but it does not help tenant classes.)
+
 ## Rollback (if ever needed)
 The backfill is add-only, but the pre-write state is captured in the backup JSON (step 3). To restore a doc, write back its backed-up `modulesCompleted`/`quizScores`. No student source records were modified.
 
