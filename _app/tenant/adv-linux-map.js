@@ -67,6 +67,7 @@ var ADV_LINUX_MAP = {
                 { id: "ala-w2-authentication", type: "presentation", title: "Authentication Hardening" },
                 { id: "ala-w2-antivirus",      type: "presentation", title: "Antivirus & Threat Scanning" },
                 { id: "ala-w2-packages",       type: "presentation", title: "Package Management" },
+                { id: "ala-w2-lecture",        type: "presentation", title: "Week 2 Lecture Companion" },
                 { id: "ala-w2-quiz",           type: "quiz",         title: "Week 2 Quiz" },
                 { id: "ala-midterm",           type: "quiz",         title: "Midterm Exam" }
             ]
@@ -79,6 +80,7 @@ var ADV_LINUX_MAP = {
                 { id: "ala-w3-bind-deployment",  type: "presentation", title: "BIND Deployment" },
                 { id: "ala-w3-bash-scripting",   type: "presentation", title: "Bash Scripting" },
                 { id: "ala-w3-automation",       type: "presentation", title: "Automation & Scheduling" },
+                { id: "ala-w3-lecture",          type: "presentation", title: "Week 3 Lecture Companion" },
                 { id: "ala-w3-quiz",             type: "quiz",         title: "Week 3 Quiz" }
             ]
         },
@@ -89,6 +91,7 @@ var ADV_LINUX_MAP = {
                 { id: "ala-w4-file-integrity", type: "presentation", title: "File Integrity Monitoring" },
                 { id: "ala-w4-performance",    type: "presentation", title: "Performance Monitoring" },
                 { id: "ala-w4-log-management", type: "presentation", title: "Log Management" },
+                { id: "ala-w4-lecture",        type: "presentation", title: "Week 4 Lecture Companion" },
                 { id: "ala-w4-quiz",           type: "quiz",         title: "Week 4 Quiz" },
                 { id: "ala-final",             type: "quiz",         title: "Final Exam" }
             ]
