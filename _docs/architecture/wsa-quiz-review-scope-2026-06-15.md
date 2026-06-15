@@ -7,6 +7,9 @@
 | **Goal** | After submitting a WSA quiz, a student sees per-question review: their answer, the correct answer, why it's correct, and why each wrong option is wrong — without exposing answers before submission. |
 | **Constraint** | Additive only — no change to scoring, saved progress, or grading; build/test on a preview channel before prod. |
 
+## DECISION (2026-06-15): explanations-only — answer keys untouched
+Authoring proceeds **M19 → M01** (M01 already done). We add explanations only; we do **NOT** rebalance the answer keys. Rationale: all 19 WSA keys are skewed to index [1] (m09/m16 at 100%), which violates the 35% authoring standard, BUT verified read-only that this is **not student-facing** — the engine Fisher-Yates-shuffles options on every load (quiz-engine.js:51-57) and maps the choice back to the original index before server grading (quiz-engine.js:239-257). So students always see randomized order; "always pick B" is impossible. Rebalancing would be a risky grading-rewrite (HTML order + quiz_keys must change atomically or grading breaks) for cosmetic benefit. Source-hygiene rebalancing is deferred as a separate, optional, carefully-gated task. Keys stay untouched.
+
 ## TLDR
 The review UI already exists in the WSA quiz engine; it's just starved of data because WSA quizzes are server-graded (answers deliberately not on the page) and explanations were never authored. Fix, additively: (1) store per-question explanations in `quiz_keys` (server-side), (2) have `gradeQuiz` return correct-answer + explanation **after** submission, (3) feed the engine's existing review mode from that response. Content for M01 already exists at gold standard (rationale + per-distractor analysis + citations); M02–M19 need authoring to the same pattern.
 
