@@ -66,6 +66,12 @@ A one-time, **add-only** migration: read each student's `wsa-course-progress` fr
 
 Dry-run aggregate (no writes performed): would add **325 module-completions + 97 quiz scores** across the 17 students; resulting per-student completion ranges from 1% to 58% against the full-course 76-item denominator (caps in the 50s because even the most active students have completed ~11 of 19 modules — accurate, not a bug).
 
+Scope decisions (verified by enumerating every top-level key in all 17 mirrors):
+- Only the 19 module keys `m01..m19` feed the denominator. The only non-module keys present are `midterm` (1 student) and `capstone` (1 student) — both the instructor's own test account; no `gauntlet`/`gauntlet-advanced` keys in this blob. They are **intentionally excluded** from the 76-item denominator (separate experiences, different structure). If they should be graded later, add to both the map and the converter.
+- 2 quiz components are stored as boolean `quiz:true` (vs 97 as `{score:N}`); these are recorded as completions in `modulesCompleted` (no fabricated score), so they count toward completion but not the quiz average.
+- A legitimate quiz `score:0` is routed to `quizScores` (not lost) and counts as both complete and scored.
+- Backfill safety hardened after adversarial review: guards a stray `quiz:false`; logs (not silently swallows) any mirror parse error so corruption is distinguishable from no-activity.
+
 ### 3. Forward fix (stop the bleed) — SCOPED, not started
 Make the WSA pages record completions through the standard `ModuleProgress`/class-sync path (as ALA does) so new work flows to Firestore + the class doc automatically, instead of only to localStorage. Requires tracing the WSA save path in the hub/page code. Until this lands, the backfill is a point-in-time snapshot and would need periodic re-runs.
 
