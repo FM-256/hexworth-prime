@@ -150,6 +150,21 @@ window.ALAHunt2Config = {
                                             content: '# Rogue key installed by attacker for persistence\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7rogue-attacker-key-persistence== attacker@203.0.113.44\n'
                                         }
                                     }
+                                },
+                                // Second malware file -- netcat beacon dropped by attacker
+                                '.local': {
+                                    type: 'dir',
+                                    children: {
+                                        'share': {
+                                            type: 'dir',
+                                            children: {
+                                                '.beacon': {
+                                                    type: 'file',
+                                                    content: '[binary -- netcat-based beacon dropped by attacker for persistence]\n'
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -232,7 +247,7 @@ window.ALAHunt2Config = {
                                 },
                                 'syslog': {
                                     type: 'file',
-                                    content: 'Apr 11 01:47:02 cell-071 kernel: nf_conntrack: table full, dropping packet\nApr 11 01:52:01 cell-071 sshd[7209]: Server listening on 0.0.0.0 port 22.\nApr 11 02:01:01 cell-071 python3[12847]: cell-implant.py: started, C2=203.0.113.44:4444\nApr 11 02:03:14 cell-071 dpkg: WARNING: files list file for package \'openssh-server\' missing, assuming package has no files currently installed\nApr 11 02:14:00 cell-071 grid-security[999]: ALERT: anomalous outbound connection to 203.0.113.44:4444 -- threshold exceeded\n'
+                                    content: 'Apr 11 01:47:02 cell-071 kernel: nf_conntrack: table full, dropping packet\nApr 11 01:52:01 cell-071 sshd[7209]: Server listening on 0.0.0.0 port 22.\nApr 11 02:01:01 cell-071 python3[3142]: cell-implant.py: started, C2=203.0.113.44:4444\nApr 11 02:03:14 cell-071 dpkg: WARNING: files list file for package \'openssh-server\' missing, assuming package has no files currently installed\nApr 11 02:14:00 cell-071 grid-security[999]: ALERT: anomalous outbound connection to 203.0.113.44:4444 -- threshold exceeded\n'
                                 },
                                 'clamav': {
                                     type: 'dir',
@@ -556,7 +571,7 @@ window.ALAHunt2Config = {
             if (hasL) {
                 engine.awardFlag('cmd4');
                 if (hasT && hasP) {
-                    return `State    Recv-Q Send-Q  Local Address:Port  Peer Address:Port  Process\nLISTEN   0      128     0.0.0.0:22          0.0.0.0:*          users:(("sshd",pid=842,fd=3))\nLISTEN   0      5       0.0.0.0:8888        0.0.0.0:*          users:(("python3",pid=12847,fd=4))\nLISTEN   0      128     [::]:22             [::]:*             users:(("sshd",pid=842,fd=6))`;
+                    return `State    Recv-Q Send-Q  Local Address:Port  Peer Address:Port  Process\nLISTEN   0      128     0.0.0.0:22          0.0.0.0:*          users:(("sshd",pid=842,fd=3))\nLISTEN   0      5       0.0.0.0:8888        0.0.0.0:*          users:(("python3",pid=3142,fd=4))\nLISTEN   0      128     [::]:22             [::]:*             users:(("sshd",pid=842,fd=6))`;
                 }
                 if (hasT) {
                     return `State    Recv-Q Send-Q  Local Address:Port  Peer Address:Port\nLISTEN   0      128     0.0.0.0:22          0.0.0.0:*\nLISTEN   0      5       0.0.0.0:8888        0.0.0.0:*\nLISTEN   0      128     [::]:22             [::]:*`;
@@ -659,10 +674,10 @@ window.ALAHunt2Config = {
                 engine.config._accountLocked = true;
 
                 if (user === 'rogue-ops') {
-                    return `rogue-ops:\nWhen                Type  Source                                           Valid\n2026-04-10 23:44:31 RHOST 203.0.113.44                                      V\n2026-04-10 23:44:36 RHOST 203.0.113.44                                      V\n2026-04-10 23:44:41 RHOST 203.0.113.44                                      V\n2026-04-10 23:44:46 RHOST 203.0.113.44                                      V\n2026-04-10 23:44:51 RHOST 203.0.113.44                                      V\n\n5 failures recorded. Account is LOCKED (deny=5 from /etc/security/faillock.conf).`;
+                    return `rogue-ops:\nWhen                Type  Source                                           Valid\n2026-04-10 23:44:01 RHOST 203.0.113.44                                      V\n2026-04-10 23:44:14 RHOST 203.0.113.44                                      V\n2026-04-10 23:44:28 RHOST 203.0.113.44                                      V\n2026-04-10 23:44:41 RHOST 203.0.113.44                                      V\n2026-04-10 23:44:51 RHOST 203.0.113.44                                      V\n\n5 failures recorded. Account is LOCKED (deny=5 from /etc/security/faillock.conf).`;
                 }
                 if (user === 'root') {
-                    return `root:\nWhen                Type  Source                                           Valid\n2026-04-10 23:31:04 RHOST 203.0.113.44                                      V\n2026-04-10 23:31:09 RHOST 203.0.113.44                                      V\n2026-04-10 23:31:14 RHOST 203.0.113.44                                      V\n\n3 failures then auth succeeded at 01:52:03 UTC (password auth was enabled).`;
+                    return `root:\nWhen                Type  Source                                           Valid\n2026-04-10 23:43:18 RHOST 203.0.113.44                                      V\n2026-04-10 23:43:29 RHOST 203.0.113.44                                      V\n2026-04-10 23:43:44 RHOST 203.0.113.44                                      V\n\n3 failures then auth succeeded at 23:43:58 UTC (password auth was enabled).`;
                 }
                 return `${user}:\n(no failures recorded)`;
             }
@@ -723,32 +738,46 @@ window.ALAHunt2Config = {
 
             // cmd7 fires when scanning /tmp or /home (or /) with --move and -r
             // Requirement: clamscan -r -i --move=/var/quarantine /tmp /home (or similar)
+            // Walkthrough spec: TWO malware files detected --
+            //   /tmp/cell-implant.py       Trojan.ShellScript-7
+            //   /home/rogue-ops/.local/share/.beacon  PUA.Tool.NetCat-3
             if (hasR && hasMove && (scansTmp || scansHome || scansAll)) {
                 engine.awardFlag('cmd7');
                 engine.config._malwareQuarantined = true;
 
-                // Update the simulated filesystem: move the malware to quarantine
+                // Update the simulated filesystem: move both malware files to quarantine
                 const fs = engine.config.filesystem['/'].children;
+                if (!fs.var.children.quarantine) {
+                    fs.var.children.quarantine = { type: 'dir', children: {} };
+                }
+                // Move /tmp/cell-implant.py
                 if (fs.tmp.children['cell-implant.py']) {
-                    if (!fs.var.children.quarantine) {
-                        fs.var.children.quarantine = { type: 'dir', children: {} };
-                    }
                     fs.var.children.quarantine.children['cell-implant.py'] = fs.tmp.children['cell-implant.py'];
                     delete fs.tmp.children['cell-implant.py'];
                 }
+                // Move /home/rogue-ops/.local/share/.beacon
+                const shareDir = fs.home.children['rogue-ops'].children['.local'] &&
+                                 fs.home.children['rogue-ops'].children['.local'].children.share;
+                if (shareDir && shareDir.children['.beacon']) {
+                    fs.var.children.quarantine.children['.beacon'] = shareDir.children['.beacon'];
+                    delete shareDir.children['.beacon'];
+                }
 
-                return `\n----------- SCAN SUMMARY -----------\n/tmp/cell-implant.py: Python.Backdoor.Reverse-2 FOUND\n\n----------- SCAN SUMMARY -----------\nKnown viruses: 8632156\nEngine version: 0.103.8\nScanned directories: ${hasMove ? 2 : 1}\nScanned files: ${scansAll ? 4821 : (scansTmp && scansHome ? 247 : 31)}\nInfected files: 1\nData read: ${scansAll ? '2.34 GB' : '184.00 MB'} (ratio 1.82:1)\nTime: ${scansAll ? '121.344' : '8.221'} sec (${scansAll ? '2' : '0'} m ${scansAll ? '1' : '8'} s)\n${hasMove ? `Moved to '${quarDir || '/var/quarantine'}': 1 file` : ''}`;
+                return `/tmp/cell-implant.py: Trojan.ShellScript-7 FOUND\n/home/rogue-ops/.local/share/.beacon: PUA.Tool.NetCat-3 FOUND\n\n----------- SCAN SUMMARY -----------\nKnown viruses: 8632156\nEngine version: 0.103.8\nScanned directories: 2\nScanned files: ${scansAll ? 4821 : 247}\nInfected files: 2\nData read: 184.00 MB (ratio 1.82:1)\nTime: 4.321 sec (2 file(s) moved to /var/quarantine/)`;
             }
 
-            // Non-recursive or no --move scan -- still useful but doesn't move the file
+            // Non-recursive or no --move scan -- still useful but doesn't move the files
             if (hasR && !hasMove && (scansTmp || scansHome || scansAll)) {
-                return `/tmp/cell-implant.py: Python.Backdoor.Reverse-2 FOUND\n\n----------- SCAN SUMMARY -----------\nInfected files: 1\nNote: No --move flag -- infected file NOT quarantined. Add --move=/var/quarantine to remove it.`;
+                return `/tmp/cell-implant.py: Trojan.ShellScript-7 FOUND\n/home/rogue-ops/.local/share/.beacon: PUA.Tool.NetCat-3 FOUND\n\n----------- SCAN SUMMARY -----------\nInfected files: 2\nNote: No --move flag -- infected files NOT quarantined. Add --move=/var/quarantine to remove them.`;
             }
 
             // Single-file scan
             const singleFile = args.find(a => a.startsWith('/') && !a.startsWith('/var/quarantine'));
             if (singleFile && singleFile.includes('cell-implant')) {
-                return `/tmp/cell-implant.py: Python.Backdoor.Reverse-2 FOUND\n\n----------- SCAN SUMMARY -----------\nScanned files: 1\nInfected files: 1`;
+                return `/tmp/cell-implant.py: Trojan.ShellScript-7 FOUND\n\n----------- SCAN SUMMARY -----------\nScanned files: 1\nInfected files: 1`;
+            }
+            if (singleFile && singleFile.includes('.beacon')) {
+                return `/home/rogue-ops/.local/share/.beacon: PUA.Tool.NetCat-3 FOUND\n\n----------- SCAN SUMMARY -----------\nScanned files: 1\nInfected files: 1`;
             }
 
             // freshclam first (no scan target given)
@@ -774,8 +803,10 @@ window.ALAHunt2Config = {
                 engine.awardFlag('cmd8');
 
                 if (pkg === 'openssh-server' || pkg === 'openssh-client' || pkg === '') {
-                    // Report the tampered binary -- '5' means MD5 checksum mismatch
-                    return `??5?????? c /usr/sbin/sshd\n(package: openssh-server)\n\nField codes: ?=not verified, 5=MD5 mismatch, S=file size differs, M=mode changed\nc=conffile. '5' on /usr/sbin/sshd indicates the binary was replaced after install.`;
+                    // Report the tampered binary -- '5' means MD5 checksum mismatch.
+                    // No 'c' flag: /usr/sbin/sshd is a binary, NOT a conffile.
+                    // dpkg -V omits the type character for non-conffiles (shows space instead).
+                    return `??5??????   /usr/sbin/sshd\n(package: openssh-server)\n\nField codes: ?=not verified, 5=MD5 checksum mismatch, S=file size differs, M=mode changed\n'5' on /usr/sbin/sshd means the binary does not match the checksum recorded at install time -- it was replaced or tampered with by the attacker.`;
                 }
                 return '';  // clean package
             }
@@ -993,7 +1024,7 @@ window.ALAHunt2Config = {
                 const quarantined = engine.config._malwareQuarantined;
                 const implantLine = quarantined
                     ? ''  // process gone after quarantine
-                    : '\nroot       12847       1  0.1  0.3  Apr11 ?        00:00:12 python3 /tmp/cell-implant.py';
+                    : '\nroot        3142       1  0.1  0.3  Apr11 ?        00:00:12 python3 /tmp/cell-implant.py';
                 if (isEf) {
                     return `UID          PID    PPID  C STIME TTY          TIME CMD\nroot           1       0  0 Apr11 ?        00:00:09 /sbin/init\nroot         433       1  0 Apr11 ?        00:00:02 /lib/systemd/systemd-networkd\nroot         842       1  0 Apr11 ?        00:00:01 sshd: /usr/sbin/sshd -D\noperator    1421     842  0 02:01 pts/0    00:00:00 -bash${implantLine}\noperator    1432    1421  0 02:14 pts/0    00:00:00 ps -ef`;
                 }
@@ -1039,12 +1070,25 @@ window.ALAHunt2Config = {
             if (path === '/var/quarantine' || path === '/var/quarantine/') {
                 const quarantined = engine.config._malwareQuarantined;
                 if (quarantined) {
+                    // Both malware files moved here after clamscan --move
                     if (longFlag) {
-                        return `total 4\ndrwx------ 2 root root  60 Apr 11 02:15 .\ndrwxr-xr-x 1 root root  80 Apr 11 02:15 ..\n-rwxr-xr-x 1 root root 947 Apr 11 02:01 cell-implant.py`;
+                        return `total 8\ndrwx------ 2 root root   80 Jun 15 04:47 .\ndrwxr-xr-x 1 root root  100 Jun 15 04:47 ..\n-rw------- 1 root root   64 Jun 15 04:47 .beacon\n-rwxr-xr-x 1 root root  947 Jun 15 04:47 cell-implant.py`;
                     }
-                    return 'cell-implant.py';
+                    return '.beacon  cell-implant.py';
                 }
-                return longFlag ? 'total 0\ndrwx------ 2 root root 40 Apr 11 02:01 .\ndrwxr-xr-x 1 root root 80 Apr 11 02:01 ..' : '';
+                return longFlag ? 'total 0\ndrwx------ 2 root root 40 Jun 15 04:47 .\ndrwxr-xr-x 1 root root 80 Jun 15 04:47 ..' : '';
+            }
+
+            // ls of the directory that held .beacon -- shows it gone after quarantine
+            if (path === '/home/rogue-ops/.local/share' || path === '/home/rogue-ops/.local/share/') {
+                const quarantined = engine.config._malwareQuarantined;
+                if (quarantined) {
+                    return longFlag ? 'total 0\ndrwx------ 2 rogue-ops rogue-ops 40 Jun 15 04:47 .\ndrwx------ 3 rogue-ops rogue-ops 60 Jun 15 04:47 ..' : '';
+                }
+                if (longFlag) {
+                    return `total 4\ndrwx------ 2 rogue-ops rogue-ops  60 Jun 15 04:01 .\ndrwx------ 3 rogue-ops rogue-ops  80 Jun 15 04:01 ..\n-rw------- 1 rogue-ops rogue-ops  64 Jun 15 04:01 .beacon`;
+                }
+                return allFlag ? '.beacon' : '';
             }
 
             if (path.includes('clamav') || path === '/var/lib/clamav' || path === '/var/lib/clamav/') {
@@ -1091,7 +1135,7 @@ window.ALAHunt2Config = {
             if (flat.includes('sshd') || flat.includes('ssh')) {
                 return `-- Journal begins at Sat 2026-04-11 02:01:44 UTC --\nApr 11 01:52:03 cell-071 sshd[7209]: Accepted password for root from 203.0.113.44 port 41233 ssh2\nApr 11 02:01:44 cell-071 sshd[7210]: Accepted publickey for operator from 10.0.0.1 port 52001 ssh2\nApr 11 02:01:44 cell-071 sshd[842]: Server listening on 0.0.0.0 port 22.\n\nHint: The root login at 01:52 used password auth -- disable with PermitRootLogin no, PasswordAuthentication no`;
             }
-            return `-- Journal begins at Sat 2026-04-11 00:00:01 UTC --\nApr 11 02:01:01 cell-071 python3[12847]: cell-implant.py: started, C2=203.0.113.44:4444\nApr 11 02:03:14 cell-071 dpkg[9901]: WARNING: files list file for package openssh-server missing\nApr 11 02:14:00 cell-071 grid-security[999]: ALERT: anomalous outbound to 203.0.113.44:4444\n\nHint: journalctl -u ssh -n 30 for SSH-specific events`;
+            return `-- Journal begins at Sat 2026-04-11 00:00:01 UTC --\nApr 11 02:01:01 cell-071 python3[3142]: cell-implant.py: started, C2=203.0.113.44:4444\nApr 11 02:03:14 cell-071 dpkg[9901]: WARNING: files list file for package openssh-server missing\nApr 11 02:14:00 cell-071 grid-security[999]: ALERT: anomalous outbound to 203.0.113.44:4444\n\nHint: journalctl -u ssh -n 30 for SSH-specific events`;
         },
 
         // ip -- network information (read-only here -- no interface changes needed)
@@ -1129,7 +1173,10 @@ window.ALAHunt2Config = {
     // ═══════════════════════════════════════════════════════
 
     scoring: {
-        base: 1000,
+        // base:0 so 8 flags x 50pts = 400 on completion, matching the walkthrough.
+        // W1 uses base:1000 with 13 flags; W2 uses base:0 with 8 flags -- both
+        // produce a displayed total equal to the flag-points sum stated in the walkthrough.
+        base: 0,
         minScore: 0,
         maxScore: 400,
         hintPenalty: true,
