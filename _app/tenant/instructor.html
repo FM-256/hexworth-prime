@@ -1776,6 +1776,28 @@
         return getter ? getter() : null;
     }
 
+    /**
+     * getActiveCourseItemIds — {id:true} set of every item id in the active course map,
+     * or null when there is no usable (non-stub) map.
+     *
+     * Completion metrics MUST intersect with this set. Progress is stored per house, and
+     * several courses can share one house's silo: e.g. Matrix-house content ProtoCore
+     * (pc-*) and PiVerse (pv-*) write ModuleProgress.complete('matrix', ...) into the same
+     * modulesCompleted[] array that Advanced Linux (adv-linux) reads. Counting raw array
+     * lengths therefore over-counts a student's progress for THIS course (and can exceed
+     * 100%). Callers that get null fall back to raw counts — preserving prior behavior for
+     * courses whose map is still a "Coming Soon" stub (empty items).
+     */
+    function getActiveCourseItemIds() {
+        var m = getActiveCourseMap();
+        if (!m || !m.chapters) return null;
+        var ids = {}, n = 0;
+        m.chapters.forEach(function(ch) {
+            (ch.items || []).forEach(function(it) { if (it && it.id) { ids[it.id] = true; n++; } });
+        });
+        return n > 0 ? ids : null;
+    }
+
     // Callable function references (initialized after Firebase loads)
     var _fnCreate    = null;
     var _fnUpdate    = null;
@@ -2556,10 +2578,19 @@
         var quizCount = 0;
         var onTrack = 0, inProgress = 0, atRisk = 0, noActivity = 0;
 
+        // Count only items in THIS course's map (null => raw fallback for stub maps).
+        // Prevents other courses sharing the house silo (e.g. Matrix pc-*/pv-*) from
+        // inflating this course's module/quiz counts. See getActiveCourseItemIds().
+        var itemIds = getActiveCourseItemIds();
+
         _studentData.forEach(function(s) {
-            var modules = (s.modulesCompleted || []).length;
+            var _mc = s.modulesCompleted || [];
+            var _qs = s.quizScores || {};
+            var modules = itemIds ? _mc.filter(function(id) { return itemIds[id]; }).length : _mc.length;
             var chapters = (s.chaptersCompleted || []).length;
-            var scores = s.quizScores ? Object.values(s.quizScores) : [];
+            var scores = itemIds
+                ? Object.keys(_qs).filter(function(id) { return itemIds[id]; }).map(function(id) { return _qs[id]; })
+                : Object.values(_qs);
             totalModules += modules;
             totalQuizzes += scores.length;
             scores.forEach(function(sc) { totalScore += sc; quizCount++; });
@@ -2768,7 +2799,9 @@
         var buckets = { A: 0, B: 0, C: 0, D: 0, F: 0 };
         _studentData.forEach(function(s) {
             if (!s.quizScores) return;
-            Object.values(s.quizScores).forEach(function(score) {
+            Object.keys(s.quizScores).forEach(function(qid) {
+                if (itemIds && !itemIds[qid]) return;  // course-map quizzes only
+                var score = s.quizScores[qid];
                 if (score >= 90) buckets.A++;
                 else if (score >= 80) buckets.B++;
                 else if (score >= 70) buckets.C++;
@@ -2805,6 +2838,7 @@
         var moduleCounts = {};
         _studentData.forEach(function(s) {
             (s.modulesCompleted || []).forEach(function(m) {
+                if (itemIds && !itemIds[m]) return;  // course-map modules only
                 moduleCounts[m] = (moduleCounts[m] || 0) + 1;
             });
         });
@@ -2967,6 +3001,13 @@
             return;
         }
 
+        // Detect class type: course-based (has courseId + modulesCompleted) vs assignment-based.
+        // Declared before the column headers below, which branch on it (var-hoisting otherwise
+        // left it undefined here, defaulting course classes to the wrong "Score" header).
+        var isCourseClass = _activeClass && _activeClass.courseId;
+        // Resolve the course-map id set once (not per student). null => stub map => raw fallback.
+        var rosterItemIds = isCourseClass ? getActiveCourseItemIds() : null;
+
         var table = document.createElement('table');
         table.className = 'data-table';
 
@@ -2984,9 +3025,6 @@
         thead.appendChild(hr);
         table.appendChild(thead);
 
-        // Detect class type: course-based (has courseId + modulesCompleted) vs assignment-based
-        var isCourseClass = _activeClass && _activeClass.courseId;
-
         var tbody = document.createElement('tbody');
         _studentData.forEach(function(student) {
             var completed, totalScore, pct;
@@ -2995,14 +3033,36 @@
                 // Course progress mode — read from modulesCompleted, quizScores
                 var modules = student.modulesCompleted || [];
                 var quizzes = student.quizScores || {};
-                var quizValues = Object.values(quizzes);
-                completed = modules.length + quizValues.length;
-                // Total items in course (rough estimate: 12 quizzes + ~30 modules = ~42)
-                var totalItems = 42;
-                totalScore = quizValues.length > 0
-                    ? Math.round(quizValues.reduce(function(a,b){return a+b;}, 0) / quizValues.length)
-                    : 0;
-                pct = Math.round((completed / totalItems) * 100);
+                if (rosterItemIds) {
+                    // Count ONLY items in this course's map, against the real denominator.
+                    // Other courses sharing the house silo (Matrix pc-*/pv-*) and the old
+                    // hardcoded "42" both produced wrong percentages (incl. > 100%).
+                    var doneSet = {};
+                    modules.forEach(function(id) { doneSet[id] = true; });
+                    Object.keys(quizzes).forEach(function(id) { doneSet[id] = true; });
+                    (student.labsCompleted || []).forEach(function(id) { doneSet[id] = true; });
+                    var totalItems = 0; completed = 0;
+                    Object.keys(rosterItemIds).forEach(function(id) {
+                        totalItems++;
+                        if (doneSet[id]) completed++;
+                    });
+                    var rosterQuiz = Object.keys(quizzes)
+                        .filter(function(id) { return rosterItemIds[id]; })
+                        .map(function(id) { return quizzes[id]; });
+                    totalScore = rosterQuiz.length > 0
+                        ? Math.round(rosterQuiz.reduce(function(a,b){return a+b;}, 0) / rosterQuiz.length)
+                        : 0;
+                    pct = totalItems > 0 ? Math.round((completed / totalItems) * 100) : 0;
+                } else {
+                    // Stub-map course (no usable map) — preserve prior raw behavior.
+                    var quizValues = Object.values(quizzes);
+                    completed = modules.length + quizValues.length;
+                    var totalItems = 42;
+                    totalScore = quizValues.length > 0
+                        ? Math.round(quizValues.reduce(function(a,b){return a+b;}, 0) / quizValues.length)
+                        : 0;
+                    pct = Math.round((completed / totalItems) * 100);
+                }
             } else {
                 // Assignment mode — read from assignments object
                 var assignments = student.assignments || {};
@@ -3158,18 +3218,25 @@
             var mods = student.modulesCompleted || [];
             var quizzes = student.quizScores || {};
             var labs = student.labsCompleted || [];
-            var quizValues = Object.values(quizzes);
-            var quizAvg = quizValues.length > 0 ? Math.round(quizValues.reduce(function(a,b){return a+b;},0) / quizValues.length) : 0;
-            var totalCompleted = mods.length + quizValues.length + labs.length;
-            var totalItems = 0;
-            _detailMap.chapters.forEach(function(ch) { totalItems += ch.items.length; });
-            var overallPct = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
-
-            // Build a lookup set for fast completion checking
+            // Build the completion lookup first; the metrics below count ONLY items in this
+            // course's map. Matrix-house courses share the progress silo (pc-*, pv-* also
+            // write ModuleProgress.complete('matrix',...)), so raw array lengths over-count
+            // this course's progress and can exceed 100%.
             var completedSet = {};
             mods.forEach(function(id) { completedSet[id] = 'module'; });
             Object.keys(quizzes).forEach(function(id) { completedSet[id] = 'quiz'; });
             labs.forEach(function(id) { completedSet[id] = 'lab'; });
+
+            var totalItems = 0, totalCompleted = 0, mapQuizScores = [];
+            _detailMap.chapters.forEach(function(ch) {
+                ch.items.forEach(function(item) {
+                    totalItems++;
+                    if (completedSet[item.id]) totalCompleted++;
+                    if (quizzes[item.id] != null) mapQuizScores.push(quizzes[item.id]);  // any map item with a graded score
+                });
+            });
+            var overallPct = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+            var quizAvg = mapQuizScores.length > 0 ? Math.round(mapQuizScores.reduce(function(a,b){return a+b;},0) / mapQuizScores.length) : 0;
 
             // Score display — included in overlay header summary bar below
 
@@ -3933,7 +4000,11 @@
         var withdrawn = _studentData.filter(function(s) { return s.status === 'withdrawn'; }).length;
         var activeStudents = totalStudents - withdrawn;
         var totalItems = 0;
-        chapters.forEach(function(ch) { totalItems += ch.items.length; });
+        var mapItemIds = {};
+        chapters.forEach(function(ch) {
+            totalItems += ch.items.length;
+            ch.items.forEach(function(it) { if (it && it.id) mapItemIds[it.id] = true; });
+        });
         var now = Date.now();
         var DAY = 86400000;
 
@@ -3946,10 +4017,13 @@
 
         _studentData.forEach(function(s) {
             if (s.status === 'withdrawn') return;
-            var mods = (s.modulesCompleted || []).length;
             var quizzes = s.quizScores || {};
-            var quizVals = Object.values(quizzes);
-            var labs = (s.labsCompleted || []).length;
+            // Count ONLY items in this course map — other courses share the house progress
+            // silo (Matrix pc-*/pv-* also write modulesCompleted), so raw lengths over-count
+            // and the aggregate percentage could exceed 100%.
+            var mods = (s.modulesCompleted || []).filter(function(id) { return mapItemIds[id]; }).length;
+            var quizVals = Object.keys(quizzes).filter(function(id) { return mapItemIds[id]; }).map(function(id) { return quizzes[id]; });
+            var labs = (s.labsCompleted || []).filter(function(id) { return mapItemIds[id]; }).length;
             allModules += mods;
             allLabs += labs;
             allQuizzes += quizVals.length;
@@ -3958,8 +4032,9 @@
                 if (sc > highestQuiz) highestQuiz = sc;
                 if (sc < lowestQuiz) lowestQuiz = sc;
             });
-            // Per-quiz breakdown
+            // Per-quiz breakdown (course-map quizzes only)
             Object.keys(quizzes).forEach(function(qid) {
+                if (!mapItemIds[qid]) return;
                 if (!quizBreakdown[qid]) quizBreakdown[qid] = { scores: [], pass: 0, fail: 0 };
                 quizBreakdown[qid].scores.push(quizzes[qid]);
                 if (quizzes[qid] >= 70) quizBreakdown[qid].pass++; else quizBreakdown[qid].fail++;
