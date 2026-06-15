@@ -87,8 +87,18 @@ Make the WSA pages record completions through the standard `ModuleProgress`/clas
 4. Apply backfill — **DONE** (add-only; 325 module-completions + 97 quiz scores; idempotent re-run = 0 net-new).
 5. Deploy map — **DONE** (`./deploy.sh`; smoke 10/0; live in prod; post-verify flag = standing 79-HIGH backlog, unrelated).
 6. Verify — **DONE** (class doc: 17/17 students have modules, 16 have quiz scores, 326 module + 97 quiz entries; map live, no longer a stub).
-7. **Forward fix — STILL PENDING** (separate work block): make WSA pages record via the standard `ModuleProgress`/class-sync path so new work flows automatically. Until then the backfill is a point-in-time snapshot; re-run `wsa-class-backfill.js --apply` periodically to capture new mirror progress.
+7. **Forward fix — INVESTIGATED, not yet implemented** (see "Forward-fix investigation" below). It is a multi-layer pipeline change touching how every WSA student records progress; not safe to rush. Interim: re-run `wsa-class-backfill.js --apply` periodically to capture new mirror progress.
 8. **Browser spot-check pending** — confirm the WSA instructor view renders (auth-gated).
+
+## Forward-fix investigation (2026-06-15) — why new WSA work doesn't reach the class doc
+The class-sync path is: page → `ModuleProgress.complete/completeQuiz` → `tryClassProgressSync()` → `syncClassProgress` CF (`functions/index.js:5174`) → writes the class doc by type (quiz→`quizScores`, presentation→`modulesCompleted`, lab→`labsCompleted`) for every class in `enrollments/{uid}` that has a progress doc.
+
+Confirmed:
+- **Quizzes are a hard bypass:** 0 WSA quiz pages call `ModuleProgress.completeQuiz` (quiz-engine.js only calls `WSAProgress.markQuizPassed` → localStorage). So quiz progress never enters the pipeline.
+- **Presentations (19) and labs (17/17) DO call `ModuleProgress.complete`**, students ARE enrolled (`enrollments/{uid}` lists the WSA class `87KLCX`), and class progress docs exist — yet the pre-backfill class doc was essentially empty (`labsCompleted` = 0; only 1 stray `wsa-m01-pres`). So the sync is failing for WSA between `ModuleProgress.complete` and the class-doc write, even though it works for ALA.
+- **Not yet fully root-caused (the layer that needs care):** candidate causes surfaced but unconfirmed — id-prefix compounding (`pushToUserProfile` builds `${houseId}-${moduleId}`, ModuleProgress.js:175, which double-prefixes already-`cloud-wsa-…` ids), inconsistent ids the WSA pages pass to `complete()`, the `type` routing (labs land in `labsCompleted`, which the map/backfill treat as `modulesCompleted`), and auth/timing on the CF call for guest/late-auth sessions.
+
+WHY THIS IS PAUSED (deliberately, not abandoned): the fix edits the live progress pipeline for ALL WSA students; the id/type routing has several unreconciled inconsistencies; and it should be built + tested (preview channel + test account) rather than rushed. The urgent problem (analytics blank, "lost" data) is already resolved by the map + backfill. Recommended next block: (a) reconcile the id scheme end-to-end (page → ModuleProgress → CF → class doc → map), (b) bridge quizzes via the single `WSAProgress.markComplete` chokepoint (progress.js:88), (c) test on a preview channel with a test enrollment before prod.
 
 ## Rollback (if ever needed)
 The backfill is add-only, but the pre-write state is captured in the backup JSON (step 3). To restore a doc, write back its backed-up `modulesCompleted`/`quizScores`. No student source records were modified.
