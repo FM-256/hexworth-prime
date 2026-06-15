@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Diagnosed · data located & proven recoverable · WSA map built · backfill dry-run passed · **NOT YET WRITTEN/DEPLOYED** (awaiting operator go-ahead on the gated write) |
+| **Status** | **RECOVERED & SHIPPED 2026-06-15** — backfill applied (backup-first, add-only; 325 module-completions + 97 quiz scores across 17 students) + WSA map deployed (commit `44026aa5b`). Forward fix still pending. |
 | **Date** | 2026-06-15 |
 | **Scope** | Tenant `summer-2026` WSA class (`tenants/summer-2026/classes/87KLCXr9hYSgdIKNuqXE`, courseId `wsa`, 17 students) |
 | **Verdict** | **No data lost.** WSA progress is intact in Firestore but stored in a place the analytics never reads. Recoverable via backfill. |
@@ -80,14 +80,18 @@ Make the WSA pages record completions through the standard `ModuleProgress`/clas
 - Backfill: **add-only** (`arrayUnion`/`merge`) into the class doc — never deletes or overwrites; idempotent. **Backup-first** (snapshot the WSA class docs to a file) before any write. Dry-run reviewed before apply.
 - Source data (`users/{uid}` + localStorage mirror) is read-only throughout.
 
-## Status & gated next steps
-1. WSA map — **built** (`_app/tenant/wsa-map.js`, 76 items), pending Nancy + Chris.
-2. Backfill script — **dry-run passed**, pending Nancy + Chris.
-3. Backup WSA class docs → file. *(gate: operator go-ahead)*
-4. Apply backfill (add-only write). *(gate: operator go-ahead)*
-5. Deploy map via `./deploy.sh`. *(gate: operator go-ahead — production write)*
-6. Verify analytics render the recovered numbers.
-7. Forward fix (separate work block).
+## Status & next steps
+1. WSA map — **DONE** (`_app/tenant/wsa-map.js`, 76 items; Nancy + Chris PASS; deployed `44026aa5b`).
+2. Backfill script — **DONE** (Nancy + Chris PASS).
+3. Backup WSA class docs → **DONE** (`_tools/diagnostics/tenant-analytics/backups/wsa-class-backup-2026-06-15T02-55-26-075Z.json`, 17 docs).
+4. Apply backfill — **DONE** (add-only; 325 module-completions + 97 quiz scores; idempotent re-run = 0 net-new).
+5. Deploy map — **DONE** (`./deploy.sh`; smoke 10/0; live in prod; post-verify flag = standing 79-HIGH backlog, unrelated).
+6. Verify — **DONE** (class doc: 17/17 students have modules, 16 have quiz scores, 326 module + 97 quiz entries; map live, no longer a stub).
+7. **Forward fix — STILL PENDING** (separate work block): make WSA pages record via the standard `ModuleProgress`/class-sync path so new work flows automatically. Until then the backfill is a point-in-time snapshot; re-run `wsa-class-backfill.js --apply` periodically to capture new mirror progress.
+8. **Browser spot-check pending** — confirm the WSA instructor view renders (auth-gated).
+
+## Rollback (if ever needed)
+The backfill is add-only, but the pre-write state is captured in the backup JSON (step 3). To restore a doc, write back its backed-up `modulesCompleted`/`quizScores`. No student source records were modified.
 
 ## Diagnostics (read-only, reusable)
 `_tools/diagnostics/tenant-analytics/` — all read-only (`.get()`/`listCollections()` only, no writes):
