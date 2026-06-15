@@ -36,8 +36,7 @@ Doc: `wsa-quiz-review-scope-2026-06-15.md`. Goal: post-submission per-question r
 ---
 
 ## THREAD 3 — ALA lecture companion decks
-- **W1, W2: LIVE** (`ala-w1-lecture`, `ala-w2-lecture`). W2 shipped this session + a terminal-rendering fix (`white-space: pre-wrap` across 7 terminal blocks).
-- **W3, W4: BUILT + COMMITTED (`fb72d6473`), NOT deployed.** `ala-w3-lecture.presentation.html` (DNS/BIND/bash/automation), `ala-w4-lecture.presentation.html` (integrity/performance/logs + capstone framing). 25 slides each, mirror W2 engine incl. the terminal fix, 0 emoji, AccessGuard gate. **Resume = Chris gate + `./deploy.sh` (needs operator deploy authorization).**
+- **W1, W2, W3, W4: ALL LIVE.** `ala-w1-lecture`, `ala-w2-lecture` (shipped this session + terminal fix), and **`ala-w3-lecture` + `ala-w4-lecture` deployed `898088c02`** (Chris PASS both; W4 had a `sar` syntax catch — fixed). All four companions complete and live; verified HTTP 200, terminal pre-wrap present, correct completion ids.
 
 ## THREAD 4 — ALA Operator Field Manuals (in `~/hexworth-shared/Raw sources/ALA/`)
 - **W1: existing** (6-page quick reference, the template). **W2/W3/W4: BUILT this session** (`Matrix_House_ALA_Week{2,3,4}_Operator_Field_Manual.{md,pdf}`). Renderer: WeasyPrint via `_tools/scratch/build-ala-pdfs.py` / `render-intake-pdf.py` styling.
@@ -49,7 +48,7 @@ Doc: `wsa-quiz-review-scope-2026-06-15.md`. Goal: post-submission per-question r
 ---
 
 ## MOST LIKELY NEXT ACTIONS (resume menu)
-1. **Deploy W3/W4 decks:** Chris gate (both) → commit already done → record Chris pass → `./deploy.sh` → verify live (curl). (Operator deploy authorization required.)
+1. ~~Deploy W3/W4 decks~~ — DONE (`898088c02`, live). All 4 ALA companions now live.
 2. **Continue WSA quiz content:** Karl-confirm M17, then author M16↓ (or per operator's order) via the proven loop.
 3. **Build WSA code pilot legs 2–4** (gradeQuiz + engine + preview/seed/deploy) so M01/M18/M19 review goes live end-to-end.
 4. **Normalize ALA manuals** to W1 quick-ref density (operator decision pending).
