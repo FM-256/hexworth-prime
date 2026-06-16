@@ -1603,6 +1603,9 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     // right/wrong markers per question — preserving test integrity for
     // retakers who must restudy rather than memorize the key.
     if (passed) {
+        // Explanations are revealed only alongside the correct answer (passers only),
+        // so failing retakers must restudy rather than harvest the rationale/key.
+        const explanations = Array.isArray(keyData.explanations) ? keyData.explanations : [];
         for (let i = 0; i < total; i++) {
             let expected = answerKey[i];
             if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
@@ -1610,6 +1613,7 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
                 else if (expected.order) expected = expected.order;
             }
             results[i].correctAnswer = expected;
+            if (explanations[i]) results[i].explanation = explanations[i];
         }
     }
 
