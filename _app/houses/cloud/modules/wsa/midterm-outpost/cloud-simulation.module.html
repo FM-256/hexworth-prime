@@ -563,6 +563,35 @@
 
         .completion-overlay.show { display: flex; }
 
+        /* Single-active-tab lock overlay: blocks editing in a second browser tab. */
+        .tablock-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.92);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            padding: 20px;
+        }
+        .tablock-overlay.show { display: flex; }
+        .tablock-card {
+            background: #0f1f38;
+            border: 1px solid rgba(245, 158, 11, 0.45);
+            border-radius: 12px;
+            max-width: 460px;
+            padding: 28px;
+            text-align: center;
+        }
+        .tablock-card h2 { margin: 0 0 10px; font-size: 1.3rem; color: #f59e0b; }
+        .tablock-card p { color: #94a3b8; font-size: 0.95rem; line-height: 1.55; margin: 0 0 20px; }
+        .tablock-card button {
+            background: #f59e0b; color: #0a1628; border: none;
+            padding: 11px 26px; border-radius: 8px;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+        }
+        .tablock-card button:hover { filter: brightness(1.08); }
+
         .completion-card {
             background: linear-gradient(135deg, #1a1a2e, #0a0a0f);
             border: 2px solid #22c55e;
@@ -761,6 +790,14 @@
         <div class="modal" id="modalContent"></div>
     </div>
 
+    <div class="tablock-overlay" id="tabLockOverlay">
+        <div class="tablock-card">
+            <h2>Already open in another tab</h2>
+            <p>This midterm is active in another browser tab. To protect your saved work, editing is disabled here. Switch to the other tab, or take over in this one.</p>
+            <button onclick="takeOverTab()">Take over in this tab</button>
+        </div>
+    </div>
+
     <div class="completion-overlay" id="completionOverlay">
         <div class="completion-card">
             <h2>MISSION COMPLETE</h2>
@@ -874,6 +911,11 @@
 
     let _renderPending = false;
     function saveState() {
+        // Read-only (non-active) tab: never persist, so it can never clobber the
+        // active tab's saved work. The blocking overlay normally prevents any
+        // mutation reaching here; this is a defense-in-depth backstop.
+        const _lock = document.getElementById('tabLockOverlay');
+        if (_lock && _lock.classList.contains('show')) return;
         _fed.save(state);
         if (!_renderPending) {
             _renderPending = true;
@@ -4150,16 +4192,20 @@ SHADOW COPIES:
                 const group = state.ad.groups.find(g => g.name.toLowerCase() === identity.toLowerCase());
                 if (group) {
                     if (!group.members) group.members = [];
-                    const usernames = members.split(',').map(m => m.trim());
+                    const usernames = members.split(',').map(m => m.trim()).filter(Boolean);
                     let added = 0;
+                    const skipped = [];
                     usernames.forEach(uname => {
-                        if (!group.members.includes(uname)) {
-                            group.members.push(uname);
-                            added++;
-                        }
+                        // Only real users can be added; match case-insensitively and store the
+                        // user's canonical username so GUI and terminal never diverge by case.
+                        const user = state.ad.users.find(u => u.username.toLowerCase() === uname.toLowerCase());
+                        if (!user) { skipped.push(uname); return; }
+                        const already = group.members.some(m => m.toLowerCase() === user.username.toLowerCase());
+                        if (!already) { group.members.push(user.username); added++; }
                     });
                     saveState();
                     addLine(`Added ${added} member(s) to group "${identity}". Total: ${group.members.length}`, 'success');
+                    if (skipped.length) addLine(`Skipped (no such user): ${skipped.join(', ')}`, 'error');
                 } else {
                     addLine(`Error: Group "${identity}" not found.`, 'error');
                 }
@@ -4198,10 +4244,11 @@ SHADOW COPIES:
             if (identity && members) {
                 const group = state.ad.groups.find(g => g.name.toLowerCase() === identity.toLowerCase());
                 if (group) {
-                    const toRemove = members.split(',').map(m => m.trim());
+                    const toRemove = members.split(',').map(m => m.trim()).filter(Boolean);
                     let removed = 0;
                     toRemove.forEach(uname => {
-                        const idx = (group.members || []).indexOf(uname);
+                        // Case-insensitive match, since Add-ADGroupMember stores canonical casing.
+                        const idx = (group.members || []).findIndex(m => m.toLowerCase() === uname.toLowerCase());
                         if (idx !== -1) { group.members.splice(idx, 1); removed++; }
                     });
                     saveState();
@@ -4518,6 +4565,9 @@ SHADOW COPIES:
     }
 
     function saveDocs() {
+        // Read-only (non-active) tab must not overwrite the active tab's notes.
+        const _lock = document.getElementById('tabLockOverlay');
+        if (_lock && _lock.classList.contains('show')) return;
         const docs = document.getElementById('docsEditor').value;
         localStorage.setItem('outpost-docs', docs);
         alert('Documentation saved!');
@@ -4533,12 +4583,107 @@ SHADOW COPIES:
     }
 
     // ============================================
+    // SINGLE-ACTIVE-TAB LOCK
+    // Two browser tabs of this midterm would both write the single localStorage
+    // state key and clobber each other (last-write-wins), losing AD users and
+    // assignments. This makes exactly one tab the active writer; any other tab
+    // is read-only behind a blocking overlay until the student takes over.
+    // BroadcastChannel coordinates which tab is active; no merge, no resurrection.
+    // ============================================
+    const _tabId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : (Date.now() + '-' + Math.floor(Math.random() * 1e9));
+    let _amActiveTab = false;          // pessimistic until init confirms no peer is active
+    let _sawActivePeer = false;        // set if another active tab answers during init
+    let _tabChan = null;
+    let _activeHeartbeat = 0;          // last time we heard an active peer announce
+    const _HEARTBEAT_MS = 2000;
+    const _STALE_MS = 5500;            // active peer presumed gone after this with no heartbeat
+
+    // Show or hide the read-only blocking overlay.
+    function _showTabLock(show) {
+        const o = document.getElementById('tabLockOverlay');
+        if (o) o.classList.toggle('show', show);
+    }
+
+    // Become the sole active writer: hide the overlay and announce ownership.
+    function _becomeActiveTab() {
+        _amActiveTab = true;
+        _showTabLock(false);
+        if (_tabChan) _tabChan.postMessage({ t: 'active', id: _tabId });
+    }
+
+    // Drop to read-only: stop writing and show the blocking overlay.
+    function _becomeReadOnlyTab() {
+        _amActiveTab = false;
+        _showTabLock(true);
+    }
+
+    // Explicit student action: claim ownership, reload the latest saved state, render.
+    function takeOverTab() {
+        if (_tabChan) _tabChan.postMessage({ t: 'takeover', id: _tabId });
+        loadState();
+        checkObjectives();
+        renderCurrentTool();
+        _becomeActiveTab();
+    }
+
+    // Wire up the cross-tab coordination protocol.
+    function initTabLock() {
+        // Without BroadcastChannel we cannot coordinate; degrade to prior single-writer
+        // assumption (this tab writes) rather than locking the student out.
+        if (typeof BroadcastChannel === 'undefined') { _amActiveTab = true; return; }
+        _tabChan = new BroadcastChannel('outpost-sim-tabs');
+        _tabChan.onmessage = (e) => {
+            const m = e.data || {};
+            if (!m.id || m.id === _tabId) return;
+            if (m.t === 'query') {
+                // A new tab is asking who is active; answer only if we are.
+                if (_amActiveTab) _tabChan.postMessage({ t: 'active', id: _tabId });
+            } else if (m.t === 'active') {
+                _activeHeartbeat = Date.now();
+                _sawActivePeer = true;
+                if (_amActiveTab) {
+                    // Two tabs active at once (simultaneous open): lowest id wins.
+                    if (m.id < _tabId) _becomeReadOnlyTab();
+                } else {
+                    _showTabLock(true);
+                }
+            } else if (m.t === 'takeover') {
+                // Another tab explicitly took over; yield unconditionally.
+                _becomeReadOnlyTab();
+            } else if (m.t === 'release') {
+                // The active tab closed; a waiting read-only tab reclaims ownership.
+                // With 3+ tabs open, several may reclaim at once; the lowest-id tie-break
+                // in the 'active' branch converges them to a single writer within one
+                // heartbeat interval (a brief transient dual-active window in that rare case).
+                if (!_amActiveTab) { _activeHeartbeat = 0; _becomeActiveTab(); }
+            }
+        };
+        // Ask whether anyone is already active; if none answers within the window, claim it.
+        _tabChan.postMessage({ t: 'query', id: _tabId });
+        setTimeout(() => { if (!_sawActivePeer) _becomeActiveTab(); }, 300);
+        // Heartbeat: active tab announces; read-only tabs detect a vanished active tab.
+        setInterval(() => {
+            if (_amActiveTab) {
+                _tabChan.postMessage({ t: 'active', id: _tabId });
+            } else if (_activeHeartbeat && Date.now() - _activeHeartbeat > _STALE_MS) {
+                _becomeActiveTab();
+            }
+        }, _HEARTBEAT_MS);
+        // Fast release so the other tab reclaims immediately on close.
+        window.addEventListener('beforeunload', () => {
+            if (_amActiveTab && _tabChan) _tabChan.postMessage({ t: 'release', id: _tabId });
+        });
+    }
+
+    // ============================================
     // INITIALIZATION
     // ============================================
     loadState();
     checkObjectives();
     renderCurrentTool();
     initTerminal();
+    initTabLock();
 
     // Load saved docs
     const savedDocs = localStorage.getItem('outpost-docs');
