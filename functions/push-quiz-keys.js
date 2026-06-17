@@ -88,9 +88,13 @@ async function main() {
                 answers: data.answers,
                 passingScore: data.passingScore,
                 questionCount: data.questionCount,
-                // Per-question rationales for post-submission answer review (passers only,
-                // gated server-side in gradeQuiz). Pushed only when present in the registry.
+                // Per-question rationales for post-submission answer review. Pushed only
+                // when present. revealToAll (formative module quizzes) tells gradeQuiz to
+                // reveal the correct answer + explanation to every student, not just passers.
+                // Written UNCONDITIONALLY (true/false) so the static registry is authoritative
+                // and a stray Firestore flag can never persist under merge:true.
                 ...(Array.isArray(data.explanations) ? { explanations: data.explanations } : {}),
+                revealToAll: data.revealToAll === true,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 

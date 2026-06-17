@@ -1598,13 +1598,11 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     const passed = percentage >= passingScore;
 
     // ── Conditional correct-answer reveal ──
-    // Students who PASS get the full review (correct answer per question),
-    // enabling a meaningful post-exam review. Students who fail receive only
-    // right/wrong markers per question — preserving test integrity for
-    // retakers who must restudy rather than memorize the key.
-    if (passed) {
-        // Explanations are revealed only alongside the correct answer (passers only),
-        // so failing retakers must restudy rather than harvest the rationale/key.
+    // High-stakes exams reveal the key only to passers (anti-memorization: a failing
+    // retaker shouldn't be handed the key). Formative module quizzes set revealToAll,
+    // so EVERY student gets the correct answer + explanation post-submission — that is
+    // the point of a learning-check review, and failing students need it most.
+    if (passed || keyData.revealToAll) {
         const explanations = Array.isArray(keyData.explanations) ? keyData.explanations : [];
         for (let i = 0; i < total; i++) {
             let expected = answerKey[i];
