@@ -3268,9 +3268,13 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             const token = tokens[i];
 
             if (token.startsWith('-')) {
-                // Named parameter — strip all leading dashes, capitalize first letter for PascalCase
-                const rawName = token.replace(/^-+/, '');
-                const paramName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+                // Named parameter — strip leading dashes and store under the LOWERCASED name.
+                // PowerShell parameter names are case-insensitive; handlers read canonical
+                // PascalCase (params.StartRange) and we resolve that case-insensitively when
+                // params is returned (see the proxy below). Previously this upper-cased only
+                // the first letter, so a multi-word parameter typed in lower case (e.g.
+                // -startrange) was keyed as 'Startrange' != 'StartRange' and silently dropped.
+                const paramName = token.replace(/^-+/, '').toLowerCase();
 
                 // Check if next token is a value or another parameter
                 if (i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {
@@ -3288,7 +3292,29 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             }
         }
 
-        return { command, args, params };
+        // Case-insensitive view over params: handlers read canonical PascalCase
+        // (params.StartRange, params.Identity, params.Force, ...) while params are stored
+        // lowercased above. PowerShell parameter names are case-insensitive, so this lets a
+        // student type -startrange, -StartRange, or -STARTRANGE and have the handler resolve
+        // it identically. get/has cover direct access and the `in` operator; ownKeys/
+        // getOwnPropertyDescriptor keep Object.keys()/spread working over the stored keys.
+        const ciParams = new Proxy(params, {
+            get(target, prop) {
+                if (typeof prop === 'string' && !(prop in target)) {
+                    const lp = prop.toLowerCase();
+                    if (lp in target) return target[lp];
+                }
+                return target[prop];
+            },
+            has(target, prop) {
+                if (typeof prop === 'string' && !(prop in target)) {
+                    return prop.toLowerCase() in target;
+                }
+                return prop in target;
+            }
+        });
+
+        return { command, args, params: ciParams };
     }
 
     /**
