@@ -7062,11 +7062,16 @@ local     app-config`;
                 return `Usage: docker volume [create|ls|rm|inspect]`;
             }
 
+            // "docker compose <sub>" — modern CLI plugin form; same behavior as "docker-compose <sub>"
+            case 'compose':
+                return _cmdDockerCompose(args.slice(1));
+
             default:
                 return `Usage:  docker [OPTIONS] COMMAND
 
 Commands:
   build       Build an image from a Dockerfile
+  compose     Docker Compose (plugin form of docker-compose)
   images      List images
   info        Display system information
   inspect     Return container details

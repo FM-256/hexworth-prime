@@ -853,6 +853,11 @@
     </div>
 
     <script>
+        // ── Simulation state ────────────────────────────────────────────────
+        // Single source of truth for all firewall data shown in the UI.
+        // connectionSecurityRules initialized as empty array so the forEach
+        // in the 'connection' section render path is live (bug fix: was missing,
+        // making the table branch permanently dead code).
         const firewallState = {
             profiles: {
                 Domain: { enabled: true, inbound: 'Block', outbound: 'Allow', logging: false },
@@ -870,11 +875,16 @@
                 { name: 'Core Networking - DNS (UDP-Out)', enabled: true, action: 'Allow', profile: 'All', protocol: 'UDP', port: '53' },
                 { name: 'Core Networking - DHCP (UDP-Out)', enabled: true, action: 'Allow', profile: 'All', protocol: 'UDP', port: '67,68' }
             ],
+            // Bug fix: initialize so the connection-section table branch is reachable.
+            connectionSecurityRules: [],
             currentSection: 'overview'
         };
 
+        // Tracks which lab objectives have been completed; all start false.
         const objectives = { obj1: false, obj2: false, obj3: false, obj4: false, obj5: false, obj6: false, obj7: false, obj8: false, obj9: false };
 
+        // Updates sidebar highlight and renders the chosen section.
+        // Fires obj1 when the user visits the Overview panel.
         function showSection(section) {
             document.querySelectorAll('.sidebar-item').forEach(item => {
                 item.classList.toggle('selected', item.dataset.section === section);
@@ -888,11 +898,15 @@
             }
         }
 
+        // Renders the main content area based on firewallState.currentSection.
+        // Each branch builds its HTML from live state and injects it via innerHTML.
+        // Visiting 'connection' always fires obj9 (even when the rules list is empty).
         function updateContent() {
             const contentArea = document.getElementById('contentArea');
             const section = firewallState.currentSection;
 
             if (section === 'overview') {
+                // Shows enabled/disabled status and default actions for all three profiles.
                 contentArea.innerHTML = `
                     <h2 style="color: #60a5fa; margin-bottom: 20px;">Overview</h2>
                     <div class="profile-card">
@@ -928,6 +942,7 @@
                 `;
                 completeObjective('obj1');
             } else if (section === 'inbound') {
+                // Renders the inbound rules table; each row is clickable (showRuleDetails).
                 let rulesHtml = `
                     <h2 style="color: #60a5fa; margin-bottom: 20px;">Inbound Rules</h2>
                     <table class="rules-table">
@@ -953,6 +968,8 @@
                 rulesHtml += '</table>';
                 contentArea.innerHTML = rulesHtml;
             } else if (section === 'outbound') {
+                // Renders the outbound rules table; each row is clickable (showOutboundRuleDetails).
+                // Bug fix: rows previously had no onclick, making obj5 unreachable from this view.
                 let rulesHtml = `
                     <h2 style="color: #60a5fa; margin-bottom: 20px;">Outbound Rules</h2>
                     <table class="rules-table">
@@ -964,9 +981,9 @@
                             <th>Port</th>
                         </tr>
                 `;
-                firewallState.outboundRules.forEach(rule => {
+                firewallState.outboundRules.forEach((rule, idx) => {
                     rulesHtml += `
-                        <tr>
+                        <tr onclick="showOutboundRuleDetails(${idx})" style="cursor: pointer;">
                             <td><span class="rule-status ${rule.enabled ? 'enabled' : 'disabled'}"></span>${rule.name}</td>
                             <td>${rule.profile}</td>
                             <td class="${rule.action === 'Allow' ? 'action-allow' : 'action-block'}">${rule.action}</td>
@@ -978,6 +995,10 @@
                 rulesHtml += '</table>';
                 contentArea.innerHTML = rulesHtml;
             } else if (section === 'connection') {
+                // Renders the connection security rules section.
+                // When connectionSecurityRules has entries the full table is shown;
+                // otherwise a placeholder message is displayed.
+                // Visiting this section unconditionally completes obj9.
                 let connHtml = `
                     <h2 style="color: #60a5fa; margin-bottom: 20px;">Connection Security Rules</h2>
                     <p style="color: #9ca3af;">Connection security rules configure IPsec authentication and encryption between computers.</p>
@@ -997,6 +1018,7 @@
                 contentArea.innerHTML = connHtml;
                 completeObjective('obj9');
             } else if (section === 'monitoring') {
+                // Shows live counts of active rules and current logging state for the Domain profile.
                 contentArea.innerHTML = `
                     <h2 style="color: #60a5fa; margin-bottom: 20px;">Monitoring</h2>
                     <div style="background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 20px;">
@@ -1012,16 +1034,21 @@
             }
         }
 
+        // Clears inbound rule form fields and opens the New Inbound Rule modal.
         function showNewRuleModal() {
             document.getElementById('ruleName').value = '';
             document.getElementById('rulePort').value = '';
             document.getElementById('newRuleModal').classList.add('show');
         }
 
+        // Opens the Firewall Properties / Logging modal.
         function showLoggingModal() {
             document.getElementById('loggingModal').classList.add('show');
         }
 
+        // Populates and opens the Rule Properties detail modal for an inbound rule.
+        // idx is the index into firewallState.inboundRules.
+        // Fires obj5 (View Rule Details) on first invocation.
         function showRuleDetails(idx) {
             const rule = firewallState.inboundRules[idx];
             document.getElementById('ruleDetailsTitle').textContent = rule.name;
@@ -1051,10 +1078,47 @@
             completeObjective('obj5');
         }
 
+        // Populates and opens the Rule Properties detail modal for an outbound rule.
+        // idx is the index into firewallState.outboundRules.
+        // Bug fix: outbound rows had no click handler; this function makes obj5
+        // completable from the outbound view as well as the inbound view.
+        function showOutboundRuleDetails(idx) {
+            const rule = firewallState.outboundRules[idx];
+            document.getElementById('ruleDetailsTitle').textContent = rule.name;
+            document.getElementById('ruleDetailsBody').innerHTML = `
+                <div class="form-group">
+                    <label>Status:</label>
+                    <p style="color: ${rule.enabled ? '#22c55e' : '#9ca3af'};">${rule.enabled ? 'Enabled' : 'Disabled'}</p>
+                </div>
+                <div class="form-group">
+                    <label>Action:</label>
+                    <p class="${rule.action === 'Allow' ? 'action-allow' : 'action-block'}">${rule.action}</p>
+                </div>
+                <div class="form-group">
+                    <label>Protocol:</label>
+                    <p>${rule.protocol}</p>
+                </div>
+                <div class="form-group">
+                    <label>Remote Port:</label>
+                    <p>${rule.port}</p>
+                </div>
+                <div class="form-group">
+                    <label>Profiles:</label>
+                    <p>${rule.profile}</p>
+                </div>
+            `;
+            document.getElementById('ruleDetailsModal').classList.add('show');
+            completeObjective('obj5');
+        }
+
+        // Hides the given modal by removing its 'show' class.
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('show');
         }
 
+        // Reads the inbound rule form, validates, pushes the new rule into state,
+        // and navigates to the inbound section. Fires obj2 (Create Inbound Rule).
+        // Also fires obj3 if the user supplied a port value.
         function createRule() {
             const name = document.getElementById('ruleName').value.trim();
             const protocol = document.getElementById('ruleProtocol').value;
@@ -1082,11 +1146,14 @@
             document.getElementById('statusBar').textContent = `Rule "${name}" created successfully`;
             completeObjective('obj2');
 
+            // obj3 requires a port to be specified (port-based exception).
             if (port) {
                 completeObjective('obj3');
             }
         }
 
+        // Saves logging settings for the selected profile into firewallState
+        // and fires obj4 (Enable Logging).
         function saveLogging() {
             const profile = document.getElementById('loggingProfile').value;
             const logDropped = document.getElementById('logDropped').value === 'Yes';
@@ -1099,21 +1166,26 @@
             completeObjective('obj4');
         }
 
+        // Re-renders the current section and updates the status bar.
         function refreshView() {
             updateContent();
             document.getElementById('statusBar').textContent = 'View refreshed';
         }
 
+        // Placeholder for future dynamic form adjustments when rule type changes.
         function updateRuleForm() {
-            // Could add dynamic form changes based on rule type
+            // Reserved for dynamic form field visibility based on selected rule type.
         }
 
+        // Clears outbound rule form fields and opens the New Outbound Rule modal.
         function showOutboundRuleModal() {
             document.getElementById('outRuleName').value = '';
             document.getElementById('outRulePort').value = '';
             document.getElementById('outboundRuleModal').classList.add('show');
         }
 
+        // Reads the outbound rule form, validates, pushes the new rule into state,
+        // and navigates to the outbound section. Fires obj6 (Create Outbound Rule).
         function createOutboundRule() {
             const name = document.getElementById('outRuleName').value.trim();
             const protocol = document.getElementById('outRuleProtocol').value;
@@ -1142,10 +1214,13 @@
             completeObjective('obj6');
         }
 
+        // Opens the Profile Settings modal.
         function showProfileSettingsModal() {
             document.getElementById('profileSettingsModal').classList.add('show');
         }
 
+        // Saves profile state, inbound, and outbound defaults into firewallState,
+        // re-renders the current section, and fires obj7 (Configure Profile Settings).
         function saveProfileSettings() {
             const profile = document.getElementById('profileSettingsName').value;
             const state = document.getElementById('profileState').value;
@@ -1162,12 +1237,15 @@
             completeObjective('obj7');
         }
 
+        // Clears port exception form fields and opens the Port Exception modal.
         function showPortExceptionModal() {
             document.getElementById('portExName').value = '';
             document.getElementById('portExPort').value = '';
             document.getElementById('portExceptionModal').classList.add('show');
         }
 
+        // Reads the port exception form, validates, pushes the Allow rule into the
+        // appropriate direction array, and fires obj8 (Create Port Exception Rule).
         function createPortException() {
             const name = document.getElementById('portExName').value.trim();
             const protocol = document.getElementById('portExProtocol').value;
@@ -1189,6 +1267,7 @@
                 port: port
             };
 
+            // Route the new rule to the correct direction array and navigate there.
             if (direction === 'inbound') {
                 firewallState.inboundRules.unshift(newRule);
                 showSection('inbound');
@@ -1202,6 +1281,8 @@
             completeObjective('obj8');
         }
 
+        // Marks an objective complete (idempotent — ignores repeat calls).
+        // Adds the 'completed' CSS class and checkmark, then checks for full completion.
         function completeObjective(objId) {
             if (!objectives[objId]) {
                 objectives[objId] = true;
@@ -1212,6 +1293,8 @@
             }
         }
 
+        // Checks whether all nine objectives are complete; if so, shows the
+        // completion banner and records lab completion via WSAProgress.
         function checkAllComplete() {
             if (Object.values(objectives).every(v => v)) {
                 setTimeout(() => {
@@ -1221,13 +1304,15 @@
             }
         }
 
+        // Hides the completion banner without navigating away.
         function dismissBanner() {
             document.getElementById('completionBanner').classList.remove('show');
         }
 
-        // Initialize
+        // Initial render: show the overview section on page load.
         updateContent();
-    
+
+        // Records module completion via the platform ModuleProgress API.
         function completeModule() {
             if (typeof ModuleProgress !== 'undefined') {
                 ModuleProgress.complete('cloud', 'cloud-wsa-m17-guilab', {

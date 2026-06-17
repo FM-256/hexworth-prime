@@ -4612,6 +4612,10 @@ const GUISimulator = (function() {
 
                 renderVMList();
                 hvState.statusBar.setMessage(`${vm.Name} shut down gracefully`, 'success');
+
+                if (options.onObjectiveComplete) {
+                    options.onObjectiveComplete('stop-vm');
+                }
             }, 1500);
         }
 
