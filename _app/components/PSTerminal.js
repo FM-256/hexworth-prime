@@ -3762,6 +3762,7 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
             case 'get-scheduledtask':
                 return _cmdGetScheduledTask(args, params);
 
+            case 'icm':              // M18: standard PowerShell alias for Invoke-Command
             case 'invoke-command':
                 return _cmdInvokeCommand(args, params);
 
@@ -7964,16 +7965,23 @@ Last backup: 2/8/2026 2:00 AM (Successful)`;
             return `<span class="ps-error">Get-GPOReport : GPO '${name}' not found.</span>`;
         }
         _checkObjective('get-gporeport');
+
+        // M10: read -ReportType (Html | Xml) and reflect it in the output header.
+        // Parser proxy normalises casing so params.ReportType resolves regardless of
+        // how the student typed it (e.g. -reporttype, -ReportType, -REPORTTYPE).
+        const reportType = (params.ReportType || 'Xml').trim();
+        const isHtml = reportType.toLowerCase() === 'html';
+
         return `
 ═══════════════════════════════════════════════
-GPO Report: ${gpo.name}
+GPO Report: ${gpo.name}  [ReportType: ${reportType}]
 ═══════════════════════════════════════════════
 Created     : ${gpo.created || new Date().toISOString()}
 Modified    : ${gpo.modified || new Date().toISOString()}
 Owner       : HEXWORTH\\Domain Admins
 Status      : ${gpo.status || 'AllSettingsEnabled'}
 Links       : ${(gpo.links || []).join(', ') || 'None'}
-
+${isHtml ? 'Format      : HTML (browser-renderable)\n' : ''}
 ── COMPUTER CONFIGURATION ──────────────────────
   Policies
     Administrative Templates
@@ -8676,10 +8684,22 @@ Contents of shadow copy set ID: {${_generateGUID()}}
                 hasLogging = true;
             }
             if (params.Enabled !== undefined) {
-                state.firewallProfiles[name].enabled = params.Enabled.toLowerCase() === 'true';
+                // C5: bare `-Enabled` switch yields boolean true; coerce to string before
+                // calling string methods to prevent a TypeError crash.
+                const enabledVal = typeof params.Enabled === 'boolean'
+                    ? String(params.Enabled)          // true  → "true", false → "false"
+                    : params.Enabled.toLowerCase();   // string path unchanged
+                state.firewallProfiles[name].enabled = enabledVal === 'true';
             }
         });
-        if (hasLogging) {
+        // Only credit the logging objective when the profile is NOT being disabled.
+        // A command that passes -Enabled False while setting logging options must NOT
+        // receive credit — disabling the firewall is the opposite of securing it.
+        const explicitlyDisabled = params.Enabled !== undefined &&
+            (typeof params.Enabled === 'boolean'
+                ? params.Enabled === false
+                : params.Enabled.toLowerCase() === 'false');
+        if (hasLogging && !explicitlyDisabled) {
             _checkObjective('configure-logging');
             _checkObjective('set-netfirewallprofile');
         }

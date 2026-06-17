@@ -107,6 +107,11 @@ These are answer-distribution / stale-flag concerns, not wrong answers (each was
 
 `PSTerminal.js` `_cmdSetNetFirewallProfile` (~line 8674) calls `params.Enabled.toLowerCase()` guarded only by `!== undefined`. If a student types `-Enabled` with no value (bare switch), `params.Enabled === true` and `.toLowerCase()` throws. Found by Nancy during the C1 fix; predates it. Fix: guard for boolean / coerce. (C1 case-insensitive parsing shipped 2026-06-17.)
 
+
+### C6 — M06 cluster UI/command state split (pre-existing, deferred)
+
+The M06 PowerShell lab's displayed `initialState` lists cluster groups as `SQL-VM-01`/`SQL-VM-02` on nodes `NODE1-3`, but the shared `PSTerminal.js` cluster commands (`_cmdMoveClusterGroup` etc.) read a separate hardcoded `clusterState` constant (~line 6308) with group `SQL-AG` on nodes `NODE01`/`NODE02`. A student using the displayed group names gets "group not found." The Task-14 hint was (correctly) `SQL-AG`/`NODE02` to match the command; an attempted 'fix' to match the displayed state was reverted. Real fix: align `clusterState` to the displayed `initialState` and verify every cluster command (`clusterState.groups` readers at ~6379/6414/6436/6455). Deferred — bigger shared-component change.
+
 ## Recommended fix order
 
 1. **C1 — PSTerminal parameter casing** (one change, unblocks correct answers across all PS labs; students are hitting this now).
