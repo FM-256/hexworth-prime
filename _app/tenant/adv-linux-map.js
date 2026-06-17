@@ -28,6 +28,14 @@
  * quizScores / labsCompleted, so listing labs here would inflate the denominator and never
  * resolve. Labs are tracked via the flag_captures bridge (separate, write-path work).
  *
+ * !! GUARD (2026-06-17): the ALA backfill (_tools/diagnostics/tenant-analytics/ala-class-backfill.js)
+ * has already written flag-verified lab ids (ala-l01..ala-l06, ala-hunt1/2) into each student's
+ * labsCompleted[]. Because the compute intersects labsCompleted against THIS map, those values
+ * are inert today. If you EVER add lab ids here, they will retroactively start counting for the
+ * ~16 backfilled students with no new student action — by decision, labs surface in a SEPARATE
+ * lab track, NOT this denominator. Do not add the ala-l NN or ala-hunt N lab ids here without
+ * re-auditing that backfill.
+ *
  * Created: 2026-06-14
  */
 var ADV_LINUX_MAP = {
