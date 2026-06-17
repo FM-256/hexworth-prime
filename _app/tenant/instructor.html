@@ -2962,6 +2962,47 @@
         var overallPct = (totalItems * totalStudents) > 0 ? Math.round((totalCompleted / (totalItems * totalStudents)) * 100) : 0;
         meta.textContent = overallPct + '% overall · ' + totalItems + ' items · ' + totalStudents + ' students';
 
+        // SEPARATE LAB TRACK — render labs in their own section AFTER the chapters, with their own
+        // completion %. Intentionally NOT folded into totalItems/overallPct above so module % is
+        // unaffected. Reads _courseMap.labs (sibling of chapters) against each student's labsCompleted.
+        var _labs = _courseMap.labs || [];
+        if (_labs.length) {
+            var labRows = '';
+            var labCompletedTotal = 0;
+            _labs.forEach(function(lab) {
+                var c = 0;
+                studentCompletions.forEach(function(set) { if (set[lab.id]) c++; });
+                labCompletedTotal += c;
+                var lp = totalStudents > 0 ? Math.round((c / totalStudents) * 100) : 0;
+                var lc = lp > 70 ? 'var(--vc-green)' : lp > 30 ? 'var(--vc-amber)' : 'var(--vc-red, #ef4444)';
+                labRows +=
+                    '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+                        '<span style="font-size:0.65rem;text-transform:uppercase;color:#f59e0b;width:70px;flex-shrink:0;font-weight:600;">lab</span>' +
+                        '<span style="flex:1;font-size:0.82rem;color:var(--vc-text);">' + lab.title + '</span>' +
+                        '<span style="width:50px;text-align:right;font-size:0.78rem;color:var(--vc-text-dim);">' + c + '/' + totalStudents + '</span>' +
+                        '<div style="width:80px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;flex-shrink:0;">' +
+                            '<div style="height:100%;width:' + lp + '%;background:' + lc + ';border-radius:3px;transition:width 0.3s;"></div>' +
+                        '</div>' +
+                        '<span style="width:35px;text-align:right;font-size:0.72rem;color:var(--vc-text-dim);">' + lp + '%</span>' +
+                    '</div>';
+            });
+            var labsPct = (_labs.length * totalStudents) > 0 ? Math.round((labCompletedTotal / (_labs.length * totalStudents)) * 100) : 0;
+            var labsBar = labsPct > 70 ? 'var(--vc-green)' : labsPct > 30 ? 'var(--vc-amber)' : 'var(--vc-red, #ef4444)';
+            html +=
+                '<div style="margin-bottom:16px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.25);border-radius:8px;overflow:hidden;">' +
+                    '<div style="padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;background:rgba(245,158,11,0.04);" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'\':\'none\'">' +
+                        '<span style="font-size:0.72rem;color:#f59e0b;font-weight:700;width:34px;">Labs</span>' +
+                        '<span style="flex:1;font-size:0.88rem;font-weight:600;color:var(--vc-text);">Lab Track <span style="font-weight:400;color:var(--vc-text-dim);font-size:0.75rem;">(separate — not counted in module %)</span></span>' +
+                        '<span style="font-size:0.75rem;color:var(--vc-text-dim);">' + _labs.length + ' labs</span>' +
+                        '<div style="width:100px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;">' +
+                            '<div style="height:100%;width:' + labsPct + '%;background:' + labsBar + ';border-radius:3px;"></div>' +
+                        '</div>' +
+                        '<span style="font-size:0.75rem;font-weight:600;color:' + labsBar + ';">' + labsPct + '%</span>' +
+                    '</div>' +
+                    '<div style="padding:4px 16px 8px;display:none;">' + labRows + '</div>' +
+                '</div>';
+        }
+
         // Build full-screen overlay
         var overlay = document.createElement('div');
         overlay.id = 'course-progress-overlay';
@@ -3007,6 +3048,13 @@
         var isCourseClass = _activeClass && _activeClass.courseId;
         // Resolve the course-map id set once (not per student). null => stub map => raw fallback.
         var rosterItemIds = isCourseClass ? getActiveCourseItemIds() : null;
+        // SEPARATE LAB TRACK: labs live in map.labs (outside the chapter denominator), so lab work
+        // shows as its own "Labs X/N" column WITHOUT diluting module %. Column appears only when the
+        // active course actually defines labs (ALA does; WSA's map has none, so it's omitted there).
+        var _stMap = isCourseClass ? getActiveCourseMap() : null;
+        var labRoster = (_stMap && _stMap.labs) || [];
+        var labRosterSet = {}; labRoster.forEach(function(l) { labRosterSet[l.id] = true; });
+        var showLabs = labRoster.length > 0;
 
         var table = document.createElement('table');
         table.className = 'data-table';
@@ -3015,7 +3063,7 @@
         var hr = document.createElement('tr');
         // Column headers adapt to class type
         var columns = isCourseClass
-            ? ['Student', 'Completed', 'Quiz Avg', 'Progress', 'Last Active', 'Actions']
+            ? ['Student', 'Completed', 'Quiz Avg'].concat(showLabs ? ['Labs'] : []).concat(['Progress', 'Last Active', 'Actions'])
             : ['Student', 'Completed', 'Score', 'Progress', 'Last Active', 'Actions'];
         columns.forEach(function(col) {
             var th = document.createElement('th');
@@ -3111,6 +3159,18 @@
                 ? (totalScore > 0 ? totalScore + '%' : '--')
                 : totalScore.toLocaleString();
 
+            // Labs cell (separate track) — count this student's labsCompleted that are in the
+            // lab roster, out of the roster total. Built only when showLabs (course defines labs).
+            var tdLabs = null;
+            if (showLabs) {
+                tdLabs = document.createElement('td');
+                var labsDone = (student.labsCompleted || []).filter(function(id) { return labRosterSet[id]; }).length;
+                var labColor = labsDone > 0 ? 'var(--vc-green)' : 'var(--vc-text-dim)';
+                tdLabs.style.fontWeight = '600';
+                tdLabs.style.color = labColor;
+                tdLabs.textContent = labsDone + '/' + labRoster.length;
+            }
+
             var tdProgress = document.createElement('td');
             var barWrap = document.createElement('span');
             barWrap.className = 'progress-bar-wrap';
@@ -3173,7 +3233,11 @@
             });
             tdActions.appendChild(removeBtn);
 
-            [tdName, tdCompleted, tdScore, tdProgress, tdActive, tdActions].forEach(function(td) {
+            // Insert tdLabs after tdScore only when the Labs column is shown, matching the header.
+            var rowCells = showLabs
+                ? [tdName, tdCompleted, tdScore, tdLabs, tdProgress, tdActive, tdActions]
+                : [tdName, tdCompleted, tdScore, tdProgress, tdActive, tdActions];
+            rowCells.forEach(function(td) {
                 tr.appendChild(td);
             });
             tbody.appendChild(tr);
@@ -4005,6 +4069,10 @@
             totalItems += ch.items.length;
             ch.items.forEach(function(it) { if (it && it.id) mapItemIds[it.id] = true; });
         });
+        // SEPARATE LAB TRACK: labs have their own roster (map.labs), counted independently of the
+        // chapter/module denominator (mapItemIds is chapter-only) so they never affect overallPct.
+        var labMapIds = {};
+        (_reportMap.labs || []).forEach(function(l) { if (l && l.id) labMapIds[l.id] = true; });
         var now = Date.now();
         var DAY = 86400000;
 
@@ -4023,7 +4091,7 @@
             // and the aggregate percentage could exceed 100%.
             var mods = (s.modulesCompleted || []).filter(function(id) { return mapItemIds[id]; }).length;
             var quizVals = Object.keys(quizzes).filter(function(id) { return mapItemIds[id]; }).map(function(id) { return quizzes[id]; });
-            var labs = (s.labsCompleted || []).filter(function(id) { return mapItemIds[id]; }).length;
+            var labs = (s.labsCompleted || []).filter(function(id) { return labMapIds[id]; }).length;  // count against the lab roster, not chapters
             allModules += mods;
             allLabs += labs;
             allQuizzes += quizVals.length;
@@ -4051,7 +4119,10 @@
         performers.sort(function(a,b) { return b.items - a.items; });
         var avgScore = quizCount > 0 ? Math.round(allScore / quizCount) : 0;
         if (quizCount === 0) { lowestQuiz = 0; highestQuiz = 0; }
-        var overallPct = (totalItems * activeStudents) > 0 ? Math.round(((allModules + allQuizzes + allLabs) / (totalItems * activeStudents)) * 100) : 0;
+        // overallPct is MODULE+QUIZ only (chapter denominator). Labs are a separate track, surfaced
+        // via the "Labs Done" stat card below, and are intentionally excluded here so lab work never
+        // dilutes or inflates the headline completion %.
+        var overallPct = (totalItems * activeStudents) > 0 ? Math.round(((allModules + allQuizzes) / (totalItems * activeStudents)) * 100) : 0;
 
         // ── Chapter heatmap data ──
         var studentCompletions = [];

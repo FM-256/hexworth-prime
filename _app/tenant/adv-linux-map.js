@@ -104,5 +104,26 @@ var ADV_LINUX_MAP = {
                 { id: "ala-final",             type: "quiz",         title: "Final Exam" }
             ]
         }
+    ],
+    // SEPARATE LAB TRACK — deliberately OUTSIDE `chapters` so getActiveCourseItemIds (which reads
+    // only chapters) never counts these toward the module denominator. instructor.html surfaces this
+    // as its own "Labs X/15" metric so lab work shows without diluting module %. Ids match the values
+    // written to labsCompleted (lab storageKey hexworth_lab_ala_* -> ala-*); see ala-class-backfill.js.
+    labs: [
+        { id: "ala-l01",   title: "L01 · Dead Cell Recovery" },
+        { id: "ala-l02",   title: "L02 · Grid Handshake" },
+        { id: "ala-l03",   title: "L03 · Signal in the Noise" },
+        { id: "ala-l04",   title: "L04 · Lockdown Protocol" },
+        { id: "ala-l05",   title: "L05 · The Insider" },
+        { id: "ala-l06",   title: "L06 · Field Assembly" },
+        { id: "ala-l07",   title: "L07 · Name Authority" },
+        { id: "ala-l08",   title: "L08 · The Night Shift" },
+        { id: "ala-l09",   title: "L09 · Poisoned Records" },
+        { id: "ala-l10",   title: "L10 · Ghost in the Cell" },
+        { id: "ala-l11",   title: "L11 · Flatline" },
+        { id: "ala-l12",   title: "L12 · Full Cell Audit" },
+        { id: "ala-hunt1", title: "Hunt 1 · Website Down" },
+        { id: "ala-hunt2", title: "Hunt 2 · Perimeter Open" },
+        { id: "ala-hunt3", title: "Hunt 3 · Lost Authority" }
     ]
 };
