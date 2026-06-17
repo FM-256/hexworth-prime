@@ -88,6 +88,9 @@ async function main() {
                 answers: data.answers,
                 passingScore: data.passingScore,
                 questionCount: data.questionCount,
+                // Per-question rationales for post-submission answer review (passers only,
+                // gated server-side in gradeQuiz). Pushed only when present in the registry.
+                ...(Array.isArray(data.explanations) ? { explanations: data.explanations } : {}),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
