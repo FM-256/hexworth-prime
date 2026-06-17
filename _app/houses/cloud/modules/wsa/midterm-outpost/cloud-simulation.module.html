@@ -948,7 +948,7 @@
         // Phase 1: Foundation
         { id: 'f1', phase: 'Foundation', text: 'Configure server static IP (192.168.50.10)', check: () => state.server.ip === '192.168.50.10' },
         { id: 'f2', phase: 'Foundation', text: 'Set DNS to point to HQ (192.168.1.10)', check: () => state.server.dns.includes('192.168.1.10') },
-        { id: 'f3', phase: 'Foundation', text: 'Join hexworth.local domain', check: () => state.server.domain === 'hexworth.local' },
+        { id: 'f3', phase: 'Foundation', text: 'Join hexworth.local domain', check: () => (state.server.domain || '').toLowerCase() === 'hexworth.local' },
         { id: 'f4', phase: 'Foundation', text: 'Promote to Domain Controller', check: () => state.server.isDC },
 
         // Phase 2: Identity
@@ -1409,13 +1409,14 @@
                 <h4><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> IPv4 Scopes</h4>
                 ${state.dhcp.scopes.length === 0 ? '<p style="color:#666;font-size:0.85rem">No scopes configured</p>' : `
                     <table class="data-table">
-                        <tr><th>Name</th><th>Network</th><th>Range</th><th>Status</th></tr>
-                        ${state.dhcp.scopes.map(s => `
+                        <tr><th>Name</th><th>Network</th><th>Range</th><th>Status</th><th>Actions</th></tr>
+                        ${state.dhcp.scopes.map((s, idx) => `
                             <tr>
                                 <td>${s.name}</td>
                                 <td>${s.network}</td>
                                 <td>${s.start} - ${s.end}</td>
                                 <td><span class="status-badge online">Active</span></td>
+                                <td><button class="small-btn" onclick="showModal('editScope', ${idx})">Edit Scope</button></td>
                             </tr>
                         `).join('')}
                     </table>
@@ -1923,6 +1924,32 @@
                 `;
                 break;
 
+            // Edit an existing DHCP scope's options (gateway/DNS) after creation.
+            // Remediation path for objective n4 — without this a student who leaves
+            // the scope options blank can only fix it via PowerShell.
+            case 'editScope': {
+                const scope = state.dhcp.scopes[param];
+                if (!scope) { html = `<h3>Scope not found</h3><div class="modal-actions"><button class="action-btn" onclick="hideModal()">Close</button></div>`; break; }
+                scope.options = scope.options || {};
+                html = `
+                    <h3><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Edit Scope Options: ${scope.name}</h3>
+                    <div class="form-group">
+                        <label>Default Gateway (Option 003 — Router)</label>
+                        <input type="text" id="editScopeGateway" value="${scope.options.gateway || ''}" placeholder="192.168.50.1">
+                    </div>
+                    <div class="form-group">
+                        <label>DNS Server (Option 006 — DNS Servers)</label>
+                        <input type="text" id="editScopeDNS" value="${scope.options.dns || ''}" placeholder="192.168.50.10">
+                    </div>
+                    <input type="hidden" id="editScopeIdx" value="${param}">
+                    <div class="modal-actions">
+                        <button class="action-btn" onclick="hideModal()">Cancel</button>
+                        <button class="action-btn primary" onclick="saveEditScope()">Save</button>
+                    </div>
+                `;
+                break;
+            }
+
             case 'createVolume':
                 html = `
                     <h3><img src="/assets/images/icons/icon-memory.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Create New Volume</h3>
@@ -2258,6 +2285,20 @@
             saveState();
             hideModal();
             showNotification(`DHCP scope "${name}" created!`);
+        }
+    }
+
+    // Save edited scope options (gateway/DNS) back to an existing scope — n4 remediation.
+    function saveEditScope() {
+        const idx = parseInt(document.getElementById('editScopeIdx').value, 10);
+        const scope = state.dhcp.scopes[idx];
+        if (scope) {
+            scope.options = scope.options || {};
+            scope.options.gateway = document.getElementById('editScopeGateway').value.trim();
+            scope.options.dns = document.getElementById('editScopeDNS').value.trim();
+            saveState();
+            hideModal();
+            showNotification(`DHCP scope "${scope.name}" options updated!`);
         }
     }
 
@@ -4415,8 +4456,8 @@ SHADOW COPIES:
             return;
         }
 
-        // Enable-ShadowCopy / vssadmin
-        if (lower.includes('shadowcopy') || lower.includes('vssadmin')) {
+        // Enable-ShadowCopy / vssadmin — require an actual CREATE, not a read-only list/query
+        if (lower.includes('shadowcopy') || (lower.includes('vssadmin') && (lower.includes('create shadow') || lower.includes('add shadowstorage')))) {
             state.shadowCopies = true;
             saveState();
             addLine('Shadow copies enabled.', 'success');

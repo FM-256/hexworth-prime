@@ -120,3 +120,15 @@ The M06 PowerShell lab's displayed `initialState` lists cluster groups as `SQL-V
 4. **MED leniency / hint-mismatch** pass per C2/C4 if assessed-grading accuracy is desired.
 
 (Each item above is also documented inline in the corresponding `WSA-M{NN}-*_WALKTHROUGH.md` so faculty grading from the keys see the leniency in context.)
+
+## Resolution log
+
+**Batch 1 (commit 82e78db58)** — M19 Backup Once, M11 auth-save guard, M17 obj5/obj9, M04 Shut Down, M05 docker compose, M07 T3/T8 decouple, C1 case-insensitive PS parsing, review DNS-300/SR-300 keys.
+
+**Batch 2 (commit b94958f5c)** — PSTerminal C5 (`-Enabled` bare-switch crash), M17-PS firewall-disable no longer credits, M10 `-ReportType` read/reflect, M18 `icm` alias; M10-guilab obj4/obj7 decouple; M02 unlock→Task5 + PS hint DN; M12 ordering cue; M16 `new-wbbackuptarget`. M06 hint kept `SQL-AG`/`NODE02` (audit finding was vs the wrong state source — see C6).
+
+**Batch 3 (this commit)** — fixed: M03-GUI `IsOffline` cleared on `initializeDisk` (GUISimulator.js, keeps toolbar/context-menu consistent); M03-PS Task-3 hint `-AssignDriveLetter`→`-DriveLetter E` (matches Task-4); M13-PS Task-2 description states `-Template` is required (bare `Get-Certificate` only lists); Midterm `f3` domain check now case-insensitive; Midterm `s4` no longer credits read-only `vssadmin list shadows` (still credits the `create shadow`/`add shadowstorage` the sim's own cards teach, plus the GUI Enable button); Midterm **n4** now has a GUI remediation path — an "Edit Scope" dialog on each scope row writes `options.gateway`/`options.dns`, re-graded via `saveState()`→`checkObjectives()`.
+
+  NOT fixed — verified false alarm / design decision (dual-gate BLOCK resolved by investigation):
+  - **Gauntlet `ad-08`** (CN→SAM) — FALSE ALARM. All three member-add paths store the SAM, not a DN: GUISimulator ADUC `addMember` passes `MemberName: user.SamAccountName` (GUISimulator.js:2236); WSAState `AD_ADD_MEMBER` stores `payload.MemberName` (WSAState.js:420); gauntlet inline console pushes the dropdown SAM (line 1932); PS `Add-ADGroupMember` stores `resolvedUserKey` = SAM (PSTerminal.js:5325). No path ever writes `CN=…`, so `ad-08` (`includes('jsmith')`) is already satisfiable everywhere. The proposed `nameToSam` map was dead code and was reverted.
+  - **Gauntlet-Advanced `fix-07` vs `bt-cls-05`** — DESIGN DECISION, not auto-fixed. Beta is seeded `DiskOnly` and `configQuorum` (line 3296) is the only writer of `state.beta.cluster.quorum`, so reaching `NodeMajority` on beta IS the repair — the routine task and the troubleshooting bonus are inherently coupled. A `fixedBrokenQuorum` flag is either vacuous (always true once NodeMajority is reached) or traps students who route through an intermediate quorum mode (DiskOnly→NodeAndDiskMajority→NodeMajority). Genuine separation needs a sim redesign (e.g. move the routine task to a healthy cluster). Documented inline at `configQuorum()` and left at the long-standing production behavior.

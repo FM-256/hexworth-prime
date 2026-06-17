@@ -3093,6 +3093,7 @@ const GUISimulator = (function() {
                 disk.PartitionStyle = values.partitionStyle;
                 disk.NeedsInitialization = false;
                 disk.OperationalStatus = 'Online';
+                disk.IsOffline = false;   // keep in sync with OperationalStatus (toolbar reads IsOffline, context menu reads OperationalStatus)
                 disk.partitions = [{
                     Number: 1,
                     Type: 'Unallocated',
