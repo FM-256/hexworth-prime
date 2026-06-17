@@ -102,6 +102,11 @@ Quiz keys live server-side in `functions/quiz_keys.json` (seed for Firestore `qu
 
 These are answer-distribution / stale-flag concerns, not wrong answers (each was verified correct). Tracked alongside [[project_placeholder_keys_audit]].
 
+
+### C5 — `Set-NetFirewallProfile -Enabled` bare switch crashes (M17, pre-existing)
+
+`PSTerminal.js` `_cmdSetNetFirewallProfile` (~line 8674) calls `params.Enabled.toLowerCase()` guarded only by `!== undefined`. If a student types `-Enabled` with no value (bare switch), `params.Enabled === true` and `.toLowerCase()` throws. Found by Nancy during the C1 fix; predates it. Fix: guard for boolean / coerce. (C1 case-insensitive parsing shipped 2026-06-17.)
+
 ## Recommended fix order
 
 1. **C1 — PSTerminal parameter casing** (one change, unblocks correct answers across all PS labs; students are hitting this now).
