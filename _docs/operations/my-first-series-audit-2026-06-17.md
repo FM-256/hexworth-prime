@@ -106,9 +106,22 @@ to match the rebuilt level.*
   (`07c8d0ed1`); **L4** human-in-the-loop approval gate, propose→approve/deny→DRY RUN
   (`a81e1c306`); **L5** capstone governed daily-ops run orchestrating L1–L4 + action log
   (`e91ffdb56`). Tracked as sprint **AI-AUDIT-1**.
-- **Next:** the **sibling projects** per the scope table — `starter-first-workflow`,
-  `starter-first-knowledge-base`, `starter-first-tool`, then `ai-build-your-department`
-  (capstone). Apply the same method; scope each level's feasibility first.
+- **My First Workflow — in progress.** Different feasibility shape than the Agent: Power Automate
+  flows build+run for REAL on the free Power Apps Developer Plan, so most levels stay real builds
+  (no simulation). Operator chose option (a): AI levels stay genuinely AI, flagged premium.
+  Done: project setup (free Developer Plan + work/school account, M365 dependency, phantom
+  "sample pack" removed, manifest fixed) + **L1** (Forms→flow→email, `5e468995f`), **L2**
+  (Condition branching + SharePoint logging, `9d634039c`), **L4** (Approvals human-in-the-loop,
+  `e8e334778`). L3 + L5 carry honest AI-Builder-premium flags; their full walkthroughs are queued
+  (the AI step needs the paid add-on, so the free path is the surrounding branching/scheduling).
+- **Next:** L3/L5 full walkthroughs (free parts as real builds + the AI step as a premium block),
+  then `starter-first-knowledge-base`, `starter-first-tool`, `ai-build-your-department` (capstone).
+- **Key Workflow lessons:** (1) feasibility is per-tool — the Agent needed simulation, Workflow
+  doesn't (free Developer Plan runs real flows); (2) "real build" surfaces real gotchas the gates
+  must catch — the Forms "Get response details" step, the orphaned-action / double-fire trap when
+  inserting a Condition/approval into an existing branch (bit both L2 and L4), and missing list
+  columns ("mark Approved" with no Status field). Each is a phantom-asset/half-spec cousin of the
+  Agent findings.
 - **Pattern confirmed across L3+L4+L5:** the late levels' *premises* (live mailbox, live action
   flow, autonomous/triggered ops) aren't trial-executable. The fix is a self-contained
   in-test-panel equivalent that teaches the same skill (triage / approval gate / orchestration +
