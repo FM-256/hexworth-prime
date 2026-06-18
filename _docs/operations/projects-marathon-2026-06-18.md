@@ -103,6 +103,42 @@ mass-generation without per-page verification (avoids the "advertising-flyer" fa
   now filled via a real step; sticky-nav `scroll-margin-top`; Phase-3 desc mismatch). 0px overflow
   360/390/768/1280, no JS errors. **Pattern proven: delegate authoring → hard-gate → fix → ship.**
 
+### Workstream B — in flight
+- **starter-first-repo** + **starter-github-profile**: authored by edu-content-designer, both
+  hard-gated → both **BLOCKED** by Nancy+Chris with legit accuracy gaps (this is the gates
+  working — first drafts of tool-walkthroughs carry real OS/UI/auth inaccuracies). Fix agents
+  dispatched with consolidated, verified blocker lists:
+  - repo: teach opening a terminal per-OS (standardize Git Bash on Windows); kill the
+    PowerShell/cmd `echo` corruption trap; `git init` hint-line output; master-vs-main; Phase-5
+    auth restructured around GCM browser/credential flow (PAT as fallback); fix command-history
+    snapshot; conditional `git log` pager; remove phantom mkdir fix; correct GitHub commit-count UI.
+  - profile: correct pencil-edit path (click filename → pencil in file view); soften the
+    unverifiable "secret repo" banner quote; remove false case-sensitivity claim; Owner-dropdown
+    (not-an-org) step; orient first-time user post-sign-in; define branch/PR in plain words;
+    `&mdash;`→hyphen in README snippets; stronger stats-card rate-limit note; fix "Hi there"
+    checkpoint. NOTE: a reviewer (Chris) wrongly flagged the badge `&amp;` escaping — Nancy
+    correctly verified `&amp;` in source copies as `&` (right for Markdown); left as-is.
+- **Lesson:** gating each delegated page with BOTH Nancy+Chris is essential — the builder's domain
+  accuracy (git/GitHub UI, auth, OS shells) is where first drafts fail, not structure. Re-gate
+  after fixes can be leaner (verify the specific fixes + render-QC + one executability pass).
+
+### Workstream B — shipped/committed (live unless noted)
+1. starter-portfolio-site (ade48cd56) — GitHub Pages deploy walkthrough
+2. starter-first-repo (7eacd7867) — git/GitHub, GCM auth
+3. starter-github-profile (7eacd7867) — profile README, browser-only
+4. starter-first-script (c1fa49276 / e7e7f8c6b) — Bash organizer, Git Bash on Windows
+5. starter-calculator (e7e7f8c6b) — browser JS calc, fixed a real NaN bug
+   (#4/#5 deploying as of this checkpoint; #1-3 verified live)
+Authoring next: starter-first-server, starter-first-database.
+Remaining Tier-1: first-app, first-api, first-bot, first-container, first-firewall,
+first-gui, first-hack, first-network, first-pipeline, first-scan, knowledge-base, tool.
+
+**Process that works:** delegate authoring (edu-content-designer, exemplar-grounded) →
+integrity+render-QC → Nancy+Chris dual-gate (EVERY fresh page got BLOCKED on real
+domain-accuracy/code defects: GitHub auth, shell traps, a live JS NaN bug, stale UI,
+misdescribed layouts) → consolidated fix list → lean re-gate (single Chris) → ship.
+Primary adjudicates reviewer disagreements (overrode a wrong `&amp;` escaping flag).
+
 ## Progress log (newest first)
 - 2026-06-18: Marathon started. Enumerated 127 pages. Full render-QC sweep launched.
   Prior: webpage brought to tutorial standard (`b046e5768`); agent+workflow overflow fixed
