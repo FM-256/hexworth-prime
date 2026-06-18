@@ -157,8 +157,43 @@ what makes the displayed code correct (browser renders `&lt;x&gt;` as `<x>`; cli
 `&amp;lt;`/`&amp;amp;` (double-escape). Verify with `grep -c '&amp;lt;\|&amp;amp;'` (expect 0),
 don't trust the gate's escaping intuition.
 
+## CODE HOUSE COMPLETE (2026-06-18)
+All 10 `code-*` Code-house projects rebuilt to the zero-knowledge executability bar and LIVE.
+Each delegate-authored -> integrity + god-mode render-QC -> Nancy+Chris dual-gate -> fix ->
+lean re-gate -> verify-live -> ship. Two operator decisions bound this set: (1) React/Vite
+projects were REBUILT AS REAL REACT (not converted to vanilla); (2) hardware/server projects
+got FULL RIGOR assuming the kit/accounts as honest stated prerequisites.
+
+Pages (commit):
+1. code-typing-speed (cbc7a6950) — vanilla typing test; fixed idempotent input handler + real elapsed-time WPM
+2. code-memory-game (9c034f2ed) — REAL React+Vite; fixed off-by-one best score, stale-closure difficulty, ALL_SYMBOLS 16 glyphs
+3. code-wordle-clone (c4e47ca03) — REAL React+Vite; fixed VALID.has uppercase, colorless flip keyframe, dep array
+4. code-task-manager (bac4d3aba) — vanilla + localStorage; var tasks=[] hoisting, saveTasks try/catch, persistence wording
+5. code-cli-task-manager (32cb255e8) — Python argparse+JSON; Phase-5 state trace reconciled (done 4/remove 2), json.loads
+6. code-resume-builder (afb07537e) — vanilla form->preview + window.print(); saveData try/catch, skills hasContent, dead html2canvas/jsPDF removed
+7. code-chat-app (f40c6b4f0) — Node/Express 5/Socket.IO v4; impossible failure-mode trap replaced with event-name mismatch; EADDRINUSE port-first
+8. code-ecommerce-stripe (9e661d773) — Stripe Hosted Checkout TEST mode; cancel-flow corrected (Stripe in-page back, not browser), express.urlencoded, key-rotation-first, Dashboard UI re-grounded
+9. code-arduino-pipeline (ac26cc4df) — Arduino->serial->Python->CSV; ETL self-contradiction fixed, observable Phase-5 diagnostic, port-busy trap
+10. code-serial-console (42735b6a0) — two-way Python<->Arduino LED console; GUARANTEED blink timeout bug fixed (timeout=1->3), Leonardo/Micro while(!Serial) hang guarded
+
+Deployed in 2 batches (5 + 5). Both smoke gates 10 PASS / 0 FAIL; post-verify "FLAGGED
+divergence" each time = standing QC-57 EduScan HIGH backlog, not a regression.
+
+**Infra surfaced this leg:** `/tmp/qc-house.js` (god-mode render-QC for AccessGuard-gated
+house pages — sets sessionStorage hexworth_god_mode, filters the benign addGodModeBadge
+file:// error); `/tmp/qc-find-overflow.js` (names the specific overflowing element at 360px).
+New overflow-guard members added to project pages as offenders surfaced:
+`.cf-manifest-item` and `.cf-debrief-list li` (both grid/flex children with implicit
+min-width:auto that a long code token pins past the viewport — same min-content bug class
+as `.cf-req-list li`).
+
+**Recurring false-alarm held again:** HEUR-008 `position: fixed` on the `body::after`
+background layer was flagged on the hardware pages — but `body.style.filter` is never set
+anywhere (not in any project page, not in AccessGuard), so HEUR-008 is inert; the pattern is
+identical across all shipped project pages incl. the starter-first-webpage exemplar. Left as-is.
+
 **Remaining (NOT started):** Tier 2 (house-themed beginner projects) + Tier 3 (intermediate/advanced).
-~104 house project pages still on their original outcome-description content (render-clean after Workstream A).
+~94 house project pages still on their original outcome-description content (render-clean after Workstream A).
 
 ## Progress log (newest first)
 - 2026-06-18: Marathon started. Enumerated 127 pages. Full render-QC sweep launched.
