@@ -139,6 +139,27 @@ domain-accuracy/code defects: GitHub auth, shell traps, a live JS NaN bug, stale
 misdescribed layouts) → consolidated fix list → lean re-gate (single Chris) → ship.
 Primary adjudicates reviewer disagreements (overrode a wrong `&amp;` escaping flag).
 
+## TIER 1 COMPLETE (2026-06-18)
+All 19 `starter-first-*` + 3 starters (calculator, github-profile, portfolio-site) are rebuilt to
+the zero-knowledge executability bar and LIVE. Plus Workstream A (126-page render sweep, 20 fixed).
+Pages rebuilt this marathon (each delegate-authored -> integrity+render-QC -> Nancy+Chris dual-gate
+-> fix -> re-gate -> verify-live -> ship): portfolio-site, first-repo, github-profile, first-script,
+calculator, first-server, first-database, first-gui, first-api, first-pipeline, first-app,
+first-scan, first-container, first-network, first-firewall, first-hack, first-bot, knowledge-base,
+first-tool. (webpage/agent/workflow were done pre-marathon.) EVERY fresh page hit a real BLOCK
+before shipping — the dual-gate earned its place on all 19.
+
+**RECURRING REVIEWER FALSE ALARM (do not re-fix):** the gates flagged `&lt;x&gt;`-style HTML
+entities inside `.cf-code`/`<code>` as "critical copy-paste bugs" THREE times (first-api `<name>`,
+github-profile `&` badge URLs, first-bot `<question>`) — each WRONG. The entity in HTML SOURCE is
+what makes the displayed code correct (browser renders `&lt;x&gt;` as `<x>`; clipboard copy yields
+`<x>`). A literal `<x>` in source would be parsed as an unknown tag and vanish. Real bug = only
+`&amp;lt;`/`&amp;amp;` (double-escape). Verify with `grep -c '&amp;lt;\|&amp;amp;'` (expect 0),
+don't trust the gate's escaping intuition.
+
+**Remaining (NOT started):** Tier 2 (house-themed beginner projects) + Tier 3 (intermediate/advanced).
+~104 house project pages still on their original outcome-description content (render-clean after Workstream A).
+
 ## Progress log (newest first)
 - 2026-06-18: Marathon started. Enumerated 127 pages. Full render-QC sweep launched.
   Prior: webpage brought to tutorial standard (`b046e5768`); agent+workflow overflow fixed
