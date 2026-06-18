@@ -65,13 +65,43 @@ darkarts-recon-automation, starter-first-app, matrix-traffic-dashboard, ai-intru
 shield-ids-ml.
 
 ## Workstream B — beginner-detail uplift (prioritized)
-Tier 1 — **starter-first-\*** (the explicit beginner on-ramps, ~24 pages). Highest leverage.
-  - DONE to bar: webpage (exemplar), agent (L1-L5), workflow (L1/L2/L4; L3/L5 premium-flagged).
-  - Pending: first-app, first-api, first-bot, first-container, first-database, first-firewall,
-    first-gui, first-hack, first-network, first-pipeline, first-repo, first-scan, first-script,
-    first-server, calculator, github-profile, portfolio-site, knowledge-base, tool.
+
+### Depth audit (2026-06-18) — the gap is concrete
+Signals: # of `.cf-steps` walkthroughs / `.cf-fix` failure boxes / `.cf-code` paste blocks / words.
+- **Exemplars:** webpage = 5 steps / 2 fix / 17 code / 6,102 w; agent = 5 steps / 6,282 w;
+  workflow = 3 steps / 4,591 w.
+- **Everything else (19 starter pages + calculator/github-profile/portfolio):** **0 `.cf-steps`,
+  0 `.cf-fix`, 0 `.cf-code`, ~3,000 w.** They have the 4-5 phase cards + checkpoints but only
+  *describe the outcome* — no click-by-click steps, no paste-ready code/commands, no failure
+  modes. This is the exact "outcome-description" defect the My First audit caught on Agent L1.
+
+So Tier-1 work = give each of these the walkthrough treatment: real per-phase `.cf-steps`,
+paste-ready commands/code, `.cf-fix` boxes for the top beginner traps, full-state snapshots where
+it helps. Tools are real (git, Docker, nmap, Flask, SQLite, etc.) — commands must be verified
+(Karl-grade), not from memory.
+
+Tier 1 — **starter-first-\*** + 3 starters. DONE: webpage, agent, workflow.
+  Pending (need walkthroughs): knowledge-base, tool, first-app, first-api, first-bot,
+  first-container, first-database, first-firewall, first-gui, first-hack, first-network,
+  first-pipeline, first-repo, first-scan, first-script, first-server, calculator,
+  github-profile, portfolio-site.
 Tier 2 — house-themed beginner projects (intro-level ai/cloud/code/etc.).
 Tier 3 — intermediate/advanced house projects (detail helps, "zero-knowledge" bar relaxed).
+
+### Scale reality
+~19 Tier-1 rewrites, each comparable to the agent/webpage rebuild (multi-pass, tool-verified,
+dual-gated). This is a multi-session marathon. Approach: one page (or small batch) at a time,
+each grounded in current tool docs, each through Nancy + Chris + render-QC before deploy. No
+mass-generation without per-page verification (avoids the "advertising-flyer" failure mode).
+
+### Workstream B — completed pages
+- **starter-portfolio-site** (DONE 2026-06-18): rebuilt 805→1290 lines. 5 phases now full
+  walkthroughs (HTML skeleton w/ boilerplate, About/Skills, Projects + Contact fill-in, CSS w/
+  Google Fonts + responsive grid, GitHub Pages deploy verified vs current docs). Authored by
+  edu-content-designer (exemplar-grounded), then gated: Chris PASS; Nancy PAUSE→fixed (wrong
+  "update nav links" claim removed; `&display=swap`→valid `&amp;display=swap`; Contact placeholder
+  now filled via a real step; sticky-nav `scroll-margin-top`; Phase-3 desc mismatch). 0px overflow
+  360/390/768/1280, no JS errors. **Pattern proven: delegate authoring → hard-gate → fix → ship.**
 
 ## Progress log (newest first)
 - 2026-06-18: Marathon started. Enumerated 127 pages. Full render-QC sweep launched.
