@@ -162,3 +162,20 @@ simple code doesn't match a "real site" expectation (e.g. nav constrained to the
   project-page shell (`.cf-drafting-table`, `body::after`) per CLAUDE.md rule 5 / EduScan
   HEUR-008. Present on every project page, not introduced here — needs its own scoped review, not
   a content commit.
+
+## Render-QC sweep — Agent + Workflow pages (DONE 2026-06-18, `c083584c2`)
+
+Ran the headless overflow probe across `starter-first-agent.html` + `starter-first-workflow.html`.
+Both carried the **same `.cf-req-list li` mobile-overflow bug** the webpage had been fixed for:
+Workflow **123px @360 / 93px @390**, Agent **5px @360** (0 at ≥768 on both; JS clean; toggles
+live). Root cause: `.cf-req-list li` is `display:flex`, so its text needs `overflow-wrap:anywhere`
+to shrink below min-content (`min-width:auto` otherwise pins the flex item to min-content width).
+Added the same 4-line guard (`+ code { overflow-wrap/word-break }` for long URLs like
+`copilotstudio.microsoft.com`). Verified 0px at 360/390/768/1280 locally **and on the live prod
+URLs**.
+
+- **Generalization:** the bug class is **every case-file project page that uses `.cf-req-list`
+  with a long requirement line**. The three "My First" pages I've touched all had it; the fix
+  belongs in the **shared project-page template** (and ideally an EduScan render rule that diffs
+  `documentElement.scrollWidth` vs `clientWidth` at mobile widths). Until then, sweep the other
+  `starter-first-*` / project pages with `/tmp/qc-sweep.js` before assuming they're clean.
