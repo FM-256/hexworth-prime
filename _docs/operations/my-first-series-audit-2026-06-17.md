@@ -151,3 +151,14 @@ simple code doesn't match a "real site" expectation (e.g. nav constrained to the
   `documentElement.scrollWidth - clientWidth` (NOT vs `innerWidth`, which includes the scrollbar
   gutter) at 360/390/768/1280, plus JS-error capture and a `togglePhase`/tracker liveness probe.
   This caught a content-specific mobile overflow on this page that all text gates passed.
+- **Third pass → full tutorial standard** (`b046e5768`, Chris PASS / Nancy PROCEED): real HTML5
+  boilerplate in the skeleton (`<html lang>`, `<meta charset>`, viewport) propagated identically
+  to all four full-file snapshots; Windows 11 file-extension path (View > Show > …); Mac rename
+  leads with right-click > Rename; `.png`-vs-`.jpg` matching adjacent to the paste block + top
+  fix-list item; explicit `</div>` placement. **Snapshot-drift is the top regression risk** when a
+  page carries N full-file snapshots — any boilerplate change must hit every snapshot; the gate
+  must diff them (grep count per token).
+- **Deferred (platform-wide, not this page):** Nancy flagged `position: fixed` on the shared
+  project-page shell (`.cf-drafting-table`, `body::after`) per CLAUDE.md rule 5 / EduScan
+  HEUR-008. Present on every project page, not introduced here — needs its own scoped review, not
+  a content commit.
