@@ -99,14 +99,20 @@ to match the rebuilt level.*
 
 ## Status
 
-- **Done (My First Agent):** three context sections (`715f04754`); **L1** executable rebuild
-  (`2771bc242`, exemplar); **L2** RAG/grounding rebuild (`a985db4db`); **L3** triage rebuilt as a
-  feasible self-contained lab (`07c8d0ed1`); **L4** human-in-the-loop approval gate rebuilt
-  self-contained (`a81e1c306`) — live Power Automate flow was infeasible on a trial, so the
-  approval gate is taught in-test-panel with an honest DRY RUN. Tracked as sprint **AI-AUDIT-1**.
-- **Next:** Agent **L5** (autonomous ops — scope feasibility first; it compounds L3+L4's
-  licensing issues with multi-tool orchestration + memory, so it likely needs the same
-  Option-A self-contained treatment), then the sibling projects per the scope table.
-- **Pattern confirmed across L3 + L4:** the late levels' *premises* (live mailbox, live action
-  flow) aren't trial-executable; the fix is a self-contained in-test-panel equivalent that
-  teaches the same skill, with the real (licensed) path noted. Expect L5 + siblings to follow.
+- **DONE — My First Agent, all of L1–L5** rebuilt to the executability bar, every level
+  self-contained + trial-feasible: 3 context sections (`715f04754`); **L1** create+ground on an
+  inline FAQ (`2771bc242`, exemplar); **L2** RAG/grounding, 2nd inline doc + real grounding
+  controls (`a985db4db`); **L3** triage of an inline sample inbox, can't-send-by-design
+  (`07c8d0ed1`); **L4** human-in-the-loop approval gate, propose→approve/deny→DRY RUN
+  (`a81e1c306`); **L5** capstone governed daily-ops run orchestrating L1–L4 + action log
+  (`e91ffdb56`). Tracked as sprint **AI-AUDIT-1**.
+- **Next:** the **sibling projects** per the scope table — `starter-first-workflow`,
+  `starter-first-knowledge-base`, `starter-first-tool`, then `ai-build-your-department`
+  (capstone). Apply the same method; scope each level's feasibility first.
+- **Pattern confirmed across L3+L4+L5:** the late levels' *premises* (live mailbox, live action
+  flow, autonomous/triggered ops) aren't trial-executable. The fix is a self-contained
+  in-test-panel equivalent that teaches the same skill (triage / approval gate / orchestration +
+  governance), with the real licensed/triggered path noted as "in the real world." Expect the
+  sibling projects (Workflow especially — Power Automate-heavy) to need the same treatment.
+- **Also confirmed:** rebuilding a level means sweeping page-wide sections too (Requirements,
+  Asset Manifest, cross-level notes) — every late-level gate caught a stale reference there.
