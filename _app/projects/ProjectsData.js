@@ -140,7 +140,7 @@ const ProjectsData = {
     // -------------------------------------------------------------------------
     projects: [
         // ── "My First..." Starter Series (18 projects) ──
-        { id: 'starter-first-webpage',   house: 'web',        title: 'My First Web Page',    description: 'Create your very first web page from scratch using HTML and CSS.',                                    difficulty: 'recruit', minutes: 30, xp: 250, phases: 4, careerRoles: ['software-developer'] },
+        { id: 'starter-first-webpage',   house: 'web',        title: 'My First Web Page',    description: 'Create your very first web page from scratch with HTML and CSS — including how to add your own image and get the file path right.', difficulty: 'recruit', minutes: 45, xp: 250, phases: 5, careerRoles: ['software-developer'] },
         { id: 'starter-first-app',       house: 'code',       title: 'My First App',         description: 'Build your first Python application — a personal quiz game that asks questions and keeps score.',     difficulty: 'recruit', minutes: 30, xp: 250, phases: 4, careerRoles: ['software-developer'] },
         { id: 'starter-first-gui',       house: 'code',       title: 'My First GUI',         description: 'Build your first graphical application using Python and tkinter — a click counter with buttons.',     difficulty: 'recruit', minutes: 45, xp: 250, phases: 4, careerRoles: ['software-developer'] },
         { id: 'starter-first-api',       house: 'code',       title: 'My First API',         description: 'Build your first web API with Python and Flask — create endpoints that return data and accept input.',difficulty: 'recruit', minutes: 30, xp: 250, phases: 4, careerRoles: ['software-developer'] },
