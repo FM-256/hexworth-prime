@@ -101,7 +101,12 @@ to match the rebuilt level.*
 
 - **Done (My First Agent):** three context sections (`715f04754`); **L1** executable rebuild
   (`2771bc242`, exemplar); **L2** RAG/grounding rebuild (`a985db4db`); **L3** triage rebuilt as a
-  feasible self-contained lab (`07c8d0ed1`). Tracked as sprint **AI-AUDIT-1**.
-- **Next:** Agent **L4** (scope feasibility first — Power Automate approval flow likely needs a
-  licensed env/capacity; may need an Option-A-style self-contained shape) and **L5**, then the
-  sibling projects per the scope table.
+  feasible self-contained lab (`07c8d0ed1`); **L4** human-in-the-loop approval gate rebuilt
+  self-contained (`a81e1c306`) — live Power Automate flow was infeasible on a trial, so the
+  approval gate is taught in-test-panel with an honest DRY RUN. Tracked as sprint **AI-AUDIT-1**.
+- **Next:** Agent **L5** (autonomous ops — scope feasibility first; it compounds L3+L4's
+  licensing issues with multi-tool orchestration + memory, so it likely needs the same
+  Option-A self-contained treatment), then the sibling projects per the scope table.
+- **Pattern confirmed across L3 + L4:** the late levels' *premises* (live mailbox, live action
+  flow) aren't trial-executable; the fix is a self-contained in-test-panel equivalent that
+  teaches the same skill, with the real (licensed) path noted. Expect L5 + siblings to follow.
