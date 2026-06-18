@@ -75,8 +75,33 @@ Per-level checklist (apply to every level of every project above):
 - Operator's live tool session is the highest-fidelity ground truth — request screenshots when a
   current screen is ambiguous.
 
+## Feasibility finding (Level 3) — a level's *premise* can be broken, not just its wording
+
+Level 3 ("Inbox Agent") was scoped before rebuild and found **infeasible as specified** on a
+trial/student tenant: connecting a live mailbox needs the Office 365 Outlook connector + Entra
+auth + a Power Automate agent flow (consumes Copilot Studio **capacity**) + publish — none
+available on the create+test trial — plus it leaned on a non-existent "sample inbox." Rebuilt as
+**Option A** (operator-approved): a self-contained in-test-panel triage (paste a provided sample
+inbox, agent classifies + drafts, can't send because no connector is attached). The real-world
+connector path is noted, not required.
+
+**Lesson for the rest of the audit:** when a level's setup depends on connectors / live data /
+publish / capacity, check whether it's executable on a trial *before* polishing the steps — the
+fix may be to **change the scenario to a self-contained equivalent** that teaches the same skill,
+not to rewrite an impossible setup. **L4 (Power Automate approval flow) is the next likely
+feasibility problem** (agent flows consume capacity / need a licensed env).
+
+**Second cross-cutting lesson (from L3 gate):** rebuilding a level isn't just the level card —
+sweep the page-wide sections too. The L3 rebuild initially missed a stale **Asset Manifest**
+entry ("Microsoft Graph (L3)") and a **Requirements** line capping the trial at "Levels 1–2."
+Add to the per-level checklist: *update the Asset Manifest, Requirements, and Expected Outcomes
+to match the rebuilt level.*
+
 ## Status
 
-- **Done:** My First Agent — three context sections (`715f04754`) + Level 1 executable rebuild
-  (`2771bc242`, exemplar). Tracked as sprint **AI-AUDIT-1**.
-- **Next:** Agent L2–L5, then siblings per the table.
+- **Done (My First Agent):** three context sections (`715f04754`); **L1** executable rebuild
+  (`2771bc242`, exemplar); **L2** RAG/grounding rebuild (`a985db4db`); **L3** triage rebuilt as a
+  feasible self-contained lab (`07c8d0ed1`). Tracked as sprint **AI-AUDIT-1**.
+- **Next:** Agent **L4** (scope feasibility first — Power Automate approval flow likely needs a
+  licensed env/capacity; may need an Option-A-style self-contained shape) and **L5**, then the
+  sibling projects per the scope table.
