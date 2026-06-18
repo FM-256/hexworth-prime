@@ -129,3 +129,25 @@ to match the rebuilt level.*
   sibling projects (Workflow especially — Power Automate-heavy) to need the same treatment.
 - **Also confirmed:** rebuilding a level means sweeping page-wide sections too (Requirements,
   Asset Manifest, cross-level notes) — every late-level gate caught a stale reference there.
+
+## My First Web Page — rebuilt to the zero-knowledge bar (DONE 2026-06-18)
+
+Operator found `starter-first-webpage.html` "way too vague" (students confused about image paths).
+Expanded 4→5 phases (dedicated image/paths phase), then operator's bar: "can a person with ZERO
+code knowledge complete it?" Two ruthless reviews (Nancy + Chris) both said **NO** on the first
+expansion; rebuilt against their consensus blocker list and re-gated to **Chris PASS / Nancy
+resolved**. Shipped `332be6dfe`.
+
+Consensus blockers that a zero-knowledge learner needs (reusable checklist for the remaining
+beginner pages): per-phase **full-file snapshots** (no whole-file mental model otherwise); a
+**head/body model + a physical "type here" marker**; **OS-level file ops** (make folder, create
+file via the editor's New-File icon, copy/rename a photo, no double extension); **iPhone .heic**
+warning; **CSS-rules-stack** explainer up front; **before/after** for structural wraps;
+**file-extensions-on before naming**; **define "refresh"** at first use; honest caveats where the
+simple code doesn't match a "real site" expectation (e.g. nav constrained to the body column).
+
+- **QC lesson (reusable):** for content/render-heavy pages, the Nancy+Chris *text* gates miss
+  *render* bugs. Add a **headless puppeteer render check** — true horizontal-overflow =
+  `documentElement.scrollWidth - clientWidth` (NOT vs `innerWidth`, which includes the scrollbar
+  gutter) at 360/390/768/1280, plus JS-error capture and a `togglePhase`/tracker liveness probe.
+  This caught a content-specific mobile overflow on this page that all text gates passed.
