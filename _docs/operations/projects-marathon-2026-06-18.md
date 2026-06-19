@@ -192,8 +192,33 @@ background layer was flagged on the hardware pages — but `body.style.filter` i
 anywhere (not in any project page, not in AccessGuard), so HEUR-008 is inert; the pattern is
 identical across all shipped project pages incl. the starter-first-webpage exemplar. Left as-is.
 
-**Remaining (NOT started):** Tier 2 (house-themed beginner projects) + Tier 3 (intermediate/advanced).
-~94 house project pages still on their original outcome-description content (render-clean after Workstream A).
+## WEB HOUSE COMPLETE (2026-06-18)
+All 6 `web-*` projects rebuilt to the zero-knowledge bar and LIVE. These are intermediate
+"build a real app" projects — same executability bar, with HONEST stated prerequisites
+(Node/MongoDB/Python/a LAN host). Run in 2 deploy batches; each smoke gate 10 PASS / 0 FAIL.
+Loop per page: delegate-author (grounded against LIVE vendor docs) -> integrity + god-mode
+render-QC -> Nancy + Chris dual-gate -> fix -> lean re-gate -> verify-live -> ship. EVERY page
+hit a real BLOCK/PROCEED-WITH-FIXES on domain accuracy — the dual-gate earned its keep again.
+
+Wave 1 (frontend/browser, commits 7112405a8 / db95cac85 / b81d0a81e):
+1. web-online-portfolio — HTML/CSS/JS portfolio (theme toggle, parallax, IntersectionObserver). Fixes: added the promised full-file snapshots to phases 3-5; real CSS cascade bug (prefers-reduced-motion hover not suppressed) reordered to win; honest no-backend contact form.
+2. web-topology-visualizer — Canvas 2D network viz (pan/zoom/drag, animated traffic, force layout, PNG export). Core coord math was correct; fixes: geometric-cooling comment, .dragging class actually added, dead gradient code removed, impossible "clearRect race" .cf-fix rewritten.
+3. web-react-router — REAL React+Vite+React Router product site. Verified LIVE: React Router's package is now `react-router` (NOT react-router-dom), v8. Fixes: full Navbar.jsx snapshot (was a partial that would destroy components), Router-context .cf-fix, correct styled-components dev/prod note (SWC not Babel for Vite).
+
+Wave 2 (backend/server, commit 21b0348e1):
+4. web-rest-api — Node/Express 4.x/MongoDB(Mongoose 9)/JWT/multer, curl-tested. Prereq: free MongoDB Atlas M0. Fixes: harmonized duplicate-email message so checkpoint matches code, Atlas URI DB name, Windows cmd.exe curl .cf-fix, rejected-upload 400-not-500.
+5. web-elearning-flask — Flask 3.1/Flask-SQLAlchemy(SQLite, modern SQLAlchemy 2.x)/Flask-Login. Fixes: closed an OPEN REDIRECT in the login `next` param (urlparse netloc validation), checkpoint course count, navbar aria attrs, N+1 caveat.
+6. web-pi-network-probe — Python probe (ping sweep, socket port check, SQLite uptime, Flask dashboard, alerts). Prereq: any Python 3 LAN host (Pi optional) + up-front ethics notice. Fixes: macOS `ping -W` is MILLISECONDS (verified ss64) so the shared Linux/Mac `-W 1` made every host show DOWN on a Mac -> split into Windows/Darwin(`-W 2000`)/Linux branches; rewrote a Phase-5 alert test that couldn't fire (in-memory previous_state); added PRAGMA journal_mode=WAL for the concurrent writer+reader.
+
+**Pattern note for the remaining houses:** these intermediate projects carry MORE domain-accuracy
+risk than the starters (live-drifting library APIs, OS-specific CLI flags, auth/DB/security). The
+"ground against LIVE docs via WebFetch in the authoring prompt" + "Nancy verifies the high-stakes
+version/API claim herself" approach caught: the react-router package rename, the macOS ping-flag
+unit, an open-redirect, and several checkpoint-vs-code mismatches. Keep doing both.
+
+**Remaining (NOT started):** Tier 2/3 across ai, cloud, darkarts, divergent, eye, forge, key,
+matrix, script, shield. ~88 house project pages still on their original outcome-description content
+(render-clean after Workstream A).
 
 ## Progress log (newest first)
 - 2026-06-18: Marathon started. Enumerated 127 pages. Full render-QC sweep launched.
