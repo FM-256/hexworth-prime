@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CASE FILE: Auto-Summarize Videos with Python | Hexworth Prime</title>
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -113,34 +115,20 @@
         .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
         .cf-evidence-desc code { color: #c4b5fd; background: rgba(167, 139, 250, 0.12); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
 
-        /* ── Phase Progress Tracking ── */
-        .cf-evidence-card.phase-done {
-            border-color: rgba(74, 222, 128, 0.25);
-            background: rgba(74, 222, 128, 0.03);
-        }
-        .cf-evidence-card.phase-done .cf-evidence-marker {
-            background: rgba(74, 222, 128, 0.2);
-            border-color: #4ade80;
-            color: #4ade80;
-        }
-        .cf-evidence-card.phase-done .cf-evidence-title {
-            color: rgba(74, 222, 128, 0.9);
-        }
-        .phase-check {
-            position: absolute; top: 12px; right: 12px;
-            width: 24px; height: 24px; border-radius: 4px;
-            border: 2px solid rgba(255,255,255,0.15);
-            background: transparent; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px; color: transparent; transition: all 0.2s;
-        }
+        .cf-evidence-card.phase-done { border-color: rgba(74, 222, 128, 0.25); background: rgba(74, 222, 128, 0.03); }
+        .cf-evidence-card.phase-done .cf-evidence-marker { background: rgba(74, 222, 128, 0.2); border-color: #4ade80; color: #4ade80; }
+        .cf-evidence-card.phase-done .cf-evidence-title { color: rgba(74, 222, 128, 0.9); }
+
+        .phase-check { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.15); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: transparent; transition: all 0.2s; }
         .phase-check:hover { border-color: rgba(74,222,128,0.5); background: rgba(74,222,128,0.05); }
         .phase-check.checked { border-color: #4ade80; background: rgba(74,222,128,0.15); color: #4ade80; }
-        .phase-progress {
-            display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
-            padding: 10px 14px; background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.06); border-radius: 6px;
-        }
+
+        .phase-checkpoint { margin-top: 14px; padding: 12px 14px; background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.15); border-left: 3px solid #06b6d4; border-radius: 4px; }
+        .phase-checkpoint-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #06b6d4; margin-bottom: 6px; }
+        .phase-checkpoint-text { font-size: 0.82rem; color: rgba(255,255,255,0.55); line-height: 1.6; }
+        .phase-checkpoint code { background: rgba(6, 182, 212, 0.1); color: #22d3ee; padding: 1px 5px; border-radius: 2px; font-size: 0.8rem; }
+
+        .phase-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 10px 14px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; }
         .phase-progress-label { font-size: 0.75rem; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
         .phase-progress-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
         .phase-progress-fill { height: 100%; background: linear-gradient(90deg, #4ade80, #22d3ee); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
@@ -166,6 +154,35 @@
         .cf-training-card .tc-district { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #a78bfa; opacity: 0.8; }
         .cf-training-card .tc-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
         .cf-training-card .tc-type { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Step-by-step walkthrough */
+        .cf-steps { counter-reset: step; list-style: none; margin: 12px 0 0; display: flex; flex-direction: column; gap: 12px; }
+        .cf-steps > li { position: relative; padding-left: 36px; font-size: 0.9rem; line-height: 1.7; color: rgba(255,255,255,0.64); }
+        .cf-steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 1px; width: 23px; height: 23px; border-radius: 50%; background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.5); color: #c4b5fd; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; }
+        .cf-steps b { color: rgba(255,255,255,0.86); }
+        .cf-steps code, .cf-evidence-desc code, .phase-checkpoint-text code { color: #c4b5fd; background: rgba(167,139,250,0.12); padding: 1px 5px; border-radius: 2px; font-size: 0.82rem; }
+        /* Paste-ready code block */
+        .cf-code { margin: 8px 0 2px; padding: 12px 14px; background: rgba(2,2,16,0.6); border: 1px solid rgba(167,139,250,0.22); border-radius: 5px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #cbd5e1; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+        /* Why note */
+        .cf-step-note { margin-top: 8px; font-size: 0.82rem; line-height: 1.6; color: rgba(255,255,255,0.55); padding: 8px 12px; background: rgba(167,139,250,0.06); border-left: 3px solid rgba(167,139,250,0.5); border-radius: 4px; }
+        .cf-step-note b { color: #c4b5fd; }
+        /* Troubleshooting box */
+        .cf-fix { margin-top: 10px; padding: 10px 14px; background: rgba(248,113,113,0.06); border-left: 3px solid rgba(248,113,113,0.55); border-radius: 4px; font-size: 0.82rem; color: rgba(255,255,255,0.6); line-height: 1.6; }
+        .cf-fix b { color: #fca5a5; }
+        .cf-fix ul { margin: 6px 0 0; padding-left: 18px; }
+        .cf-fix li { margin-bottom: 5px; }
+
+        /* Caveat / honest-warning box */
+        .cf-caveat { margin-top: 14px; padding: 12px 14px; background: rgba(250,204,21,0.05); border: 1px solid rgba(250,204,21,0.18); border-left: 3px solid rgba(250,204,21,0.55); border-radius: 4px; font-size: 0.82rem; color: rgba(255,255,255,0.6); line-height: 1.65; }
+        .cf-caveat b { color: #fde68a; }
+
+        /* Overflow guard */
+        .cf-evidence-body { min-width: 0; overflow-wrap: anywhere; }
+        .cf-req-list li, .cf-req-list li * { overflow-wrap: anywhere; min-width: 0; }
+        code { overflow-wrap: anywhere; word-break: break-word; }
+        .cf-code, pre { overflow-x: auto; }
+        .cf-manifest-item { overflow-wrap: anywhere; min-width: 0; }
+        .cf-debrief-list li, .cf-debrief-list li * { overflow-wrap: anywhere; min-width: 0; }
 
         @media (max-width: 640px) {
             .cf-content { padding: 24px 16px 60px; }
@@ -225,24 +242,28 @@
                 <p>
                     A one-hour YouTube lecture contains the same information as a five-paragraph summary &mdash;
                     the gap is the pipeline to extract it. This project builds that pipeline in Python from first
-                    principles: pull the transcript via the <code>youtube-transcript-api</code> library, process
-                    the raw text through <code>nltk</code>'s tokenization and stopword filtering, score every
-                    sentence by its term frequency weight, and select the top-N sentences that carry the highest
-                    informational density. No LLM call, no API key, no cost per summary.
+                    principles: pull the public caption transcript via the <code>youtube-transcript-api</code>
+                    library (no API key, no YouTube account required), process the raw text through
+                    <code>nltk</code>'s tokenization and stopword filtering, score every sentence by its
+                    term-frequency weight, and select the top-N sentences that carry the highest informational
+                    density. The result is printed to your terminal and saved as a text file.
                 </p>
                 <p>
-                    The NLP core works through a frequency-based extractive approach. Sentences are tokenized
-                    with <code>nltk.sent_tokenize()</code>, words are lowercased and stripped of stopwords
-                    using <code>nltk.corpus.stopwords.words('english')</code>, and a word frequency dictionary
-                    is built from the remaining tokens. Each sentence receives a score equal to the sum of its
-                    constituent word frequencies. The top-scoring sentences, re-ordered by their original
-                    position in the transcript, form the final summary.
+                    This is an <strong>extractive</strong> summary, not an AI-generated or abstractive one.
+                    The tool does not write new sentences or paraphrase anything. It ranks existing sentences
+                    from the transcript by how many high-frequency content words they contain, then returns
+                    the top scorers in their original order. The output reads naturally because the sentences
+                    are verbatim from the video &mdash; but understand that what you get is a selection, not
+                    a rewrite. A sentence the speaker considered a throwaway aside might outscore a nuanced
+                    argument if it happens to repeat key terms more often.
                 </p>
                 <p>
-                    Beyond the core algorithm, this project adds a configurable summary length parameter,
-                    a word-cloud visualization of dominant terms using <code>wordcloud</code>, and a command-line
-                    interface so the tool can be run on any YouTube URL from the terminal. The result is a
-                    reusable research accelerator that saves hours when ingesting video content at scale.
+                    Beyond the core algorithm, this project adds a word-cloud PNG of dominant terms using
+                    <code>wordcloud</code> and a command-line interface so the tool runs on any YouTube URL
+                    from the terminal. By the end you will have a single script,
+                    <code>summarizer.py</code>, that accepts a URL, prints the summary, and writes
+                    <code>wordcloud.png</code> to disk &mdash; a reusable research accelerator you can
+                    run on any captioned video.
                 </p>
             </div>
         </div>
@@ -251,19 +272,25 @@
         <div class="cf-paper has-tape">
             <div class="cf-section-stamp">Agent Requirements</div>
             <ul class="cf-req-list">
-                <li>Comfortable writing Python functions and working with dictionaries, lists, and string methods</li>
-                <li>Understand what a Python virtual environment is and how to activate one</li>
-                <li>Familiar with pip for package installation</li>
-                <li>No prior NLP or natural language processing experience required &mdash; all concepts are introduced step by step</li>
-                <li>Internet access required to fetch transcripts from the YouTube Data API</li>
+                <li><strong>Python 3.x installed</strong> &mdash; download the installer from <strong>python.org/downloads</strong> (choose the latest stable release). After installing, open a terminal and run <code>python --version</code> or <code>python3 --version</code> to confirm it prints a version number. On Windows, also confirm <code>pip --version</code> works.</li>
+                <li>A <strong>terminal</strong> you are comfortable typing in: PowerShell or Command Prompt on Windows, Terminal on Mac, any shell on Linux. Every command in this project is shown exactly as you type it.</li>
+                <li>A <strong>text editor</strong> for creating a single Python file. VS Code (code.visualstudio.com) is recommended but any plain-text editor works.</li>
+                <li>Comfortable writing Python functions and working with lists, dictionaries, and string methods. No prior NLP or natural language processing experience required &mdash; all concepts are introduced inline.</li>
+                <li><strong>No YouTube account, no Google account, no API key.</strong> The library fetches the same public captions a viewer would read. It does not use the YouTube Data API.</li>
+                <li><strong>Internet access</strong> during the transcript-fetch step. NLTK resource downloads also require internet access once, during setup.</li>
             </ul>
+
+            <div class="cf-caveat" style="margin-top: 20px;">
+                <b>Two honest caveats before you start.</b><br>
+                (1) <b>Not every video has a transcript.</b> The tool only works when the video has captions available &mdash; either human-uploaded subtitles or auto-generated captions that YouTube has made accessible. Many videos have captions disabled, are in a language the library cannot retrieve, or are too short to have been captioned. Phase 1 shows you how the tool handles this gracefully with a plain-language error message instead of a crash.<br><br>
+                (2) <b>This is extractive, not AI-generated.</b> The algorithm picks the highest-scoring sentences that already exist in the transcript. It cannot synthesize an idea that spans multiple sentences, catch irony, or understand context. For dense academic lectures it works well. For casual conversational videos where the speaker circles back repeatedly, the top-scored sentences may feel repetitive.
+            </div>
         </div>
 
         <!-- Operation Phases -->
         <div class="cf-paper">
             <div class="cf-section-stamp">Operation Phases</div>
-            
-            <!-- Phase progress tracker -->
+
             <div class="phase-progress">
                 <span class="phase-progress-label">Progress</span>
                 <div class="phase-progress-bar"><div class="phase-progress-fill" id="phaseProgressFill"></div></div>
@@ -272,131 +299,1222 @@
 
             <div class="cf-evidence-board">
 
+                <!-- ── Phase 1 ── -->
                 <div class="cf-evidence-card" id="phase-1">
                     <div class="phase-check" onclick="togglePhase(1)" id="check-1">&#10003;</div>
                     <div class="cf-evidence-marker">1</div>
                     <div class="cf-evidence-body">
-                        <div class="cf-evidence-title">Transcript Extraction via youtube-transcript-api</div>
+                        <div class="cf-evidence-title">Environment Setup &amp; Transcript Extraction</div>
                         <div class="cf-evidence-desc">
-                            Parse the YouTube video ID from a URL using regex or
-                            <code>urllib.parse.parse_qs()</code>. Call
-                            <code>YouTubeTranscriptApi.get_transcript(video_id)</code> to retrieve the raw
-                            caption list. Join all text segments into a single string and handle
-                            <code>TranscriptsDisabled</code> and <code>NoTranscriptFound</code> exceptions
-                            with informative error messages.
+                            Create a virtual environment so the packages you install here do not collide with
+                            anything else on your machine. Install <code>youtube-transcript-api</code>, then
+                            write the transcript-fetching function. The library requires a raw video ID, not a
+                            full URL, so you will also write a helper that extracts the ID from any standard
+                            YouTube URL format. At the end of this phase you will have a script that prints the
+                            first 500 characters of a video's transcript to your terminal.
                         </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Environment Setup</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li>Verify <code>ffmpeg</code> is installed with <code>ffmpeg -version</code></li>
-                                <li>Confirm Python libraries (<code>moviepy</code>, <code>whisper</code>, or equivalent) are installed</li>
-                                <li>Test with a short sample video and verify the script loads it without errors</li>
+                        <ol class="cf-steps">
+                            <li><b>Create your project folder and move into it.</b>
+                                <div class="cf-code">mkdir video-summarizer
+cd video-summarizer</div>
+                                <div class="cf-step-note"><b>Windows note:</b> <code>mkdir</code> and <code>cd</code> work identically in PowerShell and Command Prompt.</div>
+                            </li>
+                            <li><b>Create and activate a virtual environment.</b> A venv is an isolated Python installation inside your project folder. Packages you install here do not affect your system Python.
+                                <div class="cf-code"># Create the virtual environment (run this once):
+python -m venv venv
+
+# Activate it — Mac / Linux:
+source venv/bin/activate
+
+# Activate it — Windows PowerShell:
+venv\Scripts\activate</div>
+                                <div class="cf-step-note">After activation your terminal prompt changes to show <code>(venv)</code> at the start, like <code>(venv) C:\Users\you\video-summarizer&gt;</code>. That prefix confirms you are inside the venv. Every pip install command from this point forward goes into the venv, not your system Python.</div>
+                            </li>
+                            <li><b>Install the transcript library.</b>
+                                <div class="cf-code">pip install youtube-transcript-api</div>
+                                <div class="cf-step-note">This installs <code>youtube-transcript-api</code> 1.x. The 1.x line switched from a static API to an instance-based API. The code in this project uses the current 1.x style throughout &mdash; specifically the <code>YouTubeTranscriptApi().fetch(video_id)</code> pattern. If you ever inherit older code that calls <code>YouTubeTranscriptApi.get_transcript()</code> without parentheses on the class, that is the pre-1.0 static style and it will fail on this version.</div>
+                            </li>
+                            <li><b>Create <code>summarizer.py</code> in your project folder.</b> Open VS Code (<code>code .</code>) or any text editor. Create a new file named <code>summarizer.py</code> and paste this Phase 1 version of the complete script:
+                                <div class="cf-code">"""
+summarizer.py  --  Phase 1: transcript extraction
+youtube-transcript-api 1.x  (instance-based API, verified 2026)
+"""
+
+import re
+import urllib.parse
+
+from youtube_transcript_api import (
+    YouTubeTranscriptApi,
+    TranscriptsDisabled,
+    NoTranscriptFound,
+    VideoUnavailable,
+    CouldNotRetrieveTranscript,
+)
+
+
+# ---------------------------------------------------------------------------
+# Helper: extract a video ID from any standard YouTube URL, or return the
+# input unchanged if it looks like a bare ID already.
+# ---------------------------------------------------------------------------
+def extract_video_id(url_or_id: str) -&gt; str | None:
+    """
+    Accepts:
+      https://www.youtube.com/watch?v=dQw4w9WgXcQ
+      https://youtu.be/dQw4w9WgXcQ
+      https://www.youtube.com/embed/dQw4w9WgXcQ
+      dQw4w9WgXcQ   (bare ID, passed through unchanged)
+    Returns the 11-character video ID string, or None if no valid ID found.
+    """
+    url_or_id = url_or_id.strip()
+
+    # youtu.be short links
+    short = re.match(r'youtu\.be/([A-Za-z0-9_-]{11})', url_or_id)
+    if short:
+        return short.group(1)
+
+    # /embed/ links
+    embed = re.match(r'youtube\.com/embed/([A-Za-z0-9_-]{11})', url_or_id)
+    if embed:
+        return embed.group(1)
+
+    # Standard watch?v= links (works for both http and https)
+    parsed = urllib.parse.urlparse(url_or_id)
+    if parsed.query:
+        params = urllib.parse.parse_qs(parsed.query)
+        if 'v' in params:
+            return params['v'][0]
+
+    # If the input looks like a bare 11-character video ID, accept it.
+    if re.match(r'^[A-Za-z0-9_-]{11}$', url_or_id):
+        return url_or_id
+
+    # Nothing matched -- print a clear message and return None.
+    print("[ERROR] Could not find a valid YouTube video ID in that input.")
+    print("        Make sure it is a single video URL like")
+    print("          https://www.youtube.com/watch?v=VIDEOID")
+    print("        or a bare 11-character ID, not a playlist or channel link.")
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Core: fetch the full transcript text for a given video ID.
+# Returns a plain string (all snippet texts joined with spaces).
+# Returns None and prints a plain-language message on any retrieval error.
+# ---------------------------------------------------------------------------
+def get_transcript(video_id: str) -&gt; str | None:
+    """
+    Uses the instance-based API introduced in youtube-transcript-api 1.0.
+    The returned FetchedTranscript is iterable; each snippet has a .text
+    attribute containing the caption text for that time segment.
+    """
+    try:
+        api = YouTubeTranscriptApi()
+        fetched = api.fetch(video_id)
+        # Join all snippet texts into one continuous string.
+        full_text = ' '.join(snippet.text for snippet in fetched)
+        return full_text
+
+    except TranscriptsDisabled:
+        print(f"[ERROR] The owner of video '{video_id}' has disabled captions.")
+        print("        This tool only works on videos with captions available.")
+        return None
+
+    except NoTranscriptFound:
+        print(f"[ERROR] No transcript was found for video '{video_id}'.")
+        print("        The video may not have captions in any language, or")
+        print("        only auto-generated captions in a non-default language.")
+        return None
+
+    except VideoUnavailable:
+        print(f"[ERROR] Video '{video_id}' is unavailable.")
+        print("        It may be private, deleted, or region-restricted.")
+        return None
+
+    except CouldNotRetrieveTranscript as e:
+        print(f"[ERROR] Could not retrieve transcript: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Entry point for Phase 1 testing only.
+# Replace the URL below with any captioned YouTube video.
+# A good test video: TED talks almost always have captions.
+# ---------------------------------------------------------------------------
+if __name__ == '__main__':
+    test_url = 'https://www.youtube.com/watch?v=8jPQjjsBbIc'
+    video_id = extract_video_id(test_url)
+    if video_id is None:
+        raise SystemExit(1)
+    print(f"Video ID: {video_id}")
+
+    text = get_transcript(video_id)
+    if text:
+        print(f"Transcript length: {len(text)} characters")
+        print("--- First 500 characters ---")
+        print(text[:500])</div>
+                                <div class="cf-step-note"><b>Why <code>str | None</code> as the return type?</b> The function either succeeds and returns the full transcript string, or it encounters an error, prints a message, and returns <code>None</code>. Every caller checks for <code>None</code> before proceeding &mdash; including the <code>if video_id is None</code> guard right after the call to <code>extract_video_id</code>. This is the standard Python pattern for "failed gracefully" &mdash; you never get a raw exception stack trace in the user's face.</div>
+                            </li>
+                            <li><b>Run the script.</b> Make sure your venv is still active (you see <code>(venv)</code> in the prompt), then:
+                                <div class="cf-code">python summarizer.py</div>
+                                Expected output for a video that has captions:
+                                <div class="cf-code">Video ID: 8jPQjjsBbIc
+Transcript length: 14823 characters
+--- First 500 characters ---
+[Music] welcome to this talk where today we'll
+be exploring one of the most fundamental questions in
+modern computing how machines learn from data ...</div>
+                                <div class="cf-step-note">The exact text depends on the video. The character count and first words will differ. What matters is that you see a video ID printed, a character count above zero, and actual readable words from the transcript. If you see <code>[ERROR]</code>, read the message &mdash; it will tell you whether captions are disabled, the video is unavailable, or some other issue occurred. Try a different video URL if needed.</div>
+                            </li>
+                        </ol>
+
+                        <div class="cf-fix"><b>ModuleNotFoundError: No module named 'youtube_transcript_api'</b>
+                            <ul>
+                                <li>Your virtual environment is not activated. Look at your terminal prompt &mdash; does it start with <code>(venv)</code>? If not, run <code>source venv/bin/activate</code> (Mac/Linux) or <code>venv\Scripts\activate</code> (Windows), then run the script again.</li>
+                                <li>On Windows, if <code>venv\Scripts\activate</code> gives a security error, run <code>Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned</code> in PowerShell first, then try activating again.</li>
                             </ul>
+                        </div>
+
+                        <div class="cf-fix"><b>AttributeError: 'YouTubeTranscriptApi' object has no attribute 'fetch' (or: 'get_transcript' takes no arguments)</b>
+                            <ul>
+                                <li>You have an older pre-1.0 version of the library installed. Run <code>pip install --upgrade youtube-transcript-api</code> to get the current version, then run the script again.</li>
+                                <li>Verify the installed version with <code>pip show youtube-transcript-api</code>. The Version line should be 1.0 or higher.</li>
+                            </ul>
+                        </div>
+
+                        <div class="cf-fix"><b>The script prints [ERROR] for every video I try</b>
+                            <ul>
+                                <li>Not all videos have captions. Try a TED talk (ted.com videos are on YouTube with manual captions) or a Google developer talk. You can confirm a video has captions by opening it in a browser and checking whether the CC button is available in the player controls.</li>
+                                <li>If you see <code>IpBlocked</code> or <code>RequestBlocked</code> in the error output, your IP address has been temporarily rate-limited by YouTube. Wait a few minutes and try again, or try from a different network.</li>
+                                <li><b>AgeRestricted:</b> the video requires a logged-in account to verify age. The library cannot access age-restricted videos without authentication. Use a different, unrestricted video.</li>
+                                <li><b>PoTokenRequired:</b> YouTube's bot-detection has flagged the request and is requiring a proof-of-origin token that the library cannot supply automatically. This usually clears on its own &mdash; wait a few minutes or try from a different network. If it persists, use a different video.</li>
+                            </ul>
+                        </div>
+
+                        <div class="cf-fix"><b>[ERROR] Could not find a valid YouTube video ID in that input</b> The URL you passed is not a single-video link. Common causes:
+                            <ul>
+                                <li><b>Playlist URL</b> &mdash; a URL containing <code>&amp;list=</code> but no <code>?v=</code> (e.g. a playlist page where no individual video is selected). Open the playlist, click any video so the URL gains a <code>?v=</code> parameter, and use that URL instead.</li>
+                                <li><b>Channel or handle URL</b> &mdash; e.g. <code>https://www.youtube.com/@channelname</code>. Navigate to a specific video page and use that URL.</li>
+                                <li><b>YouTube Shorts URL</b> &mdash; e.g. <code>https://www.youtube.com/shorts/VIDEOID</code>. Shorts are not supported by the URL patterns above. Copy just the 11-character ID from the URL and pass it directly: <code>python summarizer.py --url VIDEOID</code>.</li>
+                            </ul>
+                        </div>
+
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">Your terminal prints a video ID, a character count greater than zero, and the first 500 characters of readable transcript text. The <code>video-summarizer/</code> folder contains <code>venv/</code> and <code>summarizer.py</code>. No summary logic exists yet &mdash; that starts in Phase 2.</div>
                         </div>
                     </div>
                 </div>
 
+                <!-- ── Phase 2 ── -->
                 <div class="cf-evidence-card" id="phase-2">
                     <div class="phase-check" onclick="togglePhase(2)" id="check-2">&#10003;</div>
                     <div class="cf-evidence-marker">2</div>
                     <div class="cf-evidence-body">
                         <div class="cf-evidence-title">Text Preprocessing with NLTK</div>
                         <div class="cf-evidence-desc">
-                            Download required NLTK data packages (<code>punkt</code>, <code>stopwords</code>)
-                            once at startup. Split the transcript into sentences using
-                            <code>nltk.sent_tokenize()</code>. Tokenize each sentence into words with
-                            <code>nltk.word_tokenize()</code>, lowercase all tokens, and filter out
-                            stopwords and punctuation to produce a clean word list for frequency analysis.
+                            Install NLTK, download the required language resources, and write the preprocessing
+                            function that turns the raw transcript string into two things: a list of sentences
+                            (for scoring) and a flat list of clean words (for building the frequency dictionary).
+                            At the end of this phase you will see a count of sentences found and the first
+                            ten clean tokens from the transcript.
+                        </div>
+                        <div class="cf-step-note"><b>What NLTK resources are required?</b> NLTK separates the library (installed via pip) from its language models (downloaded separately). For this project you need two resources: <code>punkt_tab</code> for sentence and word tokenization, and <code>stopwords</code> for the English stop-word list. The resource name changed from <code>punkt</code> to <code>punkt_tab</code> in NLTK 3.9 (August 2024) as part of a security update that replaced pickled models with a safer pickle-free format. If you use the old name <code>punkt</code> on NLTK 3.9+, you get a <code>LookupError</code>. Use <code>punkt_tab</code>.</div>
+                        <ol class="cf-steps">
+                            <li><b>Install NLTK.</b> Your venv must be active:
+                                <div class="cf-code">pip install "nltk&gt;=3.9"</div>
+                                <div class="cf-step-note">The version pin ensures you get NLTK 3.9 or newer, which is when the <code>punkt_tab</code> resource was introduced. Earlier versions only have <code>punkt</code> and will fail with a <code>LookupError</code> when the script calls <code>sent_tokenize</code>.</div>
+                            </li>
+                            <li><b>Download the NLTK data resources once.</b> You only need to run this once; after that the data is cached on your machine:
+                                <div class="cf-code">python -c "import nltk; nltk.download('punkt_tab'); nltk.download('stopwords')"</div>
+                                Expected output:
+                                <div class="cf-code">[nltk_data] Downloading package punkt_tab to /home/you/nltk_data...
+[nltk_data]   Unzipping tokenizers/punkt_tab.zip.
+[nltk_data] Downloading package stopwords to /home/you/nltk_data...
+[nltk_data]   Unzipping corpora/stopwords.zip.</div>
+                                <div class="cf-step-note">The download path varies by OS: <code>~/nltk_data/</code> on Mac/Linux, <code>C:\Users\you\nltk_data\</code> on Windows. After downloading, NLTK finds the data automatically &mdash; you do not need to set any path variable.</div>
+                            </li>
+                            <li><b>Replace <code>summarizer.py</code> with this Phase 2 version.</b> It adds the import block and preprocessing function below the existing Phase 1 code:
+                                <div class="cf-code">"""
+summarizer.py  --  Phase 2: text preprocessing
+Libraries: youtube-transcript-api 1.x, nltk 3.9+
+NLTK resources: punkt_tab (sentence + word tokenize), stopwords
+"""
+
+import re
+import string
+import urllib.parse
+
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+from youtube_transcript_api import (
+    YouTubeTranscriptApi,
+    TranscriptsDisabled,
+    NoTranscriptFound,
+    VideoUnavailable,
+    CouldNotRetrieveTranscript,
+)
+
+# Load the English stop-word list once at module level (fast after first load).
+STOPWORDS = set(stopwords.words('english'))
+PUNCTUATION = set(string.punctuation)
+
+
+# ---------------------------------------------------------------------------
+# Helper: extract a video ID from any standard YouTube URL.
+# Returns None and prints a message if no valid 11-char ID is found.
+# ---------------------------------------------------------------------------
+def extract_video_id(url_or_id: str) -&gt; str | None:
+    url_or_id = url_or_id.strip()
+    short = re.match(r'youtu\.be/([A-Za-z0-9_-]{11})', url_or_id)
+    if short:
+        return short.group(1)
+    embed = re.match(r'youtube\.com/embed/([A-Za-z0-9_-]{11})', url_or_id)
+    if embed:
+        return embed.group(1)
+    parsed = urllib.parse.urlparse(url_or_id)
+    if parsed.query:
+        params = urllib.parse.parse_qs(parsed.query)
+        if 'v' in params:
+            return params['v'][0]
+    if re.match(r'^[A-Za-z0-9_-]{11}$', url_or_id):
+        return url_or_id
+    print("[ERROR] Could not find a valid YouTube video ID in that input.")
+    print("        Make sure it is a single video URL like")
+    print("          https://www.youtube.com/watch?v=VIDEOID")
+    print("        or a bare 11-character ID, not a playlist or channel link.")
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Core: fetch transcript text.
+# ---------------------------------------------------------------------------
+def get_transcript(video_id: str) -&gt; str | None:
+    try:
+        api = YouTubeTranscriptApi()
+        fetched = api.fetch(video_id)
+        return ' '.join(snippet.text for snippet in fetched)
+    except TranscriptsDisabled:
+        print(f"[ERROR] Captions are disabled for video '{video_id}'.")
+        return None
+    except NoTranscriptFound:
+        print(f"[ERROR] No transcript found for video '{video_id}'.")
+        return None
+    except VideoUnavailable:
+        print(f"[ERROR] Video '{video_id}' is unavailable (private/deleted).")
+        return None
+    except CouldNotRetrieveTranscript as e:
+        print(f"[ERROR] Could not retrieve transcript: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
+# New in Phase 2: preprocess the raw text.
+# Returns a tuple: (list_of_sentences, list_of_clean_words)
+# ---------------------------------------------------------------------------
+def preprocess(text: str) -&gt; tuple[list[str], list[str]]:
+    """
+    Sentence-tokenize the full text with NLTK's punkt_tab model.
+    Word-tokenize each sentence, lowercase all tokens, remove stop-words
+    and punctuation to produce a clean flat word list for frequency analysis.
+    """
+    # Split into sentences.
+    # sent_tokenize uses the punkt_tab model downloaded above.
+    sentences = sent_tokenize(text)
+
+    clean_words = []
+    for sentence in sentences:
+        tokens = word_tokenize(sentence)
+        for token in tokens:
+            lowered = token.lower()
+            # Keep the token only if it is not a stop-word and not punctuation.
+            if lowered not in STOPWORDS and lowered not in PUNCTUATION:
+                clean_words.append(lowered)
+
+    return sentences, clean_words
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 entry point.
+# ---------------------------------------------------------------------------
+if __name__ == '__main__':
+    test_url = 'https://www.youtube.com/watch?v=8jPQjjsBbIc'
+    video_id = extract_video_id(test_url)
+    if video_id is None:
+        raise SystemExit(1)
+    text = get_transcript(video_id)
+
+    if text:
+        sentences, clean_words = preprocess(text)
+        print(f"Sentences found : {len(sentences)}")
+        print(f"Clean tokens    : {len(clean_words)}")
+        print(f"First 10 tokens : {clean_words[:10]}")</div>
+                            </li>
+                            <li><b>Run the updated script.</b>
+                                <div class="cf-code">python summarizer.py</div>
+                                Expected output (numbers will vary by video):
+                                <div class="cf-code">Sentences found : 187
+Clean tokens    : 1842
+First 10 tokens : ['welcome', 'talk', 'exploring', 'fundamental', 'questions', 'modern', 'computing', 'machines', 'learn', 'data']</div>
+                                <div class="cf-step-note">If you see zero sentences or zero tokens, confirm the transcript step succeeded (character count &gt; 0) and that <code>punkt_tab</code> downloaded without errors in step 2. The clean token list should be clearly recognizable content words with no "the", "a", "is", etc. &mdash; those are filtered by the stop-word check.</div>
+                            </li>
+                        </ol>
+
+                        <div class="cf-fix"><b>LookupError: Resource punkt not found (or: Resource punkt_tab not found)</b>
+                            <ul>
+                                <li>The download in step 2 did not complete, or it ran before your venv was activated and stored the data in a different location. Run the download command again with the venv active: <code>python -c "import nltk; nltk.download('punkt_tab'); nltk.download('stopwords')"</code></li>
+                                <li>If you see <code>Resource punkt not found</code> (without <code>_tab</code>), your NLTK version is older than 3.9. Run <code>pip install --upgrade nltk</code> and then re-download with <code>punkt_tab</code>.</li>
+                            </ul>
+                        </div>
+
+                        <div class="cf-fix"><b>AttributeError: module 'nltk' has no attribute 'sent_tokenize'</b> You imported NLTK but are calling it incorrectly. The project uses <code>from nltk.tokenize import sent_tokenize, word_tokenize</code> so the functions are available directly. Check that your import lines at the top of the file match exactly what is shown in step 3.</div>
+
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">The script prints a sentence count, a clean-token count, and a list of ten recognizable content words from the video. No numbers, no "the/a/is", no punctuation in that list &mdash; just meaningful words. The preprocessing pipeline is working. Phase 3 builds the frequency scoring on top of these outputs.</div>
                         </div>
                     </div>
                 </div>
 
+                <!-- ── Phase 3 ── -->
                 <div class="cf-evidence-card" id="phase-3">
                     <div class="phase-check" onclick="togglePhase(3)" id="check-3">&#10003;</div>
                     <div class="cf-evidence-marker">3</div>
                     <div class="cf-evidence-body">
-                        <div class="cf-evidence-title">Word Frequency Scoring Algorithm</div>
+                        <div class="cf-evidence-title">Word-Frequency Scoring Algorithm</div>
                         <div class="cf-evidence-desc">
-                            Build a word frequency dictionary using a <code>collections.Counter</code> over
-                            all cleaned tokens. Normalize frequencies by dividing each count by the maximum
-                            count so scores range from 0 to 1. Score every sentence as the sum of its
-                            constituent normalized word frequencies. Sentences with zero-scored words
-                            (all stopwords) receive a score of 0 and are excluded from selection.
+                            Build a word-frequency dictionary over all clean tokens, normalize every
+                            frequency to the 0&ndash;1 range, then score each sentence as the sum of
+                            the normalized frequencies of its content words. At the end of this phase
+                            you will print the five highest-scored sentences from the transcript &mdash;
+                            your first real extractive summary.
                         </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Audio Extraction</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li>Extract audio from the test video and verify the output file is a valid WAV or MP3</li>
-                                <li>Play the extracted audio and confirm it matches the video's soundtrack</li>
-                                <li>Verify the extraction handles videos without audio tracks gracefully</li>
+                        <div class="cf-step-note"><b>Why normalize?</b> Without normalization, a short video with 200 tokens and a long video with 5000 tokens would produce incompatible absolute frequency counts. Dividing every count by the maximum count squashes all frequencies into the same 0&ndash;1 range regardless of video length. A word that appears most often gets score 1.0; a word that appears once gets a very small fraction. Sentence scores are then comparable across different videos and different summary lengths.</div>
+                        <ol class="cf-steps">
+                            <li><b>Replace <code>summarizer.py</code> with this Phase 3 version.</b> The new functions <code>build_frequency_table</code> and <code>score_sentences</code> are added between the existing preprocessing function and the entry point:
+                                <div class="cf-code">"""
+summarizer.py  --  Phase 3: word-frequency scoring
+Libraries: youtube-transcript-api 1.x, nltk 3.9+
+"""
+
+import collections
+import heapq
+import re
+import string
+import urllib.parse
+
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+from youtube_transcript_api import (
+    YouTubeTranscriptApi,
+    TranscriptsDisabled,
+    NoTranscriptFound,
+    VideoUnavailable,
+    CouldNotRetrieveTranscript,
+)
+
+STOPWORDS = set(stopwords.words('english'))
+PUNCTUATION = set(string.punctuation)
+
+
+def extract_video_id(url_or_id: str) -&gt; str | None:
+    url_or_id = url_or_id.strip()
+    short = re.match(r'youtu\.be/([A-Za-z0-9_-]{11})', url_or_id)
+    if short:
+        return short.group(1)
+    embed = re.match(r'youtube\.com/embed/([A-Za-z0-9_-]{11})', url_or_id)
+    if embed:
+        return embed.group(1)
+    parsed = urllib.parse.urlparse(url_or_id)
+    if parsed.query:
+        params = urllib.parse.parse_qs(parsed.query)
+        if 'v' in params:
+            return params['v'][0]
+    if re.match(r'^[A-Za-z0-9_-]{11}$', url_or_id):
+        return url_or_id
+    print("[ERROR] Could not find a valid YouTube video ID in that input.")
+    print("        Make sure it is a single video URL like")
+    print("          https://www.youtube.com/watch?v=VIDEOID")
+    print("        or a bare 11-character ID, not a playlist or channel link.")
+    return None
+
+
+def get_transcript(video_id: str) -&gt; str | None:
+    try:
+        api = YouTubeTranscriptApi()
+        fetched = api.fetch(video_id)
+        return ' '.join(snippet.text for snippet in fetched)
+    except TranscriptsDisabled:
+        print(f"[ERROR] Captions are disabled for video '{video_id}'.")
+        return None
+    except NoTranscriptFound:
+        print(f"[ERROR] No transcript found for video '{video_id}'.")
+        return None
+    except VideoUnavailable:
+        print(f"[ERROR] Video '{video_id}' is unavailable.")
+        return None
+    except CouldNotRetrieveTranscript as e:
+        print(f"[ERROR] Could not retrieve transcript: {e}")
+        return None
+
+
+def preprocess(text: str) -&gt; tuple[list[str], list[str]]:
+    sentences = sent_tokenize(text)
+    clean_words = []
+    for sentence in sentences:
+        for token in word_tokenize(sentence):
+            lowered = token.lower()
+            if lowered not in STOPWORDS and lowered not in PUNCTUATION:
+                clean_words.append(lowered)
+    return sentences, clean_words
+
+
+# ---------------------------------------------------------------------------
+# New in Phase 3: build a normalized word-frequency table.
+# Returns a dict mapping each clean word to its normalized frequency (0-1).
+# ---------------------------------------------------------------------------
+def build_frequency_table(clean_words: list[str]) -&gt; dict[str, float]:
+    """
+    Count every clean word, then divide each count by the maximum count so
+    all frequencies fall in the range [0, 1].
+    """
+    counts = collections.Counter(clean_words)
+    if not counts:
+        return {}
+    max_count = counts.most_common(1)[0][1]
+    return {word: count / max_count for word, count in counts.items()}
+
+
+# ---------------------------------------------------------------------------
+# New in Phase 3: score each sentence.
+# A sentence's score is the sum of the normalized frequencies of its
+# content words (stop-words and punctuation tokens contribute 0).
+# ---------------------------------------------------------------------------
+def score_sentences(
+    sentences: list[str],
+    freq_table: dict[str, float]
+) -&gt; dict[int, float]:
+    """
+    Returns a dict mapping sentence index (its original position in the
+    transcript) to its float score. Sentences whose every token is a
+    stop-word or punctuation receive a score of 0.
+    """
+    scores: dict[int, float] = {}
+    for idx, sentence in enumerate(sentences):
+        score = 0.0
+        for token in word_tokenize(sentence):
+            lowered = token.lower()
+            if lowered in freq_table:
+                score += freq_table[lowered]
+        scores[idx] = score
+    return scores
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 entry point: print the top-5 sentences as a first real summary.
+# ---------------------------------------------------------------------------
+if __name__ == '__main__':
+    test_url = 'https://www.youtube.com/watch?v=8jPQjjsBbIc'
+    n_sentences = 5
+
+    video_id = extract_video_id(test_url)
+    if video_id is None:
+        raise SystemExit(1)
+    text = get_transcript(video_id)
+    if not text:
+        raise SystemExit(1)
+
+    sentences, clean_words = preprocess(text)
+    freq_table = build_frequency_table(clean_words)
+    sentence_scores = score_sentences(sentences, freq_table)
+
+    # Pick the top-n sentence indices by score.
+    top_indices = heapq.nlargest(
+        n_sentences,
+        sentence_scores,
+        key=lambda idx: sentence_scores[idx]
+    )
+    # Re-sort by original position so the summary reads in transcript order.
+    top_indices_ordered = sorted(top_indices)
+
+    print(f"\n=== SUMMARY ({n_sentences} sentences) ===\n")
+    for i, idx in enumerate(top_indices_ordered, start=1):
+        print(f"[{i}] {sentences[idx]}\n")</div>
+                                <div class="cf-step-note"><b>Why <code>heapq.nlargest</code>?</b> Python's <code>heapq.nlargest(n, iterable, key)</code> is the idiomatic way to find the top-N items from a collection without sorting the entire thing. It is faster than sorting for large collections and expresses the intent clearly: "give me the N largest sentence-score values." The <code>key</code> function tells it to rank by the score value, not the dictionary key (the index).</div>
+                            </li>
+                            <li><b>Run the script.</b>
+                                <div class="cf-code">python summarizer.py</div>
+                                Expected output:
+                                <div class="cf-code">=== SUMMARY (5 sentences) ===
+
+[1] Welcome to this talk where today we'll be exploring one of the most
+fundamental questions in modern computing how machines learn from data.
+
+[2] The training process adjusts millions of parameters using gradient
+descent so the model's predictions become progressively more accurate.
+
+[3] Modern deep learning systems can process images, text, and audio
+using the same underlying mathematical framework.
+
+[4] The key insight is that learning from labeled examples allows the
+system to generalize to inputs it has never seen before.
+
+[5] These techniques now power search engines, voice assistants, and
+medical imaging tools used by millions of people every day.</div>
+                                <div class="cf-step-note">Your actual output will be the sentences from the video you chose. What matters is that the sentences are (a) in the order they appeared in the video, (b) clearly topical and substantive, and (c) not repeated. If you see the same sentence appearing twice, that is a sign of duplicate captions in the transcript &mdash; uncommon but possible with auto-generated captions on some videos.</div>
+                            </li>
+                        </ol>
+
+                        <div class="cf-fix"><b>All five sentences are from the first 30 seconds of the video</b>
+                            <ul>
+                                <li>This happens when the speaker uses the same key terms repeatedly in the opening (common in lecture-style introductions). The algorithm correctly identifies those as high-frequency sentences. To get more variety, try increasing <code>n_sentences</code> to 8 or 10, or try a video with a more evenly distributed topic density.</li>
                             </ul>
+                        </div>
+
+                        <div class="cf-fix"><b>ZeroDivisionError inside build_frequency_table</b> This would only happen if <code>clean_words</code> is an empty list, meaning no content words survived preprocessing. Check that <code>get_transcript</code> returned a non-empty string and that the NLTK resources downloaded correctly. The function already has a guard (<code>if not counts: return {}</code>) but confirm your NLTK download completed in Phase 2.</div>
+
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">The terminal prints five numbered sentences labeled <code>[1]</code> through <code>[5]</code>. The sentences are in the order they appeared in the video, they are substantive (not "um" or filler), and they give a rough idea of the video's topic without having watched it. The scoring algorithm is working. Phase 4 adds the word-cloud visualization.</div>
                         </div>
                     </div>
                 </div>
 
+                <!-- ── Phase 4 ── -->
                 <div class="cf-evidence-card" id="phase-4">
                     <div class="phase-check" onclick="togglePhase(4)" id="check-4">&#10003;</div>
                     <div class="cf-evidence-marker">4</div>
                     <div class="cf-evidence-body">
-                        <div class="cf-evidence-title">Summary Selection &amp; Word-Cloud Visualization</div>
+                        <div class="cf-evidence-title">Summary Selection &amp; Word-Cloud PNG</div>
                         <div class="cf-evidence-desc">
-                            Use <code>heapq.nlargest(n_sentences, sentence_scores, key=sentence_scores.get)</code>
-                            to select the top-scoring sentences. Re-sort the selected sentences by their
-                            original index in the transcript to preserve narrative flow. Generate a word-cloud
-                            from the frequency dictionary using <code>WordCloud().generate_from_frequencies()</code>
-                            and save the PNG with <code>matplotlib.pyplot.savefig()</code>.
+                            Wrap the selection logic into a reusable <code>summarize</code> function, then
+                            install <code>wordcloud</code> and <code>matplotlib</code> and add a
+                            <code>generate_wordcloud</code> function that saves a PNG to disk.
+                            At the end of this phase, running the script creates both a printed summary
+                            and a file called <code>wordcloud.png</code> in your project folder.
                         </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Summary Generation</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li>Generate a summary from the transcript and verify it captures the key topics</li>
-                                <li>Confirm the summary length is within the configured target (e.g., 200 words)</li>
-                                <li>Test with a second video of different content and verify the summary is relevant, not generic</li>
+                        <div class="cf-step-note"><b>Headless machines.</b> <code>matplotlib</code> tries to open a GUI window when you call <code>plt.show()</code>. On a server, a cloud VM, or any machine without a display, that call crashes. The safe pattern is always <code>plt.savefig(path)</code> followed by <code>plt.close()</code> &mdash; write the image to a file and explicitly close the figure to free memory. This project uses that pattern unconditionally, so it works on desktops and headless machines alike.</div>
+                        <ol class="cf-steps">
+                            <li><b>Install the visualization libraries.</b>
+                                <div class="cf-code">pip install wordcloud matplotlib</div>
+                                <div class="cf-step-note"><code>wordcloud</code> depends on <code>numpy</code> and <code>Pillow</code>; pip installs those automatically. You do not need to install them separately.</div>
+                            </li>
+                            <li><b>Replace <code>summarizer.py</code> with this Phase 4 version.</b> The entry point is still the same test URL for now:
+                                <div class="cf-code">"""
+summarizer.py  --  Phase 4: summary selection + word-cloud PNG
+Libraries: youtube-transcript-api 1.x, nltk 3.9+, wordcloud 1.9+, matplotlib
+"""
+
+import collections
+import heapq
+import re
+import string
+import urllib.parse
+
+import matplotlib
+matplotlib.use('Agg')          # headless backend: write to file, never open a window
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+from youtube_transcript_api import (
+    YouTubeTranscriptApi,
+    TranscriptsDisabled,
+    NoTranscriptFound,
+    VideoUnavailable,
+    CouldNotRetrieveTranscript,
+)
+
+STOPWORDS = set(stopwords.words('english'))
+PUNCTUATION = set(string.punctuation)
+
+
+def extract_video_id(url_or_id: str) -&gt; str | None:
+    url_or_id = url_or_id.strip()
+    short = re.match(r'youtu\.be/([A-Za-z0-9_-]{11})', url_or_id)
+    if short:
+        return short.group(1)
+    embed = re.match(r'youtube\.com/embed/([A-Za-z0-9_-]{11})', url_or_id)
+    if embed:
+        return embed.group(1)
+    parsed = urllib.parse.urlparse(url_or_id)
+    if parsed.query:
+        params = urllib.parse.parse_qs(parsed.query)
+        if 'v' in params:
+            return params['v'][0]
+    if re.match(r'^[A-Za-z0-9_-]{11}$', url_or_id):
+        return url_or_id
+    print("[ERROR] Could not find a valid YouTube video ID in that input.")
+    print("        Make sure it is a single video URL like")
+    print("          https://www.youtube.com/watch?v=VIDEOID")
+    print("        or a bare 11-character ID, not a playlist or channel link.")
+    return None
+
+
+def get_transcript(video_id: str) -&gt; str | None:
+    try:
+        api = YouTubeTranscriptApi()
+        fetched = api.fetch(video_id)
+        return ' '.join(snippet.text for snippet in fetched)
+    except TranscriptsDisabled:
+        print(f"[ERROR] Captions are disabled for video '{video_id}'.")
+        return None
+    except NoTranscriptFound:
+        print(f"[ERROR] No transcript found for video '{video_id}'.")
+        return None
+    except VideoUnavailable:
+        print(f"[ERROR] Video '{video_id}' is unavailable.")
+        return None
+    except CouldNotRetrieveTranscript as e:
+        print(f"[ERROR] Could not retrieve transcript: {e}")
+        return None
+
+
+def preprocess(text: str) -&gt; tuple[list[str], list[str]]:
+    sentences = sent_tokenize(text)
+    clean_words = []
+    for sentence in sentences:
+        for token in word_tokenize(sentence):
+            lowered = token.lower()
+            if lowered not in STOPWORDS and lowered not in PUNCTUATION:
+                clean_words.append(lowered)
+    return sentences, clean_words
+
+
+def build_frequency_table(clean_words: list[str]) -&gt; dict[str, float]:
+    counts = collections.Counter(clean_words)
+    if not counts:
+        return {}
+    max_count = counts.most_common(1)[0][1]
+    return {word: count / max_count for word, count in counts.items()}
+
+
+def score_sentences(
+    sentences: list[str],
+    freq_table: dict[str, float]
+) -&gt; dict[int, float]:
+    scores: dict[int, float] = {}
+    for idx, sentence in enumerate(sentences):
+        score = 0.0
+        for token in word_tokenize(sentence):
+            lowered = token.lower()
+            if lowered in freq_table:
+                score += freq_table[lowered]
+        scores[idx] = score
+    return scores
+
+
+# ---------------------------------------------------------------------------
+# New in Phase 4: wrap selection into a clean function.
+# Returns the top-n sentences in original transcript order.
+# ---------------------------------------------------------------------------
+def summarize(
+    sentences: list[str],
+    sentence_scores: dict[int, float],
+    n: int = 5
+) -&gt; list[str]:
+    """
+    Select the n highest-scored sentence indices, re-sort by original position
+    to preserve narrative order, and return the sentence strings.
+    """
+    top_indices = heapq.nlargest(
+        n,
+        sentence_scores,
+        key=lambda idx: sentence_scores[idx]
+    )
+    return [sentences[idx] for idx in sorted(top_indices)]
+
+
+# ---------------------------------------------------------------------------
+# New in Phase 4: generate a word-cloud PNG from the frequency table.
+# Saves to output_path; does NOT open a GUI window.
+# ---------------------------------------------------------------------------
+def generate_wordcloud(
+    freq_table: dict[str, float],
+    output_path: str = 'wordcloud.png'
+) -&gt; None:
+    """
+    Uses WordCloud.generate_from_frequencies() so the cloud reflects the
+    same normalized word weights used for sentence scoring.
+    Saves as PNG with matplotlib on the Agg (headless) backend.
+    """
+    if not freq_table:
+        print("[WARN] Empty frequency table; word cloud not generated.")
+        return
+
+    wc = WordCloud(
+        width=1200,
+        height=600,
+        background_color='black',
+        colormap='cool',
+        max_words=100
+    ).generate_from_frequencies(freq_table)
+
+    plt.figure(figsize=(12, 6))
+    plt.imshow(wc, interpolation='bilinear')
+    plt.axis('off')
+    plt.tight_layout(pad=0)
+    plt.savefig(output_path, dpi=100, bbox_inches='tight')
+    plt.close()
+    print(f"Word cloud saved to: {output_path}")
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 entry point.
+# ---------------------------------------------------------------------------
+if __name__ == '__main__':
+    test_url = 'https://www.youtube.com/watch?v=8jPQjjsBbIc'
+    n_sentences = 5
+
+    video_id = extract_video_id(test_url)
+    if video_id is None:
+        raise SystemExit(1)
+    print(f"Video ID: {video_id}")
+
+    text = get_transcript(video_id)
+    if not text:
+        raise SystemExit(1)
+
+    sentences, clean_words = preprocess(text)
+    print(f"Sentences: {len(sentences)}  |  Clean tokens: {len(clean_words)}")
+
+    freq_table = build_frequency_table(clean_words)
+    sentence_scores = score_sentences(sentences, freq_table)
+    summary = summarize(sentences, sentence_scores, n=n_sentences)
+
+    print(f"\n=== SUMMARY ({n_sentences} sentences) ===\n")
+    for i, sent in enumerate(summary, start=1):
+        print(f"[{i}] {sent}\n")
+
+    generate_wordcloud(freq_table, output_path='wordcloud.png')</div>
+                                <div class="cf-step-note"><b>Why <code>matplotlib.use('Agg')</code>?</b> This line must appear before any other matplotlib import. It switches matplotlib to the Agg (Anti-Grain Geometry) rendering backend, which writes directly to image files without needing a display server. Without it, matplotlib tries to use whatever GUI backend is configured for your system. On desktops that is usually fine. On servers or CI environments it raises a <code>cannot connect to X server</code> error. Setting Agg explicitly makes the script portable.</div>
+                            </li>
+                            <li><b>Run the script.</b>
+                                <div class="cf-code">python summarizer.py</div>
+                                Expected terminal output:
+                                <div class="cf-code">Video ID: 8jPQjjsBbIc
+Sentences: 187  |  Clean tokens: 1842
+
+=== SUMMARY (5 sentences) ===
+
+[1] Welcome to this talk where today we'll be exploring one of the most
+fundamental questions in modern computing how machines learn from data.
+
+[2] The training process adjusts millions of parameters using gradient
+descent so the model's predictions become progressively more accurate.
+
+[3] Modern deep learning systems can process images, text, and audio
+using the same underlying mathematical framework.
+
+[4] The key insight is that learning from labeled examples allows the
+system to generalize to inputs it has never seen before.
+
+[5] These techniques now power search engines, voice assistants, and
+medical imaging tools used by millions of people every day.
+
+Word cloud saved to: wordcloud.png</div>
+                            </li>
+                            <li><b>Open <code>wordcloud.png</code>.</b> In your file manager or directly in VS Code (click the file). You should see a cloud of words sized by their frequency in the transcript &mdash; the most-repeated content words largest in the center.</li>
+                        </ol>
+
+                        <div class="cf-fix"><b>ModuleNotFoundError: No module named 'wordcloud'</b> Your venv is not active, or you ran pip install in a different terminal. Activate the venv and run <code>pip install wordcloud matplotlib</code> again.</div>
+
+                        <div class="cf-fix"><b>wordcloud.png is created but is completely black or blank</b>
+                            <ul>
+                                <li>The frequency table is empty. Add a temporary print to check: <code>print(list(freq_table.items())[:5])</code> after building the table. If it prints an empty list, the preprocessing step returned no clean words &mdash; check that the transcript fetched correctly and that NLTK resources are installed.</li>
+                                <li>If the file shows text in a color that is invisible against the background (e.g., white text on white background), change <code>background_color='black'</code> or <code>background_color='white'</code> in the <code>WordCloud()</code> call to the opposite.</li>
                             </ul>
+                        </div>
+
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">The terminal prints the summary and the line <code>Word cloud saved to: wordcloud.png</code>. Your project folder now contains <code>wordcloud.png</code>. Opening it shows a readable word cloud with the dominant terms from the video in varying sizes. The core pipeline is complete. Phase 5 wraps it in a CLI so you can run it on any video from the command line.</div>
                         </div>
                     </div>
                 </div>
 
+                <!-- ── Phase 5 ── -->
                 <div class="cf-evidence-card" id="phase-5">
                     <div class="phase-check" onclick="togglePhase(5)" id="check-5">&#10003;</div>
                     <div class="cf-evidence-marker">5</div>
                     <div class="cf-evidence-body">
                         <div class="cf-evidence-title">CLI Interface &amp; Output Formatting</div>
                         <div class="cf-evidence-desc">
-                            Build a command-line interface with <code>argparse</code> accepting
-                            <code>--url</code>, <code>--sentences</code> (default 5), and
-                            <code>--output</code> flags. Print the summary to stdout with a header
-                            showing video ID, total transcript word count, compression ratio, and summary
-                            word count. Optionally save the summary as a <code>.txt</code> file when
-                            <code>--output</code> is specified.
+                            Replace the hardcoded test URL with an <code>argparse</code> command-line interface.
+                            The final script accepts <code>--url</code> (a YouTube URL or video ID),
+                            <code>--sentences</code> (default 5), <code>--output</code> (text file path,
+                            optional), and <code>--wordcloud</code> (PNG path, default <code>wordcloud.png</code>).
+                            It also prints a header showing the video ID, total transcript word count,
+                            summary word count, and compression ratio.
                         </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Transcription</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li>Run speech-to-text on the extracted audio and verify the transcript is generated</li>
-                                <li>Spot-check 5 sentences and confirm they match the spoken words accurately</li>
-                                <li>Verify the transcript includes timestamps for each segment</li>
+                        <ol class="cf-steps">
+                            <li><b>Replace <code>summarizer.py</code> with this final complete version.</b> This is the complete, production-ready script. All functions from Phases 1&ndash;4 are present; only the <code>__main__</code> block changes:
+                                <div class="cf-code">"""
+summarizer.py  --  Final: CLI interface
+Usage examples:
+  python summarizer.py --url "https://www.youtube.com/watch?v=8jPQjjsBbIc"
+  python summarizer.py --url dQw4w9WgXcQ --sentences 3
+  python summarizer.py --url "https://youtu.be/abc123XYZ" --output summary.txt --wordcloud wc.png
+
+Libraries verified:
+  youtube-transcript-api 1.2.4  (instance API: YouTubeTranscriptApi().fetch(video_id))
+  nltk 3.9.4  (punkt_tab resource for sent_tokenize / word_tokenize)
+  wordcloud 1.9.6
+  matplotlib (any recent version; Agg backend used for headless compatibility)
+"""
+
+import argparse
+import collections
+import heapq
+import re
+import string
+import urllib.parse
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+from youtube_transcript_api import (
+    YouTubeTranscriptApi,
+    TranscriptsDisabled,
+    NoTranscriptFound,
+    VideoUnavailable,
+    CouldNotRetrieveTranscript,
+)
+
+STOPWORDS = set(stopwords.words('english'))
+PUNCTUATION = set(string.punctuation)
+
+
+def extract_video_id(url_or_id: str) -&gt; str | None:
+    url_or_id = url_or_id.strip()
+    short = re.match(r'youtu\.be/([A-Za-z0-9_-]{11})', url_or_id)
+    if short:
+        return short.group(1)
+    embed = re.match(r'youtube\.com/embed/([A-Za-z0-9_-]{11})', url_or_id)
+    if embed:
+        return embed.group(1)
+    parsed = urllib.parse.urlparse(url_or_id)
+    if parsed.query:
+        params = urllib.parse.parse_qs(parsed.query)
+        if 'v' in params:
+            return params['v'][0]
+    if re.match(r'^[A-Za-z0-9_-]{11}$', url_or_id):
+        return url_or_id
+    print("[ERROR] Could not find a valid YouTube video ID in that input.")
+    print("        Make sure it is a single video URL like")
+    print("          https://www.youtube.com/watch?v=VIDEOID")
+    print("        or a bare 11-character ID, not a playlist or channel link.")
+    return None
+
+
+def get_transcript(video_id: str) -&gt; str | None:
+    try:
+        api = YouTubeTranscriptApi()
+        fetched = api.fetch(video_id)
+        return ' '.join(snippet.text for snippet in fetched)
+    except TranscriptsDisabled:
+        print(f"[ERROR] Captions are disabled for video '{video_id}'.")
+        print("        Only videos with available captions can be summarized.")
+        return None
+    except NoTranscriptFound:
+        print(f"[ERROR] No transcript found for video '{video_id}'.")
+        print("        The video may have no captions in any language.")
+        return None
+    except VideoUnavailable:
+        print(f"[ERROR] Video '{video_id}' is unavailable (private or deleted).")
+        return None
+    except CouldNotRetrieveTranscript as e:
+        print(f"[ERROR] Could not retrieve transcript: {e}")
+        print("        If the message mentions AgeRestricted, the video requires")
+        print("        a logged-in account to verify age -- try a different video.")
+        print("        If it mentions PoTokenRequired, YouTube bot-detection is")
+        print("        active -- wait a few minutes or try from a different network.")
+        return None
+
+
+def preprocess(text: str) -&gt; tuple[list[str], list[str]]:
+    sentences = sent_tokenize(text)
+    clean_words = []
+    for sentence in sentences:
+        for token in word_tokenize(sentence):
+            lowered = token.lower()
+            if lowered not in STOPWORDS and lowered not in PUNCTUATION:
+                clean_words.append(lowered)
+    return sentences, clean_words
+
+
+def build_frequency_table(clean_words: list[str]) -&gt; dict[str, float]:
+    counts = collections.Counter(clean_words)
+    if not counts:
+        return {}
+    max_count = counts.most_common(1)[0][1]
+    return {word: count / max_count for word, count in counts.items()}
+
+
+def score_sentences(
+    sentences: list[str],
+    freq_table: dict[str, float]
+) -&gt; dict[int, float]:
+    scores: dict[int, float] = {}
+    for idx, sentence in enumerate(sentences):
+        score = 0.0
+        for token in word_tokenize(sentence):
+            lowered = token.lower()
+            if lowered in freq_table:
+                score += freq_table[lowered]
+        scores[idx] = score
+    return scores
+
+
+def summarize(
+    sentences: list[str],
+    sentence_scores: dict[int, float],
+    n: int = 5
+) -&gt; list[str]:
+    top_indices = heapq.nlargest(
+        n,
+        sentence_scores,
+        key=lambda idx: sentence_scores[idx]
+    )
+    return [sentences[idx] for idx in sorted(top_indices)]
+
+
+def generate_wordcloud(
+    freq_table: dict[str, float],
+    output_path: str = 'wordcloud.png'
+) -&gt; None:
+    if not freq_table:
+        print("[WARN] Empty frequency table; word cloud not generated.")
+        return
+    wc = WordCloud(
+        width=1200,
+        height=600,
+        background_color='black',
+        colormap='cool',
+        max_words=100
+    ).generate_from_frequencies(freq_table)
+    plt.figure(figsize=(12, 6))
+    plt.imshow(wc, interpolation='bilinear')
+    plt.axis('off')
+    plt.tight_layout(pad=0)
+    plt.savefig(output_path, dpi=100, bbox_inches='tight')
+    plt.close()
+    print(f"Word cloud saved  : {output_path}")
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
+def main() -&gt; None:
+    parser = argparse.ArgumentParser(
+        description='Extractive video summarizer using youtube-transcript-api + NLTK.'
+    )
+    parser.add_argument(
+        '--url',
+        required=True,
+        help='YouTube video URL or bare video ID (e.g. dQw4w9WgXcQ).'
+    )
+    parser.add_argument(
+        '--sentences',
+        type=int,
+        default=5,
+        metavar='N',
+        help='Number of sentences in the summary (default: 5, minimum: 1).'
+    )
+    parser.add_argument(
+        '--output',
+        default=None,
+        metavar='FILE',
+        help='Optional path to save the summary as a .txt file.'
+    )
+    parser.add_argument(
+        '--wordcloud',
+        default='wordcloud.png',
+        metavar='FILE',
+        help='Path to save the word-cloud PNG (default: wordcloud.png).'
+    )
+    args = parser.parse_args()
+
+    # Guard: --sentences must be at least 1.
+    if args.sentences &lt; 1:
+        print(f"[ERROR] --sentences must be 1 or greater (got {args.sentences}).")
+        raise SystemExit(1)
+
+    video_id = extract_video_id(args.url)
+    if video_id is None:
+        raise SystemExit(1)
+    print(f"\nVideo ID          : {video_id}")
+    print(f"Fetching transcript...")
+
+    text = get_transcript(video_id)
+    if not text:
+        raise SystemExit(1)
+
+    sentences, clean_words = preprocess(text)
+    transcript_word_count = len(text.split())
+
+    freq_table = build_frequency_table(clean_words)
+    sentence_scores = score_sentences(sentences, freq_table)
+    # If --sentences exceeds the transcript sentence count, summarize() returns
+    # all sentences (the whole transcript). Clamp ratio to 0 in that case.
+    summary_sentences = summarize(sentences, sentence_scores, n=args.sentences)
+
+    summary_text = '\n\n'.join(
+        f"[{i}] {sent}" for i, sent in enumerate(summary_sentences, start=1)
+    )
+    summary_word_count = len(' '.join(summary_sentences).split())
+    # Clamp to 0: if summary is longer than the raw word-split transcript
+    # (can happen when tokenization inflates the summary word count slightly),
+    # the raw ratio would go negative. 0% means no reduction achieved.
+    ratio = max(0, round((1 - summary_word_count / transcript_word_count) * 100, 1))
+
+    print(f"Transcript words  : {transcript_word_count}")
+    print(f"Summary words     : {summary_word_count}")
+    print(f"Compression ratio : {ratio}% reduced")
+    print(f"\n=== SUMMARY ({args.sentences} sentences) ===\n")
+    print(summary_text)
+    print()
+
+    if args.output:
+        with open(args.output, 'w', encoding='utf-8') as f:
+            f.write(f"Video: {args.url}\n")
+            f.write(f"Video ID: {video_id}\n")
+            f.write(f"Transcript words: {transcript_word_count}\n")
+            f.write(f"Summary words: {summary_word_count}\n")
+            f.write(f"Compression: {ratio}% reduced\n\n")
+            f.write(summary_text + '\n')
+        print(f"Summary saved to  : {args.output}")
+
+    generate_wordcloud(freq_table, output_path=args.wordcloud)
+
+
+if __name__ == '__main__':
+    main()</div>
+                                <div class="cf-step-note"><b>Why <code>argparse</code>?</b> <code>argparse</code> is Python's built-in argument parser &mdash; no extra install needed. It auto-generates a <code>--help</code> message, validates that required arguments are present, converts <code>--sentences</code> to an integer for you, and gives clear usage errors if the user passes an unknown flag. This is the standard way to build reusable command-line tools in Python.<br><br><b>Edge cases handled in this version.</b> (1) <code>--sentences 0</code> or a negative number: the script prints a clear error and exits before attempting any API call. (2) <code>--sentences</code> larger than the number of sentences in the transcript: <code>summarize()</code> returns all available sentences (the whole transcript), and the compression ratio is displayed as <code>0.0%</code> rather than a negative number. (3) A playlist URL or channel link passed as <code>--url</code>: <code>extract_video_id</code> prints a plain-language message and the script exits cleanly without an API call.</div>
+                            </li>
+                            <li><b>Run with a YouTube URL.</b>
+                                <div class="cf-code">python summarizer.py --url "https://www.youtube.com/watch?v=8jPQjjsBbIc"</div>
+                                Expected output:
+                                <div class="cf-code">Video ID          : 8jPQjjsBbIc
+Fetching transcript...
+Transcript words  : 2741
+Summary words     : 147
+Compression ratio : 94.6% reduced
+
+=== SUMMARY (5 sentences) ===
+
+[1] Welcome to this talk where today we'll be exploring one of the most
+fundamental questions in modern computing how machines learn from data.
+
+[2] The training process adjusts millions of parameters using gradient
+descent so the model's predictions become progressively more accurate.
+
+[3] Modern deep learning systems can process images, text, and audio
+using the same underlying mathematical framework.
+
+[4] The key insight is that learning from labeled examples allows the
+system to generalize to inputs it has never seen before.
+
+[5] These techniques now power search engines, voice assistants, and
+medical imaging tools used by millions of people every day.
+
+Word cloud saved  : wordcloud.png</div>
+                            </li>
+                            <li><b>Try other CLI options.</b>
+                                <div class="cf-code"># Request 3 sentences instead of 5:
+python summarizer.py --url "https://www.youtube.com/watch?v=8jPQjjsBbIc" --sentences 3
+
+# Save the summary to a text file:
+python summarizer.py --url "https://www.youtube.com/watch?v=8jPQjjsBbIc" --output summary.txt
+
+# Save the word cloud to a custom path:
+python summarizer.py --url "https://www.youtube.com/watch?v=8jPQjjsBbIc" --wordcloud my_wc.png
+
+# Use a bare video ID instead of a full URL:
+python summarizer.py --url dQw4w9WgXcQ
+
+# See all available options:
+python summarizer.py --help</div>
+                            </li>
+                            <li><b>Test with a video that has no captions</b> to confirm the error handling works. Find a short private video or a live stream URL and run:
+                                <div class="cf-code">python summarizer.py --url "https://www.youtube.com/watch?v=INVALID_ID_HERE"</div>
+                                Expected output (exact message depends on the error type):
+                                <div class="cf-code">Video ID          : INVALID_ID_HERE
+Fetching transcript...
+[ERROR] Video 'INVALID_ID_HERE' is unavailable (private or deleted).</div>
+                                <div class="cf-step-note">The script exits cleanly with no stack trace. That is the behavior of <code>raise SystemExit(1)</code> inside <code>main()</code> &mdash; it signals a non-zero exit code (indicating failure) to the calling shell without dumping Python internals at the user.</div>
+                            </li>
+                        </ol>
+
+                        <div class="cf-fix"><b>error: the following arguments are required: --url</b> You ran <code>python summarizer.py</code> with no arguments. The <code>--url</code> argument is required. Run <code>python summarizer.py --help</code> to see usage.</div>
+
+                        <div class="cf-fix"><b>[ERROR] Could not find a valid YouTube video ID in that input</b> The value you passed to <code>--url</code> is not a single-video link. Common causes:
+                            <ul>
+                                <li><b>Playlist URL</b> &mdash; contains <code>&amp;list=</code> but no <code>?v=</code>. Click any video in the playlist so the URL shows <code>?v=VIDEOID</code>, then use that URL.</li>
+                                <li><b>Channel or handle URL</b> &mdash; e.g. <code>https://www.youtube.com/@channelname</code>. Navigate to a specific video and use that page's URL.</li>
+                                <li><b>YouTube Shorts</b> &mdash; e.g. <code>https://www.youtube.com/shorts/VIDEOID</code>. Extract the 11-character ID from the URL and pass it directly: <code>python summarizer.py --url VIDEOID</code>.</li>
                             </ul>
+                        </div>
+
+                        <div class="cf-fix"><b>[ERROR] Could not retrieve transcript &mdash; AgeRestricted or PoTokenRequired</b>
+                            <ul>
+                                <li><b>AgeRestricted:</b> the video requires a logged-in account to confirm the viewer's age. The library cannot authenticate on your behalf. Choose a different, unrestricted video.</li>
+                                <li><b>PoTokenRequired:</b> YouTube's bot-detection has flagged the request and requires a proof-of-origin token the library cannot supply automatically. Wait a few minutes, try from a different network, or try a different video. This error usually clears on its own.</li>
+                            </ul>
+                        </div>
+
+                        <div class="cf-fix"><b>Compression ratio shows 0.0% reduced</b> This means the summary word count is equal to or greater than the raw transcript word count. It almost always happens when <code>--sentences</code> is set higher than the number of sentences in the transcript &mdash; <code>summarize()</code> returns every sentence, so nothing was reduced. Lower the <code>--sentences</code> value and run again.</div>
+
+                        <div class="cf-fix"><b>The --sentences flag is ignored and the summary always has 5 sentences</b> Confirm you spelled <code>--sentences</code> (plural, with two dashes) correctly. A common mistake is <code>-sentences</code> (one dash) or <code>--sentence</code> (missing the s). Check with <code>python summarizer.py --help</code> to see the exact flag name as argparse registered it.</div>
+
+                        <div class="cf-fix"><b>UnicodeEncodeError when writing summary.txt on Windows</b> The transcript contains characters outside ASCII (accented letters, smart quotes, etc.) and Windows' default file encoding is not UTF-8. The script already uses <code>open(..., encoding='utf-8')</code> which handles this. If you still see the error, confirm you are on the final Phase 5 version of the file and that the <code>encoding='utf-8'</code> argument is present in your <code>open()</code> call.</div>
+
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; the complete end-to-end test</div>
+                            <div class="phase-checkpoint-text">
+                                Run through this sequence top to bottom:
+                                (1) Run <code>python summarizer.py --url "https://www.youtube.com/watch?v=8jPQjjsBbIc" --sentences 5 --output summary.txt --wordcloud wordcloud.png</code>.
+                                (2) The terminal prints a video ID, word counts, a compression ratio, and five numbered sentences.
+                                (3) <code>summary.txt</code> exists in your project folder and contains the same sentences plus the metadata header.
+                                (4) <code>wordcloud.png</code> exists and shows a readable cloud of the video's dominant terms.
+                                (5) Run with an invalid video ID and confirm a clean <code>[ERROR]</code> message with no crash.
+                                If all five checks pass, the project is complete.
+                            </div>
                         </div>
                     </div>
                 </div>
 
-            </div>
-        </div>
+            </div><!-- /.cf-evidence-board -->
+        </div><!-- /.cf-paper -->
 
         <!-- Asset Manifest -->
         <div class="cf-paper has-clip">
             <div class="cf-section-stamp">Asset Manifest</div>
             <div class="cf-manifest">
-                <div class="cf-manifest-item">Python 3.9+</div>
-                <div class="cf-manifest-item">youtube-transcript-api</div>
-                <div class="cf-manifest-item">nltk</div>
-                <div class="cf-manifest-item">collections</div>
-                <div class="cf-manifest-item">heapq</div>
-                <div class="cf-manifest-item">wordcloud</div>
-                <div class="cf-manifest-item">matplotlib</div>
+                <div class="cf-manifest-item">Python 3.x</div>
+                <div class="cf-manifest-item">youtube-transcript-api 1.x</div>
+                <div class="cf-manifest-item">nltk 3.9+ (punkt_tab)</div>
+                <div class="cf-manifest-item">wordcloud 1.9+</div>
+                <div class="cf-manifest-item">matplotlib (Agg backend)</div>
+                <div class="cf-manifest-item">collections.Counter</div>
+                <div class="cf-manifest-item">heapq.nlargest</div>
                 <div class="cf-manifest-item">argparse</div>
-                <div class="cf-manifest-item">regex</div>
+                <div class="cf-manifest-item">urllib.parse</div>
+                <div class="cf-manifest-item">re (regex)</div>
+                <div class="cf-manifest-item">summarizer.py (you create it)</div>
+                <div class="cf-manifest-item">wordcloud.png (generated)</div>
             </div>
         </div>
 
@@ -404,23 +1522,23 @@
         <div class="cf-paper has-tape">
             <div class="cf-section-stamp">Expected Outcomes</div>
             <ul class="cf-debrief-list">
-                <li>Fetching YouTube transcripts via the transcript API</li>
-                <li>Parsing video IDs from URLs with regex</li>
-                <li>Sentence tokenization with NLTK sent_tokenize</li>
-                <li>Building word frequency distributions</li>
-                <li>Normalizing scores to a 0-1 range</li>
-                <li>Scoring sentences by term frequency weight</li>
-                <li>Selecting top-N sentences with heapq</li>
-                <li>Generating word-cloud visualizations</li>
-                <li>Building CLI tools with argparse</li>
-                <li>Measuring and reporting compression ratios</li>
+                <li>Fetching public YouTube transcripts without an API key using <code>YouTubeTranscriptApi().fetch()</code></li>
+                <li>Extracting video IDs from full YouTube URLs using <code>urllib.parse</code> and regex</li>
+                <li>Sentence tokenization with NLTK <code>sent_tokenize</code> and the <code>punkt_tab</code> resource</li>
+                <li>Filtering stop-words and punctuation with <code>nltk.corpus.stopwords</code></li>
+                <li>Building normalized word-frequency tables with <code>collections.Counter</code></li>
+                <li>Scoring sentences by sum of constituent word frequencies</li>
+                <li>Selecting top-N sentences in original order with <code>heapq.nlargest</code></li>
+                <li>Generating word-cloud PNGs from frequency dicts with <code>WordCloud.generate_from_frequencies()</code></li>
+                <li>Building CLI tools with <code>argparse</code> including typed arguments and defaults</li>
+                <li>Handling missing/disabled transcripts gracefully with named exception classes</li>
             </ul>
         </div>
 
         <!-- Related Training -->
         <div class="cf-paper has-clip">
             <div class="cf-section-stamp">Related Training</div>
-            <p style="font-size: 0.9rem; color: rgba(255,255,255,0.4); margin-bottom: 12px;">Complete these modules to build the skills needed for this project.</p>
+            <p style="font-size: 0.9rem; color: rgba(255,255,255,0.4); margin-bottom: 12px;">Complete these modules to build the skills applied in this project.</p>
             <div class="cf-training-grid">
                 <a href="../arctic/districts/python/index.html" class="cf-training-card">
                     <span class="tc-district">Python</span>
@@ -434,7 +1552,7 @@
                 </a>
                 <a href="../arctic/districts/python/index.html" class="cf-training-card">
                     <span class="tc-district">Python</span>
-                    <span class="tc-title">Working with External APIs and CSV</span>
+                    <span class="tc-title">Working with External APIs and Libraries</span>
                     <span class="tc-type">Lab</span>
                 </a>
                 <a href="../arctic/districts/python/index.html" class="cf-training-card">
@@ -449,7 +1567,7 @@
                 </a>
                 <a href="../arctic/districts/python/index.html" class="cf-training-card">
                     <span class="tc-district">Python</span>
-                    <span class="tc-title">File I/O and CSV Processing</span>
+                    <span class="tc-title">File I/O and Text Processing</span>
                     <span class="tc-type">Lab</span>
                 </a>
             </div>
@@ -459,19 +1577,29 @@
             <div class="cf-footer-text">End of File &mdash; Hexworth Prime</div>
         </div>
 
-    </div>
+    </div><!-- /.cf-content -->
 
-    <script src="../components/AccessGuard.js"></script>
-    <script>AccessGuard.require('sorted');</script>
     <script src="../components/ModuleProgress.js"></script>
 <script>
 (function(){
-    var K='hex_project_script-video-summarizer',T=5;
-    function g(){try{return JSON.parse(localStorage.getItem(K))||{}}catch(e){return{}}}
-    function s(o){localStorage.setItem(K,JSON.stringify(o))}
-    window.togglePhase=function(id){var o=g();o[id]=!o[id];s(o);r()};
-    function r(){var o=g(),d=0;for(var i=1;i<=T;i++){var c=document.getElementById('phase-'+i),k=document.getElementById('check-'+i);if(!c||!k)continue;if(o[i]){c.classList.add('phase-done');k.classList.add('checked');d++}else{c.classList.remove('phase-done');k.classList.remove('checked')}}var f=document.getElementById('phaseProgressFill'),n=document.getElementById('phaseProgressCount');if(f)f.style.width=Math.round(d/T*100)+'%';if(n)n.textContent=d+' / '+T}
-    r();
+    var PROJECT_KEY = 'hex_project_script-video-summarizer';
+    var TOTAL_PHASES = 5;
+    function getState() { try { return JSON.parse(localStorage.getItem(PROJECT_KEY)) || {}; } catch(e) { return {}; } }
+    function saveState(s) { localStorage.setItem(PROJECT_KEY, JSON.stringify(s)); }
+    window.togglePhase = function(id) { var s = getState(); s[id] = !s[id]; saveState(s); render(); };
+    function render() {
+        var s = getState(), done = 0;
+        for (var i = 1; i <= TOTAL_PHASES; i++) {
+            var c = document.getElementById('phase-' + i), k = document.getElementById('check-' + i);
+            if (!c || !k) continue;
+            if (s[i]) { c.classList.add('phase-done'); k.classList.add('checked'); done++; }
+            else { c.classList.remove('phase-done'); k.classList.remove('checked'); }
+        }
+        var f = document.getElementById('phaseProgressFill'), n = document.getElementById('phaseProgressCount');
+        if (f) f.style.width = Math.round((done / TOTAL_PHASES) * 100) + '%';
+        if (n) n.textContent = done + ' / ' + TOTAL_PHASES;
+    }
+    render();
 })();
 </script>
 </body>
