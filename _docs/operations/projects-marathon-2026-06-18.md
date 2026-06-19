@@ -216,8 +216,36 @@ risk than the starters (live-drifting library APIs, OS-specific CLI flags, auth/
 version/API claim herself" approach caught: the react-router package rename, the macOS ping-flag
 unit, an open-redirect, and several checkpoint-vs-code mismatches. Keep doing both.
 
+## SCRIPT HOUSE COMPLETE (2026-06-19)
+All 8 `script-*` projects rebuilt to the zero-knowledge bar and LIVE. Run in 3 prereq-grouped
+waves; each smoke gate 10 PASS / 0 FAIL. Loop per page: delegate-author (grounded against LIVE
+docs) -> integrity + god-mode render-QC -> Nancy + Chris dual-gate -> fix -> lean re-gate ->
+verify-live -> ship. EVERY page hit real domain-accuracy must-fixes — the dual-gate + live-doc
+verification earned their keep again.
+
+Wave 1 — universal runtimes (commit 8f1dfd6f6):
+1. script-system-monitor (Bash, Linux/WSL) — CPU iowait-in-idle delta fix, trap de-register, df portability, macOS honesty
+2. script-web-crawler (Node) — Phase-2 BFS fetched-count termination, SVG isAllowed label, .text vs .attr
+3. script-video-summarizer (Python) — youtube-transcript-api 1.2.4 .fetch(), NLTK punkt_tab; id-format guard, ratio clamp, AgeRestricted
+4. script-etl-pipeline (Python) — SQLite UPSERT/PK; pandas-label SVG fix, loaded->upserted, context-mgr one-liner
+
+Wave 2 — accounts/frameworks (commit 6c7b450ab):
+5. script-github-actions — VERIFIED LIVE via gh api that checkout@v7/setup-node@v6/upload-artifact@v7 are CURRENT (a Chris BLOCK from stale training knowledge was OVERRIDDEN by live data — same lesson as react-router/macOS-ping). Fixes: download-artifact@v4->@v8, PR-trigger for the skip demo, notify skip-propagation prose, matrix job.status output removed.
+6. script-data-pipeline (Kedro 1.4) — recomputed a WRONG expected-output table to ground-truth 7 rows (ran the actual logic in python3 to settle a 7-vs-9 reviewer dispute); venv ../path, units_bar, learning-curve note
+
+Wave 3 — hardware (commit 33ea47bc9):
+7. script-data-logger (Arduino + SD/RTC/DHT11/LDR) — while(!Serial) timeout-guard (CDC boards), pandas>=2.0, DS3231 OSF note
+8. script-pi-automation (Raspberry Pi) — vcgencmd CPU temp (thermal_zone0 != CPU on Pi 5!), cron bare-assign not .bashrc, $HOME user-agnostic
+
+**Cross-house lesson reinforced:** for intermediate projects, ground authoring against LIVE docs
+via WebFetch AND have Nancy independently verify the high-stakes version/API/value claim. This
+caught: the GH action versions (Chris was wrong from stale knowledge; gh api was right), the
+macOS ping-flag unit, the Pi 5 thermal-zone sensor, an open-redirect, a react-router rename, and
+multiple checkpoint-vs-code mismatches. When reviewers disagree on a verifiable fact, COMPUTE/QUERY
+the ground truth (gh api, python3) rather than trust either's assertion.
+
 **Remaining (NOT started):** Tier 2/3 across ai, cloud, darkarts, divergent, eye, forge, key,
-matrix, script, shield. ~88 house project pages still on their original outcome-description content
+matrix, shield. ~80 house project pages still on their original outcome-description content
 (render-clean after Workstream A).
 
 ## Progress log (newest first)
