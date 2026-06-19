@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CASE FILE: Automate Testing with Playwright | Hexworth Prime</title>
-    <script src="../components/AccessGuard.js"></script>
-    <script>AccessGuard.require('sorted');</script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -135,16 +133,50 @@
         .cf-evidence-card:hover { border-color: rgba(192, 132, 252, 0.25); background: rgba(192, 132, 252, 0.04); box-shadow: 0 0 20px rgba(192, 132, 252, 0.06); }
         .cf-evidence-marker { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: rgba(250, 204, 21, 0.12); border: 2px solid rgba(250, 204, 21, 0.5); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; color: #facc15; }
         .cf-evidence-card::before { content: ''; position: absolute; top: -5px; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: rgba(220, 38, 38, 0.5); border: 1px solid rgba(220, 38, 38, 0.3); }
-        .cf-evidence-body { flex: 1; }
+        .cf-evidence-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
         .cf-evidence-title { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.88); margin-bottom: 6px; letter-spacing: 0.02em; }
         .cf-evidence-desc { font-size: 0.9rem; line-height: 1.75; color: rgba(255,255,255,0.5); }
         .cf-evidence-desc code { color: #c084fc; background: rgba(192, 132, 252, 0.1); padding: 1px 5px; border-radius: 2px; font-size: 0.85rem; }
+
+        /* ── Phase Progress Tracking ── */
+        .cf-evidence-card.phase-done {
+            border-color: rgba(74, 222, 128, 0.25);
+            background: rgba(74, 222, 128, 0.03);
+        }
+        .cf-evidence-card.phase-done .cf-evidence-marker {
+            background: rgba(74, 222, 128, 0.2);
+            border-color: #4ade80;
+            color: #4ade80;
+        }
+        .cf-evidence-card.phase-done .cf-evidence-title {
+            color: rgba(74, 222, 128, 0.9);
+        }
+        .phase-check {
+            position: absolute; top: 12px; right: 12px;
+            width: 24px; height: 24px; border-radius: 4px;
+            border: 2px solid rgba(255,255,255,0.15);
+            background: transparent; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: transparent; transition: all 0.2s;
+        }
+        .phase-check:hover { border-color: rgba(74,222,128,0.5); background: rgba(74,222,128,0.05); }
+        .phase-check.checked { border-color: #4ade80; background: rgba(74,222,128,0.15); color: #4ade80; }
+        .phase-progress {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+            padding: 10px 14px; background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 6px;
+        }
+        .phase-progress-label { font-size: 0.75rem; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+        .phase-progress-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+        .phase-progress-fill { height: 100%; background: linear-gradient(90deg, #c084fc, #d8b4fe); border-radius: 3px; width: 0%; transition: width 0.4s ease; }
+        .phase-progress-count { font-size: 0.8rem; font-weight: 700; color: #c084fc; font-family: 'Courier New', monospace; white-space: nowrap; }
+
         .cf-manifest { display: flex; flex-wrap: wrap; gap: 10px; }
         .cf-manifest-item { font-size: 0.85rem; padding: 7px 14px; background: rgba(192, 132, 252, 0.04); border: 1px solid rgba(192, 132, 252, 0.12); border-radius: 2px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; transition: background 0.2s, border-color 0.2s; }
         .cf-manifest-item:hover { background: rgba(192, 132, 252, 0.08); border-color: rgba(192, 132, 252, 0.25); }
         .cf-manifest-item::before { content: '\25B8 '; color: #c084fc; }
         .cf-debrief-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; }
+        .cf-debrief-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: rgba(255,255,255,0.6); line-height: 1.55; min-width: 0; overflow-wrap: anywhere; }
         .cf-debrief-list li::before { content: '\25B9'; color: #c084fc; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
         .cf-redaction-bar { height: 4px; background: linear-gradient(90deg, rgba(192, 132, 252, 0.3) 0%, rgba(192, 132, 252, 0.1) 40%, rgba(255,255,255,0.03) 100%); margin: 12px 0; border-radius: 1px; }
         .cf-footer { text-align: center; margin-top: 48px; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.04); }
@@ -155,6 +187,38 @@
         .cf-training-card .tc-district { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #c084fc; opacity: 0.8; }
         .cf-training-card .tc-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
         .cf-training-card .tc-type { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* ── Step-by-step walkthrough ── */
+        .cf-steps { counter-reset: step; list-style: none; margin: 12px 0 0; display: flex; flex-direction: column; gap: 12px; }
+        .cf-steps > li { position: relative; padding-left: 36px; font-size: 0.9rem; line-height: 1.7; color: rgba(255,255,255,0.64); min-width: 0; overflow-wrap: anywhere; }
+        .cf-steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 1px; width: 23px; height: 23px; border-radius: 50%; background: rgba(192,132,252,0.15); border: 1px solid rgba(192,132,252,0.5); color: #d8b4fe; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; }
+        .cf-steps b { color: rgba(255,255,255,0.86); }
+        .cf-steps code { color: #e9d5ff; background: rgba(192,132,252,0.12); padding: 1px 5px; border-radius: 2px; font-size: 0.82rem; }
+
+        /* ── Paste-ready code block ── */
+        .cf-code { margin: 8px 0 2px; padding: 12px 14px; background: rgba(2,0,20,0.6); border: 1px solid rgba(192,132,252,0.22); border-radius: 5px; font-family: 'Courier New', monospace; font-size: 0.8rem; color: #e9d5ff; line-height: 1.6; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
+
+        /* ── Inline note ── */
+        .cf-step-note { margin-top: 8px; font-size: 0.82rem; line-height: 1.6; color: rgba(255,255,255,0.55); padding: 8px 12px; background: rgba(192,132,252,0.06); border-left: 3px solid rgba(192,132,252,0.5); border-radius: 4px; }
+        .cf-step-note b { color: #d8b4fe; }
+
+        /* ── Troubleshooting box ── */
+        .cf-fix { margin-top: 10px; padding: 10px 14px; background: rgba(248,113,113,0.06); border-left: 3px solid rgba(248,113,113,0.55); border-radius: 4px; font-size: 0.82rem; color: rgba(255,255,255,0.6); line-height: 1.6; }
+        .cf-fix b { color: #fca5a5; }
+        .cf-fix ul { margin: 6px 0 0; padding-left: 18px; }
+        .cf-fix li { margin-bottom: 5px; }
+
+        /* ── Phase checkpoint ── */
+        .phase-checkpoint { margin-top: 14px; padding: 12px 14px; background: rgba(6,182,212,0.05); border: 1px solid rgba(6,182,212,0.15); border-left: 3px solid #06b6d4; border-radius: 4px; }
+        .phase-checkpoint-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #06b6d4; margin-bottom: 6px; }
+        .phase-checkpoint-text { font-size: 0.82rem; color: rgba(255,255,255,0.55); line-height: 1.6; }
+        .phase-checkpoint code { background: rgba(6,182,212,0.1); color: #22d3ee; padding: 1px 5px; border-radius: 2px; font-size: 0.8rem; }
+
+        /* ── Overflow guard ── */
+        .cf-steps li, .cf-steps li * { min-width: 0; overflow-wrap: anywhere; }
+        code { overflow-wrap: anywhere; }
+        .cf-manifest-item { min-width: 0; overflow-wrap: anywhere; }
+        .cf-req-list li { overflow-wrap: anywhere; }
 
         @media (max-width: 640px) {
             .cf-content { padding: 24px 16px 60px; }
@@ -213,27 +277,27 @@
             <div class="cf-section-stamp">Mission Brief</div>
             <div class="cf-prose">
                 <p>
-                    This operation establishes a <strong>professional browser testing pipeline using Playwright</strong>,
+                    This operation establishes a <strong>professional browser testing pipeline using Playwright for Python</strong>,
                     Microsoft's end-to-end testing framework that controls Chromium, Firefox, and WebKit
-                    from a single API. You will write login flow tests that simulate real user interactions &mdash;
-                    filling forms, clicking buttons, and asserting URL changes &mdash; then advance to
-                    handling dynamic content that loads asynchronously, requiring intelligent waiting
-                    strategies rather than brittle fixed delays.
+                    from a single API. You will use <code>pytest-playwright</code> &mdash; the official
+                    pytest plugin &mdash; which provides a <code>page</code> fixture that handles browser
+                    launch, context creation, and cleanup automatically for every test function.
                 </p>
                 <p>
-                    Playwright's auto-wait mechanism polls the DOM until elements are actionable before
-                    interacting with them, eliminating the most common source of flaky tests. You will
-                    learn the locator API &mdash; preferring accessible role selectors over brittle CSS
-                    paths &mdash; and build a Page Object Model that encapsulates UI interactions in
-                    reusable classes, keeping test files focused on behavior rather than implementation
-                    details of the interface.
+                    Playwright's auto-wait mechanism is its defining advantage over Selenium: every
+                    action (<code>click</code>, <code>fill</code>, <code>press</code>) internally polls
+                    the DOM until the target element is actionable before interacting with it. You never
+                    write <code>time.sleep()</code> or explicit waits. You will use the modern locator API &mdash;
+                    <code>page.get_by_role()</code>, <code>page.get_by_label()</code>, <code>page.get_by_text()</code> &mdash;
+                    which targets elements the same way assistive technology does, making tests resilient
+                    to CSS and layout changes.
                 </p>
                 <p>
-                    On failure, Playwright automatically captures screenshots, DOM snapshots, and network
-                    request logs that are bundled into an interactive HTML report. You will configure
-                    the test runner to execute test files in parallel across multiple workers, dramatically
-                    reducing total suite runtime as the number of tests grows. By the end, you will have
-                    a real CI-ready test suite that could be dropped directly into a GitHub Actions workflow.
+                    On failure, Playwright captures screenshots, DOM snapshots, and traces that are bundled
+                    into an interactive HTML report. You will run tests in headless mode (the default) and
+                    in headed mode to watch the browser execute your script live. By the end, you will have
+                    a working test suite against public sites and a trace you can open in the Playwright
+                    Trace Viewer to step through every action frame by frame.
                 </p>
             </div>
         </div>
@@ -242,166 +306,399 @@
         <div class="cf-paper has-tape">
             <div class="cf-section-stamp">Agent Requirements</div>
             <ul class="cf-req-list">
-                <li>Basic JavaScript or TypeScript familiarity &mdash; variables, functions, and async/await syntax</li>
-                <li>Understanding of HTML structure: elements, attributes, and how the DOM is organized</li>
-                <li>Comfortable running npm commands and working in a terminal</li>
-                <li>No prior testing framework experience required &mdash; Playwright concepts are introduced from zero</li>
-                <li>A web application to test against &mdash; the project provides a local demo app or you can use a public site</li>
+                <li>Python 3.8 or higher &mdash; check with <code>python --version</code> or <code>python3 --version</code></li>
+                <li>pip available &mdash; if not found, try <code>pip3</code> or <code>python -m pip install</code></li>
+                <li>Internet access to reach <code>https://the-internet.herokuapp.com</code> (the stable public target used in all phases)</li>
+                <li>No prior testing framework experience required &mdash; Playwright and pytest concepts are introduced step by step</li>
+                <li><strong>Critical install trap:</strong> after <code>pip install pytest-playwright</code> you must also run <code>playwright install</code> to download the browser binaries. Skipping this step causes every test to fail with a browser-not-found error.</li>
             </ul>
         </div>
 
         <!-- Operation Phases -->
         <div class="cf-paper">
             <div class="cf-section-stamp">Operation Phases</div>
+
+            <!-- Phase progress tracker -->
+            <div class="phase-progress">
+                <span class="phase-progress-label">Progress</span>
+                <div class="phase-progress-bar"><div class="phase-progress-fill" id="phaseProgressFill"></div></div>
+                <span class="phase-progress-count" id="phaseProgressCount">0 / 6</span>
+            </div>
+
             <div class="cf-evidence-board">
 
-                <div class="cf-evidence-card">
+                <!-- Phase 1 -->
+                <div class="cf-evidence-card" id="phase-1">
+                    <div class="phase-check" onclick="togglePhase(1)" id="check-1">&#10003;</div>
                     <div class="cf-evidence-marker">1</div>
                     <div class="cf-evidence-body">
-                        <div class="cf-evidence-title">Project Setup &amp; First Test</div>
-                        <div class="cf-evidence-desc">
-                            Initialize a new project with <code>npm init playwright@latest</code> and
-                            accept the default configuration for TypeScript with Chromium. Examine the
-                            generated <code>playwright.config.ts</code> and understand the
-                            <code>baseURL</code>, <code>trace</code>, and <code>screenshot</code>
-                            settings. Delete the example test and write your first test that navigates
-                            to the demo app's home page, asserts the page title with
-                            <code>expect(page).toHaveTitle()</code>, and runs it with
-                            <code>npx playwright test</code>. Explore the HTML report generated by
-                            <code>npx playwright show-report</code>.
-                        </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Project Setup & First Test</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li>Running <code>npx playwright test</code> executes the example test and passes</li>
-                                <li>Test results appear in the terminal with pass/fail status</li>
-                                <li>Config file is set up for TypeScript with Chromium</li>
-                            </ul>
+                        <div class="cf-evidence-title">Environment Setup &amp; First Test</div>
+                        <div class="cf-evidence-desc">Install pytest-playwright, download the browser binaries, and run your first passing test. The two-step install is the most common beginner trap &mdash; do not skip the <code>playwright install</code> command.</div>
+                        <ol class="cf-steps">
+                            <li><b>Create a project folder.</b> Make a folder called <code>pw-tests</code> anywhere convenient. All files in this project go here.
+                                <div class="cf-code">mkdir pw-tests
+cd pw-tests</div>
+                            </li>
+                            <li><b>Install pytest-playwright.</b> This installs both the pytest plugin and the playwright library as a dependency:
+                                <div class="cf-code">pip install pytest-playwright==0.8.0</div>
+                                <div class="cf-step-note"><b>pip not found?</b> Try <code>pip3 install pytest-playwright==0.8.0</code> or <code>python -m pip install pytest-playwright==0.8.0</code>.</div>
+                            </li>
+                            <li><b>Download the browser binaries.</b> This is a separate step that pip does NOT do for you. It downloads Chromium, Firefox, and WebKit (~450 MB total) into a local cache:
+                                <div class="cf-code">playwright install</div>
+                                <div class="cf-step-note"><b>This is the #1 beginner trap.</b> If you skip this step, every test fails immediately with an error like <code>BrowserType.launch: Executable doesn't exist</code>. The install takes 1&ndash;3 minutes on a typical connection. Run it once and it persists for all future projects.</div>
+                            </li>
+                            <li><b>Create your first test file.</b> In the <code>pw-tests</code> folder create a file named <code>test_first.py</code> and paste this complete script:
+                                <div class="cf-code">import re
+from playwright.sync_api import Page, expect
+
+def test_playwright_home_title(page: Page):
+    # Navigate to the Playwright documentation site.
+    page.goto("https://playwright.dev/python")
+
+    # expect() from playwright.sync_api auto-retries the assertion
+    # until it passes or a 30-second timeout is reached.
+    # No explicit sleep or wait is needed.
+    # A regex match on "Playwright" keeps this test passing even if
+    # the docs site adds or removes words around the brand name.
+    expect(page).to_have_title(re.compile("Playwright"))</div>
+                            </li>
+                            <li><b>Run the test:</b>
+                                <div class="cf-code">pytest test_first.py -v</div>
+                                Expected output:
+                                <div class="cf-code">collected 1 item
+
+test_first.py::test_playwright_home_title PASSED    [100%]
+
+============================== 1 passed in 3.42s ==============================</div>
+                            </li>
+                            <li><b>Understand what happened.</b> pytest-playwright automatically injected the <code>page</code> fixture into your test function. That fixture launched a headless Chromium browser, opened a new page, and closed everything after the test finished &mdash; zero setup code required from you.</li>
+                        </ol>
+                        <div class="cf-fix"><b>BrowserType.launch: Executable doesn't exist at ...?</b> You skipped step 3. Run <code>playwright install</code> now and re-run the test. If you only want Chromium and want to save download bandwidth, you can run <code>playwright install chromium</code> instead, but then Firefox and WebKit tests will not work.</div>
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">The terminal prints <code>1 passed</code> with a time in seconds. If you see <code>1 failed</code> read the error message: a title mismatch means the page title no longer contains the word <code>Playwright</code> &mdash; update the regex to match whatever brand name the site now uses. A browser launch error means you need to run <code>playwright install</code>.</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="cf-evidence-card">
+                <!-- Phase 2 -->
+                <div class="cf-evidence-card" id="phase-2">
+                    <div class="phase-check" onclick="togglePhase(2)" id="check-2">&#10003;</div>
                     <div class="cf-evidence-marker">2</div>
                     <div class="cf-evidence-body">
-                        <div class="cf-evidence-title">Login Flow Tests</div>
-                        <div class="cf-evidence-desc">
-                            Write a complete <code>auth.spec.ts</code> test file. Use
-                            <code>page.getByRole('textbox', { name: 'Username' })</code> to locate
-                            the username field and fill it. Test three scenarios: successful login that
-                            lands on the dashboard URL, failed login that shows an error message
-                            asserted with <code>expect(page.getByText('Invalid credentials')).toBeVisible()</code>,
-                            and session persistence that survives a page reload. Use
-                            <code>test.beforeEach</code> to navigate to the login page before each test
-                            case, avoiding code duplication.
-                        </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Login Flow Tests</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li>Successful login test navigates to the dashboard and verifies the URL</li>
-                                <li>Invalid credentials test verifies the error message appears on screen</li>
-                                <li>Empty field submission test confirms validation messages display</li>
-                            </ul>
+                        <div class="cf-evidence-title">Navigation, Locators &amp; Assertions</div>
+                        <div class="cf-evidence-desc">Write tests against <code>the-internet.herokuapp.com</code> using modern locators. Playwright locators describe elements by their visible role and label, not by fragile CSS paths, so they stay valid when layout changes.</div>
+                        <ol class="cf-steps">
+                            <li><b>Create <code>test_locators.py</code></b> in your <code>pw-tests</code> folder and paste this complete script:
+                                <div class="cf-code">from playwright.sync_api import Page, expect
+
+BASE = "https://the-internet.herokuapp.com"
+
+def test_page_heading_visible(page: Page):
+    # Navigate to the home page.
+    page.goto(BASE)
+
+    # get_by_role locates by ARIA role + accessible name.
+    # "heading" maps to h1, h2, etc.
+    heading = page.get_by_role("heading", name="Welcome to the-internet")
+    expect(heading).to_be_visible()
+
+def test_link_navigates(page: Page):
+    page.goto(BASE)
+
+    # Click the "Form Authentication" link by its visible text.
+    page.get_by_role("link", name="Form Authentication").click()
+
+    # After the click, Playwright auto-waits for navigation to complete.
+    # Then assert the URL changed.
+    expect(page).to_have_url(BASE + "/login")
+
+def test_login_form_labels(page: Page):
+    page.goto(BASE + "/login")
+
+    # get_by_label finds the input element associated with a label element's text.
+    username_input = page.get_by_label("Username")
+    password_input = page.get_by_label("Password")
+
+    expect(username_input).to_be_visible()
+    expect(password_input).to_be_visible()
+
+    # Fill both fields.
+    username_input.fill("tomsmith")
+    password_input.fill("SuperSecretPassword!")
+
+    # Click the submit button located by its role and name.
+    page.get_by_role("button", name="Login").click()
+
+    # Assert the success message text is visible after login.
+    flash = page.locator("#flash")
+    expect(flash).to_contain_text("You logged into a secure area!")</div>
+                            </li>
+                            <li><b>Run all three tests:</b>
+                                <div class="cf-code">pytest test_locators.py -v</div>
+                                Expected output:
+                                <div class="cf-code">collected 3 items
+
+test_locators.py::test_page_heading_visible PASSED   [ 33%]
+test_locators.py::test_link_navigates PASSED         [ 66%]
+test_locators.py::test_login_form_labels PASSED      [100%]
+
+============================== 3 passed in 6.81s ==============================</div>
+                            </li>
+                            <li><b>Try a deliberate failure.</b> Change <code>"tomsmith"</code> to <code>"wronguser"</code>, re-run, and read the error. Playwright prints the actual text it found vs. what you asserted, making failures easy to diagnose.</li>
+                        </ol>
+                        <div class="cf-fix"><b>get_by_role or get_by_label finds nothing?</b> The name argument is case-sensitive and must match the element's accessible name exactly. Use <code>page.get_by_role("heading")</code> without a name first to see all headings, then narrow down. For inputs, the label text must be an exact match or use <code>exact=False</code>: <code>page.get_by_label("Username", exact=False)</code>.</div>
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">All 3 tests pass. The login test verifies that <code>the-internet.herokuapp.com/login</code> accepts <code>tomsmith</code> / <code>SuperSecretPassword!</code> and shows a green flash banner. Notice you wrote no <code>time.sleep()</code> &mdash; Playwright's auto-wait handled the navigation and DOM update between the click and the assertion.</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="cf-evidence-card">
+                <!-- Phase 3 -->
+                <div class="cf-evidence-card" id="phase-3">
+                    <div class="phase-check" onclick="togglePhase(3)" id="check-3">&#10003;</div>
                     <div class="cf-evidence-marker">3</div>
                     <div class="cf-evidence-body">
-                        <div class="cf-evidence-title">Dynamic Content &amp; Waiting Strategies</div>
-                        <div class="cf-evidence-desc">
-                            Build tests for pages that load data asynchronously after the initial paint.
-                            Use <code>page.waitForResponse</code> to wait for a specific API call to
-                            complete before asserting UI state. Implement <code>page.waitForSelector</code>
-                            for elements that appear conditionally. Write a test that intercepts network
-                            requests with <code>page.route</code> to stub an API response with mock data,
-                            decoupling your UI tests from backend availability. Test a file upload widget
-                            using <code>page.setInputFiles</code>.
-                        </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Dynamic Content & Waits</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li><code>waitForResponse</code> correctly pauses until the API call completes</li>
-                                <li>Lazy-loaded elements are found after the appropriate wait strategy</li>
-                                <li>Tests pass consistently without flaky timing failures</li>
-                            </ul>
+                        <div class="cf-evidence-title">Auto-Waiting for Dynamic Content</div>
+                        <div class="cf-evidence-desc">Test a page where elements appear after a delay. Playwright waits automatically for elements to become visible before interacting &mdash; you just write the assertion and let the framework handle the timing.</div>
+                        <ol class="cf-steps">
+                            <li><b>Create <code>test_dynamic.py</code></b> and paste this complete script:
+                                <div class="cf-code">from playwright.sync_api import Page, expect
+
+BASE = "https://the-internet.herokuapp.com"
+
+def test_dynamic_element_appears(page: Page):
+    # This page has a "Start" button that shows a loading indicator,
+    # then after a delay replaces it with a "Hello World!" message.
+    page.goto(BASE + "/dynamic_loading/1")
+
+    # Click Start to begin the loading sequence.
+    page.get_by_role("button", name="Start").click()
+
+    # The "Hello World!" heading is hidden initially and appears after ~2 seconds.
+    # expect() auto-retries the assertion until the element is visible
+    # (up to the default 30-second timeout). No sleep needed.
+    # get_by_role("heading") matches the revealed <h4> by its ARIA role,
+    # consistent with the get_by_role pattern taught in Phase 2.
+    hello = page.get_by_role("heading", name="Hello World!")
+    expect(hello).to_be_visible()
+
+def test_add_element_appears(page: Page):
+    page.goto(BASE + "/add_remove_elements/")
+
+    # The page starts with zero "Delete" buttons.
+    # Click "Add Element" three times to create three.
+    add_btn = page.get_by_role("button", name="Add Element")
+    add_btn.click()
+    add_btn.click()
+    add_btn.click()
+
+    # Assert three Delete buttons are now in the DOM.
+    delete_buttons = page.get_by_role("button", name="Delete")
+    expect(delete_buttons).to_have_count(3)
+
+def test_checkboxes(page: Page):
+    page.goto(BASE + "/checkboxes")
+
+    # Locate both checkboxes by role.
+    checkboxes = page.get_by_role("checkbox")
+    expect(checkboxes).to_have_count(2)
+
+    # The first checkbox starts unchecked. Check it.
+    first = checkboxes.first
+    first.check()
+    expect(first).to_be_checked()
+
+    # The second checkbox starts checked. Uncheck it.
+    second = checkboxes.last
+    second.uncheck()
+    expect(second).not_to_be_checked()</div>
+                            </li>
+                            <li><b>Run the tests:</b>
+                                <div class="cf-code">pytest test_dynamic.py -v</div>
+                                Expected output:
+                                <div class="cf-code">collected 3 items
+
+test_dynamic.py::test_dynamic_element_appears PASSED   [ 33%]
+test_dynamic.py::test_add_element_appears PASSED       [ 66%]
+test_dynamic.py::test_checkboxes PASSED                [100%]
+
+============================== 3 passed in 9.14s ==============================</div>
+                            </li>
+                            <li><b>Compare with Selenium.</b> In Selenium you would need <code>WebDriverWait(driver, 10).until(EC.visibility_of_element_located(...))</code> for the dynamic loading test. In Playwright, <code>expect(hello).to_be_visible()</code> is the entire waiting strategy.</li>
+                        </ol>
+                        <div class="cf-fix"><b>TimeoutError: Locator.expect_to_be_visible: Timeout 30000ms exceeded?</b> The element did not appear within 30 seconds. First confirm the page loads correctly by running the test with <code>--headed</code> (added in Phase 5) so you can watch the browser. For production tests, you can raise the timeout per-assertion: <code>expect(hello).to_be_visible(timeout=60000)</code>.</div>
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">All 3 tests pass. The dynamic loading test takes longer than the others because it waits for the actual ~2-second server delay on <code>/dynamic_loading/1</code>. This is correct behaviour &mdash; Playwright waited, asserted, and passed without any explicit sleep in your code.</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="cf-evidence-card">
+                <!-- Phase 4 -->
+                <div class="cf-evidence-card" id="phase-4">
+                    <div class="phase-check" onclick="togglePhase(4)" id="check-4">&#10003;</div>
                     <div class="cf-evidence-marker">4</div>
                     <div class="cf-evidence-body">
-                        <div class="cf-evidence-title">Screenshot Capture on Failure</div>
-                        <div class="cf-evidence-desc">
-                            Configure <code>playwright.config.ts</code> to set
-                            <code>screenshot: 'only-on-failure'</code> and
-                            <code>video: 'retain-on-failure'</code>. Add a
-                            <code>test.afterEach</code> hook that calls
-                            <code>page.screenshot({ path: `screenshots/${testInfo.title}.png` })</code>
-                            for any test that did not pass. Intentionally break a test assertion and
-                            verify the screenshot is captured and attached to the HTML report. Enable
-                            <code>trace: 'on-first-retry'</code> so that trace files are captured
-                            on the first retry and can be inspected with Playwright's trace viewer.
-                        </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Screenshot on Failure</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li>Failing tests produce screenshot files in the configured output directory</li>
-                                <li>Video recordings are retained only for failed tests</li>
-                                <li>Screenshot filenames include the test name for easy identification</li>
-                            </ul>
+                        <div class="cf-evidence-title">Screenshots &amp; the Trace Viewer</div>
+                        <div class="cf-evidence-desc">Capture screenshots mid-test and learn to produce a trace file. The Trace Viewer lets you step through every action, see the DOM snapshot at each point, and replay network requests &mdash; making failure diagnosis much faster than log-reading.</div>
+                        <ol class="cf-steps">
+                            <li><b>Create <code>test_screenshots.py</code></b> and paste this complete script:
+                                <div class="cf-code">import os
+from playwright.sync_api import Page, expect
+
+BASE = "https://the-internet.herokuapp.com"
+
+def test_screenshot_after_login(page: Page):
+    page.goto(BASE + "/login")
+
+    page.get_by_label("Username").fill("tomsmith")
+    page.get_by_label("Password").fill("SuperSecretPassword!")
+    page.get_by_role("button", name="Login").click()
+
+    # Confirm we landed on the secure area.
+    expect(page.locator("#flash")).to_contain_text("You logged into a secure area!")
+
+    # Capture the page at this exact moment. The screenshots/ folder
+    # is created automatically if it does not exist.
+    os.makedirs("screenshots", exist_ok=True)
+    page.screenshot(path="screenshots/secure_area.png")
+    print("Screenshot saved to screenshots/secure_area.png")
+
+def test_screenshot_on_element(page: Page):
+    page.goto(BASE + "/large")
+
+    # Screenshot a single element rather than the full page.
+    # This captures only the bounding box of the matched element.
+    os.makedirs("screenshots", exist_ok=True)
+    table = page.locator("table")
+    table.screenshot(path="screenshots/table_only.png")
+    print("Element screenshot saved to screenshots/table_only.png")</div>
+                            </li>
+                            <li><b>Run the tests:</b>
+                                <div class="cf-code">pytest test_screenshots.py -v -s</div>
+                                The <code>-s</code> flag lets <code>print()</code> output appear in the terminal. Open the <code>screenshots/</code> folder and confirm both PNG files were created.
+                            </li>
+                            <li><b>Run with tracing enabled.</b> The <code>--tracing=on</code> flag tells pytest-playwright to record a trace for every test:
+                                <div class="cf-code">pytest test_screenshots.py --tracing=on -v</div>
+                                After the run, trace zip files appear inside a <code>test-results/</code> folder automatically created by pytest-playwright.
+                            </li>
+                            <li><b>Open the Trace Viewer.</b> The trace folder name is generated from your test name and OS, so look it up first:
+                                <div class="cf-code">ls test-results/</div>
+                                On Windows use <code>dir test-results\</code>. You will see one folder per test, named after the test file, test function, and browser (for example <code>test-screenshots-py-test-screenshot-after-login-chromium</code>). Pass that folder's <code>trace.zip</code> to the viewer:
+                                <div class="cf-code">playwright show-trace test-results/&lt;folder-from-ls&gt;/trace.zip</div>
+                                The Trace Viewer opens in your default browser and shows a timeline of every action with before/after DOM snapshots.
+                            </li>
+                            <li><b>Explore the Trace Viewer.</b> Click any action in the timeline (goto, fill, click). The left panel shows the DOM snapshot at that moment. The right panel shows the network log. The bottom panel shows the console. This is your primary debugging tool for hard-to-reproduce failures.</li>
+                        </ol>
+                        <div class="cf-fix"><b>trace.zip not created after --tracing=on?</b> Check that the test ran and produced a <code>test-results/</code> folder. If the folder is empty, the test may have been collected but skipped. Try running a single test explicitly: <code>pytest test_screenshots.py::test_screenshot_after_login --tracing=on -v</code>. Also confirm your pytest-playwright version is 0.8.0 &mdash; earlier versions placed traces in different locations.</div>
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">Two PNG files exist in the <code>screenshots/</code> folder. The Trace Viewer opens in your browser and shows a horizontal timeline with clickable actions. Clicking the <code>fill</code> action for the username shows the input field highlighted in the DOM snapshot panel. This confirms the trace was recorded correctly and is navigable.</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="cf-evidence-card">
+                <!-- Phase 5 -->
+                <div class="cf-evidence-card" id="phase-5">
+                    <div class="phase-check" onclick="togglePhase(5)" id="check-5">&#10003;</div>
                     <div class="cf-evidence-marker">5</div>
                     <div class="cf-evidence-body">
-                        <div class="cf-evidence-title">Page Object Model</div>
-                        <div class="cf-evidence-desc">
-                            Refactor all tests to use a Page Object Model pattern. Create a
-                            <code>LoginPage</code> class with a constructor taking <code>page: Page</code>
-                            and methods <code>goto()</code>, <code>login(user, pass)</code>, and
-                            <code>errorMessage()</code>. Create a <code>DashboardPage</code> with
-                            methods for each section. Import and instantiate these classes in your
-                            spec files. Notice how the test bodies now read like plain English business
-                            scenarios. Update the login spec to use <code>new LoginPage(page)</code>
-                            and verify all tests still pass.
-                        </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Page Object Model</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li>All direct page calls are replaced with Page Object methods</li>
-                                <li>LoginPage class methods work correctly in tests</li>
-                                <li>Adding a new page requires only a new Page Object class, not test rewrites</li>
-                            </ul>
+                        <div class="cf-evidence-title">Headed Mode &amp; the HTML Report</div>
+                        <div class="cf-evidence-desc">Run tests in a visible browser window so you can watch every action execute in real time. Then generate Playwright's built-in HTML report, which bundles pass/fail status, timing, and trace links into a single file you can share.</div>
+                        <ol class="cf-steps">
+                            <li><b>Run any existing test in headed mode.</b> Add <code>--headed</code> to any pytest command. The browser window opens, you watch each step, then the window closes when the test finishes:
+                                <div class="cf-code">pytest test_locators.py::test_login_form_labels --headed -v</div>
+                                Watch the browser: you will see the page load, the username and password fields fill in, the button click, and the green flash message appear &mdash; all without any code change on your part.
+                            </li>
+                            <li><b>Slow the test down to see each action clearly.</b> Add <code>--slowmo=1000</code> to insert a 1000 ms pause between every Playwright action (value is in milliseconds):
+                                <div class="cf-code">pytest test_locators.py::test_login_form_labels --headed --slowmo=1000 -v</div>
+                            </li>
+                            <li><b>Install pytest-html.</b> The <code>--html</code> flag used in the next step requires this separate package:
+                                <div class="cf-code">pip install pytest-html</div>
+                            </li>
+                            <li><b>Generate the HTML report.</b> Run the full test suite with the report flag:
+                                <div class="cf-code">pytest test_first.py test_locators.py test_dynamic.py test_screenshots.py --html=report.html --self-contained-html -v</div>
+                            </li>
+                            <li><b>Open the report:</b>
+                                <div class="cf-code">open report.html</div>
+                                On Windows: <code>start report.html</code>. On Linux without a desktop: copy the file to a machine with a browser and open it there. The report lists every test with pass/fail, duration, and any captured output.
+                            </li>
+                            <li><b>Run with tracing retained only on failure.</b> This is the production-recommended setting: traces are only kept when a test fails, saving disk space:
+                                <div class="cf-code">pytest test_locators.py --tracing=retain-on-failure -v</div>
+                                Deliberately break a test by editing a locator name to something wrong, re-run, and confirm a trace zip is created only for the failing test.
+                            </li>
+                        </ol>
+                        <div class="cf-fix"><b>Browser window flashes open and closes too fast to see?</b> Add <code>--slowmo=500</code> (500 ms between actions) to slow the execution enough to follow visually. If the window does not open at all in a remote SSH session or WSL without a display server, headed mode requires a graphical display. In that case run headless (the default) and rely on screenshots and traces for debugging.</div>
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">In headed mode a real Chromium window opens, the login page loads, fields fill, the button clicks, and the flash message appears &mdash; all visually. The HTML report opens in your browser and lists each test with a green PASSED badge. Durations show that <code>test_dynamic_element_appears</code> takes the longest because it waits for the real server delay.</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="cf-evidence-card">
+                <!-- Phase 6 -->
+                <div class="cf-evidence-card" id="phase-6">
+                    <div class="phase-check" onclick="togglePhase(6)" id="check-6">&#10003;</div>
                     <div class="cf-evidence-marker">6</div>
                     <div class="cf-evidence-body">
-                        <div class="cf-evidence-title">Parallel Execution &amp; HTML Reports</div>
-                        <div class="cf-evidence-desc">
-                            Configure <code>workers: 4</code> in <code>playwright.config.ts</code>
-                            and run the full suite to observe parallel execution in the terminal output.
-                            Add the <code>html</code> reporter with <code>open: 'never'</code> so reports
-                            are generated without blocking CI. Configure a second project in the
-                            config to run the same tests against Firefox. Measure suite runtime with
-                            and without parallelism. Add a <code>retries: 2</code> setting to
-                            automatically retry flaky tests, then write a GitHub Actions YAML that
-                            installs Playwright browsers and runs the suite on every push.
-                        </div>
-                        <div class="checkpoint-verify" style="background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0;">
-                            <div style="font-size: 0.75rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Checkpoint: Parallel Execution & Reports</div>
-                            <ul style="font-size: 0.82rem; color: #94a3b8; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                <li>Full suite runs with 4 workers and tests execute in parallel</li>
-                                <li>HTML report opens in a browser with pass/fail results and trace links</li>
-                                <li>Test run completes faster with parallel workers than sequential</li>
-                            </ul>
+                        <div class="cf-evidence-title">conftest.py, Fixtures &amp; Parallel Execution</div>
+                        <div class="cf-evidence-desc">Move shared setup into a <code>conftest.py</code> file so every test file can reuse it. Then run the full suite in parallel across multiple workers to see the speed improvement.</div>
+                        <ol class="cf-steps">
+                            <li><b>Create <code>conftest.py</code></b> in your <code>pw-tests</code> folder. This file is loaded automatically by pytest before any test file:
+                                <div class="cf-code">import pytest
+from playwright.sync_api import Page
+
+BASE_URL = "https://the-internet.herokuapp.com"
+
+@pytest.fixture
+def logged_in_page(page: Page):
+    """
+    Fixture that navigates to the login page, logs in as tomsmith,
+    and yields the authenticated page to any test that requests it.
+    The page is closed automatically after the test finishes.
+    """
+    page.goto(BASE_URL + "/login")
+    page.get_by_label("Username").fill("tomsmith")
+    page.get_by_label("Password").fill("SuperSecretPassword!")
+    page.get_by_role("button", name="Login").click()
+    # Wait for the flash banner so login is confirmed before yielding.
+    page.locator("#flash").wait_for()
+    yield page</div>
+                            </li>
+                            <li><b>Create <code>test_secure.py</code></b> to consume the shared fixture:
+                                <div class="cf-code">from playwright.sync_api import Page, expect
+
+def test_secure_area_visible(logged_in_page: Page):
+    # logged_in_page comes from conftest.py -- already logged in.
+    heading = logged_in_page.get_by_role("heading", name="Secure Area")
+    expect(heading).to_be_visible()
+
+def test_logout_works(logged_in_page: Page):
+    # Click the logout link and confirm we return to login.
+    logged_in_page.get_by_role("link", name="Logout").click()
+    expect(logged_in_page).to_have_url(
+        "https://the-internet.herokuapp.com/login"
+    )</div>
+                            </li>
+                            <li><b>Install pytest-xdist</b> for parallel execution:
+                                <div class="cf-code">pip install pytest-xdist</div>
+                            </li>
+                            <li><b>Run the full suite sequentially first</b> to get a baseline time:
+                                <div class="cf-code">pytest test_first.py test_locators.py test_dynamic.py test_secure.py -v</div>
+                                Note the total time printed at the bottom. <code>test_screenshots.py</code> is excluded here because it writes hardcoded filenames (<code>secure_area.png</code>, <code>table_only.png</code>) that two parallel workers would overwrite simultaneously &mdash; run it separately when you need screenshots.
+                            </li>
+                            <li><b>Run the same suite in parallel</b> with 4 workers:
+                                <div class="cf-code">pytest test_first.py test_locators.py test_dynamic.py test_secure.py -n 4 -v</div>
+                                Compare the total time to the sequential run. With 4 workers the suite runtime drops roughly proportional to the number of workers, because each test gets its own isolated browser context automatically.
+                                <div class="cf-step-note"><b>Why parallel is safe here:</b> pytest-playwright gives each worker its own browser context, so tests never share state. The <code>logged_in_page</code> fixture creates a fresh authenticated session per test, not one shared session that would cause race conditions. <code>test_screenshots.py</code> is kept out of the parallel run because its hardcoded output filenames cause a write collision between workers.</div>
+                            </li>
+                        </ol>
+                        <div class="cf-fix"><b>Tests fail when run in parallel but pass sequentially?</b> This usually means tests share mutable state &mdash; a file they both write to, or a global variable. Check that each test creates its own resources and cleans up after itself. <code>test_screenshots.py</code> is intentionally excluded from the parallel commands above because its tests write to hardcoded filenames (<code>secure_area.png</code>, <code>table_only.png</code>); two workers would clobber each other's output. If you later want to parallelize screenshot tests, make the filename unique per test: <code>f"screenshots/{request.node.name}.png"</code> (import <code>request</code> as a pytest fixture argument).</div>
+                        <div class="phase-checkpoint">
+                            <div class="phase-checkpoint-label">Checkpoint &mdash; what you should see</div>
+                            <div class="phase-checkpoint-text">Sequential run completes all tests in a single browser lane. The parallel run with <code>-n 4</code> shows multiple tests starting simultaneously in the terminal output and finishes faster. The <code>conftest.py</code> fixture is used by both tests in <code>test_secure.py</code> with no duplication in the test files themselves. All tests pass in both modes.</div>
                         </div>
                     </div>
                 </div>
@@ -413,14 +710,14 @@
         <div class="cf-paper has-clip">
             <div class="cf-section-stamp">Asset Manifest</div>
             <div class="cf-manifest">
-                <div class="cf-manifest-item">Node.js 18+</div>
-                <div class="cf-manifest-item">Playwright</div>
-                <div class="cf-manifest-item">TypeScript</div>
-                <div class="cf-manifest-item">@playwright/test</div>
-                <div class="cf-manifest-item">Chromium</div>
-                <div class="cf-manifest-item">Firefox</div>
-                <div class="cf-manifest-item">WebKit</div>
-                <div class="cf-manifest-item">GitHub Actions</div>
+                <div class="cf-manifest-item">Python 3.8+</div>
+                <div class="cf-manifest-item">playwright 1.60.0</div>
+                <div class="cf-manifest-item">pytest-playwright 0.8.0</div>
+                <div class="cf-manifest-item">pytest-xdist</div>
+                <div class="cf-manifest-item">pytest-html</div>
+                <div class="cf-manifest-item">Chromium (via playwright install)</div>
+                <div class="cf-manifest-item">the-internet.herokuapp.com</div>
+                <div class="cf-manifest-item">Playwright Trace Viewer</div>
             </div>
         </div>
 
@@ -428,16 +725,16 @@
         <div class="cf-paper has-tape">
             <div class="cf-section-stamp">Expected Outcomes</div>
             <ul class="cf-debrief-list">
-                <li>Playwright project initialization and config structure</li>
-                <li>Locator API using roles, labels, and accessible text</li>
-                <li>Assertion library with auto-retry semantics</li>
-                <li>Async waiting strategies for dynamic content</li>
-                <li>Network interception and request stubbing</li>
-                <li>Screenshot and video capture on test failure</li>
-                <li>Page Object Model for maintainable test suites</li>
-                <li>Parallel test execution across multiple workers</li>
-                <li>HTML report generation and trace viewer usage</li>
-                <li>GitHub Actions CI integration for browser tests</li>
+                <li>Install pytest-playwright and download browser binaries</li>
+                <li>Use the page fixture without any setup boilerplate</li>
+                <li>Locate elements with get_by_role, get_by_label, get_by_text</li>
+                <li>Assert with expect() using auto-retry semantics</li>
+                <li>Test dynamically loaded content without explicit sleeps</li>
+                <li>Capture full-page and element-level screenshots</li>
+                <li>Record and open traces in the Playwright Trace Viewer</li>
+                <li>Run tests headed to watch the browser execute live</li>
+                <li>Share fixtures across test files via conftest.py</li>
+                <li>Run the full suite in parallel with pytest-xdist</li>
             </ul>
         </div>
 
@@ -477,5 +774,67 @@
 
     </div>
 
+    <script src="../components/ModuleProgress.js"></script>
+<script>
+/* ── Phase Progress Tracker ─────────────────────────────────────────────
+   Reads and writes phase completion state to localStorage so students
+   can track their progress across browser sessions.                     */
+(function() {
+    /* Storage key unique to this project. */
+    const PROJECT_KEY = 'hex_project_eye-playwright-testing';
+
+    /* Must match the number of phase-N cards rendered above. */
+    const TOTAL_PHASES = 6;
+
+    /* Read the saved state object from localStorage. */
+    function getState() {
+        try { return JSON.parse(localStorage.getItem(PROJECT_KEY)) || {}; }
+        catch(e) { return {}; }
+    }
+
+    /* Persist the updated state object to localStorage. */
+    function saveState(state) {
+        localStorage.setItem(PROJECT_KEY, JSON.stringify(state));
+    }
+
+    /* Toggle a single phase and re-render. Called by the phase-check buttons. */
+    window.togglePhase = function(id) {
+        var state = getState();
+        state[id] = !state[id];
+        saveState(state);
+        renderProgress();
+    };
+
+    /* Sync all card/checkbox DOM state with localStorage and update the bar. */
+    function renderProgress() {
+        var state = getState();
+        var done = 0;
+
+        for (var i = 1; i <= TOTAL_PHASES; i++) {
+            var card  = document.getElementById('phase-' + i);
+            var check = document.getElementById('check-' + i);
+            if (!card || !check) continue;
+
+            if (state[i]) {
+                card.classList.add('phase-done');
+                check.classList.add('checked');
+                done++;
+            } else {
+                card.classList.remove('phase-done');
+                check.classList.remove('checked');
+            }
+        }
+
+        /* Update the progress bar width and counter text. */
+        var fill  = document.getElementById('phaseProgressFill');
+        var count = document.getElementById('phaseProgressCount');
+        if (fill)  fill.style.width = Math.round((done / TOTAL_PHASES) * 100) + '%';
+        if (count) count.textContent = done + ' / ' + TOTAL_PHASES;
+    }
+
+    /* Run once on page load to restore saved state. */
+    renderProgress();
+})();
+</script>
 </body>
 </html>
