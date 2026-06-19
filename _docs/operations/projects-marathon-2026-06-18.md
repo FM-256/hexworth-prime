@@ -271,8 +271,38 @@ false Oracle login claim. Run BOTH gates on every cloud page; cost-safety is its
 version/attribute claim is load-bearing, WebFetch the authoritative doc (ECR gallery, TF registry,
 AWS pricing) rather than trust either reviewer.
 
-**Remaining (NOT started):** Tier 2/3 across ai, darkarts, divergent, eye, forge, key,
-matrix, shield. ~80 house project pages still on their original outcome-description content
+### AI house — ALL 12 `ai-*` DONE + LIVE (3 waves)
+
+These pages had the phase-card SHELL but `cf-code=0` — prose descriptions, not executable. Rebuild =
+preserve shell + ADD the `.cf-steps`/`.cf-code`/`.cf-fix`/`.phase-checkpoint` CSS + transform every
+phase into runnable, version-grounded content.
+
+Wave A (commit 5829a4851): face-detection (OpenCV DNN SSD vs dlib HOG; verified-live model URLs),
+data-augmentation (Albumentations 2.0.8; ToTensorV2/Normalize roles correct), explainable-ml
+(SHAP 0.52 Explanation API + LIME + permutation importance; built-in dataset), reinforcement-taxi
+(gymnasium 1.3 Taxi-v4, 5-tuple step API, tabular Q-learning).
+
+Wave B (commit adafa221d): intrusion-detector (NSL-KDD RandomForest; real KDDTest+ counts 9711/12833;
+ROC uses P(attack)), network-anomaly (IsolationForest + LOF; hardware-draft SVG retargeted to ML
+labels), threat-classifier (TF-IDF + LogisticRegression on imbalanced SOC alerts; no-leakage),
+music-generation (music21 + Markov -> playable MIDI; bwv66.6 = 165 notes, verified by run).
+
+Wave C (commit 1bb95bd70): rag-chatbot (LangChain 1.x + Ollama + Chroma free-local; coherent
+langchain-core 1.4.8 stack), rasa-chatbot (Rasa 3.6.21 honest Python 3.8-3.10 lock), research-agent
+(LangChain create_agent + Ollama qwen3:4b tool-calling + ddgs search), build-your-department
+(Microsoft Copilot Studio no-code capstone; trial-completable via Test pane, MS-doc grounded).
+
+**AI-house lesson:** the LLM/ML ecosystem churns fast — WebFetch PyPI/docs for EVERY load-bearing
+version/API/dataset-URL. Nancy caught a ROC inversion, gym->gymnasium 5-tuple, Django-removed
+STORAGES, a pip langchain-core 0.x-vs-1.x dependency conflict, the ddgs import rename, a non-existent
+create_agent kwarg, and Copilot Studio trial/analytics false premises. Two reviewer conflicts settled
+by querying ground truth (WebFetch): Taxi-v4 IS real (gymnasium 1.3); langchain 1.3.10 + create_agent
+ARE current. Defaults: LLM projects use a free local Ollama path (no paid key); version-locked libs
+(Rasa) get an honest Python-compat statement up front; no-code GUI pages (Copilot Studio) = precise
+click-by-click steps + Test-pane checkpoints grounded against current vendor docs.
+
+**Remaining (NOT started):** Tier 2/3 across darkarts, divergent, eye, forge, key,
+matrix, shield. ~68 house project pages still on their original outcome-description content
 (render-clean after Workstream A).
 
 ## Progress log (newest first)
