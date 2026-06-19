@@ -244,7 +244,34 @@ macOS ping-flag unit, the Pi 5 thermal-zone sensor, an open-redirect, a react-ro
 multiple checkpoint-vs-code mismatches. When reviewers disagree on a verifiable fact, COMPUTE/QUERY
 the ground truth (gh api, python3) rather than trust either's assertion.
 
-**Remaining (NOT started):** Tier 2/3 across ai, cloud, darkarts, divergent, eye, forge, key,
+### Cloud house — ALL ~13 `cloud-*` DONE + LIVE (3 waves)
+
+Wave 1 (commit b2f0f0f6c): container-checker (Docker; f-string `{x:<N}` bare `<` escaped),
+k8s-deploy (minikube; nginx 1.26->1.27 real rollout), helm-charts (Helm v3; `myapp.chart`
+defined), pi-homelab (Pi; raspbian->debian repo on 64-bit).
+
+Wave 2 (commit a007e7a8b): ec2-first-server (free-tier July-2025 model, t3.micro primary),
+s3-static-site (eu-west-2 DOT endpoint WebFetch-verified, account-BPA), oracle-free-vm (removed
+false "60-day login" claim -> real utilization reclamation; A1 corrected to 4 OCPU/24 GB),
+aws-vpc (no NAT Gateway; EIP all-public-IPv4 charge; subnet-disassociate teardown step).
+
+Wave 3 (commit f4a9d4bf7): api-nginx (reverse proxy + gunicorn + systemd, local/free; ProxyFix
+x_host wired to X-Forwarded-Host), django-eks (eksctl; --wait teardown; LB-before-cluster order;
+ECR nginx 1.27->1.28 live tags; cost-safety hammered up front), serverless-django (Zappa/Lambda;
+Django 5.x STORAGES dict — was the REMOVED `STATICFILES_STORAGE` = collectstatic crash; mandatory
+log-group + undeploy teardown), terraform-infra (provider ~>6 split S3 versioning; `bucket_region`
+exported attr — was non-existent `.region` = apply failure; mandatory destroy + .gitignore),
+budget-fern (Firebase v12 modular; client read-only Firestore rules + Admin-SDK writes; proactive
+composite-index step; full-file Dashboard.jsx).
+
+**Cloud-house lesson:** Nancy (deep API/cost correctness) caught hard BLOCKs that Chris
+(executability) passed — Django 5.1 STORAGES crash, TF `bucket_region`, EOL nginx ECR tags, the
+false Oracle login claim. Run BOTH gates on every cloud page; cost-safety is its own gate dimension
+(mandatory + correctly-ordered teardown, free-tier accuracy, no orphan resources). When a
+version/attribute claim is load-bearing, WebFetch the authoritative doc (ECR gallery, TF registry,
+AWS pricing) rather than trust either reviewer.
+
+**Remaining (NOT started):** Tier 2/3 across ai, darkarts, divergent, eye, forge, key,
 matrix, shield. ~80 house project pages still on their original outcome-description content
 (render-clean after Workstream A).
 
