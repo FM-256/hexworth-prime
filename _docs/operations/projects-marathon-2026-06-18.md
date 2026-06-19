@@ -328,8 +328,35 @@ try/finally), and a wrong `whois.parser.PywhoisError` path (→ `whois.exception
 mandatory prominent authorization/ethics notice, passive/public techniques only, plus a
 domain-validation/SSRF hygiene note.
 
+### Matrix house — ALL 10 `matrix-*` DONE + LIVE (2 waves)
+
+Matrix pages already had the phase scaffold (togglePhase/id=phase-N) — the rebuild was prose→executable
+(numbered cf-steps + paste-ready code + cf-fix + phase-checkpoint) + adding the cf-* CSS in Matrix green
+(`#00ff41`). 8 are gated (`require('sorted')`); packet-visualizer + traffic-dashboard are ungated (preserved).
+
+Wave A (commit 1811597e4): customer-segmentation (sklearn K-Means, elbow+silhouette), time-series
+(statsmodels SARIMAX, AirPassengers, chronological split), sentiment-nlp (VADER + HuggingFace
+transformers two-method compare), stock-analysis (yfinance + CSV-cache fallback), climate-analysis
+(synthetic series, warming-trend regression, decomposition, forecast).
+
+Wave B (commit 74856a303): data-viz (matplotlib GridSpec dashboard), plotly-viz (interactive
+write_html), kafka-streaming (Kafka KRaft via docker-compose + kafka-python producer/consumer),
+packet-visualizer + traffic-dashboard (scapy traffic analysis/dashboard, authorization-gated, pcap
+fallback, ungated).
+
+**Matrix-house lessons (data-science heavy):** (1) NEW CRASH CLASS — CSS `rgba(r,g,b,a)` strings leaked
+into matplotlib `color=` args (ValueError); fix = hex/tuple in Python, CSS rgba only in `<style>`; grep
+`color=['"]rgba\(` per page. (2) FABRICATED EXPECTED OUTPUT was the recurring sin — designers must RUN
+the script and paste REAL numbers (caught a climate warming-rate 4× off, data-viz seed values, and a
+0.812-vs-actual-0.319 correlation). (3) numpy 2.x / pandas 3.x / matplotlib 3.11 require Python 3.11+ —
+state the floor. (4) Heavy infra (Kafka): the apache/kafka KRaft image needs `CLUSTER_ID` or it
+crash-loops — ship a working docker-compose. (5) Flaky live-data (yfinance): cache to CSV early, every
+later phase reads the CSV. (6) Packet pages: prominent ethics notice + passive pcap-fallback (no root).
+(7) Versions that "look future" (matplotlib 3.11, transformers 5.12, kafka-python 3.0.2, scapy 2.7) are
+REAL as of 2026-06 — WebFetch PyPI to confirm rather than trust training-cutoff doubt.
+
 **Remaining (NOT started):** Tier 2/3 across darkarts, divergent, forge, key,
-matrix, shield. ~63 house project pages still on their original outcome-description content
+shield. ~53 house project pages still on their original outcome-description content
 (render-clean after Workstream A).
 
 ## Progress log (newest first)
