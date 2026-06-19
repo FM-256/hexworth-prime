@@ -301,8 +301,35 @@ ARE current. Defaults: LLM projects use a free local Ollama path (no paid key); 
 (Rasa) get an honest Python-compat statement up front; no-code GUI pages (Copilot Studio) = precise
 click-by-click steps + Test-pane checkpoints grounded against current vendor docs.
 
-**Remaining (NOT started):** Tier 2/3 across darkarts, divergent, eye, forge, key,
-matrix, shield. ~68 house project pages still on their original outcome-description content
+### Eye house — ALL 5 `eye-*` DONE + LIVE (commit 6d64ee7ac)
+
+These pages were BARER than the rest: no phase-progress scaffold at all (no `id=phase-N`, no
+togglePhase, no closing script) AND no AccessGuard. The rebuild added the full interactive system
+(`id=phase-N` + phase-check + togglePhase + progress tracker + ModuleProgress.js + commented closure)
+plus the `.cf-steps`/`.cf-code`/`.cf-fix`/`.phase-checkpoint` CSS, and transformed prose phases into
+runnable code. The ungated state was PRESERVED (no AccessGuard added — flagged to the operator as a
+possible platform inconsistency to decide on separately). Accent `#c084fc`.
+
+Pages: eye-selenium-testing (Selenium 4.x with built-in Selenium Manager — webdriver-manager retired —
++ Page Object Model + pytest-html, against the-internet.herokuapp.com), eye-playwright-testing
+(Playwright-for-Python, auto-waiting, trace viewer, parallel run), eye-pytorch-onnx (train a small
+PyTorch MNIST CNN → export ONNX → run client-side in the browser via onnxruntime-web; the
+Python↔JS preprocessing contract is the crux), eye-motion-surveillance (OpenCV MOG2 background
+subtraction + contours, webcam with a video-file/headless fallback, try/finally-safe recording),
+eye-osint-dashboard (PASSIVE/public OSINT — DNS/WHOIS/crt.sh CT logs/HTTP headers — behind a prominent
+authorization/ethics notice, aggregated in a Flask dashboard).
+
+**Eye-house lesson:** a reviewer conflict on `torch.onnx.export(dynamo=False)` (INVALID in torch 2.3.0
+— the kwarg landed later → TypeError) was settled in Nancy's favor; she also caught a verify-script
+that compared the ONNX model against a RANDOM-weight PyTorch model (must save/load the `.pth`), a wrong
+Playwright title assertion (use a `re.compile` regex, never a brittle exact title), a pytest
+`hookwrapper=True` deprecation, a headless `Ctrl+C` corrupt-file path (wrap the capture loop in
+try/finally), and a wrong `whois.parser.PywhoisError` path (→ `whois.exceptions`). OSINT content rule:
+mandatory prominent authorization/ethics notice, passive/public techniques only, plus a
+domain-validation/SSRF hygiene note.
+
+**Remaining (NOT started):** Tier 2/3 across darkarts, divergent, forge, key,
+matrix, shield. ~63 house project pages still on their original outcome-description content
 (render-clean after Workstream A).
 
 ## Progress log (newest first)
