@@ -436,12 +436,50 @@ the PROJECT_KEY/TOTAL_PHASES markers in an outer comment; keep them as separate 
 block comments. (5) Hardware/heavy projects need an honest no-hardware path (Wokwi) AND
 honest heavy-prereq disclosure (home-lab: 16GB/120GB + a run-two-at-a-time fallback).
 
-**Remaining (NOT started):** Tier 2/3 across darkarts, divergent, key.
-~31 house project pages still on their original outcome-description content
+### Divergent house — DONE + LIVE (all 5 `divergent-*`)
+
+Two waves, all dual-gated. 4 ungated + 1 gated (manim — AccessGuard preserved).
+
+Wave A — software (commit f09e25e5f): divergent-multi-tool (Python plugin-discovery CLI via
+importlib/pkgutil, stdlib-only, real run output), divergent-manim (Manim Community Edition
+0.20.1 math animations → real MP4s, GATED), divergent-discord-bot (TypeScript Discord.js
+14.26.4 moderation bot — privileged-intents wall + role hierarchy + better-sqlite3 audit trail).
+
+Wave B — special (commit 479d180a4): divergent-faceless-youtube (7-phase PROCESS project:
+produce + publish ONE real faceless YouTube video; each checkpoint a concrete artifact
+script→voiceover→assets→final.mp4→live URL; honest YouTube-policy framing, no get-rich-quick),
+divergent-field-terminal (ESP32 "Cheap Yellow Display" ESP32-2432S028R handheld wireless field
+terminal — WiFi scan, NimBLE 2.x BLE recon, passive frame counter, net diagnostics; prominent
+ethics gate, recon-only/no-attack-code).
+
+**Divergent-house lessons:** (1) Reviewer conflicts on VERIFIABLE facts → compute/fetch ground
+truth, override the wrong reviewer (regardless of which). This house: Chris BLOCKED multi-tool
+on a byte-count he MISCOUNTED (`printf|wc -c`=69 confirmed his 70 wrong); Nancy was RIGHT that
+the YouTube AI-disclosure requirement targets photorealistic/deceptive content only (a plain AI
+voiceover is explicitly NOT required to disclose) — fetched support.google.com/youtube/answer/
+14328491 to confirm and reframed the page's overstated "required". (2) The argparse duplicate-
+subparser collision raises ArgumentError (not "built-in wins") — run it to settle. (3) Manim
+has TWO incompatible libs — use Manim COMMUNITY (`manim`/docs.manim.community), never ManimGL;
+watch for ManimGL-era contamination (`ApplyMethod`, `stop_skipping()` don't exist in CE).
+(4) Incremental multi-phase sketches need FORWARD DECLARATIONS + explicit per-phase "remove the
+old stub" steps, or the composite fails to compile (duplicate definition / use-before-declare)
+— a recurring hardware-page trap. (5) AUTH-TOKEN EXPIRY mid-run kills subagents with a 401
+(0 tokens); operator re-login + re-dispatch recovers (the crashed run's file writes had already
+landed). (6) Process/content projects (faceless-youtube) are "executable" when each phase yields
+a concrete artifact and the final phase ships a real published result — and must be POLICY-HONEST
+(disclosure rules, demonetization of low-effort AI spam), no hype.
+
+**Remaining (NOT started):** Tier 2/3 across darkarts, key.
+~26 house project pages still on their original outcome-description content
 (render-clean after Workstream A). darkarts is offensive-security content needing an
 operator scope read first.
 
 ## Progress log (newest first)
+- 2026-06-20: Divergent house COMPLETE + LIVE (5 pages, 2 waves: A f09e25e5f software,
+  B 479d180a4 faceless-youtube + ESP32 field-terminal). Ten houses done; only darkarts + key
+  remain. Settled reviewer conflicts by ground truth (wc byte-count, argparse collision, YouTube
+  AI-disclosure policy). Recovered from an auth-token expiry that 401'd two subagents mid-run.
+  Next house = operator's call; darkarts (offensive) needs a scope read first.
 - 2026-06-20: Forge house COMPLETE + LIVE (9 pages, 3 waves: A cc7525438 virtualization,
   B 9b4d1f415 software, C 58e38b781 Arduino). Nine houses done. Wokwi adopted as the Arduino
   no-hardware path. Two version conflicts settled by computing ground truth (Ubuntu 26.04 IS
