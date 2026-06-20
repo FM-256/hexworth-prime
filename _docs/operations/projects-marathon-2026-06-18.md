@@ -396,12 +396,57 @@ failed deploy. (5) Logic traps in mock scenarios are real bugs: a re-arm-then-re
 silently suppressed the second alarm because the elapsed time was inside the cooldown window
 — trace the timeline, don't trust the `# fires alarm #2` comment.
 
-**Remaining (NOT started):** Tier 2/3 across darkarts, divergent, forge, key.
-~40 house project pages still on their original outcome-description content
+### Forge house — DONE + LIVE (all 9 `forge-*`)
+
+Three waves, all dual-gated. 7 ungated + 2 gated (crossword, spring — AccessGuard preserved).
+
+Wave A — virtualization GUI walkthroughs (commit cc7525438): forge-virtualbox-first-vm
+(VirtualBox 7.2.x + Ubuntu 26.04 LTS), forge-vmware-first-vm (VMware Workstation Pro 17.x
+free-for-personal-use via Broadcom + Ubuntu Server 26.04), forge-home-lab (3-VM AD lab:
+Server DC + Win11 + Kali 2026.1 on an isolated Internal Network; Install-ADDSForest;
+DNS-at-DC). Caught + fixed a broken nested-comment closing script (togglePhase undefined)
+on virtualbox before ship.
+
+Wave B — software (commit 9b4d1f415): forge-flashcard-engine (Python CLI + SM-2 spaced
+repetition + JSON persistence, stdlib-only, real run output), forge-telegram-bot (Node.js
+URL uptime/change monitor, node-telegram-bot-api 1.1.0 ESM), forge-crossword-puzzle (Vite 8
++ Vitest 4 grid-placement + 29 real passing tests, GATED), forge-spring-fullstack (Spring
+Boot 4.1 MVC + Thymeleaf + JPA + H2 full CRUD, jakarta.*, GATED).
+
+Wave C — Arduino hardware (commit 58e38b781): forge-env-monitor (Mega + DHT threshold LEDs
++ buzzer), forge-sensor-dashboard (Mega + 16x2 LCD + DHT + LDR + LEDs). BOTH use **Wokwi**
+(the online Arduino simulator) as a first-class no-hardware path — the Arduino analog of the
+shield MockFactory/Linux-VM fallbacks.
+
+**Forge-house lessons:** (1) GUI/version walkthroughs live or die on CURRENT accuracy —
+WebFetch every version + UI label (installer screen labels drift: Ubuntu's new Flutter
+installer is "Interactive installation"/"Default selection", NOT the old "Normal
+installation"). (2) "Looks-future but real-as-of-now" versions struck again — Ubuntu 26.04
+LTS, Vite 8, Vitest 4, Spring Boot 4.1, VMware-free-for-personal-use, Kali 2026.1, open-vm-
+tools 13.0.10 are ALL real as of 2026-06; verify, don't trust training-cutoff doubt. A
+reviewer (Chris) BLOCKED on "Ubuntu 26.04 doesn't exist" — a training-cutoff error
+overridden by checking releases.ubuntu.com. Conversely a designer's node-telegram-bot-api
+"1.1.1" was the phantom (real latest 1.1.0). ALWAYS compute ground truth on version
+conflicts. (3) Simulator capabilities are load-bearing facts to verify per-part: Wokwi's
+DHT22 has a click-drag slider popup but the photoresistor does NOT (lux-attribute/automation
+only), and LCD1602 V0 contrast is "not simulated" — a Chris/Nancy conflict resolved against
+Wokwi docs (Nancy right). (4) The nested-`/* */`-comment closing-script bug (JS comments
+don't nest → first `*/` ends the block → togglePhase undefined) recurs when designers wrap
+the PROJECT_KEY/TOTAL_PHASES markers in an outer comment; keep them as separate top-level
+block comments. (5) Hardware/heavy projects need an honest no-hardware path (Wokwi) AND
+honest heavy-prereq disclosure (home-lab: 16GB/120GB + a run-two-at-a-time fallback).
+
+**Remaining (NOT started):** Tier 2/3 across darkarts, divergent, key.
+~31 house project pages still on their original outcome-description content
 (render-clean after Workstream A). darkarts is offensive-security content needing an
 operator scope read first.
 
 ## Progress log (newest first)
+- 2026-06-20: Forge house COMPLETE + LIVE (9 pages, 3 waves: A cc7525438 virtualization,
+  B 9b4d1f415 software, C 58e38b781 Arduino). Nine houses done. Wokwi adopted as the Arduino
+  no-hardware path. Two version conflicts settled by computing ground truth (Ubuntu 26.04 IS
+  real → overrode a BLOCK; node-telegram-bot-api 1.1.1 was NOT real → corrected to 1.1.0).
+  Next house = operator's call (darkarts/divergent/key); darkarts needs a scope read first.
 - 2026-06-19: Shield house COMPLETE + LIVE (13 pages, 3 waves: A 0a7a8bbfc, B 6c602d660,
   C 55b4d2d2e). Eight houses done (T1/code/web/script/cloud/ai/eye/matrix/shield). Wave C
   Suricata strings ground-truthed against OISF 8.0.5 source; fixed a mock-cooldown logic bug
