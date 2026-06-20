@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- ── Auth / progress must load first, in this exact order ── -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Response Playbook | Security+ SY0-701 | Shield House</title>
+    <style>
+        /* ── Reset + CSS custom properties (Shield dark theme) ── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary:  #f87171;
+            --accent:   #f97316;
+            --bg:       #0a0a12;
+            --card:     rgba(15,15,25,0.9);
+            --text:     #e8e8f0;
+            --muted:    #888;
+            --border:   rgba(248,113,113,0.2);
+            --glow:     rgba(248,113,113,0.35);
+            --ok:       #10b981;
+            --err:      #ef4444;
+            --phase-bg: rgba(248,113,113,0.06);
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ── */
+        .header {
+            padding: 14px 24px;
+            background: rgba(10,10,18,0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 14px;
+            background: rgba(248,113,113,0.12);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* ── Page layout ── */
+        .container { max-width: 980px; margin: 0 auto; padding: 30px 20px 80px; }
+
+        /* ── Lab title hero ── */
+        .lab-title {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 28px 24px;
+            background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06));
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+        /* ── Scenario callout ── */
+        .scenario-box {
+            background: rgba(249,115,22,0.08);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 10px 10px 0;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+            font-size: 0.93rem;
+            line-height: 1.7;
+            color: #d0d0e0;
+        }
+        .scenario-box strong { color: var(--accent); display: block; margin-bottom: 6px; font-size: 1rem; }
+
+        /* ── Instructions ── */
+        .instructions {
+            background: rgba(16,185,129,0.06);
+            border-left: 4px solid var(--ok);
+            padding: 13px 18px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #ccc;
+        }
+
+        /* ── Section heading (IR phase name) ── */
+        .section-heading {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+        }
+        .section-sub {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        /* ── Phase card wrapper ── */
+        .phase-block {
+            background: var(--phase-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 22px;
+            margin-bottom: 22px;
+            transition: border-color 0.3s;
+        }
+        /* Mood-ring: grading adds these classes to .phase-block */
+        .phase-block.correct   { border-color: var(--ok); }
+        .phase-block.incorrect { border-color: var(--err); }
+
+        /* ── Individual action item (checkbox row) ── */
+        .action-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 11px 14px;
+            background: var(--card);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 9px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .action-item:hover { border-color: rgba(248,113,113,0.35); background: rgba(20,20,35,0.95); }
+        .action-item input[type="checkbox"] {
+            margin-top: 2px;
+            flex-shrink: 0;
+            accent-color: var(--primary);
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        .action-label { font-size: 0.9rem; line-height: 1.55; color: #d8d8ec; user-select: none; }
+
+        /* ── Per-action feedback (shown after grading) ── */
+        .action-feedback {
+            display: none;
+            font-size: 0.82rem;
+            margin-top: 5px;
+            line-height: 1.5;
+        }
+        .action-feedback.show { display: block; }
+        .action-feedback.right { color: var(--ok); }
+        .action-feedback.wrong { color: var(--err); }
+
+        /* ── Phase-level result banner ── */
+        .phase-result {
+            display: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            margin-top: 12px;
+            padding: 8px 14px;
+            border-radius: 7px;
+        }
+        .phase-result.show { display: block; }
+        .phase-result.pass { background: rgba(16,185,129,0.12); color: var(--ok); border: 1px solid rgba(16,185,129,0.3); }
+        .phase-result.fail { background: rgba(239,68,68,0.1); color: var(--err); border: 1px solid rgba(239,68,68,0.25); }
+
+        /* ── Ordering section ── */
+        .order-section {
+            background: var(--phase-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 22px;
+            margin-bottom: 22px;
+            transition: border-color 0.3s;
+        }
+        .order-section.correct   { border-color: var(--ok); }
+        .order-section.incorrect { border-color: var(--err); }
+
+        .order-prompt {
+            font-size: 0.91rem;
+            color: #ccc;
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+        .order-selects { display: flex; flex-direction: column; gap: 10px; }
+        .order-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .order-slot {
+            font-size: 0.85rem;
+            color: var(--muted);
+            min-width: 80px;
+        }
+        .order-row select {
+            background: rgba(10,10,18,0.92);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            flex: 1;
+            max-width: 340px;
+        }
+        .order-row select:focus { outline: none; border-color: var(--primary); }
+        .order-feedback {
+            display: none;
+            font-size: 0.85rem;
+            margin-top: 10px;
+        }
+        .order-feedback.show { display: block; }
+        .order-feedback.right { color: var(--ok); }
+        .order-feedback.wrong { color: var(--err); }
+
+        /* ── Action buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 11px 26px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover { background: rgba(248,113,113,0.08); }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 26px 0 10px;
+            flex-wrap: wrap;
+        }
+
+        /* ── Score summary panel ── */
+        .results {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 26px 24px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; font-size: 1.5rem; }
+        .results p { color: var(--muted); font-size: 0.95rem; line-height: 1.7; }
+        .score-detail {
+            margin: 14px 0 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .score-pill {
+            font-size: 0.8rem;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        .score-pill.pass { background: rgba(16,185,129,0.15); color: var(--ok); border: 1px solid rgba(16,185,129,0.3); }
+        .score-pill.fail { background: rgba(239,68,68,0.1); color: var(--err); border: 1px solid rgba(239,68,68,0.25); }
+
+        /* ── Mark Complete section ── */
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+        .complete-note { font-size: 0.85rem; color: var(--ok); margin-bottom: 12px; }
+
+        /* ── Divider ── */
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 28px 0;
+        }
+
+        /* ── Responsive: single-column at narrow widths ── */
+        @media (max-width: 600px) {
+            .lab-title h1 { font-size: 1.35rem; }
+            .order-row { flex-direction: column; align-items: flex-start; }
+            .order-row select { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Visually hidden page title for screen readers -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Incident Response Playbook Lab</h2>
+
+<!-- ── Sticky navigation header ── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+</span>
+</header>
+
+<div class="container">
+
+    <!-- ── Title hero ── -->
+    <div class="lab-title">
+        <h1>Incident Response Playbook</h1>
+        <p>Walk a real ransomware breach through all six IR phases. Assign actions to the right phase, then prove you know the correct sequence.</p>
+    </div>
+
+    <!-- ── Scenario callout ── -->
+    <div class="scenario-box">
+        <strong>Scenario: Ransomware on FileServer-01</strong>
+        Monday morning, 07:42. The SOC receives alerts from the SIEM: FileServer-01 is encrypting shares at high speed. A junior analyst confirms ransomware. The organization's IR plan is active. You are the IR lead. Your job is to execute the playbook correctly -- assigning each action to the phase where it actually belongs and rejecting actions that belong to a different phase.
+    </div>
+
+    <!-- ── How to use ── -->
+    <div class="instructions">
+        <strong>How this works:</strong> For each IR phase below, check EVERY action that belongs to that phase. Leave unchecked any action that belongs to a different phase or is simply wrong. A phase passes only when your selection exactly matches the correct set. After all phases, answer the ordering challenge. Submit when ready.
+    </div>
+
+    <!-- ================================================================
+         PART 1 -- PER-PHASE CHECKBOX QUESTIONS
+         Each .phase-block holds a pool of candidate actions.
+         The .phase-block element itself receives the mood-ring class
+         (correct / incorrect) during grading so the auto-observer fires.
+    ================================================================ -->
+
+    <!-- PHASE 1: Preparation -->
+    <div class="phase-block" id="phase-preparation">
+        <div class="section-heading">Phase 1 -- Preparation</div>
+        <div class="section-sub">Actions that MUST exist BEFORE any incident occurs. Select all that belong here.</div>
+
+        <div id="actions-preparation"></div>
+        <div class="phase-result" id="result-preparation"></div>
+    </div>
+
+    <!-- PHASE 2: Detection & Analysis (Identification) -->
+    <div class="phase-block" id="phase-detection">
+        <div class="section-heading">Phase 2 -- Detection &amp; Analysis</div>
+        <div class="section-sub">Actions taken to confirm the incident, scope it, and preserve evidence. Select all that belong here.</div>
+
+        <div id="actions-detection"></div>
+        <div class="phase-result" id="result-detection"></div>
+    </div>
+
+    <!-- PHASE 3: Containment -->
+    <div class="phase-block" id="phase-containment">
+        <div class="section-heading">Phase 3 -- Containment</div>
+        <div class="section-sub">Actions that LIMIT the spread of the incident without destroying forensic evidence. Select all that belong here.</div>
+
+        <div id="actions-containment"></div>
+        <div class="phase-result" id="result-containment"></div>
+    </div>
+
+    <!-- PHASE 4: Eradication -->
+    <div class="phase-block" id="phase-eradication">
+        <div class="section-heading">Phase 4 -- Eradication</div>
+        <div class="section-sub">Actions that REMOVE the threat entirely. Select all that belong here.</div>
+
+        <div id="actions-eradication"></div>
+        <div class="phase-result" id="result-eradication"></div>
+    </div>
+
+    <!-- PHASE 5: Recovery -->
+    <div class="phase-block" id="phase-recovery">
+        <div class="section-heading">Phase 5 -- Recovery</div>
+        <div class="section-sub">Actions that RESTORE systems to normal, verified operation. Select all that belong here.</div>
+
+        <div id="actions-recovery"></div>
+        <div class="phase-result" id="result-recovery"></div>
+    </div>
+
+    <!-- PHASE 6: Lessons Learned (Post-Incident Activity) -->
+    <div class="phase-block" id="phase-lessons">
+        <div class="section-heading">Phase 6 -- Lessons Learned</div>
+        <div class="section-sub">Actions that happen AFTER the incident is closed. Select all that belong here.</div>
+
+        <div id="actions-lessons"></div>
+        <div class="phase-result" id="result-lessons"></div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ================================================================
+         PART 2 -- ORDERING CHALLENGE
+         Three drop-downs covering the commonly confused middle trio:
+         Containment -> Eradication -> Recovery
+    ================================================================ -->
+    <div class="order-section" id="order-section">
+        <div class="section-heading">Ordering Challenge</div>
+        <div class="section-sub">Confirm you know the correct sequence for the three middle phases.</div>
+
+        <p class="order-prompt">
+            Arrange the three phases below in the correct sequence.<br>
+            <em>Note: this lab uses a hybrid model aligned to CompTIA SY0-701's IR process, drawing on NIST SP 800-61. They agree on the ordering of these three phases but structure the surrounding steps differently -- NIST groups Containment, Eradication, and Recovery as a single "Containment, Eradication, and Recovery" stage while SY0-701 treats them as three distinct named phases.</em><br><br>
+            <em>Key rule: you must limit the spread before you can safely destroy it; you must destroy it before you can safely rebuild.</em>
+        </p>
+
+        <div class="order-selects">
+            <div class="order-row">
+                <span class="order-slot">Step 1</span>
+                <select id="ord-1" aria-label="Step 1 phase">
+                    <option value="">-- Select phase --</option>
+                    <option value="Containment">Containment</option>
+                    <option value="Eradication">Eradication</option>
+                    <option value="Recovery">Recovery</option>
+                </select>
+            </div>
+            <div class="order-row">
+                <span class="order-slot">Step 2</span>
+                <select id="ord-2" aria-label="Step 2 phase">
+                    <option value="">-- Select phase --</option>
+                    <option value="Containment">Containment</option>
+                    <option value="Eradication">Eradication</option>
+                    <option value="Recovery">Recovery</option>
+                </select>
+            </div>
+            <div class="order-row">
+                <span class="order-slot">Step 3</span>
+                <select id="ord-3" aria-label="Step 3 phase">
+                    <option value="">-- Select phase --</option>
+                    <option value="Containment">Containment</option>
+                    <option value="Eradication">Eradication</option>
+                    <option value="Recovery">Recovery</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="order-feedback" id="order-feedback"></div>
+    </div>
+
+    <!-- ── Submit / Reset controls ── -->
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="gradeAll()">Check Answers</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <!-- ── Score summary (hidden until graded) ── -->
+    <div class="results" id="results"></div>
+
+    <!-- ── Mark Complete (hidden until pass threshold reached) ── -->
+    <div class="complete-section" id="completeSection">
+        <p class="complete-note">You passed (6/7 or better) -- mark this lab complete to record your progress.</p>
+        <button class="btn" onclick="ModuleProgress.complete('shield','shield-incident-response-playbook',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+
+</div><!-- /.container -->
+
+<script>
+/*
+ * ================================================================
+ * DATA MODEL
+ * Each phase entry contains a pool of candidate actions.
+ * Each action has:
+ *   id        -- unique string used as the checkbox element id
+ *   text      -- what the student reads
+ *   correct   -- true if this action BELONGS to this phase
+ *   explain   -- feedback string shown after grading
+ *
+ * Phase/action mapping is authoritative per:
+ *   - CompTIA Security+ SY0-701 exam objectives (Domain 4.2)
+ *   - NIST SP 800-61 Rev 2, Section 3
+ * ================================================================
+ */
+var PHASES = [
+    {
+        key: 'preparation',
+        label: 'Preparation',
+        /* Preparation actions exist BEFORE an incident. Distractors are from
+           Detection/Containment/Lessons-Learned to catch common confusions. */
+        actions: [
+            {
+                id: 'prep-irplan',
+                text: 'Develop and document a formal Incident Response Plan (IRP) including roles, escalation paths, and communication trees.',
+                correct: true,
+                explain: 'Correct -- the IR plan is a Preparation artifact. It must exist before any incident occurs (NIST 800-61 Sec 3.1).'
+            },
+            {
+                id: 'prep-tools',
+                text: 'Pre-stage forensic tools (disk imagers, memory capture utilities, write blockers) and verify they are accessible to the IR team.',
+                correct: true,
+                explain: 'Correct -- tooling readiness is Preparation. Having tools ready before the incident avoids delays during Detection.'
+            },
+            {
+                id: 'prep-training',
+                text: 'Conduct tabletop exercises and IR team training so responders know the playbook before an incident occurs.',
+                correct: true,
+                explain: 'Correct -- training and exercises are Preparation activities (NIST 800-61 Sec 3.1.2). They must happen proactively.'
+            },
+            {
+                id: 'prep-comms',
+                text: 'Identify and document out-of-band communication channels (e.g., personal phones, secure messaging) in case primary systems are compromised.',
+                correct: true,
+                explain: 'Correct -- out-of-band comms planning is a Preparation task. During an incident the normal channels may be untrusted.'
+            },
+            {
+                id: 'prep-isolate',
+                text: 'Isolate FileServer-01 from the network to prevent the ransomware from spreading to additional shares.',
+                correct: false,
+                explain: 'Incorrect -- network isolation happens during Containment, not Preparation. Preparation occurs BEFORE an incident.'
+            },
+            {
+                id: 'prep-postmortem',
+                text: 'Conduct a post-mortem meeting to identify the root cause and update the IR playbook.',
+                correct: false,
+                explain: 'Incorrect -- post-mortems and playbook updates belong to Lessons Learned (Phase 6), not Preparation.'
+            }
+        ]
+    },
+    {
+        key: 'detection',
+        label: 'Detection & Analysis',
+        /* Key distinction: Detection = confirm the event, scope it, preserve evidence.
+           Chain-of-custody and forensic imaging happen HERE, before eradication destroys artifacts. */
+        actions: [
+            {
+                id: 'det-siem',
+                text: 'Correlate SIEM alerts with endpoint logs and network flow data to confirm the incident is ransomware and not a false positive.',
+                correct: true,
+                explain: 'Correct -- alert triage and incident confirmation are Detection & Analysis activities (NIST 800-61 Sec 3.2).'
+            },
+            {
+                id: 'det-image',
+                text: 'Capture volatile evidence from FileServer-01 -- running memory (RAM dump), active network connections, and live process list -- and open a chain-of-custody record while the system is still live during analysis.',
+                correct: true,
+                explain: 'Correct -- capturing volatile evidence (RAM, live connections) belongs in Detection & Analysis because this data disappears the moment the system is powered off or isolated. Chain of custody opens here so every artifact is admissible. Non-volatile disk imaging can also begin here, but volatile data is the priority unique to this phase.'
+            },
+            {
+                id: 'det-scope',
+                text: 'Identify additional affected hosts by scanning network segments for ransomware indicators of compromise (IoCs).',
+                correct: true,
+                explain: 'Correct -- scoping the incident (how far did it spread?) is a Detection & Analysis task before Containment decisions are finalized.'
+            },
+            {
+                id: 'det-notify',
+                text: 'Notify the IR team, management, and legal counsel per the IRP communication tree.',
+                correct: true,
+                explain: 'Correct -- stakeholder notification as part of confirming and escalating an incident is a Detection & Analysis responsibility.'
+            },
+            {
+                id: 'det-wipe',
+                text: 'Wipe the operating system drive on FileServer-01 and reinstall Windows Server from approved media.',
+                correct: false,
+                explain: 'Incorrect -- wiping and rebuilding is Eradication (Phase 4). Doing this in Detection destroys forensic evidence before it is captured.'
+            },
+            {
+                id: 'det-backup',
+                text: 'Restore FileServer-01 data from the last known-good backup.',
+                correct: false,
+                explain: 'Incorrect -- restoring from backup is a Recovery activity (Phase 5). It cannot begin until the threat is eradicated.'
+            }
+        ]
+    },
+    {
+        key: 'containment',
+        label: 'Containment',
+        /* Containment = limit spread. Actions are reversible where possible.
+           Key trap: Containment does NOT remove the threat (that is Eradication).
+           Evidence must already be captured before destructive containment measures. */
+        actions: [
+            {
+                id: 'con-isolate',
+                text: 'Isolate FileServer-01 by disconnecting its network cable or placing it in a quarantine VLAN with no routing to production segments.',
+                correct: true,
+                explain: 'Correct -- network isolation is the textbook Containment action. It stops lateral spread without (yet) destroying the attacker\'s foothold (NIST 800-61 Sec 3.3).'
+            },
+            {
+                id: 'con-disable',
+                text: 'Disable the compromised service account (svc_backup) in Active Directory to block further lateral movement via those credentials.',
+                correct: true,
+                explain: 'Correct -- disabling compromised accounts limits the attacker\'s reach. This is a short-term Containment measure; full credential remediation (reset/new account) belongs to Eradication.'
+            },
+            {
+                id: 'con-block',
+                text: 'Block the attacker\'s known command-and-control (C2) IP addresses and domains at the perimeter firewall.',
+                correct: true,
+                explain: 'Correct -- blocking C2 communication is a Containment step that limits attacker control without yet removing the malware itself.'
+            },
+            {
+                id: 'con-snapshot',
+                text: 'Take a point-in-time disk/VM snapshot of FileServer-01 through the hypervisor, creating a forensic reference image of the contained host before eradication begins.',
+                correct: true,
+                explain: 'Correct -- a hypervisor snapshot taken at Containment preserves the full disk state of the contained host as a forensic reference before destructive Eradication steps (wipe/rebuild) remove it. This is distinct from volatile memory capture in Detection & Analysis: by Containment the system is already isolated, so the priority shifts to preserving the disk image while the threat is locked down.'
+            },
+            {
+                id: 'con-patch',
+                text: 'Apply the security patch that closes the vulnerability the ransomware exploited to enter the network.',
+                correct: false,
+                explain: 'Incorrect -- patching the exploited vulnerability is an Eradication activity. Containment limits spread; Eradication removes the root cause and closes the exploit path.'
+            },
+            {
+                id: 'con-restore',
+                text: 'Restore production data from backup once the infected host is isolated.',
+                correct: false,
+                explain: 'Incorrect -- data restoration is Recovery (Phase 5). You cannot safely restore while the threat still exists, even on an isolated host.'
+            }
+        ]
+    },
+    {
+        key: 'eradication',
+        label: 'Eradication',
+        /* Eradication = remove the threat root and all persistence mechanisms.
+           This includes: malware removal OR full wipe/rebuild, patching the exploit,
+           resetting ALL compromised credentials (not just disabling as in Containment). */
+        actions: [
+            {
+                id: 'era-wipe',
+                text: 'Securely wipe FileServer-01 and rebuild it from approved, hardened installation media.',
+                correct: true,
+                explain: 'Correct -- full wipe and rebuild is the gold-standard Eradication action. For ransomware, removal tools rarely guarantee clean state; rebuild is preferred (NIST 800-61 Sec 3.3).'
+            },
+            {
+                id: 'era-patch',
+                text: 'Apply the patch that closes the vulnerability the ransomware exploited to gain initial access.',
+                correct: true,
+                explain: 'Correct -- patching the exploited vulnerability is Eradication: you remove the pathway the attacker used. Failing to patch means the threat can recur immediately after Recovery.'
+            },
+            {
+                id: 'era-creds',
+                text: 'Reset all passwords for every account that was active on FileServer-01 or could have been captured by the ransomware, including service accounts and administrator credentials.',
+                correct: true,
+                explain: 'Correct -- full credential reset is Eradication. During Containment you only disabled the most-at-risk account; now you systematically remediate all potentially compromised credentials.'
+            },
+            {
+                id: 'era-persistence',
+                text: 'Hunt for and remove ransomware persistence mechanisms: scheduled tasks, registry run keys, and dropped loaders on all affected systems.',
+                correct: true,
+                explain: 'Correct -- eliminating all persistence mechanisms is a core Eradication task. Recovering without this step means the malware reactivates after reboot.'
+            },
+            {
+                id: 'era-monitor',
+                text: 'Monitor the rebuilt FileServer-01 for 30 days with enhanced logging and anomaly detection to confirm no recurrence.',
+                correct: false,
+                explain: 'Incorrect -- post-rebuild monitoring belongs to Recovery (Phase 5). Its purpose is to validate that recovery was successful, not to eradicate the threat.'
+            },
+            {
+                id: 'era-postmortem',
+                text: 'Schedule a lessons-learned meeting with stakeholders to document what went wrong and how response can be improved.',
+                correct: false,
+                explain: 'Incorrect -- scheduling and conducting the post-mortem is Lessons Learned (Phase 6). Eradication focuses on removing the threat, not on retrospective analysis.'
+            }
+        ]
+    },
+    {
+        key: 'recovery',
+        label: 'Recovery',
+        /* Recovery = restore to production. Systems must be verified clean first.
+           Key actions: restore from known-good backup, validate integrity, return to production,
+           monitor for recurrence. NOT: removing malware (Eradication), updating the playbook (Lessons Learned). */
+        actions: [
+            {
+                id: 'rec-restore',
+                text: 'Restore FileServer-01 data from the last verified, clean backup taken before the ransomware infection date.',
+                correct: true,
+                explain: 'Correct -- restoring from a known-good backup is the primary Recovery action. The backup must pre-date the infection to ensure restored data is clean.'
+            },
+            {
+                id: 'rec-validate',
+                text: 'Validate data integrity on the restored file server by running checksums against backup manifests and confirming critical business files are intact.',
+                correct: true,
+                explain: 'Correct -- integrity validation before returning a system to production is a Recovery requirement. You must confirm the restoration was complete and uncorrupted.'
+            },
+            {
+                id: 'rec-monitor',
+                text: 'Return FileServer-01 to production under enhanced monitoring, watching for any indicators of re-infection or attacker re-entry over the following weeks.',
+                correct: true,
+                explain: 'Correct -- returning to production with enhanced monitoring is a Recovery activity. NIST 800-61 calls for ongoing monitoring during Recovery to catch recurrence early.'
+            },
+            {
+                id: 'rec-comms',
+                text: 'Communicate the all-clear to business units confirming FileServer-01 is restored and accessible.',
+                correct: true,
+                explain: 'Correct -- stakeholder communication that systems are back online is a Recovery responsibility. Business continuity depends on knowing when operations are restored.'
+            },
+            {
+                id: 'rec-disable',
+                text: 'Disable the compromised service account in Active Directory to prevent further lateral movement.',
+                correct: false,
+                explain: 'Incorrect -- disabling a compromised account is a Containment action. By Recovery, credentials should already have been fully reset during Eradication.'
+            },
+            {
+                id: 'rec-playbook',
+                text: 'Update the IR playbook with new detection rules and response procedures learned from this incident.',
+                correct: false,
+                explain: 'Incorrect -- updating the playbook is a Lessons Learned activity (Phase 6). Recovery ends when systems are restored and monitored; retrospective improvements come after.'
+            }
+        ]
+    },
+    {
+        key: 'lessons',
+        label: 'Lessons Learned',
+        /* Lessons Learned = after the incident is closed. Retrospective analysis,
+           root-cause report, playbook updates, metrics, and organizational improvements. */
+        actions: [
+            {
+                id: 'les-postmortem',
+                text: 'Conduct a post-incident review meeting with all stakeholders within two weeks of incident closure to walk through the full timeline.',
+                correct: true,
+                explain: 'Correct -- the post-incident review meeting is the defining Lessons Learned activity (NIST 800-61 Sec 3.4). It must occur after the incident is fully resolved.'
+            },
+            {
+                id: 'les-rootcause',
+                text: 'Document the confirmed root cause (e.g., unpatched SMB vulnerability exploited via phishing attachment) and the full attack timeline in a formal incident report.',
+                correct: true,
+                explain: 'Correct -- root-cause analysis and the formal incident report are Lessons Learned deliverables. They feed compliance requirements and insurance claims.'
+            },
+            {
+                id: 'les-playbook',
+                text: 'Update the IR playbook and detection rules to improve response to future ransomware incidents based on this case.',
+                correct: true,
+                explain: 'Correct -- playbook and detection-rule updates are the primary Lessons Learned output. This is how the organization improves its security posture after each incident.'
+            },
+            {
+                id: 'les-metrics',
+                text: 'Record metrics such as Mean Time to Detect (MTTD) and Mean Time to Respond (MTTR) and present them to leadership.',
+                correct: true,
+                explain: 'Correct -- measuring and reporting IR performance metrics is a Lessons Learned task. It drives program maturity and resource decisions.'
+            },
+            {
+                id: 'les-image',
+                text: 'Acquire a forensic disk image of the infected system and document the chain of custody.',
+                correct: false,
+                explain: 'Incorrect -- forensic imaging and chain-of-custody documentation belong to Detection & Analysis (and early Containment). Performing this in Lessons Learned is far too late -- the system has already been wiped.'
+            },
+            {
+                id: 'les-rebuild',
+                text: 'Rebuild FileServer-01 from hardened installation media after wiping the compromised drive.',
+                correct: false,
+                explain: 'Incorrect -- wiping and rebuilding is Eradication. By the time you reach Lessons Learned, the system is already restored and in production.'
+            }
+        ]
+    }
+];
+
+/*
+ * CORRECT ORDERING for the three middle phases.
+ * CompTIA SY0-701 and NIST 800-61 are unambiguous:
+ *   Containment -> Eradication -> Recovery
+ */
+var CORRECT_ORDER = ['Containment', 'Eradication', 'Recovery'];
+
+/* ----------------------------------------------------------------
+ * render()
+ * Builds all checkbox question rows from the PHASES data model.
+ * Called on page load and on reset.
+ * ---------------------------------------------------------------- */
+function render() {
+    PHASES.forEach(function(phase) {
+        var container = document.getElementById('actions-' + phase.key);
+        if (!container) { return; }
+        container.innerHTML = '';
+
+        phase.actions.forEach(function(action) {
+            /* Build each action row: checkbox + label + feedback slot */
+            var div = document.createElement('div');
+            div.className = 'action-item';
+            div.setAttribute('data-phase', phase.key);
+            div.setAttribute('data-id', action.id);
+
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.id = action.id;
+            cb.setAttribute('aria-label', action.text);
+
+            var lbl = document.createElement('div');
+            lbl.className = 'action-label';
+
+            /* Clicking the row label also toggles the checkbox */
+            var lblInner = document.createElement('label');
+            lblInner.setAttribute('for', action.id);
+            lblInner.style.cursor = 'pointer';
+            lblInner.textContent = action.text;
+
+            var fb = document.createElement('div');
+            fb.className = 'action-feedback';
+            fb.id = 'fb-' + action.id;
+
+            lbl.appendChild(lblInner);
+            lbl.appendChild(fb);
+            div.appendChild(cb);
+            div.appendChild(lbl);
+            container.appendChild(div);
+        });
+    });
+}
+
+/* ----------------------------------------------------------------
+ * gradePhase(phase)
+ * Grades all actions in one phase.
+ * Returns true if the student's selection exactly matches the
+ * correct set for that phase.
+ * Adds 'correct' or 'incorrect' CSS class to the .phase-block
+ * so the mood-ring observer fires.
+ * ---------------------------------------------------------------- */
+function gradePhase(phase) {
+    var allCorrect = true;
+
+    phase.actions.forEach(function(action) {
+        var cb = document.getElementById(action.id);
+        var fb = document.getElementById('fb-' + action.id);
+        if (!cb || !fb) { return; }
+
+        var checked = cb.checked;
+        var isRight = (checked === action.correct);
+
+        if (!isRight) { allCorrect = false; }
+
+        /* Show per-action feedback */
+        if (checked && action.correct) {
+            fb.className = 'action-feedback show right';
+            fb.textContent = 'Correct. ' + action.explain;
+        } else if (checked && !action.correct) {
+            fb.className = 'action-feedback show wrong';
+            fb.textContent = 'Wrong phase. ' + action.explain;
+        } else if (!checked && action.correct) {
+            fb.className = 'action-feedback show wrong';
+            fb.textContent = 'Missed this one. ' + action.explain;
+        } else {
+            /* Correctly left unchecked -- quietly confirm */
+            fb.className = 'action-feedback show right';
+            fb.textContent = 'Correct -- this action does not belong to this phase. ' + action.explain;
+        }
+
+        /* Disable checkbox so student cannot change after grading */
+        cb.disabled = true;
+    });
+
+    /* Apply mood-ring class to the .phase-block container */
+    var block = document.getElementById('phase-' + phase.key);
+    if (block) {
+        block.classList.remove('correct', 'incorrect');
+        block.classList.add(allCorrect ? 'correct' : 'incorrect');
+    }
+
+    /* Show phase-level pass/fail banner */
+    var result = document.getElementById('result-' + phase.key);
+    if (result) {
+        result.className = 'phase-result show ' + (allCorrect ? 'pass' : 'fail');
+        result.textContent = allCorrect
+            ? 'Phase passed -- your selection is correct.'
+            : 'Phase needs review -- see action feedback above.';
+    }
+
+    return allCorrect;
+}
+
+/* ----------------------------------------------------------------
+ * gradeOrdering()
+ * Validates the three ordering drop-downs.
+ * Returns true only if all three positions match CORRECT_ORDER.
+ * ---------------------------------------------------------------- */
+function gradeOrdering() {
+    var v1 = document.getElementById('ord-1').value;
+    var v2 = document.getElementById('ord-2').value;
+    var v3 = document.getElementById('ord-3').value;
+
+    var fb = document.getElementById('order-feedback');
+    var section = document.getElementById('order-section');
+
+    /* Check if any slot was left blank */
+    if (!v1 || !v2 || !v3) {
+        fb.className = 'order-feedback show wrong';
+        fb.textContent = 'Please select a phase for all three steps before grading.';
+        return false;
+    }
+
+    /* Check for duplicate selections */
+    if (v1 === v2 || v1 === v3 || v2 === v3) {
+        fb.className = 'order-feedback show wrong';
+        fb.textContent = 'Each phase should appear exactly once. You have a duplicate selection.';
+        return false;
+    }
+
+    var isCorrect = (v1 === CORRECT_ORDER[0] && v2 === CORRECT_ORDER[1] && v3 === CORRECT_ORDER[2]);
+
+    section.classList.remove('correct', 'incorrect');
+    section.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    /* Disable selects after grading */
+    ['ord-1','ord-2','ord-3'].forEach(function(id) {
+        document.getElementById(id).disabled = true;
+    });
+
+    if (isCorrect) {
+        fb.className = 'order-feedback show right';
+        fb.textContent = 'Correct. Containment precedes Eradication because you must stop spread before destruction. Eradication precedes Recovery because you must remove the threat before rebuilding. This sequence prevents re-infection and preserves forensic integrity.';
+    } else {
+        fb.className = 'order-feedback show wrong';
+        fb.textContent = 'Incorrect. The correct sequence is: Containment -> Eradication -> Recovery. ' +
+            'You cannot safely eradicate without first containing spread (you would just reinfect); ' +
+            'you cannot safely recover without first eradicating (you would restore into a live threat). ' +
+            'Your answer: Step 1=' + v1 + ', Step 2=' + v2 + ', Step 3=' + v3 + '.';
+    }
+
+    return isCorrect;
+}
+
+/* ----------------------------------------------------------------
+ * gradeAll()
+ * Master grading function called by the Submit button.
+ * Grades all six phases + the ordering challenge.
+ * Renders a score summary and shows Mark Complete if >= 80%.
+ * ---------------------------------------------------------------- */
+function gradeAll() {
+    var phaseResults = [];
+
+    /* Grade each phase and collect pass/fail */
+    PHASES.forEach(function(phase) {
+        phaseResults.push({ label: phase.label, passed: gradePhase(phase) });
+    });
+
+    /* Grade the ordering section */
+    var orderPassed = gradeOrdering();
+
+    /* Tally: 6 phases + 1 ordering = 7 graded items */
+    var phasePassed = phaseResults.filter(function(r) { return r.passed; }).length;
+    var total = PHASES.length + 1;        /* 7 */
+    var scored = phasePassed + (orderPassed ? 1 : 0);
+    var pct = Math.round((scored / total) * 100);
+
+    /* Build score detail pills */
+    var pills = phaseResults.map(function(r) {
+        return '<span class="score-pill ' + (r.passed ? 'pass' : 'fail') + '">' + r.label + ': ' + (r.passed ? 'PASS' : 'FAIL') + '</span>';
+    }).join('');
+    pills += '<span class="score-pill ' + (orderPassed ? 'pass' : 'fail') + '">Ordering: ' + (orderPassed ? 'PASS' : 'FAIL') + '</span>';
+
+    /* Render summary panel */
+    /* Thresholds:
+     *   7/7 (100%) -> Excellent (perfect score)
+     *   6/7  (86%) -> Passed (meets the 6/7 completion gate)
+     *   below 6/7  -> Keep studying (lab not yet passed)
+     * The Mark Complete button appears only at >= 86% (6/7 or 7/7),
+     * so every message that can reveal that button is positive/passing. */
+    var res = document.getElementById('results');
+    var message;
+    if (pct === 100) {
+        message = 'Excellent -- perfect score. You have a solid command of the full IR lifecycle. Ready for exam-day questions on Domain 4.';
+    } else if (pct >= 86) {
+        message = 'Passed. You correctly handled at least 6 of 7 sections. Review any missed phase to sharpen your understanding before the exam.';
+    } else {
+        message = 'Keep studying. Focus on the SY0-701 Domain 4.2 phase definitions and the NIST 800-61 action taxonomy. The key traps are: volatile evidence capture in Detection & Analysis, patching in Eradication not Containment, and playbook updates in Lessons Learned not Recovery. Score 6/7 or better to pass.';
+    }
+
+    res.innerHTML =
+        '<h2>Score: ' + scored + ' / ' + total + ' (' + pct + '%)</h2>' +
+        '<p>' + message + '</p>' +
+        '<div class="score-detail">' + pills + '</div>';
+    res.classList.add('show');
+
+    /* Disable submit button */
+    document.getElementById('submitBtn').disabled = true;
+
+    /* Reveal Mark Complete at >= 86% (6/7 or 7/7 -- minimum passing score) */
+    if (pct >= 86) {
+        document.getElementById('completeSection').classList.add('show');
+    }
+}
+
+/* ----------------------------------------------------------------
+ * resetLab()
+ * Clears all state, hides results, and re-renders the question set.
+ * ---------------------------------------------------------------- */
+function resetLab() {
+    /* Hide summary panels */
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+
+    /* Re-enable submit */
+    document.getElementById('submitBtn').disabled = false;
+
+    /* Clear ordering selects */
+    ['ord-1','ord-2','ord-3'].forEach(function(id) {
+        var sel = document.getElementById(id);
+        sel.value = '';
+        sel.disabled = false;
+    });
+
+    /* Clear ordering feedback and mood-ring */
+    var orderFb = document.getElementById('order-feedback');
+    orderFb.className = 'order-feedback';
+    orderFb.textContent = '';
+    var orderSection = document.getElementById('order-section');
+    orderSection.classList.remove('correct', 'incorrect');
+
+    /* Re-render all phase checkbox blocks (rebuilds DOM fresh) */
+    render();
+
+    /* Remove mood-ring classes from all phase blocks */
+    PHASES.forEach(function(phase) {
+        var block = document.getElementById('phase-' + phase.key);
+        if (block) { block.classList.remove('correct', 'incorrect'); }
+        var result = document.getElementById('result-' + phase.key);
+        if (result) { result.className = 'phase-result'; result.textContent = ''; }
+    });
+}
+
+/* ── Initial render on page load ── */
+render();
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ───────────────────────────
+     mission-id matches the ModuleProgress key above.
+     State machine is attempt-driven; button serves as a general
+     chat entry until lab activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md          ── -->
+<hex-ai-button mission-id="shield-incident-response-playbook" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>

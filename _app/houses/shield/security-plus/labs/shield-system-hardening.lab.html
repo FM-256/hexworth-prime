@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Auth guard: must run before any content loads -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Hardening Workshop | Shield House -- Security+</title>
+
+    <style>
+        /* ── Reset + design tokens (Shield dark theme) ── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary:  #f87171;
+            --accent:   #f97316;
+            --bg:       #0a0a12;
+            --card:     rgba(15,15,25,0.90);
+            --text:     #e8e8f0;
+            --muted:    #888;
+            --border:   rgba(248,113,113,0.20);
+            --glow:     rgba(248,113,113,0.30);
+            --ok:       #10b981;
+            --err:      #ef4444;
+            --warn:     #f59e0b;
+            --panel-bg: rgba(20,20,35,0.80);
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ── */
+        .header {
+            padding: 14px 24px;
+            background: rgba(10,10,18,0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .header a:hover { color: var(--primary); }
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 14px;
+            background: rgba(248,113,113,0.10);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* ── Page layout ── */
+        .container { max-width: 1020px; margin: 0 auto; padding: 28px 16px 80px; }
+
+        /* ── Lab hero block ── */
+        .lab-title {
+            text-align: center;
+            margin-bottom: 24px;
+            padding: 24px 20px;
+            background: linear-gradient(135deg, rgba(248,113,113,0.08), rgba(249,115,22,0.05));
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .lab-title h1 { font-size: 1.75rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p  { color: var(--muted); font-size: 0.93rem; line-height: 1.65; max-width: 640px; margin: 0 auto; }
+
+        /* ── Instruction bar ── */
+        .instructions {
+            background: rgba(249,115,22,0.07);
+            border-left: 4px solid var(--accent);
+            padding: 13px 16px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 22px;
+            font-size: 0.91rem;
+            line-height: 1.65;
+            color: #ccc;
+        }
+        .instructions strong { color: var(--accent); }
+
+        /* ── Attack-surface score widget (sticky top of content) ── */
+        .score-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .score-label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; flex-shrink: 0; }
+        .score-track {
+            flex: 1;
+            min-width: 160px;
+            height: 14px;
+            background: rgba(255,255,255,0.07);
+            border-radius: 7px;
+            overflow: hidden;
+        }
+        .score-fill {
+            height: 100%;
+            border-radius: 7px;
+            transition: width 0.45s ease, background 0.45s ease;
+            /* width set by JS; color shifts red->amber->green as attack surface drops */
+        }
+        .score-number {
+            font-size: 1.5rem;
+            font-weight: 800;
+            min-width: 54px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            /* color updated by JS */
+        }
+        .score-sublabel { font-size: 0.78rem; color: var(--muted); flex-basis: 100%; margin-top: 4px; }
+
+        /* ── Config panels ── */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: rgba(248,113,113,0.06);
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(248,113,113,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .panel-title { font-weight: 700; font-size: 1rem; color: var(--primary); }
+        .panel-subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+        .panel-body { padding: 4px 0; }
+
+        /* ── Individual config items ── */
+        .config-item {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: start;
+            gap: 12px;
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(248,113,113,0.08);
+            transition: background 0.25s;
+        }
+        .config-item:last-child { border-bottom: none; }
+        .config-item:hover { background: rgba(248,113,113,0.03); }
+
+        /* Mood-ring: correct/incorrect classes applied at grade time */
+        .config-item.correct  { background: rgba(16,185,129,0.06); border-left: 3px solid var(--ok);  }
+        .config-item.incorrect { background: rgba(239,68,68,0.06);  border-left: 3px solid var(--err); }
+
+        .item-info {}
+        .item-name { font-size: 0.93rem; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+        .item-current {
+            font-size: 0.8rem;
+            color: var(--err);
+            font-family: 'Consolas', 'Courier New', monospace;
+            background: rgba(239,68,68,0.08);
+            padding: 2px 7px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+        .item-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+
+        .item-control { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 170px; }
+
+        /* Toggle switch */
+        .toggle-wrapper { display: flex; align-items: center; gap: 8px; }
+        .toggle-label-txt { font-size: 0.8rem; color: var(--muted); }
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(239,68,68,0.45);
+            border-radius: 26px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            left: 3px;
+            top: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle input:checked + .toggle-slider { background: rgba(16,185,129,0.75); }
+        .toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+        /* Select dropdown */
+        .config-select {
+            background: rgba(10,10,18,0.92);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-size: 0.84rem;
+            cursor: pointer;
+            width: 168px;
+        }
+        .config-select:focus { outline: none; border-color: var(--primary); }
+
+        /* Feedback text shown after grading */
+        .item-feedback {
+            font-size: 0.8rem;
+            margin-top: 4px;
+            display: none;
+            line-height: 1.5;
+            text-align: right;
+        }
+        .item-feedback.show   { display: block; }
+        .item-feedback.right  { color: var(--ok); }
+        .item-feedback.wrong  { color: var(--err); }
+
+        /* Trap badge */
+        .trap-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(245,158,11,0.15);
+            color: var(--warn);
+            border: 1px solid rgba(245,158,11,0.30);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+        }
+
+        /* ── Action buttons ── */
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 26px 0; flex-wrap: wrap; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 11px 26px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 18px var(--glow); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover { background: rgba(248,113,113,0.08); box-shadow: none; }
+
+        /* ── Results summary ── */
+        .results {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 26px 24px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); font-size: 1.4rem; margin-bottom: 10px; }
+        .results p { color: var(--muted); font-size: 0.93rem; line-height: 1.65; margin-bottom: 8px; }
+        .score-final { font-size: 2.8rem; font-weight: 900; display: block; margin: 10px 0; }
+
+        /* ── Mark Complete ── */
+        .complete-section { text-align: center; margin-top: 22px; display: none; }
+        .complete-section.show { display: block; }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            .config-item { grid-template-columns: 1fr; }
+            .item-control { align-items: flex-start; }
+            .item-feedback { text-align: left; }
+            .config-select { width: 100%; }
+            .score-number { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Visually-hidden page title for screen readers (EduScan HEUR rule) -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">System Hardening Workshop Lab</h2>
+
+<!-- ── Sticky header ── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+</span>
+</header>
+
+<!-- ── Main content ── -->
+<div class="container">
+
+    <!-- Hero -->
+    <div class="lab-title">
+        <h1>System Hardening Workshop</h1>
+        <p>
+            You have just received a freshly-installed Linux server with a default,
+            insecure configuration. Work through each panel to harden the system.
+            Watch the Attack Surface score drop as you apply correct controls.
+            Some items are traps -- applying the wrong "more restrictive" option
+            can harm availability or security. Domain 4.0 Security Operations (SY0-701).
+        </p>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+        <strong>How it works:</strong> Each setting shows its current insecure state (red label).
+        Use the toggle or dropdown to apply the secure configuration.
+        The <strong>Attack Surface score</strong> starts near 100 (this server's only secure default is SSH) and drops with each correct hardening action.
+        Incorrect choices do not improve the score. Items marked
+        <span style="color:var(--warn);font-weight:600;">TRAP</span> have counterintuitive correct answers.
+        Apply all hardening actions, then click <strong>Grade Configuration</strong>.
+    </div>
+
+    <!-- Live Attack-Surface Score -->
+    <div class="score-bar" id="scoreBar">
+        <span class="score-label">Attack Surface</span>
+        <div class="score-track">
+            <div class="score-fill" id="scoreFill"></div>
+        </div>
+        <span class="score-number" id="scoreNum">100</span>
+        <span class="score-sublabel" id="scoreSubLabel">Start hardening to reduce your attack surface.</span>
+    </div>
+
+    <!-- Config panels rendered by JS -->
+    <div id="panels"></div>
+
+    <!-- Action buttons -->
+    <div class="actions">
+        <button class="btn" id="gradeBtn" onclick="grade()">Grade Configuration</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <!-- Grading results -->
+    <div class="results" id="results"></div>
+
+    <!-- Mark Complete (revealed only on pass) -->
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','shield-system-hardening',{returnUrl:'../index.html'})">
+            Mark Complete
+        </button>
+    </div>
+
+</div><!-- /container -->
+
+<script>
+/*
+ * System Hardening Workshop -- core lab logic
+ *
+ * Architecture:
+ *   PANELS   -- array of config panel definitions (section groupings)
+ *   Each panel contains ITEMS -- individual configurable settings.
+ *
+ * Item shape:
+ *   id         {string}  -- unique DOM key
+ *   name       {string}  -- setting display name
+ *   current    {string}  -- insecure current-state label (shown in red)
+ *   desc       {string}  -- brief context for the student
+ *   type       {string}  -- 'toggle' | 'select'
+ *   options    {array}   -- (select only) [{value, label}]
+ *   baseline   {boolean} -- (toggle only) INSECURE starting state of the toggle (checked=true means ON/active)
+ *   correct    {*}       -- correct answer: boolean (toggle) or option value (select)
+ *   points     {number}  -- weight toward total score (all 1 here; adjust if needed)
+ *   trap       {boolean} -- marks counterintuitive items shown with the TRAP badge
+ *   explain    {string}  -- post-grade explanation text (why it is right/wrong)
+ *   wrongNote  {string}  -- (optional) extra wrong-answer note if student chose badly
+ *
+ * Attack-surface score:
+ *   Starts at 100. Each item contributes (100 / totalItems) points.
+ *   Score = 100 - (points earned so far via live preview).
+ *   Live preview updates on every change event; grade() finalises.
+ *
+ * Mood-ring:
+ *   grade() adds CSS class 'correct' or 'incorrect' to each .config-item
+ *   div. The lab auto-observer (injected by the Dr. Hex system) reads these.
+ */
+
+/* ── Panel + item definitions ────────────────────────────────────────── */
+
+var PANELS = [
+
+    /* ── 1. Services & Ports ── */
+    {
+        id: 'services',
+        title: 'Services and Ports',
+        subtitle: 'Control which daemons listen on the network',
+        icon: 'S',
+        items: [
+            {
+                id: 'telnet',
+                name: 'Telnet Service (port 23)',
+                current: 'ENABLED -- cleartext remote shell',
+                desc: 'Telnet transmits all data, including credentials, in plaintext. Any attacker with network access can capture sessions trivially.',
+                type: 'toggle',
+                baseline: true,   /* insecure default: service is ON (running) */
+                correct: false,   /* false = toggled OFF = disabled = correct hardening */
+                points: 1,
+                trap: false,
+                explain: 'Correct. Telnet (port 23) sends all data in cleartext. Disable it and use SSH (port 22) instead. CIS Benchmark L1 control.',
+                wrongNote: 'Leaving Telnet enabled exposes credentials and commands to any network observer.'
+            },
+            {
+                id: 'ftp',
+                name: 'FTP Service (port 21)',
+                current: 'ENABLED -- cleartext file transfer',
+                desc: 'FTP transfers files and credentials without encryption. Replace with SFTP (over SSH port 22) or FTPS.',
+                type: 'toggle',
+                baseline: true,   /* insecure default: service is ON (running) */
+                correct: false,
+                points: 1,
+                trap: false,
+                explain: 'Correct. FTP (port 21) is cleartext. Disable it; use SFTP or FTPS. Removing unused cleartext protocols is a core hardening step (CIS L1).',
+                wrongNote: 'Leaving FTP enabled exposes file transfers and login credentials to eavesdropping.'
+            },
+            {
+                id: 'ssh',
+                name: 'SSH Service (port 22)',
+                current: 'ENABLED -- encrypted remote shell',
+                desc: 'SSH provides encrypted remote access. It is the secure replacement for Telnet. The server needs remote management.',
+                type: 'toggle',
+                baseline: true,  /* insecure-config default: SSH is ON -- the trap is resisting the urge to disable it */
+                correct: true,   /* true = ON = keep enabled = correct (needed service) */
+                points: 1,
+                trap: true,      /* TRAP: students might disable "another port" thinking it reduces surface */
+                explain: 'Correct. SSH stays enabled -- it is the secure, encrypted management channel. Disabling it eliminates your only safe remote access and forces use of Telnet or physical console access.',
+                wrongNote: 'Disabling SSH removes your secure management channel. Without it you may be forced back to cleartext Telnet or lose remote access entirely -- a breach of availability and operational security.'
+            },
+            {
+                id: 'vnc',
+                name: 'VNC Remote Desktop (port 5900)',
+                current: 'ENABLED -- no encryption by default',
+                desc: 'VNC is not required on this server. When no tunneling is configured, VNC sends the framebuffer unencrypted.',
+                type: 'toggle',
+                baseline: true,   /* insecure default: service is ON (running) */
+                correct: false,
+                points: 1,
+                trap: false,
+                explain: 'Correct. This server does not require remote desktop access. Disabling unnecessary services (principle of least functionality) reduces attack surface. If needed, VNC should be tunneled over SSH.',
+                wrongNote: 'Leaving unused services running increases attack surface. Unencrypted VNC is particularly risky if exposed.'
+            },
+            {
+                id: 'smb',
+                name: 'SMB File Sharing (port 445)',
+                current: 'ENABLED -- not required on this server',
+                desc: 'SMB is a common lateral-movement vector (e.g., EternalBlue). It is not needed on this dedicated application server.',
+                type: 'toggle',
+                baseline: true,   /* insecure default: service is ON (running) */
+                correct: false,
+                points: 1,
+                trap: false,
+                explain: 'Correct. Disabling unneeded SMB eliminates a high-value lateral-movement vector. Principle of least functionality: run only what is required (CIS L1 / NIST 800-123).',
+                wrongNote: 'Leaving SMB open when it is not needed is a significant risk -- SMB exploits account for major ransomware outbreaks.'
+            }
+        ]
+    },
+
+    /* ── 2. Accounts & Authentication ── */
+    {
+        id: 'accounts',
+        title: 'Accounts and Authentication',
+        subtitle: 'Control who can authenticate and how',
+        icon: 'A',
+        items: [
+            {
+                id: 'root_ssh',
+                name: 'Direct Root SSH Login',
+                current: 'PermitRootLogin yes',
+                desc: 'Allowing root to log in directly over SSH means a brute-force or credential-stuffing attack immediately yields full system control.',
+                type: 'toggle',
+                baseline: true,   /* insecure default: PermitRootLogin is ON (yes) */
+                correct: false,   /* disable direct root login */
+                points: 1,
+                trap: false,
+                explain: 'Correct. Set PermitRootLogin no in sshd_config. Admins should SSH as a named user and sudo to root. This limits blast radius of compromised credentials.',
+                wrongNote: 'Allowing direct root SSH login means a single stolen credential grants unlimited access with no audit trail.'
+            },
+            {
+                id: 'key_auth',
+                name: 'SSH Authentication Method',
+                current: 'Password authentication only',
+                desc: 'Password-only SSH authentication is vulnerable to brute-force attacks. Key-based authentication is significantly stronger.',
+                type: 'select',
+                options: [
+                    { value: '', label: '-- Select --' },
+                    { value: 'keys_only', label: 'Require SSH keys (disable password auth)' },
+                    { value: 'password_only', label: 'Password authentication only (current)' },
+                    { value: 'both', label: 'Allow both keys and passwords' }
+                ],
+                correct: 'keys_only',
+                points: 1,
+                trap: false,
+                explain: 'Correct. Set PasswordAuthentication no and require SSH key pairs. Keys are cryptographically stronger than passwords and immune to brute-force guessing. Security+ objective: 4.1 authentication controls.',
+                wrongNote: 'Password-only authentication exposes SSH to brute-force and credential-stuffing attacks. Allowing both is only marginally better -- passwords remain a weak link.'
+            },
+            {
+                id: 'guest_acct',
+                name: 'Guest Account',
+                current: 'ENABLED -- no password required',
+                desc: 'A guest account with no password is an open door. Disable all accounts that are not operationally required.',
+                type: 'toggle',
+                baseline: true,   /* insecure default: guest account is ON (active) */
+                correct: false,
+                points: 1,
+                trap: false,
+                explain: 'Correct. Disable or delete the guest account. Default and guest accounts are a top-10 initial access vector. Principle of least privilege: accounts should only exist if actively needed.',
+                wrongNote: 'A passwordless guest account gives any attacker an immediate foothold on the system.'
+            },
+            {
+                id: 'mfa',
+                name: 'Multi-Factor Authentication (MFA)',
+                current: 'DISABLED -- single factor only',
+                desc: 'MFA requires users to prove identity with something they know (password) plus something they have (TOTP token, hardware key). Significantly reduces credential-based attacks.',
+                type: 'toggle',
+                baseline: false,  /* insecure default: MFA is OFF (disabled) */
+                correct: true,
+                points: 1,
+                trap: false,
+                explain: 'Correct. Enable MFA for all privileged and remote access. Even if a password is stolen, MFA blocks the attacker. Security+ Domain 4.1: authentication controls.',
+                wrongNote: 'Leaving MFA disabled means stolen credentials alone are sufficient for full access -- no second barrier exists.'
+            },
+            {
+                id: 'pw_policy',
+                name: 'Password Policy',
+                current: 'No complexity, no expiry, no lockout',
+                desc: 'Without a password policy, users may use trivially guessable passwords indefinitely with no lockout after failed attempts.',
+                type: 'select',
+                options: [
+                    { value: '', label: '-- Select --' },
+                    { value: 'strong', label: 'Min 12 chars, complexity, 10-attempt lockout' },
+                    { value: 'minimal', label: 'Min 8 chars, no lockout (current)' },
+                    { value: 'none', label: 'No policy enforced (current default)' }
+                ],
+                correct: 'strong',
+                points: 1,
+                trap: false,
+                explain: 'Correct. Enforce minimum 12-character passwords with complexity requirements and an account lockout (e.g., 10 failed attempts) to deter brute force. NIST 800-63B recommends length over complexity when combined with lockout.',
+                wrongNote: 'Minimal or no policy leaves the system vulnerable to password spraying and brute-force attacks.'
+            }
+        ]
+    },
+
+    /* ── 3. Network & Firewall ── */
+    {
+        id: 'firewall',
+        title: 'Network and Firewall',
+        subtitle: 'Control inbound and outbound network traffic',
+        icon: 'F',
+        items: [
+            {
+                id: 'fw_default',
+                name: 'Host Firewall Default Inbound Policy',
+                current: 'ACCEPT -- all inbound traffic allowed',
+                desc: 'A default-ACCEPT policy means every port is reachable unless explicitly blocked. This is the inverse of the least-privilege model for networks.',
+                type: 'select',
+                options: [
+                    { value: '', label: '-- Select --' },
+                    { value: 'drop', label: 'Default DROP (deny all, allow by exception)' },
+                    { value: 'accept', label: 'Default ACCEPT (current -- allow all)' },
+                    { value: 'off', label: 'Disable the firewall entirely' }
+                ],
+                correct: 'drop',
+                points: 1,
+                trap: false,
+                explain: 'Correct. Set the default inbound policy to DROP (or REJECT). Explicitly allow only the ports the server actually needs (e.g., SSH 22, HTTPS 443). Default-deny is the principle of least privilege applied to network access.',
+                wrongNote: 'Default ACCEPT means every service -- including ones you forgot to disable -- is exposed to the network. Disabling the firewall is far worse.'
+            },
+            {
+                id: 'fw_off',
+                name: 'Host Firewall Status',
+                current: 'iptables / ufw -- INACTIVE',
+                desc: 'The firewall daemon is installed but not running. No traffic filtering is occurring regardless of rules.',
+                type: 'toggle',
+                baseline: false,  /* insecure default: firewall daemon is OFF (inactive) */
+                correct: true,   /* true = turn it ON */
+                points: 1,
+                trap: false,
+                explain: 'Correct. Enable the firewall (ufw enable / systemctl enable --now iptables). A firewall with rules does nothing if the daemon is not running.',
+                wrongNote: 'Leaving the firewall inactive means all network traffic reaches every listening service with no filtering.'
+            },
+            {
+                id: 'icmp',
+                name: 'ICMP (Ping) Response',
+                current: 'All ICMP allowed (host fully visible)',
+                desc: 'Unrestricted ICMP allows attackers to probe the network map, confirm hosts are alive, and perform some DoS attacks. Limited ICMP (echo-reply only from trusted sources) is acceptable.',
+                type: 'select',
+                options: [
+                    { value: '', label: '-- Select --' },
+                    { value: 'limited', label: 'Allow echo-reply; block timestamp and mask requests' },
+                    { value: 'all', label: 'Allow all ICMP (current)' },
+                    { value: 'block_all', label: 'Block ALL ICMP including echo-reply' }
+                ],
+                correct: 'limited',
+                points: 1,
+                trap: true,     /* TRAP: blocking ALL ICMP breaks path-MTU discovery and diagnostics */
+                explain: 'Correct. Block ICMP Timestamp (Type 13/14) and Address-Mask (Type 17/18) requests -- these disclose system information with no diagnostic value. Allow ICMP echo-request/echo-reply (Type 8/0) from trusted sources for basic connectivity checks. Critically, path-MTU discovery depends on ICMP Type 3 "Destination Unreachable / Fragmentation Needed" (Code 4) -- blocking ALL ICMP suppresses these messages and silently breaks large-packet paths. CIS recommends selective ICMP filtering, not a blanket block.',
+                wrongNote: 'Allowing all ICMP types exposes unnecessary host information (timestamps, address masks). Blocking all ICMP removes info-disclosure risk but breaks path-MTU discovery (ICMP Type 3 Code 4) and legitimate diagnostics. Selective filtering by ICMP type is the correct approach.'
+            }
+        ]
+    },
+
+    /* ── 4. Logging & Updates ── */
+    {
+        id: 'logging',
+        title: 'Logging and Automatic Updates',
+        subtitle: 'Maintain visibility and keep software patched',
+        icon: 'L',
+        items: [
+            {
+                id: 'syslog',
+                name: 'System / Security Logging (syslog/auditd)',
+                current: 'DISABLED -- no audit trail',
+                desc: 'Without logging you cannot detect attacks, investigate incidents, or satisfy compliance requirements. Logging is a foundational security control.',
+                type: 'toggle',
+                baseline: false,  /* insecure default: logging is OFF (disabled) */
+                correct: true,
+                points: 1,
+                trap: false,
+                explain: 'Correct. Enable syslog and auditd. Logging is required by virtually every compliance framework (PCI-DSS, HIPAA, NIST). Without logs you are blind to intrusions. Security+ Domain 4.3: monitoring and logging.',
+                wrongNote: 'Disabling logging eliminates your only audit trail. An attacker can operate freely and you have no post-incident forensic data.'
+            },
+            {
+                id: 'log_remote',
+                name: 'Remote Log Forwarding (to SIEM)',
+                current: 'DISABLED -- logs stored only on local disk',
+                desc: 'Logs stored only on the compromised host can be wiped or altered by an attacker who gains root access. Forward logs to a remote SIEM or syslog server.',
+                type: 'toggle',
+                baseline: false,  /* insecure default: remote forwarding is OFF (disabled) */
+                correct: true,
+                points: 1,
+                trap: false,
+                explain: 'Correct. Forward logs to a remote, append-only destination (SIEM, syslog server). Local-only logs can be erased by a root-level attacker, destroying the audit trail.',
+                wrongNote: 'Logs kept only on the compromised system are trivially destroyed or altered by an attacker. Remote forwarding protects log integrity.'
+            },
+            {
+                id: 'auto_update',
+                name: 'Automatic Security Updates',
+                current: 'DISABLED -- manual patching only',
+                desc: 'Systems that are not automatically patched often fall behind, especially for critical CVEs. Unattended-upgrades (Debian/Ubuntu) or dnf-automatic (RHEL) deliver timely patches.',
+                type: 'toggle',
+                baseline: false,  /* insecure default: automatic updates are OFF (disabled) */
+                correct: true,   /* enable auto updates */
+                points: 1,
+                trap: false,
+                explain: 'Correct. Enable automatic security updates (unattended-upgrades on Debian/Ubuntu; dnf-automatic on RHEL). Unpatched vulnerabilities are one of the top initial-access vectors. Security+ Domain 4.2: vulnerability management.',
+                wrongNote: 'Disabling automatic updates means security patches are not applied promptly. Known CVEs accumulate and exploits are widely available for unpatched systems.'
+            },
+            {
+                id: 'disable_updates_trap',
+                name: 'Package Manager Update Channel',
+                current: 'No automatic updates configured (manual patching only)',
+                desc: 'When enabling automatic updates, you must decide which channels to activate. Some hardening guides suggest restricting feature updates to reduce change risk. Which update channel should you configure?',
+                type: 'select',
+                options: [
+                    { value: '', label: '-- Select --' },
+                    { value: 'security_only', label: 'Enable security updates only; disable feature updates' },
+                    { value: 'disable_all', label: 'Disable all automatic updates entirely' },
+                    { value: 'both', label: 'Keep both security and feature updates enabled' }
+                ],
+                correct: 'security_only',
+                points: 1,
+                trap: true,     /* TRAP: disabling ALL updates is wrong; security-only is the correct middle ground */
+                explain: 'Correct. Enable security updates only and disable (or carefully stage) feature updates. Disabling ALL updates is insecure -- critical CVE patches never arrive. Feature updates carry regression risk and belong in a tested change-management cycle. Security-only updates are the CIS Benchmark best practice for production servers.',
+                wrongNote: 'Disabling all updates is a critical misconfiguration -- it is the same as leaving known vulnerabilities unpatched indefinitely. Keeping only security updates is the correct balance of stability vs. patch currency.'
+            }
+        ]
+    },
+
+    /* ── 5. Encryption & Protocols ── */
+    {
+        id: 'encryption',
+        title: 'Encryption and Protocol Hardening',
+        subtitle: 'Enforce strong cryptographic standards',
+        icon: 'E',
+        items: [
+            {
+                id: 'tls_version',
+                name: 'TLS Protocol Versions (web server)',
+                current: 'SSLv3, TLS 1.0, TLS 1.1, TLS 1.2 all enabled',
+                desc: 'SSLv3, TLS 1.0, and TLS 1.1 have known critical vulnerabilities (POODLE, BEAST, SLOTH). Only TLS 1.2 and TLS 1.3 are acceptable.',
+                type: 'select',
+                options: [
+                    { value: '', label: '-- Select --' },
+                    { value: 'tls12_13', label: 'TLS 1.2 and TLS 1.3 only' },
+                    { value: 'tls10_plus', label: 'TLS 1.0, 1.1, 1.2, 1.3 (current minus SSLv3)' },
+                    { value: 'all', label: 'All versions including SSLv3 (current)' }
+                ],
+                correct: 'tls12_13',
+                points: 1,
+                trap: false,
+                explain: 'Correct. Disable SSLv3, TLS 1.0, and TLS 1.1. Support only TLS 1.2 and TLS 1.3. This eliminates POODLE (SSLv3), BEAST (TLS 1.0), and related downgrade attacks. NIST SP 800-52 Rev 2 mandates TLS 1.2 minimum.',
+                wrongNote: 'Keeping any version below TLS 1.2 enables known, exploitable protocol attacks. Browser compatibility concern is moot -- all modern browsers dropped pre-TLS-1.2 years ago.'
+            },
+            {
+                id: 'weak_ciphers',
+                name: 'SSH Cipher Suite',
+                current: 'All ciphers enabled including RC4 (arcfour), DES, 3DES',
+                desc: 'RC4 (called "arcfour" in OpenSSH), DES (56-bit), and 3DES are cryptographically broken or severely weakened. Modern SSH should restrict to AES-CTR, AES-GCM, and ChaCha20-Poly1305.',
+                type: 'select',
+                options: [
+                    { value: '', label: '-- Select --' },
+                    { value: 'strong', label: 'AES-256-CTR, AES-256-GCM, ChaCha20-Poly1305 only' },
+                    { value: 'mixed', label: 'Keep AES ciphers plus RC4 for compatibility' },
+                    { value: 'all', label: 'All ciphers including DES and RC4 (current)' }
+                ],
+                correct: 'strong',
+                points: 1,
+                trap: false,
+                explain: 'Correct. Configure the SSH server (sshd_config: Ciphers) to allow only AES-256-CTR, AES-256-GCM@openssh.com, and chacha20-poly1305@openssh.com. RC4 (OpenSSH name: arcfour), DES, and 3DES are broken and should never appear in a production cipher list.',
+                wrongNote: 'Retaining RC4/arcfour, DES, or 3DES gives attackers a negotiation fallback to a broken cipher. Cipher downgrade attacks exploit exactly this configuration.'
+            },
+            {
+                id: 'disk_enc',
+                name: 'Full Disk Encryption (FDE)',
+                current: 'DISABLED -- data written in plaintext to disk',
+                desc: 'If the physical server or a storage volume is removed or stolen, unencrypted data is fully readable without any authentication.',
+                type: 'toggle',
+                baseline: false,  /* insecure default: FDE is OFF (disabled) */
+                correct: true,
+                points: 1,
+                trap: false,
+                explain: 'Correct. Enable full disk encryption (dm-crypt/LUKS on Linux). FDE protects data at rest -- a stolen drive or decommissioned server disk reveals nothing without the decryption key. Security+ Domain 3.3: data protection.',
+                wrongNote: 'Plaintext data on disk is readable by anyone with physical access to the storage media. This is a direct violation of data-at-rest protection requirements.'
+            },
+            {
+                id: 'sudo_wheel',
+                name: 'Privilege Escalation (sudo access)',
+                current: 'ALL users in /etc/sudoers have NOPASSWD',
+                desc: 'NOPASSWD sudo lets any user in the sudoers file run any command as root without re-entering their password. If a session is hijacked, root is trivially obtained.',
+                type: 'select',
+                options: [
+                    { value: '', label: '-- Select --' },
+                    { value: 'wheel_password', label: 'Restrict sudo to wheel group; require password each time' },
+                    { value: 'nopasswd', label: 'All sudoers NOPASSWD (current)' },
+                    { value: 'disable_sudo', label: 'Disable sudo entirely; use direct root login' }
+                ],
+                correct: 'wheel_password',
+                points: 1,
+                trap: true,     /* TRAP: disabling sudo entirely is wrong -- forces direct root login */
+                explain: 'Correct. Restrict sudo to a named group (wheel/sudo group), require password re-entry (remove NOPASSWD), and audit sudo commands via syslog. Disabling sudo entirely is wrong -- it forces administrators back to direct root login, which removes individual accountability and audit trails.',
+                wrongNote: 'NOPASSWD sudo means a hijacked terminal session or unattended workstation immediately yields root. Disabling sudo entirely is worse -- it forces direct root logins which have no per-user audit trail.'
+            }
+        ]
+    }
+];
+
+/* ── Derived constants ────────────────────────────────────────────────── */
+
+/* Flatten all items for easy iteration */
+var ALL_ITEMS = [];
+PANELS.forEach(function(p) {
+    p.items.forEach(function(item) {
+        item.panelId = p.id;
+        ALL_ITEMS.push(item);
+    });
+});
+var TOTAL_POINTS = ALL_ITEMS.reduce(function(sum, i) { return sum + i.points; }, 0);
+var POINT_VALUE  = 100 / TOTAL_POINTS;   /* attack-surface reduction per correct item */
+
+/* ── DOM render ────────────────────────────────────────────────────────
+ * Builds all panel HTML from the PANELS data structure.
+ * Uses createElement / textContent to avoid XSS from innerHTML with
+ * student-controlled values (none here, but kept as good practice).
+ * The one exception: item.desc and item.explain are developer-authored
+ * content defined in the const above, so direct innerHTML assignment is safe.
+ */
+function renderPanels() {
+    var container = document.getElementById('panels');
+    container.innerHTML = '';
+
+    PANELS.forEach(function(panel) {
+        var panelDiv = document.createElement('div');
+        panelDiv.className = 'panel';
+        panelDiv.id = 'panel-' + panel.id;
+
+        /* Panel header */
+        var header = document.createElement('div');
+        header.className = 'panel-header';
+        header.innerHTML =
+            '<div class="panel-icon">' + panel.icon + '</div>' +
+            '<div>' +
+                '<div class="panel-title">' + panel.title + '</div>' +
+                '<div class="panel-subtitle">' + panel.subtitle + '</div>' +
+            '</div>';
+        panelDiv.appendChild(header);
+
+        /* Panel body */
+        var body = document.createElement('div');
+        body.className = 'panel-body';
+
+        panel.items.forEach(function(item) {
+            body.appendChild(buildConfigItem(item));
+        });
+
+        panelDiv.appendChild(body);
+        container.appendChild(panelDiv);
+    });
+}
+
+/*
+ * buildConfigItem(item) -- builds one .config-item row
+ * Returns a DOM element ready to append.
+ */
+function buildConfigItem(item) {
+    var div = document.createElement('div');
+    div.className = 'config-item';
+    div.id = 'ci-' + item.id;
+
+    /* Left side: label, current-state badge, description */
+    var infoDiv = document.createElement('div');
+    infoDiv.className = 'item-info';
+    infoDiv.innerHTML =
+        '<div class="item-name">' + item.name +
+            (item.trap ? ' <span class="trap-badge">TRAP</span>' : '') +
+        '</div>' +
+        '<div class="item-current">' + item.current + '</div>' +
+        '<div class="item-desc">' + item.desc + '</div>';
+
+    /* Right side: control + feedback */
+    var ctrlDiv = document.createElement('div');
+    ctrlDiv.className = 'item-control';
+
+    if (item.type === 'toggle') {
+        ctrlDiv.appendChild(buildToggle(item));
+    } else {
+        ctrlDiv.appendChild(buildSelect(item));
+    }
+
+    /* Post-grade feedback element */
+    var fb = document.createElement('div');
+    fb.className = 'item-feedback';
+    fb.id = 'fb-' + item.id;
+    ctrlDiv.appendChild(fb);
+
+    div.appendChild(infoDiv);
+    div.appendChild(ctrlDiv);
+    return div;
+}
+
+/*
+ * buildToggle(item) -- creates the toggle switch control.
+ * Initial state is set from item.baseline (explicit insecure starting state),
+ * NOT derived from item.correct. This decouples the starting state from the
+ * answer, which is essential for the SSH trap: SSH has baseline=true (starts ON)
+ * and correct=true (must stay ON). The trap is resisting the urge to disable it.
+ *
+ * baseline=true  → toggle starts ON  (service running / feature active)
+ * baseline=false → toggle starts OFF (service stopped / feature inactive)
+ */
+function buildToggle(item) {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'toggle-wrapper';
+
+    var stateLabel = document.createElement('span');
+    stateLabel.className = 'toggle-label-txt';
+    stateLabel.id = 'lbl-' + item.id;
+
+    var label = document.createElement('label');
+    label.className = 'toggle';
+
+    var input = document.createElement('input');
+    input.type = 'checkbox';
+    input.id = 'tog-' + item.id;
+
+    /*
+     * Set initial toggle state from the explicit INSECURE baseline property.
+     * baseline=true  means the service/feature is ON  in the insecure default config.
+     * baseline=false means the service/feature is OFF in the insecure default config.
+     */
+    input.checked = item.baseline;  /* explicit insecure baseline state */
+
+    var slider = document.createElement('div');
+    slider.className = 'toggle-slider';
+
+    label.appendChild(input);
+    label.appendChild(slider);
+
+    /* Update state label text reactively */
+    function refreshLabel() {
+        stateLabel.textContent = input.checked ? 'ON' : 'OFF';
+    }
+    refreshLabel();
+
+    /* Live attack-surface update on each change */
+    input.addEventListener('change', function() {
+        refreshLabel();
+        updateLiveScore();
+    });
+
+    wrapper.appendChild(stateLabel);
+    wrapper.appendChild(label);
+    return wrapper;
+}
+
+/*
+ * buildSelect(item) -- creates the dropdown control.
+ * Starts at the empty placeholder option (no selection = insecure baseline visible).
+ */
+function buildSelect(item) {
+    var sel = document.createElement('select');
+    sel.className = 'config-select';
+    sel.id = 'sel-' + item.id;
+
+    item.options.forEach(function(opt) {
+        var o = document.createElement('option');
+        o.value = opt.value;
+        o.textContent = opt.label;
+        sel.appendChild(o);
+    });
+
+    sel.addEventListener('change', updateLiveScore);
+    return sel;
+}
+
+/* ── Live score calculation ─────────────────────────────────────────────
+ * Recalculates how much of the attack surface has been reduced based on
+ * the student's current control selections. Does NOT grade (no feedback shown).
+ * Score = 100 - (correct hardening actions taken * POINT_VALUE).
+ */
+function getStudentAnswer(item) {
+    if (item.type === 'toggle') {
+        var el = document.getElementById('tog-' + item.id);
+        /* For toggles: checked=true means ON; answer is boolean */
+        return el ? el.checked : null;
+    } else {
+        var el2 = document.getElementById('sel-' + item.id);
+        return el2 ? el2.value : null;
+    }
+}
+
+function isCorrect(item) {
+    var answer = getStudentAnswer(item);
+    if (item.type === 'toggle') {
+        /* correct=false means the service should be OFF (unchecked); correct=true means ON (checked) */
+        return answer === item.correct;
+    } else {
+        return answer === item.correct;
+    }
+}
+
+function updateLiveScore() {
+    var pointsEarned = 0;
+    ALL_ITEMS.forEach(function(item) {
+        if (isCorrect(item)) pointsEarned += item.points;
+    });
+
+    /* Attack surface decreases as correct controls are applied */
+    var remaining = Math.round(100 - (pointsEarned / TOTAL_POINTS) * 100);
+
+    var numEl    = document.getElementById('scoreNum');
+    var fillEl   = document.getElementById('scoreFill');
+    var labelEl  = document.getElementById('scoreSubLabel');
+
+    numEl.textContent = remaining;
+
+    /* Width of the bar tracks remaining attack surface (100% = maximally exposed) */
+    fillEl.style.width  = remaining + '%';
+
+    /* Color shifts: high (red) -> medium (amber) -> low (green) */
+    if (remaining >= 70) {
+        fillEl.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
+        numEl.style.color       = '#ef4444';
+    } else if (remaining >= 35) {
+        fillEl.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+        numEl.style.color       = '#f59e0b';
+    } else {
+        fillEl.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
+        numEl.style.color       = '#10b981';
+    }
+
+    /* Descriptive sub-label */
+    var pct = 100 - remaining;
+    if (pct === 0) {
+        labelEl.textContent = 'Start hardening to reduce your attack surface.';
+    } else if (pct < 40) {
+        labelEl.textContent = 'Some controls applied. Keep going.';
+    } else if (pct < 80) {
+        labelEl.textContent = 'Good progress. Several controls still missing.';
+    } else if (pct < 100) {
+        labelEl.textContent = 'Almost fully hardened. Check remaining items.';
+    } else {
+        labelEl.textContent = 'Fully hardened. Click Grade Configuration.';
+    }
+}
+
+/* ── Grading ───────────────────────────────────────────────────────────
+ * Evaluates every item, applies mood-ring classes ('correct'/'incorrect'),
+ * shows per-item feedback, displays the summary results block, and
+ * reveals the Mark Complete button if the student passes (>=80%).
+ */
+function grade() {
+    var correctCount = 0;
+
+    ALL_ITEMS.forEach(function(item) {
+        var ciEl = document.getElementById('ci-' + item.id);
+        var fbEl = document.getElementById('fb-' + item.id);
+        var ok   = isCorrect(item);
+
+        /* Mood-ring classes (read by Dr. Hex observer) */
+        ciEl.classList.remove('correct', 'incorrect');
+        ciEl.classList.add(ok ? 'correct' : 'incorrect');
+
+        /* Per-item feedback text */
+        fbEl.className = 'item-feedback show ' + (ok ? 'right' : 'wrong');
+        if (ok) {
+            fbEl.textContent = item.explain;
+        } else {
+            /* If student left a select blank, show the general explain; otherwise show wrongNote if available */
+            var answer = getStudentAnswer(item);
+            var prefix = (item.type === 'select' && answer === '')
+                ? 'No selection made. '
+                : (item.wrongNote ? item.wrongNote + ' ' : '');
+            fbEl.textContent = prefix + 'Correct: ' + item.explain;
+        }
+
+        if (ok) correctCount++;
+    });
+
+    /* Update the score bar to final state */
+    updateLiveScore();
+
+    /* Results summary */
+    var pct   = Math.round((correctCount / TOTAL_POINTS) * 100);
+    var pass  = pct >= 80;
+    var msgMap = [
+        [100, 'Perfect hardening. Every control applied correctly. This server is production-ready.'],
+        [90,  'Excellent. Nearly every control correct. Review your one miss carefully.'],
+        [80,  'Pass. Good security posture with most controls applied. Study any traps you missed.'],
+        [60,  'Partial hardening. The system is still significantly exposed. Review missed items.'],
+        [0,   'Many controls missed. Work through each panel carefully and retry.']
+    ];
+    var msg = msgMap[msgMap.length - 1][1];
+    for (var i = 0; i < msgMap.length; i++) {
+        if (pct >= msgMap[i][0]) { msg = msgMap[i][1]; break; }
+    }
+
+    var resEl = document.getElementById('results');
+    resEl.innerHTML =
+        '<h2>Hardening Complete</h2>' +
+        '<span class="score-final" style="color:' + (pass ? 'var(--ok)' : 'var(--err)') + ';">' +
+            correctCount + ' / ' + TOTAL_POINTS +
+        '</span>' +
+        '<p style="font-size:1.1rem;font-weight:600;color:' + (pass ? 'var(--ok)' : 'var(--err)') + ';">' +
+            pct + '% -- ' + (pass ? 'PASS' : 'NEEDS REVIEW') +
+        '</p>' +
+        '<p>' + msg + '</p>' +
+        '<p style="margin-top:10px;font-size:0.85rem;">Scroll up to review per-item feedback. Correct items are highlighted green; incorrect items are highlighted red.</p>';
+    resEl.classList.add('show');
+
+    /* Disable grade button to prevent re-grading without reset */
+    document.getElementById('gradeBtn').disabled = true;
+
+    /* Reveal Mark Complete only on pass */
+    if (pass) {
+        document.getElementById('completeSection').classList.add('show');
+    }
+}
+
+/* ── Reset ─────────────────────────────────────────────────────────────
+ * Clears all feedback, removes mood-ring classes, resets controls
+ * to insecure defaults, re-enables the grade button, hides results.
+ */
+function resetLab() {
+    /* Clear results and complete section */
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('gradeBtn').disabled = false;
+
+    /* Re-render panels (restores insecure baseline state) */
+    renderPanels();
+
+    /* Reset score to 100 */
+    updateLiveScore();
+}
+
+/* ── Bootstrap ─────────────────────────────────────────────────────────
+ * Initial render on page load; set score bar to starting state.
+ */
+renderPanels();
+updateLiveScore();
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+     Always-visible chat entry point. State machine is attempt-driven;
+     button stays calm and serves as a general chat entry until lab
+     activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+<hex-ai-button mission-id="shield-system-hardening" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>

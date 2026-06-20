@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Platform wiring: auth gate and progress components load first, before any content -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIEM Alert Triage Lab | Security+ Cert Prep</title>
+    <style>
+        /* ── Reset and root design tokens ── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171;
+            --accent:  #f97316;
+            --bg:      #0a0a12;
+            --card:    rgba(15,15,25,0.85);
+            --text:    #e8e8f0;
+            --muted:   #888;
+            --border:  rgba(248,113,113,0.2);
+            --glow:    rgba(248,113,113,0.35);
+            --ok:      #10b981;
+            --err:     #ef4444;
+            --warn:    #f59e0b;
+            --info:    #60a5fa;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ── */
+        .header {
+            padding: 14px 24px;
+            background: rgba(10,10,18,0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 14px;
+            background: rgba(248,113,113,0.12);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* ── Main layout container ── */
+        .container { max-width: 1020px; margin: 0 auto; padding: 30px 20px 80px; }
+
+        /* ── Lab title hero block ── */
+        .lab-title {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 28px 24px;
+            background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06));
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .lab-title h1 { font-size: 1.75rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p  { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+        /* ── Two-stage progress indicator ── */
+        .stage-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .stage-tab {
+            flex: 1;
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-align: center;
+            color: var(--muted);
+            transition: all 0.25s;
+        }
+        .stage-tab.active { background: rgba(248,113,113,0.14); color: var(--primary); border-color: var(--primary); }
+        .stage-tab.done   { background: rgba(16,185,129,0.12); color: var(--ok); border-color: var(--ok); }
+
+        /* ── Instructions panel ── */
+        .instructions {
+            background: rgba(249,115,22,0.08);
+            border-left: 4px solid var(--accent);
+            padding: 14px 18px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 24px;
+            font-size: 0.91rem;
+            line-height: 1.65;
+            color: #ccc;
+        }
+        .instructions strong { color: var(--accent); }
+
+        /* ── SIEM console header strip ── */
+        .siem-header {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(248,113,113,0.15);
+            border-radius: 10px 10px 0 0;
+            padding: 10px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.78rem;
+            color: var(--muted);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .siem-header .live-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--ok);
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 1.8s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.35; }
+        }
+
+        /* ── Alert card grid ── */
+        .alerts-grid { margin-bottom: 4px; }
+
+        /* ── Individual alert card ── */
+        .alert-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 0 0 10px 10px;
+            margin-bottom: 14px;
+            overflow: hidden;
+            transition: border-color 0.35s, box-shadow 0.35s;
+        }
+        /* First card: top radius removed (attaches to SIEM header) */
+        .alert-card:first-child { border-radius: 0 0 10px 10px; }
+        /* Mood-ring classes: hooked by Dr. Hex observer via .correct / .incorrect tokens */
+        .alert-card.correct   { border-color: var(--ok);  box-shadow: 0 0 0 1px rgba(16,185,129,0.25); }
+        .alert-card.incorrect { border-color: var(--err); box-shadow: 0 0 0 1px rgba(239,68,68,0.25);  }
+
+        /* Alert metadata top strip */
+        .alert-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            padding: 10px 16px;
+            background: rgba(0,0,0,0.35);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.78rem;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+        }
+        .alert-meta .meta-item strong { color: #b0b0c0; }
+        .alert-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            color: #000;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        .sev-chip {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .sev-chip.crit { background: rgba(239,68,68,0.2);    color: #ef4444; border: 1px solid rgba(239,68,68,0.4); }
+        .sev-chip.high { background: rgba(249,115,22,0.18);  color: #f97316; border: 1px solid rgba(249,115,22,0.4); }
+        .sev-chip.med  { background: rgba(245,158,11,0.15);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.4); }
+        .sev-chip.low  { background: rgba(96,165,250,0.12);  color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
+        .sev-chip.info { background: rgba(148,163,184,0.12); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+
+        /* Alert body: signature, raw indicator, context */
+        .alert-body { padding: 14px 16px 6px; }
+        .signature-name {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+            letter-spacing: 0.03em;
+        }
+        .raw-indicator {
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            padding: 7px 12px;
+            color: #9ca3af;
+            margin-bottom: 8px;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+        .context-blurb {
+            font-size: 0.85rem;
+            color: #b0b8cc;
+            line-height: 1.65;
+            margin-bottom: 12px;
+        }
+
+        /* ── Decision controls for each alert ── */
+        .decision-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            padding: 12px 16px 16px;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .decision-field label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 5px;
+        }
+        .decision-field select {
+            width: 100%;
+            background: rgba(10,10,18,0.92);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 8px 12px;
+            font-size: 0.86rem;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 28px;
+        }
+        .decision-field select:focus { outline: none; border-color: var(--primary); }
+
+        /* Per-alert feedback strip, revealed after grading */
+        .alert-feedback {
+            display: none;
+            padding: 10px 16px 14px;
+            font-size: 0.84rem;
+            line-height: 1.6;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .alert-feedback.show { display: block; }
+        .alert-feedback .fb-row {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+        .fb-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); min-width: 70px; flex-shrink: 0; }
+        .fb-verdict { font-weight: 600; }
+        .fb-verdict.right { color: var(--ok); }
+        .fb-verdict.wrong { color: var(--err); }
+        .fb-explain { color: #a0a8c0; margin-top: 8px; font-size: 0.83rem; line-height: 1.65; border-left: 3px solid rgba(248,113,113,0.3); padding-left: 10px; }
+
+        /* ── Stage 1 action bar ── */
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 22px 0;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 11px 26px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover { background: rgba(248,113,113,0.1); box-shadow: none; }
+        .btn-green { background: var(--ok); color: #000; }
+        .btn-green:hover { background: #34d399; box-shadow: 0 4px 16px rgba(16,185,129,0.35); }
+
+        /* ── Stage 1 score summary panel ── */
+        .results {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; font-size: 1.45rem; }
+        .score-big { font-size: 2.8rem; font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: 6px; }
+        .results p { color: var(--muted); font-size: 0.92rem; line-height: 1.6; }
+
+        /* ── Stage 2: Correlation panel ── */
+        .stage2-section {
+            display: none;
+            margin-top: 10px;
+        }
+        .stage2-section.show { display: block; }
+        .stage2-panel {
+            background: rgba(15,15,30,0.9);
+            border: 1px solid rgba(249,115,22,0.35);
+            border-radius: 14px;
+            padding: 24px;
+        }
+        .stage2-panel h2 { font-size: 1.3rem; color: var(--accent); margin-bottom: 8px; }
+        .stage2-panel .desc { color: #b0b8cc; font-size: 0.9rem; line-height: 1.65; margin-bottom: 18px; }
+        .stage2-panel .desc strong { color: #e0e0f0; }
+
+        /* Checkbox grid for alert correlation selection */
+        .corr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .corr-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(249,115,22,0.15);
+            border-radius: 8px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .corr-item:hover { border-color: var(--accent); background: rgba(249,115,22,0.06); }
+        .corr-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 2px;
+            cursor: pointer;
+        }
+        .corr-item label {
+            font-size: 0.84rem;
+            color: #c0c8dc;
+            line-height: 1.5;
+            cursor: pointer;
+        }
+        .corr-item label strong { color: #e0e0f0; display: block; margin-bottom: 2px; }
+
+        .corr-feedback {
+            display: none;
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-top: 14px;
+            font-size: 0.88rem;
+            line-height: 1.65;
+        }
+        .corr-feedback.show { display: block; }
+        .corr-feedback.pass { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
+        .corr-feedback.fail { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; }
+        .corr-feedback strong { display: block; margin-bottom: 6px; font-size: 0.92rem; }
+        .corr-feedback .chain {
+            margin-top: 10px;
+            padding: 10px 14px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #a0a8c0;
+            line-height: 1.7;
+        }
+
+        /* ── Mark Complete section ── */
+        .complete-section { text-align: center; margin-top: 26px; display: none; }
+        .complete-section.show { display: block; }
+        .complete-section p { color: var(--muted); font-size: 0.88rem; margin-bottom: 14px; }
+
+        /* ── Responsive: stack decision grid on narrow screens ── */
+        @media (max-width: 600px) {
+            .lab-title h1 { font-size: 1.35rem; }
+            .decision-grid { grid-template-columns: 1fr; }
+            .corr-grid { grid-template-columns: 1fr; }
+            .alert-meta { flex-direction: column; gap: 4px; }
+            .score-big { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Visually-hidden h2 for screen-reader lab identification (a11y pattern from reference) -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">SIEM Alert Triage Lab</h2>
+
+<!-- ── Sticky navigation header ── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+</span>
+</header>
+
+<div class="container">
+
+    <!-- ── Lab hero title block ── -->
+    <div class="lab-title">
+        <h1>SIEM Alert Triage</h1>
+        <p>You are a Tier-1 security analyst. Work through an incoming alert queue, classify each event, assign severity, and decide on the right action. Then correlate related alerts into a single incident.</p>
+    </div>
+
+    <!-- ── Stage progress tabs ── -->
+    <div class="stage-bar" role="navigation" aria-label="Lab stages">
+        <div class="stage-tab active" id="tab1">Stage 1 -- Triage 11 Alerts</div>
+        <div class="stage-tab"        id="tab2">Stage 2 -- Incident Correlation</div>
+    </div>
+
+    <!-- ── How-to instructions ── -->
+    <div class="instructions">
+        <strong>Stage 1 -- How it works:</strong> Each alert card shows metadata exactly as a real SIEM would surface it: timestamp, source/destination, the detection rule that fired, the raw indicator log line, and analyst context notes. For every alert you must choose:<br>
+        (1) <strong>Classification</strong> -- Is this a real threat? (True Positive / False Positive / Benign-but-noteworthy)<br>
+        (2) <strong>Severity</strong> -- How bad is it if it IS real? (Critical / High / Medium / Low / Informational)<br>
+        (3) <strong>Action</strong> -- What should you do next?<br><br>
+        Read the alert metadata AND the context note carefully before deciding. Some alerts that look scary are false positives; some quiet-looking alerts are serious. When you are ready, click <strong>Grade Stage 1</strong>.
+    </div>
+
+    <!-- ── SIEM console chrome / alert queue ── -->
+    <div class="siem-header" aria-hidden="true">
+        <span><span class="live-dot"></span>SIEM -- Alert Queue -- Live Feed</span>
+        <span>11 Unreviewed Events | 2026-06-20 | SOC-EAST</span>
+    </div>
+
+    <!-- Alert cards are rendered here by JavaScript -->
+    <div class="alerts-grid" id="alertsGrid"></div>
+
+    <!-- Stage 1 action buttons -->
+    <div class="actions">
+        <button class="btn" id="gradeBtn" onclick="gradeStage1()">Grade Stage 1</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <!-- Stage 1 score panel (hidden until graded) -->
+    <div class="results" id="results"></div>
+
+    <!-- ── Stage 2: Correlation exercise (hidden until Stage 1 passes) ── -->
+    <div class="stage2-section" id="stage2Section">
+        <div class="stage2-panel">
+            <h2>Stage 2 -- Incident Correlation</h2>
+            <p class="desc">
+                A skilled analyst does not just triage alerts in isolation -- they <strong>correlate</strong> them. Multiple alerts from the same actor, same campaign, or same attack chain should be grouped into a single incident ticket.<br><br>
+                Below are <strong>four alerts</strong> from Stage 1 (Alert #1, #2, #3, #6) plus three decoys. <strong>Select every alert that belongs to one unified attack sequence</strong> -- the same threat actor moving from initial reconnaissance through to data staging. Do not include false positives or unrelated events.
+            </p>
+
+            <!-- Checkbox selection for correlation -->
+            <div class="corr-grid" id="corrGrid"></div>
+
+            <div class="actions" style="margin-top:0; justify-content:flex-start;">
+                <button class="btn btn-secondary" id="corrBtn" onclick="gradeCorrelation()" style="background:var(--accent);color:#000;border:none;">Grade Correlation</button>
+            </div>
+
+            <!-- Correlation result feedback -->
+            <div class="corr-feedback" id="corrFeedback"></div>
+        </div>
+    </div>
+
+    <!-- ── Mark Complete (shown only after Stage 1 pass + Stage 2 pass) ── -->
+    <div class="complete-section" id="completeSection">
+        <p>You identified the true incident and correctly triaged the queue. Outstanding analyst work.</p>
+        <button class="btn btn-green" onclick="ModuleProgress.complete('shield','shield-siem-alert-triage',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+
+</div><!-- /.container -->
+
+<script>
+/*
+ * SIEM Alert Triage Lab -- JavaScript
+ *
+ * DATA MODEL
+ * ----------
+ * ALERTS: array of 11 alert objects. Each contains:
+ *   id           -- unique integer 1-11
+ *   ts           -- simulated timestamp string
+ *   srcIp        -- RFC5737/RFC1918 source IP (never a real routable public IP)
+ *   dstAsset     -- destination hostname or IP
+ *   ruleName     -- detection rule / signature name (real or realistic SIEM rule naming)
+ *   rawIndicator -- log snippet or indicator detail (realistic)
+ *   context      -- analyst note: what is happening around this asset/time
+ *   sevChip      -- CSS class for the displayed chip (crit/high/med/low/info) - SYSTEM severity
+ *   answers      -- { classification, severity, action }  (correct answers)
+ *   explain      -- full explanation shown after grading
+ *   isFP         -- boolean: true if this is a known false positive alert
+ *   corrPart     -- boolean: true if this alert is part of the correlated incident chain
+ *
+ * CORRELATION (Stage 2)
+ * ---------------------
+ * Alerts #1, #2, #3, #6 form the single true incident (actor recon->brute-force->auth->staging).
+ * Stage 2 presents a subset of 7 alerts (the 4 real + 3 decoys) for selection.
+ */
+
+/* ── Alert dataset ── */
+var ALERTS = [
+
+    /*
+     * Alert 1 -- Port scan / recon (correlated, part of incident chain)
+     * Nmap-style TCP SYN scan from an external RFC5737 IP against an internal web server.
+     * Classification: True Positive (recon is real activity even if no exploit yet)
+     * Severity: Medium (recon alone is pre-attack; no immediate harm)
+     * Action: Investigate Further (validate if asset is exposed; track src IP)
+     */
+    {
+        id: 1,
+        ts: '2026-06-20 02:14:07 UTC',
+        srcIp: '203.0.113.47',
+        dstAsset: 'WEB-PRD-01 (192.168.10.5)',
+        ruleName: 'SCAN -- TCP SYN Port Sweep (>20 ports/10s)',
+        rawIndicator: 'SYN 203.0.113.47:variable -> 192.168.10.5:22,80,443,3389,8443,8080,9200,5432,3306,445 | 43 ports in 9.2s | TTL 52',
+        context: 'WEB-PRD-01 is an externally reachable web application server. No patch window is currently open. This source IP has not appeared in our environment before. The scan hit 43 ports in under 10 seconds.',
+        sevChip: 'med',
+        answers: { classification: 'True Positive', severity: 'Medium', action: 'Investigate Further' },
+        explain: 'A TCP SYN sweep across 43 ports in under 10 seconds is a classic Nmap-style reconnaissance scan. This IS a true positive -- real activity is happening, even though no exploit has fired yet. Severity is Medium because recon alone does not confirm compromise; escalation to Critical/High would be premature. The correct action is to investigate: correlate with downstream events, verify whether port 22/3389 are exposed, and threat-intel the source IP. Closing as FP or tuning the rule would be wrong -- the rule fired correctly.',
+        isFP: false,
+        corrPart: true
+    },
+
+    /*
+     * Alert 2 -- SSH brute force (correlated, same source IP as Alert 1)
+     * 312 failed SSH authentication attempts in 4 minutes from the same external IP.
+     * Classification: True Positive
+     * Severity: High (active credential attack against internet-facing SSH)
+     * Action: Escalate to IR (active attack in progress, rate-of-fire is serious)
+     */
+    {
+        id: 2,
+        ts: '2026-06-20 02:18:33 UTC',
+        srcIp: '203.0.113.47',
+        dstAsset: 'WEB-PRD-01 (192.168.10.5)',
+        ruleName: 'BRUTE -- SSH Authentication Failure Spike (>50 fails/min)',
+        rawIndicator: 'sshd: 312 failed password attempts across multiple usernames (root, admin, deploy) from 203.0.113.47 in 4m02s | differential auth responses suggest "deploy" and "admin" are valid accounts',
+        context: 'Same source IP as the port scan 4 minutes earlier (Alert #1). The brute-force tool identified two valid usernames during the spray ("deploy" and "admin"). SSH (port 22) is directly exposed to the internet on this host.',
+        sevChip: 'high',
+        answers: { classification: 'True Positive', severity: 'High', action: 'Escalate to IR' },
+        explain: 'This is a True Positive at High severity. The attacker confirmed valid usernames via SSH enumeration and is actively credential-spraying. Coming 4 minutes after the port scan from the same IP, this is clearly a coordinated attack chain -- not noise. High severity is correct: the attacker does not yet have access, but they have working usernames and an exposed SSH port. The action MUST be "Escalate to IR" -- an active brute-force attack against a production server with confirmed valid usernames is an IR-worthy event, not just "investigate further".',
+        isFP: false,
+        corrPart: true
+    },
+
+    /*
+     * Alert 3 -- Successful SSH auth after brute force (correlated, same IP, compromise)
+     * A successful login to root from the same attacking IP 2 minutes after the brute force.
+     * Classification: True Positive
+     * Severity: Critical (confirmed compromise of internet-facing server)
+     * Action: Escalate to IR
+     */
+    {
+        id: 3,
+        ts: '2026-06-20 02:20:51 UTC',
+        srcIp: '203.0.113.47',
+        dstAsset: 'WEB-PRD-01 (192.168.10.5)',
+        ruleName: 'AUTH -- Successful Login After Brute Force Spike (same src)',
+        rawIndicator: 'sshd: Accepted password for root from 203.0.113.47 port 54821 | session opened for user root | interactive shell TTY allocated',
+        context: 'Same source IP as Alerts #1 and #2. A root session opened 2 minutes and 18 seconds after the brute-force began. An interactive TTY was allocated, meaning the attacker has a live shell. This is NOT a service account or scheduled task -- root interactive logins to this server are not normal operations.',
+        sevChip: 'crit',
+        answers: { classification: 'True Positive', severity: 'Critical', action: 'Escalate to IR' },
+        explain: 'This is the worst kind of alert: a Critical True Positive. The attacker successfully brute-forced the root password on an internet-facing production server and has an interactive shell. Severity is Critical -- not High, not Medium. Confirmed unauthorized root access to a production server is a Critical incident. Action must be "Escalate to IR" immediately. You do NOT tune the rule (the rule performed correctly) and you do NOT close as FP (the login is real and unauthorized).',
+        isFP: false,
+        corrPart: true
+    },
+
+    /*
+     * Alert 4 -- EICAR test file detection (FALSE POSITIVE -- intentional AV test)
+     * Security team ran an AV test using the harmless EICAR test string.
+     * Classification: False Positive
+     * Severity: Informational
+     * Action: Close as FP
+     */
+    {
+        id: 4,
+        ts: '2026-06-20 02:31:44 UTC',
+        srcIp: '192.168.1.105',
+        dstAsset: 'LAPTOP-SEC-07 (192.168.1.105)',
+        ruleName: 'MALWARE -- EICAR Test File Signature Detected',
+        rawIndicator: 'File: C:\\Users\\jsmith\\Desktop\\eicar.com | SHA256: 275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f | Sig: EICAR-Test-File | Action: Quarantined',
+        context: 'The security team\'s endpoint engineer (jsmith) was validating that the new EDR agent on this laptop is correctly detecting and quarantining malware. The EICAR test file is an industry-standard inert test string -- it is NOT malware. It triggers AV signatures by design. This is a routine validation procedure scheduled for this morning.',
+        sevChip: 'info',
+        answers: { classification: 'False Positive', severity: 'Informational', action: 'Close as FP' },
+        explain: 'The EICAR test file is the canonical example of an intentional false positive in security training. It is an inert ASCII string that AV engines detect by design -- there is no actual malware. The SHA-256 hash (275a021b...) is the well-known EICAR hash. Classification: False Positive. Severity: Informational. Action: Close as FP. You might also note the successful quarantine in a work note and optionally "tune the rule" to suppress future EICAR alerts from the security team\'s test systems -- but the primary action is FP closure.',
+        isFP: true,
+        corrPart: false
+    },
+
+    /*
+     * Alert 5 -- Vulnerability scanner traffic (FALSE POSITIVE -- authorized scan)
+     * Nessus scanner from internal security subnet hitting production systems.
+     * Classification: False Positive
+     * Severity: Informational
+     * Action: Tune the Rule (or Close as FP; Close as FP is also acceptable)
+     */
+    {
+        id: 5,
+        ts: '2026-06-20 03:00:12 UTC',
+        srcIp: '192.168.200.10',
+        dstAsset: 'Multiple (192.168.10.0/24)',
+        ruleName: 'SCAN -- Internal Network Sweep (>50 hosts/60s)',
+        rawIndicator: 'SYN sweep from 192.168.200.10 -> 192.168.10.1-254 | 254 hosts in 58s | ports: 22,80,443,445,3389 | User-Agent in HTTP probes: Nessus/10.7',
+        context: 'Source IP 192.168.200.10 is the designated Nessus vulnerability scanner, registered in the CMDB as "SCANNER-NESSUS-01". The security team runs scheduled authenticated vulnerability scans during the 03:00 UTC maintenance window (per change ticket CHG-2026-0617). This scan matches that authorized window.',
+        sevChip: 'info',
+        answers: { classification: 'False Positive', severity: 'Informational', action: ['Tune the Rule', 'Close as FP'] },
+        explain: 'This is a False Positive triggered by an authorized vulnerability scanner. 192.168.200.10 is the registered Nessus scanner and the scan occurred during the authorized maintenance window per CHG-2026-0617. The detection rule fired correctly (a sweep DID happen), but the source is whitelisted and the activity is authorized. Classification: False Positive. Severity: Informational. Action: both "Tune the Rule" and "Close as FP" are acceptable here. "Tune the Rule" is preferred -- adding 192.168.200.10 to a suppression list prevents this same alert from recurring every scan cycle. "Close as FP" is also a valid SOC call when a one-time closure is the right workflow for your team. Either answer is accepted.',
+        isFP: true,
+        corrPart: false
+    },
+
+    /*
+     * Alert 6 -- Large outbound data transfer / potential exfiltration (correlated)
+     * WEB-PRD-01 (now compromised per Alert 3) transferring 2.1 GB outbound.
+     * Classification: True Positive
+     * Severity: Critical
+     * Action: Escalate to IR
+     */
+    {
+        id: 6,
+        ts: '2026-06-20 02:28:19 UTC',
+        srcIp: '192.168.10.5',
+        dstAsset: '203.0.113.47 (external)',
+        ruleName: 'EXFIL -- Large Outbound Transfer (>500 MB to single external IP)',
+        rawIndicator: '192.168.10.5 -> 203.0.113.47:443 | 2.1 GB transferred in 7m38s | protocol: TLS 1.3 | direction: outbound | no DLP policy match logged',
+        context: 'WEB-PRD-01 transferred 2.1 GB to the same external IP that conducted the port scan (Alert #1) and brute force (Alert #2) about 10 minutes earlier. The root session (Alert #3) is still active. Normal outbound traffic from this server is under 10 MB/hour. TLS encryption prevents content inspection.',
+        sevChip: 'crit',
+        answers: { classification: 'True Positive', severity: 'Critical', action: 'Escalate to IR' },
+        explain: 'This is data exfiltration -- the final stage of the attack chain. The same IP that scanned, brute-forced, and obtained root access (Alerts #1-#3) is now receiving 2.1 GB from the compromised server. The timing (7 minutes after root login) and volume (2.1 GB vs. normal 10 MB/hour) are irrefutable. Classification: True Positive. Severity: Critical (confirmed exfil from a compromised production server). Action: Escalate to IR. The correlated incident chain is now complete: recon -> brute-force -> initial access -> data exfiltration.',
+        isFP: false,
+        corrPart: true
+    },
+
+    /*
+     * Alert 7 -- DNS tunneling suspicion / C2 beaconing
+     * Internal workstation making high-frequency DNS TXT queries to an unusual domain.
+     * Classification: True Positive
+     * Severity: High
+     * Action: Investigate Further (not yet confirmed C2; needs more investigation)
+     */
+    {
+        id: 7,
+        ts: '2026-06-20 04:12:33 UTC',
+        srcIp: '192.168.50.88',
+        dstAsset: 'DNS-01 (192.168.1.1) -> external resolver',
+        ruleName: 'C2 -- DNS Beaconing / High-Frequency TXT Record Queries',
+        rawIndicator: '192.168.50.88 | 847 DNS TXT queries in 60min to *.updates-telemetry-cdn[.]net | avg interval: 4.2s | query lengths: 60-220 chars | no A/CNAME/MX queries | entropy: high',
+        context: 'WKSTN-MKT-11 (192.168.50.88) is a marketing department workstation. Normal DNS activity for this host is under 30 queries/hour, dominated by A records. TXT record queries to a CDN-sounding domain with high-entropy subdomains at 4-second intervals matches DNS tunneling tool behavior (e.g., iodine, dnscat2). The domain has not been seen in our environment before.',
+        sevChip: 'high',
+        answers: { classification: 'True Positive', severity: 'High', action: 'Investigate Further' },
+        explain: 'This alert shows strong indicators of DNS tunneling or C2 beaconing: high-frequency TXT queries (not normal web browsing), high-entropy subdomains, consistent timing intervals, and an unknown domain. This is a True Positive alert -- real suspicious behavior is occurring. Severity: High (potential active C2 channel). Action: "Investigate Further" is correct at this stage rather than immediate IR escalation. You need to: pull the full DNS query payloads, check if the workstation has recently visited phishing sites, and confirm whether this is data exfil or command-and-control before escalating. Tuning away a potential C2 alert would be dangerous.',
+        isFP: false,
+        corrPart: false
+    },
+
+    /*
+     * Alert 8 -- Impossible Travel login anomaly
+     * User account logged in from New York, then Madrid 25 minutes later.
+     * Classification: True Positive
+     * Severity: High
+     * Action: Escalate to IR
+     */
+    {
+        id: 8,
+        ts: '2026-06-20 06:44:02 UTC',
+        srcIp: '198.51.100.77',
+        dstAsset: 'AzureAD / M365 (user: m.chen@corp.local)',
+        ruleName: 'IDENTITY -- Impossible Travel: Concurrent Sessions from Geographically Distant IPs',
+        rawIndicator: 'Session 1: 192.0.2.14 (geoip: New York, US) login 06:19:11 UTC | Session 2: 198.51.100.77 (geoip: Madrid, ES) login 06:44:02 UTC | gap: 24min 51s | physical travel impossible',
+        context: 'User m.chen is a local corporate account. Travel records and calendar show no planned international travel. An 8,000 km gap in 25 minutes is physically impossible. This identity analytics rule uses geolocation -- note that RFC5737 IPs are used here in the simulator; in production this would resolve to real geolocations. HR confirms m.chen is working from the New York office today.',
+        sevChip: 'high',
+        answers: { classification: 'True Positive', severity: 'High', action: 'Escalate to IR' },
+        explain: 'Impossible Travel is a well-established identity threat detection: the same account authenticating from locations that are physically unreachable in the elapsed time strongly indicates credential compromise. Classification: True Positive. Severity: High. Action: Escalate to IR -- a potentially compromised user account with an active foreign session requires IR. The IR team should revoke the suspicious session, force password reset, and check M365 audit logs for mail forwarding rules, OAuth app grants, and data access. You do NOT investigate further first when an account appears actively compromised.',
+        isFP: false,
+        corrPart: false
+    },
+
+    /*
+     * Alert 9 -- Failed logon spike on a workstation (Benign-but-noteworthy)
+     * User locked themselves out after forgetting password -- not an attack.
+     * Classification: Benign-but-noteworthy
+     * Severity: Low
+     * Action: Investigate Further (confirm it is the user; document)
+     */
+    {
+        id: 9,
+        ts: '2026-06-20 08:05:17 UTC',
+        srcIp: '192.168.30.42',
+        dstAsset: 'WKSTN-FIN-04 (192.168.30.42)',
+        ruleName: 'AUTH -- Local Authentication Failure Spike (>10 fails/5min, same workstation)',
+        rawIndicator: 'Security event 4625: 14 failed interactive logons for CORP\\t.williams on WKSTN-FIN-04 in 4m33s | no network source -- local console | account now locked',
+        context: 'WKSTN-FIN-04 is assigned to T. Williams in the Finance department. The help desk received a call at 08:06 from t.williams saying they forgot their password after returning from vacation. The account is now locked (per AD). There is no network source IP -- these are local console attempts. No other activity is logged from this host.',
+        sevChip: 'low',
+        answers: { classification: 'Benign-but-noteworthy', severity: 'Low', action: 'Investigate Further' },
+        explain: 'This is a Benign-but-noteworthy event. The activity (repeated failed logins) is real, but the cause is a user forgetting their password -- confirmed by a concurrent help desk call. It is NOT a True Positive attack (no external source, local console only, user corroborates). It is NOT a False Positive (the authentication failures genuinely happened). "Benign-but-noteworthy" is the correct classification: something real occurred but poses no threat. Severity: Low. Action: "Investigate Further" is correct -- you should confirm with the help desk record, unlock the account via proper procedure, and close with documentation. This is also useful data for baseline: if t.williams accounts start failing logins from a NETWORK source next week, that pattern matters.',
+        isFP: false,
+        corrPart: false
+    },
+
+    /*
+     * Alert 10 -- Outbound connection to known malicious IP (threat intel hit)
+     * Workstation phoned home to a confirmed C2 IP from a threat intel feed.
+     * Classification: True Positive
+     * Severity: Critical
+     * Action: Escalate to IR
+     */
+    {
+        id: 10,
+        ts: '2026-06-20 09:33:48 UTC',
+        srcIp: '192.168.40.19',
+        dstAsset: '198.51.100.200 (external -- threat intel: C2 IOC)',
+        ruleName: 'THREAT-INTEL -- Outbound Connection to Known Malicious IP (Confidence: HIGH)',
+        rawIndicator: '192.168.40.19 -> 198.51.100.200:443 | TLS 1.2 | bytes_out: 1.2 KB | bytes_in: 48 KB | 22 sessions in 6h | avg beacon interval: 16.2min | IOC match: ThreatFeed-APT29-C2-List-2026-05',
+        context: 'WKSTN-HR-09 (192.168.40.19) is an HR workstation. 198.51.100.200 appears on a HIGH-confidence threat intelligence feed (ThreatFeed-APT29-C2-List-2026-05), associated with a known APT29 command-and-control infrastructure. The 22 sessions over 6 hours with a consistent 16-minute beacon interval are highly characteristic of automated C2 check-in behavior. The workstation user (a.rodriguez) opened an email attachment 6 hours ago.',
+        sevChip: 'crit',
+        answers: { classification: 'True Positive', severity: 'Critical', action: 'Escalate to IR' },
+        explain: 'This is a textbook Critical True Positive. The key indicators: (1) destination IP matches a HIGH-confidence APT29 C2 threat intel IOC; (2) 22 sessions with a 16-minute consistent beacon interval is automated malware behavior, not human activity; (3) the email attachment 6 hours ago is likely the initial infection vector; (4) the small outbound / larger inbound pattern suggests tasking downloads (commands) from the C2. Classification: True Positive. Severity: Critical (active C2 channel, potential APT). Action: Escalate to IR immediately. This is not "investigate further" -- a confirmed C2 beacon to a known APT infrastructure is a Critical incident requiring IR, host isolation, and forensic imaging.',
+        isFP: false,
+        corrPart: false
+    },
+
+    /*
+     * Alert 11 -- Backup job triggering data staging alert (FALSE POSITIVE)
+     * Nightly backup agent causes a "large file copy" rule to fire.
+     * Classification: False Positive
+     * Severity: Informational
+     * Action: Tune the Rule
+     */
+    {
+        id: 11,
+        ts: '2026-06-20 01:00:07 UTC',
+        srcIp: '192.168.5.200',
+        dstAsset: 'FILESERVER-01 (192.168.5.10)',
+        ruleName: 'STAGE -- Large Internal File Copy (>10 GB, non-business hours)',
+        rawIndicator: '192.168.5.200 -> 192.168.5.10 | 847 GB transferred via SMB | 01:00:07 - 03:47:22 UTC | process: BackupExec.exe | account: CORP\\svc_backup | scheduled task: "NightlyFullBackup"',
+        context: 'The source host BACKUP-SRV-01 (192.168.5.200) is the enterprise backup server running BackupExec. The service account svc_backup is a dedicated backup service account in AD. This backup runs nightly at 01:00 UTC per the infrastructure team\'s change calendar (CHG-2026-0001, recurring). The 847 GB matches expected backup size for FILESERVER-01.',
+        sevChip: 'info',
+        answers: { classification: 'False Positive', severity: 'Informational', action: 'Tune the Rule' },
+        explain: 'This is a False Positive caused by the authorized nightly backup job. The source is the registered backup server, the process is the known backup agent (BackupExec), and the service account (svc_backup) is a dedicated backup credential -- all matching the scheduled change ticket. The detection rule fired on volume and timing (which are correct criteria for catching staging), but the authorized source should be suppressed. Action: "Tune the Rule" -- specifically, add an exclusion for svc_backup + source 192.168.5.200 + BackupExec.exe so the rule does not fire every night. Do NOT close as FP without tuning, or the same FP will repeat nightly. Do NOT escalate -- there is no threat here.',
+        isFP: true,
+        corrPart: false
+    }
+];
+
+/*
+ * Decision fields presented for each alert.
+ * Each field has a label, a select id prefix, and the valid option values.
+ */
+var DECISION_FIELDS = [
+    {
+        key:     'classification',
+        label:   'Classification',
+        options: ['True Positive', 'False Positive', 'Benign-but-noteworthy']
+    },
+    {
+        key:     'severity',
+        label:   'Severity',
+        options: ['Critical', 'High', 'Medium', 'Low', 'Informational']
+    },
+    {
+        key:     'action',
+        label:   'Action',
+        options: ['Escalate to IR', 'Investigate Further', 'Close as FP', 'Tune the Rule']
+    }
+];
+
+/*
+ * CORRELATION DATA
+ * ----------------
+ * The 7 items shown in Stage 2 (4 correct + 3 decoys).
+ * corrPart: true  => belongs in the incident chain
+ * corrPart: false => decoy (real events, but different campaigns / unrelated)
+ */
+var CORR_ITEMS = [
+    { alertId: 1,  label: 'Alert #1',  desc: 'SCAN -- TCP SYN Port Sweep against WEB-PRD-01 from 203.0.113.47',                        corrPart: true  },
+    { alertId: 2,  label: 'Alert #2',  desc: 'BRUTE -- SSH Authentication Failure Spike (312 fails) against WEB-PRD-01 from 203.0.113.47', corrPart: true  },
+    { alertId: 3,  label: 'Alert #3',  desc: 'AUTH -- Successful SSH Login (root) to WEB-PRD-01 from 203.0.113.47',                      corrPart: true  },
+    { alertId: 6,  label: 'Alert #6',  desc: 'EXFIL -- 2.1 GB outbound from WEB-PRD-01 to 203.0.113.47',                                corrPart: true  },
+    { alertId: 7,  label: 'Alert #7',  desc: 'C2 -- DNS Beaconing from WKSTN-MKT-11 to unknown domain (different host/actor)',           corrPart: false },
+    { alertId: 8,  label: 'Alert #8',  desc: 'IDENTITY -- Impossible Travel for m.chen (different user/service)',                        corrPart: false },
+    { alertId: 10, label: 'Alert #10', desc: 'THREAT-INTEL -- Outbound C2 beacon from WKSTN-HR-09 (different host/actor)',               corrPart: false }
+];
+
+/* Tracks whether Stage 1 passed (needed to unlock Stage 2 grading) */
+var stage1Passed = false;
+
+/*
+ * sevChipClass -- maps the raw sevChip key to a CSS class for the displayed chip.
+ * This controls the color-coded severity indicator in the alert metadata strip.
+ */
+function sevChipClass(key) {
+    var map = { crit: 'crit', high: 'high', med: 'med', low: 'low', info: 'info' };
+    return map[key] || 'info';
+}
+
+/*
+ * sevChipLabel -- human-readable label for the severity chip.
+ */
+function sevChipLabel(key) {
+    var map = { crit: 'CRITICAL', high: 'HIGH', med: 'MEDIUM', low: 'LOW', info: 'INFO' };
+    return map[key] || 'INFO';
+}
+
+/*
+ * renderAlerts -- builds the alert card DOM structure for all 11 alerts.
+ * Creates: meta strip, signature row, raw indicator block, context blurb,
+ * three decision dropdowns, and a hidden feedback panel per alert.
+ */
+function renderAlerts() {
+    var grid = document.getElementById('alertsGrid');
+    grid.innerHTML = '';
+
+    ALERTS.forEach(function(alert) {
+        /* Outer card container -- receives 'correct'/'incorrect' class after grading */
+        var card = document.createElement('div');
+        card.className = 'alert-card';
+        card.id = 'alert-card-' + alert.id;
+
+        /* Build the decision dropdowns HTML */
+        var dropdownsHtml = DECISION_FIELDS.map(function(field) {
+            var opts = '<option value="">-- Select --</option>';
+            field.options.forEach(function(opt) {
+                opts += '<option value="' + opt + '">' + opt + '</option>';
+            });
+            return (
+                '<div class="decision-field">' +
+                '<label for="sel-' + alert.id + '-' + field.key + '">' + field.label + '</label>' +
+                '<select id="sel-' + alert.id + '-' + field.key + '" aria-label="' + field.label + ' for Alert ' + alert.id + '">' +
+                opts +
+                '</select>' +
+                '</div>'
+            );
+        }).join('');
+
+        /* Assemble the full card HTML */
+        card.innerHTML =
+            /* --- metadata strip --- */
+            '<div class="alert-meta">' +
+                '<span class="meta-item"><span class="alert-num">' + alert.id + '</span></span>' +
+                '<span class="meta-item"><strong>Time:</strong> ' + alert.ts + '</span>' +
+                '<span class="meta-item"><strong>Src IP:</strong> ' + alert.srcIp + '</span>' +
+                '<span class="meta-item"><strong>Target:</strong> ' + alert.dstAsset + '</span>' +
+                '<span class="sev-chip ' + sevChipClass(alert.sevChip) + '">' + sevChipLabel(alert.sevChip) + '</span>' +
+            '</div>' +
+
+            /* --- signature, raw indicator, context --- */
+            '<div class="alert-body">' +
+                '<div class="signature-name">' + alert.ruleName + '</div>' +
+                '<div class="raw-indicator">' + alert.rawIndicator + '</div>' +
+                '<div class="context-blurb"><strong>Analyst Context:</strong> ' + alert.context + '</div>' +
+            '</div>' +
+
+            /* --- decision dropdowns --- */
+            '<div class="decision-grid">' + dropdownsHtml + '</div>' +
+
+            /* --- per-alert feedback (hidden until graded) --- */
+            '<div class="alert-feedback" id="alert-feedback-' + alert.id + '"></div>';
+
+        grid.appendChild(card);
+    });
+}
+
+/*
+ * gradeStage1 -- grades all 11 alert decisions.
+ *
+ * For each alert, evaluates all 3 decision fields.
+ * An alert is "correct" only when ALL 3 fields match the answer key.
+ * Adds 'correct' or 'incorrect' CSS class to the card (mood-ring hook).
+ * Reveals per-alert feedback panel with per-field verdicts and explanation.
+ * Shows score summary and unlocks Stage 2 if threshold (>=80%) is met.
+ */
+function gradeStage1() {
+    var totalDecisions = 0;   /* total individual decisions: 11 alerts x 3 fields = 33 */
+    var correctDecisions = 0; /* count of individually correct field answers */
+    var allAlertsCorrect = 0; /* alerts where ALL 3 fields are correct */
+
+    ALERTS.forEach(function(alert) {
+        var alertAllCorrect = true;
+        var feedbackRows = '';
+
+        /* Grade each of the 3 decision fields for this alert.
+         * `expected` may be a string (single correct answer) or an array
+         * (multiple acceptable answers, e.g. Alert #5 action).
+         * For arrays, any member match is treated as correct.
+         * The feedback label lists all acceptable answers when an array is used. */
+        DECISION_FIELDS.forEach(function(field) {
+            var sel = document.getElementById('sel-' + alert.id + '-' + field.key);
+            var val = sel ? sel.value : '';
+            var expected = alert.answers[field.key];
+
+            /* Support array-typed expected values (multiple acceptable answers) */
+            var isRight = Array.isArray(expected)
+                ? (val !== '' && expected.indexOf(val) !== -1)
+                : (val === expected);
+
+            /* Human-readable label for the correct answer(s) */
+            var expectedLabel = Array.isArray(expected)
+                ? expected.join(' or ')
+                : expected;
+
+            totalDecisions++;
+            if (isRight) {
+                correctDecisions++;
+            } else {
+                alertAllCorrect = false;
+            }
+
+            feedbackRows +=
+                '<div class="fb-row">' +
+                    '<span class="fb-label">' + field.label + '</span>' +
+                    '<span class="fb-verdict ' + (isRight ? 'right' : 'wrong') + '">' +
+                        (isRight ? 'Correct' : 'Incorrect -- answer: ' + expectedLabel) +
+                    '</span>' +
+                '</div>';
+        });
+
+        /* Append the full explanation after the per-field rows */
+        feedbackRows += '<div class="fb-explain">' + alert.explain + '</div>';
+
+        /* Apply mood-ring class to card (observed by Dr. Hex button listener) */
+        var card = document.getElementById('alert-card-' + alert.id);
+        card.classList.remove('correct', 'incorrect');
+        card.classList.add(alertAllCorrect ? 'correct' : 'incorrect');
+
+        if (alertAllCorrect) allAlertsCorrect++;
+
+        /* Show feedback panel */
+        var fb = document.getElementById('alert-feedback-' + alert.id);
+        fb.innerHTML = feedbackRows;
+        fb.classList.add('show');
+    });
+
+    /* Calculate pass percentage based on individual decisions (out of 33 total) */
+    var pct = Math.round((correctDecisions / totalDecisions) * 100);
+    var passed = (pct >= 80);
+    stage1Passed = passed;
+
+    /* Build and display results panel */
+    var resultMsg;
+    if (pct >= 90) {
+        resultMsg = 'Excellent analyst work. You read the context carefully and applied SOC triage logic precisely.';
+    } else if (pct >= 80) {
+        resultMsg = 'Good triage. Review the alerts you missed -- pay attention to context clues like authorized scanners and service accounts.';
+    } else {
+        resultMsg = 'Keep studying. Focus on distinguishing true positives from authorized activity, and on when to escalate vs. investigate.';
+    }
+
+    var res = document.getElementById('results');
+    res.innerHTML =
+        '<div class="score-big">' + correctDecisions + ' / ' + totalDecisions + '</div>' +
+        '<p style="color:var(--muted);margin-bottom:8px;">' + pct + '% decisions correct (' + allAlertsCorrect + ' of 11 alerts fully correct)</p>' +
+        '<p>' + resultMsg + '</p>';
+    res.classList.add('show');
+
+    /* Disable the grade button to prevent re-grading (lock the stage) */
+    document.getElementById('gradeBtn').disabled = true;
+
+    /* Update stage tabs */
+    document.getElementById('tab1').classList.remove('active');
+    document.getElementById('tab1').classList.add('done');
+
+    /* Unlock Stage 2 if threshold met */
+    if (passed) {
+        document.getElementById('tab2').classList.add('active');
+        document.getElementById('stage2Section').classList.add('show');
+        /* Scroll to Stage 2 smoothly */
+        document.getElementById('stage2Section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        /* Tell user they need to retry: add hint in results */
+        var hint = document.createElement('p');
+        hint.style.cssText = 'margin-top:12px;color:var(--warn);font-size:0.88rem;';
+        hint.textContent = 'Score below 80% -- Stage 2 is locked. Reset and try again with closer attention to context notes.';
+        res.appendChild(hint);
+    }
+}
+
+/*
+ * renderCorrelation -- builds the checkbox grid for Stage 2.
+ * Called once when the lab initializes (items are hidden behind stage2Section CSS).
+ */
+function renderCorrelation() {
+    var grid = document.getElementById('corrGrid');
+    grid.innerHTML = '';
+
+    CORR_ITEMS.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'corr-item';
+
+        var checkId = 'corr-' + item.alertId;
+        div.innerHTML =
+            '<input type="checkbox" id="' + checkId + '" value="' + item.alertId + '" aria-label="Select ' + item.label + '">' +
+            '<label for="' + checkId + '">' +
+                '<strong>' + item.label + '</strong>' +
+                item.desc +
+            '</label>';
+
+        /* Click on the div toggles the checkbox for larger hit target */
+        div.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'INPUT') {
+                var cb = document.getElementById(checkId);
+                if (cb) cb.checked = !cb.checked;
+            }
+        });
+
+        grid.appendChild(div);
+    });
+}
+
+/*
+ * gradeCorrelation -- grades the Stage 2 correlation selection.
+ *
+ * Student must select exactly Alerts 1, 2, 3, 6 (all corrPart: true in CORR_ITEMS).
+ * A submission is correct only when the selected set matches exactly -- no extras, no misses.
+ * On pass: reveals Mark Complete button.
+ */
+function gradeCorrelation() {
+    /* Collect selected alert IDs */
+    var selected = [];
+    CORR_ITEMS.forEach(function(item) {
+        var cb = document.getElementById('corr-' + item.alertId);
+        if (cb && cb.checked) selected.push(item.alertId);
+    });
+
+    /* Correct answer set: alert IDs where corrPart is true */
+    var correctIds = CORR_ITEMS.filter(function(i) { return i.corrPart; }).map(function(i) { return i.alertId; });
+
+    /* Check: selected set must equal correct set (order-independent) */
+    var selectedSorted = selected.slice().sort();
+    var correctSorted  = correctIds.slice().sort();
+    var isCorrect = (
+        selectedSorted.length === correctSorted.length &&
+        selectedSorted.every(function(v, i) { return v === correctSorted[i]; })
+    );
+
+    /* Build missed and extra lists for feedback */
+    var missed = correctIds.filter(function(id) { return selected.indexOf(id) === -1; });
+    var extra  = selected.filter(function(id) { return correctIds.indexOf(id) === -1; });
+
+    var fb = document.getElementById('corrFeedback');
+    fb.classList.remove('pass', 'fail', 'show');
+
+    if (isCorrect) {
+        fb.classList.add('pass', 'show');
+        fb.innerHTML =
+            '<strong>Correct -- you identified the complete attack chain.</strong>' +
+            'Alerts #1, #2, #3, and #6 form a single unified incident: one threat actor (203.0.113.47) executed a full kill-chain against WEB-PRD-01 in under 15 minutes.' +
+            '<div class="chain">' +
+                'Alert #1 (02:14) -- TCP SYN Recon -- actor mapped open ports<br>' +
+                'Alert #2 (02:18) -- SSH Brute Force -- actor gained valid usernames, sprayed passwords<br>' +
+                'Alert #3 (02:20) -- Root SSH Login -- actor obtained initial access (shell)<br>' +
+                'Alert #6 (02:28) -- 2.1 GB Exfil -- actor staged and exfiltrated data to their own IP<br>' +
+                '---<br>' +
+                'Single incident ticket. Actor: 203.0.113.47. Target: WEB-PRD-01. Kill-chain: Recon > Initial Access > Exfiltration.' +
+            '</div>';
+
+        /* Lock the correlation grade button */
+        document.getElementById('corrBtn').disabled = true;
+
+        /* Update stage tab to done */
+        document.getElementById('tab2').classList.remove('active');
+        document.getElementById('tab2').classList.add('done');
+
+        /* Show Mark Complete */
+        document.getElementById('completeSection').classList.add('show');
+        document.getElementById('completeSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } else {
+        fb.classList.add('fail', 'show');
+        var hints = [];
+        if (missed.length) hints.push('Missing: Alert(s) ' + missed.map(function(id){ return '#' + id; }).join(', ') + ' -- look for shared source/destination IP and attack timeline.');
+        if (extra.length)  hints.push('Extra:   Alert(s) ' + extra.map(function(id){ return '#' + id; }).join(', ') + ' -- these involve different hosts or actors; they are separate incidents.');
+        fb.innerHTML =
+            '<strong>Not quite. Review the source IPs, target assets, and timestamps carefully.</strong>' +
+            hints.join('<br>') +
+            '<br><br>Hint: Look for four alerts that all share the same SOURCE IP and the same TARGET asset, occurring within the same 14-minute window.';
+    }
+}
+
+/*
+ * resetLab -- returns the lab to its initial state.
+ * Clears all selections, removes all feedback, resets button states,
+ * hides Stage 2 and results, resets stage tabs.
+ */
+function resetLab() {
+    stage1Passed = false;
+
+    /* Re-render alert cards with fresh dropdowns */
+    renderAlerts();
+
+    /* Hide and clear results panel */
+    var res = document.getElementById('results');
+    res.innerHTML = '';
+    res.classList.remove('show');
+
+    /* Re-enable Stage 1 grade button */
+    document.getElementById('gradeBtn').disabled = false;
+
+    /* Hide Stage 2 and clear correlation grid */
+    document.getElementById('stage2Section').classList.remove('show');
+    renderCorrelation();
+
+    /* Clear correlation feedback */
+    var corrFb = document.getElementById('corrFeedback');
+    corrFb.innerHTML = '';
+    corrFb.classList.remove('pass', 'fail', 'show');
+
+    /* Re-enable correlation grade button */
+    var corrBtn = document.getElementById('corrBtn');
+    if (corrBtn) corrBtn.disabled = false;
+
+    /* Hide Mark Complete */
+    document.getElementById('completeSection').classList.remove('show');
+
+    /* Reset stage tabs */
+    document.getElementById('tab1').className = 'stage-tab active';
+    document.getElementById('tab2').className = 'stage-tab';
+
+    /* Scroll back to top */
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Initialize the lab on page load ── */
+renderAlerts();
+renderCorrelation();
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+     Always-visible chat entry point. Button observes 'correct'/'incorrect'
+     class changes on alert cards (applied by gradeStage1) to trigger mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md            ── -->
+<hex-ai-button mission-id="shield-siem-alert-triage" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>

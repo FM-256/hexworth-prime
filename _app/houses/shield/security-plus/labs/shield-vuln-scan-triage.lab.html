@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulnerability Scan Triage | Shield House - Security+</title>
+    <style>
+        /* ── Reset + custom properties ──────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary:  #f87171;
+            --accent:   #f97316;
+            --bg:       #0a0a12;
+            --card:     rgba(15,15,25,0.90);
+            --card2:    rgba(20,20,32,0.95);
+            --text:     #e8e8f0;
+            --muted:    #888;
+            --border:   rgba(248,113,113,0.20);
+            --glow:     rgba(248,113,113,0.35);
+            --ok:       #10b981;
+            --err:      #ef4444;
+            --warn:     #f59e0b;
+            --info:     #60a5fa;
+            --cvss-crit: #ef4444;
+            --cvss-high: #f97316;
+            --cvss-med:  #f59e0b;
+            --cvss-low:  #10b981;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ──────────────────────────────────────────── */
+        .header {
+            padding: 14px 24px;
+            background: rgba(10,10,18,0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 14px;
+            background: rgba(248,113,113,0.12);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* ── Page layout ────────────────────────────────────────────── */
+        .container { max-width: 1100px; margin: 0 auto; padding: 30px 20px 80px; }
+
+        .lab-title {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 28px;
+            background: linear-gradient(135deg, rgba(248,113,113,0.10), rgba(249,115,22,0.06));
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p  { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+        /* ── Instructions panel ─────────────────────────────────────── */
+        .instructions {
+            background: rgba(249,115,22,0.08);
+            border-left: 4px solid var(--accent);
+            padding: 14px 18px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 24px;
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: #ccc;
+        }
+        .instructions strong { color: var(--accent); }
+
+        /* ── CVSS legend ────────────────────────────────────────────── */
+        .legend {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            font-size: 0.8rem;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 4px 10px;
+        }
+        .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dot-crit { background: var(--cvss-crit); }
+        .dot-high { background: var(--cvss-high); }
+        .dot-med  { background: var(--cvss-med); }
+        .dot-low  { background: var(--cvss-low); }
+
+        /* ── Scrollable table wrapper -- prevents horizontal overflow ─ */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 28px;
+            /* Ensure wide table scrolls inside container, never overflows page */
+            max-width: 100%;
+        }
+
+        /* ── Scanner report table ───────────────────────────────────── */
+        table {
+            width: 100%;
+            min-width: 900px; /* triggers scroll on narrow screens */
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            background: var(--card);
+        }
+        thead tr {
+            background: rgba(248,113,113,0.12);
+            border-bottom: 2px solid var(--border);
+        }
+        thead th {
+            padding: 12px 10px;
+            text-align: left;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--primary);
+            white-space: nowrap;
+        }
+        tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            transition: background 0.15s;
+        }
+        tbody tr:hover { background: rgba(248,113,113,0.04); }
+
+        /* Mood-ring: correct/incorrect applied at row level */
+        tbody tr.correct  { border-left: 3px solid var(--ok);  background: rgba(16,185,129,0.04); }
+        tbody tr.incorrect { border-left: 3px solid var(--err); background: rgba(239,68,68,0.04); }
+
+        td { padding: 11px 10px; vertical-align: top; }
+
+        /* CVE id column */
+        .td-cve {
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            color: var(--info);
+        }
+
+        /* Title column wraps but doesn't shrink too far */
+        .td-title { min-width: 160px; color: #ddd; font-size: 0.84rem; line-height: 1.4; }
+
+        /* Asset + role column */
+        .td-asset { min-width: 140px; font-size: 0.82rem; color: #ccc; line-height: 1.4; }
+        .asset-role {
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+        .tag-internet {
+            display: inline-block;
+            background: rgba(239,68,68,0.15);
+            color: #f87171;
+            font-size: 0.68rem;
+            border-radius: 4px;
+            padding: 1px 5px;
+            margin-top: 3px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+        .tag-internal {
+            display: inline-block;
+            background: rgba(96,165,250,0.12);
+            color: #93c5fd;
+            font-size: 0.68rem;
+            border-radius: 4px;
+            padding: 1px 5px;
+            margin-top: 3px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        /* CVSS score badge */
+        .cvss-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+        .sev-critical { background: rgba(239,68,68,0.18);  color: #f87171; }
+        .sev-high     { background: rgba(249,115,22,0.18); color: #fb923c; }
+        .sev-medium   { background: rgba(245,158,11,0.18); color: #fbbf24; }
+        .sev-low      { background: rgba(16,185,129,0.18); color: #34d399; }
+
+        /* Exploit status */
+        .td-exploit { white-space: nowrap; font-size: 0.8rem; }
+        .exploit-yes    { color: var(--err);  font-weight: 600; }
+        .exploit-pub    { color: var(--warn); font-weight: 600; }
+        .exploit-no     { color: var(--muted); }
+
+        /* Notes column */
+        .td-note { font-size: 0.78rem; color: var(--muted); line-height: 1.4; min-width: 120px; }
+
+        /* Select dropdowns inside table cells */
+        .td-inputs { min-width: 130px; }
+        select {
+            display: block;
+            width: 100%;
+            background: rgba(10,10,18,0.90);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-bottom: 5px;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        select:focus { outline: none; border-color: var(--primary); }
+        select option { background: #111; }
+
+        /* ── Action buttons ─────────────────────────────────────────── */
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 24px 0;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 11px 24px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover { background: rgba(248,113,113,0.10); }
+        .btn-ok {
+            background: var(--ok);
+            color: #000;
+        }
+        .btn-ok:hover { background: #34d399; }
+
+        /* ── Per-row feedback reveal ─────────────────────────────────── */
+        .row-feedback {
+            font-size: 0.78rem;
+            margin-top: 4px;
+            padding: 5px 8px;
+            border-radius: 5px;
+            display: none;
+            line-height: 1.4;
+        }
+        .row-feedback.show { display: block; }
+        .row-feedback.right { background: rgba(16,185,129,0.10); color: #86efac; border-left: 2px solid var(--ok); }
+        .row-feedback.wrong { background: rgba(239,68,68,0.10);  color: #fca5a5; border-left: 2px solid var(--err); }
+
+        /* ── Score / results panel ──────────────────────────────────── */
+        .results {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .results.show { display: block; }
+        .results h2   { color: var(--primary); margin-bottom: 8px; font-size: 1.4rem; }
+        .results p    { color: var(--muted); font-size: 0.95rem; margin-bottom: 10px; line-height: 1.6; }
+
+        /* Score breakdown grid */
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+        .score-cell {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+        .score-cell .big { font-size: 1.8rem; font-weight: 700; color: var(--primary); }
+        .score-cell .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+        /* ── Phase 2: priority ranking stage ───────────────────────── */
+        .phase2 {
+            display: none;
+            background: var(--card2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+        .phase2.show { display: block; }
+        .phase2 h2 { color: var(--accent); font-size: 1.1rem; margin-bottom: 8px; }
+        .phase2 p  { color: #ccc; font-size: 0.88rem; line-height: 1.6; margin-bottom: 14px; }
+
+        /* Ranking selector rows */
+        .rank-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+        }
+        .rank-num {
+            background: var(--accent);
+            color: #000;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .rank-row label { font-size: 0.88rem; color: #ccc; flex: 1; }
+        .rank-row select { margin-bottom: 0; max-width: 320px; flex: 2; }
+        .rank-feedback { font-size: 0.82rem; color: var(--muted); margin-top: 6px; display: none; }
+        .rank-feedback.show { display: block; }
+        .rank-feedback.right { color: var(--ok); }
+        .rank-feedback.wrong { color: var(--err); }
+
+        /* ── Complete section ───────────────────────────────────────── */
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+        .complete-section p { color: var(--muted); font-size: 0.9rem; margin-top: 10px; }
+
+        /* ── Teaching callout box ───────────────────────────────────── */
+        .callout {
+            background: rgba(96,165,250,0.07);
+            border-left: 4px solid var(--info);
+            border-radius: 0 10px 10px 0;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            font-size: 0.88rem;
+            line-height: 1.7;
+            color: #ccc;
+        }
+        .callout strong { color: var(--info); }
+
+        /* ── Responsive: keep table inside viewport on mobile ───────── */
+        @media (max-width: 600px) {
+            .container { padding: 16px 10px 80px; }
+            .lab-title h1 { font-size: 1.3rem; }
+            .rank-row { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Visually-hidden landmark for screen readers -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Vulnerability Scan Triage Lab</h2>
+
+<!-- ── Sticky header ────────────────────────────────────────────────── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+</span>
+</header>
+
+<div class="container">
+
+    <!-- ── Lab title block ────────────────────────────────────────── -->
+    <div class="lab-title">
+        <h1>Vulnerability Scan Triage</h1>
+        <p>Domain 4.0 Security Operations &mdash; SY0-701 Objective 4.3<br>
+        Analyze a real vulnerability scanner report, filter false positives, assign remediation decisions, and apply risk-based prioritization.</p>
+    </div>
+
+    <!-- ── Conceptual framing callout ─────────────────────────────── -->
+    <div class="callout">
+        <strong>Key concept:</strong> CVSS base score measures intrinsic severity in a vacuum &mdash; it does not account for your environment.
+        <strong>Remediation priority</strong> must also factor in: asset exposure (internet-facing vs. air-gapped), active exploitation in the wild, asset criticality, and compensating controls already in place.
+        A CVSS 10.0 on an isolated internal server can rank below a CVSS 9.8 on a public-facing web server under active attack.
+    </div>
+
+    <!-- ── Instructions ───────────────────────────────────────────── -->
+    <div class="instructions">
+        <strong>Phase 1 &mdash; Triage each finding (12 rows):</strong><br>
+        For every row in the scanner report, make three decisions using the drop-down menus in the rightmost column:<br>
+        (1) <strong>True / False Positive</strong> &mdash; is this a real vulnerability or a scanner error?<br>
+        (2) <strong>Remediation action</strong> &mdash; Patch Now / Schedule Patch / Mitigate / Accept Risk<br>
+        (3) <strong>Risk priority</strong> &mdash; Critical / High / Medium / Low &mdash; combining CVSS score WITH exposure and exploitability.<br><br>
+        <strong>Phase 2</strong> (unlocks after Phase 1): rank the top 3 findings to remediate first.
+    </div>
+
+    <!-- ── CVSS severity legend ────────────────────────────────────── -->
+    <div class="legend" aria-label="CVSS severity legend">
+        <div class="legend-item"><div class="dot dot-crit"></div>Critical 9.0-10.0</div>
+        <div class="legend-item"><div class="dot dot-high"></div>High 7.0-8.9</div>
+        <div class="legend-item"><div class="dot dot-med"></div>Medium 4.0-6.9</div>
+        <div class="legend-item"><div class="dot dot-low"></div>Low 0.1-3.9</div>
+    </div>
+
+    <!-- ── Scanner report table (Phase 1) ────────────────────────── -->
+    <div class="table-wrap">
+        <table id="scanTable" aria-label="Vulnerability scanner report">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>CVE ID</th>
+                    <th>Title</th>
+                    <th>Affected Asset</th>
+                    <th>CVSS v3.1</th>
+                    <th>Exploit Status</th>
+                    <th>Scanner Note</th>
+                    <th>Your Decisions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Rows injected by buildTable() -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ── Phase 1 action buttons ─────────────────────────────────── -->
+    <div class="actions">
+        <button class="btn" id="gradeBtn" onclick="gradePhase1()">Grade My Answers</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <!-- ── Phase 1 results panel ──────────────────────────────────── -->
+    <div class="results" id="results">
+        <h2 id="resultsHeading"></h2>
+        <p id="resultsMsg"></p>
+        <div class="score-grid" id="scoreGrid"></div>
+    </div>
+
+    <!-- ── Phase 2: priority ranking ──────────────────────────────── -->
+    <div class="phase2" id="phase2">
+        <h2>Phase 2 &mdash; Top-3 Remediation Order</h2>
+        <p>
+            Based on your triage, select the <strong>three findings that should be remediated first</strong>,
+            in order from most urgent (#1) to third-most urgent (#3).
+            Apply risk-based thinking: CVSS score alone does not determine order.
+            Internet-facing assets under active exploitation outrank higher-scored findings
+            buried on isolated internal networks.
+        </p>
+        <div id="rankRows">
+            <!-- Rank rows injected by buildRankRows() -->
+        </div>
+        <div class="actions" style="margin-top:16px;">
+            <button class="btn" id="gradeRankBtn" onclick="gradePhase2()">Grade Priority Order</button>
+        </div>
+        <div id="phase2Results" style="margin-top:14px; display:none;">
+            <div id="rankFeedbackBox"></div>
+        </div>
+    </div>
+
+    <!-- ── Mark Complete button (shown after passing) ─────────────── -->
+    <div class="complete-section" id="completeSection">
+        <button class="btn btn-ok" onclick="ModuleProgress.complete('shield','shield-vuln-scan-triage',{returnUrl:'../index.html'})">
+            Mark Complete
+        </button>
+        <p>Your triage skills are solid. Module recorded in your progress.</p>
+    </div>
+
+</div><!-- /container -->
+
+<script>
+/* ================================================================
+   VULNERABILITY SCAN TRIAGE LAB
+   Domain 4.0 Security Operations -- CompTIA Security+ SY0-701
+   All CVE IDs and CVSS v3.1 base scores sourced from NVD (nvd.nist.gov).
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   FINDINGS DATA
+   Each object represents one scanner finding row.
+
+   Fields:
+     id          - row number (1-12)
+     cve         - real CVE identifier
+     title       - common vulnerability name
+     asset       - hostname / system name
+     assetRole   - human-readable role
+     exposure    - 'internet' | 'internal'
+     cvss        - CVSS v3.1 base score (NVD-verified)
+     severity    - CVSS severity band string
+     exploitStatus - 'active' | 'public' | 'none'
+     note        - scanner or analyst note shown to student
+     isFP        - true = this is a false positive
+     fpReason    - explanation of WHY it is a false positive
+     remediation - correct remediation action string
+     priority    - correct risk-based priority string
+     explanation - full grading explanation shown on reveal
+   ---------------------------------------------------------------- */
+var FINDINGS = [
+    {
+        id: 1,
+        cve: 'CVE-2021-44228',
+        title: 'Log4Shell (Apache Log4j RCE)',
+        asset: 'web-app-prod-01',
+        assetRole: 'Internet-facing Java application server (public API, port 443 open to internet)',
+        exposure: 'internet',
+        cvss: '10.0',
+        severity: 'Critical',
+        exploitStatus: 'active',
+        note: 'JNDI lookup strings observed in recent web logs. Patch available since Dec 2021.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Patch Now',
+        priority: 'Critical',
+        explanation: 'TRUE POSITIVE. CVSS 10.0 Critical + internet-facing + actively exploited in the wild = highest possible risk priority. Log4j patch (2.17.1+) or WAF JNDI rule must be applied immediately. "Patch Now" is the only acceptable action here -- compensating controls alone are insufficient.'
+    },
+    {
+        id: 2,
+        cve: 'CVE-2020-1472',
+        title: 'Zerologon (Netlogon Privilege Escalation)',
+        asset: 'dc-corp-01',
+        assetRole: 'Internal domain controller (no direct internet exposure, reachable only from corporate LAN)',
+        exposure: 'internal',
+        cvss: '10.0',
+        severity: 'Critical',
+        exploitStatus: 'public',
+        note: 'An attacker requires unauthenticated network access to a DC. System is not internet-exposed. Patch released Aug 2020.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Patch Now',
+        priority: 'High',
+        explanation: 'TRUE POSITIVE. Despite CVSS 10.0, priority drops to High (not Critical) because the DC has no direct internet exposure -- an attacker must already be on the corporate LAN. This is the core CVSS-vs-priority lesson: intrinsic severity is maximum, but environmental exposure lowers operational priority relative to internet-facing findings. Still "Patch Now" -- any internal attacker or lateral movement makes this devastating.'
+    },
+    {
+        id: 3,
+        cve: 'CVE-2019-0708',
+        title: 'BlueKeep (RDP Remote Code Execution)',
+        asset: 'legacy-xp-mfg-07',
+        assetRole: 'Internal manufacturing workstation (Windows XP SP3, no vendor patch available, isolated VLAN)',
+        exposure: 'internal',
+        cvss: '9.8',
+        severity: 'Critical',
+        exploitStatus: 'public',
+        note: 'Windows XP -- no official patch. System is network-isolated (VLAN ACL blocks RDP from all other segments). Metasploit module exists.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Mitigate',
+        priority: 'High',
+        explanation: 'TRUE POSITIVE. CVSS 9.8 Critical but the system is isolated to a manufacturing VLAN with ACLs blocking RDP (port 3389) from all other segments. Since no patch exists for XP, the correct action is "Mitigate" (enforce ACL isolation + disable RDP service on the host). Priority is High, not Critical, because the network compensating control significantly reduces reachability. Long-term: plan hardware replacement.'
+    },
+    {
+        id: 4,
+        cve: 'CVE-2014-6271',
+        title: 'Shellshock (Bash Remote Code Execution)',
+        asset: 'web-legacy-02',
+        assetRole: 'Internet-facing web server running CGI scripts (Apache + bash, port 80/443 public)',
+        exposure: 'internet',
+        cvss: '9.8',
+        severity: 'Critical',
+        exploitStatus: 'active',
+        note: 'CGI scripts invoke bash. Scanner confirmed vulnerable Bash version 4.3. Exploit traffic seen in WAF logs.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Patch Now',
+        priority: 'Critical',
+        explanation: 'TRUE POSITIVE. CVSS 9.8 Critical + internet-facing CGI server + confirmed active exploitation attempts in WAF logs = Critical risk priority. Bash must be patched (bash-4.3-patch57 or later). WAF rules for CGI function-definition smuggling are a compensating control only -- patch is required.'
+    },
+    {
+        id: 5,
+        cve: 'CVE-2022-22965',
+        title: 'Spring4Shell (Spring Framework RCE)',
+        asset: 'api-gateway-03',
+        assetRole: 'Internet-facing Spring Boot API gateway (Java 9+, Tomcat, port 443)',
+        exposure: 'internet',
+        cvss: '9.8',
+        severity: 'Critical',
+        exploitStatus: 'public',
+        note: 'Scanner detected Spring Framework 5.3.17 by banner. Vendor advisory confirms 5.3.18 is the fix. Distro package changelog shows backported patch applied to 5.3.17-r1 -- version banner unchanged.',
+        isFP: true,
+        fpReason: 'The scanner is matching on the Spring Framework version banner (5.3.17), but the Linux distribution (Alpine 3.16) has backported the Spring4Shell patch into the 5.3.17-r1 package. The version string reported by the running application did not change after the backport -- a known behavior of distro package managers. Functional verification (CVE PoC probe) shows the endpoint is not exploitable.',
+        remediation: 'Accept Risk',
+        priority: 'Low',
+        explanation: 'FALSE POSITIVE. The Alpine distribution backported the Spring4Shell fix into package version 5.3.17-r1 without incrementing the application version banner. The scanner identifies vulnerable vs. patched by banner version only -- it cannot see the backported patch. Correct action: verify with a PoC probe or check package changelog (`apk info spring-framework`). If confirmed patched, document as false positive and accept. Priority = Low because the system is actually patched.'
+    },
+    {
+        id: 6,
+        cve: 'CVE-2021-34527',
+        title: 'PrintNightmare (Windows Print Spooler RCE)',
+        asset: 'print-srv-01',
+        assetRole: 'Internal print server (Windows Server 2019, accessible from all office VLANs)',
+        exposure: 'internal',
+        cvss: '8.8',
+        severity: 'High',
+        exploitStatus: 'public',
+        note: 'Print Spooler service running and accepting remote connections. Patch KB5004945 not yet applied. Public PoC and Metasploit module exist.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Patch Now',
+        priority: 'High',
+        explanation: 'TRUE POSITIVE. CVSS 8.8 High. Although the server is internal, it is reachable from all office VLANs -- an attacker with any foothold on the network (phishing, guest WiFi pivot) can leverage PrintNightmare for SYSTEM-level code execution. Patch KB5004945 + disable Print Spooler on DCs. "Patch Now" is correct given broad internal reachability and a weaponized Metasploit module.'
+    },
+    {
+        id: 7,
+        cve: 'CVE-2021-26855',
+        title: 'ProxyLogon (MS Exchange Server SSRF)',
+        asset: 'exchange-ext-01',
+        assetRole: 'Internet-facing MS Exchange Server 2016 (OWA + EAS publicly accessible, port 443)',
+        exposure: 'internet',
+        cvss: '9.8',
+        severity: 'Critical',
+        exploitStatus: 'active',
+        note: 'Exchange unpatched (CU18). Mass exploitation observed globally since March 2021. CISA emergency directive ED 21-02 issued.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Patch Now',
+        priority: 'Critical',
+        explanation: 'TRUE POSITIVE. CVSS 9.8 Critical (NIST) + internet-facing Exchange + mass active exploitation globally + CISA emergency directive = Critical priority. ProxyLogon chains with ProxyShell for full pre-auth RCE. Apply March 2021 Exchange cumulative updates immediately. If patching cannot happen within hours, take the server offline until patched -- the risk of leaving it exposed vastly outweighs business continuity impact.'
+    },
+    {
+        id: 8,
+        cve: 'CVE-2022-30190',
+        title: 'Follina (MSDT Remote Code Execution)',
+        asset: 'workstations-corp (subnet)',
+        assetRole: 'Corporate endpoint workstations (Windows 10/11), no direct internet exposure, macro execution disabled by GPO',
+        exposure: 'internal',
+        cvss: '7.8',
+        severity: 'High',
+        exploitStatus: 'public',
+        note: 'Requires user to open a malicious Office document. Office macro execution is disabled by GPO. MSDT protocol handler active.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Schedule Patch',
+        priority: 'Medium',
+        explanation: 'TRUE POSITIVE. CVSS 7.8 High, but several factors lower the operational priority: (1) endpoints are not internet-facing; (2) the attack requires user interaction (opening a document); (3) macro execution is already disabled by GPO (partial compensating control -- note: Follina uses ms-msdt:// URI, not macros, but GPO reduces phishing surface). Priority is Medium: schedule the patch in the next maintenance window, add MSDT protocol disable via registry as immediate mitigation (documented in Microsoft advisory). Not "Patch Now" because the compensating control and required user interaction reduce immediate risk.'
+    },
+    {
+        id: 9,
+        cve: 'CVE-2017-0144',
+        title: 'EternalBlue (SMBv1 Remote Code Execution)',
+        asset: 'file-srv-old-04',
+        assetRole: 'Internal file server (Windows Server 2008 R2, SMB port 445 open, network-segmented from internet)',
+        exposure: 'internal',
+        cvss: '8.8',
+        severity: 'High',
+        exploitStatus: 'public',
+        note: 'SMBv1 enabled. MS17-010 patch not applied. Used by WannaCry and NotPetya ransomware. Internal network only -- no inbound internet access.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Patch Now',
+        priority: 'High',
+        explanation: 'TRUE POSITIVE. CVSS 8.8 High. EternalBlue is the backbone of WannaCry and NotPetya ransomware -- widely weaponized for lateral movement within internal networks. Even though this server has no direct internet access, any compromised internal host can reach it. Priority is High (not Critical) because no internet exposure, but "Patch Now" is still correct: apply MS17-010 immediately AND disable SMBv1 via PowerShell (`Set-SmbServerConfiguration -EnableSMB1Protocol $false`).'
+    },
+    {
+        id: 10,
+        cve: 'CVE-2021-3156',
+        title: 'Baron Samedit (sudo Heap Overflow)',
+        asset: 'jump-host-linux-02',
+        assetRole: 'Internal Linux jump host (Ubuntu 20.04, used by sysadmin team for privileged access, no internet exposure)',
+        exposure: 'internal',
+        cvss: '7.8',
+        severity: 'High',
+        exploitStatus: 'public',
+        note: 'sudo < 1.9.5p2 installed. Requires local non-root access to exploit. Public PoC available. Used by privileged admins.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Patch Now',
+        priority: 'High',
+        explanation: 'TRUE POSITIVE. CVSS 7.8 High. While this requires local access, the jump host is used by privileged sysadmins -- a compromised account or insider threat can use Baron Samedit to escalate to root and then pivot to all managed systems. The high-value nature of the asset elevates priority. "Patch Now": `apt-get upgrade sudo` to 1.9.5p2+. Priority is High despite "internal + local access only" because the asset value (privileged gateway) and real-world weaponization justify immediate action.'
+    },
+    {
+        id: 11,
+        cve: 'CVE-2022-0778',
+        title: 'OpenSSL Infinite Loop (DoS)',
+        asset: 'mail-relay-01',
+        assetRole: 'Internal mail relay (Ubuntu 18.04, OpenSSL used for TLS, no internet-facing client connections)',
+        exposure: 'internal',
+        cvss: '7.5',
+        severity: 'High',
+        exploitStatus: 'none',
+        note: 'Scanner detected OpenSSL 1.0.2u (vulnerable). Ubuntu security team backported fix into 1.0.2u-r1 package -- version banner unchanged. Package changelog confirms patch present.',
+        isFP: true,
+        fpReason: 'Ubuntu\'s security team backported the CVE-2022-0778 fix into the OpenSSL 1.0.2u package without changing the version string visible in the banner. The scanner compares the reported version (1.0.2u) against a known-vulnerable list and fires a finding. The fix is confirmed present in the installed package (debian changelog, `dpkg -l openssl`). This is a classic distro-backport false positive -- extremely common with Debian/Ubuntu/RHEL packages.',
+        remediation: 'Accept Risk',
+        priority: 'Low',
+        explanation: 'FALSE POSITIVE. Ubuntu backports security fixes without changing the upstream version banner -- the package 1.0.2u-r1 already contains the CVE-2022-0778 patch. Verify with `dpkg -l openssl` and review changelog. Document as false positive. Accept Risk and mark the finding as suppressed in the scanner with a justification note. This is one of the most common false positive categories on enterprise scanners targeting Debian/Ubuntu/RHEL systems.'
+    },
+    {
+        id: 12,
+        cve: 'CVE-2014-0160',
+        title: 'Heartbleed (OpenSSL Memory Disclosure)',
+        asset: 'internal-legacy-ldap-01',
+        assetRole: 'Internal LDAP server (no internet access, serves internal app authentication only, data sensitivity: medium)',
+        exposure: 'internal',
+        cvss: '7.5',
+        severity: 'High',
+        exploitStatus: 'public',
+        note: 'OpenSSL 1.0.1f confirmed vulnerable. System is air-gapped from internet. No TLS client certificates in use. Compensating control: network ACL restricts access to 3 internal app servers only.',
+        isFP: false,
+        fpReason: '',
+        remediation: 'Schedule Patch',
+        priority: 'Medium',
+        explanation: 'TRUE POSITIVE. CVSS 7.5 High, but the risk context lowers operational priority to Medium: (1) no internet exposure; (2) network ACL restricts access to only 3 known internal application servers; (3) Heartbleed leaks memory (private keys, session tokens) but requires the attacker to reach the TLS endpoint, which the ACL limits significantly. "Schedule Patch": upgrade OpenSSL to 1.0.1g+ in the next maintenance window. "Accept Risk" is tempting but incorrect -- the leaked memory could include LDAP bind credentials; Medium priority scheduled patch is the right balance given the compensating ACL.'
+    }
+];
+
+/* ----------------------------------------------------------------
+   CORRECT ANSWERS for Phase 1 grading
+   Each finding: correct FP status, remediation action, and priority.
+   These map to the select option values used in the dropdowns.
+   ---------------------------------------------------------------- */
+var CORRECT = {
+    fp:  { 1:'true',2:'true',3:'true',4:'true',5:'false',6:'true',7:'true',8:'true',9:'true',10:'true',11:'false',12:'true' },
+    rem: { 1:'Patch Now',2:'Patch Now',3:'Mitigate',4:'Patch Now',5:'Accept Risk',6:'Patch Now',7:'Patch Now',8:'Schedule Patch',9:'Patch Now',10:'Patch Now',11:'Accept Risk',12:'Schedule Patch' },
+    pri: { 1:'Critical',2:'High',3:'High',4:'Critical',5:'Low',6:'High',7:'Critical',8:'Medium',9:'High',10:'High',11:'Low',12:'Medium' }
+};
+
+/* ----------------------------------------------------------------
+   Phase 2: correct top-3 remediation order.
+   Slot 1 = most urgent, Slot 3 = third most urgent.
+   The correct ranking is:
+     #1 CVE-2021-44228 (Log4Shell)  -- CVSS 10.0, internet, active exploitation
+     #2 CVE-2014-6271  (Shellshock) -- CVSS 9.8,  internet, active exploitation
+     #3 CVE-2021-26855 (ProxyLogon) -- CVSS 9.8,  internet, active exploitation
+   Zerologon (10.0) is internal-only, so it ranks below internet-facing
+   actively-exploited Critical findings.
+   ---------------------------------------------------------------- */
+var CORRECT_RANK = ['CVE-2021-44228','CVE-2014-6271','CVE-2021-26855'];
+
+/* Subset of findings that are TRUE POSITIVES (non-FP) -- these are
+   the candidates shown in Phase 2 ranking selects.              */
+var TRUE_POSITIVES = FINDINGS.filter(function(f){ return !f.isFP; });
+
+/* ----------------------------------------------------------------
+   buildTable()
+   Dynamically renders all 12 finding rows into the scanner table.
+   Creates select dropdowns for each of the three decision fields.
+   ---------------------------------------------------------------- */
+function buildTable() {
+    var tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+
+    FINDINGS.forEach(function(f) {
+        var row = document.createElement('tr');
+        row.id = 'row-' + f.id;
+
+        /* CVSS badge class */
+        var sevClass = 'sev-' + f.severity.toLowerCase();
+
+        /* Exploit status display */
+        var exploitHtml = '';
+        if (f.exploitStatus === 'active') {
+            exploitHtml = '<span class="exploit-yes">Actively exploited</span>';
+        } else if (f.exploitStatus === 'public') {
+            exploitHtml = '<span class="exploit-pub">Public PoC / exploit</span>';
+        } else {
+            exploitHtml = '<span class="exploit-no">No known exploit</span>';
+        }
+
+        /* Exposure tag */
+        var expTag = f.exposure === 'internet'
+            ? '<span class="tag-internet">Internet-facing</span>'
+            : '<span class="tag-internal">Internal only</span>';
+
+        /* Three decision dropdowns */
+        var fpOpts =
+            '<option value="">-- Select --</option>' +
+            '<option value="true">True Positive</option>' +
+            '<option value="false">False Positive</option>';
+
+        var remOpts =
+            '<option value="">-- Select --</option>' +
+            '<option value="Patch Now">Patch Now</option>' +
+            '<option value="Schedule Patch">Schedule Patch</option>' +
+            '<option value="Mitigate">Mitigate (compensating control)</option>' +
+            '<option value="Accept Risk">Accept Risk</option>';
+
+        var priOpts =
+            '<option value="">-- Select --</option>' +
+            '<option value="Critical">Critical</option>' +
+            '<option value="High">High</option>' +
+            '<option value="Medium">Medium</option>' +
+            '<option value="Low">Low</option>';
+
+        row.innerHTML =
+            '<td style="font-weight:700;color:var(--muted);font-size:0.82rem;">' + f.id + '</td>' +
+            '<td class="td-cve">' + f.cve + '</td>' +
+            '<td class="td-title">' + f.title + '</td>' +
+            '<td class="td-asset">' +
+                f.asset +
+                '<div class="asset-role">' + f.assetRole + '</div>' +
+                expTag +
+            '</td>' +
+            '<td>' +
+                '<span class="cvss-badge ' + sevClass + '">' + f.cvss + '</span>' +
+                '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">' + f.severity + '</div>' +
+            '</td>' +
+            '<td class="td-exploit">' + exploitHtml + '</td>' +
+            '<td class="td-note">' + f.note + '</td>' +
+            '<td class="td-inputs">' +
+                '<select id="fp-' + f.id + '" aria-label="Finding ' + f.id + ' true or false positive">' + fpOpts + '</select>' +
+                '<select id="rem-' + f.id + '" aria-label="Finding ' + f.id + ' remediation action">' + remOpts + '</select>' +
+                '<select id="pri-' + f.id + '" aria-label="Finding ' + f.id + ' risk priority">' + priOpts + '</select>' +
+                '<div class="row-feedback" id="fb-' + f.id + '"></div>' +
+            '</td>';
+
+        tbody.appendChild(row);
+    });
+}
+
+/* ----------------------------------------------------------------
+   buildRankRows()
+   Builds the Phase 2 ranking interface.
+   Only true-positive findings appear as options (no point ranking FPs).
+   ---------------------------------------------------------------- */
+function buildRankRows() {
+    var container = document.getElementById('rankRows');
+    container.innerHTML = '';
+
+    /* Build option list from true positives */
+    var optHtml = '<option value="">-- Select finding --</option>';
+    TRUE_POSITIVES.forEach(function(f) {
+        optHtml += '<option value="' + f.cve + '">' + f.cve + ' &mdash; ' + f.title + '</option>';
+    });
+
+    [1,2,3].forEach(function(rank) {
+        var div = document.createElement('div');
+        div.className = 'rank-row';
+        div.innerHTML =
+            '<div class="rank-num">' + rank + '</div>' +
+            '<label for="rank-' + rank + '">Remediate ' + (rank === 1 ? 'FIRST' : rank === 2 ? 'SECOND' : 'THIRD') + '</label>' +
+            '<select id="rank-' + rank + '" aria-label="Priority rank ' + rank + '">' + optHtml + '</select>' +
+            '<div class="rank-feedback" id="rnk-fb-' + rank + '"></div>';
+        container.appendChild(div);
+    });
+}
+
+/* ----------------------------------------------------------------
+   gradePhase1()
+   Grades all 12 rows against CORRECT answers.
+   Awards 1 point per correct field (max 3 per row, 36 total).
+   Applies CSS classes 'correct' / 'incorrect' to each row.
+   Shows per-row feedback with full explanation.
+   ---------------------------------------------------------------- */
+function gradePhase1() {
+    var totalPoints  = 0;
+    var fpPoints     = 0;
+    var remPoints    = 0;
+    var priPoints    = 0;
+    var unanswered   = 0;
+
+    FINDINGS.forEach(function(f) {
+        var fpVal  = document.getElementById('fp-'  + f.id).value;
+        var remVal = document.getElementById('rem-' + f.id).value;
+        var priVal = document.getElementById('pri-' + f.id).value;
+
+        /* Check for unanswered selects */
+        if (!fpVal || !remVal || !priVal) { unanswered++; }
+
+        var fpOk  = (fpVal  === CORRECT.fp[f.id]);
+        var remOk = (remVal === CORRECT.rem[f.id]);
+        var priOk = (priVal === CORRECT.pri[f.id]);
+
+        if (fpOk)  { fpPoints++;  totalPoints++; }
+        if (remOk) { remPoints++; totalPoints++; }
+        if (priOk) { priPoints++; totalPoints++; }
+
+        /* Overall row correctness for mood-ring border */
+        var row = document.getElementById('row-' + f.id);
+        row.classList.remove('correct','incorrect');
+        if (fpOk && remOk && priOk) {
+            row.classList.add('correct');
+        } else {
+            row.classList.add('incorrect');
+        }
+
+        /* Per-row feedback message */
+        var fb = document.getElementById('fb-' + f.id);
+        fb.className = 'row-feedback show ' + (fpOk && remOk && priOk ? 'right' : 'wrong');
+
+        /* Build feedback text */
+        var feedbackParts = [];
+        if (!fpOk) {
+            feedbackParts.push('Pos: ' + (f.isFP ? 'FALSE POSITIVE' : 'TRUE POSITIVE'));
+        }
+        if (!remOk) {
+            feedbackParts.push('Action: ' + CORRECT.rem[f.id]);
+        }
+        if (!priOk) {
+            feedbackParts.push('Priority: ' + CORRECT.pri[f.id]);
+        }
+
+        if (fpOk && remOk && priOk) {
+            fb.textContent = 'All three correct. ' + f.explanation;
+        } else {
+            fb.textContent = 'Corrections needed -- ' + feedbackParts.join(' | ') + '. ' + f.explanation;
+        }
+    });
+
+    /* If any selects were left blank, warn but still grade what was answered */
+    var maxPoints = FINDINGS.length * 3; /* 12 x 3 = 36 */
+    var pct = Math.round((totalPoints / maxPoints) * 100);
+
+    /* Results panel */
+    var res = document.getElementById('results');
+    document.getElementById('resultsHeading').textContent =
+        'Phase 1 Score: ' + totalPoints + ' / ' + maxPoints + '  (' + pct + '%)';
+
+    var msg = '';
+    if (unanswered > 0) {
+        msg += unanswered + ' row(s) had at least one unanswered field (counted as incorrect). ';
+    }
+    if (pct >= 80) {
+        msg += 'Strong triage skills. Review any incorrect rows above, then complete Phase 2.';
+    } else if (pct >= 60) {
+        msg += 'Decent effort. Pay close attention to how exposure and exploitability shift priority away from raw CVSS score.';
+    } else {
+        msg += 'Review the explanations above carefully. Focus on the difference between CVSS severity and real-world risk priority.';
+    }
+    document.getElementById('resultsMsg').textContent = msg;
+
+    /* Score breakdown grid */
+    document.getElementById('scoreGrid').innerHTML =
+        '<div class="score-cell"><div class="big">' + fpPoints  + '/12</div><div class="lbl">True/False Positive</div></div>' +
+        '<div class="score-cell"><div class="big">' + remPoints + '/12</div><div class="lbl">Remediation Action</div></div>' +
+        '<div class="score-cell"><div class="big">' + priPoints + '/12</div><div class="lbl">Risk Priority</div></div>' +
+        '<div class="score-cell"><div class="big">' + pct + '%</div><div class="lbl">Overall</div></div>';
+
+    res.classList.add('show');
+    document.getElementById('gradeBtn').disabled = true;
+
+    /* Unlock Phase 2 regardless of score so students can always attempt it */
+    document.getElementById('phase2').classList.add('show');
+
+    /* Show complete button if passing score */
+    if (pct >= 80) {
+        /* Complete section is shown after BOTH phases are graded; prime it here */
+        window._phase1Passed = true;
+    }
+}
+
+/* ----------------------------------------------------------------
+   gradePhase2()
+   Grades the top-3 remediation ranking.
+   Correct order: CVE-2021-44228, CVE-2014-6271, CVE-2021-26855.
+   Awards 1 point per correctly-ranked slot (max 3).
+   Explains the risk-based reasoning for each slot.
+   ---------------------------------------------------------------- */
+function gradePhase2() {
+    var slot1 = document.getElementById('rank-1').value;
+    var slot2 = document.getElementById('rank-2').value;
+    var slot3 = document.getElementById('rank-3').value;
+
+    /* Duplicate detection */
+    var chosen = [slot1, slot2, slot3];
+    var unique  = {};
+    var hasDupe = false;
+    chosen.forEach(function(v) { if (v && unique[v]) hasDupe = true; unique[v] = true; });
+
+    if (!slot1 || !slot2 || !slot3) {
+        document.getElementById('phase2Results').style.display = 'block';
+        document.getElementById('rankFeedbackBox').innerHTML =
+            '<p style="color:var(--err);">Please select a finding for all three slots before grading.</p>';
+        return;
+    }
+    if (hasDupe) {
+        document.getElementById('phase2Results').style.display = 'block';
+        document.getElementById('rankFeedbackBox').innerHTML =
+            '<p style="color:var(--err);">Each slot must be a different finding. You selected the same CVE more than once.</p>';
+        return;
+    }
+
+    var rankScore = 0;
+
+    /* Per-slot explanations */
+    var slotExplain = [
+        'Slot #1 (Most Urgent): CVE-2021-44228 Log4Shell. CVSS 10.0 + internet-facing Java server + JNDI exploit strings already in your logs = actively under attack right now. This is the only choice for #1.',
+        'Slot #2: CVE-2014-6271 Shellshock. CVSS 9.8 + internet-facing CGI server + WAF logs confirm live exploit attempts. Beats Zerologon (also 10.0) because Zerologon requires internal network access, not internet reachability.',
+        'Slot #3: CVE-2021-26855 ProxyLogon. CVSS 9.8 + internet-facing Exchange + global mass exploitation + CISA emergency directive. Beats PrintNightmare and EternalBlue because internet exposure and confirmed active exploitation mass campaigns make this the third most operationally urgent.'
+    ];
+
+    var boxes = '';
+    [slot1, slot2, slot3].forEach(function(chosen, idx) {
+        var correct = CORRECT_RANK[idx];
+        var isOk    = (chosen === correct);
+        if (isOk) rankScore++;
+
+        /* Find the friendly title for what they chose */
+        var chosenFinding = FINDINGS.find(function(f){ return f.cve === chosen; });
+        var chosenLabel   = chosenFinding ? chosenFinding.cve + ' ' + chosenFinding.title : chosen;
+
+        /* Apply mood-ring classes to rank-row elements */
+        var rankRow = document.querySelector('#rankRows .rank-row:nth-child(' + (idx + 1) + ')');
+        if (rankRow) {
+            rankRow.classList.remove('correct','incorrect');
+            rankRow.classList.add(isOk ? 'correct' : 'incorrect');
+        }
+
+        /* Per-slot feedback div */
+        var fb = document.getElementById('rnk-fb-' + (idx + 1));
+        fb.className = 'rank-feedback show ' + (isOk ? 'right' : 'wrong');
+        fb.textContent = (isOk ? 'Correct. ' : 'Incorrect (you chose ' + chosenLabel + '). ') + slotExplain[idx];
+    });
+
+    var rankPct = Math.round((rankScore / 3) * 100);
+    document.getElementById('phase2Results').style.display = 'block';
+    document.getElementById('rankFeedbackBox').innerHTML =
+        '<p style="color:' + (rankScore === 3 ? 'var(--ok)' : 'var(--warn)') + '; font-weight:600; margin-bottom:10px;">' +
+        'Priority Ranking: ' + rankScore + ' / 3 correct (' + rankPct + '%). ' +
+        (rankScore === 3
+            ? 'Perfect -- you understand that internet exposure and active exploitation drive priority over raw CVSS score.'
+            : 'Review the explanations above. The key insight: Zerologon has CVSS 10.0 but zero internet exposure, so three internet-facing actively-exploited findings rank ahead of it.') +
+        '</p>';
+
+    document.getElementById('gradeRankBtn').disabled = true;
+
+    /* Show Mark Complete if Phase 1 passed (Phase 2 is bonus grading) */
+    if (window._phase1Passed) {
+        document.getElementById('completeSection').classList.add('show');
+    }
+}
+
+/* ----------------------------------------------------------------
+   resetLab()
+   Clears all selections, hides all feedback panels, re-enables
+   grade buttons, and rebuilds the table and rank rows from scratch.
+   ---------------------------------------------------------------- */
+function resetLab() {
+    /* Re-render table with fresh selects */
+    buildTable();
+    buildRankRows();
+
+    /* Hide results and complete sections */
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('phase2').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('phase2Results').style.display = 'none';
+
+    /* Re-enable grade buttons */
+    document.getElementById('gradeBtn').disabled = false;
+    document.getElementById('gradeRankBtn').disabled = false;
+
+    /* Clear phase 1 pass flag */
+    window._phase1Passed = false;
+}
+
+/* ----------------------------------------------------------------
+   INIT: Build the table and ranking rows on page load.
+   ---------------------------------------------------------------- */
+buildTable();
+buildRankRows();
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ────────────────────────────
+     Always-visible chat entry point. State machine is attempt-driven;
+     button stays calm and serves as a general chat entry until lab
+     activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+<hex-ai-button mission-id="shield-vuln-scan-triage" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>
