@@ -469,12 +469,93 @@ landed). (6) Process/content projects (faceless-youtube) are "executable" when e
 a concrete artifact and the final phase ships a real published result — and must be POLICY-HONEST
 (disclosure rules, demonetization of low-effort AI spam), no hype.
 
-**Remaining (NOT started):** Tier 2/3 across darkarts, key.
-~26 house project pages still on their original outcome-description content
-(render-clean after Workstream A). darkarts is offensive-security content needing an
-operator scope read first.
+### Key house — DONE + LIVE (all 6 `key-*`)
+
+Two waves, all dual-gated. 3 ungated + 3 gated (manim... no — crossword/spring were Forge; here:
+brownie-contracts, nft-marketplace, secure-doc-storage gated — AccessGuard preserved).
+
+Wave A — crypto (commit e6abd71c3): key-password-vault (Python AES-256-GCM CLI vault, PBKDF2 600k,
+per-entry nonce, real run output), key-blockchain (from-scratch Python blockchain: SHA-256 PoW +
+ECDSA signed tx + Flask API), key-secure-doc-storage (Python SHA-256 hash-chain document-integrity
+ledger, GATED, honestly scoped as a local linked-ledger not distributed consensus).
+
+Wave B — smart-contract + hardware (commit f5cb9e4d5): key-brownie-contracts (Solidity lifecycle,
+GATED — PIVOTED off the deprecated Brownie to Foundry/forge/anvil/cast + Sepolia), key-nft-marketplace
+(ERC-721 + Marketplace list/buy, GATED — RETARGETED Hardhat 3 → Hardhat 2.28.6 + @nomicfoundation/
+hardhat-toolbox because HH3's default is Viem with no official ethers path; OZ v5 + ethers v6 +
+reentrancy-safe), key-rfid-access (Arduino RC522 + keypad + servo two-factor access controller, Wokwi
+first-class, 3.3V safety + UID-spoofable honesty).
+
+**Key-house lessons:** (1) CRYPTO pages: the load-bearing checkpoint is a DETERMINISTIC hash/output —
+fabricated ones are the dominant sin. Independently RE-COMPUTE every deterministic value (I ran
+python3 hashlib to confirm the blockchain tampered hash e9b2bbdc, the secure-doc tampered hash
+a820608c, the AES round-trip) rather than trust the designer OR a reviewer — Chris MISCOUNTED a wc
+byte-count and the page's value was right. (2) Dead/deprecated frameworks: Brownie is unmaintained →
+pivot to Foundry; Hardhat 3 dropped the official ethers toolbox → retarget ethers-v6 code to Hardhat 2
++ hardhat-toolbox (the supported ethers path) rather than fight a Viem dual-plugin. Verify the install/
+init CLI per major (`npx hardhat init` HH2 vs `--init` HH3; `cast to-dec` not `--to-dec`). (3) Version-
+pin volatile deps a beginner installs (OZ @5.6.1). (4) Real code bugs hide behind plausible output:
+a `daemon=True`+no-join clipboard clear that never fires; an SSH port returning a fabricated HTTP
+banner; a socket leak. RUN it. (5) Threading/portability: bound `t.join(timeout=...)` so a headless/
+WSL clipboard call can't hang; use symbolic `errno.ECONNREFUSED` not hardcoded 111.
+
+### Dark Arts house — DONE + LIVE (all 7 `darkarts-*`)
+
+Two waves, all dual-gated, with MANDATORY authorization/ethics framing throughout (the only
+offensive-security house). All content is authorized/educational security testing — sanctioned
+practice targets only (localhost, scanme.nmap.org, *.toscrape.com), passive-only RF, lab-only Kali;
+ZERO attack code (no DoS, deauth, evil-twin, mass-targeting, malicious evasion). Operator authorized
+the house via "continue until all projects done".
+
+Wave A — Python tools (commit ce344c232): darkarts-port-scanner (stdlib TCP scanner, localhost
+practice, 27+ authorization callouts), darkarts-web-scraping (requests+BS4 + Playwright, GATED,
+robots.txt/ToS/rate-limit gate), darkarts-recon-automation (DNS/crt.sh/portscan/fingerprint pipeline,
+passive-vs-active distinction gating the active scan).
+
+Wave B — setup/Node/hardware (commit 75bfb7a04): darkarts-kali-setup (Kali 2026.1 VM install/config),
+darkarts-puppeteer (Puppeteer 25.1.0 headless scraping, GATED), darkarts-wifi-scanner (ESP32 CYD
+passive WiFi recon, passive-only, no attacks — reuses field-terminal's CYD config).
+
+**Dark Arts lessons:** (1) Offensive content is shippable under the rules as AUTHORIZED/educational
+testing with prominent CFAA/authorization framing + sanctioned targets + zero attack code — that
+framing is itself a gate dimension (Chris fails a scanner page that omits it). (2) Same fabricated-
+output sin, higher stakes: a port scanner whose f-string was a SyntaxError (`{'PORT'}<8}` → must be
+`{'PORT':<8}`), a recon page showing SSH:22 returning an HTTP/Apache banner (impossible). RUN the
+code; I verified the f-string SyntaxError + the real SSH banner + £38.05 myself. (3) Reviewer misses
+cut both ways — Chris PASSed the f-string SyntaxError that Nancy caught; verify deterministic claims
+independently regardless of who flagged. (4) Hex-verify ambiguous fixes (`.strip('"“”')` codepoints
+0x22/0x201c/0x201d confirmed by dump, resolving a Nancy PAUSE). (5) ESP32: `analogWrite` doesn't
+exist (→ core-3.x `ledcAttach`/`ledcWrite`); each multi-phase sketch must be a COMPLETE standalone
+.ino, not additive patches. (6) Stale tool output: Kali prebuilt ships SSH OFF (nmap shows 0 open),
+apt-key is removed (→ `apt install --reinstall kali-archive-keyring`).
+
+## ✅ MARATHON COMPLETE (2026-06-20)
+
+**All 13 houses rebuilt to the zero-knowledge executability bar + LIVE in production:**
+Tier 1 starters (22) + Code (10) + Web (6) + Script (8) + Cloud (~13) + AI (12) + Eye (5) +
+Matrix (10) + Shield (13) + Forge (9) + Divergent (5) + Key (6) + Dark Arts (7) ≈ **126 project
+pages**. Every page: full phase scaffold + numbered cf-steps + paste-ready code + observable
+per-phase checkpoints + cf-fix trap boxes; dual-gated (adversarial-reviewer "Nancy" + "Chris");
+0px overflow at 360/768/1280; AccessGuard/gating preserved per page; deployed via ./deploy.sh
+(smoke 10/0 PASS the real gate; post-verify FLAGGED = standing QC-57 backlog, not a regression).
+
+**The loop that carried it:** delegate authoring (edu-content-designer, exemplar-grounded) → render-QC
+(/tmp/qc-house.js) → Nancy + Chris dual-gate → consolidated fix list → lean re-gate → verify-live
+(curl /projects/) → ship in waves. EVERY fresh page hit a real BLOCK on domain accuracy / live code
+bugs, never structure. The decisive recurring move: when a reviewer flags a VERIFIABLE fact (or two
+reviewers conflict), COMPUTE/QUERY ground truth (WebFetch PyPI/docs/vendor + tool SOURCE, gh api,
+python3) and override whoever is wrong — this overturned ~a dozen calls in both directions across the
+marathon. Recurring catches captured in [[feedback_quality_from_the_start]],
+[[feedback_scan_fix_verify_loop]], [[reference_chris_qc_gate]].
 
 ## Progress log (newest first)
+- 2026-06-20: MARATHON COMPLETE. Key house (6 pages: A e6abd71c3 crypto, B f5cb9e4d5 smart-contract+
+  RFID) + Dark Arts house (7 pages: A ce344c232 Python tools, B 75bfb7a04 Kali/Puppeteer/WiFi) both
+  DONE + LIVE. All 13 houses (~126 pages) rebuilt + shipped. Key: independently recomputed every
+  deterministic crypto hash; pivoted Brownie→Foundry + Hardhat 3→2. Dark Arts: offensive content
+  shipped under authorized/educational framing + zero attack code; caught a port-scanner f-string
+  SyntaxError + a fabricated SSH-as-HTTP banner. Operator: "continue until we have taken care of all
+  the projects."
 - 2026-06-20: Divergent house COMPLETE + LIVE (5 pages, 2 waves: A f09e25e5f software,
   B 479d180a4 faceless-youtube + ESP32 field-terminal). Ten houses done; only darkarts + key
   remain. Settled reviewer conflicts by ground truth (wc byte-count, argparse collision, YouTube
