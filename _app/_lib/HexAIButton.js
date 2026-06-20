@@ -100,12 +100,14 @@ class HexAIButton extends HTMLElement {
         }
 
         // On LAB pages only, load the DOM observer that watches for answer-outcome
-        // classes and feeds window.__hexLabRecord — labs have no shared engine, so
-        // this is how the mood-ring reacts to lab struggle with zero per-lab wiring.
-        // Scoped to *.lab.html so it never runs on quizzes (QuizEngine handles those)
-        // or content pages. Lazy + non-blocking; failure is non-fatal.
+        // classes and feeds window.__hexLabRecord — these page types have no shared
+        // engine, so this is how the mood-ring reacts to struggle with zero per-page
+        // wiring. Scoped to *.lab.html AND *.applet.html (interactive exercises with
+        // answer-outcome classes); NOT quizzes (QuizEngine self-reports) or static
+        // presentations. Lazy + non-blocking; failure is non-fatal.
         if (this._missionId && typeof location !== 'undefined'
-            && location.pathname.endsWith('.lab.html')) {
+            && (location.pathname.endsWith('.lab.html')
+                || location.pathname.endsWith('.applet.html'))) {
             import('/_lib/HexAILabObserver.js').catch(e => console.warn(
                 '[HexAIButton] lab observer load failed:', e?.message || e));
         }

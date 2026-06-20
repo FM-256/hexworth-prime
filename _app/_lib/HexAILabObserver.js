@@ -8,8 +8,9 @@
  * page's mission-id). That drives the mood-ring's struggle ramp (repeated wrong
  * answers → noticing → active → insistent) with ZERO per-lab wiring.
  *
- * Loaded ONLY on *.lab.html pages — HexAIButton dynamic-imports it there, so it
- * never runs on quizzes (*.quiz.html, handled by QuizEngine) or content pages.
+ * Loaded on *.lab.html AND *.applet.html pages — HexAIButton dynamic-imports it on
+ * both (interactive exercises with answer-outcome classes), so it never runs on
+ * quizzes (*.quiz.html, handled by QuizEngine) or static presentations/content pages.
  *
  * Hardened after adversarial review (2026-06-13) against real lab patterns:
  *
@@ -85,8 +86,20 @@ function outcomeOf(el, oldClass) {
     const old = new Set((oldClass || '').split(/\s+/));
     for (const t of el.classList) {
         if (old.has(t)) continue;
-        if (INCORRECT.has(t)) return { correct: false, el };
-        if (CORRECT.has(t)) return { correct: true, el };
+        const lt = t.toLowerCase();
+        // Exact-set match (keeps oddballs like 'zone-error'), PLUS answer-outcome
+        // STEM match so the many real variants are caught: 'correct-flag',
+        // 'selected-correct', 'placed-wrong', 'match-correct', 'wrong-ans', etc.
+        // Incorrect is tested first because 'incorrect' contains 'correct' and a
+        // reveal may add both. Only the answer-specific stems correct/incorrect/
+        // wrong (+ exact 'right') match — never the generic success/error/pass/
+        // fail/complete/valid tokens the original exclusions warned about.
+        if (INCORRECT.has(t) || lt.includes('incorrect') || lt.includes('wrong')) {
+            return { correct: false, el };
+        }
+        if (CORRECT.has(t) || lt.includes('correct') || lt === 'right') {
+            return { correct: true, el };
+        }
     }
     return null;
 }
