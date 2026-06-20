@@ -355,11 +355,58 @@ later phase reads the CSV. (6) Packet pages: prominent ethics notice + passive p
 (7) Versions that "look future" (matplotlib 3.11, transformers 5.12, kafka-python 3.0.2, scapy 2.7) are
 REAL as of 2026-06 — WebFetch PyPI to confirm rather than trust training-cutoff doubt.
 
-**Remaining (NOT started):** Tier 2/3 across darkarts, divergent, forge, key,
-shield. ~53 house project pages still on their original outcome-description content
-(render-clean after Workstream A).
+### Shield house — DONE + LIVE (all 13 `shield-*`)
+
+Three waves, all ungated except where noted (gating state preserved per page).
+
+Wave A (commit 0a7a8bbfc): shield-ids-ml (RandomForest IDS), shield-fake-news (gated;
+real tokens from an inspect_tokens run), shield-log-analyzer (removed a dead `from report
+import` crash; datetime64[us]), shield-firewall-iptables (green accent; DROP = timeout not
+"Connection refused"; SSH-allow before DROP), shield-aws-cognito (gated; boto3
+`create_user_pool`/`create_user_pool_client` with `ALLOW_USER_PASSWORD_AUTH`; full
+`decode_jwt.py`; `delete_user_pool` teardown).
+
+Wave B (commit 6c602d660): 6 GRC document-deliverable pages (all ungated) — shield-first-
+risk-assessment (NIST 800-30), shield-first-security-policy (ISO A.6.4/clause 7.4/5.1,
+NIST 800-63B), shield-incident-response-plan (NIST 800-61; SEC materiality-determination;
+NARA GRS-24 not NIST), shield-control-framework-mapping (NIST CSF 2.0 subcategory text
+verbatim-matched to the official Excel), shield-awareness-program (NIST 800-50 Rev.1, DBIR
+68%, non-punitive), shield-tabletop-exercise (CISA/NIST 800-84; fixed a CSS counter
+double-increment). The "executable deliverable" for GRC = filled-in templates + worked
+examples, not `.cf-steps` code.
+
+Wave C (commit 55b4d2d2e): shield-perimeter-alarm (gpiozero 2.0.1 PIR+buzzer alarm w/ full
+MockFactory no-hardware path), shield-pi-ids (Suricata 8.0.5 IDS on Pi/Linux-VM,
+testmynids.org SID 2100498 proof + eve.json/fast.log). Both ungated.
+
+**Shield-house lessons:** (1) GRC citations are the high-risk surface — Nancy caught SEC
+"becomes aware"→"determines material", "NIST GRS 24"→"NARA GRS 24" (federal-only), ISO
+clause/annex mislabels, and made CSF subcategory descriptions verbatim. Treat every
+standard ID + clause number as a load-bearing claim to verify. (2) Hardware pages MUST ship
+a real no-hardware path (gpiozero MockFactory; Suricata on a Linux VM with a bridged NIC) —
+it is the primary path for most learners, not a footnote. (3) Tool-output strings are
+load-bearing and must be ground-truthed against SOURCE, not memory — Suricata's `-T` line is
+`<Notice> - Configuration provided was successfully loaded. Exiting.` (src/suricata.c:3101),
+the rule-load summary is `N rule files processed. M rules successfully loaded, K rules
+failed, X rules skipped` (detect-engine-loader.c:473) where N is the FILE count (=1 after
+suricata-update consolidates) — so `grep "rules loaded"` matches NOTHING; use `grep
+"successfully loaded"`. (4) Verify-live uses the real public path `/projects/<file>.html`
+(Firebase `public` is `_app`), NOT `/_app/projects/...` — the latter 404s and looks like a
+failed deploy. (5) Logic traps in mock scenarios are real bugs: a re-arm-then-retrigger demo
+silently suppressed the second alarm because the elapsed time was inside the cooldown window
+— trace the timeline, don't trust the `# fires alarm #2` comment.
+
+**Remaining (NOT started):** Tier 2/3 across darkarts, divergent, forge, key.
+~40 house project pages still on their original outcome-description content
+(render-clean after Workstream A). darkarts is offensive-security content needing an
+operator scope read first.
 
 ## Progress log (newest first)
+- 2026-06-19: Shield house COMPLETE + LIVE (13 pages, 3 waves: A 0a7a8bbfc, B 6c602d660,
+  C 55b4d2d2e). Eight houses done (T1/code/web/script/cloud/ai/eye/matrix/shield). Wave C
+  Suricata strings ground-truthed against OISF 8.0.5 source; fixed a mock-cooldown logic bug
+  that silently suppressed the demo's second alarm. Next house = operator's call (darkarts/
+  divergent/forge/key).
 - 2026-06-18: Marathon started. Enumerated 127 pages. Full render-QC sweep launched.
   Prior: webpage brought to tutorial standard (`b046e5768`); agent+workflow overflow fixed
   (`c083584c2`). See `my-first-series-audit-2026-06-17.md`.
