@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- ── Platform wiring: AccessGuard must be first, in this exact order ── -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Register Builder | Shield House - Security+</title>
+    <style>
+        /* ── Reset + Shield dark theme custom properties ─────────────────────────
+           All color tokens match the Shield House design system exactly.
+           No external fonts -- system stack only.
+        ──────────────────────────────────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary:  #f87171;
+            --accent:   #f97316;
+            --bg:       #0a0a12;
+            --card:     rgba(15,15,25,0.85);
+            --card2:    rgba(20,20,32,0.95);
+            --text:     #e8e8f0;
+            --muted:    #888;
+            --border:   rgba(248,113,113,0.20);
+            --glow:     rgba(248,113,113,0.35);
+            --ok:       #10b981;
+            --err:      #ef4444;
+            --warn:     #f59e0b;
+            --info:     #60a5fa;
+            /* Risk band colors used in heat-map and badges */
+            --band-low:      #10b981;
+            --band-medium:   #f59e0b;
+            --band-high:     #f97316;
+            --band-critical: #ef4444;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ───────────────────────────────────────────────── */
+        .header {
+            padding: 14px 24px;
+            background: rgba(10,10,18,0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 14px;
+            background: rgba(248,113,113,0.12);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* ── Page layout ─────────────────────────────────────────────────── */
+        .container { max-width: 1100px; margin: 0 auto; padding: 30px 20px 80px; }
+
+        .lab-title {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 28px;
+            background: linear-gradient(135deg, rgba(248,113,113,0.10), rgba(249,115,22,0.06));
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p  { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+        /* ── Instructions callout ────────────────────────────────────────── */
+        .instructions {
+            background: rgba(249,115,22,0.08);
+            border-left: 4px solid var(--accent);
+            padding: 14px 18px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 24px;
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: #ccc;
+        }
+        .instructions strong { color: var(--accent); }
+
+        /* ── Concept reference panel (teaching sidebar) ──────────────────── */
+        .concepts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .concept-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+        .concept-card h3 {
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+        .concept-card p {
+            font-size: 0.82rem;
+            color: #bbb;
+            line-height: 1.6;
+        }
+        .concept-card .formula {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-top: 6px;
+        }
+        /* Strategy pills in concept card */
+        .strategy-pill {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin: 2px 2px 2px 0;
+        }
+        .pill-mit { background: rgba(16,185,129,0.2); color: var(--ok); border: 1px solid rgba(16,185,129,0.4); }
+        .pill-tra { background: rgba(96,165,250,0.2); color: var(--info); border: 1px solid rgba(96,165,250,0.4); }
+        .pill-avo { background: rgba(248,113,113,0.2); color: var(--primary); border: 1px solid rgba(248,113,113,0.4); }
+        .pill-acc { background: rgba(136,136,136,0.2); color: #aaa; border: 1px solid rgba(136,136,136,0.4); }
+
+        /* ── Layout: heat-map beside risk cards on wider screens ─────────── */
+        .lab-body {
+            display: grid;
+            grid-template-columns: 1fr 240px;
+            gap: 24px;
+            align-items: start;
+        }
+        @media (max-width: 800px) {
+            /* Stack columns on mobile -- heat-map moves below risk cards */
+            .lab-body { grid-template-columns: 1fr; }
+            .heatmap-panel { order: -1; } /* show matrix above on mobile too */
+        }
+
+        /* ── Sticky heat-map panel ────────────────────────────────────────── */
+        .heatmap-panel {
+            position: sticky;
+            top: 64px; /* clear the sticky header */
+            background: var(--card2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px 16px;
+        }
+        .heatmap-panel h3 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--primary);
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        /* ── 5x5 risk matrix grid ─────────────────────────────────────────
+           Rows = Impact (5 top → 1 bottom), Cols = Likelihood (1 left → 5 right).
+           Each cell is colored by the risk band it falls in.
+           Active cells highlight when a risk card's L/I values land there.
+        ──────────────────────────────────────────────────────────────────── */
+        .matrix-wrap { overflow-x: auto; }
+        .matrix-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.7rem;
+        }
+        .matrix-table th, .matrix-table td {
+            width: 36px;
+            height: 36px;
+            text-align: center;
+            vertical-align: middle;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .matrix-table th {
+            color: var(--muted);
+            font-weight: 600;
+            background: transparent;
+            font-size: 0.68rem;
+        }
+        /* Axis label cells */
+        .axis-label-y {
+            color: var(--muted);
+            font-size: 0.65rem;
+            writing-mode: horizontal-tb;
+            white-space: nowrap;
+            padding: 0 4px;
+            text-align: right;
+        }
+        /* Heat-map band colors -- Low 1-4, Medium 5-9, High 10-14, Critical 15-25 */
+        .hm-low      { background: rgba(16,185,129,0.25); color: var(--band-low); }
+        .hm-medium   { background: rgba(245,158,11,0.25); color: var(--band-medium); }
+        .hm-high     { background: rgba(249,115,22,0.25); color: var(--band-high); }
+        .hm-critical { background: rgba(239,68,68,0.30); color: var(--band-critical); font-weight: 700; }
+        /* Active indicator: a risk card currently plots to this cell */
+        .hm-active   { outline: 2px solid #fff; outline-offset: -2px; }
+        /* Dot markers inside cells representing plotted risks */
+        .hm-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #fff;
+            margin: 1px;
+            vertical-align: middle;
+        }
+
+        /* Heat-map band legend */
+        .hm-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 12px;
+        }
+        .hm-legend-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            color: #bbb;
+        }
+        .hm-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        /* Heat-map axis labels */
+        .matrix-axis-x {
+            text-align: center;
+            font-size: 0.65rem;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+        .matrix-axis-y-label {
+            text-align: center;
+            font-size: 0.65rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        /* ── Risk cards column ───────────────────────────────────────────── */
+        .risk-cards { }
+
+        /* ── Individual risk card ────────────────────────────────────────── */
+        .risk-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 16px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        /* Mood-ring classes -- watched by Dr. Hex observer (no script needed here) */
+        .risk-card.correct   { border-color: var(--ok);  box-shadow: 0 0 12px rgba(16,185,129,0.15); }
+        .risk-card.incorrect { border-color: var(--err); box-shadow: 0 0 12px rgba(239,68,68,0.15); }
+
+        .risk-card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .risk-num {
+            background: var(--primary);
+            color: #000;
+            min-width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .risk-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+        .risk-scenario { font-size: 0.87rem; color: #bbb; line-height: 1.65; }
+
+        /* ── L/I rating controls ─────────────────────────────────────────── */
+        .rating-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        @media (max-width: 480px) { .rating-row { grid-template-columns: 1fr; } }
+
+        .rating-block label {
+            display: block;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+        .rating-block .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .rating-block input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(248,113,113,0.2);
+            outline: none;
+            cursor: pointer;
+        }
+        .rating-block input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            border: 2px solid #000;
+        }
+        .rating-block input[type="range"]:focus { outline: 2px solid var(--primary); outline-offset: 4px; }
+        .rating-val {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* Live risk score badge -- updates as sliders move */
+        .score-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .score-badge-label { font-size: 0.78rem; color: var(--muted); }
+        .score-badge {
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            transition: background 0.25s, color 0.25s;
+        }
+        .score-badge-low      { background: rgba(16,185,129,0.2); color: var(--band-low); border: 1px solid rgba(16,185,129,0.4); }
+        .score-badge-medium   { background: rgba(245,158,11,0.2); color: var(--band-medium); border: 1px solid rgba(245,158,11,0.4); }
+        .score-badge-high     { background: rgba(249,115,22,0.2); color: var(--band-high); border: 1px solid rgba(249,115,22,0.4); }
+        .score-badge-critical { background: rgba(239,68,68,0.2); color: var(--band-critical); border: 1px solid rgba(239,68,68,0.4); }
+
+        /* ── Treatment + Residual controls ───────────────────────────────── */
+        .treatment-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 10px;
+        }
+        @media (max-width: 480px) { .treatment-row { grid-template-columns: 1fr; } }
+
+        .field-group label {
+            display: block;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+        .field-group select {
+            width: 100%;
+            background: rgba(10,10,18,0.9);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 0.88rem;
+            cursor: pointer;
+        }
+        .field-group select:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+        /* Residual block is hidden until treatment = Mitigate */
+        .residual-block { display: none; }
+        .residual-block.show { display: block; }
+
+        /* ── Per-card feedback area ───────────────────────────────────────── */
+        .card-feedback {
+            font-size: 0.83rem;
+            line-height: 1.6;
+            margin-top: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: none;
+        }
+        .card-feedback.show { display: block; }
+        .card-feedback.right {
+            background: rgba(16,185,129,0.09);
+            border: 1px solid rgba(16,185,129,0.35);
+            color: #c6f6d5;
+        }
+        .card-feedback.wrong {
+            background: rgba(239,68,68,0.09);
+            border: 1px solid rgba(239,68,68,0.35);
+            color: #fed7d7;
+        }
+
+        /* ── Action buttons ──────────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 11px 24px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover { background: rgba(248,113,113,0.08); box-shadow: none; }
+        .btn-ok { background: var(--ok); color: #000; }
+        .btn-ok:hover { background: #34d399; box-shadow: 0 4px 16px rgba(16,185,129,0.35); }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 28px 0;
+        }
+
+        /* ── Results panel ───────────────────────────────────────────────── */
+        .results {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px;
+            margin: 20px 0;
+        }
+        .results.show { display: block; }
+        .results h2   { color: var(--primary); margin-bottom: 10px; font-size: 1.4rem; text-align: center; }
+
+        /* Score stat tiles */
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin: 16px 0 20px;
+        }
+        .score-cell {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 8px;
+            text-align: center;
+        }
+        .score-cell .big { font-size: 1.8rem; font-weight: 700; color: var(--primary); }
+        .score-cell .lbl { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+        /* ── Final register summary table ────────────────────────────────── */
+        .register-section {
+            display: none;
+            margin: 24px 0;
+        }
+        .register-section.show { display: block; }
+        .register-section h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            max-width: 100%;
+        }
+        table.register-table {
+            width: 100%;
+            min-width: 700px;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            background: var(--card2);
+        }
+        table.register-table thead tr {
+            background: rgba(248,113,113,0.12);
+            border-bottom: 2px solid var(--border);
+        }
+        table.register-table thead th {
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--primary);
+            white-space: nowrap;
+        }
+        table.register-table tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        table.register-table tbody tr:hover { background: rgba(248,113,113,0.03); }
+        table.register-table td { padding: 9px 12px; vertical-align: top; color: #ccc; line-height: 1.5; }
+
+        /* Band chip inside table */
+        .band-chip {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .chip-low      { background: rgba(16,185,129,0.2); color: var(--band-low); }
+        .chip-medium   { background: rgba(245,158,11,0.2); color: var(--band-medium); }
+        .chip-high     { background: rgba(249,115,22,0.2); color: var(--band-high); }
+        .chip-critical { background: rgba(239,68,68,0.2); color: var(--band-critical); }
+        .chip-correct  { background: rgba(16,185,129,0.12); color: var(--ok); border: 1px solid rgba(16,185,129,0.3); }
+        .chip-wrong    { background: rgba(239,68,68,0.12); color: var(--err); border: 1px solid rgba(239,68,68,0.3); }
+
+        /* ── Complete section ────────────────────────────────────────────── */
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+        .complete-section p { color: var(--muted); font-size: 0.9rem; margin-top: 10px; }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden lab title for screen readers / EduScan HEUR-017 -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Risk Register Builder Lab</h2>
+
+<!-- ── Sticky header ───────────────────────────────────────────────────────── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+</span>
+</header>
+
+<div class="container">
+
+    <!-- ── Lab title block ──────────────────────────────────────────────── -->
+    <div class="lab-title">
+        <h1>Risk Register Builder</h1>
+        <p>You are the risk analyst for <strong>Meridian Financial Services</strong>. Eleven risks have been identified in this quarter's assessment. Assign Likelihood and Impact ratings, select the correct risk treatment, and build the organization's risk register.</p>
+    </div>
+
+    <!-- ── Instructions ─────────────────────────────────────────────────── -->
+    <div class="instructions">
+        <strong>How this lab works:</strong> For each identified risk below:<br>
+        1. Set <strong>Likelihood (1-5)</strong> and <strong>Impact (1-5)</strong> using the sliders -- the lab computes the risk score (L x I) and plots it live on the heat-map to the right.<br>
+        2. Choose the correct <strong>Risk Treatment</strong> from the four SY0-701 strategies.<br>
+        3. If you choose <strong>Mitigate</strong>, also select the expected <strong>Residual Risk Band</strong> after controls are applied.<br>
+        Your L/I rating is graded against a defensible range; the treatment choice is graded as correct or incorrect. A score of <strong>80% or higher</strong> unlocks Mark Complete.
+    </div>
+
+    <!-- ── Teaching reference: concept cards ────────────────────────────── -->
+    <div class="concepts-grid" aria-label="Concept reference">
+
+        <div class="concept-card">
+            <h3>Risk Score Formula</h3>
+            <p>Every risk is rated on two axes:</p>
+            <p class="formula">Risk Score = Likelihood x Impact</p>
+            <p style="margin-top:6px;"><strong style="color:var(--band-low);">Low</strong> 1-4 &nbsp;|&nbsp; <strong style="color:var(--band-medium);">Medium</strong> 5-9 &nbsp;|&nbsp; <strong style="color:var(--band-high);">High</strong> 10-14 &nbsp;|&nbsp; <strong style="color:var(--band-critical);">Critical</strong> 15-25</p>
+        </div>
+
+        <div class="concept-card">
+            <h3>Inherent vs Residual</h3>
+            <p><strong style="color:var(--primary);">Inherent risk</strong> -- the raw risk score before any controls are applied. This is what you rate with the sliders.</p>
+            <p style="margin-top:6px;"><strong style="color:var(--ok);">Residual risk</strong> -- the risk that remains AFTER controls are implemented. Never zero.</p>
+        </div>
+
+        <div class="concept-card">
+            <h3>Risk Appetite vs Tolerance</h3>
+            <p><strong style="color:var(--accent);">Appetite</strong> -- how much risk the org is willing to pursue to achieve its goals (strategic level).</p>
+            <p style="margin-top:6px;"><strong style="color:var(--warn);">Tolerance</strong> -- the acceptable deviation around the appetite (operational band). <strong>Accept</strong> is only valid when residual risk falls within tolerance.</p>
+        </div>
+
+        <div class="concept-card">
+            <h3>The 4 Risk Treatments</h3>
+            <span class="strategy-pill pill-mit">Mitigate</span> Reduce likelihood or impact via controls (patches, MFA, encryption).<br><br>
+            <span class="strategy-pill pill-tra">Transfer</span> Shift financial impact to a third party (cyber-insurance, outsourcing).<br><br>
+            <span class="strategy-pill pill-avo">Avoid</span> Stop or forgo the risky activity entirely.<br><br>
+            <span class="strategy-pill pill-acc">Accept</span> Formally tolerate when residual risk is within appetite/tolerance (cost of control exceeds benefit).
+        </div>
+
+    </div>
+
+    <!-- ── Two-column lab body: risk cards + sticky heat-map ────────────── -->
+    <div class="lab-body">
+
+        <!-- ── Left: risk entry cards ──────────────────────────────────── -->
+        <div class="risk-cards" id="riskCards">
+            <!-- Populated by render() -->
+        </div>
+
+        <!-- ── Right: sticky 5x5 heat-map ─────────────────────────────── -->
+        <aside class="heatmap-panel" aria-label="Risk heat-map matrix">
+            <h3>Risk Heat-Map</h3>
+            <p class="matrix-axis-y-label">Impact (I) &uarr;</p>
+            <div class="matrix-wrap">
+                <!-- Built by buildMatrix() -->
+                <table class="matrix-table" id="matrixTable" aria-label="5x5 risk matrix">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <p class="matrix-axis-x">Likelihood (L) &rarr;</p>
+            <div class="hm-legend">
+                <div class="hm-legend-row"><div class="hm-swatch" style="background:rgba(16,185,129,0.35);"></div>Low (1-4)</div>
+                <div class="hm-legend-row"><div class="hm-swatch" style="background:rgba(245,158,11,0.35);"></div>Medium (5-9)</div>
+                <div class="hm-legend-row"><div class="hm-swatch" style="background:rgba(249,115,22,0.35);"></div>High (10-14)</div>
+                <div class="hm-legend-row"><div class="hm-swatch" style="background:rgba(239,68,68,0.40);"></div>Critical (15-25)</div>
+            </div>
+        </aside>
+
+    </div><!-- /lab-body -->
+
+    <!-- ── Grade / Reset actions ────────────────────────────────────────── -->
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="grade()">Grade My Register</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <!-- ── Score results panel ──────────────────────────────────────────── -->
+    <div class="results" id="results"></div>
+
+    <!-- ── Final register summary table (revealed after grading) ────────── -->
+    <div class="register-section" id="registerSection">
+        <h3>Final Risk Register</h3>
+        <div class="table-wrap">
+            <table class="register-table" id="registerTable" aria-label="Completed risk register summary">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Risk</th>
+                        <th>L</th>
+                        <th>I</th>
+                        <th>Score</th>
+                        <th>Inherent Band</th>
+                        <th>Your Treatment</th>
+                        <th>Correct Treatment</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody id="registerBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── Mark Complete button (shown only after >= 80%) ───────────────── -->
+    <div class="complete-section" id="completeSection">
+        <button class="btn btn-ok"
+            onclick="ModuleProgress.complete('shield','shield-risk-register-builder',{returnUrl:'../index.html'})">
+            Mark Complete
+        </button>
+        <p>Risk register complete. Your progress has been recorded.</p>
+    </div>
+
+</div><!-- /container -->
+
+<script>
+/* ================================================================
+   RISK REGISTER BUILDER LAB
+   Domain 5.0 Security Program Management & Oversight
+   CompTIA Security+ SY0-701
+
+   Key SY0-701 concepts exercised:
+     - Risk identification and scoring (Likelihood x Impact)
+     - Inherent risk vs residual risk
+     - Risk appetite and tolerance
+     - Four risk treatment strategies: Mitigate, Transfer, Avoid, Accept
+     - 5x5 risk matrix / heat-map
+     - Risk register as an organizational artifact
+   ================================================================ */
+
+
+/* ----------------------------------------------------------------
+   RISK DATA
+   Each object represents one identified risk at Meridian Financial.
+
+   Fields:
+     id           - card number (1-10)
+     title        - short risk name
+     scenario     - realistic description shown to the student
+     likelihoodRange - [min, max] defensible L values (any in range = credit)
+     impactRange     - [min, max] defensible I values
+     correctTreatment - string ('Mitigate'|'Transfer'|'Avoid'|'Accept') for single-answer risks,
+                        OR array (e.g. ['Transfer','Mitigate']) when multiple treatments are defensible.
+                        The grader handles both forms; the register table displays arrays as 'A / B'.
+     correctResidual  - band string after mitigating controls ('Low'|'Medium'|'High'); '' if not Mitigate
+     treatmentRationale - WHY this treatment is correct (shown on feedback)
+     ratingRationale    - WHY the L/I range is defensible
+     residualRationale  - WHY this residual band is expected post-control
+
+   Treatment selection rationale (SY0-701 accurate):
+     - Mitigate: common, reducible risk where controls lower L or I
+     - Transfer: financial impact can be shifted (insurable, outsourceable)
+     - Avoid: risk stems from optional/elective activity; org can simply stop
+     - Accept: low inherent risk within appetite OR cost of control >> benefit
+   ---------------------------------------------------------------- */
+var RISKS = [
+    {
+        id: 1,
+        title: 'Internet-facing server missing critical patches',
+        scenario: 'A publicly accessible web application server (meridian-app-01) is running software with 3 known Critical-severity CVEs. The vendor released patches 45 days ago. Exploit code is publicly available. Security Operations has observed automated scanning probes against the server daily.',
+        likelihoodRange: [4, 5],
+        impactRange:     [4, 5],
+        correctTreatment: 'Mitigate',
+        correctResidual:  'Low',
+        treatmentRationale: 'Mitigate is correct. The vulnerability is exploitable and has a known fix (patches). Applying patches directly reduces the likelihood of exploitation. Patching is the canonical control for this risk category. The activity (running a web app) is not optional, so Avoid is off the table. The risk is too high to Accept, and cyber-insurance does not prevent a breach (Transfer would shift cost but not protect the system).',
+        ratingRationale:   'Likelihood 4-5: exploit code is public and active scanning is already occurring -- exploitation is likely to certain without a patch. Impact 4-5: a critical CVE on an internet-facing server could result in full system compromise, data exfiltration, or ransomware deployment.',
+        residualRationale: 'After patching, the CVE is remediated. Residual risk drops to Low -- the vulnerability no longer exists, though the server remains an attack surface for future unpatched issues.'
+    },
+    {
+        id: 2,
+        title: 'No MFA on email and VPN',
+        scenario: 'All 350 Meridian employees authenticate to corporate email and VPN using only a username and password. Password reuse has been observed in prior incidents. The HR team reports 12 phishing attempts targeted at staff last quarter, 3 of which resulted in credential disclosure.',
+        likelihoodRange: [3, 5],
+        impactRange:     [4, 5],
+        correctTreatment: 'Mitigate',
+        correctResidual:  'Low',
+        treatmentRationale: 'Mitigate is correct. Multi-factor authentication (MFA) directly reduces the likelihood of credential-based compromise. This is a well-understood, cost-effective control with solutions available from existing identity providers. The risk is high and the fix is available -- Accept is unjustifiable. Transfer (cyber-insurance) does not stop account takeovers. The business cannot Avoid email and VPN.',
+        ratingRationale:   'Likelihood 3-5: phishing is already succeeding (3 credential disclosures last quarter) and password reuse makes lateral movement highly probable once credentials are captured. Impact 4-5: email and VPN access can grant full network entry, enabling data exfiltration, insider-threat escalation, or ransomware deployment.',
+        residualRationale: 'MFA prevents 99%+ of automated credential-stuffing and phishing-captured-password attacks. Residual risk is Low -- an attacker would need to also compromise the second factor (e.g., SIM-swap or MFA fatigue), which is far less likely.'
+    },
+    {
+        id: 3,
+        title: 'Single-supplier dependency for core payment processing',
+        scenario: 'Meridian relies entirely on a single third-party payment processor (PayCore Inc.) for all transaction clearing. PayCore has experienced two outages in the past 18 months. The contract includes no SLA penalty clause and no redundancy provision. A PayCore outage would halt all client transactions until service is restored.',
+        likelihoodRange: [2, 4],
+        impactRange:     [4, 5],
+        correctTreatment: ['Transfer', 'Mitigate'],
+        correctResidual:  '',
+        treatmentRationale: 'Both Transfer and Mitigate are accepted answers for this risk. Transfer is the preferred first response: the org cannot avoid payment processing, and shifting financial exposure via business-interruption insurance or a secondary-processor contract addresses the single-event loss efficiently. Mitigate is also fully defensible: onboarding a redundant payment processor directly eliminates the single-point-of-failure and lowers both likelihood and impact of an outage. In practice, a mature risk register would pursue both simultaneously. Accept is off the table (two documented outages in 18 months), and Avoid would mean stopping payment processing, which is not viable.',
+        ratingRationale:   'Likelihood 2-4: two outages in 18 months means this is not a theoretical risk -- it is recurring. Impact 4-5: halting all client transactions is a major financial and reputational event for a financial services firm.',
+        residualRationale: ''
+    },
+    {
+        id: 4,
+        title: 'Former employee accounts not disabled',
+        scenario: 'An audit reveals that 23 accounts belonging to former employees (terminated over the past 6 months) are still active in Active Directory with full network access. None of the accounts appear to have been used since termination, but two are service accounts tied to automated scripts that IT has not yet repointed.',
+        likelihoodRange: [2, 4],
+        impactRange:     [3, 5],
+        correctTreatment: 'Mitigate',
+        correctResidual:  'Low',
+        treatmentRationale: 'Mitigate is correct. Disabling accounts and implementing an automated off-boarding process (joiner-mover-leaver procedure) directly eliminates the attack surface. This is a standard Identity and Access Management (IAM) control. Accept is indefensible -- orphaned accounts are a compliance failure under most regulatory frameworks (SOX, PCI-DSS). Transfer is not applicable to IAM hygiene gaps.',
+        ratingRationale:   'Likelihood 2-4: accounts are currently unused but the longer they remain active the more likely they are to be discovered by a threat actor (insider or external). Likelihood is moderate rather than critical because no malicious activity has been observed yet. Impact 3-5: active credentials with network access could allow full data exfiltration; impact is high for a financial services firm.',
+        residualRationale: 'After disabling all orphaned accounts and implementing automated off-boarding, residual risk drops to Low. The attack surface is closed; risk is limited to procedural gaps in future off-boarding runs.'
+    },
+    {
+        id: 5,
+        title: 'Unencrypted laptops used by remote staff',
+        scenario: 'The field sales team (42 employees) uses company-issued laptops that do not have full-disk encryption enabled. These employees work from coffee shops, airports, and home offices. Two laptops were lost or stolen in the past year; the data on those devices was not recoverable and their contents are unknown.',
+        likelihoodRange: [3, 4],
+        impactRange:     [4, 5],
+        correctTreatment: 'Mitigate',
+        correctResidual:  'Low',
+        treatmentRationale: 'Mitigate is correct. Enabling full-disk encryption (e.g., BitLocker on Windows, FileVault on macOS) is a direct, low-cost control that eliminates data exposure when a device is lost or stolen. This is a baseline security control and is required by most data protection regulations (GDPR, GLBA). Accept is not viable for a regulated financial services firm with known loss incidents.',
+        ratingRationale:   'Likelihood 3-4: two incidents in the past year establishes a real (not theoretical) loss rate. Remote workers face elevated physical theft risk. Impact 4-5: unencrypted client financial data on a lost device constitutes a reportable data breach with regulatory penalties and reputational damage.',
+        residualRationale: 'With full-disk encryption enabled, a lost/stolen device exposes no readable data without the decryption key. Residual risk is Low -- physical loss no longer translates to data compromise.'
+    },
+    {
+        id: 6,
+        title: 'Legacy Windows Server 2012 on financial reporting system',
+        scenario: 'A critical financial reporting application runs on Windows Server 2012, which reached end-of-extended-support in October 2023. The application vendor has confirmed it will not certify its software on any newer OS version. Microsoft no longer releases security updates for this OS. The system holds quarterly financial data reported to regulators.',
+        likelihoodRange: [3, 5],
+        impactRange:     [4, 5],
+        correctTreatment: 'Mitigate',
+        correctResidual:  'Medium',
+        treatmentRationale: 'Mitigate is the correct primary treatment. Compensating controls -- network isolation (VLAN segmentation), application-layer firewall rules, enhanced logging, and host-based IDS -- reduce the likelihood and impact of exploitation while the org works toward a longer-term solution (application re-platforming). Accept is only defensible as a documented exception with compensating controls in place, not as a standalone posture. Avoid would mean shutting down financial reporting, which is not an option. Transfer (insurance) does not address the vulnerability itself. Note: in real registers, this would likely be documented as Mitigate with a time-bound exception note.',
+        ratingRationale:   'Likelihood 3-5: no OS security patches mean every new CVE applicable to the kernel, drivers, or Windows services is permanently unpatched. Attackers actively target EOL systems. Impact 4-5: the system holds regulated financial data; a breach triggers mandatory regulatory notification and potential fines.',
+        residualRationale: 'Compensating controls (network isolation, enhanced monitoring) meaningfully reduce exploitation likelihood. However, the underlying OS remains unpatched, so residual risk stays at Medium -- not Low -- until the system is re-platformed.'
+    },
+    {
+        id: 7,
+        title: 'Weak backup and disaster recovery posture',
+        scenario: 'Meridian runs nightly backups but they are stored on-site only (same data center). No DR site exists. The last full recovery test was 14 months ago and took 72 hours; the target RTO is 4 hours. A ransomware simulation exercise last year revealed that encrypted production data would require full restoration from these on-site backups.',
+        likelihoodRange: [2, 4],
+        impactRange:     [4, 5],
+        correctTreatment: 'Mitigate',
+        correctResidual:  'Medium',
+        treatmentRationale: 'Mitigate is correct. The controls here are well-established: implement the 3-2-1 backup rule (3 copies, 2 media types, 1 offsite), add a cloud-based secondary backup target, define and test RPO/RTO against a DR runbook, and conduct quarterly recovery tests. A financial services firm cannot Accept this risk -- regulators (FFIEC, SEC) require tested DR capability. Transfer is not sufficient alone because insurance does not restore systems. Avoid is inapplicable -- data storage is not an optional activity.',
+        ratingRationale:   'Likelihood 2-4: ransomware targeting financial institutions is common; the failed simulation established that current posture cannot meet RTO -- the actual impact of an event is near-certain to breach SLA. Impact 4-5: a 72-hour recovery time in a financial firm halts trading, client reporting, and regulatory submissions.',
+        residualRationale: 'With off-site/cloud backups and a tested runbook meeting the 4-hour RTO, residual risk is Medium. Ransomware could still encrypt production systems; the difference is that recovery is now fast and tested. Further reduction to Low requires immutable backups and real-time replication.'
+    },
+    {
+        id: 8,
+        title: 'Third-party data processor with no SOC 2 report',
+        scenario: 'Meridian recently contracted DataBridge LLC to process client onboarding documents (PII including SSNs, dates of birth, and financial statements). DataBridge has never completed a SOC 2 audit, has no documented security controls, and refused to complete a vendor security questionnaire. The contract has a 3-year term with a 90-day notice-to-exit clause.',
+        likelihoodRange: [3, 5],
+        impactRange:     [4, 5],
+        correctTreatment: ['Transfer', 'Avoid'],
+        correctResidual:  '',
+        treatmentRationale: 'Both Transfer and Avoid are accepted answers for this risk. Transfer is the correct immediate action: Meridian is contractually locked in for 90 days, so the near-term response is to purchase cyber liability insurance and add Data Processing Agreement (DPA) clauses that shift financial exposure to DataBridge (and its insurer). Avoid is the correct long-term answer: at the earliest contractual exit point, replace DataBridge with a SOC 2 Type II-certified processor -- eliminating the risk entirely. Mitigate is not the right primary control because Meridian has no direct authority over DataBridge\'s internal security posture. Accept is never defensible when a vendor refuses a security questionnaire and processes client PII under GLBA.',
+        ratingRationale:   'Likelihood 3-5: a vendor that refuses to complete a security questionnaire and has no independent audit is exhibiting red-flag behaviors; the likelihood of a control failure is high relative to compliant vendors. Impact 4-5: exposure of client PII (SSNs, financial statements) triggers GLBA breach notification, CFPB enforcement, and client liability.',
+        residualRationale: ''
+    },
+    {
+        id: 9,
+        title: 'Employee use of unapproved AI writing tools (Shadow IT)',
+        scenario: 'An internal survey reveals that roughly 60% of knowledge workers at Meridian regularly paste internal documents (including draft regulatory filings and client notes) into third-party AI chatbot tools for summarization and editing. No policy governs this use; no data-loss prevention (DLP) controls are in place. The company is considering whether to adopt an approved enterprise AI solution.',
+        likelihoodRange: [4, 5],
+        impactRange:     [3, 4],
+        correctTreatment: 'Mitigate',
+        correctResidual:  'Low',
+        treatmentRationale: 'Mitigate is correct. The activity (productivity tool use) is not optional, but the specific risk (unapproved, ungoverned tools) can be directly controlled. Controls include: (1) publish and enforce an Acceptable Use Policy (AUP) prohibiting unapproved AI tools for sensitive data; (2) deploy DLP rules to block paste operations to known AI endpoints; (3) procure and deploy an approved enterprise AI solution with data-residency and zero-retention guarantees. Avoid is not viable -- banning productivity tools entirely would harm operations and be ignored. Transfer does not address the information disclosure. Accept is indefensible for a regulated firm handling client financial data.',
+        ratingRationale:   'Likelihood 4-5: 60% of staff are already doing this -- the behavior is not hypothetical, it is current and widespread. Impact 3-4: regulatory filings are confidential; disclosure to a third-party AI provider constitutes an uncontrolled data transfer. Impact is High rather than Critical because no known exfiltration event has occurred yet.',
+        residualRationale: 'With DLP controls blocking uploads plus an approved tool that satisfies data-residency requirements, the residual risk is Low. Employees have a legitimate path to use AI tools; the shadow-IT surface is closed.'
+    },
+    {
+        id: 10,
+        title: 'Experimental blockchain pilot with volatile smart-contract risk',
+        scenario: 'The CTO proposed a pilot program to execute a small number of client escrow transactions on a public blockchain using experimental smart contracts written by a two-person internal team. The legal team has flagged that smart-contract bugs resulting in fund loss cannot be reversed and may violate fiduciary duty regulations. The pilot would run for 90 days with a $50,000 fund allocation.',
+        likelihoodRange: [1, 3],
+        impactRange:     [2, 4],
+        correctTreatment: 'Avoid',
+        correctResidual:  '',
+        treatmentRationale: 'Avoid is correct. The risky activity -- executing live client funds via unaudited experimental smart contracts -- is optional and time-limited (a pilot). The legal team has confirmed regulatory risk. Smart-contract bugs are irreversible (funds cannot be recovered). Mitigate is not practical for irreversible loss events. Transfer (insurance) is typically unavailable or excludes smart-contract coding errors. Accept would require board-level sign-off on fiduciary-risk exposure that the legal team has flagged as a regulatory violation. The correct decision is to stop or restructure the pilot to use simulated funds only.',
+        ratingRationale:   'Likelihood 1-3: smart-contract bugs in code written by a small internal team without a formal audit are plausible but not certain over a 90-day pilot. Likelihood is moderate-low because the team may write bug-free code. Impact 2-4: $50,000 is modest at the organizational level (Low-Medium financial impact), but regulatory sanctions for fiduciary violations could amplify the impact to High.',
+        residualRationale: ''
+    },
+    {
+        id: 11,
+        title: 'Office printer firmware slightly out of date',
+        scenario: 'An internal asset scan flags that the three shared office printers (floor 2, 3, and 4) are running firmware that is one minor version behind the vendor\'s latest release. The update addresses a low-severity cosmetic UI bug in the printer\'s web console; no CVEs are associated with this version gap. The printers are on an isolated internal VLAN with no internet access. The vendor\'s release notes rate this update as "cosmetic / optional." Patching requires IT to manually visit each device and takes approximately 2 hours per printer.',
+        likelihoodRange: [1, 2],
+        impactRange:     [1, 2],
+        correctTreatment: 'Accept',
+        correctResidual:  '',
+        treatmentRationale: 'Accept is the correct treatment here. This is a textbook case for formal risk acceptance: Likelihood is Very Low (1-2) -- no CVE exists, the VLAN isolates the devices, and exploitation requires physical or LAN presence. Impact is Negligible-to-Low (1-2) -- the issue is cosmetic and affects only the printer web console UI. The inherent risk score lands firmly in the Low band (1-4). The cost of the control (6+ hours of IT labor across three devices) materially exceeds the benefit of patching a cosmetic, non-security defect. Risk appetite at Meridian includes tolerating Low-band risks where control cost is not justified. Mitigate would be disproportionate. Transfer is inapplicable (no financial exposure). Avoid would mean decommissioning office printers, which is absurd. Accept -- with a documented exception noting the firmware gap, the VLAN isolation as an existing compensating control, and a scheduled review at the next firmware cycle -- is the professional response.',
+        ratingRationale:   'Likelihood 1-2: no CVE, printer VLAN-isolated, update is optional per vendor. The risk of exploitation is near-zero. Impact 1-2: a cosmetic UI bug in a printer console has negligible business consequence. The L x I product is 1-4, placing this firmly in the Low band.',
+        residualRationale: ''
+    }
+];
+
+/* ----------------------------------------------------------------
+   HEAT-MAP CELL CLASSIFICATION
+   Determines the risk band for a given Likelihood x Impact pair.
+
+   Bands follow the standard CompTIA/NIST 5x5 matrix:
+     Score 1-4   = Low
+     Score 5-9   = Medium
+     Score 10-14 = High
+     Score 15-25 = Critical
+   ---------------------------------------------------------------- */
+function getRiskBand(l, i) {
+    var score = l * i;
+    if (score >= 15) return 'Critical';
+    if (score >= 10) return 'High';
+    if (score >= 5)  return 'Medium';
+    return 'Low';
+}
+
+/* Returns the CSS class suffix for a given band string */
+function bandClass(band) {
+    return band.toLowerCase();
+}
+
+/* Returns the score-badge CSS class for a given band string */
+function scoreBadgeClass(band) {
+    return 'score-badge score-badge-' + band.toLowerCase();
+}
+
+
+/* ================================================================
+   MATRIX BUILDER
+   Constructs the 5x5 risk heat-map table in the aside panel.
+   Rows = Impact (5 at top, 1 at bottom) -- high impact at top.
+   Cols = Likelihood (1 at left, 5 at right).
+
+   Each <td> gets:
+     - id="hm-I{i}-L{l}" for targeted updates
+     - a class reflecting its risk band color
+     - the numeric score as content
+   ================================================================ */
+function buildMatrix() {
+    var table = document.getElementById('matrixTable');
+    var thead = table.querySelector('thead');
+    var tbody = table.querySelector('tbody');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    /* Header row: L values 1-5 with a blank cell for the I-axis label */
+    var headRow = document.createElement('tr');
+    var blank = document.createElement('th');
+    blank.setAttribute('aria-label', 'Impact axis');
+    blank.textContent = 'I\\L';
+    headRow.appendChild(blank);
+    for (var l = 1; l <= 5; l++) {
+        var th = document.createElement('th');
+        th.textContent = l;
+        th.setAttribute('aria-label', 'Likelihood ' + l);
+        headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+
+    /* Body rows: i iterates from 5 down to 1 so Impact=5 is at the top */
+    for (var i = 5; i >= 1; i--) {
+        var row = document.createElement('tr');
+
+        /* Row header: the Impact value */
+        var rowLabel = document.createElement('th');
+        rowLabel.textContent = i;
+        rowLabel.setAttribute('scope', 'row');
+        rowLabel.setAttribute('aria-label', 'Impact ' + i);
+        row.appendChild(rowLabel);
+
+        for (var l2 = 1; l2 <= 5; l2++) {
+            var td = document.createElement('td');
+            var score = i * l2;
+            var band  = getRiskBand(l2, i);
+            td.id = 'hm-I' + i + '-L' + l2;
+            td.className = 'hm-' + band.toLowerCase();
+            td.textContent = score;
+            td.setAttribute('aria-label', 'L=' + l2 + ' I=' + i + ' Score=' + score + ' ' + band);
+            row.appendChild(td);
+        }
+
+        tbody.appendChild(row);
+    }
+}
+
+
+/* ================================================================
+   RENDER RISK CARDS
+   Builds one interactive card per risk in RISKS[].
+   Each card contains:
+     - Header (number badge + title + scenario)
+     - Likelihood slider  (1-5)
+     - Impact slider      (1-5)
+     - Live risk score badge
+     - Treatment select (4 options)
+     - Residual band select (shown only for Mitigate)
+     - Feedback area (hidden until grade())
+   ================================================================ */
+function render() {
+    var container = document.getElementById('riskCards');
+    container.innerHTML = '';
+
+    RISKS.forEach(function(risk) {
+        var card = document.createElement('div');
+        card.className = 'risk-card';
+        card.id = 'card-' + risk.id;
+        card.setAttribute('role', 'region');
+        card.setAttribute('aria-label', 'Risk ' + risk.id + ': ' + risk.title);
+
+        card.innerHTML =
+            /* Header: number bubble + title + scenario */
+            '<div class="risk-card-header">' +
+                '<div class="risk-num" aria-hidden="true">' + risk.id + '</div>' +
+                '<div>' +
+                    '<div class="risk-title">' + risk.title + '</div>' +
+                    '<div class="risk-scenario">' + risk.scenario + '</div>' +
+                '</div>' +
+            '</div>' +
+
+            /* Likelihood slider */
+            '<div class="rating-row">' +
+                '<div class="rating-block">' +
+                    '<label for="lik-' + risk.id + '">Likelihood (1=Rare, 5=Almost Certain)</label>' +
+                    '<div class="slider-row">' +
+                        '<input type="range" id="lik-' + risk.id + '" min="1" max="5" value="3" ' +
+                               'aria-valuemin="1" aria-valuemax="5" aria-valuenow="3" ' +
+                               'oninput="onSlider(' + risk.id + ')">' +
+                        '<span class="rating-val" id="lval-' + risk.id + '">3</span>' +
+                    '</div>' +
+                '</div>' +
+
+                /* Impact slider */
+                '<div class="rating-block">' +
+                    '<label for="imp-' + risk.id + '">Impact (1=Negligible, 5=Catastrophic)</label>' +
+                    '<div class="slider-row">' +
+                        '<input type="range" id="imp-' + risk.id + '" min="1" max="5" value="3" ' +
+                               'aria-valuemin="1" aria-valuemax="5" aria-valuenow="3" ' +
+                               'oninput="onSlider(' + risk.id + ')">' +
+                        '<span class="rating-val" id="ival-' + risk.id + '">3</span>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+
+            /* Live risk score badge */
+            '<div class="score-badge-row">' +
+                '<span class="score-badge-label">Inherent Risk Score:</span>' +
+                '<span class="score-badge score-badge-medium" id="sbadge-' + risk.id + '">9 -- Medium</span>' +
+            '</div>' +
+
+            /* Treatment select */
+            '<div class="treatment-row">' +
+                '<div class="field-group">' +
+                    '<label for="trt-' + risk.id + '">Risk Treatment</label>' +
+                    '<select id="trt-' + risk.id + '" onchange="onTreatmentChange(' + risk.id + ')" aria-required="true">' +
+                        '<option value="">-- Select Treatment --</option>' +
+                        '<option value="Mitigate">Mitigate -- reduce via controls</option>' +
+                        '<option value="Transfer">Transfer -- shift to third party</option>' +
+                        '<option value="Avoid">Avoid -- stop the activity</option>' +
+                        '<option value="Accept">Accept -- tolerate within appetite</option>' +
+                    '</select>' +
+                '</div>' +
+
+                /* Residual band select: visible only when treatment = Mitigate */
+                '<div class="field-group residual-block" id="res-block-' + risk.id + '">' +
+                    '<label for="res-' + risk.id + '">Expected Residual Risk Band (after controls)</label>' +
+                    '<select id="res-' + risk.id + '">' +
+                        '<option value="">-- Select Band --</option>' +
+                        '<option value="Low">Low (score 1-4)</option>' +
+                        '<option value="Medium">Medium (score 5-9)</option>' +
+                        '<option value="High">High (score 10-14)</option>' +
+                    '</select>' +
+                '</div>' +
+            '</div>' +
+
+            /* Per-card feedback (hidden until grade) */
+            '<div class="card-feedback" id="fb-' + risk.id + '" role="alert" aria-live="polite"></div>';
+
+        container.appendChild(card);
+    });
+
+    /* Initialize all score badges and matrix plots with default slider values */
+    RISKS.forEach(function(risk) { onSlider(risk.id); });
+}
+
+
+/* ================================================================
+   SLIDER HANDLER
+   Called whenever either slider on a risk card changes.
+   Updates: score badge text + class, risk val display, matrix plot.
+   ================================================================ */
+function onSlider(riskId) {
+    var likEl = document.getElementById('lik-' + riskId);
+    var impEl = document.getElementById('imp-' + riskId);
+    var l = parseInt(likEl.value, 10);
+    var i = parseInt(impEl.value, 10);
+
+    /* Update accessible aria-valuenow */
+    likEl.setAttribute('aria-valuenow', l);
+    impEl.setAttribute('aria-valuenow', i);
+
+    /* Update the numeric displays beside each slider */
+    document.getElementById('lval-' + riskId).textContent = l;
+    document.getElementById('ival-' + riskId).textContent = i;
+
+    /* Compute score and band */
+    var score = l * i;
+    var band  = getRiskBand(l, i);
+
+    /* Update the live score badge */
+    var badge = document.getElementById('sbadge-' + riskId);
+    badge.className = scoreBadgeClass(band);
+    badge.textContent = score + ' -- ' + band;
+
+    /* Update the heat-map to highlight where all risks currently plot */
+    updateMatrix();
+}
+
+
+/* ================================================================
+   TREATMENT CHANGE HANDLER
+   Toggles the residual band selector visible/hidden.
+   Only Mitigate requires a residual band selection.
+   ================================================================ */
+function onTreatmentChange(riskId) {
+    var val = document.getElementById('trt-' + riskId).value;
+    var resBlock = document.getElementById('res-block-' + riskId);
+    if (val === 'Mitigate') {
+        resBlock.classList.add('show');
+    } else {
+        resBlock.classList.remove('show');
+        /* Clear the residual select when hidden to avoid stale value */
+        document.getElementById('res-' + riskId).value = '';
+    }
+}
+
+
+/* ================================================================
+   UPDATE MATRIX
+   Re-draws the active-cell indicators on the heat-map.
+   Clears all active/dot states, then re-plots current slider values.
+   ================================================================ */
+function updateMatrix() {
+    /* Clear all active classes and dot content from every cell */
+    var allCells = document.querySelectorAll('#matrixTable td');
+    allCells.forEach(function(cell) {
+        cell.classList.remove('hm-active');
+        /* Remove any injected dots (leave the score number) */
+        var dots = cell.querySelectorAll('.hm-dot');
+        dots.forEach(function(d) { d.remove(); });
+    });
+
+    /* Build a map: cellKey -> count of risks plotting there */
+    var cellCounts = {};
+    RISKS.forEach(function(risk) {
+        var l = parseInt(document.getElementById('lik-' + risk.id).value, 10);
+        var i = parseInt(document.getElementById('imp-' + risk.id).value, 10);
+        var key = 'hm-I' + i + '-L' + l;
+        cellCounts[key] = (cellCounts[key] || 0) + 1;
+    });
+
+    /* Apply active class and dot indicators to occupied cells */
+    Object.keys(cellCounts).forEach(function(key) {
+        var cell = document.getElementById(key);
+        if (!cell) return;
+        cell.classList.add('hm-active');
+        /* Add a white dot per risk plotting in this cell (max 5 before truncation) */
+        var count = Math.min(cellCounts[key], 5);
+        for (var n = 0; n < count; n++) {
+            var dot = document.createElement('span');
+            dot.className = 'hm-dot';
+            dot.setAttribute('aria-hidden', 'true');
+            cell.appendChild(dot);
+        }
+    });
+}
+
+
+/* ================================================================
+   GRADING ENGINE
+   Evaluates each risk card against correct answers.
+
+   Scoring rules (per risk):
+     - Treatment correct:     +1 point
+     - L in defensible range: +0.5 point
+     - I in defensible range: +0.5 point
+   Each risk earns a maximum of 2 points (treatment + rating).
+
+   Residual band selection is PEDAGOGICAL FEEDBACK ONLY.
+   It is NOT scored and does NOT add to earnedPoints or totalPoints.
+   The residual field helps students learn the expected post-control
+   state, but selecting the wrong band carries no point penalty.
+
+   Total points possible = RISKS.length x 2 (computed dynamically).
+   Pass threshold: >= 80%.
+
+   Mood-ring: adds 'correct' class to card if treatment is right,
+              'incorrect' if treatment is wrong.
+              The Dr. Hex observer (auto-loaded for .lab.html) watches
+              for these exact class tokens -- no extra script needed.
+   ================================================================ */
+function grade() {
+    var totalPoints  = 0;
+    var maxPoints    = RISKS.length * 2; /* computed dynamically from RISKS array length */
+    var correctCount = 0; /* count of fully-correct treatment selections */
+
+    /* Disable the submit button to prevent re-grading */
+    document.getElementById('submitBtn').disabled = true;
+
+    /* Register summary rows for the final table */
+    var registerRows = [];
+
+    RISKS.forEach(function(risk) {
+        var l         = parseInt(document.getElementById('lik-' + risk.id).value, 10);
+        var i         = parseInt(document.getElementById('imp-' + risk.id).value, 10);
+        var treatment = document.getElementById('trt-' + risk.id).value;
+        var residual  = document.getElementById('res-' + risk.id).value;
+        var score     = l * i;
+        var band      = getRiskBand(l, i);
+
+        var card   = document.getElementById('card-' + risk.id);
+        var fbEl   = document.getElementById('fb-' + risk.id);
+
+        /* ---- Evaluate treatment choice ----
+           correctTreatment may be a string (single answer) or an array
+           (multiple defensible answers, e.g. ['Transfer','Mitigate']).
+           Both forms are handled here; all other per-risk fields stay as-is. */
+        var treatmentCorrect = Array.isArray(risk.correctTreatment)
+            ? risk.correctTreatment.indexOf(treatment) !== -1
+            : treatment === risk.correctTreatment;
+
+        /* Human-readable label for feedback and the register table */
+        var correctTreatmentLabel = Array.isArray(risk.correctTreatment)
+            ? risk.correctTreatment.join(' / ')
+            : risk.correctTreatment;
+
+        /* ---- Evaluate L/I rating defensibility ---- */
+        var lCorrect = (l >= risk.likelihoodRange[0] && l <= risk.likelihoodRange[1]);
+        var iCorrect = (i >= risk.impactRange[0]     && i <= risk.impactRange[1]);
+
+        /* ---- Residual band: pedagogical feedback only, NOT scored ----
+           residualScored is true when Mitigate is the sole correct treatment
+           (string form). For dual-answer risks the residual feedback block
+           is shown only if the student actually chose Mitigate. */
+        var residualCorrect = false;
+        var residualScored  = Array.isArray(risk.correctTreatment)
+            ? risk.correctTreatment.indexOf('Mitigate') !== -1
+            : risk.correctTreatment === 'Mitigate';
+        if (residualScored && treatment === 'Mitigate') {
+            residualCorrect = (residual === risk.correctResidual);
+        }
+
+        /* ---- Calculate points ---- */
+        var earnedPoints = 0;
+        if (treatmentCorrect)  earnedPoints += 1;
+        if (lCorrect)          earnedPoints += 0.5;
+        if (iCorrect)          earnedPoints += 0.5;
+        totalPoints += earnedPoints;
+
+        if (treatmentCorrect) correctCount++;
+
+        /* ---- Apply mood-ring classes ---- */
+        /* Remove any prior state classes before adding new ones */
+        card.classList.remove('correct', 'incorrect');
+        card.classList.add(treatmentCorrect ? 'correct' : 'incorrect');
+
+        /* ---- Build feedback message ---- */
+        var parts = [];
+
+        if (treatmentCorrect) {
+            parts.push('<strong style="color:var(--ok);">Treatment correct: ' + treatment + '</strong>');
+        } else {
+            parts.push('<strong style="color:var(--err);">Treatment incorrect.</strong> You chose <strong>' +
+                (treatment || '[none]') + '</strong>; correct answer is <strong>' + correctTreatmentLabel + '</strong>.');
+        }
+
+        /* L/I rating feedback */
+        if (!lCorrect) {
+            parts.push('Likelihood ' + l + ' is outside the defensible range (' +
+                risk.likelihoodRange[0] + '-' + risk.likelihoodRange[1] + ').');
+        }
+        if (!iCorrect) {
+            parts.push('Impact ' + i + ' is outside the defensible range (' +
+                risk.impactRange[0] + '-' + risk.impactRange[1] + ').');
+        }
+        if (lCorrect && iCorrect) {
+            parts.push('L/I rating (' + l + 'x' + i + '=' + score + ' ' + band + ') is within the defensible range.');
+        }
+
+        /* Residual band feedback (Mitigate only) */
+        if (residualScored) {
+            if (treatment === 'Mitigate') {
+                if (residualCorrect) {
+                    parts.push('Residual band (' + residual + ') is correct.');
+                } else {
+                    parts.push('Residual band: you selected <strong>' + (residual || '[none]') + '</strong>; expected <strong>' +
+                        risk.correctResidual + '</strong> after applying controls.');
+                }
+            } else {
+                parts.push('No residual band required (treatment is not Mitigate).');
+            }
+        }
+
+        /* Always show the explanation */
+        parts.push('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:8px 0;">');
+        parts.push('<strong>Explanation:</strong> ' + risk.treatmentRationale);
+        if (!lCorrect || !iCorrect) {
+            parts.push('<br><strong>Rating guidance:</strong> ' + risk.ratingRationale);
+        }
+        if (residualScored && risk.residualRationale) {
+            parts.push('<br><strong>Residual guidance:</strong> ' + risk.residualRationale);
+        }
+
+        fbEl.innerHTML = parts.join(' ');
+        fbEl.className = 'card-feedback show ' + (treatmentCorrect ? 'right' : 'wrong');
+
+        /* Collect row for register summary table */
+        registerRows.push({
+            id:               risk.id,
+            title:            risk.title,
+            l:                l,
+            i:                i,
+            score:            score,
+            band:             band,
+            treatment:        treatment || '[none]',
+            correctTreatment: correctTreatmentLabel,
+            isCorrect:        treatmentCorrect
+        });
+    });
+
+    /* ---- Compute percentage and display results ---- */
+    var pct   = Math.round((totalPoints / maxPoints) * 100);
+    var passed = pct >= 80;
+
+    var res = document.getElementById('results');
+    res.innerHTML =
+        '<h2>Register Complete -- Score: ' + pct + '%</h2>' +
+        '<div class="score-grid">' +
+            '<div class="score-cell"><div class="big">' + totalPoints.toFixed(1) + '</div><div class="lbl">Points Earned</div></div>' +
+            '<div class="score-cell"><div class="big">' + maxPoints + '</div><div class="lbl">Points Possible</div></div>' +
+            '<div class="score-cell"><div class="big">' + correctCount + '</div><div class="lbl">Treatments Correct</div></div>' +
+            '<div class="score-cell"><div class="big">' + pct + '%</div><div class="lbl">Score</div></div>' +
+        '</div>' +
+        '<p style="color:var(--muted);">' +
+        (passed
+            ? 'Strong risk analysis. Mark Complete to record your progress.'
+            : 'Review the feedback on each risk card. Pay close attention to treatment rationale -- understanding WHY each strategy fits the scenario is the key SY0-701 skill. Reset and try again to improve your score.'
+        ) + '</p>';
+    res.classList.add('show');
+
+    /* ---- Build the final register summary table ---- */
+    buildRegisterTable(registerRows);
+    document.getElementById('registerSection').classList.add('show');
+
+    /* ---- Reveal Mark Complete if passed ---- */
+    if (passed) {
+        document.getElementById('completeSection').classList.add('show');
+    }
+
+    /* Scroll results into view */
+    res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+
+/* ================================================================
+   BUILD REGISTER TABLE
+   Populates the summary <tbody> with one row per risk after grading.
+   ================================================================ */
+function buildRegisterTable(rows) {
+    var tbody = document.getElementById('registerBody');
+    tbody.innerHTML = '';
+
+    rows.forEach(function(row) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td>' + row.id + '</td>' +
+            '<td>' + row.title + '</td>' +
+            '<td>' + row.l + '</td>' +
+            '<td>' + row.i + '</td>' +
+            '<td><strong>' + row.score + '</strong></td>' +
+            '<td><span class="band-chip chip-' + row.band.toLowerCase() + '">' + row.band + '</span></td>' +
+            '<td>' + row.treatment + '</td>' +
+            '<td>' + row.correctTreatment + '</td>' +
+            '<td><span class="band-chip ' + (row.isCorrect ? 'chip-correct' : 'chip-wrong') + '">' +
+                (row.isCorrect ? 'Correct' : 'Incorrect') + '</span></td>';
+        tbody.appendChild(tr);
+    });
+}
+
+
+/* ================================================================
+   RESET
+   Clears all selections, feedback, mood-ring classes, and results.
+   Rebuilds cards and matrix to default state.
+   ================================================================ */
+function resetLab() {
+    /* Hide results and register sections */
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('registerSection').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+
+    /* Re-enable the submit button */
+    document.getElementById('submitBtn').disabled = false;
+
+    /* Re-render cards from scratch (clears all DOM state) */
+    render();
+    buildMatrix();
+}
+
+
+/* ================================================================
+   INIT
+   Build the matrix and render cards on page load.
+   ================================================================ */
+buildMatrix();
+render();
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ─────────────────────────────────────
+     Always-visible chat entry point. State machine is attempt-driven;
+     button stays calm and serves as a general chat entry until lab
+     activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md                    ── -->
+<hex-ai-button mission-id="shield-risk-register-builder" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>

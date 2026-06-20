@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Governance Documents &amp; Agreements Workshop | Shield Security+</title>
+    <style>
+        /* ── Reset + tokens ─────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171; --accent: #f97316; --bg: #0a0a12;
+            --card: rgba(15,15,25,0.85); --text: #e8e8f0; --muted: #888;
+            --border: rgba(248,113,113,0.2); --glow: rgba(248,113,113,0.35);
+            --ok: #10b981; --err: #ef4444;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+        /* ── Sticky header ──────────────────────────────────────────── */
+        .header { padding: 14px 24px; background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge { font-size: 0.75rem; padding: 4px 14px; background: rgba(248,113,113,0.12); border: 1px solid var(--border); border-radius: 20px; color: var(--primary); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+
+        /* ── Layout ─────────────────────────────────────────────────── */
+        .container { max-width: 960px; margin: 0 auto; padding: 30px 20px 80px; }
+
+        /* ── Hero title block ───────────────────────────────────────── */
+        .lab-title { text-align: center; margin-bottom: 28px; padding: 28px; background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06)); border-radius: 14px; border: 1px solid var(--border); }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+        /* ── Stage header ───────────────────────────────────────────── */
+        .stage-header { background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.25); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+        .stage-header h2 { color: var(--accent); font-size: 1.1rem; margin-bottom: 6px; }
+        .stage-header p { color: #ccc; font-size: 0.88rem; line-height: 1.5; }
+
+        /* ── Instructions callout ───────────────────────────────────── */
+        .instructions { background: rgba(249,115,22,0.08); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 0 10px 10px 0; margin-bottom: 24px; font-size: 0.9rem; line-height: 1.7; color: #ccc; }
+        .instructions strong { color: var(--accent); }
+
+        /* ── Reference legend for Stage 1 ──────────────────────────── */
+        .legend { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; }
+        @media (max-width: 600px) { .legend { grid-template-columns: 1fr; } }
+        .legend-card { background: rgba(10,10,18,0.7); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+        .legend-card .lc-title { font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+        .legend-card .lc-def { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+
+        /* ── Match card ─────────────────────────────────────────────── */
+        .match-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; display: flex; gap: 16px; align-items: flex-start; transition: border-color 0.3s; }
+        /* Mood-ring hooks -- class names are exact tokens expected by the observer */
+        .match-card.correct   { border-color: var(--ok); }
+        .match-card.incorrect { border-color: var(--err); }
+        .match-num { background: var(--primary); color: #000; min-width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+        .match-body { flex: 1; min-width: 0; }
+        .match-desc { font-size: 0.92rem; color: #ccc; line-height: 1.65; margin-bottom: 10px; }
+        .match-desc em { color: var(--accent); font-style: normal; font-weight: 600; }
+
+        /* ── Dropdown select ────────────────────────────────────────── */
+        .match-select select { background: rgba(10,10,18,0.9); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.88rem; cursor: pointer; width: 100%; max-width: 340px; }
+        .match-select select:focus { outline: none; border-color: var(--primary); }
+
+        /* ── Per-item feedback ──────────────────────────────────────── */
+        .feedback { font-size: 0.84rem; margin-top: 8px; display: none; line-height: 1.55; border-radius: 6px; padding: 8px 10px; }
+        .feedback.show   { display: block; }
+        .feedback.right  { color: var(--ok);  background: rgba(16,185,129,0.07); border-left: 3px solid var(--ok); }
+        .feedback.wrong  { color: var(--err); background: rgba(239,68,68,0.07);  border-left: 3px solid var(--err); }
+
+        /* ── Action row ─────────────────────────────────────────────── */
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #000; border: none; padding: 11px 24px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .btn-secondary:hover { background: rgba(248,113,113,0.1); box-shadow: none; }
+        .btn-ok { background: var(--ok); color: #000; }
+        .btn-ok:hover { background: #34d399; box-shadow: 0 4px 16px rgba(16,185,129,0.35); }
+
+        /* ── Score results panel ────────────────────────────────────── */
+        .results { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin: 20px 0; text-align: center; }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; font-size: 1.5rem; }
+        .results .breakdown { display: flex; gap: 24px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
+        .results .score-pill { background: rgba(248,113,113,0.1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 20px; }
+        .results .score-pill span { display: block; font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .results .score-pill small { color: var(--muted); font-size: 0.8rem; }
+
+        /* ── Mark Complete ──────────────────────────────────────────── */
+        .complete-section { text-align: center; margin-top: 24px; display: none; }
+        .complete-section.show { display: block; }
+
+        /* ── Stage divider ──────────────────────────────────────────── */
+        .stage-divider { border: none; border-top: 1px solid var(--border); margin: 36px 0 32px; }
+    </style>
+</head>
+<body>
+
+<!-- Visually-hidden accessible title -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Governance Documents &amp; Agreements Workshop Lab</h2>
+
+<!-- ── Sticky header ──────────────────────────────────────────────── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+</span>
+</header>
+
+<div class="container">
+
+    <!-- ── Hero ──────────────────────────────────────────────────── -->
+    <div class="lab-title">
+        <h1>Governance Documents &amp; Agreements Workshop</h1>
+        <p>Domain 5.0 -- Security Program Management &amp; Oversight (SY0-701 objective 5.1).<br>
+           Classify real-world clauses into the correct governance tier, then match agreement scenarios to the right document type.</p>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         STAGE 1: Governance Hierarchy
+         Policy vs Standard vs Procedure vs Guideline
+         ════════════════════════════════════════════════════════════ -->
+    <div class="stage-header">
+        <h2>Stage 1 -- Governance Hierarchy</h2>
+        <p>Classify each statement as a <strong>Policy</strong>, <strong>Standard</strong>, <strong>Procedure</strong>, or <strong>Guideline</strong>. Use the reference table below, then pick the best match for each scenario.</p>
+    </div>
+
+    <!-- Quick reference legend helps students learn while doing -->
+    <div class="legend">
+        <div class="legend-card">
+            <div class="lc-title">Policy</div>
+            <div class="lc-def">High-level, mandatory statement of management intent. Answers "what" and "why." Sets direction; written by leadership. Non-compliance has formal consequences.</div>
+        </div>
+        <div class="legend-card">
+            <div class="lc-title">Standard</div>
+            <div class="lc-def">Mandatory, specific requirement that operationalizes a policy. Answers "how much" or "which one." Names exact algorithms, versions, or thresholds (e.g., AES-256, TLS 1.2+).</div>
+        </div>
+        <div class="legend-card">
+            <div class="lc-title">Procedure</div>
+            <div class="lc-def">Step-by-step "how-to" instructions for performing a specific task. Numbered or sequenced. Think of it as a recipe -- someone with no prior knowledge could follow it.</div>
+        </div>
+        <div class="legend-card">
+            <div class="lc-title">Guideline</div>
+            <div class="lc-def">Recommended, non-mandatory best practice. Uses language like "should," "consider," or "recommended." Provides flexibility -- deviation is allowed without formal consequence.</div>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <strong>Instructions:</strong> Read each clause or scenario. Select the governance document tier that best describes it. After submitting, you will see an explanation for every item.
+    </div>
+
+    <!-- Stage 1 cards rendered by JS -->
+    <div id="stage1-cards"></div>
+
+    <hr class="stage-divider">
+
+    <!-- ════════════════════════════════════════════════════════════
+         STAGE 2: Agreements & Policies
+         ════════════════════════════════════════════════════════════ -->
+    <div class="stage-header">
+        <h2>Stage 2 -- Agreements &amp; Policies</h2>
+        <p>Match each real-world scenario or clause to the correct document type: <strong>AUP, SLA, MOU/MOA, MSA, BPA, NDA, SOW, Data Classification Policy, Change Management Policy, BCP/DRP, Onboarding/Offboarding Policy,</strong> or <strong>Password Standard</strong>.</p>
+    </div>
+
+    <div class="instructions">
+        <strong>Instructions:</strong> Read each scenario carefully. Select the single best-fit document from the dropdown. Watch for distractors -- some scenarios describe overlapping concepts, but one type is the precision match.
+    </div>
+
+    <!-- Stage 2 cards rendered by JS -->
+    <div id="stage2-cards"></div>
+
+    <!-- ── Actions ────────────────────────────────────────────────── -->
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="grade()">Check All Answers</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <!-- ── Score results ──────────────────────────────────────────── -->
+    <div class="results" id="results"></div>
+
+    <!-- ── Mark Complete (shown on pass) ─────────────────────────── -->
+    <div class="complete-section" id="completeSection">
+        <button class="btn btn-ok" onclick="ModuleProgress.complete('shield','shield-policy-governance-match',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+
+</div><!-- /.container -->
+
+<script>
+/* ================================================================
+   Stage 1 -- Governance Hierarchy data
+   Each item has:
+     id        unique int (S1-prefixed conceptually, numeric here)
+     desc      the clause/statement the student reads
+     answer    correct tier: 'Policy' | 'Standard' | 'Procedure' | 'Guideline'
+     explain   why this tier is correct + what distinguishes it
+   ================================================================ */
+var STAGE1 = [
+    {
+        id: 1,
+        desc: '"All organizational data must be protected from unauthorized access, modification, and disclosure."',
+        answer: 'Policy',
+        explain: 'Policy. This is a broad, mandatory statement of management intent -- it says WHAT must happen (protect data) and WHY (prevent unauthorized access) without specifying any particular control mechanism. No algorithms, no steps, no recommendation language.'
+    },
+    {
+        id: 2,
+        desc: '"All data at rest on company endpoints must be encrypted using AES-256. Database connections must use TLS 1.2 or higher."',
+        answer: 'Standard',
+        explain: 'Standard. This names specific mandatory controls: AES-256 and TLS 1.2+. It operationalizes the encryption policy by answering "which algorithm" and "which version minimum." Standards are mandatory, but live below policy in the hierarchy.'
+    },
+    {
+        id: 3,
+        desc: '"Step 1: Open the BitLocker Drive Encryption control panel. Step 2: Click \'Turn on BitLocker\' for the OS volume. Step 3: Select \'TPM + PIN\' as the unlock method. Step 4: Save the recovery key to Active Directory. Step 5: Confirm encryption status shows \'Encrypted.\'"',
+        answer: 'Procedure',
+        explain: 'Procedure. The numbered, step-by-step sequence is the defining trait. Anyone could follow these instructions without prior knowledge of BitLocker. Procedures implement standards and policies at the task level.'
+    },
+    {
+        id: 4,
+        desc: '"Users should consider locking their workstations whenever they step away from their desks, even for short periods."',
+        answer: 'Guideline',
+        explain: 'Guideline. The word "should consider" signals non-mandatory, recommended behavior. There is no formal requirement or specific threshold -- it is a best-practice suggestion. Deviation carries no formal penalty.'
+    },
+    {
+        id: 5,
+        desc: '"It is recommended that security teams rotate encryption keys every 90 days, though teams may adjust this based on data sensitivity and operational constraints."',
+        answer: 'Guideline',
+        explain: 'Guideline. "Recommended" and "may adjust" are non-mandatory language. If this were a Standard it would say "must rotate every 90 days" with no wiggle room. The flexibility clause makes it a guideline.'
+    },
+    {
+        id: 6,
+        desc: '"The organization shall maintain and enforce an information security program. All employees are required to comply with this program as a condition of employment."',
+        answer: 'Policy',
+        explain: 'Policy. "Shall maintain," "required," and "condition of employment" are mandatory, authoritative language from leadership. This sets organizational direction without specifying any technical control -- the hallmark of a policy.'
+    },
+    {
+        id: 7,
+        desc: '"Vendor-supplied software must be patched within 30 days of a critical CVE disclosure. Emergency patches rated CVSS 9.0+ must be applied within 72 hours."',
+        answer: 'Standard',
+        explain: 'Standard. Specific numeric thresholds (30 days, 72 hours, CVSS 9.0+) are mandatory requirements. This is not a broad "why" statement (policy), not a step-by-step (procedure), and not a recommendation (guideline). It names exact measurable criteria.'
+    },
+    {
+        id: 8,
+        desc: '"When creating a new service account: (1) Submit a Service Account Request form to the IAM team. (2) Include the business justification and system owner name. (3) IAM team provisions the account in Active Directory with least-privilege role. (4) Notify the requester and document the account in the CMDB."',
+        answer: 'Procedure',
+        explain: 'Procedure. Numbered steps a technician follows to complete a specific task. No high-level "why" (policy), no named technical requirement (standard), no recommendation language (guideline). Pure procedural instruction.'
+    }
+];
+
+/* ================================================================
+   Stage 2 -- Agreements & Policies data
+   answer is the exact option string that must match the SELECT value
+   ================================================================ */
+var STAGE2 = [
+    {
+        id: 9,
+        desc: 'An organization signs a document with a cloud storage vendor that commits the vendor to 99.95% monthly uptime, defines response times for incidents by severity, and includes credit clauses if those thresholds are missed.',
+        answer: 'SLA',
+        explain: 'SLA (Service Level Agreement). The defining elements are measurable uptime commitments (99.95%), categorized response times, and contractual remedies (credits) for non-compliance. An MSA governs the broader relationship; the SLA is the performance-metric layer.'
+    },
+    {
+        id: 10,
+        desc: 'Before sharing source code with a potential acquisition target during due diligence, both companies sign a document that prohibits either party from disclosing what they learn to third parties.',
+        answer: 'NDA',
+        explain: 'NDA (Non-Disclosure Agreement). The defining trait is confidentiality of information exchanged between two parties. The scenario says nothing about service levels, deliverables, or partnership terms -- it is purely about restricting disclosure.'
+    },
+    {
+        id: 11,
+        desc: 'Two logistics companies enter a formal business partnership to jointly offer supply-chain security services. The agreement defines each company\'s responsibilities, the security controls each must maintain, liability allocation if a breach occurs, and how costs and revenues will be shared across the joint venture.',
+        answer: 'BPA',
+        explain: 'BPA (Business Partners Agreement). A BPA governs a business partnership or joint venture between two organizations -- defining mutual responsibilities, security obligations, liability, and financial terms. This is distinct from an NDA, which only addresses confidentiality; the scenario describes a full partnership with operational and security obligations on both sides, which is the hallmark of a BPA.'
+    },
+    {
+        id: 12,
+        desc: 'A consulting firm is engaged to deliver a cybersecurity gap assessment. The document specifies the exact deliverables (gap report, executive summary, remediation roadmap), the timeline (12 weeks), and the payment schedule, but references a separately signed contract for liability and IP terms.',
+        answer: 'SOW',
+        explain: 'SOW (Statement of Work). A SOW lives under a parent agreement (the MSA) and defines the specific engagement: deliverables, timeline, scope, and payment. "References a separately signed contract" confirms an MSA exists separately.'
+    },
+    {
+        id: 13,
+        desc: 'A city IT department and a university research center sign a document expressing their mutual intent to collaborate on a cybersecurity training initiative. The document establishes a shared understanding of goals and each party\'s intended contributions, without creating enforceable financial obligations.',
+        answer: 'MOU/MOA',
+        explain: 'MOU/MOA (Memorandum of Understanding / Memorandum of Agreement). For SY0-701 purposes, an MOU/MOA expresses non-binding intent and mutual agreement on goals -- it does not impose enforceable financial obligations the way a contract (MSA/BPA) or deliverable-scoped SOW does. This is the exam-vocabulary distinction; treat it as expressing intent, not creating a binding contract.'
+    },
+    {
+        id: 14,
+        desc: 'An IT services company signs an overarching document with a manufacturing client that sets the general terms and conditions -- liability caps, intellectual property ownership, payment terms, and dispute resolution -- that will govern all future projects between the two parties.',
+        answer: 'MSA',
+        explain: 'MSA (Master Service Agreement). An MSA is the umbrella contract that governs the business relationship for all future engagements. Individual projects are then scoped in separate SOWs that reference this MSA. If you see "all future projects" or "overarching terms," that is an MSA.'
+    },
+    {
+        id: 15,
+        desc: 'A document signed by all employees specifies that company laptops, email accounts, and internet access are provided for business purposes only. It lists prohibited activities (torrenting, accessing adult content, using systems for personal business) and states that violations may result in termination.',
+        answer: 'AUP',
+        explain: 'AUP (Acceptable Use Policy). An AUP defines what is and is not acceptable use of organizational systems, networks, and resources. The presence of prohibited activities and disciplinary language makes it distinct from a general IT policy or password policy.'
+    },
+    {
+        id: 16,
+        desc: 'A document defines four categories of organizational data: Public, Internal, Confidential, and Restricted. For each category it specifies storage locations permitted, sharing rules, disposal methods, and required encryption level.',
+        answer: 'Data Classification Policy',
+        explain: 'Data Classification Policy. The defining feature is labeling data by sensitivity tiers and specifying handling requirements (storage, sharing, disposal, encryption) for each tier. This is distinct from a general information security policy, which does not enumerate categories and handling rules.'
+    },
+    {
+        id: 17,
+        desc: 'An organization mandates that all proposed modifications to production systems -- including software updates, configuration changes, and hardware replacements -- must be documented in a ticket, reviewed by a Change Advisory Board, tested in a staging environment, and approved before implementation.',
+        answer: 'Change Management Policy',
+        explain: 'Change Management Policy. The hallmarks are the CAB review process, staging/testing requirements, and approval gates before any production modification. This controls the lifecycle of changes to reduce unplanned outages and security gaps.'
+    },
+    {
+        id: 18,
+        desc: 'A document defines the minimum requirements for all user passwords: at least 12 characters, at least one uppercase letter, one number, and one special character. It also mandates that passwords not be reused across the previous 10 cycles and specifies a 90-day maximum age for standard accounts.',
+        answer: 'Password Standard',
+        explain: 'Password Standard. SY0-701 objective 5.1 classifies password requirements as a Standard -- specifically a "Password Standard" -- not a policy. Notice that the scenario gives exact mandatory thresholds (12 characters, 10-cycle history, 90-day max age). Exact, mandatory thresholds are the defining trait of a Standard, consistent with Stage 1: standards answer "how much" and "which one." A policy would only state the intent (e.g., "passwords must be strong"); the Standard operationalizes that intent with the specific numbers.'
+    },
+    {
+        id: 19,
+        desc: 'Following a ransomware simulation exercise, the organization updates a document that identifies critical business functions, sets maximum tolerable downtime for each, documents the failover procedure to backup data centers, and defines the call tree for activating the response team.',
+        answer: 'BCP/DRP',
+        explain: 'BCP/DRP (Business Continuity Plan / Disaster Recovery Plan). BCP focuses on keeping critical functions operational during a disruption; DRP focuses on recovering IT systems. The scenario includes both: business function prioritization (BCP) and failover/recovery steps (DRP). On the exam these are often paired.'
+    },
+    {
+        id: 20,
+        desc: 'A document governs the process for adding and removing user access. It requires that new hires complete security awareness training before receiving any system credentials, and that when an employee departs, their accounts be disabled within four hours and all equipment returned the same day.',
+        answer: 'Onboarding/Offboarding Policy',
+        explain: 'Onboarding/Offboarding Policy. The two defining actions are provisioning access when staff join (onboarding) and revoking access and recovering assets when staff leave (offboarding). The four-hour account-disable SLA is a classic offboarding control that prevents ex-employee access.'
+    }
+];
+
+/* ================================================================
+   Stage 1 options -- the four governance tiers
+   ================================================================ */
+var S1_OPTIONS = ['Policy', 'Standard', 'Procedure', 'Guideline'];
+
+/* ================================================================
+   Stage 2 options -- agreement and policy types (SY0-701 5.1 list)
+   ================================================================ */
+var S2_OPTIONS = [
+    'AUP',
+    'SLA',
+    'MOU/MOA',
+    'MSA',
+    'BPA',
+    'NDA',
+    'SOW',
+    'Data Classification Policy',
+    'Change Management Policy',
+    'BCP/DRP',
+    'Onboarding/Offboarding Policy',
+    'Password Standard'
+];
+
+/* ================================================================
+   renderStage()
+   Builds the match-card DOM for a given item list and option set.
+   Appends into the element with id = containerId.
+   prefix distinguishes Stage 1 ids from Stage 2 ids in the DOM.
+   ================================================================ */
+function renderStage(items, options, containerId, selectPrompt) {
+    var el = document.getElementById(containerId);
+    el.innerHTML = '';
+    items.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'match-card';
+        div.id = 'card-' + item.id;
+
+        /* Build option list for the select element */
+        var opts = '<option value="">-- ' + selectPrompt + ' --</option>';
+        options.forEach(function(o) {
+            opts += '<option value="' + o + '">' + o + '</option>';
+        });
+
+        div.innerHTML =
+            '<div class="match-num">' + item.id + '</div>' +
+            '<div class="match-body">' +
+                '<div class="match-desc">' + item.desc + '</div>' +
+                '<div class="match-select"><select id="sel-' + item.id + '">' + opts + '</select></div>' +
+                '<div class="feedback" id="fb-' + item.id + '"></div>' +
+            '</div>';
+        el.appendChild(div);
+    });
+}
+
+/* ================================================================
+   gradeItem()
+   Evaluates one item, applies correct/incorrect class to the card,
+   shows per-item feedback.
+   Returns 1 if correct, 0 if not.
+   The class names 'correct' and 'incorrect' are the exact tokens
+   watched by the platform mood-ring observer.
+   ================================================================ */
+function gradeItem(item) {
+    var val  = document.getElementById('sel-' + item.id).value;
+    var fb   = document.getElementById('fb-' + item.id);
+    var card = document.getElementById('card-' + item.id);
+
+    /* Remove any prior grading classes before re-applying */
+    card.classList.remove('correct', 'incorrect');
+
+    if (val === item.answer) {
+        fb.className   = 'feedback show right';
+        fb.textContent = 'Correct. ' + item.explain;
+        card.classList.add('correct');
+        return 1;
+    } else {
+        fb.className   = 'feedback show wrong';
+        fb.textContent = (val === '' ? 'No answer selected. ' : 'Incorrect. ') +
+                         'The correct answer is: ' + item.answer + '. ' + item.explain;
+        card.classList.add('incorrect');
+        return 0;
+    }
+}
+
+/* ================================================================
+   grade()
+   Grades all items across both stages, renders the score summary,
+   and reveals the Mark Complete button if the pass threshold is met.
+   Pass threshold: >= 80% (16 of 20 total items).
+   ================================================================ */
+function grade() {
+    var s1Correct = 0;
+    var s2Correct = 0;
+    var totalItems = STAGE1.length + STAGE2.length; /* 20 */
+
+    STAGE1.forEach(function(item) { s1Correct += gradeItem(item); });
+    STAGE2.forEach(function(item) { s2Correct += gradeItem(item); });
+
+    var totalCorrect = s1Correct + s2Correct;
+    var pct = Math.round((totalCorrect / totalItems) * 100);
+
+    /* ── Build results panel ─────────────────────────────────────── */
+    var res = document.getElementById('results');
+    var msg;
+    if (pct === 100) {
+        msg = 'Perfect score. You have a solid grasp of governance hierarchy and agreement types.';
+    } else if (pct >= 80) {
+        msg = 'Strong performance. Review any missed items -- the Stage 1 tier distinctions and MSA/SOW/MOU differences are high-frequency exam topics.';
+    } else if (pct >= 60) {
+        msg = 'Decent start. Focus on the policy vs standard vs procedure distinctions and the agreement types (MSA, SOW, MOU/MOA) before exam day.';
+    } else {
+        msg = 'Keep studying. Re-read the Stage 1 reference table and the explanation for every incorrect item -- governance vocabulary is tested heavily in Domain 5.';
+    }
+
+    res.innerHTML =
+        '<h2>Score: ' + totalCorrect + ' / ' + totalItems + ' (' + pct + '%)</h2>' +
+        '<div class="breakdown">' +
+            '<div class="score-pill"><span>' + s1Correct + ' / ' + STAGE1.length + '</span><small>Stage 1 -- Hierarchy</small></div>' +
+            '<div class="score-pill"><span>' + s2Correct + ' / ' + STAGE2.length + '</span><small>Stage 2 -- Agreements</small></div>' +
+        '</div>' +
+        '<p style="color:var(--muted);font-size:0.92rem;">' + msg + '</p>';
+    res.classList.add('show');
+
+    /* Disable submit button to prevent re-grading without reset */
+    document.getElementById('submitBtn').disabled = true;
+
+    /* Reveal Mark Complete on pass (>= 80%) */
+    if (pct >= 80) {
+        document.getElementById('completeSection').classList.add('show');
+    }
+}
+
+/* ================================================================
+   resetLab()
+   Clears all selections, hides results/complete panels,
+   re-enables submit, and re-renders both stages.
+   ================================================================ */
+function resetLab() {
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+    document.getElementById('submitBtn').disabled = false;
+    renderStage(STAGE1, S1_OPTIONS, 'stage1-cards', 'Select tier');
+    renderStage(STAGE2, S2_OPTIONS, 'stage2-cards', 'Select document');
+}
+
+/* ── Initial render on page load ─────────────────────────────── */
+renderStage(STAGE1, S1_OPTIONS, 'stage1-cards', 'Select tier');
+renderStage(STAGE2, S2_OPTIONS, 'stage2-cards', 'Select document');
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+     Always-visible chat entry point. State machine is attempt-driven;
+     button stays calm and serves as a general chat entry until lab
+     activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+<hex-ai-button mission-id="shield-policy-governance-match" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>

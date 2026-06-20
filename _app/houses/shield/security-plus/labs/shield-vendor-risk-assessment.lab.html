@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- ── Auth / progress: load first, in this exact order ───────── -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Risk Assessment | Security+ SY0-701 | Shield House</title>
+    <style>
+        /* ── Reset + CSS custom properties (Shield dark theme) ───────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary:  #f87171;
+            --accent:   #f97316;
+            --bg:       #0a0a12;
+            --card:     rgba(15,15,25,0.90);
+            --card2:    rgba(20,20,32,0.95);
+            --text:     #e8e8f0;
+            --muted:    #888;
+            --border:   rgba(248,113,113,0.20);
+            --glow:     rgba(248,113,113,0.35);
+            --ok:       #10b981;
+            --err:      #ef4444;
+            --warn:     #f59e0b;
+            --info:     #60a5fa;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ──────────────────────────────────────────── */
+        .header {
+            padding: 14px 24px;
+            background: rgba(10,10,18,0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 14px;
+            background: rgba(248,113,113,0.12);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* ── Page layout ────────────────────────────────────────────── */
+        .container { max-width: 1060px; margin: 0 auto; padding: 30px 20px 80px; }
+
+        /* ── Hero / lab title block ─────────────────────────────────── */
+        .lab-title {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 28px;
+            background: linear-gradient(135deg, rgba(248,113,113,0.10), rgba(249,115,22,0.06));
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .lab-title h1 { font-size: 1.8rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-title p  { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+        /* ── Instructions panel ─────────────────────────────────────── */
+        .instructions {
+            background: rgba(249,115,22,0.08);
+            border-left: 4px solid var(--accent);
+            padding: 14px 18px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 28px;
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: #ccc;
+        }
+        .instructions strong { color: var(--accent); }
+
+        /* ── Section heading inside the flow ───────────────────────── */
+        .section-heading {
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin-bottom: 16px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+        }
+
+        /* ── Vendor card ────────────────────────────────────────────── */
+        .vendor-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            transition: border-color 0.35s;
+        }
+
+        /* Mood-ring: correct / incorrect applied to the outer card */
+        .vendor-card.correct   { border-color: var(--ok);  }
+        .vendor-card.incorrect { border-color: var(--err); }
+
+        /* ── Vendor card header bar ──────────────────────────────────── */
+        .vendor-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 22px;
+            background: rgba(248,113,113,0.07);
+            border-bottom: 1px solid var(--border);
+        }
+        .vendor-num {
+            background: var(--primary);
+            color: #000;
+            min-width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        .vendor-meta { flex: 1; }
+        .vendor-name { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+        .vendor-tagline { font-size: 0.80rem; color: var(--muted); margin-top: 2px; }
+
+        /* ── Dossier grid ────────────────────────────────────────────── */
+        .dossier {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--border);
+        }
+        .dossier-field {
+            background: rgba(10,10,20,0.6);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 10px 14px;
+        }
+        .df-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .df-value {
+            font-size: 0.88rem;
+            color: var(--text);
+            line-height: 1.4;
+        }
+        /* Status pill colours for dossier values */
+        .pill {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            border-radius: 5px;
+            padding: 2px 8px;
+            letter-spacing: 0.04em;
+        }
+        .pill-red    { background: rgba(239,68,68,0.18);   color: #f87171; }
+        .pill-orange { background: rgba(249,115,22,0.18);  color: #fb923c; }
+        .pill-green  { background: rgba(16,185,129,0.18);  color: #34d399; }
+        .pill-blue   { background: rgba(96,165,250,0.18);  color: #93c5fd; }
+        .pill-yellow { background: rgba(245,158,11,0.18);  color: #fcd34d; }
+
+        /* ── Assessment form section ─────────────────────────────────── */
+        .assessment-form {
+            padding: 18px 22px;
+        }
+
+        /* ── Sub-section block within the form ──────────────────────── */
+        .form-block {
+            margin-bottom: 20px;
+        }
+        .form-block-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        /* ── Red-flag multi-select checklist ────────────────────────── */
+        .flag-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 7px;
+        }
+        .flag-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            background: rgba(10,10,20,0.55);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 7px;
+            padding: 9px 12px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            user-select: none;
+        }
+        .flag-item:hover { border-color: rgba(248,113,113,0.3); }
+        .flag-item input[type="checkbox"] { flex-shrink: 0; margin-top: 2px; accent-color: var(--primary); cursor: pointer; }
+        .flag-item span { font-size: 0.84rem; color: #ccc; line-height: 1.4; }
+
+        /* ── Single-choice rows (risk tier + decision) ───────────────── */
+        .radio-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(10,10,20,0.55);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 7px;
+            padding: 8px 14px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            font-size: 0.88rem;
+            user-select: none;
+        }
+        .radio-option:hover { border-color: rgba(248,113,113,0.3); }
+        .radio-option input[type="radio"] { accent-color: var(--primary); cursor: pointer; }
+
+        /* ── Required-clauses sub-form (conditionally shown) ────────── */
+        .clause-section {
+            display: none;
+            margin-top: 12px;
+            padding: 12px 14px;
+            background: rgba(249,115,22,0.06);
+            border: 1px solid rgba(249,115,22,0.2);
+            border-radius: 8px;
+        }
+        .clause-section.show { display: block; }
+        .clause-label-text {
+            font-size: 0.78rem;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .clause-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 7px;
+        }
+        .clause-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            background: rgba(10,10,20,0.45);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 7px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            user-select: none;
+        }
+        .clause-item:hover { border-color: rgba(249,115,22,0.35); }
+        .clause-item input[type="checkbox"] { flex-shrink: 0; margin-top: 2px; accent-color: var(--accent); cursor: pointer; }
+        .clause-item span { font-size: 0.83rem; color: #ccc; line-height: 1.4; }
+
+        /* ── Per-vendor feedback box (shown after grading) ───────────── */
+        .vendor-feedback {
+            display: none;
+            margin: 0 22px 18px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            line-height: 1.7;
+        }
+        .vendor-feedback.show { display: block; }
+        .vendor-feedback.pass {
+            background: rgba(16,185,129,0.10);
+            border: 1px solid rgba(16,185,129,0.30);
+        }
+        .vendor-feedback.fail {
+            background: rgba(239,68,68,0.10);
+            border: 1px solid rgba(239,68,68,0.30);
+        }
+        .vf-head {
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .vf-head.pass-text { color: var(--ok); }
+        .vf-head.fail-text { color: var(--err); }
+        .vf-detail { color: #ccc; }
+        .vf-detail p { margin-bottom: 6px; }
+        .vf-detail p:last-child { margin-bottom: 0; }
+
+        /* ── Action buttons ──────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 11px 26px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover { background: rgba(248,113,113,0.08); box-shadow: none; }
+        .btn-complete {
+            background: var(--ok);
+            color: #000;
+        }
+        .btn-complete:hover { background: #34d399; box-shadow: 0 4px 16px rgba(16,185,129,0.35); }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 28px 0 10px;
+            flex-wrap: wrap;
+        }
+
+        /* ── Score summary ───────────────────────────────────────────── */
+        .results {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px 28px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .results.show { display: block; }
+        .results h2 { color: var(--primary); margin-bottom: 10px; font-size: 1.4rem; }
+        .results p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+        .score-breakdown {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin: 16px 0;
+        }
+        .score-item {
+            background: rgba(10,10,20,0.55);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 10px 18px;
+            text-align: center;
+        }
+        .score-item .si-val { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .score-item .si-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+        /* ── Mark-complete section ───────────────────────────────────── */
+        .complete-section {
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+        .complete-section.show { display: block; }
+
+        /* ── 360px responsive tweaks ─────────────────────────────────── */
+        @media (max-width: 480px) {
+            .lab-title h1 { font-size: 1.35rem; }
+            .dossier { grid-template-columns: 1fr 1fr; }
+            .flag-grid { grid-template-columns: 1fr; }
+            .clause-grid { grid-template-columns: 1fr; }
+            .radio-row { flex-direction: column; }
+            .score-breakdown { gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Visually-hidden h2: screen-reader landmark ─────────────────────── -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+    Third-Party / Vendor Risk Assessment Lab
+</h2>
+
+<!-- ── Sticky header ─────────────────────────────────────────────── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+</span>
+</header>
+
+<!-- ── Main content ──────────────────────────────────────────────── -->
+<div class="container">
+
+    <!-- Lab title block -->
+    <div class="lab-title">
+        <h1>Third-Party / Vendor Risk Assessment</h1>
+        <p>SY0-701 Domain 5.3 -- You are the security analyst conducting vendor due diligence.<br>
+           Review each vendor's security dossier, identify red flags, assign a risk tier, and make an approval decision.</p>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+        <strong>How to work through this lab:</strong> Read each vendor's dossier carefully. For each vendor:<br>
+        (1) Check every <strong>red flag</strong> that applies based on the dossier facts.<br>
+        (2) Assign an overall <strong>risk tier</strong> (Low / Medium / High / Critical).<br>
+        (3) Choose a <strong>decision</strong> -- if you select "Approve with Conditions," also specify which
+        <strong>required contract clauses</strong> must be added before approval.<br>
+        Press <strong>Grade All Vendors</strong> when finished. You need 80% or better to mark the lab complete.
+    </div>
+
+    <!-- ── Concept Reference Panel ───────────────────────────────────
+         Zero-knowledge bridge: covers non-obvious concepts tested in
+         the flag and tier questions before students reach any vendor.
+    ─────────────────────────────────────────────────────────────── -->
+    <div style="background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.22);border-radius:12px;padding:18px 22px;margin-bottom:28px;">
+        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#60a5fa;margin-bottom:14px;padding-bottom:6px;border-bottom:1px solid rgba(96,165,250,0.18);">
+            Concept Reference -- Read Before You Start
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
+
+            <!-- SOC 2 Type I vs Type II -->
+            <div style="background:rgba(10,10,20,0.55);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px 14px;">
+                <div style="font-size:0.78rem;font-weight:700;color:#93c5fd;margin-bottom:6px;">SOC 2 Type I vs. Type II</div>
+                <div style="font-size:0.83rem;color:#ccc;line-height:1.55;">
+                    <strong style="color:#e8e8f0;">Type I</strong> -- point-in-time design assessment. An auditor confirms that security controls are <em>designed</em> correctly on a single day. Does not tell you whether they actually worked over time.<br><br>
+                    <strong style="color:#e8e8f0;">Type II</strong> -- operational effectiveness over a period (typically 6--12 months). An auditor tests whether controls <em>operated effectively</em> throughout that window. Type II is the stronger assurance and the industry standard for sensitive-data vendors.
+                </div>
+            </div>
+
+            <!-- Right-to-Audit -->
+            <div style="background:rgba(10,10,20,0.55);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px 14px;">
+                <div style="font-size:0.78rem;font-weight:700;color:#93c5fd;margin-bottom:6px;">Right-to-Audit Clause</div>
+                <div style="font-size:0.83rem;color:#ccc;line-height:1.55;">
+                    A contractual provision giving your organization the right to inspect or commission an independent audit of a vendor's security controls. <strong style="color:#e8e8f0;">Receiving a SOC 2 report is not the same thing</strong> -- a SOC 2 is a vendor-selected audit scope and vendor-selected auditor. A right-to-audit clause lets <em>you</em> define scope and timing. Without it, you rely entirely on what the vendor chooses to show you.
+                </div>
+            </div>
+
+            <!-- 72-Hour Breach Notification -->
+            <div style="background:rgba(10,10,20,0.55);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px 14px;">
+                <div style="font-size:0.78rem;font-weight:700;color:#93c5fd;margin-bottom:6px;">72-Hour Breach Notification (GDPR Art. 33)</div>
+                <div style="font-size:0.83rem;color:#ccc;line-height:1.55;">
+                    GDPR Article 33 requires a data controller to notify the supervisory authority within <strong style="color:#e8e8f0;">72 hours</strong> of becoming aware of a personal data breach. If your vendor takes longer than 72 hours to notify <em>you</em>, you cannot meet your own regulatory deadline. Vendor SLAs exceeding 72 hours are therefore a direct compliance gap, not just a best-practice miss.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ──────────────────────────────────────────────────────────────
+         VENDOR 1 -- CloudVault HR (Correct decision: Approve)
+         Strong posture: SOC 2 Type II, full encryption, MFA, no breach,
+         99.9% SLA, right-to-audit, subprocessors disclosed, EU residency.
+    ─────────────────────────────────────────────────────────────── -->
+    <div class="vendor-card" id="card-1">
+        <div class="vendor-header">
+            <div class="vendor-num">1</div>
+            <div class="vendor-meta">
+                <div class="vendor-name">CloudVault HR Inc.</div>
+                <div class="vendor-tagline">SaaS HRIS platform -- handles employee PII, payroll data, benefits records</div>
+            </div>
+        </div>
+
+        <!-- Dossier fields -->
+        <div class="dossier">
+            <div class="dossier-field">
+                <div class="df-label">Data Classification</div>
+                <div class="df-value">Sensitive PII -- employee SSNs, salary, medical leave records</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">SOC 2 Report</div>
+                <div class="df-value"><span class="pill pill-green">Type II</span> -- 12-month period, issued 2 months ago</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Encryption at Rest</div>
+                <div class="df-value">AES-256 on all storage tiers</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Encryption in Transit</div>
+                <div class="df-value">TLS 1.3 enforced; TLS 1.1/1.2 disabled</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">MFA</div>
+                <div class="df-value"><span class="pill pill-green">Required</span> for all admin and user accounts</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Breach History</div>
+                <div class="df-value"><span class="pill pill-green">None</span> in the past 5 years</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">SLA Uptime</div>
+                <div class="df-value">99.9% monthly with financial penalties for breach</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Right-to-Audit</div>
+                <div class="df-value"><span class="pill pill-green">Yes</span> -- clause included in standard MSA</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Subprocessors / Fourth Parties</div>
+                <div class="df-value">2 disclosed: AWS (storage) and Twilio (SMS MFA) -- both SOC 2 Type II</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Data Residency</div>
+                <div class="df-value">US East -- GDPR transfer covered via Standard Contractual Clauses</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Incident Notification SLA</div>
+                <div class="df-value">72 hours from discovery (aligns with GDPR Art. 33)</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Agreement Types in Place</div>
+                <div class="df-value">MSA, SLA, NDA, DPA -- data return/destruction on termination included</div>
+            </div>
+        </div>
+
+        <!-- Assessment form for Vendor 1 -->
+        <div class="assessment-form">
+
+            <!-- Step 1: Red flags -->
+            <div class="form-block">
+                <div class="form-block-label">Step 1 -- Identify Red Flags (check all that apply)</div>
+                <div class="flag-grid" id="flags-1">
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="no-soc2"> <span>No SOC 2 report provided</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="soc2-type1-only"> <span>Only SOC 2 Type I (point-in-time, weaker assurance)</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="no-encrypt-rest"> <span>No encryption at rest</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="no-encrypt-transit"> <span>No encryption in transit / weak TLS</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="no-mfa"> <span>MFA not required</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="unremediated-breach"> <span>Recent breach with no documented remediation</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="no-audit-clause"> <span>No right-to-audit clause in contract</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="undisclosed-subprocessors"> <span>Subprocessors / fourth parties not disclosed</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="slow-breach-notify"> <span>Breach notification SLA exceeds 72 hours</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-1" value="no-data-return"> <span>No data return/destruction provision on termination</span></label>
+                </div>
+            </div>
+
+            <!-- Step 2: Risk tier -->
+            <div class="form-block">
+                <div class="form-block-label">Step 2 -- Overall Risk Tier</div>
+                <div class="radio-row" id="tier-1">
+                    <label class="radio-option"><input type="radio" name="tier-1" value="Low"> Low</label>
+                    <label class="radio-option"><input type="radio" name="tier-1" value="Medium"> Medium</label>
+                    <label class="radio-option"><input type="radio" name="tier-1" value="High"> High</label>
+                    <label class="radio-option"><input type="radio" name="tier-1" value="Critical"> Critical</label>
+                </div>
+            </div>
+
+            <!-- Step 3: Decision + conditional clauses -->
+            <div class="form-block">
+                <div class="form-block-label">Step 3 -- Approval Decision</div>
+                <div class="radio-row" id="decision-1">
+                    <label class="radio-option"><input type="radio" name="decision-1" value="Approve" onchange="toggleClauses(1)"> Approve</label>
+                    <label class="radio-option"><input type="radio" name="decision-1" value="Approve with Conditions" onchange="toggleClauses(1)"> Approve with Conditions</label>
+                    <label class="radio-option"><input type="radio" name="decision-1" value="Reject" onchange="toggleClauses(1)"> Reject</label>
+                </div>
+                <!-- Required clauses sub-form -- shown only if "Approve with Conditions" selected -->
+                <div class="clause-section" id="clauses-1">
+                    <div class="clause-label-text">Required contract clauses / remediations to add:</div>
+                    <div class="clause-grid">
+                        <label class="clause-item"><input type="checkbox" name="clause-1" value="right-to-audit"> <span>Right-to-audit clause</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-1" value="breach-notify-sla"> <span>Breach notification SLA (72 hr or less)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-1" value="data-return"> <span>Data return/destruction on termination</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-1" value="require-soc2-ii"> <span>Require SOC 2 Type II (annual)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-1" value="encrypt-req"> <span>Encryption requirement (at rest + in transit)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-1" value="subprocessor-disclosure"> <span>Subprocessor disclosure obligation</span></label>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /assessment-form -->
+
+        <!-- Feedback box (hidden until graded) -->
+        <div class="vendor-feedback" id="fb-1"></div>
+    </div><!-- /vendor-card 1 -->
+
+
+    <!-- ──────────────────────────────────────────────────────────────
+         VENDOR 2 -- SwiftPay Processing (Correct decision: Reject)
+         Critical posture: No SOC 2, no encryption at rest, no MFA,
+         recent unremediated breach, no right-to-audit, undisclosed
+         subprocessors, breach-notify SLA > 72 hours.
+    ─────────────────────────────────────────────────────────────── -->
+    <div class="vendor-card" id="card-2">
+        <div class="vendor-header">
+            <div class="vendor-num">2</div>
+            <div class="vendor-meta">
+                <div class="vendor-name">SwiftPay Processing LLC</div>
+                <div class="vendor-tagline">Payment processing gateway -- handles cardholder data (PAN, CVV, billing address)</div>
+            </div>
+        </div>
+
+        <div class="dossier">
+            <div class="dossier-field">
+                <div class="df-label">Data Classification</div>
+                <div class="df-value">PCI-scoped cardholder data -- full PANs stored post-transaction</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">SOC 2 Report</div>
+                <div class="df-value"><span class="pill pill-red">None</span> -- "in progress, expected next quarter"</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Encryption at Rest</div>
+                <div class="df-value"><span class="pill pill-red">None</span> -- data stored in plaintext database files</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Encryption in Transit</div>
+                <div class="df-value">TLS 1.2 (TLS 1.0 still permitted for "legacy clients")</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">MFA</div>
+                <div class="df-value"><span class="pill pill-red">Optional</span> -- not enforced, only offered for admin accounts</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Breach History</div>
+                <div class="df-value"><span class="pill pill-red">Yes</span> -- cardholder data exposed 14 months ago; root cause not publicly remediated</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">SLA Uptime</div>
+                <div class="df-value">99.5% -- no financial penalty clause for downtime</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Right-to-Audit</div>
+                <div class="df-value"><span class="pill pill-red">No</span> -- vendor refuses audit clause; offers self-attestation only</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Subprocessors / Fourth Parties</div>
+                <div class="df-value"><span class="pill pill-red">Not disclosed</span> -- vendor states "internal infrastructure only" (unverifiable)</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Data Residency</div>
+                <div class="df-value">Unknown -- vendor declined to specify jurisdiction</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Incident Notification SLA</div>
+                <div class="df-value"><span class="pill pill-red">30 days</span> from discovery (far exceeds GDPR/state law requirements)</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Agreement Types in Place</div>
+                <div class="df-value">NDA only -- no MSA, no DPA, no SLA, no BPA</div>
+            </div>
+        </div>
+
+        <div class="assessment-form">
+            <div class="form-block">
+                <div class="form-block-label">Step 1 -- Identify Red Flags (check all that apply)</div>
+                <div class="flag-grid" id="flags-2">
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="no-soc2"> <span>No SOC 2 report provided</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="soc2-type1-only"> <span>Only SOC 2 Type I (point-in-time, weaker assurance)</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="no-encrypt-rest"> <span>No encryption at rest</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="no-encrypt-transit"> <span>No encryption in transit / weak TLS</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="no-mfa"> <span>MFA not required</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="unremediated-breach"> <span>Recent breach with no documented remediation</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="no-audit-clause"> <span>No right-to-audit clause in contract</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="undisclosed-subprocessors"> <span>Subprocessors / fourth parties not disclosed</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="slow-breach-notify"> <span>Breach notification SLA exceeds 72 hours</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-2" value="no-data-return"> <span>No data return/destruction provision on termination</span></label>
+                </div>
+            </div>
+
+            <div class="form-block">
+                <div class="form-block-label">Step 2 -- Overall Risk Tier</div>
+                <div class="radio-row" id="tier-2">
+                    <label class="radio-option"><input type="radio" name="tier-2" value="Low"> Low</label>
+                    <label class="radio-option"><input type="radio" name="tier-2" value="Medium"> Medium</label>
+                    <label class="radio-option"><input type="radio" name="tier-2" value="High"> High</label>
+                    <label class="radio-option"><input type="radio" name="tier-2" value="Critical"> Critical</label>
+                </div>
+            </div>
+
+            <div class="form-block">
+                <div class="form-block-label">Step 3 -- Approval Decision</div>
+                <div class="radio-row" id="decision-2">
+                    <label class="radio-option"><input type="radio" name="decision-2" value="Approve" onchange="toggleClauses(2)"> Approve</label>
+                    <label class="radio-option"><input type="radio" name="decision-2" value="Approve with Conditions" onchange="toggleClauses(2)"> Approve with Conditions</label>
+                    <label class="radio-option"><input type="radio" name="decision-2" value="Reject" onchange="toggleClauses(2)"> Reject</label>
+                </div>
+                <div class="clause-section" id="clauses-2">
+                    <div class="clause-label-text">Required contract clauses / remediations to add:</div>
+                    <div class="clause-grid">
+                        <label class="clause-item"><input type="checkbox" name="clause-2" value="right-to-audit"> <span>Right-to-audit clause</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-2" value="breach-notify-sla"> <span>Breach notification SLA (72 hr or less)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-2" value="data-return"> <span>Data return/destruction on termination</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-2" value="require-soc2-ii"> <span>Require SOC 2 Type II (annual)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-2" value="encrypt-req"> <span>Encryption requirement (at rest + in transit)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-2" value="subprocessor-disclosure"> <span>Subprocessor disclosure obligation</span></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="vendor-feedback" id="fb-2"></div>
+    </div><!-- /vendor-card 2 -->
+
+
+    <!-- ──────────────────────────────────────────────────────────────
+         VENDOR 3 -- NexaDocStore (Correct decision: Approve with Conditions)
+         Medium/High posture: SOC 2 Type I only (weaker assurance),
+         no right-to-audit clause, subprocessors disclosed but one
+         lacks SOC 2. Encryption present, MFA enforced, no breach.
+         Required clauses: right-to-audit, require SOC 2 Type II.
+    ─────────────────────────────────────────────────────────────── -->
+    <div class="vendor-card" id="card-3">
+        <div class="vendor-header">
+            <div class="vendor-num">3</div>
+            <div class="vendor-meta">
+                <div class="vendor-name">NexaDocStore Ltd.</div>
+                <div class="vendor-tagline">Document management SaaS -- stores legal contracts, NDAs, and financial filings</div>
+            </div>
+        </div>
+
+        <div class="dossier">
+            <div class="dossier-field">
+                <div class="df-label">Data Classification</div>
+                <div class="df-value">Confidential business documents -- legal, financial, M&amp;A materials</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">SOC 2 Report</div>
+                <div class="df-value"><span class="pill pill-yellow">Type I</span> -- point-in-time design assessment only; no Type II period review yet</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Encryption at Rest</div>
+                <div class="df-value">AES-256 on primary storage; backups encrypted with AES-128</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Encryption in Transit</div>
+                <div class="df-value">TLS 1.2 minimum; TLS 1.3 available but not enforced</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">MFA</div>
+                <div class="df-value"><span class="pill pill-green">Required</span> -- enforced via SSO integration (SAML 2.0)</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Breach History</div>
+                <div class="df-value"><span class="pill pill-green">None</span> in the past 5 years</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">SLA Uptime</div>
+                <div class="df-value">99.5% monthly -- credit-only remedies, no financial penalties</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Right-to-Audit</div>
+                <div class="df-value"><span class="pill pill-red">No</span> -- vendor offers SOC 2 report sharing only; no on-site or independent audit right</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Subprocessors / Fourth Parties</div>
+                <div class="df-value">3 disclosed: Azure (storage, SOC 2 Type II), Elastic (search, SOC 2 Type II), SendGrid (email, <span class="pill pill-yellow">no SOC 2</span>)</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Data Residency</div>
+                <div class="df-value">EU West (Ireland) -- GDPR-compliant by residency</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Incident Notification SLA</div>
+                <div class="df-value">48 hours from discovery</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Agreement Types in Place</div>
+                <div class="df-value">MSA, NDA, DPA -- no explicit data-return clause on termination</div>
+            </div>
+        </div>
+
+        <div class="assessment-form">
+            <div class="form-block">
+                <div class="form-block-label">Step 1 -- Identify Red Flags (check all that apply)</div>
+                <div class="flag-grid" id="flags-3">
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="no-soc2"> <span>No SOC 2 report provided</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="soc2-type1-only"> <span>Only SOC 2 Type I (point-in-time, weaker assurance)</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="no-encrypt-rest"> <span>No encryption at rest</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="no-encrypt-transit"> <span>No encryption in transit / weak TLS</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="no-mfa"> <span>MFA not required</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="unremediated-breach"> <span>Recent breach with no documented remediation</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="no-audit-clause"> <span>No right-to-audit clause in contract</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="undisclosed-subprocessors"> <span>Subprocessors / fourth parties not disclosed</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="slow-breach-notify"> <span>Breach notification SLA exceeds 72 hours</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="no-data-return"> <span>No data return/destruction provision on termination</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-3" value="subprocessor-no-soc2"> <span>Fourth-party / subprocessor lacks security assurance (no SOC 2)</span></label>
+                </div>
+            </div>
+
+            <div class="form-block">
+                <div class="form-block-label">Step 2 -- Overall Risk Tier</div>
+                <div class="radio-row" id="tier-3">
+                    <label class="radio-option"><input type="radio" name="tier-3" value="Low"> Low</label>
+                    <label class="radio-option"><input type="radio" name="tier-3" value="Medium"> Medium</label>
+                    <label class="radio-option"><input type="radio" name="tier-3" value="High"> High</label>
+                    <label class="radio-option"><input type="radio" name="tier-3" value="Critical"> Critical</label>
+                </div>
+            </div>
+
+            <div class="form-block">
+                <div class="form-block-label">Step 3 -- Approval Decision</div>
+                <div class="radio-row" id="decision-3">
+                    <label class="radio-option"><input type="radio" name="decision-3" value="Approve" onchange="toggleClauses(3)"> Approve</label>
+                    <label class="radio-option"><input type="radio" name="decision-3" value="Approve with Conditions" onchange="toggleClauses(3)"> Approve with Conditions</label>
+                    <label class="radio-option"><input type="radio" name="decision-3" value="Reject" onchange="toggleClauses(3)"> Reject</label>
+                </div>
+                <div class="clause-section" id="clauses-3">
+                    <div class="clause-label-text">Required contract clauses / remediations to add:</div>
+                    <div class="clause-grid">
+                        <label class="clause-item"><input type="checkbox" name="clause-3" value="right-to-audit"> <span>Right-to-audit clause</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-3" value="breach-notify-sla"> <span>Breach notification SLA (72 hr or less)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-3" value="data-return"> <span>Data return/destruction on termination</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-3" value="require-soc2-ii"> <span>Require SOC 2 Type II (annual)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-3" value="encrypt-req"> <span>Encryption requirement (at rest + in transit)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-3" value="subprocessor-disclosure"> <span>Subprocessor disclosure obligation</span></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="vendor-feedback" id="fb-3"></div>
+    </div><!-- /vendor-card 3 -->
+
+
+    <!-- ──────────────────────────────────────────────────────────────
+         VENDOR 4 -- BioScan Analytics (Correct decision: Approve with Conditions)
+         High posture: SOC 2 Type II present, encryption and MFA enforced,
+         no breach, but no right-to-audit clause, data residency in a
+         jurisdiction with weak privacy law, breach-notify SLA is 7 days
+         (too slow), and no data return/destruction clause.
+         Required clauses: right-to-audit, breach-notify-sla, data-return.
+    ─────────────────────────────────────────────────────────────── -->
+    <div class="vendor-card" id="card-4">
+        <div class="vendor-header">
+            <div class="vendor-num">4</div>
+            <div class="vendor-meta">
+                <div class="vendor-name">BioScan Analytics Corp.</div>
+                <div class="vendor-tagline">AI-driven health analytics platform -- processes de-identified patient outcome data under BAA</div>
+            </div>
+        </div>
+
+        <div class="dossier">
+            <div class="dossier-field">
+                <div class="df-label">Data Classification</div>
+                <div class="df-value">De-identified PHI datasets and aggregated clinical trial outcomes (HIPAA-adjacent; BAA required)</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">SOC 2 Report</div>
+                <div class="df-value"><span class="pill pill-green">Type II</span> -- 12-month period, issued 8 months ago</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Encryption at Rest</div>
+                <div class="df-value">AES-256 -- all data tiers, including analytical scratch space</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Encryption in Transit</div>
+                <div class="df-value">TLS 1.3 enforced for all API and dashboard traffic</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">MFA</div>
+                <div class="df-value"><span class="pill pill-green">Required</span> -- TOTP enforced; hardware key option available</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Breach History</div>
+                <div class="df-value"><span class="pill pill-green">None</span> -- no incidents in 6-year operating history</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">SLA Uptime</div>
+                <div class="df-value">99.7% with SLA credits for any breach beyond 4 hours</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Right-to-Audit</div>
+                <div class="df-value"><span class="pill pill-red">No</span> -- standard contract excludes audit rights; vendor cites SOC 2 Type II as sufficient</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Subprocessors / Fourth Parties</div>
+                <div class="df-value">2 disclosed: GCP (compute, SOC 2 Type II), Snowflake (data warehouse, SOC 2 Type II)</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Data Residency</div>
+                <div class="df-value"><span class="pill pill-orange">Singapore</span> -- jurisdiction lacks comprehensive data-protection law equivalent to GDPR; cross-border transfer requirements unclear</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Incident Notification SLA</div>
+                <div class="df-value"><span class="pill pill-red">7 days</span> from discovery -- exceeds GDPR 72-hour and many state-law requirements</div>
+            </div>
+            <div class="dossier-field">
+                <div class="df-label">Agreement Types in Place</div>
+                <div class="df-value">MSA, NDA, BAA -- SLA present; no data return/destruction clause; DPA not finalized</div>
+            </div>
+        </div>
+
+        <div class="assessment-form">
+            <div class="form-block">
+                <div class="form-block-label">Step 1 -- Identify Red Flags (check all that apply)</div>
+                <div class="flag-grid" id="flags-4">
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="no-soc2"> <span>No SOC 2 report provided</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="soc2-type1-only"> <span>Only SOC 2 Type I (point-in-time, weaker assurance)</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="no-encrypt-rest"> <span>No encryption at rest</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="no-encrypt-transit"> <span>No encryption in transit / weak TLS</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="no-mfa"> <span>MFA not required</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="unremediated-breach"> <span>Recent breach with no documented remediation</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="no-audit-clause"> <span>No right-to-audit clause in contract</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="undisclosed-subprocessors"> <span>Subprocessors / fourth parties not disclosed</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="slow-breach-notify"> <span>Breach notification SLA exceeds 72 hours</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="no-data-return"> <span>No data return/destruction provision on termination</span></label>
+                    <label class="flag-item"><input type="checkbox" name="flag-4" value="weak-jurisdiction"> <span>Data residency in weak-privacy jurisdiction (limited legal recourse)</span></label>
+                </div>
+            </div>
+
+            <div class="form-block">
+                <div class="form-block-label">Step 2 -- Overall Risk Tier</div>
+                <div class="radio-row" id="tier-4">
+                    <label class="radio-option"><input type="radio" name="tier-4" value="Low"> Low</label>
+                    <label class="radio-option"><input type="radio" name="tier-4" value="Medium"> Medium</label>
+                    <label class="radio-option"><input type="radio" name="tier-4" value="High"> High</label>
+                    <label class="radio-option"><input type="radio" name="tier-4" value="Critical"> Critical</label>
+                </div>
+            </div>
+
+            <div class="form-block">
+                <div class="form-block-label">Step 3 -- Approval Decision</div>
+                <div class="radio-row" id="decision-4">
+                    <label class="radio-option"><input type="radio" name="decision-4" value="Approve" onchange="toggleClauses(4)"> Approve</label>
+                    <label class="radio-option"><input type="radio" name="decision-4" value="Approve with Conditions" onchange="toggleClauses(4)"> Approve with Conditions</label>
+                    <label class="radio-option"><input type="radio" name="decision-4" value="Reject" onchange="toggleClauses(4)"> Reject</label>
+                </div>
+                <div class="clause-section" id="clauses-4">
+                    <div class="clause-label-text">Required contract clauses / remediations to add:</div>
+                    <div class="clause-grid">
+                        <label class="clause-item"><input type="checkbox" name="clause-4" value="right-to-audit"> <span>Right-to-audit clause</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-4" value="breach-notify-sla"> <span>Breach notification SLA (72 hr or less)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-4" value="data-return"> <span>Data return/destruction on termination</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-4" value="require-soc2-ii"> <span>Require SOC 2 Type II (annual)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-4" value="encrypt-req"> <span>Encryption requirement (at rest + in transit)</span></label>
+                        <label class="clause-item"><input type="checkbox" name="clause-4" value="subprocessor-disclosure"> <span>Subprocessor disclosure obligation</span></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="vendor-feedback" id="fb-4"></div>
+    </div><!-- /vendor-card 4 -->
+
+
+    <!-- ── Grade / Reset actions ──────────────────────────────────── -->
+    <div class="actions">
+        <button class="btn" id="submitBtn" onclick="gradeAll()">Grade All Vendors</button>
+        <button class="btn btn-secondary" onclick="resetLab()">Reset</button>
+    </div>
+
+    <!-- ── Score summary (shown after grading) ───────────────────── -->
+    <div class="results" id="results"></div>
+
+    <!-- ── Mark Complete button (shown on pass >= 80%) ───────────── -->
+    <div class="complete-section" id="completeSection">
+        <button class="btn btn-complete"
+            onclick="ModuleProgress.complete('shield','shield-vendor-risk-assessment',{returnUrl:'../index.html'})">
+            Mark Complete
+        </button>
+    </div>
+
+</div><!-- /container -->
+
+<script>
+/* ================================================================
+   ANSWER KEY
+   Each vendor entry defines:
+     flags    -- set of correct red-flag values the student should check
+     tier     -- correct risk tier string
+     decision -- correct decision string
+     clauses  -- set of correct clause values (only scored when decision
+                 is "Approve with Conditions"; empty for Approve/Reject)
+   ================================================================ */
+var ANSWER_KEY = {
+    1: {
+        /* CloudVault HR -- strong posture, no real red flags */
+        flags:    [],
+        tier:     'Low',
+        decision: 'Approve',
+        clauses:  [],
+        /* Human-readable explanation shown after grading */
+        explain: {
+            overview: 'CloudVault HR presents a strong security posture. SOC 2 Type II (covering a 12-month operating period) provides the highest available third-party assurance that controls are not just designed but actually work over time -- far stronger than Type I (design-only). All encryption, MFA, right-to-audit, and contractual safeguards are present. No red flags exist; approval without conditions is the correct decision.',
+            flags:    'No red flags apply. All critical controls are confirmed: encryption at rest/in transit, MFA required, SOC 2 Type II current, right-to-audit in MSA, subprocessors disclosed with their own SOC 2, breach-notification SLA within 72 hours, data return/destruction clause present.',
+            tier:     'Low risk. Layered controls, clean breach history, and full contractual coverage place this vendor in the lowest risk tier.',
+            decision: 'Approve. The dossier shows no material gaps. Engaging this vendor requires no additional conditions.',
+            agreements: 'Key agreement types in play: MSA (master service agreement -- the governing commercial contract), SLA (service-level agreement -- defines uptime and remedies), NDA (non-disclosure agreement -- protects confidential information), DPA (data processing agreement -- required for GDPR-covered personal data). A BPA (business partners agreement) would additionally be required if health data were involved.'
+        }
+    },
+    2: {
+        /* SwiftPay Processing -- critically deficient; Reject */
+        /* Correct flags include no-encrypt-transit: TLS 1.0 has been prohibited
+           by PCI DSS since June 2018 (PCI DSS v3.2, requirement 4.1 / v4.0 req 4.2.1).
+           A vendor that still permits TLS 1.0 for "legacy clients" is non-compliant. */
+        flags:    ['no-soc2','no-encrypt-rest','no-encrypt-transit','no-mfa','unremediated-breach','no-audit-clause','undisclosed-subprocessors','slow-breach-notify','no-data-return'],
+        tier:     'Critical',
+        decision: 'Reject',
+        clauses:  [],
+        explain: {
+            overview: 'SwiftPay Processing is handling PCI-scoped cardholder data with no SOC 2 report of any kind, no encryption at rest (PANs in plaintext), weak/prohibited TLS (TLS 1.0 still permitted), MFA only optional, a recent unremediated breach, no right-to-audit clause, undisclosed subprocessors, a 30-day breach-notification SLA (far exceeding GDPR Art. 33\'s 72 hours and most U.S. state statutes), and no data return/destruction commitment. This is a Critical-risk vendor and must be Rejected.',
+            flags:    'All nine red flags apply: no SOC 2; no encryption at rest (PANs stored in plaintext); weak/prohibited TLS -- TLS 1.0 has been prohibited under PCI DSS since June 2018 (PCI DSS v3.2 req 4.1 / v4.0 req 4.2.1), so permitting it for "legacy clients" is a direct compliance violation; MFA not required; recent unremediated breach (the most decisive single factor); no right-to-audit; undisclosed subprocessors (fourth-party risk unquantifiable); breach-notify SLA 30 days (regulatory non-compliance); no data-return clause.',
+            tier:     'Critical. A cardholder-data processor with plaintext storage, prohibited TLS versions, and an unremediated breach is the highest-risk classification. Engaging this vendor would create direct regulatory exposure under PCI DSS.',
+            decision: 'Reject. The combination of unremediated breach + no encryption at rest + no SOC 2 is disqualifying on its own. "Approve with Conditions" is not appropriate here -- conditions cannot retroactively fix an unresolved breach, and a vendor refusing audit rights cannot be trusted to self-certify remediation.',
+            agreements: 'SwiftPay has only an NDA. For a payment processor handling cardholder data, the minimum required agreements are: MSA, SLA, NDA, and a PCI DSS Business Partners Agreement (BPA). The absence of a DPA is also a GDPR gap if any EU cardholders are involved. Never engage a payment processor under NDA alone.'
+        }
+    },
+    3: {
+        /* NexaDocStore -- medium/high; Approve with Conditions */
+        /* Correct flags: soc2-type1-only, no-audit-clause, no-data-return,
+           subprocessor-no-soc2 (SendGrid has no SOC 2) */
+        flags:    ['soc2-type1-only','no-audit-clause','no-data-return','subprocessor-no-soc2'],
+        tier:     ['Medium','High'],   /* both defensible -- see explain.tier */
+        decision: 'Approve with Conditions',
+        /* Correct required clauses for the conditional approval */
+        clauses:  ['right-to-audit','data-return','require-soc2-ii'],
+        explain: {
+            overview: 'NexaDocStore has solid baseline controls (encryption, MFA enforced, no breach, EU residency, 48-hour breach-notify SLA). However, four gaps prevent clean approval: (1) SOC 2 Type I only -- Type I is a point-in-time design assessment; it does not tell you whether controls actually operated effectively over time. Type II testing over a 12-month period is the correct standard for a document platform holding confidential legal and financial materials. (2) No right-to-audit clause -- SOC 2 reports are provided by the vendor and cannot substitute for your organization\'s independent audit right. (3) No data return/destruction clause -- you need contractual certainty that your data is returned or destroyed if you terminate the relationship. (4) SendGrid (email subprocessor) has no SOC 2 of any kind -- this is an unmitigated fourth-party risk for a platform handling legal and M&A documents.',
+            flags:    'Four flags apply: SOC 2 Type I only (weaker assurance -- design review, not operational testing); no right-to-audit clause (vendor sharing SOC 2 reports is not equivalent to an audit right); no data return/destruction provision on termination; and SendGrid (email subprocessor) lacks any SOC 2 -- a fourth-party gap that means notifications and document delivery flow through an unaudited provider. No encryption gaps, no MFA gap, no breach history.',
+            tier:     'Medium or High -- both are defensible. Medium: core controls (encryption, MFA, no breach, EU residency) are present, and the gaps are contractual rather than fundamental. High: storing legal, M&A, and financial documents through a vendor with only Type I assurance and an unaudited email subprocessor represents material residual risk. Accept either tier for full credit.',
+            decision: 'Approve with Conditions. The vendor is viable but must commit in writing to: (a) right-to-audit clause, (b) data return/destruction on termination, and (c) a roadmap to SOC 2 Type II within 12 months (or provide Type II before handling the most sensitive materials). These are contractual additions, not remediation of fundamental control gaps -- which is why this is Conditions rather than Reject.',
+            agreements: 'Existing agreements (MSA, NDA, DPA) cover the basics. The missing data-return clause should be added as an amendment to the MSA. The right-to-audit clause is a standard MSA provision. Requiring SOC 2 Type II can be expressed as a contractual obligation with a target date and a right to terminate if not met.'
+        }
+    },
+    4: {
+        /* BioScan Analytics -- high posture gaps; Approve with Conditions */
+        /* Correct flags: no-audit-clause, slow-breach-notify, no-data-return,
+           weak-jurisdiction (Singapore PDPA less prescriptive than GDPR) */
+        flags:    ['no-audit-clause','slow-breach-notify','no-data-return','weak-jurisdiction'],
+        tier:     'High',
+        decision: 'Approve with Conditions',
+        /* Correct required clauses */
+        clauses:  ['right-to-audit','breach-notify-sla','data-return'],
+        explain: {
+            overview: 'BioScan Analytics has strong technical controls (SOC 2 Type II, AES-256, TLS 1.3, MFA required, clean history, disclosed subprocessors) and a BAA is in place for HIPAA-adjacent work. However, four gaps create high residual risk: (1) No right-to-audit -- the vendor\'s "SOC 2 is sufficient" position does not give your organization independent verification rights. (2) 7-day breach notification SLA -- this violates GDPR Art. 33\'s 72-hour requirement and most U.S. state breach notification laws. This is a regulatory compliance exposure, not just a best-practice gap. (3) No data return/destruction clause -- critical when handling health-adjacent data. (4) Data residency in Singapore -- Singapore\'s PDPA is substantially less prescriptive than GDPR, and cross-border transfer requirements to EU/US remain unclear without explicit contractual mechanisms such as a finalized DPA.',
+            flags:    'Four flags apply: no right-to-audit clause; breach notification SLA of 7 days (exceeds GDPR Art. 33\'s 72-hour requirement); no data return/destruction provision on termination; and data residency in Singapore, a jurisdiction whose PDPA provides weaker privacy protections than GDPR and leaves cross-border transfer obligations unresolved. SOC 2 Type II is present, encryption is strong, MFA is enforced, no breach history, and subprocessors are disclosed with their own SOC 2 coverage.',
+            tier:     'High. Despite strong technical controls, the regulatory exposure from the 7-day breach-notify SLA alone elevates this to High. A GDPR-notifiable incident at this vendor would put your organization in breach of your own notification obligations if the vendor takes 7 days to tell you. The Singapore residency gap compounds the risk.',
+            decision: 'Approve with Conditions. Technical posture is strong; the gaps are contractual. Required conditions: (a) right-to-audit clause added to MSA, (b) breach notification SLA renegotiated to 48 hours or less (to give you margin before your own 72-hour regulatory clock runs), (c) data return/destruction clause added. Also recommend finalizing a DPA with data-residency and cross-border transfer provisions given the Singapore jurisdiction.',
+            agreements: 'BAA (Business Partners Agreement / Business Associates Agreement) is required under HIPAA when a vendor handles PHI -- it is already present, which is correct. The MSA needs right-to-audit and data-return amendments. The missing DPA is a gap given cross-border data flows from Singapore to your jurisdiction. For health data, the full agreement stack is: BAA + MSA + SLA + NDA + DPA.'
+        }
+    }
+};
+
+/* ================================================================
+   toggleClauses(vendorId)
+   Shows or hides the required-clauses sub-form based on whether
+   the student selected "Approve with Conditions" for a given vendor.
+   Called inline via onchange on each decision radio button.
+   ================================================================ */
+function toggleClauses(id) {
+    var decision = document.querySelector('input[name="decision-' + id + '"]:checked');
+    var section  = document.getElementById('clauses-' + id);
+    if (!section) { return; }
+    if (decision && decision.value === 'Approve with Conditions') {
+        section.classList.add('show');
+    } else {
+        section.classList.remove('show');
+    }
+}
+
+/* ================================================================
+   getCheckedValues(name)
+   Returns an array of the values of all checked checkboxes
+   with the given name attribute.
+   ================================================================ */
+function getCheckedValues(name) {
+    var checked = document.querySelectorAll('input[name="' + name + '"]:checked');
+    var vals = [];
+    for (var i = 0; i < checked.length; i++) {
+        vals.push(checked[i].value);
+    }
+    return vals;
+}
+
+/* ================================================================
+   getRadioValue(name)
+   Returns the value of the selected radio input with the given
+   name, or null if nothing is selected.
+   ================================================================ */
+function getRadioValue(name) {
+    var sel = document.querySelector('input[name="' + name + '"]:checked');
+    return sel ? sel.value : null;
+}
+
+/* ================================================================
+   setsEqual(a, b)
+   Returns true when two arrays contain the same values regardless
+   of order. Used to compare flag and clause selections to the key.
+   ================================================================ */
+function setsEqual(a, b) {
+    if (a.length !== b.length) { return false; }
+    var sortedA = a.slice().sort();
+    var sortedB = b.slice().sort();
+    for (var i = 0; i < sortedA.length; i++) {
+        if (sortedA[i] !== sortedB[i]) { return false; }
+    }
+    return true;
+}
+
+/* ================================================================
+   scoreVendor(id)
+   Evaluates the student's answers for one vendor against the key.
+   Returns an object:
+     { points: <earned>, total: <possible>, passed: bool }
+   Scoring:
+     - 1 point: red flags exactly correct
+     - 1 point: risk tier correct
+     - 1 point: decision correct
+     - 1 point: required clauses correct (only when decision is
+                "Approve with Conditions"; auto-full credit for
+                Approve or Reject since clauses panel is not shown)
+   Maximum 4 points per vendor.
+   ================================================================ */
+function scoreVendor(id) {
+    var key      = ANSWER_KEY[id];
+    var flags    = getCheckedValues('flag-' + id);
+    var tier     = getRadioValue('tier-' + id);
+    var decision = getRadioValue('decision-' + id);
+    var clauses  = getCheckedValues('clause-' + id);
+
+    var points = 0;
+    var total  = 4;
+
+    /* Red flags: exact set match */
+    if (setsEqual(flags, key.flags)) { points++; }
+
+    /* Risk tier: exact match, or membership check when key.tier is an array
+       (used for vendors where multiple tiers are defensible, e.g. V3) */
+    var tierCorrect = Array.isArray(key.tier)
+        ? key.tier.indexOf(tier) !== -1
+        : tier === key.tier;
+    if (tierCorrect) { points++; }
+
+    /* Decision: exact match */
+    if (decision === key.decision) { points++; }
+
+    /* Clauses: only graded when the correct decision is "Approve with Conditions".
+       Partial credit: score = (correct selections - wrong selections) / key length,
+       floored at 0. A student who gets 2 of 3 clauses right and checks no extras
+       earns 2/3 of the clause point rather than 0.
+       For Approve or Reject vendors, clauses panel is never shown -- full credit. */
+    if (key.decision === 'Approve with Conditions') {
+        if (decision === 'Approve with Conditions' && key.clauses.length > 0) {
+            /* Count how many of the student's selections are in the key (hits)
+               and how many are not (wrong selections that penalize the score) */
+            var keySet      = key.clauses;
+            var correctHits = clauses.filter(function(c) { return keySet.indexOf(c) !== -1; }).length;
+            var wrongPicks  = clauses.filter(function(c) { return keySet.indexOf(c) === -1; }).length;
+            /* Proportional score: subtract wrong picks, floor at 0, divide by key size */
+            var clauseScore = Math.max(0, correctHits - wrongPicks) / keySet.length;
+            points += clauseScore;
+        }
+        /* If decision is wrong (not "Approve with Conditions"), clause point is 0 */
+    } else {
+        /* Approve or Reject: clauses are not applicable -- award full clause point */
+        points++;
+    }
+
+    return { points: points, total: total, passed: points >= 3 };
+}
+
+/* ================================================================
+   buildFeedbackHTML(id, score)
+   Assembles the explanation HTML for a vendor feedback box.
+   Shows what the correct answers were and why, with teaching
+   detail pulled from the answer key explain object.
+   ================================================================ */
+function buildFeedbackHTML(id, score) {
+    var key    = ANSWER_KEY[id];
+    var ex     = key.explain;
+    var passed = score.passed;
+
+    /* Header line */
+    var head = passed
+        ? '<div class="vf-head pass-text">Correct (' + score.points + '/' + score.total + ' points)</div>'
+        : '<div class="vf-head fail-text">Needs Review (' + score.points + '/' + score.total + ' points)</div>';
+
+    /* Correct red flags list */
+    /* Human-readable labels for every flag value used in the answer key.
+       Any key added to ANSWER_KEY[n].flags MUST have an entry here,
+       or feedback will display the raw key string instead of a label. */
+    var flagNames = {
+        'no-soc2':                  'No SOC 2 report provided',
+        'soc2-type1-only':          'Only SOC 2 Type I (point-in-time)',
+        'no-encrypt-rest':          'No encryption at rest',
+        'no-encrypt-transit':       'No encryption in transit / weak TLS',
+        'no-mfa':                   'MFA not required',
+        'unremediated-breach':      'Recent breach with no documented remediation',
+        'no-audit-clause':          'No right-to-audit clause',
+        'undisclosed-subprocessors':'Subprocessors not disclosed',
+        'slow-breach-notify':       'Breach notification SLA exceeds 72 hours',
+        'no-data-return':           'No data return/destruction on termination',
+        'subprocessor-no-soc2':     'Fourth-party / subprocessor lacks security assurance (no SOC 2)',
+        'weak-jurisdiction':        'Data residency in weak-privacy jurisdiction (limited legal recourse)'
+    };
+    var clauseNames = {
+        'right-to-audit':          'Right-to-audit clause',
+        'breach-notify-sla':       'Breach notification SLA (72 hr or less)',
+        'data-return':             'Data return/destruction on termination',
+        'require-soc2-ii':         'Require SOC 2 Type II (annual)',
+        'encrypt-req':             'Encryption requirement (at rest + in transit)',
+        'subprocessor-disclosure': 'Subprocessor disclosure obligation'
+    };
+
+    /* Format the correct red flags */
+    var flagList = key.flags.length === 0
+        ? 'None -- this vendor has no material red flags.'
+        : key.flags.map(function(f) { return flagNames[f] || f; }).join('; ');
+
+    /* Format the correct required clauses */
+    var clauseList = '';
+    if (key.decision === 'Approve with Conditions' && key.clauses.length > 0) {
+        clauseList = '<p><strong>Required clauses:</strong> ' +
+            key.clauses.map(function(c) { return clauseNames[c] || c; }).join('; ') + '</p>';
+    }
+
+    return head +
+        '<div class="vf-detail">' +
+            '<p>' + ex.overview + '</p>' +
+            '<p><strong>Red flags:</strong> ' + flagList + '</p>' +
+            '<p>' + ex.flags + '</p>' +
+            '<p><strong>Correct tier:</strong> ' + key.tier + ' -- ' + ex.tier + '</p>' +
+            '<p><strong>Correct decision:</strong> ' + key.decision + ' -- ' + ex.decision + '</p>' +
+            clauseList +
+            '<p><strong>Agreements:</strong> ' + ex.agreements + '</p>' +
+        '</div>';
+}
+
+/* ================================================================
+   gradeAll()
+   Main grading function. Scores all 4 vendors, applies mood-ring
+   CSS classes (correct / incorrect) to each card, renders feedback
+   boxes, and shows the score summary. If total score >= 80%, shows
+   the Mark Complete button.
+   ================================================================ */
+function gradeAll() {
+    var totalPoints = 0;
+    var maxPoints   = 0;
+
+    for (var id = 1; id <= 4; id++) {
+        var score = scoreVendor(id);
+        totalPoints += score.points;
+        maxPoints   += score.total;
+
+        /* Mood-ring: add correct or incorrect class to the vendor card */
+        var card = document.getElementById('card-' + id);
+        card.classList.remove('correct', 'incorrect');
+        card.classList.add(score.passed ? 'correct' : 'incorrect');
+
+        /* Render the explanation feedback box */
+        var fb = document.getElementById('fb-' + id);
+        fb.className = 'vendor-feedback show ' + (score.passed ? 'pass' : 'fail');
+        fb.innerHTML = buildFeedbackHTML(id, score);
+    }
+
+    /* Disable the submit button to prevent re-grading without reset */
+    document.getElementById('submitBtn').disabled = true;
+
+    /* Build and show the score summary */
+    var pct     = Math.round((totalPoints / maxPoints) * 100);
+    var passing = pct >= 80;
+
+    var msgText = passing
+        ? 'Outstanding work. You can identify vendor red flags, assign risk tiers, and make defensible approval decisions -- the core of SY0-701 Domain 5.3.'
+        : 'Keep studying. Focus on the difference between SOC 2 Type I and Type II, the right-to-audit clause, fourth-party (subprocessor) risk, and when conditions vs. rejection is appropriate.';
+
+    var res = document.getElementById('results');
+    res.innerHTML =
+        '<h2>Score: ' + totalPoints + ' / ' + maxPoints + ' (' + pct + '%)</h2>' +
+        '<div class="score-breakdown">' +
+            '<div class="score-item"><div class="si-val">' + totalPoints + '</div><div class="si-label">Points Earned</div></div>' +
+            '<div class="score-item"><div class="si-val">' + maxPoints + '</div><div class="si-label">Points Possible</div></div>' +
+            '<div class="score-item"><div class="si-val">' + pct + '%</div><div class="si-label">Score</div></div>' +
+            '<div class="score-item"><div class="si-val">' + (passing ? 'PASS' : 'RETRY') + '</div><div class="si-label">Result</div></div>' +
+        '</div>' +
+        '<p>' + msgText + '</p>';
+    res.classList.add('show');
+
+    /* Reveal Mark Complete button only on passing score */
+    if (passing) {
+        document.getElementById('completeSection').classList.add('show');
+    }
+}
+
+/* ================================================================
+   resetLab()
+   Clears all student input, removes mood-ring classes, hides
+   feedback/results/complete sections, and re-enables grading.
+   ================================================================ */
+function resetLab() {
+    /* Clear all checkboxes */
+    var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = false;
+    }
+
+    /* Clear all radio buttons */
+    var radios = document.querySelectorAll('input[type="radio"]');
+    for (var i = 0; i < radios.length; i++) {
+        radios[i].checked = false;
+    }
+
+    /* Remove mood-ring classes and hide all feedback boxes */
+    for (var id = 1; id <= 4; id++) {
+        var card = document.getElementById('card-' + id);
+        card.classList.remove('correct', 'incorrect');
+
+        var fb = document.getElementById('fb-' + id);
+        fb.className = 'vendor-feedback';
+        fb.innerHTML = '';
+
+        /* Hide clause sections that may have been revealed */
+        var clauses = document.getElementById('clauses-' + id);
+        if (clauses) { clauses.classList.remove('show'); }
+    }
+
+    /* Hide results and complete sections */
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('results').innerHTML = '';
+    document.getElementById('completeSection').classList.remove('show');
+
+    /* Re-enable the grade button */
+    document.getElementById('submitBtn').disabled = false;
+}
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ──────────────────────────────
+     Always-visible chat entry point. State machine is attempt-driven;
+     button stays calm and serves as a general chat entry until lab
+     activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+<hex-ai-button mission-id="shield-vendor-risk-assessment" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>

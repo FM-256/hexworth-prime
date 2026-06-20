@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- ── Platform auth + progress components (load order is mandatory) ── -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantitative Risk Analysis Workshop | Shield House - Security+</title>
+    <style>
+        /* ── Reset + design tokens ─────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary:  #f87171;
+            --accent:   #f97316;
+            --bg:       #0a0a12;
+            --card:     rgba(15,15,25,0.90);
+            --card2:    rgba(20,20,32,0.95);
+            --text:     #e8e8f0;
+            --muted:    #888;
+            --border:   rgba(248,113,113,0.20);
+            --glow:     rgba(248,113,113,0.35);
+            --ok:       #10b981;
+            --err:      #ef4444;
+            --warn:     #f59e0b;
+        }
+
+        /* ── Base ──────────────────────────────────────────────────────── */
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ─────────────────────────────────────────────── */
+        .header {
+            padding: 14px 24px;
+            background: rgba(10,10,18,0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 14px;
+            background: rgba(248,113,113,0.12);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* ── Page wrapper ──────────────────────────────────────────────── */
+        .container { max-width: 980px; margin: 0 auto; padding: 30px 20px 80px; }
+
+        /* ── Hero title block ──────────────────────────────────────────── */
+        .lab-title {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 28px 24px;
+            background: linear-gradient(135deg, rgba(248,113,113,0.10), rgba(249,115,22,0.06));
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .lab-title h1 { font-size: 1.75rem; color: var(--primary); margin-bottom: 8px; }
+        .lab-title p  { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+        /* ── Formula reference panel ───────────────────────────────────── */
+        .formula-box {
+            background: rgba(249,115,22,0.07);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 10px 10px 0;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+            font-size: 0.92rem;
+            line-height: 1.8;
+            color: #ccc;
+        }
+        .formula-box strong { color: var(--accent); }
+        .formula-box code {
+            background: rgba(255,255,255,0.07);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+
+        /* ── Progress tracker ──────────────────────────────────────────── */
+        .progress-bar-wrap {
+            background: rgba(15,15,25,0.80);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 26px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 0.88rem;
+            color: var(--muted);
+        }
+        .progress-track {
+            flex: 1;
+            height: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 3px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+        .progress-label { white-space: nowrap; }
+
+        /* ── Scenario card ─────────────────────────────────────────────── */
+        .scenario-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 22px;
+            overflow: hidden;
+            transition: border-color 0.35s;
+        }
+        /* Mood-ring state classes — exact tokens required by platform */
+        .scenario-card.correct   { border-color: var(--ok); }
+        .scenario-card.incorrect { border-color: var(--err); }
+
+        /* ── Card header strip ─────────────────────────────────────────── */
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(20,20,34,0.60);
+        }
+        .card-num {
+            background: var(--primary);
+            color: #000;
+            min-width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        .card-title { font-size: 1rem; font-weight: 600; color: var(--text); }
+        .card-subtitle { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+        .card-tag {
+            margin-left: auto;
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 12px;
+            border: 1px solid;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .tag-not-worth-it { color: var(--warn); border-color: var(--warn); background: rgba(245,158,11,0.08); }
+
+        /* ── Card body ─────────────────────────────────────────────────── */
+        .card-body { padding: 18px 20px; }
+
+        /* ── Scenario description ──────────────────────────────────────── */
+        .scenario-desc {
+            font-size: 0.92rem;
+            color: #ccc;
+            line-height: 1.65;
+            margin-bottom: 16px;
+        }
+
+        /* ── Given values grid ─────────────────────────────────────────── */
+        .given-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .given-chip {
+            background: rgba(248,113,113,0.08);
+            border: 1px solid rgba(248,113,113,0.18);
+            border-radius: 8px;
+            padding: 7px 14px;
+            font-size: 0.85rem;
+        }
+        .given-chip .chip-label { color: var(--muted); font-size: 0.78rem; display: block; margin-bottom: 2px; }
+        .given-chip .chip-value { color: var(--text); font-weight: 600; }
+
+        /* ── Stage divider ─────────────────────────────────────────────── */
+        .stage-label {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            font-weight: 700;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(249,115,22,0.20);
+        }
+
+        /* ── Calc row (label + input + unit) ───────────────────────────── */
+        .calc-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+        .calc-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .calc-row label {
+            min-width: 260px;
+            font-size: 0.88rem;
+            color: #ccc;
+            flex-shrink: 0;
+        }
+        .calc-row label code {
+            font-size: 0.82rem;
+            background: rgba(255,255,255,0.06);
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+        .calc-row input[type="number"],
+        .calc-row input[type="text"] {
+            width: 160px;
+            background: rgba(10,10,18,0.90);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .calc-row input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(248,113,113,0.15);
+        }
+        .calc-row .unit { font-size: 0.82rem; color: var(--muted); }
+
+        /* ── Decision radio group ──────────────────────────────────────── */
+        .decision-group {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            align-items: center;
+        }
+        .decision-label {
+            font-size: 0.88rem;
+            color: #ccc;
+            min-width: 260px;
+            flex-shrink: 0;
+        }
+        .radio-pair { display: flex; gap: 14px; }
+        .radio-pair label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: #ccc;
+            min-width: auto;
+        }
+        .radio-pair input[type="radio"] { accent-color: var(--primary); width: 15px; height: 15px; }
+
+        /* ── Per-card check button ─────────────────────────────────────── */
+        .card-btn-row { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+        .btn-check {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 9px 20px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-check:hover { background: #fb9a9a; }
+        .btn-check:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* ── Inline feedback per field ─────────────────────────────────── */
+        .field-feedback {
+            font-size: 0.78rem;
+            margin-left: 4px;
+            font-weight: 600;
+        }
+        .field-feedback.ok  { color: var(--ok); }
+        .field-feedback.err { color: var(--err); }
+
+        /* ── Worked solution panel ─────────────────────────────────────── */
+        .solution-panel {
+            display: none;
+            background: rgba(16,185,129,0.06);
+            border: 1px solid rgba(16,185,129,0.22);
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-top: 16px;
+            font-size: 0.88rem;
+            line-height: 1.75;
+            color: #ccc;
+        }
+        .solution-panel.show { display: block; }
+        .solution-panel strong { color: var(--ok); }
+        .solution-panel .sol-wrong strong { color: var(--err); }
+        .sol-line { margin-bottom: 4px; }
+        .sol-verdict {
+            margin-top: 10px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.92rem;
+        }
+        .sol-verdict.justified     { background: rgba(16,185,129,0.12); color: var(--ok); }
+        .sol-verdict.not-justified { background: rgba(245,158,11,0.12); color: var(--warn); }
+
+        /* ── Global actions + score summary ───────────────────────────── */
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 28px 0 0;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 11px 26px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover { background: rgba(248,113,113,0.10); box-shadow: none; }
+
+        .results {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 26px 24px;
+            margin: 24px 0 0;
+            text-align: center;
+        }
+        .results.show { display: block; }
+        .results h2  { color: var(--primary); font-size: 1.4rem; margin-bottom: 8px; }
+        .results p   { color: var(--muted); font-size: 0.92rem; line-height: 1.6; }
+
+        .score-breakdown {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .score-chip {
+            background: rgba(248,113,113,0.08);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 0.84rem;
+        }
+        .score-chip span { display: block; font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+
+        .complete-section { text-align: center; margin-top: 22px; display: none; }
+        .complete-section.show { display: block; }
+
+        /* ── Responsive: narrow viewport ──────────────────────────────── */
+        @media (max-width: 600px) {
+            .calc-row label  { min-width: 100%; }
+            .decision-label  { min-width: 100%; }
+            .decision-group  { flex-direction: column; align-items: flex-start; }
+            .given-grid      { gap: 8px; }
+            .card-header     { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Visually-hidden accessible title (required by platform) -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Quantitative Risk Analysis Workshop Lab</h2>
+
+<!-- ── Sticky header ────────────────────────────────────────────────── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+</span>
+</header>
+
+<!-- ── Main content ─────────────────────────────────────────────────── -->
+<div class="container">
+
+    <!-- Hero -->
+    <div class="lab-title">
+        <h1>Quantitative Risk Analysis Workshop</h1>
+        <p>
+            Compute SLE, ALE, and cost-benefit for six real-world risk scenarios.
+            Each scenario gives you the asset value, exposure factor, and occurrence rate --
+            you run the numbers, then decide whether a proposed control is financially justified.
+        </p>
+    </div>
+
+    <!-- Formula reference -- always visible for learning support -->
+    <div class="formula-box">
+        <strong>Formula Reference (SY0-701 Domain 5.0)</strong><br>
+        <code>SLE = AV x EF</code> &nbsp;|&nbsp; Asset Value x Exposure Factor (0-1, fraction of asset lost per incident)<br>
+        <code>ALE = SLE x ARO</code> &nbsp;|&nbsp; SLE x Annualized Rate of Occurrence (events per year; 0.25 = once every 4 years)<br>
+        <code>ALE Reduction = ALE_before - ALE_after</code><br>
+        <code>Control is JUSTIFIED when: ALE Reduction &gt; Annual Control Cost</code><br>
+        <code>Net Benefit = ALE Reduction - Annual Control Cost</code> (negative = not worth it)
+    </div>
+
+    <!-- Progress tracker -->
+    <div class="progress-bar-wrap">
+        <span class="progress-label">Progress: <strong id="progressText">0 / 6</strong> scenarios graded</span>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <!-- ── Scenario cards rendered here by JS ──────────────────────── -->
+    <div id="scenarioContainer"></div>
+
+    <!-- Global actions -->
+    <div class="actions">
+        <button class="btn btn-secondary" onclick="resetAll()">Reset All</button>
+    </div>
+
+    <!-- Score summary (shown after all 6 graded) -->
+    <div class="results" id="resultsPanel">
+        <h2 id="resultsHeading">Score</h2>
+        <p  id="resultsMsg"></p>
+        <div class="score-breakdown" id="scoreBreakdown"></div>
+    </div>
+
+    <!-- Mark Complete (shown when >= 80% correct) -->
+    <div class="complete-section" id="completeSection">
+        <button class="btn" onclick="ModuleProgress.complete('shield','shield-quant-risk-calculator',{returnUrl:'../index.html'})">Mark Complete</button>
+    </div>
+
+</div><!-- /container -->
+
+<!-- ── Lab logic ────────────────────────────────────────────────────── -->
+<script>
+/*
+ * Quantitative Risk Analysis Workshop
+ * SY0-701 Domain 5.0 -- Security Program Management & Oversight
+ *
+ * Each SCENARIO object defines:
+ *   av   -- Asset Value ($)
+ *   ef   -- Exposure Factor (0-1 decimal)
+ *   aro  -- Annualized Rate of Occurrence (events/year)
+ *   sle  -- Correct SLE = av * ef
+ *   ale  -- Correct ALE = sle * aro
+ *   ctrl -- Safeguard sub-object:
+ *     cost       -- Annual cost of control ($)
+ *     newEF      -- Reduced EF (if EF changes; else same as ef)
+ *     newARO     -- Reduced ARO (if ARO changes; else same as aro)
+ *     newSLE     -- Correct new SLE after control
+ *     newALE     -- Correct new ALE after control
+ *     reduction  -- ALE_before - ALE_after
+ *     netBenefit -- reduction - cost
+ *     justified  -- boolean
+ *
+ * All values pre-computed and double-checked.
+ * Tolerance for student answers: +/- $1 (rounding on intermediate steps).
+ */
+var SCENARIOS = [
+    {
+        id:    1,
+        title: 'Web Application Server -- SQL Injection Breach',
+        domain:'Database & Web',
+        desc:  'A financial services firm owns a production web server and its database with a combined asset value of $200,000. Historical breach data shows that a successful SQL injection attack compromises 40% of the asset (customer PII, downtime, recovery costs). Attacks of this severity occur twice per year on average.',
+        av:    200000,
+        ef:    0.40,
+        aro:   2.0,
+        sle:   80000,   /* 200,000 x 0.40 */
+        ale:   160000,  /* 80,000 x 2.0   */
+        ctrl: {
+            desc:      'A Web Application Firewall (WAF) subscription costs $45,000/year and is projected to reduce the Exposure Factor from 0.40 to 0.10 (attackers can still breach but impact is contained).',
+            cost:      45000,
+            changesEF: true,
+            newEF:     0.10,
+            newARO:    2.0,
+            newSLE:    20000,   /* 200,000 x 0.10 */
+            newALE:    40000,   /* 20,000 x 2.0   */
+            reduction: 120000,  /* 160,000 - 40,000 */
+            netBenefit: 75000,  /* 120,000 - 45,000 */
+            justified:  true
+        }
+    },
+    {
+        id:    2,
+        title: 'Ransomware -- Workstation Fleet',
+        domain:'Endpoint Security',
+        desc:  'A regional hospital maintains a fleet of clinical workstations valued at $500,000. A ransomware outbreak encrypts 30% of the asset value on average (data recovery, ransom, downtime). Based on industry threat intelligence, a successful outbreak occurs once every two years (ARO = 0.5).',
+        av:    500000,
+        ef:    0.30,
+        aro:   0.5,
+        sle:   150000,  /* 500,000 x 0.30 */
+        ale:   75000,   /* 150,000 x 0.5  */
+        ctrl: {
+            desc:      'An Endpoint Detection and Response (EDR) platform costs $18,000/year and is projected to reduce the ARO from 0.5 to 0.10 (early detection stops most outbreaks before encryption completes; EF stays the same for the rare event that slips through).',
+            cost:      18000,
+            changesEF: false,
+            newEF:     0.30,
+            newARO:    0.10,
+            newSLE:    150000,  /* SLE unchanged -- EF unchanged */
+            newALE:    15000,   /* 150,000 x 0.10 */
+            reduction: 60000,   /* 75,000 - 15,000 */
+            netBenefit: 42000,  /* 60,000 - 18,000 */
+            justified:  true
+        }
+    },
+    {
+        id:    3,
+        title: 'Laptop Theft -- Field Sales Team',
+        domain:'Physical Security',
+        desc:  'A sales organization has 80 field laptops with a combined asset value of $80,000. Each theft results in loss of 25% of the fleet value (hardware replacement and average data breach exposure). Theft incidents occur four times per year based on past losses.',
+        av:    80000,
+        ef:    0.25,
+        aro:   4.0,
+        sle:   20000,  /* 80,000 x 0.25 */
+        ale:   80000,  /* 20,000 x 4.0  */
+        ctrl: {
+            desc:      'A managed laptop tracking and remote-wipe service (with physical security lockers at all field offices) costs $95,000/year. The vendor projects it will reduce the ARO from 4.0 to 1.0 per year.',
+            cost:      95000,
+            changesEF: false,
+            newEF:     0.25,
+            newARO:    1.0,
+            newSLE:    20000,  /* SLE unchanged -- EF unchanged */
+            newALE:    20000,  /* 20,000 x 1.0  */
+            reduction: 60000,  /* 80,000 - 20,000 */
+            netBenefit: -35000, /* 60,000 - 95,000 = negative */
+            justified:  false
+        },
+        notWorthIt: true
+    },
+    {
+        id:    4,
+        title: 'Power Outage -- Primary Data Center',
+        domain:'Availability & Resiliency',
+        desc:  'A company\'s primary data center supports assets valued at $1,200,000 (hardware, revenue impact, SLA penalties). Historical data shows that a full power failure destroys or corrupts 15% of those assets (UPS failure, hard shutdowns, corrupted storage). The facility averages one full power failure every four years (ARO = 0.25).',
+        av:    1200000,
+        ef:    0.15,
+        aro:   0.25,
+        sle:   180000,  /* 1,200,000 x 0.15 */
+        ale:   45000,   /* 180,000 x 0.25   */
+        ctrl: {
+            desc:      'Adding a redundant UPS and automatic generator failover costs $12,000/year (maintenance contract + fuel reserve). The upgrade is projected to reduce the Exposure Factor from 0.15 to 0.03 (most shutdowns now become graceful; ARO stays the same).',
+            cost:      12000,
+            changesEF: true,
+            newEF:     0.03,
+            newARO:    0.25,
+            newSLE:    36000,  /* 1,200,000 x 0.03  */
+            newALE:    9000,   /* 36,000 x 0.25     */
+            reduction: 36000,  /* 45,000 - 9,000    */
+            netBenefit: 24000, /* 36,000 - 12,000   */
+            justified:  true
+        }
+    },
+    {
+        id:    5,
+        title: 'Phishing Campaign -- Corporate Email',
+        domain:'User & Identity',
+        desc:  'A 500-person company has email and identity infrastructure valued at $300,000. A successful phishing campaign (credential theft, BEC fraud) costs approximately 20% of that asset value. The security team logs three successful phishing-induced incidents per year.',
+        av:    300000,
+        ef:    0.20,
+        aro:   3.0,
+        sle:   60000,   /* 300,000 x 0.20 */
+        ale:   180000,  /* 60,000 x 3.0   */
+        ctrl: {
+            desc:      'A Security Awareness Training program combined with email gateway filtering costs $22,000/year and is projected to reduce the ARO from 3.0 to 0.50 (most phishing attempts blocked or recognized by users).',
+            cost:      22000,
+            changesEF: false,
+            newEF:     0.20,
+            newARO:    0.50,
+            newSLE:    60000,   /* SLE unchanged -- EF unchanged */
+            newALE:    30000,   /* 60,000 x 0.50  */
+            reduction: 150000,  /* 180,000 - 30,000 */
+            netBenefit: 128000, /* 150,000 - 22,000 */
+            justified:  true
+        }
+    },
+    {
+        id:    6,
+        title: 'Cloud Storage Misconfiguration -- S3 Buckets',
+        domain:'Cloud Security',
+        desc:  'A startup stores customer data in cloud object storage with a total asset value of $600,000. Misconfiguration events expose 5% of that asset value on average (regulatory fines, breach notifications). Based on their current maturity level, a misconfiguration-induced exposure occurs once every four years (ARO = 0.25).',
+        av:    600000,
+        ef:    0.05,
+        aro:   0.25,
+        sle:   30000,  /* 600,000 x 0.05  */
+        ale:   7500,   /* 30,000 x 0.25   */
+        ctrl: {
+            desc:      'A Cloud Security Posture Management (CSPM) tool costs $35,000/year and is projected to reduce the Exposure Factor from 0.05 to 0.01 (automated scanning catches most misconfigs before exposure).',
+            cost:      35000,
+            changesEF: true,
+            newEF:     0.01,
+            newARO:    0.25,
+            newSLE:    6000,   /* 600,000 x 0.01  */
+            newALE:    1500,   /* 6,000 x 0.25    */
+            reduction: 6000,   /* 7,500 - 1,500   */
+            netBenefit: -29000, /* 6,000 - 35,000 = negative */
+            justified:  false
+        },
+        notWorthIt: true
+    }
+];
+
+/* Tracks how many scenarios have been graded (for progress bar and summary) */
+var gradedCount  = 0;
+var correctCount = 0;  /* scenarios where ALL fields correct */
+
+/* Tolerance: student answer within +/- $1 of expected is accepted */
+var TOLERANCE = 1;
+
+/* ────────────────────────────────────────────────────────────────────
+ * parseDollar()
+ * Strip $ signs, commas, and whitespace; return numeric value.
+ * Also handles accounting-negative notation: ($35,000) => -35000.
+ * Returns NaN if the string is not a valid number after stripping.
+ * ──────────────────────────────────────────────────────────────────── */
+function parseDollar(raw) {
+    if (raw === null || raw === undefined) { return NaN; }
+    var s = String(raw).trim();
+    /* Accounting notation: (35000) or ($35,000) or ( $35,000 ) => negative */
+    var accountingMatch = s.match(/^\(\s*\$?([\d,]+\.?\d*)\s*\)$/);
+    if (accountingMatch) {
+        return -parseFloat(accountingMatch[1].replace(/,/g, ''));
+    }
+    var cleaned = s.replace(/[\$,\s]/g, '');
+    return parseFloat(cleaned);
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * withinTolerance()
+ * Returns true if student answer is within TOLERANCE of expected.
+ * ──────────────────────────────────────────────────────────────────── */
+function withinTolerance(student, expected) {
+    return !isNaN(student) && Math.abs(student - expected) <= TOLERANCE;
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * formatDollar()
+ * Format a number as a US dollar string without decimals.
+ * ──────────────────────────────────────────────────────────────────── */
+function formatDollar(n) {
+    return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * renderScenarios()
+ * Build all scenario cards and inject them into #scenarioContainer.
+ * Called on initial load and on reset.
+ * ──────────────────────────────────────────────────────────────────── */
+function renderScenarios() {
+    var container = document.getElementById('scenarioContainer');
+    container.innerHTML = '';
+
+    SCENARIOS.forEach(function(sc) {
+        var card = document.createElement('div');
+        card.className = 'scenario-card';
+        card.id = 'sc-' + sc.id;
+
+        /* Determine whether this scenario flags the "not worth it" tag */
+        var tagHtml = sc.notWorthIt
+            ? '<span class="card-tag tag-not-worth-it">Think Carefully</span>'
+            : '';
+
+        /* Build the given-values chips */
+        var chipsHtml =
+            '<div class="given-grid">' +
+                '<div class="given-chip"><span class="chip-label">Asset Value (AV)</span><span class="chip-value">' + formatDollar(sc.av) + '</span></div>' +
+                '<div class="given-chip"><span class="chip-label">Exposure Factor (EF)</span><span class="chip-value">' + sc.ef.toFixed(2) + '</span></div>' +
+                '<div class="given-chip"><span class="chip-label">ARO (events/year)</span><span class="chip-value">' + sc.aro.toFixed(2) + '</span></div>' +
+            '</div>';
+
+        /* Build Stage 1 inputs (SLE + ALE) */
+        var stage1Html =
+            '<div class="stage-label">Stage 1 -- Baseline Risk Calculation</div>' +
+            '<div class="calc-rows">' +
+                '<div class="calc-row">' +
+                    '<label for="sle-' + sc.id + '">SLE <code>= AV x EF</code></label>' +
+                    '<input type="text" id="sle-' + sc.id + '" placeholder="e.g. 80000" autocomplete="off">' +
+                    '<span class="unit">$</span>' +
+                    '<span class="field-feedback" id="fb-sle-' + sc.id + '"></span>' +
+                '</div>' +
+                '<div class="calc-row">' +
+                    '<label for="ale-' + sc.id + '">ALE <code>= SLE x ARO</code></label>' +
+                    '<input type="text" id="ale-' + sc.id + '" placeholder="e.g. 160000" autocomplete="off">' +
+                    '<span class="unit">$</span>' +
+                    '<span class="field-feedback" id="fb-ale-' + sc.id + '"></span>' +
+                '</div>' +
+            '</div>';
+
+        /* Build Stage 2 inputs (new ALE, reduction, net benefit, decision) */
+        var ctrlHtml =
+            '<div class="given-grid" style="margin-bottom:14px;">' +
+                '<div class="given-chip"><span class="chip-label">Annual Control Cost</span><span class="chip-value">' + formatDollar(sc.ctrl.cost) + '</span></div>' +
+                '<div class="given-chip"><span class="chip-label">' + (sc.ctrl.changesEF ? 'New EF after control' : 'New ARO after control') + '</span><span class="chip-value">' + (sc.ctrl.changesEF ? sc.ctrl.newEF.toFixed(2) : sc.ctrl.newARO.toFixed(2)) + '</span></div>' +
+            '</div>' +
+            '<div class="calc-rows">' +
+                '<div class="calc-row">' +
+                    '<label for="newale-' + sc.id + '">New ALE after control</label>' +
+                    '<input type="text" id="newale-' + sc.id + '" placeholder="" autocomplete="off">' +
+                    '<span class="unit">$</span>' +
+                    '<span class="field-feedback" id="fb-newale-' + sc.id + '"></span>' +
+                '</div>' +
+                '<div class="calc-row">' +
+                    '<label for="reduction-' + sc.id + '">ALE Reduction <code>= ALE_before - ALE_after</code></label>' +
+                    '<input type="text" id="reduction-' + sc.id + '" placeholder="" autocomplete="off">' +
+                    '<span class="unit">$</span>' +
+                    '<span class="field-feedback" id="fb-reduction-' + sc.id + '"></span>' +
+                '</div>' +
+                '<div class="calc-row">' +
+                    '<label for="netbenefit-' + sc.id + '">Net Benefit <code>= Reduction - Control Cost</code><br><span style="font-size:0.78rem;color:var(--muted);font-style:italic;">(reduction minus control cost; enter a negative number if the control is not justified, e.g. -35000)</span></label>' +
+                    '<input type="text" id="netbenefit-' + sc.id + '" placeholder="e.g. -35000" autocomplete="off">' +
+                    '<span class="unit">$</span>' +
+                    '<span class="field-feedback" id="fb-netbenefit-' + sc.id + '"></span>' +
+                '</div>' +
+            '</div>';
+
+        /* Decision radio buttons */
+        var decisionHtml =
+            '<div class="decision-group">' +
+                '<span class="decision-label">Is this control cost-justified?</span>' +
+                '<div class="radio-pair">' +
+                    '<label><input type="radio" name="decision-' + sc.id + '" value="yes"> Yes -- justified</label>' +
+                    '<label><input type="radio" name="decision-' + sc.id + '" value="no">  No -- not justified</label>' +
+                '</div>' +
+                '<span class="field-feedback" id="fb-decision-' + sc.id + '"></span>' +
+            '</div>';
+
+        /* Assemble full card HTML */
+        card.innerHTML =
+            '<div class="card-header">' +
+                '<div class="card-num">' + sc.id + '</div>' +
+                '<div>' +
+                    '<div class="card-title">' + sc.title + '</div>' +
+                    '<div class="card-subtitle">' + sc.domain + '</div>' +
+                '</div>' +
+                tagHtml +
+            '</div>' +
+            '<div class="card-body">' +
+                '<p class="scenario-desc">' + sc.desc + '</p>' +
+                chipsHtml +
+                stage1Html +
+                '<div class="stage-label" style="margin-top:18px;">Stage 2 -- Cost-Benefit Analysis</div>' +
+                '<p class="scenario-desc" style="margin-bottom:14px;font-size:0.87rem;">' + sc.ctrl.desc + '</p>' +
+                ctrlHtml +
+                decisionHtml +
+                '<div class="card-btn-row">' +
+                    '<button class="btn-check" id="btn-' + sc.id + '" onclick="gradeScenario(' + sc.id + ')">Check Scenario ' + sc.id + '</button>' +
+                '</div>' +
+                '<div class="solution-panel" id="sol-' + sc.id + '"></div>' +
+            '</div>';
+
+        container.appendChild(card);
+    });
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * gradeScenario(id)
+ * Read all five student inputs for one scenario, compare to expected
+ * values (within tolerance), apply correct/incorrect class to the card,
+ * build and display the worked solution panel.
+ * ──────────────────────────────────────────────────────────────────── */
+function gradeScenario(id) {
+    /* Find the scenario data object */
+    var sc = null;
+    for (var i = 0; i < SCENARIOS.length; i++) {
+        if (SCENARIOS[i].id === id) { sc = SCENARIOS[i]; break; }
+    }
+    if (!sc) { return; }
+
+    var card = document.getElementById('sc-' + id);
+
+    /* Read student inputs */
+    var stuSLE       = parseDollar(document.getElementById('sle-' + id).value);
+    var stuALE       = parseDollar(document.getElementById('ale-' + id).value);
+    var stuNewALE    = parseDollar(document.getElementById('newale-' + id).value);
+    var stuReduction = parseDollar(document.getElementById('reduction-' + id).value);
+    var stuNetBenefit= parseDollar(document.getElementById('netbenefit-' + id).value);
+    var decisionEls  = document.querySelectorAll('input[name="decision-' + id + '"]');
+    var stuDecision  = '';
+    decisionEls.forEach(function(el) { if (el.checked) { stuDecision = el.value; } });
+
+    /* ── Blank-field guard ─────────────────────────────────────────────
+     * Do NOT grade, lock, or apply mood-ring classes if any required
+     * field is still empty or unparseable, or the decision is unselected.
+     * Show a small inline prompt and return early.
+     * ──────────────────────────────────────────────────────────────────── */
+    var incomplete = isNaN(stuSLE) || isNaN(stuALE) || isNaN(stuNewALE) ||
+                     isNaN(stuReduction) || isNaN(stuNetBenefit) || stuDecision === '';
+    if (incomplete) {
+        /* Find or create the inline warning element just above the button row */
+        var warnId  = 'warn-incomplete-' + id;
+        var warnEl  = document.getElementById(warnId);
+        if (!warnEl) {
+            warnEl = document.createElement('p');
+            warnEl.id = warnId;
+            warnEl.style.cssText = 'color:var(--warn);font-size:0.83rem;margin-bottom:6px;font-weight:600;';
+            var btnRow = document.getElementById('btn-' + id).parentNode;
+            btnRow.parentNode.insertBefore(warnEl, btnRow);
+        }
+        warnEl.textContent = 'Fill in all fields and select a decision before checking.';
+        return;  /* stop here — no grading, no locking, no mood-ring */
+    }
+
+    /* Clear any previous incomplete-warning now that all fields are present */
+    var existingWarn = document.getElementById('warn-incomplete-' + id);
+    if (existingWarn) { existingWarn.remove(); }
+
+    /* Grade each field */
+    var okSLE       = withinTolerance(stuSLE,       sc.sle);
+    var okALE       = withinTolerance(stuALE,       sc.ale);
+    var okNewALE    = withinTolerance(stuNewALE,    sc.ctrl.newALE);
+    var okReduction = withinTolerance(stuReduction, sc.ctrl.reduction);
+    var okNetBenefit= withinTolerance(stuNetBenefit,sc.ctrl.netBenefit);
+    var okDecision  = (stuDecision === (sc.ctrl.justified ? 'yes' : 'no'));
+
+    /* Render per-field feedback icons */
+    function setFb(elId, correct) {
+        var el = document.getElementById(elId);
+        if (correct) {
+            el.textContent = 'Correct';
+            el.className = 'field-feedback ok';
+        } else {
+            el.textContent = 'Check this';
+            el.className = 'field-feedback err';
+        }
+    }
+    setFb('fb-sle-'      + id, okSLE);
+    setFb('fb-ale-'      + id, okALE);
+    setFb('fb-newale-'   + id, okNewALE);
+    setFb('fb-reduction-'+ id, okReduction);
+    setFb('fb-netbenefit-'+id, okNetBenefit);
+    setFb('fb-decision-' + id, okDecision);
+
+    /* A scenario is "correct" when all six fields are right */
+    var allCorrect = okSLE && okALE && okNewALE && okReduction && okNetBenefit && okDecision;
+
+    /* Apply mood-ring class to the card element */
+    card.classList.remove('correct', 'incorrect');
+    card.classList.add(allCorrect ? 'correct' : 'incorrect');
+
+    /* Disable the check button after grading */
+    document.getElementById('btn-' + id).disabled = true;
+    /* Also disable all inputs for this scenario */
+    ['sle', 'ale', 'newale', 'reduction', 'netbenefit'].forEach(function(field) {
+        var el = document.getElementById(field + '-' + id);
+        if (el) { el.disabled = true; }
+    });
+    decisionEls.forEach(function(el) { el.disabled = true; });
+
+    /* Build and display worked solution */
+    showSolution(sc, okSLE, okALE, okNewALE, okReduction, okNetBenefit, okDecision);
+
+    /* Update tally */
+    gradedCount++;
+    if (allCorrect) { correctCount++; }
+    updateProgress();
+
+    /* If all scenarios have been graded, show the summary */
+    if (gradedCount === SCENARIOS.length) {
+        showSummary();
+    }
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * showSolution(sc, ...)
+ * Build the full worked-solution HTML and reveal the panel for a
+ * given scenario. Shows correct expected value for every field.
+ * ──────────────────────────────────────────────────────────────────── */
+function showSolution(sc, okSLE, okALE, okNewALE, okReduction, okNetBenefit, okDecision) {
+    var panel = document.getElementById('sol-' + sc.id);
+
+    /* Helper: mark a line green (correct) or red (missed) */
+    function line(label, value, ok) {
+        var cls = ok ? '' : ' sol-wrong';
+        return '<div class="sol-line' + cls + '"><strong>' + label + ':</strong> ' + value + '</div>';
+    }
+
+    /* Explain which factor changes */
+    var ctrlChange = sc.ctrl.changesEF
+        ? 'New EF = ' + sc.ctrl.newEF.toFixed(2) + ', ARO unchanged at ' + sc.ctrl.newARO.toFixed(2)
+        : 'New ARO = ' + sc.ctrl.newARO.toFixed(2) + ', EF unchanged at ' + sc.ctrl.newEF.toFixed(2);
+
+    var verdictClass = sc.ctrl.justified ? 'justified' : 'not-justified';
+    var verdictText  = sc.ctrl.justified
+        ? 'JUSTIFIED -- ALE reduction (' + formatDollar(sc.ctrl.reduction) + ') exceeds control cost (' + formatDollar(sc.ctrl.cost) + '). Net benefit: ' + formatDollar(sc.ctrl.netBenefit) + '.'
+        : 'NOT JUSTIFIED -- ALE reduction (' + formatDollar(sc.ctrl.reduction) + ') is LESS THAN control cost (' + formatDollar(sc.ctrl.cost) + '). Net loss: ' + formatDollar(Math.abs(sc.ctrl.netBenefit)) + '/year.';
+
+    panel.innerHTML =
+        '<strong style="color:var(--ok);font-size:0.9rem;">Worked Solution</strong>' +
+        '<div style="margin:10px 0 6px;">' +
+        line('SLE = ' + formatDollar(sc.av) + ' x ' + sc.ef.toFixed(2), formatDollar(sc.sle), okSLE) +
+        line('ALE = ' + formatDollar(sc.sle) + ' x ' + sc.aro.toFixed(2), formatDollar(sc.ale), okALE) +
+        '</div>' +
+        '<div style="color:var(--muted);font-size:0.82rem;margin-bottom:8px;">' + ctrlChange + '</div>' +
+        '<div style="margin-bottom:8px;">' +
+        line('New SLE', formatDollar(sc.ctrl.newSLE), true) +
+        line('New ALE = ' + formatDollar(sc.ctrl.newSLE) + ' x ' + sc.ctrl.newARO.toFixed(2), formatDollar(sc.ctrl.newALE), okNewALE) +
+        line('ALE Reduction = ' + formatDollar(sc.ale) + ' - ' + formatDollar(sc.ctrl.newALE), formatDollar(sc.ctrl.reduction), okReduction) +
+        line('Net Benefit = ' + formatDollar(sc.ctrl.reduction) + ' - ' + formatDollar(sc.ctrl.cost), formatDollar(sc.ctrl.netBenefit), okNetBenefit) +
+        '</div>' +
+        '<div class="sol-verdict ' + verdictClass + '">' + verdictText + '</div>';
+
+    panel.classList.add('show');
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * updateProgress()
+ * Refresh the progress bar and counter text.
+ * ──────────────────────────────────────────────────────────────────── */
+function updateProgress() {
+    document.getElementById('progressText').textContent = gradedCount + ' / ' + SCENARIOS.length;
+    var pct = (gradedCount / SCENARIOS.length) * 100;
+    document.getElementById('progressFill').style.width = pct + '%';
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * showSummary()
+ * Build and reveal the score summary after all scenarios are graded.
+ * Show the Mark Complete button when >= 80% scenarios are all-correct.
+ * ──────────────────────────────────────────────────────────────────── */
+function showSummary() {
+    var total  = SCENARIOS.length;
+    var pct    = Math.round((correctCount / total) * 100);
+    var panel  = document.getElementById('resultsPanel');
+    var heading= document.getElementById('resultsHeading');
+    var msg    = document.getElementById('resultsMsg');
+    var breakdown = document.getElementById('scoreBreakdown');
+
+    heading.textContent = 'Score: ' + correctCount + ' / ' + total + ' (' + pct + '%)';
+
+    if (pct >= 80) {
+        msg.textContent = 'Strong work. You can compute quantitative risk and apply cost-benefit analysis -- a core SY0-701 Domain 5 skill.';
+    } else if (pct >= 50) {
+        msg.textContent = 'Decent start. Review the worked solutions, especially the cost-benefit stage. Pay attention to which variable (EF or ARO) the control changes.';
+    } else {
+        msg.textContent = 'Review the Formula Reference at the top and re-read the worked solutions carefully. Focus on tracing each step: SLE first, then ALE, then the new values.';
+    }
+
+    breakdown.innerHTML =
+        '<div class="score-chip">Scenarios Correct<span>' + correctCount + '</span></div>' +
+        '<div class="score-chip">Scenarios Graded<span>' + total + '</span></div>' +
+        '<div class="score-chip">Score<span>' + pct + '%</span></div>';
+
+    panel.classList.add('show');
+
+    /* Reveal Mark Complete if >= 80% */
+    if (pct >= 80) {
+        document.getElementById('completeSection').classList.add('show');
+    }
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * resetAll()
+ * Clear all state and re-render every card from scratch.
+ * ──────────────────────────────────────────────────────────────────── */
+function resetAll() {
+    gradedCount  = 0;
+    correctCount = 0;
+
+    /* Hide panels */
+    document.getElementById('resultsPanel').classList.remove('show');
+    document.getElementById('completeSection').classList.remove('show');
+
+    /* Reset progress bar */
+    updateProgress();
+
+    /* Re-render cards (clears all inputs and feedback) */
+    renderScenarios();
+}
+
+/* ── Initial render ────────────────────────────────────────────────── */
+renderScenarios();
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+     Always-visible chat entry point. State machine is attempt-driven;
+     button stays calm and serves as a general chat entry until lab
+     activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+<hex-ai-button mission-id="shield-quant-risk-calculator" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>
