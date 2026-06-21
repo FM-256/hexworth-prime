@@ -89,6 +89,7 @@ const HOUSE_MAP = [
     { appPrefix: '_app/dispatch/boxes/',                             solutionsDir: 'Dispatch',                          idPattern: /^([a-z]+\d+)/ },
     { appPrefix: '_app/arena/boxes/',                                solutionsDir: 'CTF',                               idPattern: /^([a-z]+-?\d+)/ },
     { appPrefix: '_app/houses/shield/infosec/labs/',                 solutionsDir: 'Principles of Iformation Security', idPattern: /^(pis-[a-z0-9]+)/ },
+    { appPrefix: '_app/houses/shield/security-plus/labs/',           solutionsDir: 'Security+',                         idPattern: /^(shield-sp-blueteam-[a-z0-9-]+)/ },
     { appPrefix: '_app/houses/shield/cyber-framework/labs/',         solutionsDir: 'Shield-FW',                         idPattern: /^([a-z]+-[a-z0-9]+)/ },
     { appPrefix: '_app/houses/matrix/adv-linux/labs/',               solutionsDir: 'Advanced Linux Administration',    idPattern: /^(ala-[a-z0-9]+)/ },
     { appPrefix: '_app/houses/divergent/cybersecurity-ethics/labs/', solutionsDir: 'Ethics in IT',                      idPattern: /^([a-z]+-[a-z0-9]+)/ },
