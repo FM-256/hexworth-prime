@@ -28,7 +28,7 @@ const ObservatoryConsent = (function () {
     'use strict';
 
     // Bump when the consent wording changes so re-consent can be required later.
-    const FORM_VERSION = 'draft-2026-06-21';
+    const FORM_VERSION = 'cerbi-v1-2026-06-21';
 
     // Fallback class list used when the Firestore `observatory_classes`
     // collection is empty/unavailable. Replaced by admin-editable data later.
@@ -38,13 +38,26 @@ const ObservatoryConsent = (function () {
         { id: 'other',    label: 'Other / Not listed' }
     ];
 
-    // DRAFT consent text — PLACEHOLDER. Replace with IRB-approved language.
-    const CONSENT_DRAFT = [
-        { h: 'Purpose', p: 'You are being invited to participate in an educational research study conducted through Hexworth Prime. The purpose is to study how students interact with course materials in order to improve teaching and learning. [DRAFT — final purpose statement to be supplied by IRB.]' },
-        { h: 'What we collect', p: 'If you consent, the platform records your activity within the Hexworth Observatory — pages and modules you open, time spent, interactions, and progress. Your name and selected class are recorded to associate your activity with your enrollment. [DRAFT.]' },
-        { h: 'Voluntary participation & withdrawal', p: 'Participation is entirely voluntary. You may decline without penalty, and you may withdraw at any time by contacting the instructor; withdrawal stops further data collection. [DRAFT — withdrawal procedure to be finalized by IRB.]' },
-        { h: 'Data use & retention', p: 'Collected data is used for educational research and program improvement. It is stored securely and retained per the institution\'s data-retention policy. [DRAFT — retention period and sharing terms to be finalized by IRB.]' },
-        { h: 'Contact', p: 'Questions about this study or your rights as a participant can be directed to the course instructor and the institution\'s IRB. [DRAFT — contact details to be supplied.]' }
+    // Study metadata (from the approved Research Participation Consent Form).
+    const CONSENT_META = {
+        title: 'Gamification in Cybersecurity Training and CERBI Score Analysis',
+        pi: 'Frank Mora, MCSIA',
+        institution: 'National University',
+        email: 'frank.mora@keiseruniversity.edu',
+        phone: '904-616-8333',
+        researcher: 'Frank Mora'
+    };
+
+    // Consent text — verbatim from the approved Research Participation Consent Form.
+    const CONSENT_SECTIONS = [
+        { h: 'Purpose', p: 'This study examines how gamified cybersecurity training influences user behavior, awareness, and decision making. It also evaluates CERBI scoring and behavioral pattern discovery to improve training methods.' },
+        { h: 'Procedures', p: 'Participants will engage in courses, training activities, and competitions using HEXworth Academy content. Interaction and performance data will be collected. Duration: up to 6 months.' },
+        { h: 'Voluntary Participation', p: 'Participation is voluntary. You may withdraw at any time without penalty.' },
+        { h: 'Risks', p: 'Minimal risk. Possible mild discomfort or privacy concerns. Safeguards will be implemented.' },
+        { h: 'Benefits', p: 'No direct benefit. Results may improve cybersecurity education and behavioral risk modeling.' },
+        { h: 'Confidentiality', p: 'All data will be anonymized and securely stored. No personally identifiable information will be disclosed.' },
+        { h: 'Data Usage', p: 'Data will be used for academic research, publications, and development of cybersecurity frameworks such as CERBI.' },
+        { h: 'Consent', p: 'By signing below, you confirm that you understand this study and agree to participate voluntarily.' }
     ];
 
     // ── Firebase helpers ────────────────────────────────────────────────
@@ -124,20 +137,26 @@ const ObservatoryConsent = (function () {
     // and trigger a browser download.
     function triggerDownload(record) {
         const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-        const sections = CONSENT_DRAFT.map(s => `<h3>${esc(s.h)}</h3><p>${esc(s.p)}</p>`).join('');
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Hexworth Observatory — Research Consent (copy)</title>
+        const sections = CONSENT_SECTIONS.map(s => `<h3>${esc(s.h)}</h3><p>${esc(s.p)}</p>`).join('');
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Research Participation Consent (copy)</title>
 <style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 24px;color:#111;line-height:1.5}
-h1{font-size:20px}h3{margin:18px 0 4px}.draft{background:#fde68a;border:1px solid #d97706;padding:8px 12px;border-radius:6px;font-family:monospace;font-size:12px}
+h1{font-size:20px;text-align:center}h3{margin:18px 0 4px;color:#1e3a8a}
+table.hdr{border-collapse:collapse;margin:14px 0;font-size:14px;width:100%}table.hdr td{border:1px solid #ccc;padding:5px 10px}
 .meta{margin-top:24px;border-top:1px solid #ccc;padding-top:12px;font-size:14px}</style></head>
-<body><h1>Hexworth Observatory — Research Participation Consent</h1>
-<div class="draft">DRAFT — placeholder consent text, pending IRB approval. Not a final consent document.</div>
+<body><h1>RESEARCH PARTICIPATION CONSENT FORM</h1>
+<table class="hdr">
+<tr><td><strong>Study Title</strong></td><td>${esc(CONSENT_META.title)}</td></tr>
+<tr><td><strong>Principal Investigator</strong></td><td>${esc(CONSENT_META.pi)}</td></tr>
+<tr><td><strong>Institution</strong></td><td>${esc(CONSENT_META.institution)}</td></tr>
+<tr><td><strong>Email</strong></td><td>${esc(CONSENT_META.email)}</td></tr>
+<tr><td><strong>Phone</strong></td><td>${esc(CONSENT_META.phone)}</td></tr>
+</table>
 ${sections}
-<div class="meta"><p><strong>Participant:</strong> ${esc(record.name)}</p>
+<div class="meta"><p><strong>Participant Name:</strong> ${esc(record.name)}</p>
 <p><strong>Class:</strong> ${esc(record.className)}</p>
-<p><strong>Agreed:</strong> Participate · Data use understood · Voluntary/withdrawal understood</p>
-<p><strong>Signature:</strong> ${esc(record.signature)}</p>
-<p><strong>Date:</strong> ${esc(record.consentedAt)}</p>
-<p><strong>Form version:</strong> ${esc(record.formVersion)}</p></div></body></html>`;
+<p><strong>Participant Signature:</strong> ${esc(record.signature)} &nbsp;&nbsp; <strong>Date:</strong> ${esc(record.consentedAt)}</p>
+<p><strong>Researcher Signature:</strong> ${esc(CONSENT_META.researcher)}</p>
+<p style="color:#666;font-size:12px"><strong>Form version:</strong> ${esc(record.formVersion)}</p></div></body></html>`;
         const blob = new Blob([html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -160,7 +179,7 @@ ${sections}
             border-radius:14px;padding:28px 30px;box-shadow:0 0 60px rgba(129,140,248,0.18);color:#cdd6f4}
         .obs-consent-card h1{margin:0 0 4px;font-size:22px;color:#a5b4fc}
         .obs-consent-sub{color:#7c8bd6;font-size:13px;margin-bottom:14px}
-        .obs-draft-banner{background:rgba(217,119,6,0.12);border:1px solid rgba(245,158,11,0.5);color:#fbbf24;
+        .obs-meta-banner{background:rgba(129,140,248,0.10);border:1px solid rgba(129,140,248,0.35);color:#a5b4fc;
             font-size:12px;padding:8px 12px;border-radius:8px;margin-bottom:16px;letter-spacing:0.3px}
         .obs-consent-body{max-height:38vh;overflow:auto;border:1px solid rgba(129,140,248,0.15);border-radius:8px;
             padding:14px 16px;background:rgba(129,140,248,0.04);margin-bottom:16px;font-size:14px;line-height:1.55}
@@ -184,22 +203,20 @@ ${sections}
         const classes = await loadClasses();
         const overlay = document.createElement('div');
         overlay.className = 'obs-consent-overlay';
-        const sectionsHTML = CONSENT_DRAFT.map(s => `<h3>${s.h}</h3><p>${s.p}</p>`).join('');
+        const sectionsHTML = CONSENT_SECTIONS.map(s => `<h3>${s.h}</h3><p>${s.p}</p>`).join('');
         const classOpts = classes.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
         overlay.innerHTML = `
         <div class="obs-consent-card" role="dialog" aria-modal="true" aria-label="Research participation consent">
             <h1>Find your way by Polaris</h1>
-            <div class="obs-consent-sub">Hexworth Observatory — Research Participation Consent</div>
-            <div class="obs-draft-banner">DRAFT consent text — placeholder pending IRB approval. Not a final consent document.</div>
+            <div class="obs-consent-sub">Research Participation Consent — ${CONSENT_META.title}</div>
+            <div class="obs-meta-banner">Principal Investigator: ${CONSENT_META.pi} &middot; ${CONSENT_META.institution} &middot; ${CONSENT_META.email}</div>
             <div class="obs-consent-body" tabindex="0">${sectionsHTML}</div>
-            <div class="obs-field"><label for="obsName">Full name</label><input type="text" id="obsName" autocomplete="name"></div>
+            <div class="obs-field"><label for="obsName">Participant name</label><input type="text" id="obsName" autocomplete="name"></div>
             <div class="obs-field"><label for="obsClass">Your class (enrollment)</label><select id="obsClass">${classOpts}</select></div>
-            <div class="obs-check"><input type="checkbox" id="obsA1"><label for="obsA1">I agree to participate in this educational research study.</label></div>
-            <div class="obs-check"><input type="checkbox" id="obsA2"><label for="obsA2">I understand what data is collected and how it is used.</label></div>
-            <div class="obs-check"><input type="checkbox" id="obsA3"><label for="obsA3">I understand participation is voluntary and I may withdraw at any time.</label></div>
+            <div class="obs-check"><input type="checkbox" id="obsAgree"><label for="obsAgree">I confirm that I understand this study and agree to participate voluntarily.</label></div>
             <div class="obs-field"><label for="obsSig">Type your name as signature</label><input type="text" id="obsSig" autocomplete="off"></div>
             <div class="obs-actions">
-                <button class="obs-btn" id="obsSubmit" disabled>Agree, enroll & enter</button>
+                <button class="obs-btn" id="obsSubmit" disabled>Agree, enroll &amp; enter</button>
                 <span style="font-size:12px;color:#7c8bd6">A copy downloads to your device on submit.</span>
             </div>
             <div class="obs-err" id="obsErr"></div>
@@ -211,11 +228,11 @@ ${sections}
         // Enable submit only when all required fields are valid.
         function revalidate() {
             const ok = $('#obsName').value.trim() && $('#obsSig').value.trim()
-                && $('#obsA1').checked && $('#obsA2').checked && $('#obsA3').checked;
+                && $('#obsAgree').checked;
             submit.disabled = !ok;
         }
         ['#obsName', '#obsSig', '#obsClass'].forEach(s => $(s).addEventListener('input', revalidate));
-        ['#obsA1', '#obsA2', '#obsA3'].forEach(s => $(s).addEventListener('change', revalidate));
+        $('#obsAgree').addEventListener('change', revalidate);
 
         // Submit handler: persist, download, reveal house.
         submit.addEventListener('click', async () => {
@@ -228,7 +245,8 @@ ${sections}
                 classId: classObj.id,
                 className: classObj.label,
                 formVersion: FORM_VERSION,
-                agreements: { participate: true, dataUse: true, voluntary: true },
+                studyTitle: CONSENT_META.title,
+                agreements: { understoodAndAgree: true },
                 signature: $('#obsSig').value.trim(),
                 consentedAt: new Date().toISOString()
             };
