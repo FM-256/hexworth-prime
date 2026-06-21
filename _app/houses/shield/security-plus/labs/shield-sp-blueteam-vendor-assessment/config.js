@@ -865,7 +865,18 @@ window.VFVAConfig = {
             var wordMode  = args.includes('-w');
             var filePaths = args.filter(function(a) { return !a.startsWith('-'); });
 
-            if (!filePaths.length) return 'Usage: wc [-l] [-w] FILE\nExample: wc -l /home/analyst/vendor/msa_draft.txt';
+            if (!filePaths.length) {
+                // Piped input (e.g. grep PATTERN FILE | wc -l): no file arg, count term._pipedStdin
+                if (term && term._pipedStdin) {
+                    var _s = term._pipedStdin;
+                    var _sl = _s === '' ? 0 : _s.replace(/\n+$/, '').split('\n').length;
+                    var _sw = _s.split(/\s+/).filter(Boolean).length;
+                    if (lineMode) return '  ' + _sl;
+                    if (wordMode) return '  ' + _sw;
+                    return '  ' + _sl + '  ' + _sw + '  ' + _s.length;
+                }
+                return 'Usage: wc [-l] [-w] FILE\nExample: wc -l /var/log/auth.log';
+            }
 
             var results = [];
             filePaths.forEach(function(fp) {
