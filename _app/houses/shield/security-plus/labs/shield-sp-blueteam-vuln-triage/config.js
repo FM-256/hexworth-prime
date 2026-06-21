@@ -59,9 +59,9 @@ window.VFVTConfig = {
     lore: {
         intro: 'It is 09:00 UTC. VM-2026-0601-004 landed in your queue: "Monthly authenticated scan completed -- 11 findings across 7 hosts. Triage required before remediation sprint planning." The scanner ran with domain credentials against the full internal and DMZ scope. Your job is to work through every finding, apply risk-based prioritization, identify the false positive, and submit your triage conclusions as flags.',
 
-        scenario: 'Veridian Financial runs a heterogeneous environment: two internet-facing hosts in the DMZ and five internal hosts across the application and infrastructure tiers. The scanner reported 11 findings with raw CVSS v3.1 scores. But raw CVSS is not priority. Two findings share the highest CVSS score in the report -- one is on an internet-facing host with an active exploit and is the clear top priority; the other is internal-only. One finding is a false positive: the scanner flagged a CVE based on an OpenSSL version banner, but the distro changelog confirms the patch was backported. Read the scan report, cross-reference the asset inventory, and submit what you find.',
+        scenario: 'Veridian Financial runs a heterogeneous environment: two internet-facing hosts in the DMZ and five internal hosts across the application and infrastructure tiers. The scanner reported 11 findings with raw CVSS v3.1 scores. But raw CVSS is not priority. The single highest CVSS in the report (10.0) belongs to an internal-only host -- it is NOT the top priority. A different finding scores 9.8 on an internet-facing host and is actively exploited in the wild -- that combination makes it the unambiguous remediation target. One finding is a false positive: the scanner flagged a CVE based on an OpenSSL version banner, but the distro changelog confirms the patch was backported. Read the scan report, cross-reference the asset inventory, and submit what you find.',
 
-        outro: 'Triage complete. The Log4j RCE (FINDING 001) on the public web application server was correctly identified as top priority: maximum CVSS score, internet-facing, actively exploited, unauthenticated RCE. The OpenSSL memory disclosure finding on the mail server was correctly identified as a false positive -- the distro backported the patch without changing the version banner. The Windows RDP wormable RCE (FINDING 007) on an internal server was correctly identified as the other actively-exploited CVE in the report. This is the core skill SY0-701 Domain 4.3 tests: given a scanner report, combine CVSS, exploitability, and exposure to produce a defensible priority order.',
+        outro: 'Triage complete. The Spring Framework RCE (FINDING 001, CVE-2022-22965) on the public web application server was correctly identified as top priority: CVSS 9.8, internet-facing, actively exploited, unauthenticated RCE. Key lesson: Zerologon (FINDING 002) scores 10.0 -- higher than the top priority -- but it sits on an internal-only domain controller. Internet exposure plus active exploitation outweigh the raw CVSS advantage. The OpenSSL memory disclosure finding on the mail server was correctly identified as a false positive -- the distro backported the patch without changing the version banner. The Windows RDP wormable RCE (FINDING 007) on an internal server was correctly identified as the other actively-exploited CVE in the report. This is the core skill SY0-701 Domain 4.3 tests: given a scanner report, combine CVSS, exploitability, and exposure to produce a defensible priority order.',
 
         goals: [
             'Identify the CVE to remediate first using risk-based triage (CVSS + internet exposure + active exploitation)',
@@ -119,25 +119,25 @@ window.VFVTConfig = {
     //   notes.txt            -- analyst scratch pad
     //
     // FLAG DISCOVERY MAP:
-    //   top_priority_cve    -> scan_report.txt (CVE-2021-44228) correlated
+    //   top_priority_cve    -> scan_report.txt (CVE-2022-22965) correlated
     //                          with asset_inventory.txt (WEB-DMZ-01 = internet-facing)
-    //   highest_cvss        -> scan_report.txt (10.0 -- appears on two CVEs)
+    //   highest_cvss        -> scan_report.txt (10.0 -- CVE-2020-1472 Zerologon only)
     //   false_positive_cve  -> scan_report.txt (CVE-2014-0160 NOTE field)
     //   internet_facing_host-> asset_inventory.txt (WEB-DMZ-01)
     //   exploited_cve       -> scan_report.txt (CVE-2019-0708 NOTE field)
     //
     // REAL CVEs WITH NVD-ACCURATE CVSS v3.1 BASE SCORES:
-    //   CVE-2021-44228  Log4Shell              CVSS 10.0  (NVD: 10.0 CRITICAL)
+    //   CVE-2022-22965  Spring4Shell           CVSS 9.8   (NVD: 9.8 CRITICAL) -- TOP PRIORITY
+    //   CVE-2020-1472   Zerologon              CVSS 10.0  (NVD: 10.0 CRITICAL) -- highest CVSS foil
+    //   CVE-2021-21985  vCenter RCE            CVSS 9.8   (NVD: 9.8 CRITICAL)
+    //   CVE-2022-22963  Spring Cloud Fn SpEL   CVSS 9.8   (NVD: 9.8 CRITICAL)
     //   CVE-2021-26084  Confluence OGNL        CVSS 9.8   (NVD: 9.8 CRITICAL)
-    //   CVE-2019-0708   BlueKeep               CVSS 9.8   (NVD: 9.8 CRITICAL)
     //   CVE-2014-6271   Shellshock             CVSS 9.8   (NVD: 9.8 CRITICAL)
+    //   CVE-2019-0708   BlueKeep               CVSS 9.8   (NVD: 9.8 CRITICAL)
     //   CVE-2021-34527  PrintNightmare         CVSS 8.8   (NVD: 8.8 HIGH)
     //   CVE-2017-0144   EternalBlue/MS17-010   CVSS 8.8   (NVD: 8.8 HIGH)
-    //   CVE-2020-1472   Zerologon              CVSS 10.0  (NVD: 10.0 CRITICAL)
     //   CVE-2021-3156   Baron Samedit (sudo)   CVSS 7.8   (NVD: 7.8 HIGH)
-    //   CVE-2022-22965  Spring4Shell            CVSS 9.8   (NVD: 9.8 CRITICAL)
     //   CVE-2014-0160   Heartbleed             CVSS 7.5   (NVD: 7.5 HIGH) -- FALSE POSITIVE
-    //   CVE-2021-21985  vCenter RCE            CVSS 9.8   (NVD: 9.8 CRITICAL)
     // =========================================================
 
     filesystem: {
@@ -158,13 +158,15 @@ window.VFVTConfig = {
                                 // affected host, port/service, and a NOTE.
                                 // The NOTE on CVE-2014-0160 explicitly calls out the
                                 // false positive condition (backported patch, version banner).
-                                // The NOTE on CVE-2019-0708 and CVE-2021-44228 call out
+                                // The NOTE on CVE-2019-0708 and CVE-2022-22965 call out
                                 // active exploitation.
                                 //
                                 // FLAG DISCOVERY:
-                                //   top_priority_cve   -- CVE-2021-44228 (CVSS 10.0 + internet-facing
+                                //   top_priority_cve   -- CVE-2022-22965 (CVSS 9.8 + internet-facing
                                 //                         WEB-DMZ-01 + exploit available + active)
-                                //   highest_cvss       -- 10.0 (appears on CVE-2021-44228 + CVE-2020-1472)
+                                //   highest_cvss       -- 10.0 (CVE-2020-1472 Zerologon only; the
+                                //                         teaching foil: highest CVSS != top priority
+                                //                         because Zerologon is internal-only)
                                 //   false_positive_cve -- CVE-2014-0160 (NOTE: backported fix)
                                 //   exploited_cve      -- CVE-2019-0708 (NOTE: exploit available / actively exploited)
                                 //   internet_facing_host -- WEB-DMZ-01 (correlate via asset_inventory.txt)
@@ -194,18 +196,19 @@ window.VFVTConfig = {
                                         '================================================================',
                                         'FINDING 001',
                                         '================================================================',
-                                        'CVE          : CVE-2021-44228',
-                                        'Plugin       : 155999',
-                                        'Name         : Apache Log4j2 Remote Code Execution (Log4Shell)',
-                                        'CVSS v3.1    : 10.0 (CRITICAL)',
-                                        'CVSS Vector  : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H',
+                                        'CVE          : CVE-2022-22965',
+                                        'Plugin       : 159715',
+                                        'Name         : Spring Framework RCE via Data Binding (Spring4Shell)',
+                                        'CVSS v3.1    : 9.8 (CRITICAL)',
+                                        'CVSS Vector  : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H',
                                         'Host         : WEB-DMZ-01 (10.10.10.20)',
-                                        'Port/Service : 8443/tcp (Tomcat/Java application)',
+                                        'Port/Service : 443/tcp (Spring Boot application / Nginx reverse proxy)',
                                         'NOTE         : Exploit available. Actively exploited in the wild.',
-                                        '               Unauthenticated network-accessible RCE via JNDI lookup',
-                                        '               injection in log messages. All log4j2 versions 2.0-beta9',
-                                        '               through 2.14.1 are affected. Installed version: 2.14.0.',
-                                        '               Patch to 2.17.1 or set log4j2.formatMsgNoLookups=true.',
+                                        '               Unauthenticated RCE via class attribute manipulation in',
+                                        '               Spring MVC request data binding. Requires JDK 9+ and',
+                                        '               deployment as a WAR on Apache Tomcat. Both conditions',
+                                        '               are met on this host. Installed: Spring Framework 5.3.17.',
+                                        '               Patch to 5.3.18 / 5.2.20 or upgrade to Spring Boot 2.6.6.',
                                         '',
                                         '================================================================',
                                         'FINDING 002',
@@ -239,16 +242,18 @@ window.VFVTConfig = {
                                         '================================================================',
                                         'FINDING 004',
                                         '================================================================',
-                                        'CVE          : CVE-2022-22965',
-                                        'Plugin       : 159715',
-                                        'Name         : Spring Framework RCE via Data Binding (Spring4Shell)',
+                                        'CVE          : CVE-2022-22963',
+                                        'Plugin       : 159714',
+                                        'Name         : Spring Cloud Function SpEL Expression Injection RCE',
                                         'CVSS v3.1    : 9.8 (CRITICAL)',
                                         'CVSS Vector  : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H',
                                         'Host         : INT-APP-01 (10.10.20.30)',
                                         'Port/Service : 8080/tcp (Spring Boot application)',
-                                        'NOTE         : RCE via class attribute binding in Spring MVC / WebFlux.',
-                                        '               Requires JDK 9+. INTERNAL host only.',
-                                        '               Installed: Spring Framework 5.3.17. Patch to 5.3.18.',
+                                        'NOTE         : Unauthenticated RCE via SpEL expression injection in',
+                                        '               the Spring-supplied routing function header. Public PoC',
+                                        '               available; not yet confirmed actively exploited.',
+                                        '               INTERNAL host only.',
+                                        '               Installed: Spring Cloud Function 3.1.6. Patch to 3.2.3.',
                                         '',
                                         '================================================================',
                                         'FINDING 005',
@@ -315,7 +320,7 @@ window.VFVTConfig = {
                                         'Plugin       : 97833',
                                         'Name         : EternalBlue -- SMBv1 Remote Code Execution (MS17-010)',
                                         'CVSS v3.1    : 8.8 (HIGH)',
-                                        'CVSS Vector  : CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H',
+                                        'CVSS Vector  : CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H',
                                         'Host         : INT-APP-02 (10.10.20.32)',
                                         'Port/Service : 445/tcp (SMBv1)',
                                         'NOTE         : SMBv1 remote code execution used by WannaCry and',
@@ -369,10 +374,11 @@ window.VFVTConfig = {
                                 // ── ASSET INVENTORY ──────────────────────────────────
                                 // Maps 7 hosts to exposure (internet-facing vs internal)
                                 // and business criticality.
-                                // KEY LESSON: WEB-DMZ-01 is the only host carrying a
-                                // CVSS 10.0 finding that is also internet-facing.
-                                // That makes CVE-2021-44228 the unambiguous top priority
-                                // even though CVE-2020-1472 (Zerologon) also scores 10.0.
+                                // KEY LESSON: WEB-DMZ-01 carries CVE-2022-22965 (CVSS 9.8,
+                                // internet-facing, actively exploited). CVE-2020-1472
+                                // (Zerologon) scores 10.0 but is on INT-DC-01 (internal
+                                // only). Internet exposure + active exploitation makes the
+                                // 9.8 finding the unambiguous top priority over the 10.0.
                                 //
                                 // FLAG DISCOVERY:
                                 //   internet_facing_host -> hostname for FINDING 001 host
@@ -391,11 +397,12 @@ window.VFVTConfig = {
                                         'Exposure     : INTERNET-FACING',
                                         'Criticality  : HIGH',
                                         'Owner        : Web Engineering',
-                                        'Services     : Apache Tomcat 9.0 (port 8443), Nginx reverse proxy',
-                                        '               (port 443/80), Java 11 application stack',
+                                        'Services     : Apache Tomcat 9.0 (port 443/8443 via Nginx), Nginx',
+                                        '               reverse proxy (port 80/443), Spring Boot 2.6 WAR',
+                                        '               deployment, JDK 11',
                                         'Description  : Public-facing web application server. Handles',
                                         '               customer-facing financial portal. Direct internet',
-                                        '               ingress on ports 80, 443, 8443. No WAF in path.',
+                                        '               ingress on ports 80, 443. No WAF in path.',
                                         'Last Patched : 2026-03-14',
                                         '',
                                         '------------------------------------------------------',
@@ -781,7 +788,7 @@ window.VFVTConfig = {
     // Presents the most forensically relevant scan findings and
     // inventory facts as structured log entries.
     // Severity reflects risk-based assessment (not raw CVSS alone):
-    //   - crit: internet-facing + CVSS 10.0 + actively exploited
+    //   - crit: internet-facing + CVSS 9.8 + actively exploited
     //   - err:  CVSS 10.0 but internal-only, or 9.8 CRITICAL
     //   - warning: HIGH severity, internal
     //   - info:  false positive / low risk
@@ -792,13 +799,13 @@ window.VFVTConfig = {
 
     logViewer: {
         entries: [
-            // ── Top-priority finding (CVSS 10.0, internet-facing, exploited) ──
-            { timestamp: '2026-06-01 02:00:01', severity: 'crit',    source: 'scan/WEB-DMZ-01',       message: 'CVE-2021-44228 Log4Shell -- CVSS 10.0 -- WEB-DMZ-01:8443 (INTERNET-FACING) -- Exploit available, actively exploited', suspicious: true },
-            // ── CVSS 10.0 internal (same score, lower real-world risk) ──────────
+            // ── Top-priority finding (CVSS 9.8, internet-facing, actively exploited) ──
+            { timestamp: '2026-06-01 02:00:01', severity: 'crit',    source: 'scan/WEB-DMZ-01',       message: 'CVE-2022-22965 Spring4Shell -- CVSS 9.8 -- WEB-DMZ-01:443 (INTERNET-FACING) -- Exploit available, actively exploited', suspicious: true },
+            // ── CVSS 10.0 internal (highest raw CVSS, but NOT top priority -- internal-only foil) ──
             { timestamp: '2026-06-01 02:00:02', severity: 'err',     source: 'scan/INT-DC-01',         message: 'CVE-2020-1472 Zerologon -- CVSS 10.0 -- INT-DC-01:445 (INTERNAL ONLY) -- Domain compromise risk' },
             // ── CVSS 9.8 CRITICAL findings (internal) ────────────────────────────
             { timestamp: '2026-06-01 02:00:03', severity: 'err',     source: 'scan/INT-VCENTER-01',    message: 'CVE-2021-21985 vCenter RCE -- CVSS 9.8 -- INT-VCENTER-01:443 (INTERNAL ONLY)' },
-            { timestamp: '2026-06-01 02:00:04', severity: 'err',     source: 'scan/INT-APP-01',        message: 'CVE-2022-22965 Spring4Shell -- CVSS 9.8 -- INT-APP-01:8080 (INTERNAL ONLY)' },
+            { timestamp: '2026-06-01 02:00:04', severity: 'err',     source: 'scan/INT-APP-01',        message: 'CVE-2022-22963 Spring Cloud Fn SpEL RCE -- CVSS 9.8 -- INT-APP-01:8080 (INTERNAL ONLY)' },
             { timestamp: '2026-06-01 02:00:05', severity: 'err',     source: 'scan/INT-WIKI-01',       message: 'CVE-2021-26084 Confluence OGNL -- CVSS 9.8 -- INT-WIKI-01:8090 (INTERNAL ONLY)' },
             { timestamp: '2026-06-01 02:00:06', severity: 'err',     source: 'scan/INT-APP-01',        message: 'CVE-2014-6271 Shellshock -- CVSS 9.8 -- INT-APP-01:80 (INTERNAL ONLY)' },
             // ── Actively exploited CVSS 9.8 (internal) -- exploited_cve target ──
@@ -824,7 +831,7 @@ window.VFVTConfig = {
     // flag_registry/{boxId}/flags/{flagId}.
     //
     // FIRESTORE SEEDING (flag_registry/shield-sp-blueteam-vuln-triage):
-    //   top_priority_cve    -> CVE-2021-44228
+    //   top_priority_cve    -> CVE-2022-22965
     //   highest_cvss        -> 10.0
     //   false_positive_cve  -> CVE-2014-0160
     //   internet_facing_host -> WEB-DMZ-01
@@ -842,7 +849,7 @@ window.VFVTConfig = {
             id:          'highest_cvss',
             points:      100,
             label:       'Highest CVSS v3.1 Base Score',
-            description: 'The single highest CVSS v3.1 base score value present in the scan report. Submit the numeric value with one decimal place (e.g. 10.0). More than one finding may share this score.'
+            description: 'The single highest CVSS v3.1 base score value present in the scan report. Submit the numeric value with one decimal place (e.g. 10.0). Note: the finding with this score is NOT the top-priority CVE -- check the exposure classification to understand why.'
         },
         {
             id:          'false_positive_cve',
@@ -911,7 +918,7 @@ window.VFVTConfig = {
         {
             id:      'hint_top_3',
             flagId:  'top_priority_cve',
-            text:    'Two CVEs in the report share the highest CVSS score. Only one of them is on an internet-facing host AND marked as actively exploited. Read FINDING 001 and cross-reference FINDING 001\'s host against the asset inventory EXPOSURE field.\n\nThe value to submit: {{FLAG:top_priority_cve}}',
+            text:    'The finding with the highest raw CVSS (10.0) is on an internal-only host -- it is NOT the top priority. The top priority is FINDING 001: CVSS 9.8, on the internet-facing DMZ web server, marked as actively exploited. Read FINDING 001 and cross-reference its host against the asset inventory EXPOSURE field.\n\nThe value to submit: {{FLAG:top_priority_cve}}',
             cost:    75,
             penalty: -75
         },
@@ -934,7 +941,7 @@ window.VFVTConfig = {
         {
             id:      'hint_cvss_3',
             flagId:  'highest_cvss',
-            text:    'Two findings in the report share the maximum possible CVSS v3.1 base score. Submit that score as a decimal number.\n\nThe value to submit: {{FLAG:highest_cvss}}',
+            text:    'One finding in the report holds the maximum possible CVSS v3.1 base score. It is NOT the top-priority CVE -- it is on an internal-only host. Submit the score as a decimal number.\n\nThe value to submit: {{FLAG:highest_cvss}}',
             cost:    75,
             penalty: -75
         },
@@ -973,7 +980,7 @@ window.VFVTConfig = {
         {
             id:      'hint_host_2',
             flagId:  'internet_facing_host',
-            text:    'Run: grep "INTERNET-FACING" /home/analyst/asset_inventory.txt\n\nTwo hosts are internet-facing. The top-priority vulnerability is on one of them -- the one running a Java application stack on port 8443. Read FINDING 001 for the host name, then confirm via the asset inventory.',
+            text:    'Run: grep "INTERNET-FACING" /home/analyst/asset_inventory.txt\n\nTwo hosts are internet-facing. The top-priority vulnerability is on one of them -- the one running a Spring Boot WAR deployment behind Nginx. Read FINDING 001 for the host name, then confirm via the asset inventory.',
             cost:    50,
             penalty: -50
         },
