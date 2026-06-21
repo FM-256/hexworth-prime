@@ -214,7 +214,7 @@ window.VFIHConfig = {
                                 // ── AUTH LOG ─────────────────────────────────────────
                                 // Contains:
                                 //   - Normal background noise (other service auths, cron, su)
-                                //   - ~15 "Failed password for jgarcia" from 198.51.100.47
+                                //   - 17 "Failed password for jgarcia" from 198.51.100.47
                                 //   - "Invalid user" lines for nonexistent accounts (additional noise)
                                 //   - THE successful login: "Accepted password for jgarcia from 198.51.100.47 at 03:17:04"
                                 //   - sudo lines after compromise
@@ -473,19 +473,58 @@ window.VFIHConfig = {
         // those lines by the pattern instead of erroring.
         'grep': function(args, term, engine) {
             if (!args.length) {
-                return 'Usage: grep [OPTIONS] PATTERN FILE\n  -i  case-insensitive\n  -v  invert match (lines NOT matching)\n  -c  count matching lines\n  -n  show line numbers\n\nExample: grep "Failed password" /var/log/auth.log\nExample: cat /var/log/firewall.log | grep "BYTES="';
+                return 'Usage: grep [OPTIONS] PATTERN FILE\n  -i  case-insensitive\n  -v  invert match (lines NOT matching)\n  -c  count matching lines\n  -n  show line numbers\n  -A N  print N lines after each match\n  -B N  print N lines before each match\n  -C N  print N lines before and after each match\n\nExample: grep "Failed password" /var/log/auth.log\nExample: grep -A 2 "Accepted password" /var/log/auth.log\nExample: cat /var/log/firewall.log | grep "BYTES="';
             }
 
-            // Parse flags and positional args
-            const flags    = args.filter(function(a) { return a.startsWith('-'); });
-            const nonFlag  = args.filter(function(a) { return !a.startsWith('-'); });
-            const pattern  = nonFlag[0] || '';
-            const filePath = nonFlag[1] || '';
+            // ── Robust left-to-right argument parser ──────────────
+            // Walks args in order so that -A/-B/-C consume their
+            // numeric argument as N, preventing N from being
+            // misassigned as the pattern or filename.
+            var caseInsensitive = false;
+            var invertMatch     = false;
+            var countOnly       = false;
+            var showLineNums    = false;
+            var afterCtx        = 0;   // -A N
+            var beforeCtx       = 0;   // -B N
+            var pattern         = '';
+            var filePath        = '';
 
-            const caseInsensitive = flags.some(function(f) { return f.includes('i'); });
-            const invertMatch     = flags.some(function(f) { return f.includes('v'); });
-            const countOnly       = flags.some(function(f) { return f.includes('c'); });
-            const showLineNums    = flags.some(function(f) { return f.includes('n'); });
+            var i = 0;
+            while (i < args.length) {
+                var tok = args[i];
+                // Context flags: exact token -A / -B / -C  (next token is N)
+                if (tok === '-A' || tok === '-B' || tok === '-C') {
+                    var n = parseInt(args[i + 1], 10);
+                    if (!isNaN(n) && n >= 0) {
+                        if (tok === '-A') { afterCtx  = n; }
+                        else if (tok === '-B') { beforeCtx = n; }
+                        else { afterCtx = n; beforeCtx = n; }
+                        i += 2;
+                    } else {
+                        i++;  // N missing or invalid -- skip flag
+                    }
+                // Context flags with N attached: -A12 / -B3 / -C1
+                } else if (/^-[ABC]\d+$/.test(tok)) {
+                    var letter = tok[1];
+                    var n = parseInt(tok.slice(2), 10);
+                    if (letter === 'A') { afterCtx  = n; }
+                    else if (letter === 'B') { beforeCtx = n; }
+                    else { afterCtx = n; beforeCtx = n; }
+                    i++;
+                // Regular flags: any dash-token not matching -A/-B/-C pattern
+                } else if (tok.startsWith('-')) {
+                    if (tok.includes('i')) { caseInsensitive = true; }
+                    if (tok.includes('v')) { invertMatch     = true; }
+                    if (tok.includes('c')) { countOnly       = true; }
+                    if (tok.includes('n')) { showLineNums    = true; }
+                    i++;
+                // Positional: first non-flag = pattern, second = file
+                } else {
+                    if (!pattern)       { pattern  = tok; }
+                    else if (!filePath) { filePath = tok; }
+                    i++;
+                }
+            }
 
             if (!pattern) return 'grep: missing pattern\nUsage: grep PATTERN FILE';
 
@@ -507,7 +546,7 @@ window.VFIHConfig = {
                 return 'grep: missing file argument\nUsage: grep PATTERN FILE\n       cat FILE | grep PATTERN';
             }
 
-            const lines = content.split('\n');
+            var lines = content.split('\n');
 
             var re;
             try {
@@ -516,20 +555,65 @@ window.VFIHConfig = {
                 return 'grep: invalid regular expression: ' + pattern;
             }
 
-            const matched = [];
+            // ── Match and apply -v filter ─────────────────────────
+            var matchIndices = [];
             lines.forEach(function(line, idx) {
-                const hits = re.test(line);
-                const keep = invertMatch ? !hits : hits;
-                if (keep) matched.push({ num: idx + 1, text: line });
+                var hits = re.test(line);
+                var keep = invertMatch ? !hits : hits;
+                if (keep) { matchIndices.push(idx); }
             });
 
-            if (countOnly) return String(matched.length);
-            if (!matched.length) return ''; // grep exits silently when no match
+            if (countOnly) return String(matchIndices.length);
+            if (!matchIndices.length) return ''; // grep exits silently when no match
 
-            if (showLineNums) {
-                return matched.map(function(m) { return m.num + ':' + m.text; }).join('\n');
+            // ── No context flags: simple output path ──────────────
+            if (afterCtx === 0 && beforeCtx === 0) {
+                return matchIndices.map(function(idx) {
+                    return showLineNums ? (idx + 1) + ':' + lines[idx] : lines[idx];
+                }).join('\n');
             }
-            return matched.map(function(m) { return m.text; }).join('\n');
+
+            // ── Context output: build the set of line indices to print,
+            //    track which are match lines vs context lines, and
+            //    insert '--' separators between non-adjacent groups.
+            // Each entry: { idx, isMatch }
+            var included = [];  // ordered, deduped line entries
+            var seenIdx  = {};  // index -> position in included[]
+
+            matchIndices.forEach(function(midx) {
+                var start = Math.max(0, midx - beforeCtx);
+                var end   = Math.min(lines.length - 1, midx + afterCtx);
+                for (var j = start; j <= end; j++) {
+                    if (!seenIdx.hasOwnProperty(j)) {
+                        seenIdx[j] = included.length;
+                        included.push({ idx: j, isMatch: (j === midx) });
+                    } else if (j === midx) {
+                        // Already in the list -- mark it as a match line
+                        included[seenIdx[j]].isMatch = true;
+                    }
+                }
+            });
+
+            // Sort by line index (they should already be ordered, but ensure it)
+            included.sort(function(a, b) { return a.idx - b.idx; });
+
+            // Build output with '--' separators between non-adjacent groups
+            var output = [];
+            for (var k = 0; k < included.length; k++) {
+                if (k > 0 && included[k].idx !== included[k - 1].idx + 1) {
+                    output.push('--');
+                }
+                var entry = included[k];
+                var text  = lines[entry.idx];
+                if (showLineNums) {
+                    // GNU grep: match lines use ':', context lines use '-'
+                    var sep = entry.isMatch ? ':' : '-';
+                    output.push((entry.idx + 1) + sep + text);
+                } else {
+                    output.push(text);
+                }
+            }
+            return output.join('\n');
         },
 
         // ── wc -l shorthand ───────────────────────────────────
