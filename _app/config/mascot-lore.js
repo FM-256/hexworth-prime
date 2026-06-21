@@ -151,11 +151,11 @@ const MascotLore = {
     observatory: {
         name: 'Polaris',
         house: 'observatory',
-        species: 'North Star',
-        origin: 'Polaris has burned at the still point of the turning sky since long before the first telescope was raised toward it. Every navigator who was ever lost looked up and found their bearing in its light. When Hexworth raised its Observatory, Polaris descended from the celestial pole and took residence above the dome — not to be studied, but to watch the watchers. It charts not constellations but trajectories: which learners drift, which find their heading, which are ready to navigate on their own.',
-        personality: 'Steady, guiding, quietly observant',
+        species: 'Armored Polar Bear',
+        origin: 'Polaris was the largest of the great ice-bears that walked beneath the northern sky, the one who never lost her way home because she always walked toward the one fixed star. The other bears named her for it. When Hexworth raised its Observatory, she came down from the pole in star-forged armor and took the watch — the Great Bear of the heavens made flesh, guiding learners the way lost navigators were once guided by her namesake.',
+        personality: 'Steady, guiding, quietly watchful',
         quote: 'Every voyage needs a fixed point. Find me, and you will never be lost.',
-        ability: 'Can see the course a learner is on before they know it themselves, and hold a bearing steady through any storm of confusion',
+        ability: 'Can read the course a learner is on at a glance and hold a steady bearing through any storm of confusion — as constant as the star she is named for',
         color: '#818cf8'
     },
 
