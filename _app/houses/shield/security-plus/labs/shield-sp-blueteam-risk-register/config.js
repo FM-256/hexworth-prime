@@ -658,7 +658,7 @@ window.VFRRConfig = {
                                 '127.0.0.1     localhost',
                                 '10.10.10.20   WEB-DMZ-01',
                                 '10.10.20.5    INT-DB-CORE',
-                                '10.10.20.30   INT-DEV-01'
+                                '10.10.20.35   INT-DEV-01'
                             ].join('\n')
                         }
                     }

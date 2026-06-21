@@ -215,7 +215,7 @@ window.VFVTConfig = {
                                         'Name         : Zerologon -- Netlogon Privilege Escalation',
                                         'CVSS v3.1    : 10.0 (CRITICAL)',
                                         'CVSS Vector  : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H',
-                                        'Host         : INT-DC-01 (10.10.20.5)',
+                                        'Host         : INT-DC-01 (10.10.20.6)',
                                         'Port/Service : 445/tcp (MS-RPC/Netlogon)',
                                         'NOTE         : Allows unauthenticated attacker with network access to',
                                         '               DC to completely compromise the domain. INTERNAL host',
@@ -287,7 +287,7 @@ window.VFVTConfig = {
                                         'Name         : BlueKeep -- Windows Remote Desktop RCE (Wormable)',
                                         'CVSS v3.1    : 9.8 (CRITICAL)',
                                         'CVSS Vector  : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H',
-                                        'Host         : INT-APP-02 (10.10.20.31)',
+                                        'Host         : INT-APP-02 (10.10.20.32)',
                                         'Port/Service : 3389/tcp (RDP)',
                                         'NOTE         : Exploit available. Actively exploited in the wild.',
                                         '               Pre-authentication wormable RCE in Windows RDP.',
@@ -302,7 +302,7 @@ window.VFVTConfig = {
                                         'Name         : PrintNightmare -- Windows Print Spooler RCE',
                                         'CVSS v3.1    : 8.8 (HIGH)',
                                         'CVSS Vector  : CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H',
-                                        'Host         : INT-DC-01 (10.10.20.5)',
+                                        'Host         : INT-DC-01 (10.10.20.6)',
                                         'Port/Service : 135/tcp (RPC / Print Spooler)',
                                         'NOTE         : Authenticated (low-priv) RCE via Windows Print Spooler.',
                                         '               Requires a domain user account (achievable post-phish).',
@@ -316,7 +316,7 @@ window.VFVTConfig = {
                                         'Name         : EternalBlue -- SMBv1 Remote Code Execution (MS17-010)',
                                         'CVSS v3.1    : 8.8 (HIGH)',
                                         'CVSS Vector  : CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H',
-                                        'Host         : INT-APP-02 (10.10.20.31)',
+                                        'Host         : INT-APP-02 (10.10.20.32)',
                                         'Port/Service : 445/tcp (SMBv1)',
                                         'NOTE         : SMBv1 remote code execution used by WannaCry and',
                                         '               NotPetya ransomware. INTERNAL host.',
@@ -344,7 +344,7 @@ window.VFVTConfig = {
                                         'Name         : Heartbleed -- OpenSSL Memory Disclosure',
                                         'CVSS v3.1    : 7.5 (HIGH)',
                                         'CVSS Vector  : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N',
-                                        'Host         : MAIL-DMZ-01 (10.10.10.25)',
+                                        'Host         : MAIL-DMZ-01 (10.10.10.26)',
                                         'Port/Service : 443/tcp (Postfix/SMTPS + Dovecot IMAPS)',
                                         'NOTE         : *** POSSIBLE FALSE POSITIVE ***',
                                         '               Scanner flagged CVE-2014-0160 because the TLS banner',
@@ -400,7 +400,7 @@ window.VFVTConfig = {
                                         '',
                                         '------------------------------------------------------',
                                         'HOST         : MAIL-DMZ-01',
-                                        'IP           : 10.10.10.25',
+                                        'IP           : 10.10.10.26',
                                         'Zone         : DMZ',
                                         'Exposure     : INTERNET-FACING',
                                         'Criticality  : MEDIUM',
@@ -414,7 +414,7 @@ window.VFVTConfig = {
                                         '',
                                         '------------------------------------------------------',
                                         'HOST         : INT-DC-01',
-                                        'IP           : 10.10.20.5',
+                                        'IP           : 10.10.20.6',
                                         'Zone         : Internal -- Infrastructure Tier',
                                         'Exposure     : INTERNAL ONLY',
                                         'Criticality  : CRITICAL',
@@ -463,7 +463,7 @@ window.VFVTConfig = {
                                         '',
                                         '------------------------------------------------------',
                                         'HOST         : INT-APP-02',
-                                        'IP           : 10.10.20.31',
+                                        'IP           : 10.10.20.32',
                                         'Zone         : Internal -- Application Tier',
                                         'Exposure     : INTERNAL ONLY',
                                         'Criticality  : HIGH',
@@ -614,12 +614,12 @@ window.VFVTConfig = {
                             content: [
                                 '127.0.0.1     localhost',
                                 '10.10.10.20   WEB-DMZ-01',
-                                '10.10.10.25   MAIL-DMZ-01',
-                                '10.10.20.5    INT-DC-01',
+                                '10.10.10.26   MAIL-DMZ-01',
+                                '10.10.20.6    INT-DC-01',
                                 '10.10.20.10   INT-VCENTER-01',
                                 '10.10.20.30   INT-APP-01',
                                 '10.10.20.40   INT-WIKI-01',
-                                '10.10.20.31   INT-APP-02'
+                                '10.10.20.32   INT-APP-02'
                             ].join('\n')
                         }
                     }
@@ -810,7 +810,7 @@ window.VFVTConfig = {
             // ── False positive (flagged by banner, distro patch applied) ──────────
             { timestamp: '2026-06-01 02:00:11', severity: 'info',    source: 'scan/MAIL-DMZ-01',       message: 'CVE-2014-0160 Heartbleed -- CVSS 7.5 -- MAIL-DMZ-01:443 -- NOTE: POSSIBLE FALSE POSITIVE (CentOS 6 distro-backported patch into openssl-1.0.1e; version banner does not reflect patch state)', suspicious: true },
             // ── Asset inventory context ───────────────────────────────────────────
-            { timestamp: '2026-06-01 02:00:12', severity: 'info',    source: 'asset-inventory',        message: 'INTERNET-FACING hosts in scope: WEB-DMZ-01 (10.10.10.20), MAIL-DMZ-01 (10.10.10.25)' },
+            { timestamp: '2026-06-01 02:00:12', severity: 'info',    source: 'asset-inventory',        message: 'INTERNET-FACING hosts in scope: WEB-DMZ-01 (10.10.10.20), MAIL-DMZ-01 (10.10.10.26)' },
             { timestamp: '2026-06-01 02:00:13', severity: 'info',    source: 'asset-inventory',        message: 'INTERNAL-ONLY hosts in scope: INT-DC-01, INT-VCENTER-01, INT-APP-01, INT-WIKI-01, INT-APP-02' }
         ]
     },
