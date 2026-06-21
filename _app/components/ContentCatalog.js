@@ -47,6 +47,14 @@ const ContentCatalog = (function() {
             description: 'Security & Defense',
             basePath: 'houses/shield/'
         },
+        observatory: {
+            id: 'observatory',
+            name: 'Hexworth Observatory',
+            icon: '/assets/images/icons/icon-books.webp',
+            color: '#818cf8',
+            description: 'Active Courses & Research',
+            basePath: 'houses/observatory/'
+        },
         script: {
             id: 'script',
             name: 'House of Script',

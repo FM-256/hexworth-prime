@@ -148,6 +148,17 @@ const MascotLore = {
         color: '#00ff41'
     },
 
+    observatory: {
+        name: 'Polaris',
+        house: 'observatory',
+        species: 'North Star',
+        origin: 'Polaris has burned at the still point of the turning sky since long before the first telescope was raised toward it. Every navigator who was ever lost looked up and found their bearing in its light. When Hexworth raised its Observatory, Polaris descended from the celestial pole and took residence above the dome — not to be studied, but to watch the watchers. It charts not constellations but trajectories: which learners drift, which find their heading, which are ready to navigate on their own.',
+        personality: 'Steady, guiding, quietly observant',
+        quote: 'Every voyage needs a fixed point. Find me, and you will never be lost.',
+        ability: 'Can see the course a learner is on before they know it themselves, and hold a bearing steady through any storm of confusion',
+        color: '#818cf8'
+    },
+
     /**
      * Get lore for a specific house mascot.
      * @param {string} houseId - e.g. 'web', 'dark-arts', 'divergent'
