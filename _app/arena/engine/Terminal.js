@@ -429,11 +429,11 @@ class TerminalInstance {
                 return stdin;
             }
             case 'head': {
-                const n = (args[0] === '-n' && args[1]) ? parseInt(args[1], 10) : 10;
+                const n = this._lineCountArg(args, 10);
                 return stdin.split('\n').slice(0, n).join('\n');
             }
             case 'tail': {
-                const n = (args[0] === '-n' && args[1]) ? parseInt(args[1], 10) : 10;
+                const n = this._lineCountArg(args, 10);
                 return stdin.split('\n').slice(-n).join('\n');
             }
             case 'grep': {
@@ -635,15 +635,40 @@ class TerminalInstance {
         }
     }
 
-    _cmdHead(args) {
-        let n = 10;
-        const files = [];
-        for (const arg of args) {
-            if (arg.startsWith('-n')) { n = parseInt(arg.slice(2)) || 10; }
-            else if (arg.startsWith('-') && !isNaN(parseInt(arg.slice(1)))) { n = parseInt(arg.slice(1)); }
-            else { files.push(arg); }
+    /**
+     * Parse a head/tail line-count argument, supporting all three real-world forms:
+     *   `-n N` (spaced), `-nN` (attached to -n), and `-N` (bare number).
+     * Returns `def` when no valid count flag is present. Used by both the pipe-path
+     * head/tail (in _executeSegmentCapture) and the non-pipe _cmdHead/_cmdTail so a
+     * walkthrough's `grep ... | head -5` and a sample's `head -n 30 FILE` both work.
+     */
+    _lineCountArg(args, def) {
+        let n = def;
+        for (let i = 0; i < args.length; i++) {
+            const a = args[i];
+            if (a === '-n' && args[i + 1] != null) { n = parseInt(args[i + 1], 10); i++; }
+            else if (/^-n\d+$/.test(a)) { n = parseInt(a.slice(2), 10); }
+            else if (/^-\d+$/.test(a)) { n = parseInt(a.slice(1), 10); }
         }
-        for (const f of files) {
+        if (!Number.isFinite(n) || n < 0) n = def;
+        return n;
+    }
+
+    /** Return the file operands from head/tail args (everything that isn't a flag/count). */
+    _fileOperands(args) {
+        const files = [];
+        for (let i = 0; i < args.length; i++) {
+            const a = args[i];
+            if (a === '-n' && args[i + 1] != null) { i++; continue; }   // consume `-n N`
+            if (a.startsWith('-')) continue;                            // skip `-n5`, `-5`, other flags
+            files.push(a);
+        }
+        return files;
+    }
+
+    _cmdHead(args) {
+        const n = this._lineCountArg(args, 10);
+        for (const f of this._fileOperands(args)) {
             const node = this._getNode(f);
             if (!node) { this._appendError(`head: ${f}: No such file or directory`); continue; }
             if (!this._checkPermission(node)) { this._appendError(`head: ${f}: Permission denied`); continue; }
@@ -653,14 +678,8 @@ class TerminalInstance {
     }
 
     _cmdTail(args) {
-        let n = 10;
-        const files = [];
-        for (const arg of args) {
-            if (arg.startsWith('-n')) { n = parseInt(arg.slice(2)) || 10; }
-            else if (arg.startsWith('-') && !isNaN(parseInt(arg.slice(1)))) { n = parseInt(arg.slice(1)); }
-            else { files.push(arg); }
-        }
-        for (const f of files) {
+        const n = this._lineCountArg(args, 10);
+        for (const f of this._fileOperands(args)) {
             const node = this._getNode(f);
             if (!node) { this._appendError(`tail: ${f}: No such file or directory`); continue; }
             if (!this._checkPermission(node)) { this._appendError(`tail: ${f}: Permission denied`); continue; }
