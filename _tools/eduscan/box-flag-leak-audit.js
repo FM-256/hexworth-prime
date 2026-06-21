@@ -82,6 +82,23 @@ const SELF_VALIDATION = {
     'pis-final-patient-zero': { minInfoFindings: 1, reason: 'narrative box — evidence flags appear in fixture data' }
 };
 
+// Find-and-submit blue-team boxes where the flag value (an IP, CVE, hostname,
+// byte-count, doc type) MUST appear in the evidence/fixture data — that is how
+// the student discovers it. These INFO "narrative leaks" are by design, not a
+// defect (zero HIGH ctf-pattern leaks). Acknowledged so they don't add INFO
+// noise to the review list; a NEW narrative leak in any other box still surfaces.
+const ACKNOWLEDGED_NARRATIVE_LEAK = new Set([
+    'shield-sp-blueteam-log-intrusion-hunt',
+    'shield-sp-blueteam-siem-triage',
+    'shield-sp-blueteam-config-audit',
+    'shield-sp-blueteam-vuln-triage',
+    'shield-sp-blueteam-breach-capstone',
+    'shield-sp-blueteam-vendor-assessment',
+    'shield-sp-blueteam-risk-quant',
+    'shield-sp-blueteam-risk-register',
+    'shield-sp-blueteam-policy-classify'
+]);
+
 function loadBoxFlags() {
     if (!fs.existsSync(BOX_FLAGS_PATH)) {
         console.error('FATAL: ' + BOX_FLAGS_PATH + ' missing.');
@@ -170,6 +187,7 @@ function main() {
                 relDir: box.relDir,
                 class: hasHigh ? 'ctf-leak' : 'narrative-leak',
                 severity: hasHigh ? 'high' : 'info',
+                acknowledged: !hasHigh && ACKNOWLEDGED_NARRATIVE_LEAK.has(box.dirname),
                 leakCount: leaks.length,
                 ctfLeakCount: leaks.filter(l => l.severity === 'high').length,
                 infoLeakCount: leaks.filter(l => l.severity === 'info').length,
@@ -203,7 +221,11 @@ function main() {
     }
 
     const ctfLeaks = verdicts.filter(v => v.class === 'ctf-leak');
-    const narrativeLeaks = verdicts.filter(v => v.class === 'narrative-leak');
+    // narrativeLeaks = INFO leaks that still need per-box review;
+    // acknowledgedLeaks = by-design evidence leaks in find-and-submit boxes (see
+    // ACKNOWLEDGED_NARRATIVE_LEAK) — reported as a count, excluded from findings/review.
+    const narrativeLeaks = verdicts.filter(v => v.class === 'narrative-leak' && !v.acknowledged);
+    const acknowledgedLeaks = verdicts.filter(v => v.class === 'narrative-leak' && v.acknowledged);
     const clean = verdicts.filter(v => v.class === 'clean');
     const noRegistry = verdicts.filter(v => v.class === 'no-registry-entry');
 
@@ -217,6 +239,7 @@ function main() {
             clean: clean.length,
             ctfLeaks: ctfLeaks.length,
             narrativeLeaks: narrativeLeaks.length,
+            acknowledgedNarrativeLeaks: acknowledgedLeaks.length,
             noRegistryEntry: noRegistry.length,
             durationMs: Date.now() - startMs
         },
@@ -233,6 +256,7 @@ function main() {
     console.log('  Clean (no literal in config.js):' + clean.length);
     console.log('  CTF-pattern LEAKS (HIGH):       ' + ctfLeaks.length);
     console.log('  Narrative LEAKS (INFO):         ' + narrativeLeaks.length);
+    console.log('  Acknowledged by-design (INFO):  ' + acknowledgedLeaks.length);
     console.log('  No registry entry (N/A):        ' + noRegistry.length);
     console.log('  Self-validation:                PASS (' + Object.keys(SELF_VALIDATION).length + ' test cases)');
     console.log('  Duration:                       ' + (Date.now() - startMs) + 'ms');

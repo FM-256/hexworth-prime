@@ -135,8 +135,15 @@ function countFlagValueTableRows(content) {
         }
         const cells = line.split('|').map(c => c.trim());
         if (!inFlagTable) {
-            // Look for a header row with a "Flag value" / "Flag Value" cell
-            const headerIdx = cells.findIndex(c => /^flag\s+value$/i.test(c));
+            // Look for a header row with a "Flag value" / "Flag Value" cell …
+            let headerIdx = cells.findIndex(c => /^flag\s+value$/i.test(c));
+            // … OR the Hexworth arena-box "Flag Manifest" shape, whose columns are
+            // `| flag_id | points | value |` (plaintext-value flags like IPs/CVEs,
+            // not FLAG{} tokens). Recognise it when a `value` column co-occurs with a
+            // `flag_id` column — same table BOX-002c drift-validates.
+            if (headerIdx === -1 && cells.some(c => /^flag[\s_]?id$/i.test(c))) {
+                headerIdx = cells.findIndex(c => /^value$/i.test(c));
+            }
             if (headerIdx !== -1) {
                 inFlagTable = true;
                 flagColIdx = headerIdx;

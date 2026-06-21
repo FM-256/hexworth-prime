@@ -1004,7 +1004,7 @@ window.VSBCConfig = {
                 srcIP:     '203.0.113.66',
                 dstIP:     '10.10.10.20',
                 dstPort:   80,
-                detail:    'Suricata SID matched: JNDI expression detected in inbound HTTP User-Agent header from 203.0.113.66. Pattern: ${jndi:ldap://...}. This is the Log4Shell remote code execution exploit targeting CVE-2021-44228 (CVSS 10.0). Affects Apache Log4j versions 2.0-beta9 through 2.14.1. Immediate impact: the Java application on WEB-DMZ-01 will initiate an outbound LDAP connection to the attacker-controlled host, loading a remote class that gives the attacker RCE as the application service account.',
+                detail:    'Suricata SID matched: JNDI expression detected in inbound HTTP User-Agent header from 203.0.113.66. Pattern: ${jndi:ldap://...}. This is the Log4Shell remote code execution exploit targeting CVE-2021-44228 (CVSS 10.0). Affects Apache Log4j2 versions 2.0-beta9 through 2.15.0 (excluding security releases 2.12.2, 2.12.3, and 2.3.1). Immediate impact: the Java application on WEB-DMZ-01 will initiate an outbound LDAP connection to the attacker-controlled host, loading a remote class that gives the attacker RCE as the application service account.',
                 correctClassification: 'tp',
                 mitre:     'T1190'
             },
