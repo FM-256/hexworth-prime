@@ -96,7 +96,6 @@ window.VFPCConfig = {
     desktop: {
         icons: [
             { id: 'terminal', label: 'Terminal',    icon: 'T', app: 'terminal'  },
-            { id: 'browser',  label: 'Browser',     icon: 'B', app: 'browser'   },
             { id: 'notes',    label: 'Notes',       icon: 'N', app: 'notes'     },
             { id: 'hints',    label: 'Hints',       icon: 'H', app: 'hints'     },
             { id: 'flags',    label: 'Submit Flag', icon: 'F', app: 'flags'     }
