@@ -202,7 +202,8 @@
       <li>Covers all course objectives: CLI, systemd, Networking, Hardening, DNS, Automation, Integrity, and Performance</li>
       <li>You need 70% (28/40) to pass and earn the Advanced Linux Administration certification</li>
       <li>Timer starts when the page loads. Answers auto-submit when time expires.</li>
-      <li>This is your final certification exam. One attempt only.</li>
+      <li>This is your final certification exam. You may retake it if you do not pass.</li>
+      <li>After two unsuccessful attempts, the correct answers are revealed for review.</li>
     </ul>
   </div>
 
@@ -364,7 +365,7 @@ async function submitExam() {
     }
   });
 
-  let score = 0, percent = 0, passed = false;
+  let score = 0, percent = 0, passed = false, reviewAvailable = false;
 
   try {
     if (typeof FirebaseAuth !== 'undefined') {
@@ -375,14 +376,23 @@ async function submitExam() {
       score = response.data.score;
       percent = response.data.percentage;
       passed = response.data.passed;
+      reviewAvailable = response.data.reviewAvailable === true;
 
-      // Mark correct/incorrect selections based on server results
+      // Mark correct/incorrect selections based on server results. When the
+      // server reveals the correct answer (on pass, or after the 2nd failed
+      // attempt — see reviewAfterFails), also highlight the correct option on
+      // each question so the student can review what they missed.
       shuffledData.forEach((item, i) => {
         const origIdx = examData.indexOf(item);
         const result = response.data.results[origIdx];
+        if (!result) return;
         const selected = document.querySelector(`input[name="q${i}"]:checked`);
-        if (selected && result) {
+        if (selected) {
           selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+        if (typeof result.correctAnswer === 'number') {
+          const correctInput = document.querySelector(`input[name="q${i}"][value="${result.correctAnswer}"]`);
+          if (correctInput) correctInput.parentElement.classList.add('correct');
         }
       });
     }
@@ -407,7 +417,8 @@ async function submitExam() {
     <div class="result-msg ${passed ? 'pass' : 'fail'}">
       ${passed
         ? 'Course complete. All 7 objectives verified. You have demonstrated Advanced Linux Administration competency.'
-        : `You need 70% (28/40) to pass. You scored ${score}/40. Review the objectives where you missed questions and reattempt.`}
+        : `You need 70% (28/40) to pass. You scored ${score}/40. Review the objectives where you missed questions and reattempt.`
+          + (reviewAvailable ? ' <strong>Because this is your second unsuccessful attempt, the correct answer for each question is now highlighted above for review.</strong>' : '')}
     </div>
     ${passed ? `
       <div class="unlock-badge">
