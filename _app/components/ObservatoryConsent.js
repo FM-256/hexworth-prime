@@ -232,7 +232,14 @@ ${sections}
         .obs-btn{background:linear-gradient(135deg,#6366f1,#22d3ee);color:#06060f;font-weight:700;border:none;
             padding:11px 20px;border-radius:9px;cursor:pointer;font-size:14px}
         .obs-btn[disabled]{opacity:0.45;cursor:not-allowed}
-        .obs-err{color:#fca5a5;font-size:12px;min-height:16px;margin-top:6px}`;
+        .obs-err{color:#fca5a5;font-size:12px;min-height:16px;margin-top:6px}
+        .obs-signin-card{max-width:440px;text-align:center}
+        .obs-google-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;
+            background:#fff;color:#1f2937;font-weight:600;border:none;padding:12px 22px;border-radius:9px;
+            cursor:pointer;font-size:15px;box-shadow:0 2px 12px rgba(129,140,248,0.35)}
+        .obs-google-btn:hover{opacity:0.92}
+        .obs-google-btn[disabled]{opacity:0.5;cursor:not-allowed}
+        .obs-google-icon{width:18px;height:18px}`;
         document.head.appendChild(css);
     }
 
@@ -302,15 +309,77 @@ ${sections}
         });
     }
 
+    // ── Sign-in gate ────────────────────────────────────────────────────
+    // True ONLY for a real (non-anonymous) signed-in account. The platform
+    // auto-creates an ANONYMOUS user (ArenaFirebase), which does NOT count — the
+    // Observatory requires a real account so consent is tied to a stable
+    // identity across devices (operator/IRB decision, 2026-06-22).
+    async function isRealSignedIn() {
+        try { if (typeof ArenaFirebase !== 'undefined') await ArenaFirebase.isReady(); }
+        catch (e) { /* ignore — fall through to the current user */ }
+        const u = getAuthUser();
+        return !!(u && u.uid && u.isAnonymous === false);
+    }
+
+    // Full-screen sign-in gate shown before the consent form when the visitor
+    // has no real account. Calls onSignedIn() once a non-anonymous account is
+    // established via Google popup (the platform's canonical sign-in).
+    function showSignIn(onSignedIn) {
+        const overlay = document.createElement('div');
+        overlay.className = 'obs-consent-overlay';
+        overlay.innerHTML = `
+        <div class="obs-gate-stars" aria-hidden="true"></div>
+        <div class="obs-consent-card obs-signin-card" role="dialog" aria-modal="true" aria-label="Sign in to the Observatory">
+            <h1>Find your way by Polaris</h1>
+            <div class="obs-consent-sub">The Observatory is a research cohort. Sign in with your Hexworth account to continue — your participation and progress are tied to your account.</div>
+            <button class="obs-google-btn" id="obsSignin">
+                <img src="/assets/images/icons/icon-google.webp" alt="" class="obs-google-icon">Sign in with Google
+            </button>
+            <div class="obs-err" id="obsSigninErr"></div>
+        </div>`;
+        document.body.appendChild(overlay);
+        const btn = overlay.querySelector('#obsSignin');
+        const err = overlay.querySelector('#obsSigninErr');
+        // Trigger the Google popup; only proceed on a confirmed real account.
+        btn.addEventListener('click', async () => {
+            btn.disabled = true; err.textContent = '';
+            try {
+                if (typeof FirebaseAuth === 'undefined') throw new Error('auth unavailable');
+                if (FirebaseAuth.init) await FirebaseAuth.init();
+                const user = await FirebaseAuth.signInWithGoogle();
+                if (user && user.isAnonymous === false) {
+                    overlay.remove();
+                    onSignedIn();
+                } else {
+                    err.textContent = 'Sign-in was cancelled or did not complete. Please try again.';
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                err.textContent = 'Sign-in failed. Please try again.';
+                btn.disabled = false;
+            }
+        });
+    }
+
     // ── Public entry ────────────────────────────────────────────────────
-    // Confirm consent (existing record → immediate), else show the form.
+    // Require a real account first, then confirm consent.
     async function ensureConsent(onGranted) {
         injectStyles();
+        // Gate on a real (non-anonymous) account before anything else.
+        if (!(await isRealSignedIn())) {
+            showSignIn(function () { proceedAfterAuth(onGranted); });
+            return;
+        }
+        proceedAfterAuth(onGranted);
+    }
+
+    // After a real account is confirmed: honor an existing consent record ONLY
+    // if it matches the current consent wording. A FORM_VERSION bump means the
+    // text changed — an older agreement doesn't cover wording the participant
+    // never saw, so we re-prompt; otherwise show the form for first consent.
+    async function proceedAfterAuth(onGranted) {
         const uid = await getUid();
         const existing = await loadConsent(uid);
-        // Honor an existing record ONLY if it matches the current consent wording.
-        // A FORM_VERSION bump means the consent text changed — an older agreement
-        // does not cover wording the participant never saw, so we re-prompt.
         if (existing && existing.formVersion === FORM_VERSION) { onGranted(); return; }
         showForm(uid, onGranted);
     }
