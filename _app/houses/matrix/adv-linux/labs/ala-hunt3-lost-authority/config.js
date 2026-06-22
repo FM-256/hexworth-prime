@@ -485,6 +485,55 @@ window.ALAHunt3Config = {
             return 'Usage: dig [@server] [type] <name> [+options]';
         },
 
+        // host -- DNS lookup, host(1) output. Mirrors dig's grid-api state machine
+        // so the same flags award (cmd1 SERVFAIL / cmd4 poison / cmd7 restored).
+        'host': function(args, term, engine) {
+            var name = args.find(function(a) { return !a.startsWith('-') && !a.startsWith('@'); }) || '';
+            var n = name.toLowerCase();
+            var running = engine.config._namedRunning;
+            if (n.indexOf('grid-api') === 0) {
+                if (!running) { engine.awardFlag('cmd1'); return ';; connection timed out; no servers could be reached\nhost: couldn\'t get address for \'' + name + '\': SERVFAIL\n(named is not running -- zone failed to load. Try: systemctl status named)'; }
+                if (!(engine.config._recordFixed && engine.config._cronNeutralized)) { engine.awardFlag('cmd4'); return name + ' has address 203.0.113.99\n*** POISON: grid-api points at the attacker IP (correct is 10.0.1.50). The rogue cron re-applies it -- remove /etc/cron.d/grid-resync.'; }
+                engine.awardFlag('cmd7'); return name + ' has address 10.0.1.50';
+            }
+            if (!running) { return 'host: couldn\'t get address for \'' + name + '\': SERVFAIL\n(named is not running)'; }
+            var map = { 'ops.sector7.matrix.net': '10.0.1.50', 'ops': '10.0.1.50', 'mail.sector7.matrix.net': '10.0.1.70', 'mail': '10.0.1.70', 'ns1.sector7.matrix.net': '10.0.1.1', 'ns2.sector7.matrix.net': '10.0.1.11' };
+            if (map[n]) { return name + ' has address ' + map[n]; }
+            if (!n) { return 'Usage: host <name> [server]'; }
+            return 'Host ' + name + ' not found: 3(NXDOMAIN)';
+        },
+
+        // nslookup -- DNS lookup, nslookup output. Same state machine as host/dig.
+        'nslookup': function(args, term, engine) {
+            var name = args.find(function(a) { return !a.startsWith('-'); }) || '';
+            var n = name.toLowerCase();
+            var running = engine.config._namedRunning;
+            var hdr = 'Server:\t\t127.0.0.1\nAddress:\t127.0.0.1#53\n\n';
+            if (n.indexOf('grid-api') === 0) {
+                if (!running) { engine.awardFlag('cmd1'); return hdr + '** server can\'t find ' + name + ': SERVFAIL\n(named is not running -- zone failed to load)'; }
+                if (!(engine.config._recordFixed && engine.config._cronNeutralized)) { engine.awardFlag('cmd4'); return hdr + 'Name:\t' + name + '\nAddress: 203.0.113.99\n*** POISON: attacker IP (correct is 10.0.1.50); rogue cron re-applies it.'; }
+                engine.awardFlag('cmd7'); return hdr + 'Name:\t' + name + '\nAddress: 10.0.1.50';
+            }
+            if (!running) { return hdr + '** server can\'t find ' + name + ': SERVFAIL'; }
+            var map = { 'ops.sector7.matrix.net': '10.0.1.50', 'ops': '10.0.1.50', 'mail.sector7.matrix.net': '10.0.1.70', 'mail': '10.0.1.70', 'ns1.sector7.matrix.net': '10.0.1.1', 'ns2.sector7.matrix.net': '10.0.1.11' };
+            if (map[n]) { return hdr + 'Name:\t' + name + '\nAddress: ' + map[n]; }
+            if (!n) { return 'Usage: nslookup <name>'; }
+            return hdr + '** server can\'t find ' + name + ': NXDOMAIN';
+        },
+
+        // service -- SysV-style wrapper; remaps to systemctl (service <unit> <action>).
+        'service': function(args, term, engine) {
+            var unit = args[0] || '';
+            var action = args[1] || '';
+            if (!unit || !action) { return 'Usage: service <unit> <start|stop|restart|reload|status>'; }
+            return engine.config.commands['systemctl']([action, unit], term, engine);
+        },
+
+        // ll -- common alias for ls -l.
+        'll': function(args, term, engine) {
+            return engine.config.commands['ls'](['-l'].concat(args), term, engine);
+        },
+
         // named-checkconf -- validate named.conf and zone files.
         // cmd2 fires on -z. Error branch gates on _syntaxFixed only -- the A-record
         // poison is a semantic issue (not a parse error) and does not appear here.
@@ -583,14 +632,19 @@ window.ALAHunt3Config = {
                 return 'Unit ' + rawUnit + ' not found.';
             }
 
-            if (sub === 'start' || sub === 'restart') {
+            // start / restart / reload all bring named up once the syntax is fixed.
+            // 'reload' is the natural way operators apply a zone fix to a running
+            // BIND -- treating it like restart here keeps the lab faithful.
+            if (sub === 'start' || sub === 'restart' || sub === 'reload') {
                 if (isNamed) {
                     if (!engine.config._syntaxFixed) {
-                        return 'Job for named.service failed. See "journalctl -xe" for details.\n(Zone sector7.matrix.net still has a syntax error -- fix the zone file before starting named)';
+                        return 'Job for named.service failed. See "journalctl -xe" for details.\n(Zone sector7.matrix.net still has a syntax error -- fix the zone file before ' + sub + 'ing named)';
                     }
                     engine.awardFlag('cmd3');
                     engine.config._namedRunning = true;
-                    return '';
+                    // Confirm success so the student knows the reload took (parity
+                    // with rndc reload's feedback -- silent success caused confusion).
+                    return 'named.service ' + sub + 'ed -- BIND is up (zone sector7.matrix.net serial 2026050902 loaded).\nVerify: dig A grid-api.sector7.matrix.net @127.0.0.1 +short';
                 }
                 return '';
             }
