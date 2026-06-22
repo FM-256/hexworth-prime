@@ -166,6 +166,8 @@ Missing, to make her shine here:
 ### 4.3 Consent ceiling (sharpens Blocker A — gates this scope)
 A fishbowl this complete — session reconstruction/replay + conversation logging + an omniscient AI — is intensive surveillance. The consent gate is exactly what licenses it, BUT the current language *"interaction and performance data will be collected"* almost certainly does **not** cover session replay or AI-conversation/intervention logging. **Before this scope ships, the consent form must explicitly name:** detailed session-level tracking, session reconstruction/replay, and Dr. Hex interaction + transcript logging. This is an **IRB/consent-amendment decision** and a hard gate on Part 4.
 
+**→ DRAFT amendment language written: `observatory-consent-amendment-draft-2026-06-22.md`** (doctoral-research-scholar drafted, engineering-verified). It honestly revises the false "anonymized/no PII" claim (the new data is identifiable to the research team, de-identified only in publication), escalates the risk disclosure, matches the live withdrawal-deletion behavior, and carries an activation checklist (bump `FORM_VERSION` → auto re-consent — only after IRB approval). Seven `[PI TO CONFIRM]` items remain (retention, access list, FERPA, minors, screen-replay scope, etc.).
+
 ### 4.4 Phases added
 - **Phase 6 — Fishbowl event capture:** in-course instrumentation (quiz/lab/CTF/module), session IDs + stitching, the unified event spine. (Consent-amendment gated.)
 - **Phase 7 — Repeatability:** event-sourcing (a) and/or DOM session replay (b) — choose grade vs. privacy cost. (Consent gated.)
