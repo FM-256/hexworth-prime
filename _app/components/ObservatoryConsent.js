@@ -172,9 +172,17 @@ ${sections}
         const css = document.createElement('style');
         css.id = 'obs-consent-styles';
         css.textContent = `
-        .obs-consent-overlay{position:fixed;inset:0;z-index:99999;background:radial-gradient(ellipse at top,#0f1530,#05060f);
-            display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto;font-family:system-ui,-apple-system,sans-serif}
-        .obs-consent-card{max-width:680px;width:100%;background:#0b1024;border:1px solid rgba(129,140,248,0.35);
+        .obs-consent-overlay{position:fixed;inset:0;z-index:99999;overflow:auto;padding:24px;
+            display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;
+            background:radial-gradient(60% 50% at 80% 12%, rgba(139,92,246,0.18), transparent 70%),
+                       radial-gradient(55% 45% at 15% 88%, rgba(34,211,238,0.14), transparent 70%),
+                       radial-gradient(ellipse at top, #0f1530, #05060f)}
+        .obs-gate-stars{position:absolute;inset:0;pointer-events:none;background-repeat:repeat;
+            background-image:radial-gradient(1.4px 1.4px at 40px 60px,#fff,transparent),radial-gradient(1.2px 1.2px at 160px 130px,#c7d2fe,transparent),radial-gradient(1.3px 1.3px at 250px 40px,#fff,transparent),radial-gradient(1.4px 1.4px at 330px 200px,#a5b4fc,transparent);
+            background-size:380px 320px;animation:obs-gate-twinkle 5s ease-in-out infinite}
+        @keyframes obs-gate-twinkle{0%,100%{opacity:.4}50%{opacity:.9}}
+        @media (prefers-reduced-motion: reduce){.obs-gate-stars{animation:none}}
+        .obs-consent-card{position:relative;z-index:1;max-width:680px;width:100%;background:#0b1024;border:1px solid rgba(129,140,248,0.35);
             border-radius:14px;padding:28px 30px;box-shadow:0 0 60px rgba(129,140,248,0.18);color:#cdd6f4}
         .obs-consent-card h1{margin:0 0 4px;font-size:22px;color:#a5b4fc}
         .obs-consent-sub{color:#7c8bd6;font-size:13px;margin-bottom:14px}
@@ -205,6 +213,7 @@ ${sections}
         const sectionsHTML = CONSENT_SECTIONS.map(s => `<h3>${s.h}</h3><p>${s.p}</p>`).join('');
         const classOpts = classes.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
         overlay.innerHTML = `
+        <div class="obs-gate-stars" aria-hidden="true"></div>
         <div class="obs-consent-card" role="dialog" aria-modal="true" aria-label="Research participation consent">
             <h1>Find your way by Polaris</h1>
             <div class="obs-consent-sub">Research Participation Consent — ${CONSENT_META.title}</div>
