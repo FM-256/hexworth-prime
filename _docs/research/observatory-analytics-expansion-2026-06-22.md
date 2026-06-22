@@ -139,3 +139,40 @@ CERBI is half the study's title; building Phases 1–3's export schema before th
 - Phase 1 is **re-scoped** (course-scoped × post-consent, not platform-wide totals) and **hard-gated on IRB sign-off**.
 - CF spec gains: temporal re-consent test, parallel reads, per-collection field whitelist.
 - Two decisions are escalated to the PI (you): **(1)** IRB scope confirmation for the revised, tighter join; **(2)** sequencing — CERBI-spec-first, or course-scoped Phase 1 in parallel with the CERBI conversation.
+
+---
+
+## Part 4 — Vision expansion: the Fishbowl + Dr. Hex (operator directive, 2026-06-22)
+
+Operator directive: make the Observatory a **fishbowl** where *"every action is trackable, traceable, and repeatable,"* and add the **Dr. Hex** element — *"the true AI deity, the goddess of Hex,"* given her ideal home here. This raises the ceiling of the whole initiative; captured before build.
+
+### 4.1 Fishbowl observability (by the three properties)
+The Observatory is a launcher, so the fishbowl must extend INTO the cohort's courses — not just the launcher.
+
+- **TRACKABLE** — emit events where learning happens: in-course section/page views, scroll depth, time-on-task per module, focus/blur/idle; quiz **question-level** signals (answer changes, time-per-question, retries — `QuizEngine` already records some struggle signals, currently unjoined); lab/CTF commands, **flag attempts**, errors, hint requests (`BoxEngine`); help-seeking; the full navigation graph.
+- **TRACEABLE** — today events are `uid+type+timestamp` with no session grouping. Add **session IDs + stitching** and a **unified event spine** merging `observatory_activity` + `dr_hex_engagement_events` + course outcomes into one ordered per-student timeline with **causal context** (what preceded a struggle → what Dr. Hex did → what followed).
+- **REPEATABLE** — the biggest gap. Either **(a) event-sourcing** (a log complete enough to deterministically reconstruct the action sequence — research-grade, tractable) or **(b) DOM-level session replay** (rrweb-style — powerful, heavy, very privacy-intense). Plus reproducible analysis (deterministic pipelines off the immutable log).
+
+### 4.2 Dr. Hex — resident AI deity (existing infra, not yet in the Observatory)
+Dr. Hex already exists: `<hex-ai-button>` (`/_lib/HexAIButton.js`, registers `window.__hexLabRecord`), orchestrator at `hex-ai.hexworth.tech` (v0.6.x, pgvector RAG, CF Access), intervention + **post-intervention outcome** logging to `dr_hex_engagement_events`, governed by the Dr. Hex Constitution / 10 Laws / Voice Guide. She is mounted on quizzes/labs/modules elsewhere but **not in the Observatory**. The Observatory is her ideal home because it is **the only consented cohort** — consent is what licenses an omniscient, conversational AI presence.
+
+Missing, to make her shine here:
+1. **Presence** — mount Dr. Hex in the Observatory + carry her into the cohort's courses. *Design decision:* relationship to **Polaris** (the north-star mascot). Proposed lore: Polaris is Dr. Hex's Observatory avatar/familiar — the fixed star is her watching.
+2. **Omniscience in the fishbowl** — feed the unified event spine (4.1) into her context (she already has page-context + RAG) so she's aware of the whole journey, by name, referencing streaks/history — not just the current page.
+3. **Intervention data joined to research** — join `dr_hex_engagement_events` to the cohort; every touch (when/what-she-said/response/outcome) becomes core study data: *does the deity's intervention change behavior + outcomes?* (This is the gamification effect itself.)
+4. **Conversational deity** — consented students converse with her; transcripts are data (orchestrator already does chat/RAG).
+5. **Experimental lever** — her presence/intensity becomes a *manipulable variable* (intervention style A vs B) directly serving the gamification study.
+
+### 4.3 Consent ceiling (sharpens Blocker A — gates this scope)
+A fishbowl this complete — session reconstruction/replay + conversation logging + an omniscient AI — is intensive surveillance. The consent gate is exactly what licenses it, BUT the current language *"interaction and performance data will be collected"* almost certainly does **not** cover session replay or AI-conversation/intervention logging. **Before this scope ships, the consent form must explicitly name:** detailed session-level tracking, session reconstruction/replay, and Dr. Hex interaction + transcript logging. This is an **IRB/consent-amendment decision** and a hard gate on Part 4.
+
+### 4.4 Phases added
+- **Phase 6 — Fishbowl event capture:** in-course instrumentation (quiz/lab/CTF/module), session IDs + stitching, the unified event spine. (Consent-amendment gated.)
+- **Phase 7 — Repeatability:** event-sourcing (a) and/or DOM session replay (b) — choose grade vs. privacy cost. (Consent gated.)
+- **Phase 8 — Dr. Hex in the Observatory:** presence + Polaris lore, fishbowl-aware context, `dr_hex_engagement_events` joined to the cohort, conversational deity, optional experimental intervention-style variable. (Consent-amendment gated; coordinates with the Dr. Hex orchestrator + Constitution.)
+
+### 4.5 New decisions for the PI
+- **Consent amendment** authorizing detailed session tracking, replay, and AI-interaction logging — yes/scope?
+- **Repeatability grade:** event-sourcing (research log) vs. DOM replay (watch-the-screen) — privacy vs. fidelity.
+- **Dr. Hex ↔ Polaris lore** — avatar/familiar, or distinct entities?
+- **Dr. Hex as experimental variable** — is intervention-style A/B part of the study design, or is she a constant presence for all?
