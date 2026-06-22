@@ -3576,6 +3576,54 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
 });
 
 /**
+ * withdrawFromObservatory — research withdrawal + data deletion (the IRB "right
+ * to withdraw"). The signed-in participant calls this to permanently remove
+ * their participation: it deletes their consent doc, their enrollment/roster
+ * doc, and ALL of their activity events, then writes a minimal tombstone (uid +
+ * timestamp — no PII, no research data) so the operator has an audit record that
+ * a withdrawal occurred. Clients cannot delete these docs directly (rules deny
+ * it); deletion is admin-SDK-only, here, after verifying the caller owns the uid.
+ */
+exports.withdrawFromObservatory = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in to withdraw.');
+    }
+    const uid = request.auth.uid;
+    try {
+        // Delete the consent + enrollment docs for this participant.
+        await db.doc(`observatory_consent/${uid}`).delete();
+        await db.doc(`observatory_enrollment/${uid}`).delete();
+
+        // Delete all activity events for this uid, in batches (Firestore caps a
+        // batch at 500 writes; 400 leaves headroom). Loop until none remain.
+        let deletedActivity = 0;
+        let more = true;
+        while (more) {
+            const snap = await db.collection('observatory_activity')
+                .where('uid', '==', uid).limit(400).get();
+            if (snap.empty) break;
+            const batch = db.batch();
+            snap.docs.forEach((d) => batch.delete(d.ref));
+            await batch.commit();
+            deletedActivity += snap.size;
+            more = snap.size === 400; // a full page may mean more remain
+        }
+
+        // Minimal audit tombstone — records THAT a withdrawal happened, with no
+        // PII and no retained research data.
+        await db.doc(`observatory_withdrawals/${uid}`).set({
+            uid: uid,
+            withdrawnAt: FieldValue.serverTimestamp()
+        });
+
+        return { ok: true, deletedActivity: deletedActivity };
+    } catch (e) {
+        console.error('[Observatory] withdrawFromObservatory failed:', e.message);
+        throw new HttpsError('internal', 'Withdrawal failed. Please try again.');
+    }
+});
+
+/**
  * getTenantCatalog — Returns licensed content catalog for a tenant.
  * Requires auth — the student must be signed in to see their content.
  */

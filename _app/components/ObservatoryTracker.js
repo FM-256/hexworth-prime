@@ -150,7 +150,17 @@ const ObservatoryTracker = (function () {
         });
     }
 
-    return { init: init };
+    // Stop all tracking immediately and drop the context/token so NO further
+    // event (including the unload-time dwell/click beacon) can fire. Called on
+    // withdrawal — the user's data was just deleted server-side, and a late
+    // beacon would strand a stray event under their uid.
+    function abort() {
+        _leaveSent = true;   // sendDwell() becomes a no-op
+        _ctx = null;         // emit() no-ops (guards on _ctx && _ctx.uid)
+        _idToken = null;     // emit() no-ops (guards on _idToken)
+    }
+
+    return { init: init, abort: abort };
 })();
 
 // Browser global for script-tag consumers.

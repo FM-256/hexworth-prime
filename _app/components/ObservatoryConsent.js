@@ -384,7 +384,58 @@ ${sections}
         showForm(uid, onGranted);
     }
 
-    return { ensureConsent: ensureConsent, FORM_VERSION: FORM_VERSION };
+    // ── Withdrawal (IRB right to withdraw) ───────────────────────────────
+    // Full-screen confirm dialog → calls the withdrawFromObservatory Cloud
+    // Function, which permanently deletes this user's consent, enrollment, and
+    // ALL activity. Irreversible; the student may re-join later by consenting
+    // again. Exposed so the house can offer a "manage participation" link.
+    function showWithdraw() {
+        injectStyles();
+        const overlay = document.createElement('div');
+        overlay.className = 'obs-consent-overlay';
+        overlay.innerHTML = `
+        <div class="obs-gate-stars" aria-hidden="true"></div>
+        <div class="obs-consent-card obs-signin-card" role="dialog" aria-modal="true" aria-label="Withdraw from research">
+            <h1>Withdraw from research</h1>
+            <div class="obs-consent-sub">This permanently deletes your consent record, your class enrollment, and all of your Observatory activity data. This cannot be undone — though you may re-join later by consenting again.</div>
+            <div class="obs-check" style="text-align:left"><input type="checkbox" id="obsWdAck"><label for="obsWdAck">I understand this permanently deletes my participation data.</label></div>
+            <div class="obs-actions" style="justify-content:center">
+                <button class="obs-btn" id="obsWdGo" disabled style="background:linear-gradient(135deg,#f87171,#ef4444)">Withdraw &amp; delete my data</button>
+                <button class="obs-btn" id="obsWdCancel" style="background:#1b2140;color:#cdd6f4">Cancel</button>
+            </div>
+            <div class="obs-err" id="obsWdErr"></div>
+        </div>`;
+        document.body.appendChild(overlay);
+        const $ = id => overlay.querySelector(id);
+        const go = $('#obsWdGo'), err = $('#obsWdErr');
+        // Require explicit acknowledgement before enabling the destructive action.
+        $('#obsWdAck').addEventListener('change', e => { go.disabled = !e.target.checked; });
+        $('#obsWdCancel').addEventListener('click', () => overlay.remove());
+        // Confirm: call the Cloud Function, clear the local mirror, then leave.
+        go.addEventListener('click', async () => {
+            go.disabled = true; err.textContent = 'Deleting your data…';
+            try {
+                if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.callFunction) throw new Error('unavailable');
+                await FirebaseAuth.callFunction('withdrawFromObservatory');
+                // Stop tracking NOW so no late dwell/click beacon re-creates an
+                // activity event under this uid after the CF deleted them all.
+                if (typeof ObservatoryTracker !== 'undefined' && ObservatoryTracker.abort) ObservatoryTracker.abort();
+                // Clear the localStorage mirror so the gate won't think consent exists.
+                try {
+                    const uid = await getUid();
+                    localStorage.removeItem('observatory_consent_' + (uid || 'preview'));
+                } catch (e2) { /* ignore */ }
+                overlay.querySelector('.obs-consent-card').innerHTML =
+                    '<h1>You have withdrawn</h1><div class="obs-consent-sub">Your participation data has been deleted. Redirecting…</div>';
+                setTimeout(() => { window.location.href = '/dashboard.html'; }, 2200);
+            } catch (e) {
+                err.textContent = 'Withdrawal did not finish. Click again to complete deleting your data (it is safe to retry).';
+                go.disabled = false;
+            }
+        });
+    }
+
+    return { ensureConsent: ensureConsent, showWithdraw: showWithdraw, FORM_VERSION: FORM_VERSION };
 })();
 
 // Browser global for script-tag consumers.
