@@ -101,8 +101,8 @@ A signed-in student joins a class → roster + consent persist server-side → t
 - **Key discovery:** `ArenaFirebase` auto-signs-in every visitor anonymously, so tracking works with a per-browser pseudonymous uid today; #1 is therefore a policy choice (accept anonymous vs. require real account), not a correctness bug.
 
 **Remaining before go-live:**
-1. **Withdrawal / data-deletion mechanism** — consent promises "withdraw at any time"; still needs a student-facing withdraw action + admin delete of consent/enrollment/activity. NOT yet built.
-2. **Deploy** functions (`logObservatoryEvent`) + firestore rules from **master**, then merge the house to production.
+1. ~~Withdrawal / data-deletion mechanism~~ **DONE (2026-06-22, commit `97bfa7c23`)** — CF `withdrawFromObservatory` (verifies caller owns uid; deletes consent + enrollment + all activity in batches; writes a minimal uid+timestamp tombstone in `observatory_withdrawals` for audit, no PII). Student-facing `ObservatoryConsent.showWithdraw()` confirm dialog (linked from the house) → CF → `ObservatoryTracker.abort()` (kills late beacons) → clears local mirror → redirects. Chris-passed.
+2. **Deploy** functions (`logObservatoryEvent`, `withdrawFromObservatory`) + firestore rules from **master**, then merge the house to production.
 3. **P3 admin dashboard** — roster × activity, per-class/per-student heatmaps, export.
 
 **Resolved by the 2026-06-22 "strict for all four" decision:** identity = real sign-in (built); re-consent = re-prompt on version bump (built, #4); roster PII (email/displayName) = stored admin-only in `observatory_enrollment` (built) — worth a final explicit IRB confirmation that this is within the consent's Data Usage scope.
