@@ -103,6 +103,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Enrollment roster — the clean per-student record (uid, class, name, email)
+    // the admin dashboard queries, separate from the consent prose. A student
+    // writes their own (doc id == their uid); owner or admin reads; admin deletes
+    // (e.g. on withdrawal).
+    match /observatory_enrollment/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow create, update: if request.auth != null && request.auth.uid == uid;
+      allow delete: if isAdmin();
+    }
+
     // Class roster — admin-managed list students enroll into. Any signed-in user
     // reads it (to populate the enrollment dropdown); only an admin writes.
     match /observatory_classes/{classId} {
@@ -114,9 +124,11 @@ service cloud.firestore {
     // research/analytics data). A user may create events stamped with their own
     // uid; only an admin reads (the tracking dashboard). Append-only.
     match /observatory_activity/{eventId} {
-      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      // Writes go ONLY through the logObservatoryEvent Cloud Function (admin SDK,
+      // bypasses rules). Direct client writes are denied — this is what prevents
+      // uid spoofing, classId forgery, and event stuffing. Admin reads (dashboard).
+      allow create, update, delete: if false;
       allow read: if isAdmin();
-      allow update, delete: if false;
     }
 
     // Gate answer registry — server-side only (admin SDK writes, no client access)

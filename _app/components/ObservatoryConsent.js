@@ -81,6 +81,17 @@ const ObservatoryConsent = (function () {
         return null;
     }
 
+    // Return the current Firebase user object (for displayName/email), or null.
+    // Anonymous users return a user with null displayName/email — expected.
+    function getAuthUser() {
+        try {
+            if (typeof ArenaFirebase !== 'undefined' && ArenaFirebase.auth) {
+                return ArenaFirebase.auth.currentUser || null;
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
     // ── Persistence ─────────────────────────────────────────────────────
     // Look up an existing consent record (Firestore first, localStorage mirror
     // fallback). Returns the record object or null.
@@ -106,11 +117,32 @@ const ObservatoryConsent = (function () {
         const conn = getDb();
         if (conn && uid) {
             try {
-                const { doc, setDoc, serverTimestamp } = conn.fs;
-                await setDoc(doc(conn.db, 'observatory_consent', uid), {
+                const { doc, writeBatch, serverTimestamp } = conn.fs;
+                const u = getAuthUser();
+                // Atomic batch: the consent doc (the signed agreement) and the
+                // enrollment roster doc (what the admin dashboard queries) commit
+                // together or not at all. This rules out the half-written state
+                // where consent persists but the roster doc is silently missing —
+                // which would never self-heal, since the version check passes on
+                // the next visit and the form is never re-shown.
+                const batch = writeBatch(conn.db);
+                batch.set(doc(conn.db, 'observatory_consent', uid), {
                     ...record, serverConsentedAt: serverTimestamp()
                 });
-            } catch (e) { console.warn('[Observatory] consent write failed (mirrored locally):', e.message); }
+                // displayName/email come from auth and are null for anonymous users.
+                batch.set(doc(conn.db, 'observatory_enrollment', uid), {
+                    uid: uid,
+                    classId: record.classId || null,
+                    className: record.className || null,
+                    name: record.name || null,
+                    displayName: (u && u.displayName) || null,
+                    email: (u && u.email) || null,
+                    formVersion: record.formVersion || null,
+                    enrolledAt: record.consentedAt || null,
+                    serverEnrolledAt: serverTimestamp()
+                });
+                await batch.commit();
+            } catch (e) { console.warn('[Observatory] consent+enrollment batch failed — mirrored to localStorage, NOT persisted to Firestore:', e.message); }
         }
         try { localStorage.setItem('observatory_consent_' + (uid || 'preview'), JSON.stringify(record)); }
         catch (e) { /* ignore */ }
@@ -276,7 +308,10 @@ ${sections}
         injectStyles();
         const uid = await getUid();
         const existing = await loadConsent(uid);
-        if (existing) { onGranted(); return; }
+        // Honor an existing record ONLY if it matches the current consent wording.
+        // A FORM_VERSION bump means the consent text changed — an older agreement
+        // does not cover wording the participant never saw, so we re-prompt.
+        if (existing && existing.formVersion === FORM_VERSION) { onGranted(); return; }
         showForm(uid, onGranted);
     }
 

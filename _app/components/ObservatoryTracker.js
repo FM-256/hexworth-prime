@@ -23,7 +23,15 @@
 const ObservatoryTracker = (function () {
     'use strict';
 
-    let _ctx = null;       // { uid, classId }
+    // All activity events POST here via sendBeacon. The endpoint (a Cloud
+    // Function, admin-SDK write) verifies the ID token, derives the uid
+    // server-side, and validates classId against the enrollment doc — so
+    // unload-time events (click/dwell) survive navigation AND no client can
+    // spoof another uid or an unenrolled classId.
+    const EVENT_ENDPOINT = 'https://us-central1-hexworth-prime.cloudfunctions.net/logObservatoryEvent';
+
+    let _ctx = null;        // { uid, classId }
+    let _idToken = null;    // cached Firebase ID token, refreshed periodically
     let _enterTs = 0;
     let _leaveSent = false; // dwell should fire once
 
@@ -35,7 +43,10 @@ const ObservatoryTracker = (function () {
         return null;
     }
 
-    // Build the tracking context: uid from auth, classId from the consent record.
+    // Build the tracking context: uid from auth, classId from Firestore.
+    // classId is read from the enrollment/consent doc (authoritative) so a
+    // student on a SECOND device — with no localStorage mirror — is still
+    // attributed to their class. localStorage is only a last-resort fallback.
     async function buildContext() {
         let uid = null;
         try {
@@ -45,29 +56,60 @@ const ObservatoryTracker = (function () {
                     ? ArenaFirebase.auth.currentUser.uid : null;
             }
         } catch (e) { /* leave uid null */ }
+
         let classId = null;
-        try {
-            const raw = localStorage.getItem('observatory_consent_' + (uid || 'preview'));
-            if (raw) classId = JSON.parse(raw).classId || null;
-        } catch (e) { /* ignore */ }
+        const conn = getDb();
+        if (conn && uid) {
+            try {
+                const { doc, getDoc } = conn.fs;
+                let snap = await getDoc(doc(conn.db, 'observatory_enrollment', uid));
+                if (!snap.exists()) snap = await getDoc(doc(conn.db, 'observatory_consent', uid));
+                if (snap.exists()) classId = snap.data().classId || null;
+            } catch (e) { /* fall through to localStorage */ }
+        }
+        if (!classId) {
+            try {
+                const raw = localStorage.getItem('observatory_consent_' + (uid || 'preview'));
+                if (raw) classId = JSON.parse(raw).classId || null;
+            } catch (e) { /* ignore */ }
+        }
         return { uid, classId };
     }
 
-    // Fire-and-forget event write. No-op without a uid (rules would reject anyway).
-    async function emit(type, payload) {
-        const conn = getDb();
-        if (!conn || !_ctx || !_ctx.uid) return;
+    // Cache a fresh Firebase ID token for the beacon. Tokens last ~1h; we
+    // refresh on a timer so a late unload-time event still verifies.
+    async function refreshToken() {
         try {
-            const { collection, addDoc, serverTimestamp } = conn.fs;
-            await addDoc(collection(conn.db, 'observatory_activity'), {
-                uid: _ctx.uid,
-                classId: _ctx.classId || null,
+            if (typeof ArenaFirebase !== 'undefined') {
+                await ArenaFirebase.isReady();
+                const u = ArenaFirebase.auth && ArenaFirebase.auth.currentUser;
+                if (u) _idToken = await u.getIdToken();
+            }
+        } catch (e) { /* keep the previous token */ }
+    }
+
+    // Fire-and-forget beacon. No-op without a uid + token (the endpoint would
+    // reject anyway). Uses sendBeacon so the write survives page unload.
+    function emit(type, payload) {
+        if (!_ctx || !_ctx.uid || !_idToken) return;
+        try {
+            const body = JSON.stringify({
+                idToken: _idToken,
                 type: type,
+                classId: _ctx.classId || null,
                 path: location.pathname,
-                at: serverTimestamp(),
                 clientTs: new Date().toISOString(),
-                ...(payload || {})
+                payload: payload || {}
             });
+            // text/plain keeps this a CORS "simple request" (no preflight) —
+            // a requirement for navigator.sendBeacon.
+            const blob = new Blob([body], { type: 'text/plain' });
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(EVENT_ENDPOINT, blob);
+            } else {
+                // Fallback: keepalive fetch survives unload on browsers w/o beacon.
+                fetch(EVENT_ENDPOINT, { method: 'POST', body: blob, keepalive: true }).catch(function () {});
+            }
         } catch (e) { /* analytics is best-effort — never surface */ }
     }
 
@@ -81,8 +123,15 @@ const ObservatoryTracker = (function () {
     // Start tracking. Called from the house boot, after consent is granted.
     async function init() {
         _ctx = await buildContext();
+        // Seed _idToken NOW so the house_enter emit below isn't silently dropped
+        // (emit() no-ops when _idToken is null).
+        await refreshToken();
         _enterTs = Date.now();
         emit('house_enter', {});
+
+        // Keep the cached token fresh so a late dwell/click at unload still
+        // verifies server-side (Firebase ID tokens expire after ~1h).
+        setInterval(refreshToken, 30 * 60 * 1000);
 
         // Course-card clicks (capture phase so we see it before navigation starts).
         document.addEventListener('click', function (e) {

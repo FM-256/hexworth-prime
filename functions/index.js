@@ -3501,6 +3501,81 @@ exports.getTenantConfig = onRequest({ region: 'us-central1', cors: true }, async
 });
 
 /**
+ * logObservatoryEvent — research-cohort activity ingestion (Hexworth Observatory).
+ *
+ * Receives activity events via navigator.sendBeacon so unload-time events
+ * (course_click, house_dwell) survive page navigation. It is the ONLY writer to
+ * observatory_activity (clients are create:false): it verifies the Firebase ID
+ * token → trusted uid (never trusts a client-supplied uid), derives classId from
+ * the student's enrollment doc (so an unenrolled class can't be claimed),
+ * whitelists the persisted fields, and clamps dwell seconds (no event stuffing).
+ *
+ * Body (text/plain JSON): { idToken, type, classId, path, clientTs, payload }
+ * Always responds 204 — analytics is best-effort; errors never reach the page.
+ */
+exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, async (req, res) => {
+    // sendBeacon is POST-only; ignore anything else quietly.
+    if (req.method !== 'POST') { res.status(204).end(); return; }
+
+    const ALLOWED = ['house_enter', 'course_click', 'house_dwell'];
+
+    try {
+        // sendBeacon delivers the Blob as the raw body; Express may hand us an
+        // object (auto-parsed), a string, or a Buffer depending on content-type.
+        let data = req.body;
+        if (typeof data === 'string') { data = JSON.parse(data || '{}'); }
+        else if (Buffer.isBuffer(data)) { data = JSON.parse(data.toString('utf8') || '{}'); }
+        data = data || {};
+
+        const idToken = data.idToken;
+        const type = data.type;
+        if (!idToken || ALLOWED.indexOf(type) === -1) { res.status(204).end(); return; }
+
+        // Verify the token → trusted uid. Never trust a client-supplied uid.
+        let decoded;
+        try { decoded = await getAuth().verifyIdToken(idToken); }
+        catch (e) { res.status(204).end(); return; }
+        const uid = decoded.uid;
+
+        // Server-authoritative classId: the enrollment doc wins, then consent,
+        // then (last resort) whatever the client sent. Prevents class spoofing.
+        let classId = null;
+        try {
+            let snap = await db.doc(`observatory_enrollment/${uid}`).get();
+            if (!snap.exists) snap = await db.doc(`observatory_consent/${uid}`).get();
+            if (snap.exists) classId = snap.data().classId || null;
+        } catch (e) { /* leave null */ }
+        if (!classId && typeof data.classId === 'string') classId = data.classId;
+
+        // Whitelist persisted fields — no arbitrary client fields enter the dataset.
+        const payload = (data.payload && typeof data.payload === 'object') ? data.payload : {};
+        const event = {
+            uid: uid,
+            classId: classId || null,
+            type: type,
+            path: typeof data.path === 'string' ? data.path.slice(0, 300) : null,
+            clientTs: typeof data.clientTs === 'string' ? data.clientTs.slice(0, 40) : null,
+            at: FieldValue.serverTimestamp()
+        };
+        // Dwell seconds: clamp to [0, 86400] so a forged value can't inflate metrics.
+        if (type === 'house_dwell' && Number.isFinite(payload.seconds)) {
+            event.seconds = Math.min(Math.max(0, Math.round(payload.seconds)), 86400);
+        }
+        // Course-click target/name, length-bounded.
+        if (type === 'course_click') {
+            if (typeof payload.target === 'string') event.target = payload.target.slice(0, 300);
+            if (typeof payload.name === 'string') event.name = payload.name.slice(0, 200);
+        }
+
+        await db.collection('observatory_activity').add(event);
+        res.status(204).end();
+    } catch (e) {
+        console.warn('[Observatory] logObservatoryEvent error:', e.message);
+        res.status(204).end();
+    }
+});
+
+/**
  * getTenantCatalog — Returns licensed content catalog for a tenant.
  * Requires auth — the student must be signed in to see their content.
  */
