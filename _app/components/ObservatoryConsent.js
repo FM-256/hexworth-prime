@@ -15,9 +15,8 @@
  *   - Firestore `observatory_classes` collection if present (admin-editable),
  *     else DEFAULT_CLASSES fallback so the form always renders.
  *
- * IMPORTANT: CONSENT_DRAFT below is PLACEHOLDER text marked DRAFT — it must be
- * replaced with the operator's IRB-approved wording before any real student
- * uses this house. The on-screen banner makes the draft status unmistakable.
+ * CONSENT_SECTIONS below holds the APPROVED consent text verbatim from the study's
+ * Research Participation Consent Form (see CONSENT_META for study/PI metadata).
  *
  * Public API:  ObservatoryConsent.ensureConsent(onGranted)
  *   onGranted() runs once consent is confirmed (existing record or fresh submit).
