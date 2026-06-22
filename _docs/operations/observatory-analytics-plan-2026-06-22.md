@@ -90,7 +90,9 @@ A signed-in student joins a class → roster + consent persist server-side → t
 
 ## Implementation status (2026-06-22)
 
-Must-fixes #2–#5 **built on branch `observatory-house`** (not deployed — go-live still gated). Nancy-reviewed (plan), Chris-passed (implementation, incl. a re-review after a blocker fix). Must-fix #1 is a deferred operator/IRB decision.
+**ALL FIVE must-fixes built** on branch `observatory-house` (not deployed — go-live still gated). Nancy-reviewed (plan), Chris-passed (each implementation chunk). Operator/IRB decision 2026-06-22: **require real sign-in** (the strict path) across the board.
+
+- **#1 require real sign-in** — `ensureConsent()` gates on `isRealSignedIn()` (rejects ArenaFirebase's anonymous auto-user) and shows an in-place Google sign-in overlay (`FirebaseAuth.signInWithGoogle`) before the consent form. Awaits `isReady()` (no slow-auth race); no bypass/loop. Commit `dab5ac525`.
 
 - **#4 re-consent** — `ObservatoryConsent.ensureConsent()` honors a record only if `existing.formVersion === FORM_VERSION`; bumps re-prompt.
 - **#2 roster** — `saveConsent()` writes `observatory_consent` + `observatory_enrollment` in one **atomic `writeBatch`** (no half-write); `displayName`/`email` from auth (null for anonymous). New `observatory_enrollment/{uid}` rules stanza.
@@ -98,7 +100,12 @@ Must-fixes #2–#5 **built on branch `observatory-house`** (not deployed — go-
 - **#5 beacon + #6 integrity** — all activity events route through new CF `logObservatoryEvent` (onRequest/CORS) via `navigator.sendBeacon`; CF verifies the ID token (uid server-derived), derives classId server-side, whitelists fields, clamps dwell seconds. `observatory_activity` rule is now `create/update/delete: if false` (CF-only writes) — closes the spoof/stuffing gap.
 - **Key discovery:** `ArenaFirebase` auto-signs-in every visitor anonymously, so tracking works with a per-browser pseudonymous uid today; #1 is therefore a policy choice (accept anonymous vs. require real account), not a correctness bug.
 
-**Remaining before go-live:** #1 decision + the three IRB open questions (re-consent procedure, withdrawal/deletion path, PII scope, admin-credential), then deploy functions + firestore rules from master and merge the house to production.
+**Remaining before go-live:**
+1. **Withdrawal / data-deletion mechanism** — consent promises "withdraw at any time"; still needs a student-facing withdraw action + admin delete of consent/enrollment/activity. NOT yet built.
+2. **Deploy** functions (`logObservatoryEvent`) + firestore rules from **master**, then merge the house to production.
+3. **P3 admin dashboard** — roster × activity, per-class/per-student heatmaps, export.
+
+**Resolved by the 2026-06-22 "strict for all four" decision:** identity = real sign-in (built); re-consent = re-prompt on version bump (built, #4); roster PII (email/displayName) = stored admin-only in `observatory_enrollment` (built) — worth a final explicit IRB confirmation that this is within the consent's Data Usage scope.
 
 ---
 
