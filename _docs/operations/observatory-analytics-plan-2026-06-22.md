@@ -1,5 +1,7 @@
 # Hexworth Observatory — Analytics Plan (2026-06-22)
 
+> **✅ LIVE IN PRODUCTION (2026-06-22)** — merged to master (`39ce8abde`, pushed) and deployed. Firestore rules + both Cloud Functions (`logObservatoryEvent`→204, `withdrawFromObservatory`→401-unauth) + hosting (`/houses/observatory/`, components, `/admin/observatory.html` all 200) verified live. Smoke gate 10/0; Chris go-live PASS recorded; 3-way merge preserved master's ALA fixes. Post-verify "divergence" = pre-existing platform EduScan backlog, not this work. **Post-launch:** confirm roster PII (email/displayName, admin-only) is in the consent's Data-Usage scope with IRB; optional homepage "12 houses" grid.
+
 ## TLDR
 Make the Observatory reliably capture **who joined, which class, and what they did** — surfaced as per-student / per-class heatmaps in the admin console. Today it captures **nothing in production** because (a) the pipeline is keyed on a Firebase `uid` and anonymous joiners produce none, and (b) the Firestore rules that permit the writes are committed on the branch but **not deployed**. The plan closes both gaps, hardens event capture, then builds the dashboard.
 
