@@ -103,7 +103,7 @@ A signed-in student joins a class → roster + consent persist server-side → t
 **Remaining before go-live:**
 1. ~~Withdrawal / data-deletion mechanism~~ **DONE (2026-06-22, commit `97bfa7c23`)** — CF `withdrawFromObservatory` (verifies caller owns uid; deletes consent + enrollment + all activity in batches; writes a minimal uid+timestamp tombstone in `observatory_withdrawals` for audit, no PII). Student-facing `ObservatoryConsent.showWithdraw()` confirm dialog (linked from the house) → CF → `ObservatoryTracker.abort()` (kills late beacons) → clears local mirror → redirects. Chris-passed.
 2. **Deploy** functions (`logObservatoryEvent`, `withdrawFromObservatory`) + firestore rules from **master**, then merge the house to production.
-3. **P3 admin dashboard** — roster × activity, per-class/per-student heatmaps, export.
+3. ~~P3 admin dashboard~~ **DONE (2026-06-22, commit `1b89dbbed`)** — `_app/admin/observatory.html` (admin-gated, linked from the admin console): summary cards, sortable roster (events + last-seen joined from activity), weekday×hour engagement heatmap, course-click popularity, dwell/visit summary, per-class breakdown, class filter, roster + events CSV export. Activity read capped at 5000 newest-first with disclosure. Chris-passed.
 
 **Resolved by the 2026-06-22 "strict for all four" decision:** identity = real sign-in (built); re-consent = re-prompt on version bump (built, #4); roster PII (email/displayName) = stored admin-only in `observatory_enrollment` (built) — worth a final explicit IRB confirmation that this is within the consent's Data Usage scope.
 
