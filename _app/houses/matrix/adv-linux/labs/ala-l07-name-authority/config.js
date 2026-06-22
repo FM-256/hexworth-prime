@@ -98,7 +98,7 @@ const ALAL07Config = {
                                 },
                                 'MISSION.txt': {
                                     type: 'file',
-                                    content: 'MISSION: Name Authority\n\nStand up DNS for Sector 7. All six cells must resolve forward and reverse.\n\nZone: sector7.matrix.net\nReverse zone: 1.0.10.in-addr.arpa\nThis NS: 10.0.1.1 (cell-ns1)\nSecondary NS: 10.0.1.2\n\nRequired records:\n  A: cell-071, cell-088, cell-034, cell-016, cell-049\n  A: grid-mail\n  CNAME: grid-api -> cell-071.sector7.matrix.net.\n  MX: grid-mail.sector7.matrix.net.\n  PTR: .71, .88, .34, .16, .49, .10\n\nSteps:\n  1. Edit /etc/bind/named.conf.options\n  2. Edit /etc/bind/named.conf.local -- add zone declarations\n  3. Create /etc/bind/zones/db.sector7.matrix.net\n  4. Create /etc/bind/zones/db.10.0.1\n  5. named-checkconf && named-checkzone ...\n  6. systemctl start named\n  7. dig A cell-071.sector7.matrix.net @10.0.1.1\n  8. /opt/verify/check-forward.sh\n  9. /opt/verify/check-reverse.sh\n  10. /opt/verify/check-transfer.sh\n'
+                                    content: 'MISSION: Name Authority\n\nStand up DNS for Sector 7. All six cells must resolve forward and reverse.\n\nZone: sector7.matrix.net\nReverse zone: 1.0.10.in-addr.arpa\nThis NS: 10.0.1.1 (cell-ns1)\nSecondary NS: 10.0.1.2\n\nRequired records:\n  A: cell-071, cell-088, cell-034, cell-016, cell-049\n  A: grid-mail\n  CNAME: grid-api -> cell-071.sector7.matrix.net.\n  MX: grid-mail.sector7.matrix.net.\n  PTR: .71, .88, .34, .16, .49, .10\n\nAUTHORING: this cell has no vi/nano. Write files non-interactively with:\n    write <file> <content>\n  e.g.  write /etc/bind/named.conf.options listen-on { 10.0.1.1; }; allow-query { any; };\n\nSteps:\n  1. write /etc/bind/named.conf.options   (listen-on + allow-query)\n  2. write /etc/bind/named.conf.local     (declare forward + reverse zones; allow-transfer { 10.0.1.2; })\n  3. write /etc/bind/zones/db.sector7.matrix.net  (SOA, NS, A: the 5 cells + grid-mail, CNAME grid-api, MX)\n  4. write /etc/bind/zones/db.10.0.1      (SOA, NS, PTR: .71 .88 .34 .16 .49 .10)\n  5. named-checkconf && named-checkzone ...\n  6. systemctl start named\n  7. dig A cell-071.sector7.matrix.net @10.0.1.1\n  8. /opt/verify/check-forward.sh\n  9. /opt/verify/check-reverse.sh\n  10. /opt/verify/check-transfer.sh\n'
                                 },
                                 '.bash_history': {
                                     type: 'file',
@@ -400,32 +400,31 @@ const ALAL07Config = {
             return `systemctl: unknown unit or subcommand.\nUsage: systemctl [start|stop|restart|reload|status|is-active] named`;
         },
 
-        // sudo systemctl passthrough
+        // rndc -- BIND control utility (top-level so it works with or without sudo).
+        'rndc': function(args, term, engine) {
+            const sub = args[0] || '';
+            if (sub === 'reload') {
+                if (!engine.config._state.namedRunning) return `rndc: connect: connection refused\nnamed is not running. Use systemctl start named first.`;
+                return `server reload successful`;
+            }
+            if (sub === 'status') {
+                if (!engine.config._state.namedRunning) return `rndc: connect: connection refused`;
+                return `version: BIND 9.18.12 (Extended Support Version)\nnumber of zones: 4\ndebug level: 0\nrecursion available: NO\nserver is up and running`;
+            }
+            return `Usage: rndc [reload|status|flush]`;
+        },
+
+        // sudo -- generic passthrough: re-run the elevated command with its own
+        // handler (privileged ops here are NOPASSWD). Works for any lab command.
         'sudo': function(args, term, engine) {
-            const cmd = args[0] || '';
-            const rest = args.slice(1);
-            if (cmd === 'systemctl') {
-                return term.config.commands['systemctl'].call(term.config.commands, rest, term, engine);
+            const realCmd = args[0] || '';
+            if (!realCmd) return `usage: sudo <command> [args...]`;
+            const handler = engine.config.commands[realCmd];
+            if (typeof handler === 'function') {
+                const r = handler(args.slice(1), term, engine);
+                return r == null ? '' : r;
             }
-            if (cmd === 'named-checkconf') {
-                return term.config.commands['named-checkconf'].call(term.config.commands, rest, term, engine);
-            }
-            if (cmd === 'named-checkzone') {
-                return term.config.commands['named-checkzone'].call(term.config.commands, rest, term, engine);
-            }
-            if (cmd === 'rndc') {
-                const sub = rest[0] || '';
-                if (sub === 'reload') {
-                    if (!engine.config._state.namedRunning) return `rndc: connect: connection refused\nnamed is not running.`;
-                    return ``;
-                }
-                if (sub === 'status') {
-                    if (!engine.config._state.namedRunning) return `rndc: connect: connection refused`;
-                    return `version: BIND 9.18.12 (Extended Support Version)\ncpus found: 2\nworker threads: 2\nnumber of zones: 4\ndebug level: 0\nxfers running: 0\nxfers deferred: 0\nsoa queries in progress: 0\nquery logging is OFF\nrecursion available: NO\nserver is up and running`;
-                }
-                return `Usage: rndc [reload|status|flush]`;
-            }
-            return `sudo: ${cmd}: not a recognized elevated command for this lab`;
+            return `sudo: ${realCmd}: command not found`;
         },
 
         // dig -- DNS query tool
@@ -581,6 +580,53 @@ const ALAL07Config = {
             }
             engine.awardFlag('flag3');
             return `[PASS] Initiating AXFR from 10.0.1.2...\n[PASS] AXFR transfer succeeded. 12 records transferred.\nFLAG: FLAG{ala-l07-name-authority_flag3_zone_transfer_config}`;
+        },
+
+        // host -- DNS lookup (parity with dig/nslookup; resolves once the zone is built).
+        'host': function(args, term, engine) {
+            if (!engine.config._state.namedRunning) { return `;; connection timed out; no servers could be reached`; }
+            const name = (args.find(a => !a.startsWith('@') && !a.startsWith('-')) || '').replace(/\.$/, '');
+            const map = { 'cell-071.sector7.matrix.net': '10.0.1.71', 'cell-088.sector7.matrix.net': '10.0.1.88', 'cell-034.sector7.matrix.net': '10.0.1.34', 'cell-016.sector7.matrix.net': '10.0.1.16', 'cell-049.sector7.matrix.net': '10.0.1.49', 'grid-mail.sector7.matrix.net': '10.0.1.10' };
+            if (!name) { return `Usage: host <name> [server]`; }
+            if (engine.config._state.forwardZoneFile && map[name]) { return `${name} has address ${map[name]}`; }
+            if (engine.config._state.forwardZoneFile && name.indexOf('grid-api') === 0) { return `grid-api.sector7.matrix.net is an alias for cell-071.sector7.matrix.net.\ncell-071.sector7.matrix.net has address 10.0.1.71`; }
+            return `Host ${name} not found: 3(NXDOMAIN)`;
+        },
+
+        // vi / nano / vim -- this cell has no interactive editor; author config with `write`.
+        'vi':   function(args, term, engine) { return engine.config.commands['_edit'](args, term, engine); },
+        'vim':  function(args, term, engine) { return engine.config.commands['_edit'](args, term, engine); },
+        'nano': function(args, term, engine) { return engine.config.commands['_edit'](args, term, engine); },
+        '_edit': function(args, term, engine) {
+            const file = args.find(a => !a.startsWith('-')) || '';
+            const ex = {
+                '/etc/bind/named.conf.options': 'write /etc/bind/named.conf.options listen-on { 10.0.1.1; }; allow-query { any; };',
+                '/etc/bind/named.conf.local': 'write /etc/bind/named.conf.local zone "sector7.matrix.net" { type master; file "/etc/bind/zones/db.sector7.matrix.net"; allow-transfer { 10.0.1.2; }; }; zone "1.0.10.in-addr.arpa" { type master; file "/etc/bind/zones/db.10.0.1"; };',
+                '/etc/bind/zones/db.sector7.matrix.net': 'write /etc/bind/zones/db.sector7.matrix.net <SOA + NS + A for cell-071 cell-088 cell-034 cell-016 cell-049 + grid-mail + CNAME grid-api + MX>',
+                '/etc/bind/zones/db.10.0.1': 'write /etc/bind/zones/db.10.0.1 <SOA + NS + PTR for 71 88 34 16 49 10>'
+            };
+            const tip = ex[file] || 'write <file> <content>';
+            return `cell-ns1 has no interactive editor (no vi/nano in this sim).\nAuthor configuration non-interactively with the write command, e.g.:\n  ${tip}\nOpen the Notes app for the full record list.`;
+        },
+
+        // verify-script aliases so ./, bare-name, and (via sudo) all invocations resolve.
+        './check-forward.sh':  function(a, t, e) { return e.config.commands['/opt/verify/check-forward.sh'](a, t, e); },
+        'check-forward.sh':    function(a, t, e) { return e.config.commands['/opt/verify/check-forward.sh'](a, t, e); },
+        './check-reverse.sh':  function(a, t, e) { return e.config.commands['/opt/verify/check-reverse.sh'](a, t, e); },
+        'check-reverse.sh':    function(a, t, e) { return e.config.commands['/opt/verify/check-reverse.sh'](a, t, e); },
+        './check-transfer.sh': function(a, t, e) { return e.config.commands['/opt/verify/check-transfer.sh'](a, t, e); },
+        'check-transfer.sh':   function(a, t, e) { return e.config.commands['/opt/verify/check-transfer.sh'](a, t, e); },
+
+        // bash / sh -- run a verify script given by path or basename.
+        'bash': function(args, term, engine) { return engine.config.commands['_runScript'](args, term, engine); },
+        'sh':   function(args, term, engine) { return engine.config.commands['_runScript'](args, term, engine); },
+        '_runScript': function(args, term, engine) {
+            const path = args.find(a => a.indexOf('check-') !== -1 || a.indexOf('.sh') !== -1) || '';
+            if (path.indexOf('check-forward') !== -1)  { return engine.config.commands['/opt/verify/check-forward.sh']([], term, engine); }
+            if (path.indexOf('check-reverse') !== -1)  { return engine.config.commands['/opt/verify/check-reverse.sh']([], term, engine); }
+            if (path.indexOf('check-transfer') !== -1) { return engine.config.commands['/opt/verify/check-transfer.sh']([], term, engine); }
+            if (!path) { return ''; }
+            return `bash: ${path}: No such file or directory`;
         },
 
         // ping
