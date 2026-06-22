@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexworth Observatory - Hexworth Prime</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' fill='%23a5b4fc'>&#x2605;</text></svg>">
+    <style>
+        /* Polaris / celestial palette */
+        :root {
+            --house-primary: #818cf8;
+            --house-secondary: #22d3ee;
+            --house-glow: rgba(129, 140, 248, 0.3);
+            --house-bg: rgba(129, 140, 248, 0.05);
+            --house-border: rgba(129, 140, 248, 0.2);
+        }
+        /* Avoid a white flash before the consent gate / house render. */
+        body { background: radial-gradient(ellipse at top, #0f1530, #05060f); }
+        .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+        /* ── Vivid celestial atmosphere: multi-layer starfield, nebula, aurora,
+              shooting stars — fixed behind all content (negative z-index). ── */
+        .obs-stars, .obs-stars-mid, .obs-stars-far {
+            position: fixed; inset: 0; pointer-events: none; background-repeat: repeat;
+        }
+        .obs-stars {  /* bright near layer — dense, multi-colour */
+            z-index: -2;
+            background-image:
+                radial-gradient(2px 2px at 40px 60px, #ffffff, transparent),
+                radial-gradient(1.8px 1.8px at 160px 130px, #67e8f9, transparent),
+                radial-gradient(1.8px 1.8px at 250px 40px, #ffffff, transparent),
+                radial-gradient(2px 2px at 330px 200px, #c4b5fd, transparent),
+                radial-gradient(1.6px 1.6px at 90px 250px, #fde68a, transparent),
+                radial-gradient(1.8px 1.8px at 210px 290px, #f9a8d4, transparent),
+                radial-gradient(1.6px 1.6px at 290px 110px, #ffffff, transparent);
+            background-size: 300px 300px;
+            animation: obs-twinkle 4s ease-in-out infinite;
+        }
+        .obs-stars-mid {  /* medium drifting layer */
+            z-index: -2; opacity: .9;
+            background-image:
+                radial-gradient(1.4px 1.4px at 70px 40px, #a5f3fc, transparent),
+                radial-gradient(1.3px 1.3px at 180px 150px, #ffffff, transparent),
+                radial-gradient(1.4px 1.4px at 30px 220px, #ddd6fe, transparent),
+                radial-gradient(1.3px 1.3px at 240px 250px, #fef08a, transparent);
+            background-size: 280px 280px;
+            animation: obs-twinkle 6s ease-in-out infinite, obs-drift 60s linear infinite;
+        }
+        .obs-stars-far {  /* faint dense backdrop */
+            z-index: -2; opacity: .8;
+            background-image:
+                radial-gradient(1px 1px at 20px 20px, rgba(255,255,255,.9), transparent),
+                radial-gradient(1px 1px at 120px 90px, rgba(165,180,252,.9), transparent),
+                radial-gradient(1px 1px at 200px 160px, rgba(255,255,255,.8), transparent),
+                radial-gradient(1px 1px at 60px 200px, rgba(199,210,254,.8), transparent),
+                radial-gradient(1px 1px at 150px 40px, rgba(103,232,249,.8), transparent);
+            background-size: 170px 170px;
+            animation: obs-twinkle 7s ease-in-out infinite reverse;
+        }
+        @keyframes obs-twinkle { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+        @keyframes obs-drift { from { background-position: 0 0; } to { background-position: 280px 140px; } }
+
+        /* Polaris — the bright north star, big glow + cross-flare. */
+        .obs-polaris {
+            position: fixed; top: 12%; right: 11%; width: 5px; height: 5px; z-index: -1;
+            pointer-events: none; background: #fff; border-radius: 50%;
+            box-shadow: 0 0 12px 4px rgba(255,255,255,.95), 0 0 30px 12px rgba(129,140,248,.85), 0 0 64px 24px rgba(34,211,238,.5);
+            animation: obs-polaris-pulse 3.5s ease-in-out infinite;
+        }
+        .obs-polaris::before, .obs-polaris::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+        .obs-polaris::before { width: 2px; height: 70px; background: linear-gradient(rgba(199,210,254,0), rgba(255,255,255,.95), rgba(199,210,254,0)); }
+        .obs-polaris::after  { width: 70px; height: 2px; background: linear-gradient(90deg, rgba(199,210,254,0), rgba(255,255,255,.95), rgba(199,210,254,0)); }
+        @keyframes obs-polaris-pulse { 0%, 100% { opacity: .9; transform: scale(1); } 50% { opacity: 1; transform: scale(1.45); } }
+
+        /* Nebula — bold coloured cloud-banks (the colour layer). */
+        .obs-nebula {
+            position: fixed; inset: 0; z-index: -3; pointer-events: none;
+            background:
+                radial-gradient(45% 38% at 14% 22%, rgba(139,92,246,.34), transparent 70%),
+                radial-gradient(40% 34% at 86% 14%, rgba(34,211,238,.26), transparent 70%),
+                radial-gradient(50% 44% at 72% 56%, rgba(99,102,241,.26), transparent 70%),
+                radial-gradient(36% 34% at 26% 74%, rgba(236,72,153,.22), transparent 70%),
+                radial-gradient(34% 30% at 55% 90%, rgba(16,185,129,.18), transparent 70%);
+            filter: blur(26px);
+            animation: obs-nebula-shift 24s ease-in-out infinite alternate;
+        }
+        @keyframes obs-nebula-shift {
+            0%   { transform: scale(1)    translateY(0);   opacity: .9; }
+            100% { transform: scale(1.12) translateY(-3%); opacity: 1; }
+        }
+
+        /* Aurora — vivid multi-hue glow + a waving curtain along the bottom. */
+        .obs-aurora {
+            position: fixed; left: 0; right: 0; bottom: 0; height: 58vh; z-index: -2; pointer-events: none;
+            background:
+                radial-gradient(120% 85% at 50% 130%, rgba(16,185,129,.32), transparent 62%),
+                radial-gradient(100% 80% at 18% 132%, rgba(34,211,238,.36), transparent 60%),
+                radial-gradient(100% 85% at 80% 128%, rgba(139,92,246,.36), transparent 60%),
+                radial-gradient(90% 75% at 60% 135%, rgba(236,72,153,.26), transparent 60%);
+            filter: blur(12px);
+            animation: obs-aurora-drift 14s ease-in-out infinite alternate;
+        }
+        .obs-aurora-wave {  /* waving aurora curtain ribbons */
+            position: fixed; left: -10%; right: -10%; bottom: 0; height: 60vh; z-index: -2; pointer-events: none;
+            background: repeating-linear-gradient(100deg,
+                transparent 0, transparent 60px,
+                rgba(34,211,238,.12) 90px, rgba(139,92,246,.14) 150px,
+                rgba(16,185,129,.12) 200px, transparent 260px);
+            -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.4) 60%, transparent 100%);
+            mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.4) 60%, transparent 100%);
+            filter: blur(6px); opacity: .8;
+            animation: obs-aurora-wave 12s ease-in-out infinite alternate;
+        }
+        @keyframes obs-aurora-drift { 0% { transform: translateX(-5%) translateY(2%); opacity: .85; } 100% { transform: translateX(5%) translateY(-2%); opacity: 1; } }
+        @keyframes obs-aurora-wave  { 0% { transform: translateX(-6%) skewX(-6deg); } 100% { transform: translateX(6%) skewX(6deg); } }
+
+        /* Shooting stars — three streaks on staggered timings/paths/colours. */
+        .obs-shooting, .obs-shooting2, .obs-shooting3 {
+            position: fixed; left: 0; z-index: -1; pointer-events: none;
+            width: 2px; height: 2px; border-radius: 50%; background: #fff;
+            box-shadow: 0 0 7px 2px rgba(255,255,255,.9); opacity: 0;
+        }
+        .obs-shooting::after, .obs-shooting2::after, .obs-shooting3::after {
+            content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 1.6px;
+        }
+        .obs-shooting  { top: 14%; animation: obs-shoot 9s linear infinite; }
+        .obs-shooting::after  { width: 150px; background: linear-gradient(90deg, rgba(255,255,255,.95), transparent); }
+        .obs-shooting2 { top: 30%; animation: obs-shoot 13s linear infinite; animation-delay: 4s; }
+        .obs-shooting2::after { width: 120px; background: linear-gradient(90deg, rgba(103,232,249,.95), transparent); }
+        .obs-shooting3 { top: 8%;  animation: obs-shoot 17s linear infinite; animation-delay: 9s; }
+        .obs-shooting3::after { width: 170px; background: linear-gradient(90deg, rgba(196,181,253,.95), transparent); }
+        @keyframes obs-shoot {
+            0%  { transform: translate(0, 0);       opacity: 0; }
+            2%  { opacity: 1; }
+            12% { transform: translate(64vw, 32vh); opacity: 1; }
+            16% { transform: translate(82vw, 40vh); opacity: 0; }
+            100%{ transform: translate(82vw, 40vh); opacity: 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .obs-stars, .obs-stars-mid, .obs-stars-far, .obs-polaris, .obs-aurora, .obs-aurora-wave, .obs-nebula { animation: none; }
+            .obs-shooting, .obs-shooting2, .obs-shooting3 { display: none; }
+        }
+
+        /* ── UI colour & glow (Observatory page only — scoped to this file) ── */
+        /* Course cards: glassy gradient, glowing border, hover lift + sheen sweep. */
+        .path-card, .hr-hub-card {
+            background: linear-gradient(150deg, rgba(129,140,248,0.12), rgba(34,211,238,0.05)) !important;
+            border: 1px solid rgba(129,140,248,0.30) !important;
+            border-radius: 14px !important;
+            position: relative; overflow: hidden;
+            transition: transform .25s ease, box-shadow .3s ease, border-color .3s ease !important;
+        }
+        .path-card::after, .hr-hub-card::after {
+            content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+            background: linear-gradient(120deg, transparent 35%, rgba(255,255,255,0.14) 50%, transparent 65%);
+            transform: translateX(-130%); transition: transform .7s ease;
+        }
+        .path-card:hover, .hr-hub-card:hover {
+            transform: translateY(-5px) !important;
+            border-color: rgba(34,211,238,0.75) !important;
+            box-shadow: 0 10px 34px rgba(129,140,248,0.30), 0 0 46px rgba(34,211,238,0.20) !important;
+        }
+        .path-card:hover::after, .hr-hub-card:hover::after { transform: translateX(130%); }
+        .path-cert, .hr-hub-cert { color: #67e8f9 !important; }
+        .path-icon img, .hr-hub-icon img { box-shadow: 0 0 16px rgba(129,140,248,0.55); border-radius: 8px; }
+
+        /* Section titles → gradient text. */
+        .paths-title, .hr-hub-title {
+            background-image: linear-gradient(90deg, #a5b4fc, #22d3ee) !important;
+            -webkit-background-clip: text !important; background-clip: text !important; -webkit-text-fill-color: transparent !important;
+        }
+
+        /* Hero title → animated colour-shifting gradient (background-image, NOT the
+           background shorthand, so background-clip:text is not reset to border-box). */
+        .hero-title, .hero-title span {
+            background-image: linear-gradient(90deg, #a5b4fc, #22d3ee, #c4b5fd, #f9a8d4, #a5b4fc) !important;
+            background-size: 300% auto !important;
+            -webkit-background-clip: text !important; background-clip: text !important; -webkit-text-fill-color: transparent !important;
+            animation: obs-hue 9s linear infinite;
+        }
+        @keyframes obs-hue { to { background-position: 300% center; } }
+
+        /* Mascot + emblem glow; stat values glow. */
+        .hero-icon img, .hero-mascot img, .hero-mascot video { filter: drop-shadow(0 0 24px rgba(129,140,248,0.45)); }
+        .stat-value { color: #a5b4fc !important; text-shadow: 0 0 14px rgba(129,140,248,0.55); }
+
+        /* Tabs: hover tint + active glow. */
+        .hr-tab:hover { color: #a5b4fc; }
+        .hr-tab.active { box-shadow: 0 0 18px rgba(129,140,248,0.35); border-color: rgba(34,211,238,0.5) !important; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .hero-title { animation: none; }
+            .path-card, .hr-hub-card, .path-card::after, .hr-hub-card::after { transition: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="visually-hidden">Hexworth Observatory</h1>
+
+    <!-- Celestial atmosphere (decorative, behind content). -->
+    <div class="obs-nebula" aria-hidden="true"></div>
+    <div class="obs-stars-far" aria-hidden="true"></div>
+    <div class="obs-stars-mid" aria-hidden="true"></div>
+    <div class="obs-stars" aria-hidden="true"></div>
+    <div class="obs-aurora" aria-hidden="true"></div>
+    <div class="obs-aurora-wave" aria-hidden="true"></div>
+    <div class="obs-polaris" aria-hidden="true"></div>
+    <div class="obs-shooting" aria-hidden="true"></div>
+    <div class="obs-shooting2" aria-hidden="true"></div>
+    <div class="obs-shooting3" aria-hidden="true"></div>
+
+    <!-- Shared house components (same set the other houses load). -->
+    <script src="../../components/SkillTreeData.js"></script>
+    <script src="../../components/LearningPaths.js"></script>
+    <script src="../../components/AchievementSystem.js"></script>
+    <script src="../../components/ProgressManager.js"></script>
+    <script src="../../components/FluxCapacitor.js"></script>
+    <script src="../../components/ContentCatalog.js"></script>
+    <script src="../../config/mascot-lore.js"></script>
+    <script src="../../components/FavoritesManager.js"></script>
+    <script src="../../components/HouseRenderer.js"></script>
+    <!-- Auth + Firestore so the consent gate can store the operator's copy. -->
+    <script src="../../components/FirebaseAuth.js"></script>
+    <script src="../../arena/firebase-init.js"></script>
+    <script src="../../components/ObservatoryConsent.js"></script>
+    <script src="../../components/ObservatoryTracker.js"></script>
+
+    <script>
+        // Observatory has no native modules of its own — it is a launcher for
+        // courses that physically live in their topic houses (pointer model).
+        const SAMPLE_MODULES = (typeof ContentCatalog !== 'undefined' && ContentCatalog.getHouseModules)
+            ? ContentCatalog.getHouseModules('observatory') : [];
+
+        // The house config. `paths` are the scheduled-course redirect cards —
+        // each points (href) at the real course in its home house. Add a card
+        // here for every course taught on a repeated schedule.
+        const OBSERVATORY_CONFIG = {
+            houseId: 'observatory',
+            // Polaris the armored polar bear — emblem (observatory.webp) + hero
+            // poster (observatory-hero.webp) auto-resolve from houseId; the
+            // animated hero loop is wired explicitly here.
+            mascotVideo: '/assets/images/mascots/observatory-hero-animated.mp4',
+            icon: '<svg viewBox="0 0 24 24" width="1.1em" height="1.1em" style="vertical-align:middle"><path fill="#a5b4fc" d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg>',
+            title: 'Observatory',
+            fullTitle: 'Hexworth Observatory',
+            customTitle: 'Hexworth <span>Observatory</span>',
+            domain: 'Active Courses & Research',
+            description: 'Find your way by Polaris. Your scheduled courses gathered in one place — plus the research participation that helps us teach them better.',
+            certBadges: [],
+            searchPlaceholder: 'Search your courses...',
+            paths: [
+                // Scheduled courses — each card redirects (href) to the course's
+                // real home in its topic house (pointer model; content stays put).
+                { id: 'obs-aplus-core1',  href: '/houses/aplus-core1/',            icon: '<img src="/assets/images/icons/icon-wrench.webp" alt="A+ Core 1" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">',   name: 'A+ Core 1',                          cert: 'CompTIA 220-1101' },
+                { id: 'obs-aplus-core2',  href: '/houses/aplus-core2/',            icon: '<img src="/assets/images/icons/icon-wrench.webp" alt="A+ Core 2" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">',   name: 'A+ Core 2',                          cert: 'CompTIA 220-1102' },
+                { id: 'obs-md-100',       href: '/houses/forge/md-100/',           icon: '<img src="/assets/images/icons/icon-terminal.webp" alt="MD-100" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">',     name: 'MD-100: Windows Client',             cert: 'Microsoft MD-100' },
+                { id: 'obs-md-101',       href: '/houses/forge/md-101/',           icon: '<img src="/assets/images/icons/icon-terminal.webp" alt="MD-101" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">',     name: 'MD-101: Modern Desktops',            cert: 'Microsoft MD-101' },
+                { id: 'obs-network-plus', href: '/houses/web/network-plus/index.html', icon: '<img src="/assets/images/icons/icon-globe.webp" alt="Network+" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">',  name: 'Network+',                           cert: 'CompTIA N10-009' },
+                { id: 'obs-wsa',          href: '/houses/cloud/modules/wsa/index.html', icon: '<img src="/assets/images/icons/icon-server.webp" alt="Windows Server Administration" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Windows Server Administration', cert: 'CTS1328C' },
+                { id: 'obs-python-it',    href: '/houses/code/python-for-it/index.html', icon: '<img src="/assets/images/icons/icon-terminal.webp" alt="Python for IT" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Python for IT',                cert: 'COP1034C' },
+                { id: 'obs-ethics-it',    href: '/houses/divergent/ethics-it/index.html', icon: '<img src="/assets/images/icons/icon-scales.webp" alt="Ethics in IT" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Ethics in IT',                cert: 'CIS4253' },
+                { id: 'obs-cis2350c',     href: '/houses/shield/infosec/',         icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="Principles of Information Security" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Principles of Information Security', cert: 'CIS2350C' },
+                { id: 'obs-projects',     href: '/projects/',                      icon: '<img src="/assets/images/icons/icon-rocket.webp" alt="Projects Hub" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Projects Hub', cert: 'Hands-On Projects' },
+                { id: 'obs-ethical-hacking', href: '/houses/dark-arts/feh/',       icon: '<img src="/assets/images/icons/icon-swords.webp" alt="Foundations of Ethical Hacking" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Foundations of Ethical Hacking', cert: 'Offensive Security' },
+                { id: 'obs-clh',          href: '/houses/script/courses/clh/',     icon: '<img src="/assets/images/icons/icon-terminal.webp" alt="Command Line Hacker" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Command Line Hacker (CLH)', cert: 'Command-Line / Offensive' },
+                { id: 'obs-linux-mastery', href: '/houses/script/modules/linux-mastery/', icon: '<img src="/assets/images/icons/icon-penguin.webp" alt="Linux Mastery" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Linux Mastery', cert: 'Linux' },
+                { id: 'obs-linux-admin',  href: '/houses/script/linux/',           icon: '<img src="/assets/images/icons/icon-penguin.webp" alt="Linux Administration" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Linux Administration', cert: 'Linux' },
+                { id: 'obs-bug-hunting',  href: '/dark-arts/vault/bug-hunting/',   icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="Bug Hunting" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Bug Hunting', cert: 'Offensive Security' },
+                { id: 'obs-adv-linux',    href: '/houses/matrix/adv-linux/',       icon: '<img src="/assets/images/icons/icon-penguin.webp" alt="Advanced Linux Administration" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">', name: 'Advanced Linux Administration', cert: 'CTS4321C' }
+            ],
+            modules: SAMPLE_MODULES,
+            categories: [],
+            // Polaris tagline banner under the stats row.
+            afterStatsHTML: `
+                <div style="max-width:1280px;margin:18px auto;padding:16px 24px;border:1px solid rgba(129,140,248,0.30);border-radius:14px;
+                            background:linear-gradient(90deg,rgba(139,92,246,0.10),rgba(34,211,238,0.07));text-align:center;
+                            box-shadow:0 0 40px rgba(129,140,248,0.12);">
+                    <div style="font-size:1.15rem;letter-spacing:0.10em;font-weight:700;
+                                background:linear-gradient(90deg,#a5b4fc,#22d3ee);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">
+                        Find your way by Polaris</div>
+                    <div style="font-size:0.88rem;color:#9aa6e0;margin-top:5px;">Your scheduled courses, gathered under one fixed star.</div>
+                    <div style="margin-top:10px;"><a href="#" onclick="ObservatoryConsent.showWithdraw();return false;" style="font-size:0.74rem;color:#6b76b0;text-decoration:underline;letter-spacing:0.04em;">Manage research participation</a></div>
+                </div>`
+        };
+
+        // Gate the house behind research consent: render only once the signed-in
+        // user has a consent record (existing or freshly submitted).
+        ObservatoryConsent.ensureConsent(function () {
+            HouseRenderer.init(OBSERVATORY_CONFIG);
+            // Consented cohort — start activity tracking.
+            if (typeof ObservatoryTracker !== 'undefined') ObservatoryTracker.init();
+        });
+    </script>
+
+    <!-- Discovery / gamification companions (match the other houses). -->
+    <script src="../../components/ContentDiscovery.js"></script>
+    <script src="../../components/TrailHunter.js"></script>
+    <script src="../../components/MasteryXP.js"></script>
+    <script src="../../components/StampRollout.js"></script>
+    <script>StampRollout.init();</script>
+</body>
+</html>

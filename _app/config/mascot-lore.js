@@ -148,6 +148,17 @@ const MascotLore = {
         color: '#00ff41'
     },
 
+    observatory: {
+        name: 'Polaris',
+        house: 'observatory',
+        species: 'Armored Polar Bear',
+        origin: 'Polaris was the largest of the great ice-bears that walked beneath the northern sky, the one who never lost her way home because she always walked toward the one fixed star. The other bears named her for it. When Hexworth raised its Observatory, she came down from the pole in star-forged armor and took the watch — the Great Bear of the heavens made flesh, guiding learners the way lost navigators were once guided by her namesake.',
+        personality: 'Steady, guiding, quietly watchful',
+        quote: 'Every voyage needs a fixed point. Find me, and you will never be lost.',
+        ability: 'Can read the course a learner is on at a glance and hold a steady bearing through any storm of confusion — as constant as the star she is named for',
+        color: '#818cf8'
+    },
+
     /**
      * Get lore for a specific house mascot.
      * @param {string} houseId - e.g. 'web', 'dark-arts', 'divergent'

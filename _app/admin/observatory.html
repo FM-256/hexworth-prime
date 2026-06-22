@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observatory — Research Analytics</title>
+
+    <!-- Admin gate (defense-in-depth; the Firestore rules also require isAdmin() on read). -->
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('admin');</script>
+
+    <style>
+        :root{
+            --bg:#05060f; --panel:#0b1024; --line:rgba(129,140,248,0.28);
+            --ink:#cdd6f4; --muted:#8893c9; --indigo:#a5b4fc; --cyan:#22d3ee;
+        }
+        *{box-sizing:border-box}
+        body{margin:0;font-family:system-ui,-apple-system,sans-serif;color:var(--ink);
+            background:radial-gradient(60% 50% at 80% 0%,rgba(139,92,246,0.14),transparent 70%),
+                       radial-gradient(55% 45% at 10% 100%,rgba(34,211,238,0.10),transparent 70%),
+                       var(--bg);min-height:100vh;padding:24px}
+        a{color:var(--cyan)}
+        .obs-head{max-width:1200px;margin:0 auto 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+        .obs-head h1{margin:0;font-size:1.5rem;
+            background:linear-gradient(90deg,#a5b4fc,#22d3ee);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+        .obs-head .sub{color:var(--muted);font-size:0.82rem;margin-top:2px}
+        .wrap{max-width:1200px;margin:0 auto}
+        /* Summary cards */
+        .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
+        .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 0 30px rgba(129,140,248,0.08)}
+        .card .n{font-size:1.9rem;font-weight:800;color:var(--indigo)}
+        .card .l{font-size:0.74rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;margin-top:2px}
+        /* Controls */
+        .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+        select,button{font-family:inherit;font-size:0.85rem;border-radius:8px;border:1px solid var(--line);
+            background:#070a18;color:var(--ink);padding:8px 12px;cursor:pointer}
+        button:hover{border-color:var(--indigo)}
+        button.primary{background:linear-gradient(135deg,#6366f1,#22d3ee);color:#06060f;font-weight:700;border:none}
+        /* Sections */
+        .section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:20px}
+        .section h2{margin:0 0 12px;font-size:1.05rem;color:var(--indigo)}
+        .section .hint{color:var(--muted);font-size:0.76rem;margin-bottom:10px}
+        /* Table */
+        table{width:100%;border-collapse:collapse;font-size:0.82rem}
+        th,td{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(129,140,248,0.12)}
+        th{color:var(--muted);font-weight:600;letter-spacing:0.03em;cursor:pointer;user-select:none}
+        tbody tr:hover{background:rgba(129,140,248,0.06)}
+        .pill{display:inline-block;padding:2px 8px;border-radius:20px;background:rgba(129,140,248,0.14);color:var(--indigo);font-size:0.72rem}
+        /* Heatmap */
+        .heat{display:grid;grid-template-columns:42px repeat(24,1fr);gap:2px;font-size:0.6rem}
+        .heat .hcell{aspect-ratio:1/1;border-radius:3px;background:rgba(129,140,248,0.06)}
+        .heat .hlabel{color:var(--muted);display:flex;align-items:center;justify-content:flex-end;padding-right:4px}
+        .heat .hcol{color:var(--muted);text-align:center}
+        /* Bars */
+        .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:0.82rem}
+        .bar-row .lbl{width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+        .bar-row .track{flex:1;background:rgba(129,140,248,0.10);border-radius:6px;height:16px;overflow:hidden}
+        .bar-row .fill{height:100%;background:linear-gradient(90deg,#6366f1,#22d3ee)}
+        .bar-row .val{width:46px;text-align:right;color:var(--muted)}
+        .empty{color:var(--muted);font-size:0.85rem;padding:10px 0}
+        #status{color:var(--muted);font-size:0.82rem;margin:8px 0}
+    </style>
+</head>
+<body>
+    <div class="obs-head">
+        <div>
+            <h1>Hexworth Observatory — Research Analytics</h1>
+            <div class="sub">Consented cohort · roster, engagement, and activity. Admin only.</div>
+        </div>
+        <div><a href="console.html">&larr; Admin Console</a></div>
+    </div>
+
+    <div class="wrap">
+        <div id="status">Loading…</div>
+
+        <!-- Summary cards -->
+        <div class="cards" id="cards"></div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <label style="color:var(--muted);font-size:0.8rem">Class:</label>
+            <select id="classFilter"><option value="">All classes</option></select>
+            <button id="refreshBtn">Refresh</button>
+            <button id="exportRoster">Export roster (CSV)</button>
+            <button id="exportEvents">Export events (CSV)</button>
+        </div>
+
+        <!-- Roster -->
+        <div class="section">
+            <h2>Roster</h2>
+            <div class="hint">Enrolled participants. Click a column header to sort. "Events" and "Last seen" come from the activity stream.</div>
+            <table id="rosterTable">
+                <thead><tr>
+                    <th data-k="name">Name</th>
+                    <th data-k="email">Email</th>
+                    <th data-k="className">Class</th>
+                    <th data-k="enrolledAt">Enrolled</th>
+                    <th data-k="events">Events</th>
+                    <th data-k="lastSeen">Last seen</th>
+                </tr></thead>
+                <tbody id="rosterBody"></tbody>
+            </table>
+            <div class="empty" id="rosterEmpty" style="display:none">No enrollments yet.</div>
+        </div>
+
+        <!-- Engagement heatmap -->
+        <div class="section">
+            <h2>Engagement heatmap</h2>
+            <div class="hint">Activity events by weekday (rows) × hour of day (columns), local time. Darker = more activity.</div>
+            <div class="heat" id="heat"></div>
+        </div>
+
+        <!-- Course popularity -->
+        <div class="section">
+            <h2>Course popularity</h2>
+            <div class="hint">Course-card clicks within the Observatory.</div>
+            <div id="coursePop"></div>
+        </div>
+
+        <!-- Dwell + per-class -->
+        <div class="section">
+            <h2>Engagement summary</h2>
+            <div id="dwellSummary"></div>
+        </div>
+    </div>
+
+    <!-- Firebase: FirebaseAuth (admin claims) + ArenaFirebase (db + firestore module). -->
+    <script src="../components/FirebaseAuth.js"></script>
+    <script src="../arena/firebase-init.js"></script>
+    <script>
+    (function () {
+        'use strict';
+
+        // ── State ──
+        let _db = null, _fs = null;
+        let _enroll = [];      // enrollment docs
+        let _events = [];      // activity docs (capped)
+        let _withdrawals = 0;  // tombstone count
+        let _classes = {};     // id -> label
+        let _rosterSort = { k: 'enrolledAt', dir: -1 };
+        const EVENT_CAP = 5000;
+
+        const $ = id => document.getElementById(id);
+
+        // Resolve the live Firestore handle + modular SDK fns (via ArenaFirebase).
+        async function connect() {
+            await ArenaFirebase.isReady();
+            _db = ArenaFirebase.db;
+            _fs = window.firebaseFirestore;
+            return !!(_db && _fs);
+        }
+
+        // Load all dashboard data: enrollment roster, recent activity, withdrawals,
+        // and the admin class list. Reads are admin-gated by the Firestore rules.
+        async function loadData() {
+            const { collection, getDocs, query, orderBy, limit } = _fs;
+
+            // Roster.
+            const eSnap = await getDocs(collection(_db, 'observatory_enrollment'));
+            _enroll = []; eSnap.forEach(d => _enroll.push(Object.assign({ id: d.id }, d.data())));
+
+            // Recent activity (capped, newest first).
+            const aSnap = await getDocs(query(collection(_db, 'observatory_activity'), orderBy('at', 'desc'), limit(EVENT_CAP)));
+            _events = []; aSnap.forEach(d => _events.push(d.data()));
+
+            // Withdrawals (count only).
+            try {
+                const wSnap = await getDocs(collection(_db, 'observatory_withdrawals'));
+                _withdrawals = wSnap.size;
+            } catch (e) { _withdrawals = 0; }
+
+            // Class labels for the filter.
+            _classes = {};
+            try {
+                const cSnap = await getDocs(collection(_db, 'observatory_classes'));
+                cSnap.forEach(d => { _classes[d.id] = (d.data().label || d.id); });
+            } catch (e) { /* fall back to ids from enrollment */ }
+            _enroll.forEach(r => { if (r.classId && !_classes[r.classId]) _classes[r.classId] = r.className || r.classId; });
+        }
+
+        // Convert an event's timestamp to a JS Date (server `at` preferred, client fallback).
+        function eventDate(ev) {
+            if (ev.at && typeof ev.at.toDate === 'function') return ev.at.toDate();
+            if (ev.clientTs) { const d = new Date(ev.clientTs); return isNaN(d) ? null : d; }
+            return null;
+        }
+
+        // Per-uid activity rollup: { count, lastSeen } from the (filtered) events.
+        function activityByUid(events) {
+            const map = {};
+            events.forEach(ev => {
+                const u = ev.uid; if (!u) return;
+                if (!map[u]) map[u] = { count: 0, lastSeen: null };
+                map[u].count++;
+                const d = eventDate(ev);
+                if (d && (!map[u].lastSeen || d > map[u].lastSeen)) map[u].lastSeen = d;
+            });
+            return map;
+        }
+
+        // The events that belong to the currently-selected class (or all).
+        function filteredEvents() {
+            const cls = $('classFilter').value;
+            if (!cls) return _events;
+            return _events.filter(ev => ev.classId === cls);
+        }
+        // The enrollments for the currently-selected class (or all).
+        function filteredEnroll() {
+            const cls = $('classFilter').value;
+            if (!cls) return _enroll;
+            return _enroll.filter(r => r.classId === cls);
+        }
+
+        // ── Rendering ──
+
+        // Summary cards: enrolled, active (distinct uids w/ activity), events, withdrawals.
+        function renderCards() {
+            const roster = filteredEnroll();
+            const events = filteredEvents();
+            const active = Object.keys(activityByUid(events)).length;
+            const cards = [
+                { n: roster.length, l: 'Enrolled' },
+                { n: active, l: 'Active participants' },
+                { n: events.length + (events.length >= EVENT_CAP ? '+' : ''), l: 'Activity events' },
+                { n: _withdrawals, l: 'Withdrawals' }
+            ];
+            $('cards').innerHTML = cards.map(c =>
+                `<div class="card"><div class="n">${c.n}</div><div class="l">${c.l}</div></div>`).join('');
+        }
+
+        // Populate the class filter dropdown from the known classes.
+        function renderClassFilter() {
+            const sel = $('classFilter');
+            const cur = sel.value;
+            const opts = ['<option value="">All classes</option>']
+                .concat(Object.keys(_classes).sort().map(id => `<option value="${id}">${esc(_classes[id])}</option>`));
+            sel.innerHTML = opts.join('');
+            sel.value = cur;
+        }
+
+        // Roster table — sortable, reflects the active class filter.
+        function renderRoster() {
+            const act = activityByUid(filteredEvents());
+            let rows = filteredEnroll().map(r => ({
+                name: r.name || r.displayName || '(unnamed)',
+                email: r.email || '',
+                className: r.className || r.classId || '',
+                enrolledAt: r.enrolledAt || '',
+                events: (act[r.uid] && act[r.uid].count) || 0,
+                lastSeen: (act[r.uid] && act[r.uid].lastSeen) ? act[r.uid].lastSeen : null
+            }));
+            const { k, dir } = _rosterSort;
+            rows.sort((a, b) => {
+                let va = a[k], vb = b[k];
+                if (k === 'lastSeen') { va = va ? va.getTime() : 0; vb = vb ? vb.getTime() : 0; }
+                if (va < vb) return -1 * dir; if (va > vb) return 1 * dir; return 0;
+            });
+            $('rosterEmpty').style.display = rows.length ? 'none' : 'block';
+            $('rosterBody').innerHTML = rows.map(r =>
+                `<tr><td>${esc(r.name)}</td><td>${esc(r.email)}</td>
+                 <td><span class="pill">${esc(r.className)}</span></td>
+                 <td>${esc(String(r.enrolledAt).slice(0, 10))}</td>
+                 <td>${r.events}</td>
+                 <td>${r.lastSeen ? fmtDate(r.lastSeen) : '—'}</td></tr>`).join('');
+        }
+
+        // Weekday × hour heatmap of all (filtered) events.
+        function renderHeat() {
+            const grid = []; for (let d = 0; d < 7; d++) grid.push(new Array(24).fill(0));
+            let max = 0;
+            filteredEvents().forEach(ev => {
+                const d = eventDate(ev); if (!d) return;
+                grid[d.getDay()][d.getHours()]++;
+                if (grid[d.getDay()][d.getHours()] > max) max = grid[d.getDay()][d.getHours()];
+            });
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            let html = '<div class="hcell" style="background:none"></div>';
+            for (let h = 0; h < 24; h++) html += `<div class="hcol">${h}</div>`;
+            for (let d = 0; d < 7; d++) {
+                html += `<div class="hlabel">${days[d]}</div>`;
+                for (let h = 0; h < 24; h++) {
+                    const v = grid[d][h];
+                    const alpha = max ? (0.10 + 0.85 * (v / max)) : 0;
+                    const bg = v ? `rgba(99,102,241,${alpha.toFixed(3)})` : 'rgba(129,140,248,0.06)';
+                    html += `<div class="hcell" title="${days[d]} ${h}:00 — ${v} event(s)" style="background:${bg}"></div>`;
+                }
+            }
+            $('heat').innerHTML = html;
+        }
+
+        // Course-card click popularity (bar list), from course_click events.
+        function renderCoursePop() {
+            const counts = {};
+            filteredEvents().forEach(ev => {
+                if (ev.type !== 'course_click') return;
+                const key = ev.name || ev.target || '(unknown)';
+                counts[key] = (counts[key] || 0) + 1;
+            });
+            const entries = Object.keys(counts).map(k => [k, counts[k]]).sort((a, b) => b[1] - a[1]);
+            if (!entries.length) { $('coursePop').innerHTML = '<div class="empty">No course clicks recorded yet.</div>'; return; }
+            const max = entries[0][1];
+            $('coursePop').innerHTML = entries.map(([k, v]) =>
+                `<div class="bar-row"><div class="lbl" title="${esc(k)}">${esc(k)}</div>
+                 <div class="track"><div class="fill" style="width:${(100 * v / max).toFixed(1)}%"></div></div>
+                 <div class="val">${v}</div></div>`).join('');
+        }
+
+        // Dwell + per-class breakdown.
+        function renderDwell() {
+            const events = filteredEvents();
+            const dwell = events.filter(ev => ev.type === 'house_dwell' && Number.isFinite(ev.seconds));
+            const total = dwell.reduce((s, ev) => s + ev.seconds, 0);
+            const avg = dwell.length ? Math.round(total / dwell.length) : 0;
+            const enters = events.filter(ev => ev.type === 'house_enter').length;
+
+            // Per-class enrollment counts. Honors the active class filter so this
+            // section is internally consistent with the dwell/visit stats above
+            // (numerator and denominator both from the filtered roster).
+            const roster = filteredEnroll();
+            const byClass = {};
+            roster.forEach(r => { const c = r.className || r.classId || '(none)'; byClass[c] = (byClass[c] || 0) + 1; });
+            const denom = roster.length || 1;
+            const classRows = Object.keys(byClass).sort().map(c =>
+                `<div class="bar-row"><div class="lbl">${esc(c)}</div>
+                 <div class="track"><div class="fill" style="width:${(100 * byClass[c] / denom).toFixed(1)}%"></div></div>
+                 <div class="val">${byClass[c]}</div></div>`).join('');
+
+            $('dwellSummary').innerHTML =
+                `<div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:14px">
+                    <div><div class="card-n" style="font-size:1.4rem;font-weight:800;color:var(--indigo)">${enters}</div>
+                         <div style="color:var(--muted);font-size:0.74rem">House visits</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:800;color:var(--indigo)">${fmtDur(avg)}</div>
+                         <div style="color:var(--muted);font-size:0.74rem">Avg. dwell / visit</div></div>
+                    <div><div style="font-size:1.4rem;font-weight:800;color:var(--indigo)">${fmtDur(total)}</div>
+                         <div style="color:var(--muted);font-size:0.74rem">Total dwell</div></div>
+                 </div>
+                 <h2 style="font-size:0.9rem">Enrollment by class</h2>${classRows || '<div class="empty">No enrollments.</div>'}`;
+        }
+
+        // Render everything from the current data + filter.
+        function renderAll() {
+            renderCards(); renderRoster(); renderHeat(); renderCoursePop(); renderDwell();
+        }
+
+        // ── Helpers ──
+        function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+        function fmtDate(d) { try { return d.toLocaleString(); } catch (e) { return '—'; } }
+        function fmtDur(sec) {
+            sec = Math.round(sec || 0);
+            if (sec < 60) return sec + 's';
+            if (sec < 3600) return Math.floor(sec / 60) + 'm ' + (sec % 60) + 's';
+            return Math.floor(sec / 3600) + 'h ' + Math.floor((sec % 3600) / 60) + 'm';
+        }
+        // Build a CSV string from an array of header keys + row objects, and download it.
+        function downloadCsv(filename, headers, rows) {
+            const escCell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+            const lines = [headers.map(escCell).join(',')]
+                .concat(rows.map(r => headers.map(h => escCell(r[h])).join(',')));
+            const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        }
+
+        // ── Exports ──
+        function exportRoster() {
+            const act = activityByUid(_events);
+            const rows = _enroll.map(r => ({
+                name: r.name || '', email: r.email || '', class: r.className || r.classId || '',
+                enrolledAt: r.enrolledAt || '', formVersion: r.formVersion || '',
+                events: (act[r.uid] && act[r.uid].count) || 0,
+                lastSeen: (act[r.uid] && act[r.uid].lastSeen) ? act[r.uid].lastSeen.toISOString() : ''
+            }));
+            downloadCsv('observatory-roster.csv', ['name', 'email', 'class', 'enrolledAt', 'formVersion', 'events', 'lastSeen'], rows);
+        }
+        function exportEvents() {
+            const rows = _events.map(ev => ({
+                uid: ev.uid || '', classId: ev.classId || '', type: ev.type || '',
+                at: (eventDate(ev) ? eventDate(ev).toISOString() : ''), path: ev.path || '',
+                name: ev.name || '', target: ev.target || '', seconds: Number.isFinite(ev.seconds) ? ev.seconds : ''
+            }));
+            downloadCsv('observatory-events.csv', ['uid', 'classId', 'type', 'at', 'path', 'name', 'target', 'seconds'], rows);
+        }
+
+        // ── Boot ──
+        async function boot() {
+            try {
+                if (!(await connect())) { $('status').textContent = 'Could not connect to the database.'; return; }
+                await loadData();
+                renderClassFilter();
+                renderAll();
+                $('status').textContent = _events.length >= EVENT_CAP
+                    ? `Showing the most recent ${EVENT_CAP} activity events (cap reached — older events not included in charts).`
+                    : `Loaded ${_enroll.length} enrollment(s) and ${_events.length} activity event(s).`;
+            } catch (e) {
+                console.error('[Observatory dashboard] load failed:', e);
+                $('status').textContent = 'Failed to load data: ' + (e && e.message ? e.message : e) + ' (admin sign-in required).';
+            }
+        }
+
+        // Wire controls.
+        $('classFilter').addEventListener('change', renderAll);
+        $('refreshBtn').addEventListener('click', boot);
+        $('exportRoster').addEventListener('click', exportRoster);
+        $('exportEvents').addEventListener('click', exportEvents);
+        document.querySelectorAll('#rosterTable th').forEach(th => th.addEventListener('click', () => {
+            const k = th.getAttribute('data-k');
+            _rosterSort = { k, dir: (_rosterSort.k === k ? -_rosterSort.dir : 1) };
+            renderRoster();
+        }));
+
+        boot();
+    })();
+    </script>
+</body>
+</html>
