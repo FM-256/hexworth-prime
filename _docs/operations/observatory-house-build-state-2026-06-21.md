@@ -57,9 +57,13 @@ A+ Core 1 → `/houses/aplus-core1/` · A+ Core 2 → `/houses/aplus-core2/` · 
 - Picker: `observatory-destination` card appears in dashboard "Browse All Houses" and navigates to the house.
 - Full live path on preview: dashboard → Explore All → OBSERVATORY → consent → house.
 
+## DONE since initial handoff
+- **Polish:** hero now reads "Hexworth Observatory" (`customTitle` override); dropped the empty HouseProgressPanel ("Progress data unavailable" gone). The `appendChild` console error was god-mode-only (test artifact) — not student-facing; AccessGuard untouched.
+- **More cards:** roster now 16 (added Projects Hub, Foundations of Ethical Hacking, CLH, Linux Mastery, Linux Administration `/houses/script/linux/`, Bug Hunting, Advanced Linux Administration).
+- **P2 code (committed, branch):** `firestore.rules` has scoped `observatory_consent`/`observatory_classes`/`observatory_activity` rules (additive). `ObservatoryTracker.js` (consent-gated activity events → `observatory_activity`) built + wired into the house boot. Preview-verified: tracker + consent gate load and work.
+
 ## NOT done / remaining (resume here)
-1. **Polish (3):** HouseRenderer prints "House of the Observatory" (override to "Hexworth Observatory"); a non-fatal `appendChild` console error + "Progress data unavailable" banner for a module-less house.
-2. **P2 — Firestore rules + tracking:** add `firestore.rules` for `observatory_consent/{uid}` (create/update if `request.auth.uid == uid`; read if owner or admin) and `observatory_classes` (read if signed in; write if admin). Build the self-built event instrumentation (capture page/lab/box activity → Firestore for the consented cohort).
+1. **Deploy the Firestore rules (GO-LIVE gate).** Blocked on the feature branch by Rule #10 — `firebase deploy --only firestore:rules` only runs from master. Until deployed, the live consent write is denied and falls back to localStorage (preview demo works; real Firestore persistence + tracking activate once rules deploy). This deploys at go-live alongside shipping the house to production from master.
 3. **P3 — admin dashboard:** roster, per-class grouping, per-student activity, heatmaps, exports (in the admin console).
 4. **Marketing "12 Houses" grid** (`_app/index.html`, display-only) — optional 12→13 branding call.
 5. **GO-LIVE GATE:** do NOT collect real student consent until P2 rules are deployed and the house is on production. Preview is ephemeral and ruleless — review only.
