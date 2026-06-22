@@ -95,6 +95,9 @@ async function main() {
                 // and a stray Firestore flag can never persist under merge:true.
                 ...(Array.isArray(data.explanations) ? { explanations: data.explanations } : {}),
                 revealToAll: data.revealToAll === true,
+                // Opt-in "reveal correct answers after N failed attempts" (gradeQuiz reads
+                // this). Written only when present so it never appears on exams that don't use it.
+                ...(Number.isInteger(data.reviewAfterFails) ? { reviewAfterFails: data.reviewAfterFails } : {}),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 

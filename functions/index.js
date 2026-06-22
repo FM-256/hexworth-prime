@@ -1597,12 +1597,32 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     const passingScore = keyData.passingScore || 70;
     const passed = percentage >= passingScore;
 
+    // Opt-in "review after N failed attempts": exams that set keyData.reviewAfterFails
+    // reveal the correct answers once a student has failed that many times (this attempt
+    // included), so a struggling student can finally review what they missed. Counts the
+    // user's prior failed attempts for this quiz via a single-field query (no composite
+    // index required). Server-authoritative — the client cannot spoof the attempt count.
+    let revealForReview = false;
+    if (!passed && keyData.reviewAfterFails) {
+        try {
+            const priorSnap = await db.collection(`users/${request.auth.uid}/quiz_attempts`)
+                .where('quizId', '==', quizId).get();
+            let priorFailed = 0;
+            priorSnap.forEach(d => { if (d.data() && d.data().passed === false) priorFailed++; });
+            // +1 for the current failing attempt (logged below).
+            if (priorFailed + 1 >= keyData.reviewAfterFails) revealForReview = true;
+        } catch (e) {
+            console.warn('reviewAfterFails count failed:', e.message);
+        }
+    }
+
     // ── Conditional correct-answer reveal ──
     // High-stakes exams reveal the key only to passers (anti-memorization: a failing
     // retaker shouldn't be handed the key). Formative module quizzes set revealToAll,
     // so EVERY student gets the correct answer + explanation post-submission — that is
     // the point of a learning-check review, and failing students need it most.
-    if (passed || keyData.revealToAll) {
+    // revealForReview adds the opt-in "after N fails" path (see above).
+    if (passed || keyData.revealToAll || revealForReview) {
         const explanations = Array.isArray(keyData.explanations) ? keyData.explanations : [];
         for (let i = 0; i < total; i++) {
             let expected = answerKey[i];
@@ -1630,7 +1650,7 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
         console.warn('Quiz attempt log failed:', e.message);
     }
 
-    return { score, total, percentage, passed, results };
+    return { score, total, percentage, passed, results, reviewAvailable: revealForReview };
 });
 
 // ─── SEC-4: Operator Mission Completion Validation ──────────────

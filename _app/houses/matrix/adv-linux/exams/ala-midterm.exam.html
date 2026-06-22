@@ -417,7 +417,8 @@
       <li>Covers Weeks 1 and 2: CLI Operations, systemd, Networking, Hardening, and Package Management</li>
       <li>You need 70% (18/25) to pass and unlock Week 3</li>
       <li>Timer starts when the page loads. Submit before time expires.</li>
-      <li>Review your answers before submitting. One attempt only.</li>
+      <li>Review your answers before submitting. You may retake the exam if you do not pass.</li>
+      <li>After two unsuccessful attempts, the correct answers are revealed for review.</li>
     </ul>
   </div>
 
@@ -558,7 +559,7 @@ async function submitExam() {
     }
   });
 
-  let score = 0, percent = 0, passed = false;
+  let score = 0, percent = 0, passed = false, reviewAvailable = false;
 
   try {
     if (typeof FirebaseAuth !== 'undefined') {
@@ -569,14 +570,24 @@ async function submitExam() {
       score = response.data.score;
       percent = response.data.percentage;
       passed = response.data.passed;
+      reviewAvailable = response.data.reviewAvailable === true;
 
-      // Mark correct/incorrect selections based on server results
+      // Mark correct/incorrect selections based on server results. When the
+      // server reveals the correct answer (on pass, or after the 2nd failed
+      // attempt — see reviewAfterFails), also highlight the correct option on
+      // each question so the student can review what they missed.
       shuffledData.forEach((item, i) => {
         const origIdx = examData.indexOf(item);
         const result = response.data.results[origIdx];
+        if (!result) return;
         const selected = document.querySelector(`input[name="q${i}"]:checked`);
-        if (selected && result) {
+        if (selected) {
           selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+        // result.correctAnswer is present only when the server chose to reveal.
+        if (typeof result.correctAnswer === 'number') {
+          const correctInput = document.querySelector(`input[name="q${i}"][value="${result.correctAnswer}"]`);
+          if (correctInput) correctInput.parentElement.classList.add('correct');
         }
       });
     }
@@ -601,7 +612,8 @@ async function submitExam() {
     <div class="result-msg ${passed ? 'pass' : 'fail'}">
       ${passed
         ? 'Midterm passed. Weeks 1 and 2 objectives verified. Week 3 is now unlocked.'
-        : `You need 70% (18/25) to pass. You scored ${score}/25. Review Week 1 and Week 2 modules and attempt again.`}
+        : `You need 70% (18/25) to pass. You scored ${score}/25. Review Week 1 and Week 2 modules and attempt again.`
+          + (reviewAvailable ? ' <strong>Because this is your second unsuccessful attempt, the correct answer for each question is now highlighted above for review.</strong>' : '')}
     </div>
     ${passed ? `
       <div class="unlock-badge">
