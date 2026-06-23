@@ -474,7 +474,9 @@ const ALAL07Config = {
 
             // Forward A/CNAME lookup
             const queryType = ['A', 'AAAA', 'MX', 'NS', 'CNAME', 'PTR', 'SOA', 'TXT'].find(t => args.includes(t)) || 'A';
-            const hostname = args.find(a => !a.startsWith('-') && !a.startsWith('@') && !['A', 'AAAA', 'MX', 'NS', 'CNAME', 'PTR', 'SOA', 'TXT', 'AXFR'].includes(a)) || '';
+            // Skip @server, -flags AND +options (dig uses +short, +trace, etc.) so the
+            // hostname isn't misread as '+short' -> spurious NXDOMAIN on a correct zone.
+            const hostname = args.find(a => !a.startsWith('-') && !a.startsWith('+') && !a.startsWith('@') && !['A', 'AAAA', 'MX', 'NS', 'CNAME', 'PTR', 'SOA', 'TXT', 'AXFR'].includes(a)) || '';
 
             if (!engine.config._state.forwardZoneFile) {
                 return `;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL\n;; ANSWER SECTION: (empty)\nForward zone not configured.`;
@@ -513,8 +515,9 @@ const ALAL07Config = {
             if (!engine.config._state.namedRunning) {
                 return `;; connection timed out; no servers could be reached`;
             }
-            const host = args[0] || '';
-            const server = args[1] || '10.0.1.1';
+            const nonFlags = args.filter(a => !a.startsWith('-') && !a.startsWith('+'));
+            const host = nonFlags[0] || '';
+            const server = nonFlags[1] || '10.0.1.1';
             if (!host) return `Usage: nslookup <hostname> [server]`;
 
             const aRecords = {
@@ -585,7 +588,7 @@ const ALAL07Config = {
         // host -- DNS lookup (parity with dig/nslookup; resolves once the zone is built).
         'host': function(args, term, engine) {
             if (!engine.config._state.namedRunning) { return `;; connection timed out; no servers could be reached`; }
-            const name = (args.find(a => !a.startsWith('@') && !a.startsWith('-')) || '').replace(/\.$/, '');
+            const name = (args.find(a => !a.startsWith('@') && !a.startsWith('-') && !a.startsWith('+')) || '').replace(/\.$/, '');
             const map = { 'cell-071.sector7.matrix.net': '10.0.1.71', 'cell-088.sector7.matrix.net': '10.0.1.88', 'cell-034.sector7.matrix.net': '10.0.1.34', 'cell-016.sector7.matrix.net': '10.0.1.16', 'cell-049.sector7.matrix.net': '10.0.1.49', 'grid-mail.sector7.matrix.net': '10.0.1.10' };
             if (!name) { return `Usage: host <name> [server]`; }
             if (engine.config._state.forwardZoneFile && map[name]) { return `${name} has address ${map[name]}`; }
