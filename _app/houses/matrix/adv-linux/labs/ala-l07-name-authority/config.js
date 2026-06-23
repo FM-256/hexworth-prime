@@ -251,11 +251,14 @@ const ALAL07Config = {
             if (file === '/etc/bind/named.conf.options') {
                 const hasListen = content.includes('listen-on');
                 const hasAllowQuery = content.includes('allow-query');
-                if (!hasListen && !hasAllowQuery) {
-                    return `write: named.conf.options must include listen-on and allow-query directives.`;
-                }
                 engine.config._state.optionsConfigured = hasListen && hasAllowQuery;
                 term.fs['/'].children.etc.children.bind.children['named.conf.options'].content = content + '\n';
+                // Warn on EITHER missing directive -- a partial file used to report a
+                // misleading "Written" while silently leaving named unstartable.
+                if (!hasListen || !hasAllowQuery) {
+                    const miss = [!hasListen ? 'listen-on' : null, !hasAllowQuery ? 'allow-query' : null].filter(Boolean).join(' and ');
+                    return `write: saved, but named.conf.options is still missing ${miss}. Both listen-on and allow-query are required before named will start.`;
+                }
                 return `Written: /etc/bind/named.conf.options`;
             }
 
