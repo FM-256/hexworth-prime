@@ -416,6 +416,22 @@
         </div>
 
         <!-- ════════════════════════════════════════════════ -->
+        <!-- SITE HEALTH — LIVE UPTIME (runtime monitor) -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel" id="uptimePanel">
+            <div class="panel-header">
+                <span class="panel-title">Site Health — Live Uptime</span>
+                <span class="panel-badge badge-stale" id="uptimeBadge">Loading</span>
+            </div>
+            <p id="uptimeSummary" style="margin:0 0 12px;color:var(--text-muted,#8892a8);font-size:0.85rem;">Connecting to the runtime monitor…</p>
+            <div id="uptimeTargets" style="display:flex;flex-direction:column;gap:6px;"></div>
+            <div style="margin-top:14px;">
+                <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted,#8892a8);margin-bottom:6px;">Recent runs (newest right · bar height = slowest page · every ~15 min)</div>
+                <div id="uptimeHistory" style="display:flex;gap:3px;flex-wrap:wrap;align-items:flex-end;min-height:34px;"></div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
         <!-- SATURATION BANNER (Slice 3d) — hidden unless triggered -->
         <!-- ════════════════════════════════════════════════ -->
         <div id="saturationBanner" style="display:none;grid-column:1/-1;padding:12px 16px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:8px;color:var(--pulse-red);font-size:0.85rem;line-height:1.5;">
@@ -2408,6 +2424,86 @@
             bindSystemToggle();
             await calculateHealth();
         });
+    })();
+    </script>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- SITE HEALTH — real-time read of the runtime monitor -->
+    <!-- ════════════════════════════════════════════════ -->
+    <script type="module">
+    /* Live "Site Health" panel. Reads the runtime monitor's Firestore docs:
+       _quality_reports/runtime_latest (current status, live via onSnapshot) and
+       _quality_reports/runtime_history (trend). Admin-gated by the page + rules. */
+    (async function initUptimePanel() {
+        // Wait for the Firebase app that FirebaseAuth.js initializes.
+        function waitForApp() {
+            return new Promise(function (res) {
+                (function poll() {
+                    if (window.firebaseApp && typeof window.firebaseApp.getApps === 'function' && window.firebaseApp.getApps().length) return res();
+                    setTimeout(poll, 200);
+                })();
+            });
+        }
+        await waitForApp();
+        // Reuse the Firestore modular SDK NexusReader caches, else import it.
+        if (!window.firebaseFirestore) {
+            window.firebaseFirestore = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+        }
+        var fs = window.firebaseFirestore;
+        var db = fs.getFirestore(window.firebaseApp.getApps()[0]);
+
+        var badge = document.getElementById('uptimeBadge');
+        var summary = document.getElementById('uptimeSummary');
+        var targetsEl = document.getElementById('uptimeTargets');
+        var histEl = document.getElementById('uptimeHistory');
+
+        // Latency → health color (green < 3s, amber < 8s, red otherwise / failed).
+        function navColor(ms, ok) { if (!ok) return '#ef4444'; if (ms < 3000) return '#22c55e'; if (ms < 8000) return '#f59e0b'; return '#ef4444'; }
+        // Human "x ago" from an ISO timestamp.
+        function ago(iso) { if (!iso) return 'never'; var s = Math.round((Date.now() - new Date(iso).getTime()) / 1000); if (s < 60) return s + 's ago'; if (s < 3600) return Math.round(s / 60) + 'm ago'; return Math.round(s / 3600) + 'h ago'; }
+
+        // Render the current-status doc into the badge, summary, and per-target rows.
+        function renderLatest(r) {
+            if (!r) { badge.textContent = 'No data'; summary.textContent = 'The runtime monitor has not reported yet (deploy + first run pending).'; return; }
+            var ageMin = r.completedAt ? (Date.now() - new Date(r.completedAt).getTime()) / 60000 : 999;
+            var state, color;
+            if (ageMin > 20) { state = 'STALE'; color = '#f59e0b'; }       // no recent report — monitor or site may be down
+            else if (r.allPassed) { state = 'UP'; color = '#22c55e'; }
+            else if ((r.passed || 0) > 0) { state = 'DEGRADED'; color = '#f59e0b'; }
+            else { state = 'DOWN'; color = '#ef4444'; }
+            badge.textContent = state;
+            badge.style.background = color + '22'; badge.style.color = color; badge.style.borderColor = color + '66';
+            summary.innerHTML = '<strong style="color:' + color + '">' + state + '</strong> — ' + (r.passed || 0) + '/' + (r.targetsChecked || 0) +
+                ' targets up · checked ' + ago(r.completedAt) + (ageMin > 20 ? ' · <span style="color:#f59e0b">monitor may be down</span>' : '');
+            targetsEl.innerHTML = (r.targets || []).map(function (t) {
+                var c = navColor(t.navMs, t.passed);
+                var dot = '<span style="width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:' + (t.passed ? '#22c55e' : '#ef4444') + ';"></span>';
+                var barPct = Math.min(100, Math.round((t.navMs || 0) / 100)); // 10s → 100%
+                return '<div style="display:flex;align-items:center;gap:10px;font-size:0.82rem;">' + dot +
+                    '<span style="flex:0 0 160px;">' + (t.target || '?') + '</span>' +
+                    '<span style="flex:0 0 44px;color:' + (t.passed ? '#8892a8' : '#ef4444') + ';">' + (t.httpStatus || '—') + '</span>' +
+                    '<span style="flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;"><span style="display:block;height:100%;width:' + barPct + '%;background:' + c + ';"></span></span>' +
+                    '<span style="flex:0 0 56px;text-align:right;color:' + c + ';">' + (t.navMs != null ? (t.navMs / 1000).toFixed(1) + 's' : '—') + '</span></div>';
+            }).join('');
+        }
+        // Render the rolling history as colored bars (green=up/red=down, height=slowest page).
+        function renderHistory(runs) {
+            if (!runs || !runs.length) { histEl.innerHTML = '<span style="color:#8892a8;font-size:0.78rem;">No history yet.</span>'; return; }
+            histEl.innerHTML = runs.slice(-48).map(function (h) {
+                var c = h.ok ? '#22c55e' : '#ef4444';
+                var ht = Math.max(6, Math.min(34, Math.round((h.maxNavMs || 0) / 600)));
+                return '<span title="' + (h.t || '') + ' · ' + (h.ok ? 'up' : 'down') + ' · ' + ((h.maxNavMs || 0) / 1000).toFixed(1) + 's max" ' +
+                    'style="width:5px;height:' + ht + 'px;border-radius:1px;display:inline-block;background:' + c + ';"></span>';
+            }).join('');
+        }
+
+        // Live listeners — update the instant the monitor writes a new run.
+        fs.onSnapshot(fs.doc(db, '_quality_reports/runtime_latest'),
+            function (s) { renderLatest(s.exists() ? s.data() : null); },
+            function (e) { summary.textContent = 'Uptime read error: ' + e.message; });
+        fs.onSnapshot(fs.doc(db, '_quality_reports/runtime_history'),
+            function (s) { renderHistory(s.exists() ? (s.data().runs || []) : []); },
+            function () { /* history is best-effort */ });
     })();
     </script>
 </body>

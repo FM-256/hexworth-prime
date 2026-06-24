@@ -40,9 +40,14 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-# Install only puppeteer (skip download since we use system chromium)
+# Install puppeteer (skip chromium download — system chromium).
 COPY package.json ./
 RUN npm install puppeteer --no-save --omit=optional
+# firebase-admin powers the Firestore publish for the Pulse Site-Health panel.
+# Install it WITHOUT --omit=optional: firebase-admin's Firestore support lives in the
+# optional dependency @google-cloud/firestore, which --omit=optional would drop
+# (causing "Cannot find module '@google-cloud/firestore'" at runtime).
+RUN npm install firebase-admin --no-save
 
 # Copy the monitor script
 COPY run.js ./

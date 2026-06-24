@@ -277,6 +277,29 @@ async function main() {
         console.log(JSON.stringify(report));
     }
 
+    // Publish to Firestore for the Pulse "Site Health" panel. Best-effort:
+    // a Firestore failure must never change the health exit code. Written as
+    // flat docs under _quality_reports (covered by the existing admin-read rule;
+    // the admin SDK bypasses write rules via the Cloud Run service account).
+    try {
+        const admin = require('firebase-admin');
+        if (!admin.apps.length) admin.initializeApp();  // ADC / Cloud Run service account
+        const db = admin.firestore();
+        // Latest status — overwritten each run; Pulse onSnapshots this for real-time.
+        await db.collection('_quality_reports').doc('runtime_latest').set(report);
+        // Rolling history (~48 runs = ~12h) for the trend strip — compact summaries.
+        const maxNavMs = targetResults.reduce((m, r) => Math.max(m, r.navMs || 0), 0);
+        const summary = { t: completedAt, ok: allPassed, passed, failed, maxNavMs };
+        const histRef = db.collection('_quality_reports').doc('runtime_history');
+        const snap = await histRef.get();
+        const runs = (snap.exists && Array.isArray(snap.data().runs)) ? snap.data().runs : [];
+        runs.push(summary);
+        await histRef.set({ runs: runs.slice(-48), updatedAt: completedAt });
+    } catch (e) {
+        // Surface to Cloud Logging but never fail the run on a write error.
+        console.error(JSON.stringify({ firestoreWriteError: e.message || String(e) }));
+    }
+
     // Exit code reflects health: 0 = all green, 1 = at least one failure
     process.exit(allPassed ? 0 : 1);
 }
