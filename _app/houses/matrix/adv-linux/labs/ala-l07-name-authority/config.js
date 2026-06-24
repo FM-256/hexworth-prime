@@ -240,12 +240,47 @@ const ALAL07Config = {
 
     commands: {
 
+        // help -- in-terminal guidance for constructing the zone files. This cell has no
+        // editor, so files are built with single-line `write` commands; the big sticking
+        // points are the zone-file record format and the single-write rule for
+        // named.conf.local (write OVERWRITES, so both zones must go in one command).
+        'help': function(args, term, engine) {
+            return [
+                'ZONE FILE CONSTRUCTION -- Sector 7 Name Authority',
+                '─'.repeat(52),
+                'This cell has no editor. Build each file with ONE write command:',
+                '    write <path> <full file contents on one line>',
+                '',
+                'named.conf.local -- declare BOTH zones in a SINGLE write.',
+                '  write OVERWRITES the file: two separate writes means the 2nd erases the',
+                '  1st, and named-checkconf then reports "no zone declarations found".',
+                '    write /etc/bind/named.conf.local zone "<zone>" { type master; file "<path>"; allow-transfer { 10.0.1.2; }; }; zone "<rev-zone>" { type master; file "<path>"; allow-transfer { 10.0.1.2; }; };',
+                '',
+                'Forward zone (db.sector7.matrix.net) -- record format:  name  IN  TYPE  value',
+                '    $TTL 300',
+                '    @         IN SOA ns1.<zone>. admin.<zone>. ( <serial> 3600 1800 604800 300 )',
+                '              IN NS  ns1.<zone>.',
+                '    ns1       IN A     10.0.1.1',
+                '    cell-071  IN A     10.0.1.71      (one A record per cell -- see the mission brief)',
+                '    grid-api  IN CNAME cell-071.<zone>.    <- FQDN target needs a trailing dot',
+                '    grid-mail IN MX 10 grid-mail.<zone>.',
+                '',
+                'Reverse zone (db.10.0.1) -- last octet maps to a PTR:',
+                '    71 IN PTR cell-071.<zone>.       (one PTR per cell)',
+                '',
+                'RULES',
+                '  - FQDN targets end with a dot:  cell-071.sector7.matrix.net.',
+                '  - Validate before starting named:  named-checkconf  then  named-checkzone <zone> <file>',
+                '  - Run  help  anytime to see this again.'
+            ].join('\n');
+        },
+
         // write -- BoxEngine file editor for config files
         'write': function(args, term, engine) {
             const file = args[0] || '';
             const content = args.slice(1).join(' ');
 
-            if (!file) return `Usage: write <file> <content>\nKey files:\n  /etc/bind/named.conf.options\n  /etc/bind/named.conf.local\n  /etc/bind/zones/db.sector7.matrix.net\n  /etc/bind/zones/db.10.0.1`;
+            if (!file) return `Usage: write <file> <content>\nKey files:\n  /etc/bind/named.conf.options\n  /etc/bind/named.conf.local\n  /etc/bind/zones/db.sector7.matrix.net\n  /etc/bind/zones/db.10.0.1\n\nNew to zone files? Run  help  for the construction guide (formats + the single-write rule).`;
 
             // named.conf.options
             if (file === '/etc/bind/named.conf.options') {
@@ -507,7 +542,7 @@ const ALAL07Config = {
 
             if (hostname && (hostname.includes('grid-api'))) {
                 if (shortFlag) return '10.0.1.71';
-                return `\n; <<>> DiG 9.18.12 <<>> A ${hostname} @${ns}\n;; ANSWER SECTION:\ngrid-api.sector7.matrix.net.     300  IN  CNAME  cell-071.sector7.matrix.net.\ncell-071.sector7.matrix.net.     300  IN  A      10.0.1.71\n\n;; Query time: 1 msec\n;; SERVER: ${ns}#53(${ns})`;
+                return `\n; <<>> DiG 9.18.12 <<>> ${queryType} ${hostname} @${ns}\n;; ANSWER SECTION:\ngrid-api.sector7.matrix.net.     300  IN  CNAME  cell-071.sector7.matrix.net.\ncell-071.sector7.matrix.net.     300  IN  A      10.0.1.71\n\n;; Query time: 1 msec\n;; SERVER: ${ns}#53(${ns})`;
             }
 
             return `;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN\nUsage: dig [type] <hostname> @<server>\nExample: dig A cell-071.sector7.matrix.net @10.0.1.1`;
@@ -716,6 +751,12 @@ const ALAL07Config = {
             text: 'Trailing dots matter in FQDN targets. grid-api CNAME cell-071 is wrong. grid-api CNAME cell-071.sector7.matrix.net. is correct. PTR records need the same treatment.',
             cost: 50,
             penalty: -50
+        },
+        {
+            id: 'hint4',
+            text: 'Stuck on the zone-file syntax? Type  help  in the terminal (free) for the file formats and the single-write rule for named.conf.local.',
+            cost: 0,
+            penalty: 0
         }
     ],
 
