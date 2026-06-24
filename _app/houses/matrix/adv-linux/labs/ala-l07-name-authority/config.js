@@ -283,12 +283,21 @@ const ALAL07Config = {
             const file = args[0] || '';
             const content = args.slice(1).join(' ');
 
+            // Copy-paste from a rendered walkthrough (PDF/HTML) wraps these long one-line
+            // commands and collapses the break into a SPACE *inside* tokens, e.g.
+            // `1.0.10.in-addr.arpa` -> `1.0.10.in- addr.arpa`, `listen-on` -> `listen- on`.
+            // That silently broke zone/option detection (reverse zone "not declared").
+            // Detect against a whitespace-stripped copy so wrap artifacts can't corrupt the
+            // match; the raw `content` is still what gets stored so `cat` shows what was typed.
+            const flat = (s) => (s || '').replace(/\s+/g, '');
+            const flatContent = flat(content);
+
             if (!file) return `Usage: write <file> <content>\nKey files:\n  /etc/bind/named.conf.options\n  /etc/bind/named.conf.local\n  /etc/bind/zones/db.sector7.matrix.net\n  /etc/bind/zones/db.10.0.1\n\nNew to zone files? Run  help  for the construction guide (record formats + how to declare both zones).`;
 
             // named.conf.options
             if (file === '/etc/bind/named.conf.options') {
-                const hasListen = content.includes('listen-on');
-                const hasAllowQuery = content.includes('allow-query');
+                const hasListen = flatContent.includes('listen-on');
+                const hasAllowQuery = flatContent.includes('allow-query');
                 engine.config._state.optionsConfigured = hasListen && hasAllowQuery;
                 term.fs['/'].children.etc.children.bind.children['named.conf.options'].content = content + '\n';
                 // Warn on EITHER missing directive -- a partial file used to report a
@@ -312,9 +321,10 @@ const ALAL07Config = {
                 // Seed file is just a placeholder comment; treat it as empty for accumulation.
                 const base = /add zone declarations here/.test(prior) ? '' : prior;
                 const combined = base.includes(content.trim()) ? base : (base + content + '\n');
-                const hasForward = combined.includes('sector7.matrix.net');
-                const hasReverse = combined.includes('1.0.10.in-addr.arpa');
-                const hasTransfer = combined.includes('allow-transfer') && combined.includes('10.0.1.2');
+                const flatCombined = flat(combined);
+                const hasForward = flatCombined.includes('sector7.matrix.net');
+                const hasReverse = flatCombined.includes('1.0.10.in-addr.arpa');
+                const hasTransfer = flatCombined.includes('allow-transfer') && flatCombined.includes('10.0.1.2');
                 engine.config._state.forwardZoneDeclared = hasForward;
                 engine.config._state.reverseZoneDeclared = hasReverse;
                 engine.config._state.allowTransfer = hasTransfer;
@@ -325,16 +335,16 @@ const ALAL07Config = {
 
             // Forward zone file
             if (file === '/etc/bind/zones/db.sector7.matrix.net') {
-                const hasSOA = content.includes('SOA') || content.includes('IN SOA');
-                const hasNS = content.includes('NS');
-                const allHosts = ['cell-071', 'cell-088', 'cell-034', 'cell-016', 'cell-049'].every(h => content.includes(h));
-                const hasCNAME = content.includes('CNAME') && content.includes('grid-api');
-                const hasMX = content.includes('MX') && content.includes('grid-mail');
+                const hasSOA = flatContent.includes('SOA');
+                const hasNS = flatContent.includes('NS');
+                const allHosts = ['cell-071', 'cell-088', 'cell-034', 'cell-016', 'cell-049'].every(h => flatContent.includes(h));
+                const hasCNAME = flatContent.includes('CNAME') && flatContent.includes('grid-api');
+                const hasMX = flatContent.includes('MX') && flatContent.includes('grid-mail');
 
                 if (!hasSOA) return `write: zone file must include a SOA record.`;
                 if (!hasNS) return `write: zone file must include an NS record.`;
                 if (!allHosts) {
-                    const missing = ['cell-071', 'cell-088', 'cell-034', 'cell-016', 'cell-049'].filter(h => !content.includes(h));
+                    const missing = ['cell-071', 'cell-088', 'cell-034', 'cell-016', 'cell-049'].filter(h => !flatContent.includes(h));
                     return `write: missing A records for: ${missing.join(', ')}`;
                 }
 
@@ -348,14 +358,14 @@ const ALAL07Config = {
 
             // Reverse zone file
             if (file === '/etc/bind/zones/db.10.0.1') {
-                const hasSOA = content.includes('SOA') || content.includes('IN SOA');
-                const allPTRs = ['71', '88', '34', '16', '49', '10'].every(n => content.includes(n));
-                const hasPTR = content.includes('PTR');
+                const hasSOA = flatContent.includes('SOA');
+                const allPTRs = ['71', '88', '34', '16', '49', '10'].every(n => flatContent.includes(n));
+                const hasPTR = flatContent.includes('PTR');
 
                 if (!hasSOA) return `write: reverse zone file must include a SOA record.`;
                 if (!hasPTR) return `write: reverse zone file must include PTR records.`;
                 if (!allPTRs) {
-                    const missing = ['71', '88', '34', '16', '49', '10'].filter(n => !content.includes(n));
+                    const missing = ['71', '88', '34', '16', '49', '10'].filter(n => !flatContent.includes(n));
                     return `write: missing PTR records for last octets: ${missing.join(', ')}`;
                 }
 
