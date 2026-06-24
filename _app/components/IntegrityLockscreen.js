@@ -16,7 +16,7 @@
     'use strict';
 
     // ── Config ──
-    var VIDEO_PATH = '/components/lockscreen/dancing-trex.mp4';
+    var VIDEO_PATH = 'https://storage.googleapis.com/hexworth-media/videos/dancing-trex.mp4';
     var AUDIO_PATH = '/components/lockscreen/sneaky-mischief.mp3';
     var LOCKOUT_DURATION_MS = (4 * 60 + 20) * 60 * 1000; // 4 hours 20 minutes
 
