@@ -242,8 +242,9 @@ const ALAL07Config = {
 
         // help -- in-terminal guidance for constructing the zone files. This cell has no
         // editor, so files are built with single-line `write` commands; the big sticking
-        // points are the zone-file record format and the single-write rule for
-        // named.conf.local (write OVERWRITES, so both zones must go in one command).
+        // points are the zone-file record format and how to declare both zones in
+        // named.conf.local (writes accumulate, so one combined write or separate
+        // per-zone writes both work).
         'help': function(args, term, engine) {
             return [
                 'ZONE FILE CONSTRUCTION -- Sector 7 Name Authority',
@@ -251,10 +252,12 @@ const ALAL07Config = {
                 'This cell has no editor. Build each file with ONE write command:',
                 '    write <path> <full file contents on one line>',
                 '',
-                'named.conf.local -- declare BOTH zones in a SINGLE write.',
-                '  write OVERWRITES the file: two separate writes means the 2nd erases the',
-                '  1st, and named-checkconf then reports "no zone declarations found".',
-                '    write /etc/bind/named.conf.local zone "<zone>" { type master; file "<path>"; allow-transfer { 10.0.1.2; }; }; zone "<rev-zone>" { type master; file "<path>"; allow-transfer { 10.0.1.2; }; };',
+                'named.conf.local -- declare BOTH the forward and reverse zones.',
+                '  Writes here ACCUMULATE (a second write appends, it does not overwrite),',
+                '  so you can declare both zones in one write OR add them one at a time.',
+                '  named-checkconf passes once both the forward and reverse zones are present.',
+                '    write /etc/bind/named.conf.local zone "<zone>" { type master; file "<path>"; allow-transfer { 10.0.1.2; }; };',
+                '    write /etc/bind/named.conf.local zone "<rev-zone>" { type master; file "<path>"; allow-transfer { 10.0.1.2; }; };',
                 '',
                 'Forward zone (db.sector7.matrix.net) -- record format:  name  IN  TYPE  value',
                 '    $TTL 300',
@@ -280,7 +283,7 @@ const ALAL07Config = {
             const file = args[0] || '';
             const content = args.slice(1).join(' ');
 
-            if (!file) return `Usage: write <file> <content>\nKey files:\n  /etc/bind/named.conf.options\n  /etc/bind/named.conf.local\n  /etc/bind/zones/db.sector7.matrix.net\n  /etc/bind/zones/db.10.0.1\n\nNew to zone files? Run  help  for the construction guide (formats + the single-write rule).`;
+            if (!file) return `Usage: write <file> <content>\nKey files:\n  /etc/bind/named.conf.options\n  /etc/bind/named.conf.local\n  /etc/bind/zones/db.sector7.matrix.net\n  /etc/bind/zones/db.10.0.1\n\nNew to zone files? Run  help  for the construction guide (record formats + how to declare both zones).`;
 
             // named.conf.options
             if (file === '/etc/bind/named.conf.options') {
@@ -299,14 +302,25 @@ const ALAL07Config = {
 
             // named.conf.local -- zone declarations
             if (file === '/etc/bind/named.conf.local') {
-                const hasForward = content.includes('sector7.matrix.net');
-                const hasReverse = content.includes('1.0.10.in-addr.arpa');
-                const hasTransfer = content.includes('allow-transfer') && content.includes('10.0.1.2');
+                // ACCUMULATE: append this declaration to whatever is already in the file so
+                // zones can be added incrementally (one write per zone) without a later write
+                // erasing the earlier one. Flags are evaluated against the FULL accumulated
+                // file, not just this write — so both the single combined write AND the
+                // natural "add forward zone, then add reverse zone" path complete the lab.
+                const node = term.fs['/'].children.etc.children.bind.children['named.conf.local'];
+                const prior = node.content || '';
+                // Seed file is just a placeholder comment; treat it as empty for accumulation.
+                const base = /add zone declarations here/.test(prior) ? '' : prior;
+                const combined = base.includes(content.trim()) ? base : (base + content + '\n');
+                const hasForward = combined.includes('sector7.matrix.net');
+                const hasReverse = combined.includes('1.0.10.in-addr.arpa');
+                const hasTransfer = combined.includes('allow-transfer') && combined.includes('10.0.1.2');
                 engine.config._state.forwardZoneDeclared = hasForward;
                 engine.config._state.reverseZoneDeclared = hasReverse;
                 engine.config._state.allowTransfer = hasTransfer;
-                term.fs['/'].children.etc.children.bind.children['named.conf.local'].content = content + '\n';
-                return `Written: /etc/bind/named.conf.local`;
+                node.content = combined;
+                const both = hasForward && hasReverse;
+                return `Written: /etc/bind/named.conf.local` + (both ? '' : `\nDeclared so far: ${hasForward ? 'forward' : ''}${hasForward && hasReverse ? ' + ' : ''}${hasReverse ? 'reverse' : ''}${!hasForward ? '(forward zone not yet declared)' : ''}${!hasReverse ? ' — reverse zone still needed' : ''}`);
             }
 
             // Forward zone file
@@ -754,7 +768,7 @@ const ALAL07Config = {
         },
         {
             id: 'hint4',
-            text: 'Stuck on the zone-file syntax? Type  help  in the terminal (free) for the file formats and the single-write rule for named.conf.local.',
+            text: 'Stuck on the zone-file syntax? Type  help  in the terminal (free) for the record formats and how to declare the forward and reverse zones in named.conf.local.',
             cost: 0,
             penalty: 0
         }
