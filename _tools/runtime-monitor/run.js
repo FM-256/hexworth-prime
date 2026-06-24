@@ -285,16 +285,54 @@ async function main() {
         const admin = require('firebase-admin');
         if (!admin.apps.length) admin.initializeApp();  // ADC / Cloud Run service account
         const db = admin.firestore();
-        // Latest status — overwritten each run; Pulse onSnapshots this for real-time.
-        await db.collection('_quality_reports').doc('runtime_latest').set(report);
-        // Rolling history (~48 runs = ~12h) for the trend strip — compact summaries.
         const maxNavMs = targetResults.reduce((m, r) => Math.max(m, r.navMs || 0), 0);
-        const summary = { t: completedAt, ok: allPassed, passed, failed, maxNavMs };
+
+        // Read history first — needed to count consecutive failures.
         const histRef = db.collection('_quality_reports').doc('runtime_history');
         const snap = await histRef.get();
         const runs = (snap.exists && Array.isArray(snap.data().runs)) ? snap.data().runs : [];
-        runs.push(summary);
+
+        // Evaluate alert thresholds (env-overridable). A single failed run is a
+        // WARNING; ALERT_CONSEC_CRIT consecutive failures escalate to CRITICAL, so a
+        // transient blip (e.g. a post-deploy cache miss) does not page. Latency
+        // thresholds flag pages that are up but slow.
+        const T = {
+            latWarnMs: parseInt(process.env.ALERT_LAT_WARN_MS || '15000', 10),
+            latCritMs: parseInt(process.env.ALERT_LAT_CRIT_MS || '25000', 10),
+            consecCrit: parseInt(process.env.ALERT_CONSEC_CRIT || '2', 10)
+        };
+        const alerts = [];
+        // Count trailing failed runs in history, plus this run if it failed.
+        let consec = allPassed ? 0 : 1;
+        if (!allPassed) {
+            for (let i = runs.length - 1; i >= 0; i--) {
+                if (runs[i] && runs[i].ok === false) consec++; else break;
+            }
+            const down = targetResults.filter(r => !r.passed).map(r => r.target);
+            if (consec >= T.consecCrit) alerts.push({ severity: 'critical', message: consec + ' consecutive failed runs — down: ' + down.join(', ') });
+            else alerts.push({ severity: 'warning', message: 'failed this run: ' + down.join(', ') });
+        }
+        // Latency thresholds (only for targets that are up — a failed target is already alerted).
+        targetResults.forEach(function (r) {
+            if (!r.passed) return;
+            if (r.navMs >= T.latCritMs) alerts.push({ severity: 'critical', message: r.target + ' very slow (' + (r.navMs / 1000).toFixed(1) + 's)' });
+            else if (r.navMs >= T.latWarnMs) alerts.push({ severity: 'warning', message: r.target + ' slow (' + (r.navMs / 1000).toFixed(1) + 's)' });
+        });
+        const alertLevel = alerts.some(function (a) { return a.severity === 'critical'; }) ? 'critical' : (alerts.length ? 'warning' : 'none');
+        report.alerts = alerts;
+        report.alertLevel = alertLevel;
+        report.thresholds = T;
+        report.consecutiveFailures = consec;
+
+        // Latest status (Pulse onSnapshots this) + rolling history (~48 runs ≈ 12h).
+        await db.collection('_quality_reports').doc('runtime_latest').set(report);
+        runs.push({ t: completedAt, ok: allPassed, passed, failed, maxNavMs, alertLevel: alertLevel });
         await histRef.set({ runs: runs.slice(-48), updatedAt: completedAt });
+
+        // Structured alert line for log-based GCP alerting / Cloud Logging visibility.
+        if (alertLevel !== 'none') {
+            console.error(JSON.stringify({ runtimeAlert: alertLevel, alerts: alerts.map(function (a) { return a.message; }) }));
+        }
     } catch (e) {
         // Surface to Cloud Logging but never fail the run on a write error.
         console.error(JSON.stringify({ firestoreWriteError: e.message || String(e) }));
