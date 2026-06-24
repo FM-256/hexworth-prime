@@ -1,6 +1,24 @@
 # Scoping — Off-Repo Video Asset Hosting (Firebase Storage vs AWS S3+CloudFront)
 
-*Status: SCOPED, provider decision open. Date: 2026-06-16.*
+*Status: SCOPED 2026-06-16 → **EXECUTED on Firebase Storage 2026-06-24.***
+
+> **EXECUTION (2026-06-24).** All video moved off Firebase Hosting to a dedicated
+> public bucket **`gs://hexworth-media`** (us-central1, uniform access, public-read on
+> that bucket only — the auth-gated default app bucket was never exposed). Referenced by
+> absolute URL; `firebase.json` ignores `assets/videos/*.{mp4,webm}`,
+> `assets/images/mascots/*.mp4`, `components/slides/*.mp4`, `components/lockscreen/*.mp4`,
+> `assets/*.mp4` so video no longer rides the deploy path.
+> - **Phase 1:** 8 course/explainer videos (~333 MB) → `gs://hexworth-media/videos/`.
+> - **Phase 2:** mascot hero animations (~130 MB) → `/mascots/`; `hex_closing` (158 MB),
+>   `hex_comercial`, `dancing-trex` → `/videos/`; orphaned `video-preview-hero.mp4` (35 MB,
+>   0 refs) ignored from deploy. **~650 MB total off Hosting.**
+> - Verified: bucket serves `206`/`video/mp4`, range requests work, videos play end-to-end
+>   (`readyState 4`); Hosting now `404`s the moved paths; posters/badges (`.webp`) stayed
+>   on Hosting. Deploys dropped from ~868 MB to ~192 MB. Drove the fix for the 2026-06-23
+>   deploy-coupling degradation. Backend remains URL-swappable to S3+CloudFront later.
+> - **Storage cleanup:** NOT manually pruned — Hosting storage is file-deduplicated and old
+>   heavy versions are already EXPIRED (Firebase auto-GC). New lean deploys + natural GC bring
+>   storage back under the 10 GB tier without destroying rollback history.
 
 ## TLDR
 
