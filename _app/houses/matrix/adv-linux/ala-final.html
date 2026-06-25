@@ -212,7 +212,12 @@
         .ov-body ul { margin: 8px 0 8px 20px; }
         .ov-body li { margin: 4px 0; color: var(--text-dim); }
         .ov-body code { font-family: 'JetBrains Mono', monospace; background: var(--panel-2); color: var(--amber); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+        .ov-body pre { font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.5; color: var(--text-dim); background: var(--panel); border: 1px solid var(--grid-line); border-left: 3px solid var(--green-dim); border-radius: 4px; padding: 12px 16px; margin: 10px 0; overflow-x: auto; white-space: pre; }
+        .ov-body pre b { color: var(--green); font-weight: 600; }
         .ov-body .callout { border-left: 3px solid var(--green-dim); background: var(--panel); padding: 10px 14px; margin: 12px 0; color: var(--text-dim); }
+        .ov-body table { border-collapse: collapse; margin: 10px 0; width: 100%; max-width: 760px; }
+        .ov-body td { border-bottom: 1px solid var(--grid-line); padding: 6px 12px 6px 0; vertical-align: top; color: var(--text-dim); font-size: 12.5px; }
+        .ov-body td:first-child { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -433,6 +438,7 @@
         // ── Field Manuals ──
         const MANUALS = [
             { id: 'explainer', ic: '▤', label: 'How This Lab Works', kind: 'doc' },
+            { id: 'cellmanual', ic: '▤', label: 'Cell Manual — TM-Σ', kind: 'doc' },
             { id: 'howto',     ic: '▤', label: 'Operator Handbook (how-to)', kind: 'doc' },
             { id: 'guides',    ic: '▤', label: 'Stage Field Guides (×9)', kind: 'doc' },
             { id: 'pdf',   ic: '⤓', label: 'Full Walkthrough (PDF)', kind: 'ext',
@@ -473,6 +479,67 @@
                 <h3>How you are graded</h3>
                 <p>Each stage is verified against the cell's <b>real live state</b> by the grid. Run <code>commission-check &lt;stage&gt;</code> in the terminal; when your work genuinely holds, it reveals that stage's flag. Submit the flag in the console to light the stage green.</p>
                 <div class="callout">There is no credit for "looks done." The grid inspects the running cell itself — a flag only appears once the work is real.</div>` },
+            cellmanual: { title: 'Cell Manual — TM-Σ', html: `
+                <h3>1 · What a cell is</h3>
+                <p>A <b>cell</b> is a single Sector 7 grid node — one Linux host that runs services for the grid. Cells are numbered (cell-071, cell-ns1, …). <b>Cell-Σ</b> is a brand-new cell: cabled to the grid but shipped <b>dark</b>. Your task is to commission it from a bare base into a production node — name resolution, monitoring, scheduled maintenance, an integrity baseline, a locked perimeter, and a clean security posture — then pass the final audit.</p>
+
+                <h3>2 · The infrastructure you're connected to</h3>
+                <p>Cell-Σ is a <b>real container</b> on the Sector 7 sandbox cluster, brought up on demand by the grid. You reach it over the <b>web terminal in this console</b> — no SSH client needed to get in.</p>
+                <ul>
+                    <li><b>Grid address</b> — <code>10.0.1.42</code>: the address the cell must answer for. You wire DNS to it in Stage 2.</li>
+                    <li><b>No systemd</b> — a container's PID 1 isn't init, so a <code>systemctl</code> shim really starts/stops the exam's services. Use <code>sudo systemctl start &lt;svc&gt;</code> as normal.</li>
+                    <li><b>Ephemeral &amp; time-boxed</b> — the cell idles out after <b>15 min</b>, has a <b>120-min</b> max life, limit 2 cells per operator.</li>
+                </ul>
+                <div class="callout">Do NOT refresh this page mid-session — relaunching gives you a fresh, empty cell. Work one clean run start to finish.</div>
+
+                <h3>3 · The stack (what's on the cell at boot)</h3>
+                <p>Base: <b>Ubuntu 24.04</b>, deliberately minimal. Shipped so you can work and diagnose:</p>
+                <ul>
+                    <li>shell + privilege: <code>bash</code>, passwordless <code>sudo</code></li>
+                    <li>editors: <code>vim</code>, <code>nano</code>, <code>less</code></li>
+                    <li>network / diagnostics: <code>ip</code>, <code>ss</code> (iproute2), <code>dig</code> (dnsutils), <code>curl</code></li>
+                    <li>files / processes: <code>file</code>, <code>tree</code>, <code>ps</code>, <code>top</code> (procps)</li>
+                    <li>grid tooling: <code>commission-check</code> (the grader), the <code>systemctl</code> shim, the <code>gridmon</code> source tree</li>
+                </ul>
+                <p><b>NOT installed</b> — you install these as each stage requires: <code>openssh-server</code>, <code>bind9</code>, <code>build-essential</code> (gcc/make), <code>cron</code>, <code>aide</code>, <code>iptables</code>.</p>
+
+                <h3>4 · File structure</h3>
+                <pre>/opt/grid/
+  <b>commission-check</b>        the grader (also on your PATH)
+  <b>commission-brief.txt</b>    your mission orders
+  source/gridmon/         gridmon source — Stage 3 (Field Assembly)
+    gridmon.c  Makefile  README.txt
+/usr/local/bin/
+  commission-check -&gt; /opt/grid/commission-check
+  <b>systemctl</b>               service-manager shim (no systemd here)
+/home/operator/           your home  ·  passwordless sudo
+/run/grid-session         this cell's session id
+
+# you create these as you commission the cell:
+/etc/ssh/sshd_config.d/   SSH hardening        (Stage 1 · First Light)
+/etc/bind/                DNS zones            (Stage 2 · Name Authority)
+/usr/local/bin/gridmon    compiled monitor     (Stage 3 · Field Assembly)
+/usr/local/sbin/grid-maintenance   maintenance (Stage 4 · The Watch)
+/var/log/grid/            heartbeat + reports  (Stages 4, 8)
+/var/lib/aide/aide.db     integrity baseline   (Stage 5 · Integrity Seal)</pre>
+
+                <h3>5 · Bringing the cell on-line — connectivity &amp; access</h3>
+                <p>You are already on the cell, in this terminal. Confirm where you are and that you hold the controls:</p>
+                <table>
+                    <tr><td>hostname</td><td>confirm you're on <code>cell-sigma</code></td></tr>
+                    <tr><td>whoami&nbsp;·&nbsp;id</td><td>you are <code>operator</code>, with sudo</td></tr>
+                    <tr><td>ip -br addr&nbsp;·&nbsp;hostname -I</td><td>the cell's interface address</td></tr>
+                    <tr><td>cat /opt/grid/commission-brief.txt</td><td>read your orders</td></tr>
+                    <tr><td>commission-check</td><td>stage list + your progress</td></tr>
+                </table>
+                <p>Check a system is up as you bring it on-line:</p>
+                <table>
+                    <tr><td>sudo systemctl status &lt;svc&gt;</td><td>service state (via the shim)</td></tr>
+                    <tr><td>ss -tlnp</td><td>what's listening (e.g. :53 named, :22 sshd)</td></tr>
+                    <tr><td>pgrep -x named</td><td>is a daemon running</td></tr>
+                    <tr><td>dig cell-sigma.sector7.matrix.net @127.0.0.1</td><td>once DNS is up: resolve the cell</td></tr>
+                </table>
+                <p><b>Host connection / remote access:</b> you get in through the grid's web terminal — this window. The <b>First Light</b> stage hardens the cell's own SSH service to <b>key-only</b> so grid operators can connect to the host securely; you create the <code>gridops</code> account and install its key there.</p>` },
             howto: { title: 'Operator Handbook', html: `
                 <h3>The loop</h3>
                 <ul>
