@@ -1,7 +1,7 @@
 # Cell-Σ — ALA Final Exam Commissioning Box (Draft Spec)
 
 **Course:** CTS4321C Advanced Linux Administration (Matrix house · "Sector 7 / the grid")
-**Status:** Increment 1 SHIPPED — DNS stage live end-to-end (image + lab-manager registration + exam page + flag bridge). Stages firstlight + assembly…audit not yet built.
+**Status:** ✅ COMPLETE (2026-06-25) — ALL 9 stages live + server-verified end-to-end. firstlight, dns, assembly, watch, integrity, perimeter, ghosthunt, coldcase, audit(capstone). Page `ala-final.html` has 9 panels; `flag_registry/cell-sigma` has 9 flags; every stage's flag is delivered only after lab-manager independently verifies real container state (no flag lives in the container). Full commissioning proven: all 8 stages → audit capstone re-checks all → FLAG{cell-sigma_commissioned_sector7_node_online}.
 **Date:** 2026-06-24
 **Author:** build session (post L07 fix)
 
