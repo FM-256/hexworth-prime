@@ -92,7 +92,7 @@
 
         <!-- Commissioning stages -->
         <section class="stages" aria-label="Commissioning stages">
-            <div class="stage locked"><span class="stage-key">firstlight</span><span class="stage-desc">users + key-only SSH baseline</span><span class="stage-tag soon">SOON</span></div>
+            <div class="stage"><span class="stage-key">firstlight</span><span class="stage-desc">users + key-only SSH baseline</span><span class="stage-tag active">LIVE</span></div>
             <div class="stage"><span class="stage-key">dns</span><span class="stage-desc">stand up BIND9 so the grid can resolve cell-sigma</span><span class="stage-tag active">LIVE</span></div>
             <div class="stage locked"><span class="stage-key">assembly</span><span class="stage-desc">compile + install gridmon from source</span><span class="stage-tag soon">SOON</span></div>
             <div class="stage locked"><span class="stage-key">watch</span><span class="stage-desc">bash + cron maintenance</span><span class="stage-tag soon">SOON</span></div>
@@ -110,26 +110,35 @@
             <div id="launcher-mount"></div>
         </section>
 
-        <!-- Submit the DNS-stage flag -->
-        <section class="panel">
-            <h2>Stage: Name Authority (DNS)</h2>
+        <!-- Stage flag submission — one panel per live stage (data-flag-id wired generically) -->
+        <section class="panel stage-panel" data-flag-id="stage1_firstlight">
+            <h2>Stage 1: First Light (users + key-only SSH)</h2>
+            <p>Create the <span class="mono">gridops</span> service account and lock SSH to key-only &mdash; password auth off, root login off, pubkey on with an authorized key for gridops. Then run <code class="mono">commission-check firstlight</code> in the terminal to reveal the flag, and submit it here.</p>
+            <div class="flag-row">
+                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="First Light stage flag">
+                <button class="flag-submit" type="button">Submit Flag</button>
+            </div>
+            <div class="flag-result" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="panel stage-panel" data-flag-id="stage2_dns">
+            <h2>Stage 2: Name Authority (DNS)</h2>
             <p>Once the cell resolves <span class="mono">cell-sigma.sector7.matrix.net</span> forward and reverse, run <code class="mono">commission-check dns</code> in the terminal to reveal the flag, then submit it here.</p>
             <div class="flag-row">
-                <input id="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="DNS stage flag">
-                <button id="flag-submit" type="button">Submit Flag</button>
+                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="DNS stage flag">
+                <button class="flag-submit" type="button">Submit Flag</button>
             </div>
-            <div id="flag-result" class="flag-result" role="status" aria-live="polite"></div>
+            <div class="flag-result" role="status" aria-live="polite"></div>
             <p class="hint">Stuck? In the terminal: <code>cat /opt/grid/commission-brief.txt</code></p>
         </section>
     </div>
 
     <script>
-    // Page controller — mount the real-container launcher and wire DNS-stage flag
-    // submission to the validateFlag Cloud Function. Kept in one IIFE so nothing
-    // leaks to the global scope.
+    // Page controller — mount the real-container launcher and wire every stage
+    // panel's flag submission to the validateFlag Cloud Function. One IIFE; each
+    // .stage-panel carries its own data-flag-id so this scales as stages are added.
     (function () {
         const BOX_ID = 'cell-sigma';
-        const FLAG_ID = 'stage2_dns';
 
         // Mount the launch/connect/destroy control for the cell-sigma container.
         // SandboxLauncher self-injects its styles and handles the API calls.
@@ -140,29 +149,29 @@
             }
         }
 
-        // Submit the typed flag to the server for validation; reflect the result.
-        async function submitFlag() {
-            const input = document.getElementById('flag-input');
-            const btn = document.getElementById('flag-submit');
-            const out = document.getElementById('flag-result');
+        // Validate one stage panel's typed flag against the server; reflect result.
+        async function submitFlag(panel) {
+            const flagId = panel.dataset.flagId;
+            const input = panel.querySelector('.flag-input');
+            const btn = panel.querySelector('.flag-submit');
+            const out = panel.querySelector('.flag-result');
             const submission = (input.value || '').trim();
             if (!submission) { out.className = 'flag-result bad'; out.textContent = 'Enter a flag first.'; return; }
 
             btn.disabled = true; out.className = 'flag-result'; out.textContent = 'Checking...';
             try {
                 const res = await FirebaseAuth.callFunction('validateFlag', {
-                    boxId: BOX_ID, flagId: FLAG_ID, submission: submission
+                    boxId: BOX_ID, flagId: flagId, submission: submission
                 });
                 // Firebase callables return { data: <fn return> }; match the platform
                 // pattern used in BoxEngine.js (result.data || result).
                 const data = (res && res.data) || res || {};
-                const correct = !!data.correct;
-                if (correct) {
+                if (data.correct) {
                     out.className = 'flag-result ok';
-                    out.textContent = 'Correct — Name Authority confirmed. Stage captured.';
+                    out.textContent = 'Correct — stage captured.';
                 } else {
                     out.className = 'flag-result bad';
-                    out.textContent = 'Not correct. Make sure named resolves the cell forward and reverse, then re-run commission-check dns.';
+                    out.textContent = 'Not correct. Complete the stage in the terminal, then re-run its commission-check.';
                 }
             } catch (e) {
                 out.className = 'flag-result bad';
@@ -172,12 +181,14 @@
             }
         }
 
-        // Wire up once the DOM is ready.
+        // Wire every stage panel once the DOM is ready.
         function init() {
             mountLauncher();
-            document.getElementById('flag-submit').addEventListener('click', submitFlag);
-            document.getElementById('flag-input').addEventListener('keydown', function (e) {
-                if (e.key === 'Enter') submitFlag();
+            document.querySelectorAll('.stage-panel').forEach(function (panel) {
+                const btn = panel.querySelector('.flag-submit');
+                const input = panel.querySelector('.flag-input');
+                if (btn) btn.addEventListener('click', function () { submitFlag(panel); });
+                if (input) input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitFlag(panel); });
             });
         }
         if (document.readyState === 'loading') {
