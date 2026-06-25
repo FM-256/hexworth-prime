@@ -31,6 +31,7 @@ const SandboxLauncher = (function() {
         'do-16':  { name: 'Git Fundamentals', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
         'arctic': { name: 'Arctic Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
         'db-sql': { name: 'PostgreSQL Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
+        'cell-sigma': { name: 'Cell-Σ Commissioning (ALA Final)', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
     };
 
     // Active state

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <!-- Real-container launcher (talks to the bc1 lab-manager API) -->
+    <script src="../../../components/SandboxLauncher.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALA Final Exam: Cell-&Sigma; Commissioning | Advanced Linux Administration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark:   #060d08;
+            --bg-card:   #0a130c;
+            --bg-inset:  #0d1810;
+            --border:    #16301c;
+            --green:     #3ddc84;
+            --green-dim: #2a9d63;
+            --text:      #d7e6dc;
+            --text-dim:  #7e9587;
+            --amber:     #f0b04a;
+            --red:       #e0564a;
+        }
+        body { background: var(--bg-dark); color: var(--text); font-family: 'Inter', system-ui, sans-serif; line-height: 1.6; }
+        code, .mono { font-family: 'JetBrains Mono', monospace; }
+        .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+
+        /* Header */
+        .header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 18px; margin-bottom: 24px; }
+        .badge { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; color: var(--bg-dark); background: var(--green); padding: 4px 10px; border-radius: 4px; }
+        .header h1 { font-size: 24px; font-weight: 700; flex: 1; min-width: 240px; }
+        .back-link { color: var(--text-dim); text-decoration: none; font-size: 14px; }
+        .back-link:hover { color: var(--green); }
+
+        /* Mission brief */
+        .brief { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--green); border-radius: 8px; padding: 20px 22px; margin-bottom: 26px; }
+        .brief h2 { font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
+        .brief p { color: var(--text); margin-bottom: 10px; }
+        .brief .note { color: var(--text-dim); font-size: 14px; }
+
+        /* Commissioning order */
+        .stages { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 0; margin-bottom: 26px; }
+        .stage { display: flex; align-items: center; gap: 12px; padding: 11px 22px; border-bottom: 1px solid var(--border); }
+        .stage:last-child { border-bottom: none; }
+        .stage-key { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--green); min-width: 96px; }
+        .stage-desc { flex: 1; color: var(--text); font-size: 14px; }
+        .stage-tag { font-size: 11px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 4px; }
+        .stage-tag.active { color: var(--bg-dark); background: var(--green); }
+        .stage-tag.soon { color: var(--text-dim); border: 1px solid var(--border); }
+        .stage.locked .stage-key, .stage.locked .stage-desc { color: var(--text-dim); }
+
+        /* Launcher mount + flag submit */
+        .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 22px; margin-bottom: 22px; }
+        .panel h2 { font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--green); margin-bottom: 14px; }
+        .panel p { color: var(--text-dim); font-size: 14px; margin-bottom: 14px; }
+        .flag-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .flag-row input { flex: 1; min-width: 220px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 14px; padding: 11px 14px; }
+        .flag-row input:focus { outline: none; border-color: var(--green-dim); }
+        .flag-row button { background: var(--green); color: var(--bg-dark); border: none; border-radius: 6px; font-weight: 600; font-size: 14px; padding: 11px 22px; cursor: pointer; }
+        .flag-row button:disabled { opacity: 0.5; cursor: default; }
+        .flag-result { margin-top: 12px; font-size: 14px; min-height: 20px; }
+        .flag-result.ok { color: var(--green); }
+        .flag-result.bad { color: var(--red); }
+        .hint { font-size: 13px; color: var(--text-dim); margin-top: 10px; }
+        .hint code { color: var(--amber); }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <!-- Header -->
+        <header class="header">
+            <span class="badge">ALA FINAL</span>
+            <h1>Cell-&Sigma; Commissioning</h1>
+            <a href="index.html" class="back-link">&larr; Advanced Linux Administration</a>
+        </header>
+
+        <!-- Mission brief -->
+        <section class="brief">
+            <h2>Commissioning Order</h2>
+            <p>Cell-&Sigma; has been cabled to the Sector 7 grid at <span class="mono">10.0.1.42</span> but ships <strong>dark</strong>. Commission it into a production grid node. The grid will not trust this cell until every system is online and it passes a clean final audit.</p>
+            <p>This is a <strong>real Linux cell</strong>, not a simulation. It ships minimal &mdash; the exam services (BIND9, the build toolchain, AIDE, cron, SSH) are <em>not</em> installed. You install and configure everything yourself. You have passwordless <span class="mono">sudo</span>.</p>
+            <p class="note">Inside the cell, read your full order with <code class="mono">cat /opt/grid/commission-brief.txt</code> and check any stage with <code class="mono">commission-check &lt;stage&gt;</code>.</p>
+        </section>
+
+        <!-- Commissioning stages -->
+        <section class="stages" aria-label="Commissioning stages">
+            <div class="stage locked"><span class="stage-key">firstlight</span><span class="stage-desc">users + key-only SSH baseline</span><span class="stage-tag soon">SOON</span></div>
+            <div class="stage"><span class="stage-key">dns</span><span class="stage-desc">stand up BIND9 so the grid can resolve cell-sigma</span><span class="stage-tag active">LIVE</span></div>
+            <div class="stage locked"><span class="stage-key">assembly</span><span class="stage-desc">compile + install gridmon from source</span><span class="stage-tag soon">SOON</span></div>
+            <div class="stage locked"><span class="stage-key">watch</span><span class="stage-desc">bash + cron maintenance</span><span class="stage-tag soon">SOON</span></div>
+            <div class="stage locked"><span class="stage-key">integrity</span><span class="stage-desc">AIDE baseline</span><span class="stage-tag soon">SOON</span></div>
+            <div class="stage locked"><span class="stage-key">perimeter</span><span class="stage-desc">firewall policy</span><span class="stage-tag soon">SOON</span></div>
+            <div class="stage locked"><span class="stage-key">ghosthunt</span><span class="stage-desc">clear the planted faults</span><span class="stage-tag soon">SOON</span></div>
+            <div class="stage locked"><span class="stage-key">coldcase</span><span class="stage-desc">forensic remediation</span><span class="stage-tag soon">SOON</span></div>
+            <div class="stage locked"><span class="stage-key">audit</span><span class="stage-desc">final clean audit &rarr; CELL COMMISSIONED</span><span class="stage-tag soon">SOON</span></div>
+        </section>
+
+        <!-- Launch the cell -->
+        <section class="panel">
+            <h2>Launch the Cell</h2>
+            <p>Spin up your Cell-&Sigma; instance and open its terminal. Sessions idle out after 15 minutes and have a 120-minute lifetime.</p>
+            <div id="launcher-mount"></div>
+        </section>
+
+        <!-- Submit the DNS-stage flag -->
+        <section class="panel">
+            <h2>Stage: Name Authority (DNS)</h2>
+            <p>Once the cell resolves <span class="mono">cell-sigma.sector7.matrix.net</span> forward and reverse, run <code class="mono">commission-check dns</code> in the terminal to reveal the flag, then submit it here.</p>
+            <div class="flag-row">
+                <input id="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="DNS stage flag">
+                <button id="flag-submit" type="button">Submit Flag</button>
+            </div>
+            <div id="flag-result" class="flag-result" role="status" aria-live="polite"></div>
+            <p class="hint">Stuck? In the terminal: <code>cat /opt/grid/commission-brief.txt</code></p>
+        </section>
+    </div>
+
+    <script>
+    // Page controller — mount the real-container launcher and wire DNS-stage flag
+    // submission to the validateFlag Cloud Function. Kept in one IIFE so nothing
+    // leaks to the global scope.
+    (function () {
+        const BOX_ID = 'cell-sigma';
+        const FLAG_ID = 'stage2_dns';
+
+        // Mount the launch/connect/destroy control for the cell-sigma container.
+        // SandboxLauncher self-injects its styles and handles the API calls.
+        function mountLauncher() {
+            const el = document.getElementById('launcher-mount');
+            if (el && window.SandboxLauncher && SandboxLauncher.renderButton) {
+                SandboxLauncher.renderButton(el, BOX_ID, { mode: 'tab' });
+            }
+        }
+
+        // Submit the typed flag to the server for validation; reflect the result.
+        async function submitFlag() {
+            const input = document.getElementById('flag-input');
+            const btn = document.getElementById('flag-submit');
+            const out = document.getElementById('flag-result');
+            const submission = (input.value || '').trim();
+            if (!submission) { out.className = 'flag-result bad'; out.textContent = 'Enter a flag first.'; return; }
+
+            btn.disabled = true; out.className = 'flag-result'; out.textContent = 'Checking...';
+            try {
+                const res = await FirebaseAuth.callFunction('validateFlag', {
+                    boxId: BOX_ID, flagId: FLAG_ID, submission: submission
+                });
+                // Firebase callables return { data: <fn return> }; match the platform
+                // pattern used in BoxEngine.js (result.data || result).
+                const data = (res && res.data) || res || {};
+                const correct = !!data.correct;
+                if (correct) {
+                    out.className = 'flag-result ok';
+                    out.textContent = 'Correct — Name Authority confirmed. Stage captured.';
+                } else {
+                    out.className = 'flag-result bad';
+                    out.textContent = 'Not correct. Make sure named resolves the cell forward and reverse, then re-run commission-check dns.';
+                }
+            } catch (e) {
+                out.className = 'flag-result bad';
+                out.textContent = 'Could not validate (' + (e && e.message ? e.message : 'error') + '). Make sure you are signed in.';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Wire up once the DOM is ready.
+        function init() {
+            mountLauncher();
+            document.getElementById('flag-submit').addEventListener('click', submitFlag);
+            document.getElementById('flag-input').addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') submitFlag();
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+</body>
+</html>
