@@ -7,13 +7,18 @@
 
 ---
 
-## ⚠ KNOWN LIMITATION — flag secrecy (operator-signed-off 2026-06-24)
+## Flag secrecy — HARDENED 2026-06-24 (server-side delivery, sudo-extraction CLOSED)
 
-**Finding (verified on a real launched container):** the DNS-stage flag is extractable by a student via `sudo grep FLAG{ /opt/grid/commission-check`. A student has passwordless sudo and is therefore root inside their own container, so they can read any in-container secret — **no in-image fix exists.** The grader still gates *printing* the flag on REAL state (it prints 0 flag lines until named resolves the cell forward+reverse — "Architecture A"), so the intended path requires doing the work; but the literal can be bypass-extracted.
+**Original finding (operator-signed-off, now fixed):** the DNS-stage flag was a literal in the in-container grader, extractable via `sudo grep FLAG{ /opt/grid/commission-check`. Root-in-container made an in-image fix impossible.
 
-**Operator decision (2026-06-24):** *"Ship DNS stage now, harden before grading."* The DNS stage ships now as a validation milestone. It is **NOT graded-credited** — the hub card is inert to the progress map (no `data-module`).
+**Fix shipped (bc1, verified end-to-end):** the flag literal is removed from the container entirely. On a local pass the grader calls lab-manager `GET /api/sandbox/commission/:sessionId?stage=dns`; lab-manager **independently verifies the cell's real state** by `docker exec`-ing into the running container (named running + forward/reverse resolution) and only then returns the flag, which is held **server-side only** (`COMMISSION_FLAGS` in `lab-manager/server.js`, never copied to the image). The grader reads the session id from `/run/grid-session` (written at boot, because `sudo -i` strips env). Verified on a real API-launched container:
+- the flag value is **nowhere** in the container filesystem (`grep -r` → 0 matches);
+- grading before the work, and a forged direct call to the endpoint, both return no flag (`{"ok":false}`);
+- doing the real DNS work → server verifies → flag delivered.
 
-**Hard prerequisite before this stage counts for credit:** server-side flag delivery — on a pass, the grader proves the real state to lab-manager / a Cloud Function holding the secret, which returns a per-session flag that never lives in the container. Until that exists, do not attach graded credit to any Cell-Σ stage.
+**Residual (lesser, acceptable for now):** a flag, once legitimately obtained, can still be **shared between students** (the value is static across students). Closing this needs per-student salting — lab-manager has `STUDENT_UID` at launch and could return a uid-salted flag, but `validateFlag` (shared by 239 boxes) would need to compute the same salt; deferred as a separate enhancement. Sudo-extraction — the operator's actual finding — is closed.
+
+**Backups on bc1:** `server.js.bak-cellsigma`, `server.js.bak-commission`.
 
 ---
 
