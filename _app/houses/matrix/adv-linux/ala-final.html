@@ -8,6 +8,9 @@
     <script>AccessGuard.require('sorted');</script>
     <script src="../../../components/ModuleProgress.js"></script>
     <script src="../../../components/FirebaseAuth.js"></script>
+    <!-- Class + assignment analytics (per-stage instructor activity, same pipeline as arena boxes) -->
+    <script src="../../../components/ClassManager.js"></script>
+    <script src="../../../components/AssignmentManager.js"></script>
     <script src="../../../components/SandboxLauncher.js"></script>
     <!-- Dr. Hex mood-ring (CTF/no-escalate: calm-and-available, mood driven by cell-sigma flag activity) -->
     <script type="module" src="/_lib/HexAIButton.js"></script>
@@ -407,6 +410,31 @@
             document.getElementById('connText').textContent = text;
         }
 
+        // Resolve the operator's enrolled classes (same pattern BoxEngine uses for arena analytics).
+        async function resolveClassIds() {
+            try {
+                if (typeof FirebaseAuth === 'undefined' || typeof ClassManager === 'undefined') return [];
+                const user = FirebaseAuth.getUser && FirebaseAuth.getUser();
+                if (!user) return [];
+                let classes;
+                try { classes = await ClassManager.getStudentClasses(user.uid); }
+                catch (e) { classes = ClassManager.getCachedEnrollments ? ClassManager.getCachedEnrollments() : []; }
+                return (classes || []).map(c => c.id).filter(Boolean);
+            } catch (e) { return []; }
+        }
+        // Report a per-stage capture / full commission to instructor analytics — one
+        // activity event per enrolled class. Mirrors arena boxes (arena_flag/arena_complete);
+        // a pure side-channel, never blocks the student flow.
+        async function reportStageActivity(eventType, extras) {
+            try {
+                if (typeof AssignmentManager === 'undefined') return;
+                const classIds = await resolveClassIds();
+                for (const classId of classIds) {
+                    AssignmentManager.logActivity(classId, eventType, BOX_ID, 'Cell-Σ Commissioning', extras);
+                }
+            } catch (e) { /* analytics is a side-channel */ }
+        }
+
         // ── Flag submission (server-validated) ──
         async function submitFlag() {
             const input = document.getElementById('flagInput'), res = document.getElementById('flagRes'), btn = document.getElementById('flagBtn');
@@ -425,12 +453,15 @@
                         if (selected.key === 'dns') addComms('alert', 'Grid Control', 'ALERT — while you work: telemetry shows prior-intrusion traces on this cell. The Cold Case stage will need your attention.');
                         // Nudge Dr. Hex to re-read flag activity (mood ring → celebrating).
                         window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
+                        // Per-stage instructor analytics: one arena_flag event per enrolled class.
+                        reportStageActivity('arena_flag', { flagId: selected.flag, stage: selected.key, capturedCount: captured.size, totalFlags: STAGES.length });
                         // Capstone captured = cell fully commissioned → record module completion
                         // (syncs to Firestore for the instructor dashboard). Silent + no redirect:
                         // the audit flag only awards when all 8 prior stages hold, so this is a
                         // true "all 9 done" completion.
                         if (selected.key === 'audit' && typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
                             ModuleProgress.complete('matrix', 'ala-final-practical', { type: 'lab', silent: true, returnToDashboard: false });
+                            reportStageActivity('arena_complete', { flags: captured.size, totalFlags: STAGES.length });
                         }
                     }
                 } else {
