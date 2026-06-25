@@ -16,7 +16,7 @@
 - grading before the work, and a forged direct call to the endpoint, both return no flag (`{"ok":false}`);
 - doing the real DNS work → server verifies → flag delivered.
 
-**Residual (lesser, acceptable for now):** a flag, once legitimately obtained, can still be **shared between students** (the value is static across students). Closing this needs per-student salting — lab-manager has `STUDENT_UID` at launch and could return a uid-salted flag, but `validateFlag` (shared by 239 boxes) would need to compute the same salt; deferred as a separate enhancement. Sudo-extraction — the operator's actual finding — is closed.
+**Flag sharing — ACCEPTED BY DESIGN (operator decision 2026-06-25, do NOT "harden"):** flags are the same value across students, so a teammate who completes a stage can pass the flag to the team. This is **intentional** — it lets teams operate collectively, mirroring real ops. It is not a defect and should not be closed. The integrity floor still holds: server-side verification means a flag only ever exists *after* the work was genuinely done on a real cell, so collaborative sharing never becomes "credit for zero work." (Per-student salting was scoped — it would require giving lab-manager working Firebase credentials + real auth at launch on the shared sandbox API, and either a page-UX change or a change to the 239-box `validateFlag`. Explicitly NOT pursued.)
 
 **Backups on bc1:** `server.js.bak-cellsigma`, `server.js.bak-commission`.
 
