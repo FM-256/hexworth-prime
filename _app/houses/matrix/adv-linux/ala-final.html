@@ -8,264 +8,564 @@
     <script>AccessGuard.require('sorted');</script>
     <script src="../../../components/ModuleProgress.js"></script>
     <script src="../../../components/FirebaseAuth.js"></script>
-    <!-- Real-container launcher (talks to the bc1 lab-manager API) -->
     <script src="../../../components/SandboxLauncher.js"></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALA Final Exam: Cell-&Sigma; Commissioning | Advanced Linux Administration</title>
+    <title>Cell-&Sigma; · Sector 7 Grid Ops Console</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --bg-dark:   #060d08;
-            --bg-card:   #0a130c;
-            --bg-inset:  #0d1810;
-            --border:    #16301c;
-            --green:     #3ddc84;
-            --green-dim: #2a9d63;
-            --text:      #d7e6dc;
-            --text-dim:  #7e9587;
-            --amber:     #f0b04a;
-            --red:       #e0564a;
+            --bg:        #05090b;   /* deepest */
+            --panel:     #0a1014;   /* panel face */
+            --panel-2:   #0c151a;   /* inset */
+            --grid-line: #15262b;   /* dividers */
+            --edge:      #1c333a;
+            --green:     #34e0a1;
+            --green-dim: #1f8f68;
+            --cyan:      #3fd0e0;
+            --amber:     #f0b54a;
+            --red:       #ef5d54;
+            --text:      #cfe3df;
+            --text-dim:  #6f8a86;
+            --text-mut:  #46605c;
         }
-        body { background: var(--bg-dark); color: var(--text); font-family: 'Inter', system-ui, sans-serif; line-height: 1.6; }
-        code, .mono { font-family: 'JetBrains Mono', monospace; }
-        .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+        /* Fixed viewport — the page itself NEVER scrolls. */
+        html, body { height: 100%; }
+        body {
+            background: var(--bg); color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif; font-size: 13px; line-height: 1.5;
+            overflow: hidden;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* Header */
-        .header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 18px; margin-bottom: 24px; }
-        .badge { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; color: var(--bg-dark); background: var(--green); padding: 4px 10px; border-radius: 4px; }
-        .header h1 { font-size: 24px; font-weight: 700; flex: 1; min-width: 240px; }
-        .back-link { color: var(--text-dim); text-decoration: none; font-size: 14px; }
-        .back-link:hover { color: var(--green); }
+        /* ── Console grid: fills the whole viewport, no gutters ── */
+        .console {
+            height: 100vh; width: 100vw;
+            display: grid;
+            grid-template-columns: 252px 1fr 372px;
+            grid-template-rows: 46px 1fr 28px;
+            gap: 1px;
+            background: var(--grid-line);   /* gaps read as hairline dividers */
+        }
+        .zone { background: var(--panel); overflow: hidden; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+        .zone-head {
+            flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px; border-bottom: 1px solid var(--grid-line);
+            font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+            letter-spacing: 0.12em; text-transform: uppercase; color: var(--green-dim);
+        }
+        .zone-head .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .zone-body { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; min-height: 0; }
+        .zone-body::-webkit-scrollbar { width: 8px; }
+        .zone-body::-webkit-scrollbar-thumb { background: var(--edge); border-radius: 4px; }
 
-        /* Mission brief */
-        .brief { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--green); border-radius: 8px; padding: 20px 22px; margin-bottom: 26px; }
-        .brief h2 { font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
-        .brief p { color: var(--text); margin-bottom: 10px; }
-        .brief .note { color: var(--text-dim); font-size: 14px; }
+        /* ── Status bar ── */
+        .statusbar {
+            grid-column: 1 / -1; grid-row: 1;
+            background: var(--panel); border-bottom: 1px solid var(--edge);
+            display: flex; align-items: center; gap: 18px; padding: 0 16px;
+        }
+        .sb-brand { font-family: 'JetBrains Mono', monospace; font-weight: 700; letter-spacing: 0.1em; color: var(--green); white-space: nowrap; }
+        .sb-brand .cell { color: var(--text); }
+        .sb-sep { width: 1px; height: 22px; background: var(--grid-line); }
+        .sb-meter { display: flex; align-items: center; gap: 8px; }
+        .sb-segs { display: flex; gap: 3px; }
+        .seg { width: 16px; height: 9px; border-radius: 2px; background: #16242a; border: 1px solid var(--edge); }
+        .seg.on { background: var(--green); border-color: var(--green); box-shadow: 0 0 6px var(--green-dim); }
+        .sb-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: var(--text-dim); }
+        .sb-status { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+        .sb-status.dark { color: var(--amber); }
+        .sb-status.live { color: var(--green); }
+        .sb-spacer { flex: 1 1 auto; }
+        .sb-meta { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+        .sb-meta b { color: var(--text); font-weight: 600; }
 
-        /* Commissioning order */
-        .stages { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 0; margin-bottom: 26px; }
-        .stage { display: flex; align-items: center; gap: 12px; padding: 11px 22px; border-bottom: 1px solid var(--border); }
-        .stage:last-child { border-bottom: none; }
-        .stage-key { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--green); min-width: 96px; }
-        .stage-desc { flex: 1; color: var(--text); font-size: 14px; }
-        .stage-tag { font-size: 11px; font-family: 'JetBrains Mono', monospace; padding: 2px 8px; border-radius: 4px; }
-        .stage-tag.active { color: var(--bg-dark); background: var(--green); }
-        .stage-tag.soon { color: var(--text-dim); border: 1px solid var(--border); }
-        .stage.locked .stage-key, .stage.locked .stage-desc { color: var(--text-dim); }
+        /* ── Left rail: commissioning order ── */
+        .rail-left { grid-column: 1; grid-row: 2; }
+        .stage {
+            display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+            border-bottom: 1px solid var(--grid-line); cursor: pointer; position: relative;
+        }
+        .stage:hover { background: var(--panel-2); }
+        .stage.sel { background: #102028; box-shadow: inset 3px 0 0 var(--cyan); }
+        .stage .sdot { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--text-mut); }
+        .stage.done .sdot { background: var(--green); border-color: var(--green); box-shadow: 0 0 7px var(--green-dim); }
+        .stage .snum { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-mut); width: 14px; }
+        .stage .snamewrap { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+        .stage .sname { font-size: 13px; font-weight: 600; color: var(--text); }
+        .stage.done .sname { color: var(--green); }
+        .stage .skey { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.05em; color: var(--text-mut); }
+        .stage .scap { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.1em; color: var(--green); opacity: 0; }
+        .stage.done .scap { opacity: 1; }
 
-        /* Launcher mount + flag submit */
-        .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 22px; margin-bottom: 22px; }
-        .panel h2 { font-size: 15px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--green); margin-bottom: 14px; }
-        .panel p { color: var(--text-dim); font-size: 14px; margin-bottom: 14px; }
-        .flag-row { display: flex; gap: 10px; flex-wrap: wrap; }
-        .flag-row input { flex: 1; min-width: 220px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 14px; padding: 11px 14px; }
-        .flag-row input:focus { outline: none; border-color: var(--green-dim); }
-        .flag-row button { background: var(--green); color: var(--bg-dark); border: none; border-radius: 6px; font-weight: 600; font-size: 14px; padding: 11px 22px; cursor: pointer; }
-        .flag-row button:disabled { opacity: 0.5; cursor: default; }
-        .flag-result { margin-top: 12px; font-size: 14px; min-height: 20px; }
-        .flag-result.ok { color: var(--green); }
-        .flag-result.bad { color: var(--red); }
-        .hint { font-size: 13px; color: var(--text-dim); margin-top: 10px; }
-        .hint code { color: var(--amber); }
+        /* ── Center: mission + terminal + flag ── */
+        .center { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; background: var(--panel); overflow: hidden; min-height: 0; }
+        .mission { flex: 0 0 auto; padding: 10px 16px; border-bottom: 1px solid var(--grid-line); display: flex; align-items: baseline; gap: 10px; }
+        .mission b { color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+        .mission span { color: var(--text-dim); font-size: 12.5px; }
+        .control { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--grid-line); }
+        .btn {
+            font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+            border: none; border-radius: 5px; padding: 9px 18px; cursor: pointer;
+        }
+        .btn-launch { background: var(--green); color: #05201a; }
+        .btn-launch:hover { background: #4ff0b3; }
+        .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--edge); }
+        .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+        .btn:disabled { opacity: 0.4; cursor: default; }
+        .conn { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+        .conn .pip { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--text-mut); margin-right: 6px; vertical-align: middle; }
+        .conn.up .pip { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        /* Terminal fills all remaining center height */
+        .term { flex: 1 1 auto; position: relative; min-height: 0; background: #03060a; }
+        .term iframe { width: 100%; height: 100%; border: 0; display: block; }
+        /* Connecting overlay shown while the cell's route + ttyd come up post-launch */
+        .term-connecting { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: #03060a; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 13px; letter-spacing: 0.04em; }
+        .term-placeholder {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            padding: 24px; overflow: hidden;
+            background:
+                radial-gradient(120% 90% at 50% 0%, rgba(52,224,161,0.05), transparent 60%),
+                repeating-linear-gradient(180deg, transparent 0 2px, rgba(0,0,0,0.18) 2px 3px);
+        }
+        /* ── Boot-screen placeholder: alive "cell is dark" diagnostic feed ── */
+        .boot { position: relative; z-index: 2; width: 100%; max-width: 760px; }
+        .boot-sigil {
+            font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 56px; letter-spacing: 0.14em;
+            color: var(--green); text-shadow: 0 0 18px rgba(52,224,161,0.45); line-height: 1;
+            animation: bootpulse 3.4s ease-in-out infinite;
+        }
+        .boot-sub { font-size: 11px; letter-spacing: 0.22em; color: var(--text-mut); font-weight: 600; margin-top: 8px; }
+        @keyframes bootpulse { 0%,100% { opacity: 0.82; text-shadow: 0 0 14px rgba(52,224,161,0.30); } 50% { opacity: 1; text-shadow: 0 0 24px rgba(52,224,161,0.55); } }
+        .boot-feed { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.65; color: var(--text-dim); margin: 22px 0 0; white-space: pre-wrap; min-height: 200px; }
+        .boot-feed .ln { display: block; opacity: 0; animation: bootln 0.25s ease forwards; }
+        @keyframes bootln { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+        .boot-feed .ok   { color: var(--green); }
+        .boot-feed .warn { color: var(--amber); }
+        .boot-feed .bad  { color: var(--red); }
+        .boot-feed .cur  { color: var(--green); animation: blink 1.05s step-end infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .boot-cta { margin-top: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--text-mut); }
+        .boot-cta b { color: var(--green-dim); }
+        .scanlines { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+            background: repeating-linear-gradient(180deg, transparent 0 3px, rgba(0,0,0,0.10) 3px 4px); }
+        /* Flag submit bar */
+        .flagbar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--grid-line); }
+        .flagbar .lbl { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+        .flagbar .lbl b { color: var(--cyan); }
+        .flagbar input {
+            flex: 1 1 auto; background: var(--panel-2); border: 1px solid var(--grid-line); border-radius: 5px;
+            color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 8px 11px; min-width: 0;
+        }
+        .flagbar input:focus { outline: none; border-color: var(--green-dim); }
+        .flagbar .res { font-family: 'JetBrains Mono', monospace; font-size: 11px; white-space: nowrap; min-width: 70px; }
+        .flagbar .res.ok { color: var(--green); }
+        .flagbar .res.bad { color: var(--red); }
+
+        /* ── Right rail: comms (top) + manuals (bottom) ── */
+        .rail-right { grid-column: 3; grid-row: 2; display: grid; grid-template-rows: 1fr 1fr; gap: 1px; background: var(--grid-line); overflow: hidden; min-height: 0; }
+        .msg { padding: 9px 12px; border-bottom: 1px solid var(--grid-line); }
+        .msg .from { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; display: flex; align-items: center; gap: 6px; }
+        .msg .from .who { color: var(--cyan); }
+        .msg .from.ctrl .who { color: var(--green); }
+        .msg .from.alert .who { color: var(--red); }
+        .msg .from .t { margin-left: auto; color: var(--text-mut); font-weight: 400; font-size: 9.5px; }
+        .msg .body { margin-top: 3px; font-size: 12px; color: var(--text-dim); }
+        .manual {
+            display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid var(--grid-line);
+            cursor: pointer; color: var(--text); font-size: 12.5px;
+        }
+        .manual:hover { background: var(--panel-2); color: var(--cyan); }
+        .manual .ic { flex: 0 0 auto; width: 15px; text-align: center; color: var(--green-dim); font-family: 'JetBrains Mono', monospace; }
+        .manual .ext { margin-left: auto; color: var(--text-mut); font-size: 10px; font-family: 'JetBrains Mono', monospace; }
+
+        /* ── Ticker ── */
+        .ticker {
+            grid-column: 1 / -1; grid-row: 3; background: var(--panel); border-top: 1px solid var(--edge);
+            display: flex; align-items: center; overflow: hidden; padding: 0 14px;
+            font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); white-space: nowrap;
+        }
+        /* Scrolling marquee track — renderTicker() duplicates the items so translateX(-50%) loops seamlessly */
+        .ticker-track { display: inline-flex; white-space: nowrap; will-change: transform; animation: tickmove 46s linear infinite; }
+        @keyframes tickmove { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .ticker .t-item { margin-right: 28px; }
+        .ticker .t-item b { color: var(--green); font-weight: 600; }
+        .ticker .t-item.warn b { color: var(--amber); }
+
+        /* ── Manual reader overlay (in-console, fills the console) ── */
+        .overlay { position: fixed; inset: 0; background: rgba(3,7,10,0.96); z-index: 50; display: none; flex-direction: column; border-top: 2px solid var(--green); box-shadow: inset 0 0 120px rgba(52,224,161,0.04); }
+        .overlay.show { display: flex; }
+        .ov-head { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 14px 28px; border-bottom: 1px solid var(--edge); box-shadow: inset 4px 0 0 var(--green); }
+        .ov-kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; color: var(--green-dim); font-weight: 600; }
+        .ov-head h2 { font-size: 16px; color: var(--green); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em; }
+        .ov-close { margin-left: auto; background: transparent; border: 1px solid var(--edge); color: var(--text-dim); border-radius: 5px; padding: 6px 14px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+        .ov-close:hover { color: var(--text); border-color: var(--text-dim); }
+        /* Full-width reader (no centered column) with comfortable side gutters */
+        .ov-body { flex: 1 1 auto; overflow-y: auto; padding: 24px 7vw; column-gap: 48px; }
+        .ov-body.cols { column-count: 2; }
+        .ov-body h3 { color: var(--cyan); font-size: 14px; margin: 18px 0 8px; font-family: 'JetBrains Mono', monospace; }
+        .ov-body h3:first-child { margin-top: 0; }
+        .ov-body p { color: var(--text); margin: 8px 0; }
+        .ov-body ul { margin: 8px 0 8px 20px; }
+        .ov-body li { margin: 4px 0; color: var(--text-dim); }
+        .ov-body code { font-family: 'JetBrains Mono', monospace; background: var(--panel-2); color: var(--amber); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+        .ov-body .callout { border-left: 3px solid var(--green-dim); background: var(--panel); padding: 10px 14px; margin: 12px 0; color: var(--text-dim); }
     </style>
 </head>
 <body>
-    <div class="wrap">
-        <!-- Header -->
-        <header class="header">
-            <span class="badge">ALA FINAL</span>
-            <h1>Cell-&Sigma; Commissioning</h1>
-            <a href="index.html" class="back-link">&larr; Advanced Linux Administration</a>
-        </header>
+    <div class="console">
 
-        <!-- Mission brief -->
-        <section class="brief">
-            <h2>Commissioning Order</h2>
-            <p>Cell-&Sigma; has been cabled to the Sector 7 grid at <span class="mono">10.0.1.42</span> but ships <strong>dark</strong>. Commission it into a production grid node. The grid will not trust this cell until every system is online and it passes a clean final audit.</p>
-            <p>This is a <strong>real Linux cell</strong>, not a simulation. It ships minimal &mdash; the exam services (BIND9, the build toolchain, AIDE, cron, SSH) are <em>not</em> installed. You install and configure everything yourself. You have passwordless <span class="mono">sudo</span>.</p>
-            <p class="note">Inside the cell, read your full order with <code class="mono">cat /opt/grid/commission-brief.txt</code> and check any stage with <code class="mono">commission-check &lt;stage&gt;</code>.</p>
-        </section>
-
-        <!-- Commissioning stages -->
-        <section class="stages" aria-label="Commissioning stages">
-            <div class="stage"><span class="stage-key">firstlight</span><span class="stage-desc">users + key-only SSH baseline</span><span class="stage-tag active">LIVE</span></div>
-            <div class="stage"><span class="stage-key">dns</span><span class="stage-desc">stand up BIND9 so the grid can resolve cell-sigma</span><span class="stage-tag active">LIVE</span></div>
-            <div class="stage"><span class="stage-key">assembly</span><span class="stage-desc">compile + install gridmon from source</span><span class="stage-tag active">LIVE</span></div>
-            <div class="stage"><span class="stage-key">watch</span><span class="stage-desc">bash + cron maintenance</span><span class="stage-tag active">LIVE</span></div>
-            <div class="stage"><span class="stage-key">integrity</span><span class="stage-desc">AIDE baseline</span><span class="stage-tag active">LIVE</span></div>
-            <div class="stage"><span class="stage-key">perimeter</span><span class="stage-desc">firewall policy</span><span class="stage-tag active">LIVE</span></div>
-            <div class="stage"><span class="stage-key">ghosthunt</span><span class="stage-desc">clear the planted faults</span><span class="stage-tag active">LIVE</span></div>
-            <div class="stage"><span class="stage-key">coldcase</span><span class="stage-desc">forensic remediation</span><span class="stage-tag active">LIVE</span></div>
-            <div class="stage"><span class="stage-key">audit</span><span class="stage-desc">final clean audit &rarr; CELL COMMISSIONED</span><span class="stage-tag active">LIVE</span></div>
-        </section>
-
-        <!-- Launch the cell -->
-        <section class="panel">
-            <h2>Launch the Cell</h2>
-            <p>Spin up your Cell-&Sigma; instance and open its terminal. Sessions idle out after 15 minutes and have a 120-minute lifetime.</p>
-            <div id="launcher-mount"></div>
-        </section>
-
-        <!-- Stage flag submission — one panel per live stage (data-flag-id wired generically) -->
-        <section class="panel stage-panel" data-flag-id="stage1_firstlight">
-            <h2>Stage 1: First Light (users + key-only SSH)</h2>
-            <p>Create the <span class="mono">gridops</span> service account and lock SSH to key-only &mdash; password auth off, root login off, pubkey on with an authorized key for gridops. Then run <code class="mono">commission-check firstlight</code> in the terminal to reveal the flag, and submit it here.</p>
-            <div class="flag-row">
-                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="First Light stage flag">
-                <button class="flag-submit" type="button">Submit Flag</button>
+        <!-- ══ STATUS BAR ══ -->
+        <div class="statusbar">
+            <span class="sb-brand">SECTOR 7 · GRID OPS <span class="cell">// CELL-&Sigma;</span></span>
+            <div class="sb-sep"></div>
+            <div class="sb-meter">
+                <div class="sb-segs" id="segs"></div>
+                <span class="sb-count" id="segCount">0 / 9</span>
+                <span class="sb-status dark" id="cellStatus">DARK</span>
             </div>
-            <div class="flag-result" role="status" aria-live="polite"></div>
-        </section>
+            <div class="sb-spacer"></div>
+            <span class="sb-meta">NODE <b>10.0.1.42</b></span>
+            <span class="sb-meta" id="clock">--:--:-- UTC</span>
+            <span class="sb-meta">OP <b id="opName">operator</b></span>
+        </div>
 
-        <section class="panel stage-panel" data-flag-id="stage2_dns">
-            <h2>Stage 2: Name Authority (DNS)</h2>
-            <p>Once the cell resolves <span class="mono">cell-sigma.sector7.matrix.net</span> forward and reverse, run <code class="mono">commission-check dns</code> in the terminal to reveal the flag, then submit it here.</p>
-            <div class="flag-row">
-                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="DNS stage flag">
-                <button class="flag-submit" type="button">Submit Flag</button>
-            </div>
-            <div class="flag-result" role="status" aria-live="polite"></div>
-        </section>
+        <!-- ══ LEFT RAIL — commissioning order ══ -->
+        <div class="zone rail-left">
+            <div class="zone-head"><span class="dot"></span> Commissioning Order</div>
+            <div class="zone-body" id="stageList"></div>
+        </div>
 
-        <section class="panel stage-panel" data-flag-id="stage3_assembly">
-            <h2>Stage 3: Field Assembly (compile gridmon)</h2>
-            <p>No package exists for <span class="mono">gridmon</span> &mdash; compile it from the source tree at <span class="mono">/opt/grid/source/gridmon</span> and install it (<code class="mono">make &amp;&amp; sudo make install</code>). Then run <code class="mono">commission-check assembly</code> in the terminal to reveal the flag, and submit it here.</p>
-            <div class="flag-row">
-                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="Field Assembly stage flag">
-                <button class="flag-submit" type="button">Submit Flag</button>
+        <!-- ══ CENTER — mission + terminal + flag ══ -->
+        <div class="center">
+            <div class="mission"><b>Mission</b><span>Cell-&Sigma; ships dark. Commission it into a production Sector 7 node — every system online, clean final audit.</span></div>
+            <div class="control">
+                <button class="btn btn-launch" id="launchBtn">▶ LAUNCH CELL</button>
+                <button class="btn btn-ghost" id="destroyBtn" style="display:none">■ TEAR DOWN</button>
+                <span class="conn" id="conn"><span class="pip"></span><span id="connText">cell offline</span></span>
             </div>
-            <div class="flag-result" role="status" aria-live="polite"></div>
-        </section>
+            <div class="term" id="term">
+                <div class="term-placeholder" id="termPlaceholder">
+                    <div class="boot">
+                        <div class="boot-sigil">CELL-&Sigma;<div class="boot-sub">SECTOR 7 GRID NODE · 10.0.1.42 · STATUS: DARK</div></div>
+                        <pre class="boot-feed" id="bootFeed"></pre>
+                        <div class="boot-cta">Press <b>▶ LAUNCH CELL</b> to bring it online. &nbsp; New here? Open <b>How This Lab Works</b> in Field Manuals →</div>
+                    </div>
+                    <div class="scanlines"></div>
+                </div>
+            </div>
+            <div class="flagbar">
+                <span class="lbl">FLAG · <b id="flagStageName">select a stage</b></span>
+                <input id="flagInput" class="mono" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="Stage flag">
+                <button class="btn btn-launch" id="flagBtn">SUBMIT</button>
+                <span class="res" id="flagRes" role="status" aria-live="polite"></span>
+            </div>
+        </div>
 
-        <section class="panel stage-panel" data-flag-id="stage4_watch">
-            <h2>Stage 4: The Watch (bash + cron maintenance)</h2>
-            <p>A commissioned cell maintains itself. Write an executable <span class="mono">/usr/local/sbin/grid-maintenance</span> that appends a timestamped heartbeat to <span class="mono">/var/log/grid/heartbeat.log</span>, then schedule it with <span class="mono">cron</span> and start the cron service. Then run <code class="mono">commission-check watch</code> in the terminal to reveal the flag, and submit it here.</p>
-            <div class="flag-row">
-                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="The Watch stage flag">
-                <button class="flag-submit" type="button">Submit Flag</button>
+        <!-- ══ RIGHT RAIL — comms (top) + manuals (bottom) ══ -->
+        <div class="rail-right">
+            <div class="zone">
+                <div class="zone-head"><span class="dot"></span> Grid Comms</div>
+                <div class="zone-body" id="comms"></div>
             </div>
-            <div class="flag-result" role="status" aria-live="polite"></div>
-        </section>
+            <div class="zone">
+                <div class="zone-head"><span class="dot"></span> Field Manuals</div>
+                <div class="zone-body" id="manuals"></div>
+            </div>
+        </div>
 
-        <section class="panel stage-panel" data-flag-id="stage5_integrity">
-            <h2>Stage 5: Integrity Seal (AIDE baseline)</h2>
-            <p>Seal the cell's integrity so future tampering is detectable. Install <span class="mono">aide</span>, initialize a baseline (<code class="mono">sudo aideinit -y -f</code>), and activate it at <span class="mono">/var/lib/aide/aide.db</span>. Then run <code class="mono">commission-check integrity</code> in the terminal to reveal the flag, and submit it here.</p>
-            <div class="flag-row">
-                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="Integrity Seal stage flag">
-                <button class="flag-submit" type="button">Submit Flag</button>
-            </div>
-            <div class="flag-result" role="status" aria-live="polite"></div>
-        </section>
+        <!-- ══ TICKER ══ -->
+        <div class="ticker" id="ticker"></div>
 
-        <section class="panel stage-panel" data-flag-id="stage6_perimeter">
-            <h2>Stage 6: Perimeter (firewall policy)</h2>
-            <p>Lock the cell's perimeter with <span class="mono">iptables</span>: a default-deny <span class="mono">INPUT</span> policy that permits only loopback, established connections, SSH (22), and DNS (53). Then run <code class="mono">commission-check perimeter</code> in the terminal to reveal the flag, and submit it here.</p>
-            <div class="flag-row">
-                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="Perimeter stage flag">
-                <button class="flag-submit" type="button">Submit Flag</button>
-            </div>
-            <div class="flag-result" role="status" aria-live="polite"></div>
-        </section>
+    </div>
 
-        <section class="panel stage-panel" data-flag-id="stage7_ghosthunt">
-            <h2>Stage 7: Ghost Hunt (clear planted faults)</h2>
-            <p>Two processes are masquerading as grid daemons but running from a hidden <span class="mono">/tmp</span> directory &mdash; real services never do. Hunt them down (<code class="mono">ps aux</code>, <code class="mono">top</code>) and kill both. Then run <code class="mono">commission-check ghosthunt</code> in the terminal to reveal the flag, and submit it here.</p>
-            <div class="flag-row">
-                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="Ghost Hunt stage flag">
-                <button class="flag-submit" type="button">Submit Flag</button>
-            </div>
-            <div class="flag-result" role="status" aria-live="polite"></div>
-        </section>
-
-        <section class="panel stage-panel" data-flag-id="stage8_coldcase">
-            <h2>Stage 8: Cold Case (forensic remediation)</h2>
-            <p>A prior intruder left traces. Start with the incident report (<code class="mono">cat /var/log/grid/intrusion-report.txt</code>), then investigate and remediate everything they planted &mdash; a backdoor account, its sudo grant, and a persistence cron. Then run <code class="mono">commission-check coldcase</code> in the terminal to reveal the flag, and submit it here.</p>
-            <div class="flag-row">
-                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="Cold Case stage flag">
-                <button class="flag-submit" type="button">Submit Flag</button>
-            </div>
-            <div class="flag-result" role="status" aria-live="polite"></div>
-        </section>
-
-        <section class="panel stage-panel" data-flag-id="stage9_audit">
-            <h2>Stage 9: Commissioning Audit (capstone)</h2>
-            <p>The final audit. This passes only when <strong>every</strong> other stage holds at once &mdash; the grid re-checks the whole cell. Once all eight systems are green, run <code class="mono">commission-check audit</code> in the terminal for the final commissioning flag, and submit it here to bring <span class="mono">cell-sigma</span> online.</p>
-            <div class="flag-row">
-                <input class="flag-input" type="text" placeholder="FLAG{...}" autocomplete="off" spellcheck="false" aria-label="Commissioning Audit flag">
-                <button class="flag-submit" type="button">Submit Flag</button>
-            </div>
-            <div class="flag-result" role="status" aria-live="polite"></div>
-            <p class="hint">Stuck? In the terminal: <code>cat /opt/grid/commission-brief.txt</code></p>
-        </section>
+    <!-- ══ Manual reader overlay ══ -->
+    <div class="overlay" id="overlay">
+        <div class="ov-head">
+            <span class="ov-kicker">FIELD MANUAL //</span>
+            <h2 id="ovTitle">Manual</h2>
+            <button class="ov-close" id="ovClose">CLOSE [esc]</button>
+        </div>
+        <div class="ov-body" id="ovBody"></div>
     </div>
 
     <script>
-    // Page controller — mount the real-container launcher and wire every stage
-    // panel's flag submission to the validateFlag Cloud Function. One IIFE; each
-    // .stage-panel carries its own data-flag-id so this scales as stages are added.
+    // ── Cell-Σ Grid Ops Console controller ──────────────────────────────────
+    // Full-viewport SOC console. Drives the real container launch (SandboxLauncher),
+    // per-stage flag validation (validateFlag), and the in-world Comms + Field
+    // Manuals panels. Single IIFE; nothing leaks to global scope.
     (function () {
         const BOX_ID = 'cell-sigma';
 
-        // Mount the launch/connect/destroy control for the cell-sigma container.
-        // SandboxLauncher self-injects its styles and handles the API calls.
-        function mountLauncher() {
-            const el = document.getElementById('launcher-mount');
-            if (el && typeof SandboxLauncher !== 'undefined' && SandboxLauncher.renderButton) {
-                SandboxLauncher.renderButton(el, BOX_ID, { mode: 'tab' });
-            }
-        }
+        // The nine commissioning stages, in order. flagId matches flag_registry/box_flags.
+        const STAGES = [
+            { n: 1, key: 'firstlight', flag: 'stage1_firstlight', name: 'firstlight', title: 'First Light', cmd: 'firstlight' },
+            { n: 2, key: 'dns',        flag: 'stage2_dns',        name: 'dns',        title: 'Name Authority', cmd: 'dns' },
+            { n: 3, key: 'assembly',   flag: 'stage3_assembly',   name: 'assembly',   title: 'Field Assembly', cmd: 'assembly' },
+            { n: 4, key: 'watch',      flag: 'stage4_watch',      name: 'watch',      title: 'The Watch', cmd: 'watch' },
+            { n: 5, key: 'integrity',  flag: 'stage5_integrity',  name: 'integrity',  title: 'Integrity Seal', cmd: 'integrity' },
+            { n: 6, key: 'perimeter',  flag: 'stage6_perimeter',  name: 'perimeter',  title: 'Perimeter', cmd: 'perimeter' },
+            { n: 7, key: 'ghosthunt',  flag: 'stage7_ghosthunt',  name: 'ghosthunt',  title: 'Ghost Hunt', cmd: 'ghosthunt' },
+            { n: 8, key: 'coldcase',   flag: 'stage8_coldcase',   name: 'coldcase',   title: 'Cold Case', cmd: 'coldcase' },
+            { n: 9, key: 'audit',      flag: 'stage9_audit',      name: 'audit',      title: 'Commissioning Audit', cmd: 'audit' },
+        ];
+        const captured = new Set();
+        let selected = STAGES[0];
+        let session = null;   // { sessionId, url }
 
-        // Validate one stage panel's typed flag against the server; reflect result.
-        async function submitFlag(panel) {
-            const flagId = panel.dataset.flagId;
-            const input = panel.querySelector('.flag-input');
-            const btn = panel.querySelector('.flag-submit');
-            const out = panel.querySelector('.flag-result');
-            const submission = (input.value || '').trim();
-            if (!submission) { out.className = 'flag-result bad'; out.textContent = 'Enter a flag first.'; return; }
-
-            btn.disabled = true; out.className = 'flag-result'; out.textContent = 'Checking...';
-            try {
-                const res = await FirebaseAuth.callFunction('validateFlag', {
-                    boxId: BOX_ID, flagId: flagId, submission: submission
-                });
-                // Firebase callables return { data: <fn return> }; match the platform
-                // pattern used in BoxEngine.js (result.data || result).
-                const data = (res && res.data) || res || {};
-                if (data.correct) {
-                    out.className = 'flag-result ok';
-                    out.textContent = 'Correct — stage captured.';
-                } else {
-                    out.className = 'flag-result bad';
-                    out.textContent = 'Not correct. Complete the stage in the terminal, then re-run its commission-check.';
-                }
-            } catch (e) {
-                out.className = 'flag-result bad';
-                out.textContent = 'Could not validate (' + (e && e.message ? e.message : 'error') + '). Make sure you are signed in.';
-            } finally {
-                btn.disabled = false;
-            }
-        }
-
-        // Wire every stage panel once the DOM is ready.
-        function init() {
-            mountLauncher();
-            document.querySelectorAll('.stage-panel').forEach(function (panel) {
-                const btn = panel.querySelector('.flag-submit');
-                const input = panel.querySelector('.flag-input');
-                if (btn) btn.addEventListener('click', function () { submitFlag(panel); });
-                if (input) input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitFlag(panel); });
+        // ── Left rail: render the commissioning order ──
+        function renderStages() {
+            const el = document.getElementById('stageList');
+            el.innerHTML = '';
+            STAGES.forEach(s => {
+                const row = document.createElement('div');
+                row.className = 'stage' + (captured.has(s.flag) ? ' done' : '') + (selected === s ? ' sel' : '');
+                row.innerHTML = `<span class="sdot"></span><span class="snum">${s.n}</span><span class="snamewrap"><span class="sname">${s.title}</span><span class="skey">${s.key}</span></span><span class="scap">ONLINE</span>`;
+                row.onclick = () => { selected = s; renderStages(); syncFlagBar(); };
+                el.appendChild(row);
             });
         }
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
+        // Keep the flag bar bound to the selected stage.
+        function syncFlagBar() {
+            document.getElementById('flagStageName').textContent = selected.title;
+            const res = document.getElementById('flagRes'); res.className = 'res'; res.textContent = '';
+            document.getElementById('flagInput').value = '';
         }
+
+        // ── Status bar progress meter ──
+        function renderMeter() {
+            const segs = document.getElementById('segs');
+            segs.innerHTML = STAGES.map(s => `<span class="seg${captured.has(s.flag) ? ' on' : ''}"></span>`).join('');
+            const n = captured.size, st = document.getElementById('cellStatus');
+            document.getElementById('segCount').textContent = n + ' / ' + STAGES.length;
+            if (n === 0) { st.textContent = 'DARK'; st.className = 'sb-status dark'; }
+            else if (n >= STAGES.length) { st.textContent = 'COMMISSIONED'; st.className = 'sb-status live'; }
+            else { st.textContent = n + '/' + STAGES.length + ' ONLINE'; st.className = 'sb-status live'; }
+            renderTicker();   // ticker reflects live progress
+        }
+
+        // ── Launch / tear down the real container ──
+        async function launch() {
+            const btn = document.getElementById('launchBtn');
+            btn.disabled = true; setConn('connecting', 'launching cell…');
+            try {
+                const data = await SandboxLauncher.launch(BOX_ID);
+                session = { sessionId: data.sessionId, url: data.url };
+                const term = document.getElementById('term');
+                document.getElementById('termPlaceholder').style.display = 'none';
+                let f = term.querySelector('iframe');
+                if (!f) { f = document.createElement('iframe'); f.setAttribute('title', 'Cell-Σ terminal'); term.appendChild(f); }
+                // The container is created, but the dynamic traefik route + ttyd take a
+                // couple of seconds to come up — embedding immediately yields a 404 that
+                // won't self-recover. Show a connecting state, then embed once it's ready.
+                let conn = term.querySelector('.term-connecting');
+                if (!conn) { conn = document.createElement('div'); conn.className = 'term-connecting'; term.appendChild(conn); }
+                conn.innerHTML = '<span class="cur">█</span> establishing secure channel to cell-Σ …';
+                conn.style.display = 'flex';
+                setConn('connecting', 'establishing channel…');
+                document.getElementById('destroyBtn').style.display = '';
+                btn.style.display = 'none';
+                addComms('ctrl', 'Grid Control', 'Cell-Σ is live, operator. Begin commissioning — start with First Light. Run `commission-check <stage>` after each step.');
+                setTimeout(() => {
+                    f.src = data.url;
+                    setConn('up', 'connected · ' + data.sessionId);
+                    setTimeout(() => { if (conn) conn.style.display = 'none'; }, 1400);
+                }, 2400);
+            } catch (e) {
+                btn.disabled = false;
+                setConn('', 'launch failed');
+                addComms('alert', 'Grid Control', 'Launch failed (' + (e && e.message ? e.message : 'error') + '). Make sure you are signed in, then retry.');
+            }
+        }
+        async function teardown() {
+            if (!session) return;
+            try { await SandboxLauncher.destroy(session.sessionId); } catch (e) {}
+            const term = document.getElementById('term');
+            const f = term.querySelector('iframe'); if (f) f.remove();
+            const c = term.querySelector('.term-connecting'); if (c) c.remove();
+            document.getElementById('termPlaceholder').style.display = '';
+            document.getElementById('destroyBtn').style.display = 'none';
+            const lb = document.getElementById('launchBtn'); lb.style.display = ''; lb.disabled = false;
+            setConn('', 'cell offline'); session = null;
+        }
+        function setConn(state, text) {
+            const c = document.getElementById('conn'); c.className = 'conn' + (state === 'up' ? ' up' : '');
+            document.getElementById('connText').textContent = text;
+        }
+
+        // ── Flag submission (server-validated) ──
+        async function submitFlag() {
+            const input = document.getElementById('flagInput'), res = document.getElementById('flagRes'), btn = document.getElementById('flagBtn');
+            const submission = (input.value || '').trim();
+            if (!submission) { res.className = 'res bad'; res.textContent = 'enter a flag'; return; }
+            btn.disabled = true; res.className = 'res'; res.textContent = '…';
+            try {
+                const r = await FirebaseAuth.callFunction('validateFlag', { boxId: BOX_ID, flagId: selected.flag, submission: submission });
+                const data = (r && r.data) || r || {};
+                if (data.correct) {
+                    res.className = 'res ok'; res.textContent = 'captured';
+                    if (!captured.has(selected.flag)) {
+                        captured.add(selected.flag);
+                        renderStages(); renderMeter();
+                        addComms('ctrl', 'Grid Control', selected.title + ' confirmed. ' + (captured.size >= STAGES.length ? 'Cell-Σ is COMMISSIONED. Outstanding work, operator.' : (STAGES.length - captured.size) + ' systems remaining.'));
+                        if (selected.key === 'dns') addComms('alert', 'Grid Control', 'ALERT — while you work: telemetry shows prior-intrusion traces on this cell. The Cold Case stage will need your attention.');
+                    }
+                } else {
+                    res.className = 'res bad'; res.textContent = 'not correct';
+                }
+            } catch (e) {
+                res.className = 'res bad'; res.textContent = 'error';
+            } finally { btn.disabled = false; }
+        }
+
+        // ── Grid Comms feed (newest on top) ──
+        const COMMS = [];
+        function addComms(kind, who, body) {
+            COMMS.unshift({ kind, who, body, t: clockStr() });
+            const el = document.getElementById('comms');
+            el.innerHTML = COMMS.map(m => `
+                <div class="msg"><div class="from ${m.kind}"><span class="who">${m.who}</span><span class="t">${m.t}</span></div><div class="body">${m.body}</div></div>`).join('');
+        }
+
+        // ── Field Manuals ──
+        const MANUALS = [
+            { id: 'explainer', ic: '▤', label: 'How This Lab Works', kind: 'doc' },
+            { id: 'howto',     ic: '▤', label: 'Operator Handbook (how-to)', kind: 'doc' },
+            { id: 'guides',    ic: '▤', label: 'Stage Field Guides (×9)', kind: 'doc' },
+            { id: 'pdf',   ic: '⤓', label: 'Full Walkthrough (PDF)', kind: 'ext',
+              url: 'https://hexworth.atlassian.net/wiki/spaces/KBA/pages/34275330' },
+        ];
+        function renderManuals() {
+            const el = document.getElementById('manuals');
+            el.innerHTML = '';
+            MANUALS.forEach(m => {
+                const row = document.createElement('div');
+                row.className = 'manual';
+                row.innerHTML = `<span class="ic">${m.ic}</span><span>${m.label}</span><span class="ext">${m.kind === 'ext' ? 'OPEN ↗' : 'READ'}</span>`;
+                row.onclick = () => m.kind === 'ext' ? window.open(m.url, '_blank') : openManual(m.id);
+                el.appendChild(row);
+            });
+        }
+        function openManual(id) {
+            const body = document.getElementById('ovBody');
+            document.getElementById('ovTitle').textContent = MANUAL_DOCS[id].title;
+            body.innerHTML = MANUAL_DOCS[id].html;
+            // The 9 short field guides read best as two columns across the wide screen;
+            // the prose docs stay single-column.
+            body.classList.toggle('cols', id === 'guides');
+            document.getElementById('overlay').classList.add('show');
+            body.scrollTop = 0;
+            // Field guides: jump straight to the stage the operator is on (when scrollable).
+            if (id === 'guides') {
+                const t = document.getElementById('g-' + selected.key);
+                if (t) body.scrollTop += (t.getBoundingClientRect().top - body.getBoundingClientRect().top) - 14;
+            }
+        }
+        const MANUAL_DOCS = {
+            explainer: { title: 'How This Lab Works', html: `
+                <h3>This is a real machine</h3>
+                <p>Unlike the in-class labs, Cell-&Sigma; is not a simulation. When you press <b>Launch Cell</b>, the grid spins up an actual Linux container that is yours for the session. You have a real shell with passwordless <code>sudo</code>. Nothing here is faked — real packages, real services, real files.</p>
+                <h3>Build it from zero</h3>
+                <p>The cell ships <b>dark</b>: the exam services (DNS, the build toolchain, AIDE, cron, SSH server, the firewall) are <b>not</b> installed. You install and configure everything yourself, one stage at a time.</p>
+                <h3>How you are graded</h3>
+                <p>Each stage is verified against the cell's <b>real live state</b> by the grid. Run <code>commission-check &lt;stage&gt;</code> in the terminal; when your work genuinely holds, it reveals that stage's flag. Submit the flag in the console to light the stage green.</p>
+                <div class="callout">There is no credit for "looks done." The grid inspects the running cell itself — a flag only appears once the work is real.</div>` },
+            howto: { title: 'Operator Handbook', html: `
+                <h3>The loop</h3>
+                <ul>
+                    <li><b>Launch Cell</b> (top-center) → your terminal opens in the console.</li>
+                    <li>Work a stage in the terminal (see the Stage Field Guides for what each needs).</li>
+                    <li>Run <code>commission-check &lt;stage&gt;</code> → it prints <code>FLAG{...}</code> when the grid confirms your work.</li>
+                    <li>Pick the stage in the left rail, paste the flag in the <b>FLAG</b> bar, hit <b>Submit</b>. The stage goes green.</li>
+                    <li>When all eight are green, run <code>commission-check audit</code> for the capstone.</li>
+                </ul>
+                <h3>In the cell</h3>
+                <ul>
+                    <li>Read your orders: <code>cat /opt/grid/commission-brief.txt</code></li>
+                    <li>Check progress / stage list: <code>commission-check</code></li>
+                    <li>Manage services (no systemd here — a shim handles it): <code>sudo systemctl start &lt;svc&gt;</code></li>
+                </ul>
+                <h3>Lifecycle</h3>
+                <div class="callout">The cell idles out after <b>15 minutes</b> of inactivity and has a <b>120-minute</b> max lifetime. <b>Do not refresh the page mid-session</b> — relaunching gives you a fresh, empty cell. Work a clean run start to finish.</div>` },
+            guides: { title: 'Stage Field Guides', html: `
+                <h3 id="g-firstlight">1 · First Light — users + key-only SSH</h3><p>Create a non-root service account, install <code>openssh-server</code>, and lock SSH to key-only (password auth off, root login off, pubkey on with an authorized key). Start sshd.</p>
+                <h3 id="g-dns">2 · Name Authority — DNS</h3><p>Install <code>bind9</code>; author forward + reverse zones so <code>cell-sigma.sector7.matrix.net</code> resolves to <code>10.0.1.42</code> and back. Start <code>named</code>.</p>
+                <h3 id="g-assembly">3 · Field Assembly — compile from source</h3><p>No package exists for <code>gridmon</code>. Install the build toolchain and compile + install it from the source tree at <code>/opt/grid/source/gridmon</code>.</p>
+                <h3 id="g-watch">4 · The Watch — bash + cron</h3><p>Write an executable maintenance script that heartbeats to a log, then schedule it with <code>cron</code> and start the cron service.</p>
+                <h3 id="g-integrity">5 · Integrity Seal — AIDE</h3><p>Install AIDE and initialize a baseline database so future tampering is detectable.</p>
+                <h3 id="g-perimeter">6 · Perimeter — firewall</h3><p>Default-deny the <code>INPUT</code> chain with <code>iptables</code>, allowing only loopback, established connections, SSH (22), and DNS (53).</p>
+                <h3 id="g-ghosthunt">7 · Ghost Hunt — process forensics</h3><p>Two processes masquerade as grid daemons but run from a hidden <code>/tmp</code> directory. Find both (<code>ps</code>, <code>top</code>) and kill them.</p>
+                <h3 id="g-coldcase">8 · Cold Case — intrusion remediation</h3><p>A prior intruder left traces — start with <code>/var/log/grid/intrusion-report.txt</code>. Remove the backdoor account, its sudo grant, and the persistence cron.</p>
+                <h3 id="g-audit">9 · Commissioning Audit — capstone</h3><p>The grid re-checks every stage. With all eight green, run <code>commission-check audit</code> to bring Cell-&Sigma; fully online.</p>` },
+        };
+
+        // ── Ticker (scrolling marquee, reflects live progress) ──
+        function renderTicker() {
+            const n = captured.size;
+            const cellLine = n >= STAGES.length
+                ? '<span class="t-item">CELL-Σ <b>COMMISSIONED · all systems online</b></span>'
+                : '<span class="t-item warn">CELL-Σ <b>' + (n === 0 ? 'awaiting commissioning' : n + '/' + STAGES.length + ' systems online') + '</b></span>';
+            const items = [
+                '<span class="t-item">GRID LINK <b>nominal</b></span>',
+                '<span class="t-item">SECTOR 7 <b>online</b></span>',
+                cellLine,
+                '<span class="t-item">verify model <b>server-side / real-state</b></span>',
+                '<span class="t-item">tip: <b>cat /opt/grid/commission-brief.txt</b></span>',
+            ].join('');
+            // Duplicate the run so the translateX(-50%) marquee loops seamlessly.
+            document.getElementById('ticker').innerHTML = '<div class="ticker-track">' + items + items + '</div>';
+        }
+        // ── Offline boot diagnostic: reveal the "cell is dark" trace line by line ──
+        const BOOT = [
+            ['[grid] uplink to Sector 7 backbone ......... ', 'ESTABLISHED', 'ok'],
+            ['[grid] cell-sigma cabled @ 10.0.1.42 ....... ', 'DETECTED', 'ok'],
+            ['[boot] kernel handed off · userland minimal  ', 'OK', 'ok'],
+            ['[scan] name service  (named) .............. ', 'DOWN', 'bad'],
+            ['[scan] secure shell  (sshd) ............... ', 'DOWN', 'bad'],
+            ['[scan] perimeter firewall ................. ', 'NO POLICY', 'warn'],
+            ['[scan] integrity baseline (aide) .......... ', 'ABSENT', 'warn'],
+            ['[hold] cell is DARK — awaiting commissioning order ', '', 'cur'],
+        ];
+        function renderBoot() {
+            const feed = document.getElementById('bootFeed'); if (!feed) return; feed.innerHTML = '';
+            BOOT.forEach((row, i) => setTimeout(() => {
+                const f = document.getElementById('bootFeed'); if (!f) return;   // cell launched — placeholder is gone
+                const ln = document.createElement('span'); ln.className = 'ln';
+                ln.innerHTML = row[2] === 'cur'
+                    ? row[0] + '<span class="cur">█</span>'
+                    : row[0] + '<span class="' + row[2] + '">' + row[1] + '</span>';
+                f.appendChild(ln);
+            }, 280 + i * 330));
+        }
+
+        function pad(n) { return String(n).padStart(2, '0'); }
+        function clockStr() { const d = new Date(); return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds()); }
+        function tickClock() { document.getElementById('clock').textContent = clockStr() + ' UTC'; }
+
+        // ── Init ──
+        function init() {
+            renderStages(); renderMeter(); renderManuals(); syncFlagBar();
+            renderBoot();   // animate the offline diagnostic feed
+            tickClock(); setInterval(tickClock, 1000);
+            // Operator name (best-effort, in-world flavor).
+            try { if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser) { const u = FirebaseAuth.getUser(); if (u && (u.displayName || u.email)) document.getElementById('opName').textContent = (u.displayName || u.email).split('@')[0]; } } catch (e) {}
+            // Seed comms + a couple of timed ambient transmissions so the feed feels live.
+            addComms('ctrl', 'Grid Control', 'Operator on station. Cell-Σ at 10.0.1.42 is dark — cabled to the grid but offline. Press Launch Cell when ready. New to a live cell? Read "How This Lab Works" in Field Manuals.');
+            setTimeout(() => addComms('sys', 'Sector 7 Net', 'Backbone load nominal · cell-Σ handshake confirmed · link stable.'), 9000);
+            setTimeout(() => addComms('sys', 'Grid Monitor', 'Monitoring active. Every stage flag is validated server-side against the live cell — no shortcuts pass.'), 21000);
+            // Wire controls.
+            document.getElementById('launchBtn').onclick = launch;
+            document.getElementById('destroyBtn').onclick = teardown;
+            document.getElementById('flagBtn').onclick = submitFlag;
+            document.getElementById('flagInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitFlag(); });
+            const closeOv = () => document.getElementById('overlay').classList.remove('show');
+            document.getElementById('ovClose').onclick = closeOv;
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') closeOv(); });
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
     })();
     </script>
 </body>
