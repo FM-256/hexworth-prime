@@ -33,6 +33,12 @@ const ENFORCE_APP_CHECK = false;
 // Common Cloud Function options
 const cfOptions = { region: 'us-central1', enforceAppCheck: ENFORCE_APP_CHECK };
 
+// validateFlag rate limit: max flag submits per box per 60s window. Raised from 10
+// (too tight for multi-stage exams like the cell-Σ commissioning final, where a
+// student legitimately iterates the grader+submit across 9 stages). A FLAG{} value
+// has far too much entropy for 30/min to enable brute-forcing.
+const FLAG_RATE_LIMIT_PER_MIN = 30;
+
 // ─── QC-4: Admin Role Management ─────────────────────────────────
 
 /**
@@ -182,7 +188,7 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
             .where('timestamp', '>', new Date(Date.now() - 60000))
             .get();
 
-        if (recentAttempts.size >= 10) {
+        if (recentAttempts.size >= FLAG_RATE_LIMIT_PER_MIN) {
             throw new HttpsError('resource-exhausted',
                 'Too many attempts. Wait 60 seconds before trying again.');
         }
@@ -1175,7 +1181,7 @@ exports.validateChallenge = onCall(cfOptions, async (request) => {
             .where('timestamp', '>', new Date(Date.now() - 60000))
             .get();
 
-        if (recentAttempts.size >= 10) {
+        if (recentAttempts.size >= FLAG_RATE_LIMIT_PER_MIN) {
             throw new HttpsError('resource-exhausted',
                 'Too many attempts. Wait 60 seconds before trying again.');
         }
