@@ -438,28 +438,47 @@
         // ── Flag submission (server-validated) ──
         async function submitFlag() {
             const input = document.getElementById('flagInput'), res = document.getElementById('flagRes'), btn = document.getElementById('flagBtn');
-            const submission = (input.value || '').trim();
+            // Normalize the paste: drop the "FLAG: " label the box prints before the flag,
+            // and any whitespace a terminal copy may inject (line-wrap artifacts). Real flags
+            // are `FLAG{...}` — a brace, never a colon, and never contain internal spaces — so
+            // neither strip can corrupt a legitimate value.
+            const submission = (input.value || '').trim().replace(/^flag:\s*/i, '').replace(/\s+/g, '');
             if (!submission) { res.className = 'res bad'; res.textContent = 'enter a flag'; return; }
             btn.disabled = true; res.className = 'res'; res.textContent = '…';
             try {
-                const r = await FirebaseAuth.callFunction('validateFlag', { boxId: BOX_ID, flagId: selected.flag, submission: submission });
+                // Scan mode: submit WITHOUT a flagId so the server matches the pasted flag against
+                // ANY stage of this box and tells us which one it was. Capture no longer depends on
+                // which stage row happens to be highlighted — that coupling was the root cause of
+                // "not correct" on a correct flag. (A student can only obtain a stage's flag by
+                // actually completing that stage in the live container, so order isn't enforceable
+                // here anyway; the server-side audit flag still gates on all 8 prior stages.)
+                const r = await FirebaseAuth.callFunction('validateFlag', { boxId: BOX_ID, submission: submission });
                 const data = (r && r.data) || r || {};
                 if (data.correct) {
+                    const stage = STAGES.find(s => s.flag === data.flagId);
+                    if (!stage) {
+                        // Correct, but the server returned a stage we can't resolve. Never credit a
+                        // guessed/highlighted row — surface it as an error instead.
+                        res.className = 'res bad'; res.textContent = 'error';
+                        return;
+                    }
                     res.className = 'res ok'; res.textContent = 'captured';
-                    if (!captured.has(selected.flag)) {
-                        captured.add(selected.flag);
-                        renderStages(); renderMeter();
-                        addComms('ctrl', 'Grid Control', selected.title + ' confirmed. ' + (captured.size >= STAGES.length ? 'Cell-Σ is COMMISSIONED. Outstanding work, operator.' : (STAGES.length - captured.size) + ' systems remaining.'));
-                        if (selected.key === 'dns') addComms('alert', 'Grid Control', 'ALERT — while you work: telemetry shows prior-intrusion traces on this cell. The Cold Case stage will need your attention.');
+                    if (!captured.has(stage.flag)) {
+                        captured.add(stage.flag);
+                        selected = stage;                  // follow the captured stage so the rail + bar match
+                        renderStages(); renderMeter(); syncFlagBar();
+                        res.className = 'res ok'; res.textContent = 'captured';   // syncFlagBar clears res — restore it
+                        addComms('ctrl', 'Grid Control', stage.title + ' confirmed. ' + (captured.size >= STAGES.length ? 'Cell-Σ is COMMISSIONED. Outstanding work, operator.' : (STAGES.length - captured.size) + ' systems remaining.'));
+                        if (stage.key === 'dns') addComms('alert', 'Grid Control', 'ALERT — while you work: telemetry shows prior-intrusion traces on this cell. The Cold Case stage will need your attention.');
                         // Nudge Dr. Hex to re-read flag activity (mood ring → celebrating).
                         window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted'));
                         // Per-stage instructor analytics: one arena_flag event per enrolled class.
-                        reportStageActivity('arena_flag', { flagId: selected.flag, stage: selected.key, capturedCount: captured.size, totalFlags: STAGES.length });
+                        reportStageActivity('arena_flag', { flagId: stage.flag, stage: stage.key, capturedCount: captured.size, totalFlags: STAGES.length });
                         // Capstone captured = cell fully commissioned → record module completion
                         // (syncs to Firestore for the instructor dashboard). Silent + no redirect:
                         // the audit flag only awards when all 8 prior stages hold, so this is a
                         // true "all 9 done" completion.
-                        if (selected.key === 'audit' && typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
+                        if (stage.key === 'audit' && typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
                             ModuleProgress.complete('matrix', 'ala-final-practical', { type: 'lab', silent: true, returnToDashboard: false });
                             reportStageActivity('arena_complete', { flags: captured.size, totalFlags: STAGES.length });
                         }
