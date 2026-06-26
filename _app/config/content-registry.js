@@ -11568,7 +11568,7 @@ const ContentRegistry = {
             topics: ['command', 'line', 'hardware', 'systems'],
             paths: ['aplus-core1'],
             components: {
-                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-command-line.lab.html'
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-command-line.lab.html'
             },
             prerequisites: [],
             objectives: []
