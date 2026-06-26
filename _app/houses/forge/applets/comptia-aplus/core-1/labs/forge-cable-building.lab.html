@@ -605,6 +605,33 @@
         }
         .pass { color: var(--success); }
         .fail { color: var(--danger); }
+
+        /* ── "Choose your guide" video wall ───────────────────────────── */
+        .guide-sub { color: var(--text-secondary); font-size: 0.9rem; margin: 2px 0 14px; }
+        .guide-video-player { margin-bottom: 14px; border-radius: 12px; overflow: hidden; background: #000; }
+        .guide-video-player.landscape { aspect-ratio: 16 / 9; }
+        .guide-video-player.portrait  { aspect-ratio: 9 / 16; max-width: 320px; margin: 0 auto 14px; }
+        .guide-video-player iframe { width: 100%; height: 100%; border: 0; display: block; }
+        .guide-video-placeholder { aspect-ratio: 16 / 9; display: flex; align-items: center; justify-content: center;
+            color: #94a3b8; background: #0f0f17; font-size: 0.9rem; text-align: center; padding: 0 16px; }
+        .guide-video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+        .guide-card { border: 2px solid var(--border-color); border-radius: 10px; overflow: hidden; cursor: pointer;
+            background: var(--bg-card); transition: border-color .15s, transform .1s, box-shadow .15s; text-align: left; }
+        .guide-card:hover { border-color: var(--forge-secondary); transform: translateY(-2px); }
+        .guide-card.selected { border-color: var(--forge-primary); box-shadow: 0 0 0 2px rgba(234,88,12,.25); }
+        .guide-card:focus-visible { outline: 2px solid var(--forge-primary); outline-offset: 2px; }
+        .guide-card-thumb { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
+        .guide-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .guide-card-thumb .gc-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+        .guide-card-thumb .gc-play::after { content: ''; width: 0; height: 0; margin-left: 4px;
+            border-left: 18px solid #fff; border-top: 11px solid transparent; border-bottom: 11px solid transparent;
+            filter: drop-shadow(0 0 4px rgba(0,0,0,.7)); }
+        .guide-card-thumb .gc-badge { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,.72);
+            color: #fff; font-size: 0.64rem; letter-spacing: .5px; padding: 2px 6px; border-radius: 4px; }
+        .guide-card-body { padding: 8px 10px; }
+        .guide-card-title { font-weight: 600; font-size: 0.84rem; color: var(--text-primary); line-height: 1.25; }
+        .guide-card-meta { font-size: 0.72rem; color: var(--text-secondary); margin-top: 3px; }
+        .guide-card-best { font-size: 0.72rem; color: var(--forge-dark); margin-top: 4px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -617,6 +644,18 @@
     <div class="header">
         <h1>Build a Cable (T568A / T568B)</h1>
         <p>Terminate an Ethernet patch cable from scratch — strip, fan, seat, crimp, and test</p>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         CHOOSE YOUR GUIDE — video wall (click a card to play)
+         ════════════════════════════════════════════════════ -->
+    <div class="section-card" id="section-guides">
+        <h2><img src="/assets/images/icons/icon-play.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Choose Your Guide</h2>
+        <p class="guide-sub">Pick a video to watch a real termination, then build your own below. Each guide takes a slightly different angle &mdash; detailed walkthrough, speed-run, or by cable grade.</p>
+        <div class="guide-video-player landscape" id="guide-video-player">
+            <div class="guide-video-placeholder">Select a guide below and it will play here.</div>
+        </div>
+        <div class="guide-video-grid" id="guide-video-grid"></div>
     </div>
 
     <!-- ════════════════════════════════════════════════════
@@ -1003,6 +1042,68 @@
     /* ══════════════════════════════════════════════════════════════════════
        GUIDE TABLE POPULATION
     ══════════════════════════════════════════════════════════════════════ */
+    /* ══════════════════════════════════════════════════════════════════════
+       "CHOOSE YOUR GUIDE" VIDEO WALL
+       Thumbnails load up front; the player iframe is created ONLY when a card
+       is clicked (click-to-play, privacy-enhanced youtube-nocookie domain).
+       Config-driven — add/remove entries here to change the wall.
+    ══════════════════════════════════════════════════════════════════════ */
+    const GUIDE_VIDEOS = [
+        { id: 'NWhoJp8UQpo', title: 'Wire Up Ethernet Plugs the EASY WAY', channel: 'Switched On Network', best: 'Detailed RJ45 crimp walkthrough', short: false },
+        { id: 'AzvAH_sHi0g', title: 'Make an Ethernet Cable in 60 Seconds', channel: 'RichTechGuy', best: 'Fast end-to-end speed-run', short: true },
+        { id: 'gcnlOYAqefw', title: 'Terminate a Cat 8 Field Termination', channel: 'HY CONNECT', best: 'Cat 8 / shielded cabling', short: true },
+        { id: 'FYW23lS297U', title: 'Crimp a Cat 6 Ethernet Cable', channel: 'Ox-Link Electronics', best: 'Cat 6 crimp, quick', short: true },
+        { id: 'Sw-hh5i-Rp8', title: 'Strip and Crimp a Cat 5e RJ45 Cable', channel: 'Tempo Communications', best: 'Stripping technique (Cat 5e)', short: true },
+        { id: 'mhTaQdVVveE', title: 'Make, Fix and Terminate Ethernet Cables', channel: 'Toolstour', best: 'Make, fix and terminate', short: true },
+        { id: '7McHUG1dIiQ', title: 'Wire Up Ethernet Plugs the Easy Way (Tip)', channel: 'Simple Creative', best: 'A pro tip to remember', short: true }
+    ];
+
+    /* Render the clickable guide cards (thumbnails only — no players yet) */
+    function buildGuidePicker() {
+        const grid = document.getElementById('guide-video-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        GUIDE_VIDEOS.forEach((v, i) => {
+            const card = document.createElement('div');
+            card.className = 'guide-card';
+            card.dataset.idx = i;
+            card.setAttribute('role', 'button');
+            card.setAttribute('tabindex', '0');
+            card.setAttribute('aria-label', `Play guide: ${v.title} by ${v.channel}`);
+            card.innerHTML =
+                '<div class="guide-card-thumb">' +
+                    `<img src="https://img.youtube.com/vi/${v.id}/hqdefault.jpg" alt="">` +
+                    '<span class="gc-play"></span>' +
+                    (v.short ? '<span class="gc-badge">SHORT</span>' : '') +
+                '</div>' +
+                '<div class="guide-card-body">' +
+                    `<div class="guide-card-title">${v.title}</div>` +
+                    `<div class="guide-card-meta">${v.channel}</div>` +
+                    `<div class="guide-card-best">${v.best}</div>` +
+                '</div>';
+            card.addEventListener('click', () => playGuide(i));
+            card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playGuide(i); } });
+            grid.appendChild(card);
+        });
+    }
+
+    /* Load the chosen video into the player area (only now is an iframe created) */
+    function playGuide(idx) {
+        const v = GUIDE_VIDEOS[idx];
+        const player = document.getElementById('guide-video-player');
+        if (!player) return;
+        player.className = 'guide-video-player ' + (v.short ? 'portrait' : 'landscape');
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://www.youtube-nocookie.com/embed/${v.id}?rel=0&autoplay=1`;
+        iframe.title = v.title;
+        iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+        iframe.setAttribute('allowfullscreen', '');
+        player.innerHTML = '';
+        player.appendChild(iframe);
+        document.querySelectorAll('.guide-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
+        player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
     function buildGuideTables() {
         ['A', 'B'].forEach(std => {
             const tbody = document.getElementById(`guide-table-${std.toLowerCase()}`);
@@ -1556,6 +1657,7 @@
        INIT on DOMContentLoaded
     ══════════════════════════════════════════════════════════════════════ */
     document.addEventListener('DOMContentLoaded', function () {
+        buildGuidePicker();
         buildGuideTables();
         buildEndUI('A');
         buildEndUI('B');
