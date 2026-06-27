@@ -119,7 +119,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 }
 </style>
 
-<a class="ns-back" href="/houses/shield/index.html">\\u2039 Back to Shield House</a>
+<a class="ns-back" href="/houses/shield/index.html">\u2039 Back to Shield House</a>
 
 <div class="ns-header">
     <div class="ns-header-top">
@@ -196,7 +196,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
             html += '<div class="ns-section' + (idx === 0 ? ' open' : '') + '">';
             html += '<div class="ns-section-head"><span class="ns-section-icon">' + section.icon + '</span>';
             html += '<span class="ns-section-title">' + section.title + '</span>';
-            html += '<span class="ns-section-toggle">\\u25B6</span></div>';
+            html += '<span class="ns-section-toggle">\u25B6</span></div>';
             html += '<div class="ns-section-body">';
             html += '<div class="ns-section-content">' + section.content + '</div>';
             if (section.details && section.details.length) {

@@ -101,7 +101,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 @media(max-width:640px){#rm-root{padding:.75rem}.rm-header{padding:1rem 1.25rem}.rm-title{font-size:1.2rem}.rm-tab{min-width:0;font-size:.78rem;padding:.5rem .75rem}}
 </style>
 
-<a class="rm-back" href="/houses/shield/index.html">\\u2039 Back to Shield House</a>
+<a class="rm-back" href="/houses/shield/index.html">\u2039 Back to Shield House</a>
 <div class="rm-header">
     <div class="rm-header-top">
         <span class="rm-icon">${topic.icon}</span>
@@ -161,7 +161,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         let html = '';
         topic.sections.forEach((section, idx) => {
             html += '<div class="rm-section' + (idx === 0 ? ' open' : '') + '">';
-            html += '<div class="rm-section-head"><span class="rm-section-icon">' + section.icon + '</span><span class="rm-section-title">' + section.title + '</span><span class="rm-section-toggle">\\u25B6</span></div>';
+            html += '<div class="rm-section-head"><span class="rm-section-icon">' + section.icon + '</span><span class="rm-section-title">' + section.title + '</span><span class="rm-section-toggle">\u25B6</span></div>';
             html += '<div class="rm-section-body"><div class="rm-section-content">' + section.content + '</div>';
             if (section.details && section.details.length) { html += '<div class="rm-detail-label">Key Details</div><ul class="rm-detail-list">'; section.details.forEach(d => { html += '<li>' + d + '</li>'; }); html += '</ul>'; }
             if (section.realWorld) { html += '<div class="rm-real-world"><div class="rm-rw-label">Real-World Example</div><div class="rm-rw-text">' + section.realWorld + '</div></div>'; }

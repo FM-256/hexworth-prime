@@ -127,7 +127,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 }
 </style>
 
-<a class="sf-back" href="/houses/shield/index.html">\\u2039 Back to Shield House</a>
+<a class="sf-back" href="/houses/shield/index.html">\u2039 Back to Shield House</a>
 
 <div class="sf-header">
     <div class="sf-header-top">
@@ -211,7 +211,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
             html += '<div class="sf-section-head">';
             html += '<span class="sf-section-icon">' + section.icon + '</span>';
             html += '<span class="sf-section-title">' + section.title + '</span>';
-            html += '<span class="sf-section-toggle">\\u25B6</span>';
+            html += '<span class="sf-section-toggle">\u25B6</span>';
             html += '</div>';
             html += '<div class="sf-section-body">';
             html += '<div class="sf-section-content">' + section.content + '</div>';
