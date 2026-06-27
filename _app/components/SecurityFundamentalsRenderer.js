@@ -4,7 +4,7 @@
  * Usage: SecurityFundamentalsRenderer.init('five_pillars')
  * Requires: SecurityFundamentalsData.js loaded first
  */
-const SecurityFundamentalsRenderer = (() => {
+window.SecurityFundamentalsRenderer = (() => {
     let topic = null;
     let storageKey = '';
     const ACCENT = '#a855f7';
@@ -41,7 +41,7 @@ const SecurityFundamentalsRenderer = (() => {
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;min-height:100vh}
-#sf-root{max-width:1100px;margin:0 auto;padding:1rem}
+#sf-root{margin:0;padding:1.25rem 2rem 3rem}
 
 /* Header */
 .sf-header{background:linear-gradient(135deg,#1a1020 0%,${ACCENT}22 100%);border:1px solid ${ACCENT}44;border-radius:12px;padding:1.5rem 2rem;margin-bottom:1.5rem;position:relative;overflow:hidden}
@@ -55,16 +55,13 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 .sf-concepts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem}
 .sf-concept{background:${ACCENT}15;color:${ACCENT};border:1px solid ${ACCENT}33;padding:4px 12px;border-radius:20px;font-size:.8rem}
 
-/* Tabs */
-.sf-tabs{display:flex;gap:4px;margin-bottom:1.5rem;background:rgba(255,255,255,.03);border-radius:10px;padding:4px;flex-wrap:wrap}
-.sf-tab{flex:1;padding:.65rem 1rem;border-radius:8px;border:none;background:transparent;color:#94a3b8;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .2s;min-width:120px;text-align:center}
-.sf-tab:hover{background:rgba(255,255,255,.06);color:#e2e8f0}
-.sf-tab.active{background:${ACCENT}22;color:${ACCENT};border:1px solid ${ACCENT}44}
-
-/* Panels */
-.sf-panel{display:none;animation:sfFadeIn .3s ease}
-.sf-panel.active{display:block}
-@keyframes sfFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+/* Layout blocks — all sections visible at once, full-width */
+.sf-block-head{font-size:1.15rem;font-weight:700;color:#fff;margin:2.25rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid ${ACCENT}33}
+.sf-panel{display:block}
+#panel-concepts{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1rem;align-items:start}
+#panel-concepts .sf-section{margin-bottom:0}
+.sf-pq-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start}
+@media(max-width:900px){.sf-pq-grid{grid-template-columns:1fr}}
 
 /* Section Cards */
 .sf-section{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;margin-bottom:.75rem;overflow:hidden;transition:all .2s}
@@ -148,17 +145,21 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
     <div class="sf-concepts">${topic.keyConcepts.map(c => '<span class="sf-concept">' + c + '</span>').join('')}</div>
 </div>
 
-<div class="sf-tabs">
-    <button class="sf-tab active" data-tab="overview">Overview</button>
-    <button class="sf-tab" data-tab="concepts">Key Concepts</button>
-    <button class="sf-tab" data-tab="practice">Practice</button>
-    <button class="sf-tab" data-tab="quiz">Quiz</button>
-</div>
+<div id="panel-overview" class="sf-panel"></div>
 
-<div id="panel-overview" class="sf-panel active"></div>
+<div class="sf-block-head">Key Concepts</div>
 <div id="panel-concepts" class="sf-panel"></div>
-<div id="panel-practice" class="sf-panel"></div>
-<div id="panel-quiz" class="sf-panel"></div>
+
+<div class="sf-pq-grid">
+    <div>
+        <div class="sf-block-head">Practice</div>
+        <div id="panel-practice" class="sf-panel"></div>
+    </div>
+    <div>
+        <div class="sf-block-head">Quiz</div>
+        <div id="panel-quiz" class="sf-panel"></div>
+    </div>
+</div>
 `;
         document.body.innerHTML = '';
         document.body.appendChild(root);
@@ -167,7 +168,6 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         renderConcepts();
         renderPractice();
         renderQuiz();
-        bindTabs();
     }
 
     function bindTabs() {
@@ -184,23 +184,8 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
     /* ── Overview ── */
     function renderOverview() {
         const panel = document.getElementById('panel-overview');
-        let html = '<div style="color:#94a3b8;font-size:.9rem;line-height:1.6;margin-bottom:1.5rem">';
-        html += '<p>This module covers <strong style="color:#e2e8f0">' + topic.sections.length + ' key areas</strong> of ' + topic.name + '. ';
-        html += 'Work through each tab to build your understanding, then test yourself with the interactive practice and quiz.</p></div>';
-
-        // Summary cards
-        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.75rem;margin-bottom:1.5rem">';
-        topic.sections.forEach((s, i) => {
-            html += '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:1.25rem;transition:all .2s">';
-            html += '<div style="font-size:1.5rem;margin-bottom:.5rem">' + iconImg(s.icon, 26) + '</div>';
-            html += '<div style="font-size:.9rem;font-weight:600;color:#e2e8f0;margin-bottom:.35rem">' + s.title + '</div>';
-            html += '<div style="font-size:.8rem;color:#64748b;line-height:1.4">' + s.content.substring(0, 80) + '...</div>';
-            html += '</div>';
-        });
-        html += '</div>';
-
-        // Quick stats
-        html += '<div style="display:flex;gap:1.5rem;flex-wrap:wrap">';
+        // Compact stats strip (the full concept sections render below)
+        let html = '<div style="display:flex;gap:1rem;flex-wrap:wrap">';
         html += '<div style="background:rgba(255,255,255,.04);padding:.5rem 1rem;border-radius:8px;font-size:.8rem"><strong style="color:#fff;font-size:1.1rem;margin-right:.25rem">' + topic.sections.length + '</strong> Concept Areas</div>';
         html += '<div style="background:rgba(255,255,255,.04);padding:.5rem 1rem;border-radius:8px;font-size:.8rem"><strong style="color:#fff;font-size:1.1rem;margin-right:.25rem">' + (topic.interactive ? topic.interactive.items.length : 0) + '</strong> Practice Scenarios</div>';
         html += '<div style="background:rgba(255,255,255,.04);padding:.5rem 1rem;border-radius:8px;font-size:.8rem"><strong style="color:#fff;font-size:1.1rem;margin-right:.25rem">' + topic.quiz.length + '</strong> Quiz Questions</div>';
@@ -215,7 +200,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         let html = '';
 
         topic.sections.forEach((section, idx) => {
-            html += '<div class="sf-section' + (idx === 0 ? ' open' : '') + '" data-idx="' + idx + '">';
+            html += '<div class="sf-section open" data-idx="' + idx + '">';
             html += '<div class="sf-section-head">';
             html += '<span class="sf-section-icon">' + iconImg(section.icon, 20) + '</span>';
             html += '<span class="sf-section-title">' + section.title + '</span>';

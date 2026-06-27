@@ -4,7 +4,7 @@
  * Usage: NetworkSecurityRenderer.init('firewalls')
  * Requires: NetworkSecurityData.js loaded first
  */
-const NetworkSecurityRenderer = (() => {
+window.NetworkSecurityRenderer = (() => {
     let topic = null;
     let storageKey = '';
     const ACCENT = '#a855f7';
@@ -40,7 +40,7 @@ const NetworkSecurityRenderer = (() => {
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;min-height:100vh}
-#ns-root{max-width:1100px;margin:0 auto;padding:1rem}
+#ns-root{margin:0;padding:1.25rem 2rem 3rem}
 
 .ns-header{background:linear-gradient(135deg,#1a1020 0%,${ACCENT}22 100%);border:1px solid ${ACCENT}44;border-radius:12px;padding:1.5rem 2rem;margin-bottom:1.5rem;position:relative;overflow:hidden}
 .ns-header::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,${ACCENT},transparent)}
@@ -57,7 +57,12 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 .ns-tab:hover{background:rgba(255,255,255,.06);color:#e2e8f0}
 .ns-tab.active{background:${ACCENT}22;color:${ACCENT};border:1px solid ${ACCENT}44}
 
-.ns-panel{display:none;animation:nsFade .3s ease}
+.ns-panel{display:block}
+.ns-block-head{font-size:1.15rem;font-weight:700;color:#fff;margin:2.25rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid ${ACCENT}33}
+#panel-howitworks{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1rem;align-items:start}
+#panel-howitworks .ns-section{margin-bottom:0}
+.ns-pq-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start}
+@media(max-width:900px){.ns-pq-grid{grid-template-columns:1fr}}
 .ns-panel.active{display:block}
 @keyframes nsFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
@@ -140,17 +145,21 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
     <div class="ns-concepts">${topic.keyConcepts.map(c => '<span class="ns-concept">' + c + '</span>').join('')}</div>
 </div>
 
-<div class="ns-tabs">
-    <button class="ns-tab active" data-tab="overview">Overview</button>
-    <button class="ns-tab" data-tab="howitworks">How It Works</button>
-    <button class="ns-tab" data-tab="lab">Lab Exercise</button>
-    <button class="ns-tab" data-tab="quiz">Quiz</button>
-</div>
+<div id="panel-overview" class="ns-panel"></div>
 
-<div id="panel-overview" class="ns-panel active"></div>
+<div class="ns-block-head">How It Works</div>
 <div id="panel-howitworks" class="ns-panel"></div>
-<div id="panel-lab" class="ns-panel"></div>
-<div id="panel-quiz" class="ns-panel"></div>
+
+<div class="ns-pq-grid">
+    <div>
+        <div class="ns-block-head">Lab Exercise</div>
+        <div id="panel-lab" class="ns-panel"></div>
+    </div>
+    <div>
+        <div class="ns-block-head">Quiz</div>
+        <div id="panel-quiz" class="ns-panel"></div>
+    </div>
+</div>
 `;
         document.body.innerHTML = '';
         document.body.appendChild(root);
@@ -159,7 +168,6 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         renderHowItWorks();
         renderLab();
         renderQuiz();
-        bindTabs();
     }
 
     function bindTabs() {
@@ -175,21 +183,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 
     function renderOverview() {
         const panel = document.getElementById('panel-overview');
-        let html = '<div style="color:#94a3b8;font-size:.9rem;line-height:1.6;margin-bottom:1.5rem">';
-        html += '<p>This module covers <strong style="color:#e2e8f0">' + topic.sections.length + ' key areas</strong> of ' + topic.name + '. ';
-        html += 'Explore the tabs to learn the concepts, practice with interactive scenarios, and test your knowledge.</p></div>';
-
-        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.75rem;margin-bottom:1.5rem">';
-        topic.sections.forEach(s => {
-            html += '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:1.25rem">';
-            html += '<div style="font-size:1.5rem;margin-bottom:.5rem">' + iconImg(s.icon, 26) + '</div>';
-            html += '<div style="font-size:.9rem;font-weight:600;color:#e2e8f0;margin-bottom:.35rem">' + s.title + '</div>';
-            html += '<div style="font-size:.8rem;color:#64748b;line-height:1.4">' + s.content.substring(0, 90) + '...</div>';
-            html += '</div>';
-        });
-        html += '</div>';
-
-        html += '<div style="display:flex;gap:1.5rem;flex-wrap:wrap">';
+        let html = '<div style="display:flex;gap:1rem;flex-wrap:wrap">';
         html += '<div style="background:rgba(255,255,255,.04);padding:.5rem 1rem;border-radius:8px;font-size:.8rem"><strong style="color:#fff;font-size:1.1rem;margin-right:.25rem">' + topic.sections.length + '</strong> Topics</div>';
         html += '<div style="background:rgba(255,255,255,.04);padding:.5rem 1rem;border-radius:8px;font-size:.8rem"><strong style="color:#fff;font-size:1.1rem;margin-right:.25rem">' + (topic.interactive ? topic.interactive.items.length : 0) + '</strong> Lab Scenarios</div>';
         html += '<div style="background:rgba(255,255,255,.04);padding:.5rem 1rem;border-radius:8px;font-size:.8rem"><strong style="color:#fff;font-size:1.1rem;margin-right:.25rem">' + topic.quiz.length + '</strong> Quiz Questions</div>';
@@ -201,7 +195,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         const panel = document.getElementById('panel-howitworks');
         let html = '';
         topic.sections.forEach((section, idx) => {
-            html += '<div class="ns-section' + (idx === 0 ? ' open' : '') + '">';
+            html += '<div class="ns-section open">';
             html += '<div class="ns-section-head"><span class="ns-section-icon">' + iconImg(section.icon, 20) + '</span>';
             html += '<span class="ns-section-title">' + section.title + '</span>';
             html += '<span class="ns-section-toggle">\u25B6</span></div>';

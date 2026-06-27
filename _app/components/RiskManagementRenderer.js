@@ -4,7 +4,7 @@
  * Usage: RiskManagementRenderer.init('risk_management')
  * Requires: RiskManagementData.js loaded first
  */
-const RiskManagementRenderer = (() => {
+window.RiskManagementRenderer = (() => {
     let topic = null;
     let storageKey = '';
     const ACCENT = '#a855f7';
@@ -35,7 +35,7 @@ const RiskManagementRenderer = (() => {
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;min-height:100vh}
-#rm-root{max-width:1100px;margin:0 auto;padding:1rem}
+#rm-root{margin:0;padding:1.25rem 2rem 3rem}
 
 .rm-header{background:linear-gradient(135deg,#1a1020 0%,${ACCENT}22 100%);border:1px solid ${ACCENT}44;border-radius:12px;padding:1.5rem 2rem;margin-bottom:1.5rem;position:relative;overflow:hidden}
 .rm-header::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,${ACCENT},transparent)}
@@ -51,7 +51,12 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 .rm-tab:hover{background:rgba(255,255,255,.06);color:#e2e8f0}
 .rm-tab.active{background:${ACCENT}22;color:${ACCENT};border:1px solid ${ACCENT}44}
 
-.rm-panel{display:none;animation:rmFade .3s ease}.rm-panel.active{display:block}
+.rm-panel{display:block}
+.rm-block-head{font-size:1.15rem;font-weight:700;color:#fff;margin:2.25rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid ${ACCENT}33}
+#panel-framework{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1rem;align-items:start}
+#panel-framework .rm-section{margin-bottom:0}
+.rm-pq-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start}
+@media(max-width:900px){.rm-pq-grid{grid-template-columns:1fr}}.rm-panel.active{display:block}
 @keyframes rmFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 .rm-section{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;margin-bottom:.75rem;overflow:hidden;transition:all .2s}
@@ -120,20 +125,25 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
     <p class="rm-desc">${topic.description}</p>
     <div class="rm-concepts">${topic.keyConcepts.map(c => '<span class="rm-concept">' + c + '</span>').join('')}</div>
 </div>
-<div class="rm-tabs">
-    <button class="rm-tab active" data-tab="overview">Overview</button>
-    <button class="rm-tab" data-tab="framework">Framework</button>
-    <button class="rm-tab" data-tab="assessment">Assessment</button>
-    <button class="rm-tab" data-tab="quiz">Quiz</button>
-</div>
-<div id="panel-overview" class="rm-panel active"></div>
+<div id="panel-overview" class="rm-panel"></div>
+
+<div class="rm-block-head">Framework</div>
 <div id="panel-framework" class="rm-panel"></div>
-<div id="panel-assessment" class="rm-panel"></div>
-<div id="panel-quiz" class="rm-panel"></div>
+
+<div class="rm-pq-grid">
+    <div>
+        <div class="rm-block-head">Assessment</div>
+        <div id="panel-assessment" class="rm-panel"></div>
+    </div>
+    <div>
+        <div class="rm-block-head">Quiz</div>
+        <div id="panel-quiz" class="rm-panel"></div>
+    </div>
+</div>
 `;
         document.body.innerHTML = '';
         document.body.appendChild(root);
-        renderOverview(); renderFramework(); renderAssessment(); renderQuiz(); bindTabs();
+        renderOverview(); renderFramework(); renderAssessment(); renderQuiz();
     }
 
     function bindTabs() {
@@ -149,15 +159,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 
     function renderOverview() {
         const panel = document.getElementById('panel-overview');
-        let html = '<div style="color:#94a3b8;font-size:.9rem;line-height:1.6;margin-bottom:1.5rem"><p>This module covers <strong style="color:#e2e8f0">' + topic.sections.length + ' key areas</strong> of ' + topic.name + '.</p></div>';
-        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.75rem;margin-bottom:1.5rem">';
-        topic.sections.forEach(s => {
-            html += '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:1.25rem"><div style="font-size:1.5rem;margin-bottom:.5rem">' + iconImg(s.icon, 26) + '</div>';
-            html += '<div style="font-size:.9rem;font-weight:600;color:#e2e8f0;margin-bottom:.35rem">' + s.title + '</div>';
-            html += '<div style="font-size:.8rem;color:#64748b;line-height:1.4">' + s.content.substring(0, 90) + '...</div></div>';
-        });
-        html += '</div>';
-        html += '<div style="display:flex;gap:1.5rem;flex-wrap:wrap">';
+        let html = '<div style="display:flex;gap:1rem;flex-wrap:wrap">';
         html += '<div style="background:rgba(255,255,255,.04);padding:.5rem 1rem;border-radius:8px;font-size:.8rem"><strong style="color:#fff;font-size:1.1rem;margin-right:.25rem">' + topic.sections.length + '</strong> Concept Areas</div>';
         html += '<div style="background:rgba(255,255,255,.04);padding:.5rem 1rem;border-radius:8px;font-size:.8rem"><strong style="color:#fff;font-size:1.1rem;margin-right:.25rem">' + (topic.interactive ? topic.interactive.items.length : 0) + '</strong> Scenarios</div>';
         html += '<div style="background:rgba(255,255,255,.04);padding:.5rem 1rem;border-radius:8px;font-size:.8rem"><strong style="color:#fff;font-size:1.1rem;margin-right:.25rem">' + topic.quiz.length + '</strong> Quiz Questions</div></div>';
@@ -168,7 +170,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         const panel = document.getElementById('panel-framework');
         let html = '';
         topic.sections.forEach((section, idx) => {
-            html += '<div class="rm-section' + (idx === 0 ? ' open' : '') + '">';
+            html += '<div class="rm-section open">';
             html += '<div class="rm-section-head"><span class="rm-section-icon">' + iconImg(section.icon, 20) + '</span><span class="rm-section-title">' + section.title + '</span><span class="rm-section-toggle">\u25B6</span></div>';
             html += '<div class="rm-section-body"><div class="rm-section-content">' + section.content + '</div>';
             if (section.details && section.details.length) { html += '<div class="rm-detail-label">Key Details</div><ul class="rm-detail-list">'; section.details.forEach(d => { html += '<li>' + d + '</li>'; }); html += '</ul>'; }
