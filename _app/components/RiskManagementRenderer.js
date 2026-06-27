@@ -8,6 +8,14 @@ const RiskManagementRenderer = (() => {
     let topic = null;
     let storageKey = '';
     const ACCENT = '#a855f7';
+    // Render an icon value as an <img> when it is an image path (webp/svg/png);
+    // otherwise emit it inline (emoji/text-safe). Data migrated emoji -> webp paths.
+    function iconImg(v, px) {
+        return (v && /\.(webp|svg|png|jpe?g)$/i.test(v))
+            ? '<img src="' + v + '" alt="" style="width:' + px + 'px;height:' + px + 'px;object-fit:contain;vertical-align:middle">'
+            : (v || '');
+    }
+
 
     function getState() { try { return JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { return {}; } }
     function saveState(state) { localStorage.setItem(storageKey, JSON.stringify(state)); }
@@ -104,7 +112,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 <a class="rm-back" href="/houses/shield/index.html">\u2039 Back to Shield House</a>
 <div class="rm-header">
     <div class="rm-header-top">
-        <span class="rm-icon">${topic.icon}</span>
+        <span class="rm-icon">${iconImg(topic.icon, 40)}</span>
         <span class="rm-title">${topic.name}</span>
         <span class="rm-badge">RISK MANAGEMENT</span>
     </div>
@@ -144,7 +152,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         let html = '<div style="color:#94a3b8;font-size:.9rem;line-height:1.6;margin-bottom:1.5rem"><p>This module covers <strong style="color:#e2e8f0">' + topic.sections.length + ' key areas</strong> of ' + topic.name + '.</p></div>';
         html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.75rem;margin-bottom:1.5rem">';
         topic.sections.forEach(s => {
-            html += '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:1.25rem"><div style="font-size:1.5rem;margin-bottom:.5rem">' + s.icon + '</div>';
+            html += '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:1.25rem"><div style="font-size:1.5rem;margin-bottom:.5rem">' + iconImg(s.icon, 26) + '</div>';
             html += '<div style="font-size:.9rem;font-weight:600;color:#e2e8f0;margin-bottom:.35rem">' + s.title + '</div>';
             html += '<div style="font-size:.8rem;color:#64748b;line-height:1.4">' + s.content.substring(0, 90) + '...</div></div>';
         });
@@ -161,7 +169,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         let html = '';
         topic.sections.forEach((section, idx) => {
             html += '<div class="rm-section' + (idx === 0 ? ' open' : '') + '">';
-            html += '<div class="rm-section-head"><span class="rm-section-icon">' + section.icon + '</span><span class="rm-section-title">' + section.title + '</span><span class="rm-section-toggle">\u25B6</span></div>';
+            html += '<div class="rm-section-head"><span class="rm-section-icon">' + iconImg(section.icon, 20) + '</span><span class="rm-section-title">' + section.title + '</span><span class="rm-section-toggle">\u25B6</span></div>';
             html += '<div class="rm-section-body"><div class="rm-section-content">' + section.content + '</div>';
             if (section.details && section.details.length) { html += '<div class="rm-detail-label">Key Details</div><ul class="rm-detail-list">'; section.details.forEach(d => { html += '<li>' + d + '</li>'; }); html += '</ul>'; }
             if (section.realWorld) { html += '<div class="rm-real-world"><div class="rm-rw-label">Real-World Example</div><div class="rm-rw-text">' + section.realWorld + '</div></div>'; }

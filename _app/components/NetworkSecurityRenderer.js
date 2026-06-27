@@ -8,6 +8,14 @@ const NetworkSecurityRenderer = (() => {
     let topic = null;
     let storageKey = '';
     const ACCENT = '#a855f7';
+    // Render an icon value as an <img> when it is an image path (webp/svg/png);
+    // otherwise emit it inline (emoji/text-safe). Data migrated emoji -> webp paths.
+    function iconImg(v, px) {
+        return (v && /\.(webp|svg|png|jpe?g)$/i.test(v))
+            ? '<img src="' + v + '" alt="" style="width:' + px + 'px;height:' + px + 'px;object-fit:contain;vertical-align:middle">'
+            : (v || '');
+    }
+
 
     function getState() {
         try { return JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { return {}; }
@@ -123,7 +131,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 
 <div class="ns-header">
     <div class="ns-header-top">
-        <span class="ns-icon">${topic.icon}</span>
+        <span class="ns-icon">${iconImg(topic.icon, 40)}</span>
         <span class="ns-title">${topic.name}</span>
         <span class="ns-badge">NETWORK SECURITY</span>
     </div>
@@ -174,7 +182,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.75rem;margin-bottom:1.5rem">';
         topic.sections.forEach(s => {
             html += '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:1.25rem">';
-            html += '<div style="font-size:1.5rem;margin-bottom:.5rem">' + s.icon + '</div>';
+            html += '<div style="font-size:1.5rem;margin-bottom:.5rem">' + iconImg(s.icon, 26) + '</div>';
             html += '<div style="font-size:.9rem;font-weight:600;color:#e2e8f0;margin-bottom:.35rem">' + s.title + '</div>';
             html += '<div style="font-size:.8rem;color:#64748b;line-height:1.4">' + s.content.substring(0, 90) + '...</div>';
             html += '</div>';
@@ -194,7 +202,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         let html = '';
         topic.sections.forEach((section, idx) => {
             html += '<div class="ns-section' + (idx === 0 ? ' open' : '') + '">';
-            html += '<div class="ns-section-head"><span class="ns-section-icon">' + section.icon + '</span>';
+            html += '<div class="ns-section-head"><span class="ns-section-icon">' + iconImg(section.icon, 20) + '</span>';
             html += '<span class="ns-section-title">' + section.title + '</span>';
             html += '<span class="ns-section-toggle">\u25B6</span></div>';
             html += '<div class="ns-section-body">';
