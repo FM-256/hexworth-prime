@@ -91,3 +91,18 @@ labs) → Assess (quiz). Mirrors how A+ groups chapters and WSA groups modules, 
 
 **SEPARATE marathon (MARA-SEARCH-1) — NOT done:** only a partial/lazy 14-item searchability backfill
 shipped; the comprehensive content-vs-catalog scan + the 77 strict-orphans are still pending.
+
+## UPDATE 2026-06-27 (later) — P2 quizzes + exam grading fix shipped
+- [x] **CRITICAL fix:** both practice exams were ungradeable — QuizEngine grades via `config.moduleId`
+      but the exams' moduleId ('sy0-701-practice-exam-N') didn't match the seeded key
+      ('shield-sy0-701-practice-exam-N'). Aligned + redeployed. (verify-quiz-keys checks
+      static↔Firestore, NOT html↔key — use the bridget agent / check moduleId for server-graded quizzes.)
+- [x] **15 module assessment quizzes** built + live (10 Qs each, server-graded, balanced, secure).
+      Built via `_tools/secplus-quiz-gen.js` (correctness baked in: moduleId=key, no leakage, full-width).
+      Module coverage: **14 of 22 complete** (was 7).
+- [ ] **8 modules still need a PRACTICE item (PBQ/lab)** — they have content + a quiz but no practice:
+      D1 Change Management · D1 Design Principles & Best Practices · D1 Governance & Asset Management ·
+      D2 Malware · D2 Network & Social Engineering Attacks · D2 Threat Actors & Motivations ·
+      D3 Cryptography & PKI · D3 Identity & Access (AAA). → next wave: build PBQs for these.
+- [ ] Nancy refinements (domain-wide quizzes → domain level; curate 3 dup "Fundamentals" presentations).
+- [ ] (separate) MARA-SEARCH-1 comprehensive searchability scan.
