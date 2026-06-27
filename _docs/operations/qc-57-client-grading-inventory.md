@@ -253,3 +253,37 @@ Cloud Function.
 **Remaining QC-57:** ~94 client-graded QUIZZES + 7 reviews (the non-exam violations). The 18 non-graded
 interactives (flashcards/jeopardy/wheel) stay excluded. Next waves: the quizzes, grouped by course/structure,
 same convert→seed→verify→deploy flow.
+
+---
+
+## QUIZ WAVES — SCOPE 2026-06-27 (after exams done; ~94 quizzes remain)
+
+Fresh structure-profiled scan of all client-graded `.quiz.html` (server-graded + non-graded excluded).
+**94 client-graded quizzes across 14 tracks.** They cluster into 4 structural families:
+
+| Family | Count | Structure | Converter |
+|--------|-------|-----------|-----------|
+| 1 | 48 | selectAnswer · multi-line · no TOPICS · `ans:` | **PROVEN ra-style no-TOPICS brace-matcher** |
+| 2 | 22 | selectAnswer · multi-line · no TOPICS · `"ans":` | same (quote-agnostic strip) |
+| 3 | 16 | selectAnswer · MINIFIED · no TOPICS · `"ans":` | same (brace-matcher is format-agnostic) |
+| 4 | 8 | NO selectAnswer · `correct:` field · different grade fn | **NEW converter needed** |
+
+**KEY: 86 of 94 (Families 1–3) reuse the EXACT converter already proven on the ra exams** — selectAnswer +
+no topic breakdown, and the brace-matching replacer + `,\s*"?ans"?\s*:\s*\d+` strip handle minified/multi-line
+and `ans:`/`"ans":` automatically. Only **8** are structurally new.
+
+**By track (per-wave batches):** cybersecurity-policy 16 · net-essentials 8 · intro-networks 8 ·
+cloud-essentials 8 · server-management 8 (minified) · python-programming 8 · linux-essentials 8 (minified) ·
+hardware-support 8 · shield/infosec 4 · cybersecurity-ethics 4 · ethics-it 3 · python-for-it 3.
+
+**Family 4 (8, separate wave):** cloud/openstack (4: intro/projects/operation/install quizzes, moduleId
+`openstack-*-quiz`) + forge/applets/comptia-aplus/core-1 prep-round 1–4. Use a `questions=[{...correct:N}]`
+format with a non-selectAnswer grader — read one before converting.
+
+**Per-wave flow (same as exams):** convert (no-TOPICS block) → extract keys → check no existing quiz_keys
+(Nancy) → seed (per-wave operator auth) → `verify-quiz-keys.js` → reconcile each page's QUIZ_ID == seeded key
+(QC-54 trap) → headless drive-test → one deploy per wave. Each quiz still individually headless-tested (ra
+proved subtle structural variants exist — fail-loud + test catches them).
+
+**Effort:** ~94 quizzes; 86 fast (proven converter), 8 need a new converter. ~12 track-waves + 1 Family-4 wave.
+Bottleneck: Firestore seeding (gated, per-wave auth) + per-quiz QUIZ_ID reconciliation. Plus 7 reviews (TBD).
