@@ -30,6 +30,36 @@ const ThreatAppletRenderer = (() => {
         low:      { bg: '#22c55e22', border: '#22c55e66', text: '#4ade80', label: 'LOW' }
     };
 
+    // HTML-escape a string so it renders as visible text, never as markup.
+    function escapeHTML(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // Deep-clone a threat topic, HTML-escaping every string leaf. The threat data
+    // deliberately contains EXAMPLE attack payloads (e.g. <img src=x onerror=...>,
+    // <script>alert(1)</script>) for teaching — and the renderer injects fields via
+    // innerHTML, so unescaped payloads would EXECUTE (the XSS topic literally
+    // redirected the student to evil.com and exfiltrated their cookie). Escaping
+    // every string makes payloads display verbatim as text instead of running.
+    // The data contains no intended markup (only example payloads + icon PATHS,
+    // which have no special chars), so escaping is safe and complete. Structure,
+    // arrays, numbers, and booleans are preserved.
+    function deepEscape(v) {
+        if (typeof v === 'string') return escapeHTML(v);
+        if (Array.isArray(v)) return v.map(deepEscape);
+        if (v && typeof v === 'object') {
+            const out = {};
+            for (const k in v) if (Object.prototype.hasOwnProperty.call(v, k)) out[k] = deepEscape(v[k]);
+            return out;
+        }
+        return v;
+    }
+
     function topicHref(code) {
         const dir = TOPIC_PATHS[code];
         if (!dir) return '#';
@@ -46,9 +76,11 @@ const ThreatAppletRenderer = (() => {
     }
 
     function init(code) {
-        threat = ThreatAppletData[code];
+        // Escape all string content so example attack payloads in the data render
+        // as text, not executable markup (see deepEscape above).
+        threat = deepEscape(ThreatAppletData[code]);
         if (!threat) {
-            document.body.innerHTML = '<p style="color:#f87171;padding:2rem">Threat topic not found: ' + code + '</p>';
+            document.body.innerHTML = '<p style="color:#f87171;padding:2rem">Threat topic not found: ' + escapeHTML(code) + '</p>';
             return;
         }
         storageKey = 'hexworth_threat_' + code.toLowerCase();
@@ -291,7 +323,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
         const allCodes = Object.keys(ThreatAppletData);
         const related = allCodes.filter(c => c !== threat.code).map(code => {
             const t = ThreatAppletData[code];
-            return '<a class="th-related-link" href="' + topicHref(code) + '">' + t.icon + ' ' + t.title + '</a>';
+            return '<a class="th-related-link" href="' + topicHref(code) + '">' + escapeHTML(t.icon) + ' ' + escapeHTML(t.title) + '</a>';
         }).join('');
 
         panel.innerHTML = `
