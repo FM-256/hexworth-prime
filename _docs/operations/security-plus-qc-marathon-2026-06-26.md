@@ -81,9 +81,27 @@ Automated headless render sweep (JS errors / literal-injection / broken-img / hi
   no longer redirects, no dialog fires, no live `<img onerror>` in DOM, payload shown as text; APT
   control unaffected. → in deploy batch.
 
+## P3 — BUILD PBQ LABS (DONE — 4 shipped + live)
+Operator approved "all 4". Built as legit interactive performance tasks (NOT quizzes), modeled on
+the Network+ `pbq-*.lab.html`. All in `security-plus/labs/`:
+- `pbq-control-classification` (D1.1) · `pbq-crypto-selection` (D1.4) · `pbq-attack-identification`
+  (D2.4) · `pbq-firewall-config` (D4.5).
+- Each: AccessGuard-gated, SCORE-GATED completion (`ModuleProgress.complete` only when ALL items
+  correct), full-bleed layout, no emoji, answer keys in JS only (no DOM leakage), content = canonical
+  SY0-701 keys (I supplied the keys; builders did mechanics).
+- QC (driven myself, not trusted from builder agents): headless set all dropdowns correct → completes;
+  wrong → blocked; for all 4 (firewall 35/35, control 24/24, attack 8/8, crypto 8/8); 0 auto-complete.
+- Wired into `security-plus-manifest.json` (145→149 items); hub auto-renders the 4 cards under their
+  domains with working hrefs. adversarial-review + Chris PASS. Deployed + live (all 200).
+
+## MARATHON COMPLETE (2026-06-27)
+Hub + 9 arena boxes QC'd clean; 1 real S1 security defect found+fixed (self-XSS); 4 real PBQ labs
+built+shipped. **OPEN (operator decision, not blocking):** the 10 orphaned old `*.lab.html` in
+`security-plus/labs/` (superseded by arena boxes) — archive vs leave (do NOT delete per we-do-not-destroy).
+
 ## PROGRESS LOG
 - 2026-06-26: Marathon opened. Structural discovery complete (all clean).
 - 2026-06-26: P1 arena boxes DONE — 9/9 sound, 0 defects (siem full-driven, risk-quant false-alarm cleared).
-- 2026-06-27: P2 render-QC DONE — 145 items; found+fixed an S1 self-XSS in the XSS teaching applet
-  (shared `ThreatAppletRenderer.js` now escapes data). 8 other flags were harness false-positives.
-  Next: deploy XSS fix; P3 build PBQ labs (plan pending operator sign-off).
+- 2026-06-27: P2 render-QC DONE — found+fixed an S1 self-XSS in the XSS teaching applet (shared
+  `ThreatAppletRenderer.js` now escapes data); deployed + verified safe in prod. 8 other flags = harness FPs.
+- 2026-06-27: P3 DONE — 4 PBQ labs built, drive-tested, Chris-passed, deployed + live. MARATHON COMPLETE.
