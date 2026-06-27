@@ -67,3 +67,27 @@ labs) → Assess (quiz). Mirrors how A+ groups chapters and WSA groups modules, 
 - Hub is manifest-driven: structure changes live in `index.html` (TYPE_ORDER, card rendering) +
   `security-plus-manifest.json` (items, domains, types). Searchability via `ContentCatalog`.
 - Inventory script used for the diagnosis: counts/splits in this doc are reproducible read-only.
+
+## STATUS CHECKLIST (2026-06-27) — marathon NOT complete
+
+**DONE + LIVE:**
+- [x] P0 — de-pad 53 PIS items (149 → 96 genuine SY0-701). Live.
+- [x] P1 — Domain → Modules content-first render (all 5 domains, 22 modules, PBQs surfaced). Live.
+- [x] P2a — Practice Exam 1 (90Q, server-graded, balanced key, secure). Live.
+- [x] P2b — Practice Exam 2 (90Q, server-graded, balanced key, secure). Live.
+
+**REMAINING (P2 content + refinements):**
+- [ ] **15 of 22 modules lack practice and/or assessment** (7 complete). Each gap module needs at
+      least a quiz; ~9 also need a practice item (lab/PBQ). The 15:
+      - D1: Change Management (0P 0A) · Cryptographic Solutions (0A) · Design Principles & Best Practices (0P 0A) · Governance & Asset Management (0P 0A)
+      - D2: Application & Injection Attacks (0A) · Malware (0P 0A) · Network & Social Engineering Attacks (0P 0A) · Threat Actors & Motivations (0P 0A)
+      - D3: Cryptography & PKI (0P 0A) · Identity & Access AAA (0P 0A)
+      - D4: Vulnerability & Threat Management (0A)
+      - D5: Compliance/Law/Regulation (0A) · Risk Management (0A) · Security Governance (0A) · Third-Party & Vendor Risk (0A)
+- [ ] More PBQs per domain (currently 4 total — thin).
+- [ ] Nancy refinement: move the 3 domain-wide "Comprehensive/Challenge" quizzes to DOMAIN level (not inside a module).
+- [ ] Nancy refinement: content-diff + curate the 3 near-duplicate "Security Fundamentals"/"CIA Triad" presentations.
+- [ ] P3 — drive-to-completion QC each new quiz/PBQ; verify quiz_keys seeded for every new server-graded quiz.
+
+**SEPARATE marathon (MARA-SEARCH-1) — NOT done:** only a partial/lazy 14-item searchability backfill
+shipped; the comprehensive content-vs-catalog scan + the 77 strict-orphans are still pending.
