@@ -104,7 +104,18 @@ shipped; the comprehensive content-vs-catalog scan + the 77 strict-orphans are s
       D1 Change Management · D1 Design Principles & Best Practices · D1 Governance & Asset Management ·
       D2 Malware · D2 Network & Social Engineering Attacks · D2 Threat Actors & Motivations ·
       D3 Cryptography & PKI · D3 Identity & Access (AAA). → next wave: build PBQs for these.
-- [ ] Nancy refinements (domain-wide quizzes → domain level; curate 3 dup "Fundamentals" presentations).
+- [x] **Nancy refinement 1 — domain-wide quizzes → domain level (DONE 2026-06-27).** Re-tagged the 3 truly
+      domain-spanning "Challenge" quizzes to `module:"Domain Challenge", mseq:99` so they render as a domain-level
+      review block at the BOTTOM of their domain instead of nested in a topic module: Security+ Comprehensive
+      Challenge (D1), Threats & Vulnerabilities Challenge (D2), Network Security Challenge (D3). The two
+      topic-specific ones (Access Control Challenge, CIA Triad Challenge) stay in their modules. Verified each
+      renders as the last module-block in its domain.
+- [x] **Nancy refinement 2 — curate near-duplicate presentations (DONE 2026-06-27).** Found `shield-security-pres`
+      ("Security Fundamentals") is actually a mislabeled **Network+ N10-008** "Network Security Fundamentals" deck
+      (0 SY0-701 refs, 3× N10-008) duplicating the title in the CIA module. De-listed it from the Security+
+      manifest + ContentCatalog (file preserved; entry archived to `_app/data/_security-plus-removed-2026-06-27.json`).
+      Kept `shield-security-fundamentals` (real comprehensive Security+ deck) + `shield-cia-triad` (focused CIA deck) —
+      complementary, not duplicates.
 - [ ] (separate) MARA-SEARCH-1 comprehensive searchability scan.
 
 ## UPDATE 2026-06-27 (continued) — PBQ practice-gap wave (the 8 missing-Practice modules)
