@@ -189,3 +189,43 @@ _docs/operations/qc-57-answer-keys-extracted-2026-06-06.json
 |------|---------|----|-------|----------------|
 | `houses/web/network-plus/quizzes/ch7-20.quiz.html` | correct:N | 0 | Network+ Interactive Workbook Ch.7-20 \| N10-009 | `[]` |
 
+
+---
+
+## FRESH SCOPE — 2026-06-27 (re-scanned, supersedes the 2026-06-06 count)
+
+Ran a fresh classification of all 549 `.quiz/.exam/.review.html` files (server-graded = `serverGrading:true`/`gradeQuiz`; client-graded = answer key embedded in HTML + no server call). **Don't trust the stale 79** — the canonical EduScan QUIZ-002b rule UNDER-reports.
+
+**Current reality:**
+| Bucket | Count | Notes |
+|--------|-------|-------|
+| Server-graded (compliant) | 415 | OK |
+| **CLIENT-graded (QC-57 violations)** | **114** | 94 quizzes + **13 exams** + 7 reviews |
+| Non-graded interactives | 18 | flashcards / jeopardy / wheel — NO scoring, NOT violations, exclude |
+| Needs individual review | 2 | `web-networking-ch7-10/20.quiz.html` |
+
+**⚠️ RULE BLIND SPOT (important):** EduScan `QUIZ-002b` reports **79** — it only scans `.quiz.html` for `ans:N`. It MISSES the **13 client-graded EXAMS** (`.exam.html` midterms/finals) and `correct:`-pattern quizzes. The exams are the HIGHEST-stakes assessments and students can View-Source the answers. **Tooling fix needed: extend QUIZ-002b to cover `.exam.html` + `correct:`/`correctAnswer` patterns**, else the finding will keep under-counting.
+
+**The 13 client-graded exams (highest priority):**
+net-essentials cr-midterm/final · cloud-essentials cb-midterm/final · server-management sr-midterm/final ·
+hardware-support bm-midterm/final · python-programming sp-w2-midterm/sp-w4-final · python-for-it pfi-w4-final ·
+linux-essentials ra-midterm/final.
+
+**By track (14 tracks, mostly per-course weekly batches):** divergent/cybersecurity-policy 16 · web/net-essentials 10 ·
+cloud/cloud-essentials 10 · forge/server-management 10 · forge/hardware-support 10 · code/python-programming 10 ·
+script/linux-essentials 10 · web/intro-networks 8 · shield/infosec 8 · divergent/ethics-it 6 · cloud/openstack 4 ·
+forge/applets 4 · divergent/cybersecurity-ethics 4 · code/python-for-it 4.
+
+**Fix pattern (per assessment):** refactor HTML → `QuizEngine({serverGrading:true, moduleId})` (strip embedded answers
++ client grade fn) → extract answer key → seed `quiz_keys/{moduleId}` to Firestore (**PRODUCTION write — rule #10 gated,
+needs operator auth**) + `functions/quiz_keys.json` mirror → `node functions/verify-quiz-keys.js <id>` = PASSED → deploy.
+Reuse this session's `_tools/secplus-quiz-gen.js` (bakes moduleId=key, no leakage) + the `bridget` agent for HTML↔Firestore↔Confluence sync. Watch the QC-54 lesson: filename-derived quizId MUST match the HTML moduleId.
+
+**Effort:** ~109 graded assessments. Realistically a multi-session marathon, batched per-course (~12 waves of ~10).
+The Firestore seeding is the throughput bottleneck (gated production write) + the accuracy risk (key↔moduleId reconciliation).
+
+**Operator decisions needed before execution:**
+1. Confirm the **13 exams** are IN scope (recommend yes — highest stakes).
+2. Confirm the **18 non-graded games** are OUT (flashcards/jeopardy/wheel have no scoring).
+3. **Firestore production-seed authorization** — batch-authorize per wave, or one standing authorization for the marathon?
+4. Want the **QUIZ-002b rule extended** to catch exams (so the metric stops under-counting)?
