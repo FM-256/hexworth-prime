@@ -11566,7 +11566,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['command', 'line', 'hardware', 'systems'],
-            paths: ['aplus-core1'],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-command-line.lab.html'
             },
