@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="/components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="/components/ModuleProgress.js"></script>
+<script src="/components/FirebaseAuth.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PBQ: Security Control Classification | Security+</title>
+<style>
+    /* ============================================================
+       ROOT VARIABLES
+       ============================================================ */
+    :root {
+        --bg:           #090910;
+        --bg-card:      #0f0f1a;
+        --bg-panel:     #14141f;
+        --bg-input:     #0a0a14;
+        --border:       rgba(139, 92, 246, 0.18);
+        --border-hi:    rgba(139, 92, 246, 0.55);
+        --purple:       #8b5cf6;
+        --purple-dim:   rgba(139, 92, 246, 0.12);
+        --purple-glow:  rgba(139, 92, 246, 0.25);
+        --text:         #e2e8f0;
+        --text-dim:     #64748b;
+        --text-mid:     #94a3b8;
+        --success:      #22c55e;
+        --success-bg:   rgba(34, 197, 94, 0.12);
+        --danger:       #ef4444;
+        --danger-bg:    rgba(239, 68, 68, 0.12);
+        --warn:         #f59e0b;
+        --warn-bg:      rgba(245, 158, 11, 0.1);
+        --partial:      #f59e0b;
+        --partial-bg:   rgba(245, 158, 11, 0.12);
+
+        /* Type axis accent colours */
+        --type-tech:    #06b6d4;   /* cyan   - Technical   */
+        --type-mgmt:    #8b5cf6;   /* purple - Managerial  */
+        --type-ops:     #f59e0b;   /* amber  - Operational */
+        --type-phys:    #22c55e;   /* green  - Physical    */
+
+        /* Function axis accent colours */
+        --fn-prev:      #3b82f6;   /* blue   - Preventive  */
+        --fn-deter:     #f97316;   /* orange - Deterrent   */
+        --fn-detect:    #06b6d4;   /* cyan   - Detective   */
+        --fn-corr:      #22c55e;   /* green  - Corrective  */
+        --fn-comp:      #a855f7;   /* violet - Compensating*/
+        --fn-dir:       #ec4899;   /* pink   - Directive   */
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.6;
+    }
+
+    /* ============================================================
+       NAV BAR
+       ============================================================ */
+    .lab-nav {
+        padding: 11px 20px;
+        background: #0d0d17;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .lab-nav a {
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 0.84rem;
+        transition: color 0.2s;
+    }
+    .lab-nav a:hover { color: var(--purple); }
+    .lab-nav .badge {
+        background: rgba(139, 92, 246, 0.14);
+        color: var(--purple);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        padding: 3px 9px;
+        border-radius: 4px;
+    }
+
+    /* ============================================================
+       FULL-BLEED LAYOUT — two-column dashboard on wide screens
+       ============================================================ */
+    .lab-outer {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        grid-template-rows: auto 1fr auto;
+        gap: 0;
+        min-height: calc(100vh - 44px);
+    }
+
+    /* Left main column */
+    .lab-main {
+        grid-column: 1;
+        grid-row: 1 / 4;
+        padding: 1.75rem 1.5rem 3rem 2rem;
+        border-right: 1px solid rgba(255,255,255,0.05);
+        overflow-y: auto;
+    }
+
+    /* Right rail */
+    .lab-rail {
+        grid-column: 2;
+        grid-row: 1 / 4;
+        padding: 1.75rem 1.5rem 3rem 1.5rem;
+        background: var(--bg-card);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    /* Collapse rail to below main at narrow viewports */
+    @media (max-width: 900px) {
+        .lab-outer {
+            display: block;
+        }
+        .lab-main {
+            padding: 1.25rem 1rem 1.5rem;
+        }
+        .lab-rail {
+            padding: 1.25rem 1rem 2rem;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+    }
+
+    /* ============================================================
+       HEADER / SCENARIO
+       ============================================================ */
+    .lab-header {
+        background: var(--bg-card);
+        border: 1px solid var(--border-hi);
+        border-radius: 14px;
+        padding: 1.75rem 2rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 0 28px var(--purple-glow);
+    }
+    .lab-header h1 {
+        font-size: 1.7rem;
+        font-weight: 700;
+        color: var(--purple);
+        margin-bottom: 0.4rem;
+        letter-spacing: -0.3px;
+    }
+    .lab-header .pbq-tag {
+        display: inline-block;
+        background: rgba(239,68,68,0.15);
+        color: #f87171;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        padding: 2px 8px;
+        border-radius: 3px;
+        margin-bottom: 0.9rem;
+    }
+    .scenario-box {
+        background: var(--bg-panel);
+        border-left: 3px solid var(--purple);
+        border-radius: 0 8px 8px 0;
+        padding: 0.9rem 1.2rem;
+        font-size: 0.92rem;
+        color: var(--text-mid);
+        margin-top: 0.75rem;
+    }
+    .scenario-box strong { color: var(--text); }
+    .lab-meta {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+    }
+    .lab-meta span { color: var(--text-mid); }
+
+    /* ============================================================
+       INSTRUCTION TIP
+       ============================================================ */
+    .tip {
+        background: var(--warn-bg);
+        border: 1px solid rgba(245,158,11,0.25);
+        border-radius: 8px;
+        padding: 0.7rem 1rem;
+        font-size: 0.82rem;
+        color: var(--text-mid);
+        margin-bottom: 1.5rem;
+    }
+    .tip strong { color: var(--warn); }
+
+    /* ============================================================
+       CONTROL MATRIX TABLE
+       ============================================================ */
+    .matrix-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .section-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1.25rem;
+    }
+
+    .matrix-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 6px;
+    }
+
+    .matrix-table thead th {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.7px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        padding: 0 0.75rem 0.5rem;
+        text-align: left;
+    }
+    .matrix-table thead th:first-child {
+        padding-left: 0.9rem;
+    }
+
+    /* Each control row */
+    .ctrl-row {
+        background: var(--bg-panel);
+        transition: background 0.18s;
+    }
+    .ctrl-row:hover {
+        background: rgba(139, 92, 246, 0.06);
+    }
+    /* Graded state classes applied after submission */
+    .ctrl-row.graded-correct td {
+        border-top: 1px solid rgba(34,197,94,0.35);
+        border-bottom: 1px solid rgba(34,197,94,0.35);
+    }
+    .ctrl-row.graded-correct td:first-child {
+        border-left: 3px solid var(--success);
+        border-radius: 8px 0 0 8px;
+    }
+    .ctrl-row.graded-correct td:last-child {
+        border-right: 1px solid rgba(34,197,94,0.35);
+        border-radius: 0 8px 8px 0;
+    }
+    .ctrl-row.graded-correct { background: var(--success-bg); }
+
+    .ctrl-row.graded-incorrect td {
+        border-top: 1px solid rgba(239,68,68,0.35);
+        border-bottom: 1px solid rgba(239,68,68,0.35);
+    }
+    .ctrl-row.graded-incorrect td:first-child {
+        border-left: 3px solid var(--danger);
+        border-radius: 8px 0 0 8px;
+    }
+    .ctrl-row.graded-incorrect td:last-child {
+        border-right: 1px solid rgba(239,68,68,0.35);
+        border-radius: 0 8px 8px 0;
+    }
+    .ctrl-row.graded-incorrect { background: var(--danger-bg); }
+
+    /* Ungraded row borders */
+    .ctrl-row td {
+        border-top: 1px solid transparent;
+        border-bottom: 1px solid transparent;
+        padding: 0.6rem 0.75rem;
+    }
+    .ctrl-row td:first-child {
+        border-left: 3px solid transparent;
+        border-radius: 8px 0 0 8px;
+        padding-left: 0.9rem;
+    }
+    .ctrl-row td:last-child {
+        border-right: 1px solid transparent;
+        border-radius: 0 8px 8px 0;
+    }
+
+    /* Row number badge */
+    .ctrl-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        background: var(--purple-dim);
+        color: var(--purple);
+        font-size: 0.68rem;
+        font-weight: 800;
+        border-radius: 50%;
+        flex-shrink: 0;
+        vertical-align: middle;
+        margin-right: 0.5rem;
+    }
+
+    /* Control name cell */
+    .ctrl-name {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+    }
+    .ctrl-name .ctrl-hint {
+        display: block;
+        font-size: 0.73rem;
+        font-weight: 400;
+        color: var(--text-dim);
+        white-space: normal;
+        margin-top: 1px;
+    }
+
+    /* Dropdown cells */
+    .ctrl-select-wrap {
+        position: relative;
+    }
+    .ctrl-select {
+        background: var(--bg-input);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 0.82rem;
+        padding: 0.42rem 1.8rem 0.42rem 0.65rem;
+        width: 100%;
+        min-width: 160px;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-color: var(--bg-input);
+    }
+    .ctrl-select:focus {
+        outline: none;
+        border-color: var(--purple);
+        box-shadow: 0 0 0 2px var(--purple-dim);
+    }
+    /* Greyed-out placeholder option */
+    .ctrl-select option[value=""] {
+        color: var(--text-dim);
+    }
+
+    /* After-submission: show per-axis result indicator inline */
+    .axis-result {
+        display: none;
+        font-size: 0.7rem;
+        font-weight: 700;
+        margin-top: 4px;
+        letter-spacing: 0.3px;
+    }
+    .axis-result.show { display: block; }
+    .axis-result.ok  { color: var(--success); }
+    .axis-result.bad { color: var(--danger);  }
+
+    /* ============================================================
+       STATUS BAR (live progress counter)
+       ============================================================ */
+    .progress-bar-wrap {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.75rem 1.1rem;
+        margin-bottom: 1.75rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .progress-count {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: var(--purple);
+        min-width: 48px;
+    }
+    .progress-label {
+        font-size: 0.78rem;
+        color: var(--text-dim);
+    }
+    .progress-track {
+        flex: 1;
+        height: 6px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        background: var(--purple);
+        border-radius: 3px;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+
+    /* ============================================================
+       SUBMIT SECTION
+       ============================================================ */
+    .submit-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem;
+    }
+    .submit-btn-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+    .btn-submit {
+        padding: 0.65rem 2rem;
+        background: var(--purple);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.12s, box-shadow 0.2s;
+    }
+    .btn-submit:hover {
+        opacity: 0.88;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 18px var(--purple-glow);
+    }
+    .btn-submit:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    .btn-reset-all {
+        padding: 0.65rem 1.5rem;
+        background: transparent;
+        color: var(--text-dim);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-reset-all:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ============================================================
+       RESULTS PANEL
+       ============================================================ */
+    .results-panel {
+        display: none;
+        margin-top: 1.5rem;
+    }
+    .results-panel.visible { display: block; }
+
+    .results-score {
+        text-align: center;
+        padding: 1.25rem 1rem;
+        background: var(--bg-panel);
+        border-radius: 10px;
+        margin-bottom: 1.25rem;
+    }
+    .results-score .score-num {
+        font-size: 2.8rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .results-score .score-num.pass { color: var(--success); }
+    .results-score .score-num.fail { color: var(--danger); }
+    .results-score .score-label {
+        font-size: 0.82rem;
+        color: var(--text-dim);
+        margin-top: 0.3rem;
+    }
+    .results-score .score-verdict {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-top: 0.5rem;
+    }
+    .results-score .score-verdict.pass { color: var(--success); }
+    .results-score .score-verdict.fail { color: var(--danger); }
+
+    /* Per-control result cards */
+    .results-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 0.7rem;
+    }
+    .result-card {
+        background: var(--bg-panel);
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        font-size: 0.82rem;
+    }
+    .result-card.correct {
+        border-color: rgba(34,197,94,0.3);
+        background: var(--success-bg);
+    }
+    .result-card.incorrect {
+        border-color: rgba(239,68,68,0.3);
+        background: var(--danger-bg);
+    }
+    .result-card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        margin-bottom: 0.5rem;
+    }
+    .result-status {
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 2px 7px;
+        border-radius: 3px;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+    .result-card.correct .result-status {
+        background: rgba(34,197,94,0.18);
+        color: var(--success);
+    }
+    .result-card.incorrect .result-status {
+        background: rgba(239,68,68,0.18);
+        color: var(--danger);
+    }
+    .result-ctrl-name {
+        font-weight: 700;
+        color: var(--text);
+        font-size: 0.84rem;
+    }
+    .result-card.correct .result-ctrl-name { color: var(--success); }
+    .result-card.incorrect .result-ctrl-name { color: var(--danger); }
+
+    /* Classification pills in result card */
+    .result-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-bottom: 0.45rem;
+    }
+    .pill {
+        font-size: 0.69rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        padding: 2px 7px;
+        border-radius: 12px;
+    }
+    .pill-student { background: rgba(255,255,255,0.07); color: var(--text-mid); }
+    .pill-correct { background: rgba(34,197,94,0.18);  color: var(--success); }
+    .pill-wrong   { background: rgba(239,68,68,0.18);  color: var(--danger);  }
+
+    .result-rationale {
+        font-size: 0.76rem;
+        color: var(--text-dim);
+        line-height: 1.5;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        padding-top: 0.4rem;
+        margin-top: 0.4rem;
+    }
+
+    /* Pass banner */
+    .pass-banner {
+        display: none;
+        background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(139,92,246,0.1));
+        border: 1px solid rgba(34,197,94,0.4);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin-top: 1.25rem;
+        text-align: center;
+        color: var(--success);
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .pass-banner.visible { display: block; }
+    .pass-banner p {
+        color: var(--text-mid);
+        font-weight: 400;
+        font-size: 0.84rem;
+        margin-top: 0.4rem;
+    }
+
+    /* ============================================================
+       RIGHT RAIL — REFERENCE CARDS
+       ============================================================ */
+    .rail-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+    }
+    .rail-card h3 {
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.7px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Category chips */
+    .cat-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .cat-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        font-size: 0.8rem;
+    }
+    .cat-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 4px;
+    }
+    .cat-name {
+        font-weight: 700;
+        color: var(--text);
+        font-size: 0.8rem;
+    }
+    .cat-desc {
+        font-size: 0.73rem;
+        color: var(--text-dim);
+        margin-top: 1px;
+    }
+
+    /* Divider */
+    .rail-divider {
+        height: 1px;
+        background: rgba(255,255,255,0.05);
+    }
+
+    /* Scoring chip in rail */
+    .score-chip {
+        text-align: center;
+        padding: 0.9rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border-hi);
+        border-radius: 10px;
+    }
+    .score-chip .chip-num {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: var(--purple);
+        line-height: 1;
+    }
+    .score-chip .chip-label {
+        font-size: 0.73rem;
+        color: var(--text-dim);
+        margin-top: 0.2rem;
+    }
+</style>
+</head>
+<body>
+
+<!-- Navigation bar -->
+<nav class="lab-nav">
+    <a href="../index.html">&larr; Security+ Hub</a>
+    <span class="badge">PBQ LAB</span>
+</nav>
+
+<div class="lab-outer">
+
+    <!-- ============================================================
+         LEFT MAIN COLUMN
+         ============================================================ -->
+    <main class="lab-main">
+
+        <!-- HEADER -->
+        <header class="lab-header">
+            <span class="pbq-tag">PERFORMANCE-BASED QUESTION</span>
+            <h1>Security Control Classification</h1>
+            <div class="scenario-box">
+                <strong>Scenario:</strong> A security analyst is building a control inventory for a new compliance
+                audit. For each control listed, classify it on two axes: its <strong>Control Type</strong>
+                (how it is implemented) and its <strong>Control Function</strong> (what security role it
+                fulfills). Use the SY0-701 Domain 1.1 taxonomy. All 12 controls must be classified correctly
+                to complete the lab.
+            </div>
+            <div class="lab-meta">
+                <span>CompTIA Security+ SY0-701 Objective 1.1</span>
+                <span>Categories and Types of Security Controls</span>
+                <span>12 Controls to Classify</span>
+            </div>
+        </header>
+
+        <!-- LIVE PROGRESS BAR -->
+        <div class="progress-bar-wrap">
+            <span class="progress-count" id="progressCount">0/24</span>
+            <span class="progress-label">dropdowns answered</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- INSTRUCTION TIP -->
+        <div class="tip">
+            <strong>Instructions:</strong> For each security control in the table below, select the correct
+            <strong>Control Type</strong> and <strong>Control Function</strong> from the two dropdowns.
+            Every control must have both dropdowns set before you can submit. Use the reference panel on
+            the right if you need a refresher on each category.
+        </div>
+
+        <!-- CONTROL MATRIX -->
+        <section class="matrix-section">
+            <h2 class="section-title">Control Classification Matrix</h2>
+
+            <div style="overflow-x: auto;">
+                <table class="matrix-table" id="matrixTable">
+                    <thead>
+                        <tr>
+                            <th style="width:36%;">Security Control</th>
+                            <th style="width:32%;">Control Type</th>
+                            <th style="width:32%;">Control Function</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrixBody">
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SUBMIT SECTION -->
+        <section class="submit-section">
+            <h2 class="section-title">Verification</h2>
+            <p style="font-size:0.86rem; color:var(--text-mid);">
+                Classify all 12 controls correctly on both axes to pass. All 24 classifications
+                must be correct simultaneously.
+            </p>
+            <div class="submit-btn-row">
+                <button class="btn-submit" id="btnSubmit" onclick="submitClassifications()">Grade My Classifications</button>
+                <button class="btn-reset-all" onclick="resetAll()">Reset All</button>
+            </div>
+
+            <!-- RESULTS PANEL (hidden until submitted) -->
+            <div class="results-panel" id="resultsPanel">
+
+                <div class="results-score" id="resultsScore">
+                    <div class="score-num" id="scoreNum">0/12</div>
+                    <div class="score-label">controls fully correct</div>
+                    <div class="score-verdict" id="scoreVerdict"></div>
+                </div>
+
+                <!-- Per-control result cards -->
+                <div class="results-cards" id="resultsCards"></div>
+
+                <!-- Pass banner (shown only on perfect score) -->
+                <div class="pass-banner" id="passBanner">
+                    All 12 Controls Correctly Classified
+                    <p>
+                        You have demonstrated command of SY0-701 Domain 1.1 control taxonomy.
+                        Both axes correct on every control.
+                    </p>
+                </div>
+
+            </div>
+        </section>
+
+    </main><!-- /.lab-main -->
+
+    <!-- ============================================================
+         RIGHT RAIL — REFERENCE
+         ============================================================ -->
+    <aside class="lab-rail">
+
+        <!-- Live score chip (updates on submission) -->
+        <div class="score-chip" id="scoreChip">
+            <div class="chip-num" id="chipNum">-</div>
+            <div class="chip-label">controls correct (of 12)</div>
+        </div>
+
+        <!-- Control Type reference -->
+        <div class="rail-card">
+            <h3>Control Types</h3>
+            <div class="cat-list">
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--type-tech);"></div>
+                    <div>
+                        <div class="cat-name">Technical</div>
+                        <div class="cat-desc">Implemented through hardware, software, or firmware. Examples: firewalls, IDS, encryption.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--type-mgmt);"></div>
+                    <div>
+                        <div class="cat-name">Managerial</div>
+                        <div class="cat-desc">Policies, procedures, and administrative decisions. Examples: AUP, incident response plan, security training.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--type-ops);"></div>
+                    <div>
+                        <div class="cat-name">Operational</div>
+                        <div class="cat-desc">Day-to-day people-driven processes. Examples: patch management, configuration audits, change management.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--type-phys);"></div>
+                    <div>
+                        <div class="cat-name">Physical</div>
+                        <div class="cat-desc">Tangible environmental safeguards. Examples: bollards, CCTV, security guards, warning signs.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rail-divider"></div>
+
+        <!-- Control Function reference -->
+        <div class="rail-card">
+            <h3>Control Functions</h3>
+            <div class="cat-list">
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fn-prev);"></div>
+                    <div>
+                        <div class="cat-name">Preventive</div>
+                        <div class="cat-desc">Stops an incident before it occurs by blocking or restricting access or action.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fn-deter);"></div>
+                    <div>
+                        <div class="cat-name">Deterrent</div>
+                        <div class="cat-desc">Discourages an attacker from attempting an action through visible threat of consequence.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fn-detect);"></div>
+                    <div>
+                        <div class="cat-name">Detective</div>
+                        <div class="cat-desc">Identifies and records when a security event has occurred; does not stop it in advance.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fn-corr);"></div>
+                    <div>
+                        <div class="cat-name">Corrective</div>
+                        <div class="cat-desc">Restores systems or operations to normal after an incident or failure has occurred.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fn-comp);"></div>
+                    <div>
+                        <div class="cat-name">Compensating</div>
+                        <div class="cat-desc">An alternative safeguard used when the primary control cannot be implemented.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fn-dir);"></div>
+                    <div>
+                        <div class="cat-name">Directive</div>
+                        <div class="cat-desc">Instructs or mandates behavior through policies, standards, or required training.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rail-divider"></div>
+
+        <!-- Quick exam tip -->
+        <div class="rail-card">
+            <h3>Exam Strategy</h3>
+            <div class="cat-list">
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--purple);"></div>
+                    <div>
+                        <div class="cat-name">Type = Implementation layer</div>
+                        <div class="cat-desc">Ask: is this enforced by technology, people/process, management policy, or a physical object?</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--purple);"></div>
+                    <div>
+                        <div class="cat-name">Function = Timing</div>
+                        <div class="cat-desc">Before the event (Preventive/Deterrent), during (Detective), or after (Corrective). Directive and Compensating are special-purpose roles.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </aside><!-- /.lab-rail -->
+
+</div><!-- /.lab-outer -->
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+    /* ------------------------------------------------------------------
+       ANSWER KEY
+       type:     the single accepted Control Type value
+       fn:       primary accepted Control Function value
+       fnAlt:    alternate accepted Function value (null if none)
+       rationale: one-line SY0-701 explanation shown in result card
+       altNote:   explanation of why fnAlt is also accepted (null if none)
+       ------------------------------------------------------------------ */
+    var CONTROLS = [
+        {
+            id: 1,
+            name: 'Firewall',
+            hint: 'Network device filtering traffic by port/protocol rules',
+            type: 'technical',
+            fn: 'preventive',
+            fnAlt: null,
+            rationale: 'A firewall is a software/hardware mechanism (Technical) that blocks unauthorized traffic before it reaches internal systems (Preventive).',
+            altNote: null
+        },
+        {
+            id: 2,
+            name: 'Security Awareness Training',
+            hint: 'Required annual training covering phishing, passwords, and acceptable use',
+            type: 'managerial',
+            fn: 'preventive',
+            fnAlt: 'directive',
+            rationale: 'Training is a management-level control (Managerial). It can be considered Preventive — reducing risky behavior before incidents occur — or Directive, because it mandates required knowledge and conduct.',
+            altNote: 'Both Preventive and Directive are accepted on SY0-701 for awareness training.'
+        },
+        {
+            id: 3,
+            name: 'Security Guard',
+            hint: 'Uniformed personnel stationed at a building entrance',
+            type: 'physical',
+            fn: 'deterrent',
+            fnAlt: null,
+            rationale: 'A security guard is a tangible, in-person safeguard (Physical) whose visible presence discourages unauthorized entry without necessarily blocking it (Deterrent).',
+            altNote: null
+        },
+        {
+            id: 4,
+            name: 'Intrusion Detection System (IDS)',
+            hint: 'Monitors network traffic and alerts on suspicious signatures',
+            type: 'technical',
+            fn: 'detective',
+            fnAlt: null,
+            rationale: 'An IDS is a software/hardware technology (Technical) that identifies and logs malicious activity after it begins — it alerts but does not block (Detective).',
+            altNote: null
+        },
+        {
+            id: 5,
+            name: 'Data Backups',
+            hint: 'Scheduled copies of critical data stored offsite or in the cloud',
+            type: 'technical',
+            fn: 'corrective',
+            fnAlt: null,
+            rationale: 'Backups are a technical mechanism (Technical) that restore data after loss or corruption — they act after the incident to return systems to a known-good state (Corrective).',
+            altNote: null
+        },
+        {
+            id: 6,
+            name: 'Bollards',
+            hint: 'Short reinforced posts installed around a building perimeter',
+            type: 'physical',
+            fn: 'preventive',
+            fnAlt: null,
+            rationale: 'Bollards are physical structures (Physical) that physically stop vehicles from ramming a facility — they prevent the attack from succeeding rather than merely discouraging it (Preventive).',
+            altNote: null
+        },
+        {
+            id: 7,
+            name: 'Acceptable Use Policy (AUP)',
+            hint: 'A written policy employees must sign before accessing company systems',
+            type: 'managerial',
+            fn: 'directive',
+            fnAlt: null,
+            rationale: 'An AUP is an administrative document (Managerial) that mandates permitted behavior for system use — it tells users what they must and must not do (Directive).',
+            altNote: null
+        },
+        {
+            id: 8,
+            name: 'Encryption',
+            hint: 'AES-256 applied to data at rest and in transit across the organization',
+            type: 'technical',
+            fn: 'preventive',
+            fnAlt: null,
+            rationale: 'Encryption is implemented through algorithms and software (Technical) and prevents unauthorized parties from reading data even if they obtain it (Preventive).',
+            altNote: null
+        },
+        {
+            id: 9,
+            name: 'CCTV / Video Surveillance',
+            hint: 'Cameras installed throughout a data center and parking lot',
+            type: 'physical',
+            fn: 'detective',
+            fnAlt: 'deterrent',
+            rationale: 'CCTV cameras are physical devices (Physical). They primarily record events for investigation after the fact (Detective). Visible cameras also deter would-be attackers, so Deterrent is also accepted on SY0-701.',
+            altNote: 'Both Detective and Deterrent are accepted for CCTV on SY0-701.'
+        },
+        {
+            id: 10,
+            name: 'Incident Response Plan',
+            hint: 'A documented playbook defining steps to follow after a security breach',
+            type: 'managerial',
+            fn: 'corrective',
+            fnAlt: null,
+            rationale: 'An incident response plan is a management-level document (Managerial) activated after a breach occurs to contain damage and restore operations (Corrective).',
+            altNote: null
+        },
+        {
+            id: 11,
+            name: 'Warning Sign',
+            hint: 'A posted sign reading: "Authorized Personnel Only — Trespassers Prosecuted"',
+            type: 'physical',
+            fn: 'deterrent',
+            fnAlt: null,
+            rationale: 'A warning sign is a tangible, environmental safeguard (Physical) that discourages unauthorized access through visible notification of consequences (Deterrent).',
+            altNote: null
+        },
+        {
+            id: 12,
+            name: 'Patch Management Process',
+            hint: 'A recurring IT process to identify, test, and deploy OS and software updates',
+            type: 'operational',
+            fn: 'preventive',
+            fnAlt: null,
+            rationale: 'Patch management is an ongoing people-driven IT process (Operational) that closes known vulnerabilities before they can be exploited (Preventive).',
+            altNote: null
+        }
+    ];
+
+    /* Human-readable option labels — map value keys to display text */
+    var TYPE_LABELS = {
+        technical:   'Technical',
+        managerial:  'Managerial',
+        operational: 'Operational',
+        physical:    'Physical'
+    };
+    var FN_LABELS = {
+        preventive:    'Preventive',
+        deterrent:     'Deterrent',
+        detective:     'Detective',
+        corrective:    'Corrective',
+        compensating:  'Compensating',
+        directive:     'Directive'
+    };
+
+    /* Student answer store: { typeVal, fnVal } per control index */
+    var studentAnswers = [];
+
+    /* Total dropdown slots = 12 controls * 2 axes = 24 */
+    var TOTAL_DROPDOWNS = 24;
+
+    /* ------------------------------------------------------------------
+       BOOT — render the matrix table rows
+       ------------------------------------------------------------------ */
+    function init() {
+        /* Initialise answer store with empty strings */
+        for (var i = 0; i < CONTROLS.length; i++) {
+            studentAnswers.push({ typeVal: '', fnVal: '' });
+        }
+        renderMatrix();
+        updateProgress();
+    }
+
+    /* ------------------------------------------------------------------
+       BUILD TABLE ROWS
+       Uses createElement throughout — no innerHTML with dynamic data
+       ------------------------------------------------------------------ */
+    function renderMatrix() {
+        var tbody = document.getElementById('matrixBody');
+        tbody.innerHTML = '';
+
+        for (var i = 0; i < CONTROLS.length; i++) {
+            (function(idx) {
+                var ctrl = CONTROLS[idx];
+
+                var tr = document.createElement('tr');
+                tr.className = 'ctrl-row';
+                tr.id = 'ctrlRow' + idx;
+
+                /* ---- Cell 1: control name ---- */
+                var tdName = document.createElement('td');
+
+                var numBadge = document.createElement('span');
+                numBadge.className = 'ctrl-num';
+                numBadge.textContent = ctrl.id;
+
+                var nameSpan = document.createElement('span');
+                nameSpan.className = 'ctrl-name';
+                nameSpan.appendChild(numBadge);
+                nameSpan.appendChild(document.createTextNode(ctrl.name));
+
+                var hintSpan = document.createElement('span');
+                hintSpan.className = 'ctrl-hint';
+                hintSpan.textContent = ctrl.hint;
+                nameSpan.appendChild(hintSpan);
+
+                tdName.appendChild(nameSpan);
+
+                /* ---- Cell 2: Type dropdown ---- */
+                var tdType = document.createElement('td');
+                var typeWrap = document.createElement('div');
+                typeWrap.className = 'ctrl-select-wrap';
+
+                var typeSel = document.createElement('select');
+                typeSel.className = 'ctrl-select';
+                typeSel.id = 'typeSelect' + idx;
+                typeSel.setAttribute('aria-label', ctrl.name + ' — Control Type');
+
+                /* Blank placeholder */
+                var blankOpt = document.createElement('option');
+                blankOpt.value = '';
+                blankOpt.textContent = '-- Select Type --';
+                typeSel.appendChild(blankOpt);
+
+                var typeKeys = ['technical','managerial','operational','physical'];
+                for (var t = 0; t < typeKeys.length; t++) {
+                    var opt = document.createElement('option');
+                    opt.value = typeKeys[t];
+                    opt.textContent = TYPE_LABELS[typeKeys[t]];
+                    typeSel.appendChild(opt);
+                }
+
+                typeSel.addEventListener('change', (function(i2) {
+                    return function() {
+                        studentAnswers[i2].typeVal = this.value;
+                        updateProgress();
+                        /* Clear grading state when student changes answer */
+                        clearRowGrade(i2);
+                    };
+                })(idx));
+
+                /* Per-axis inline result indicator */
+                var typeResult = document.createElement('div');
+                typeResult.className = 'axis-result';
+                typeResult.id = 'typeResult' + idx;
+
+                typeWrap.appendChild(typeSel);
+                typeWrap.appendChild(typeResult);
+                tdType.appendChild(typeWrap);
+
+                /* ---- Cell 3: Function dropdown ---- */
+                var tdFn = document.createElement('td');
+                var fnWrap = document.createElement('div');
+                fnWrap.className = 'ctrl-select-wrap';
+
+                var fnSel = document.createElement('select');
+                fnSel.className = 'ctrl-select';
+                fnSel.id = 'fnSelect' + idx;
+                fnSel.setAttribute('aria-label', ctrl.name + ' — Control Function');
+
+                var blankFnOpt = document.createElement('option');
+                blankFnOpt.value = '';
+                blankFnOpt.textContent = '-- Select Function --';
+                fnSel.appendChild(blankFnOpt);
+
+                var fnKeys = ['preventive','deterrent','detective','corrective','compensating','directive'];
+                for (var f = 0; f < fnKeys.length; f++) {
+                    var fopt = document.createElement('option');
+                    fopt.value = fnKeys[f];
+                    fopt.textContent = FN_LABELS[fnKeys[f]];
+                    fnSel.appendChild(fopt);
+                }
+
+                fnSel.addEventListener('change', (function(i3) {
+                    return function() {
+                        studentAnswers[i3].fnVal = this.value;
+                        updateProgress();
+                        clearRowGrade(i3);
+                    };
+                })(idx));
+
+                var fnResult = document.createElement('div');
+                fnResult.className = 'axis-result';
+                fnResult.id = 'fnResult' + idx;
+
+                fnWrap.appendChild(fnSel);
+                fnWrap.appendChild(fnResult);
+                tdFn.appendChild(fnWrap);
+
+                tr.appendChild(tdName);
+                tr.appendChild(tdType);
+                tr.appendChild(tdFn);
+                tbody.appendChild(tr);
+            })(i);
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       PROGRESS COUNTER
+       Counts non-empty dropdown selections and updates the progress bar.
+       ------------------------------------------------------------------ */
+    function updateProgress() {
+        var filled = 0;
+        for (var i = 0; i < studentAnswers.length; i++) {
+            if (studentAnswers[i].typeVal !== '') { filled++; }
+            if (studentAnswers[i].fnVal  !== '') { filled++; }
+        }
+
+        document.getElementById('progressCount').textContent = filled + '/' + TOTAL_DROPDOWNS;
+        var pct = (filled / TOTAL_DROPDOWNS) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+
+        /* Enable/disable submit button based on all dropdowns being filled */
+        var allFilled = (filled === TOTAL_DROPDOWNS);
+        document.getElementById('btnSubmit').disabled = !allFilled;
+    }
+
+    /* ------------------------------------------------------------------
+       CLEAR ROW GRADING STATE
+       Called when a student changes a dropdown after grading.
+       ------------------------------------------------------------------ */
+    function clearRowGrade(idx) {
+        var row = document.getElementById('ctrlRow' + idx);
+        if (row) {
+            row.classList.remove('graded-correct', 'graded-incorrect');
+        }
+        var typeRes = document.getElementById('typeResult' + idx);
+        if (typeRes) {
+            typeRes.className = 'axis-result';
+            typeRes.textContent = '';
+        }
+        var fnRes = document.getElementById('fnResult' + idx);
+        if (fnRes) {
+            fnRes.className = 'axis-result';
+            fnRes.textContent = '';
+        }
+        /* Hide results panel if student edits after grading */
+        document.getElementById('resultsPanel').classList.remove('visible');
+        document.getElementById('chipNum').textContent = '-';
+    }
+
+    /* ------------------------------------------------------------------
+       CHECK SINGLE CONTROL
+       Returns { typeOk, fnOk, allOk }.
+       Accepts fnAlt on controls where it is defined.
+       ------------------------------------------------------------------ */
+    function checkControl(idx) {
+        var ctrl  = CONTROLS[idx];
+        var ans   = studentAnswers[idx];
+
+        var typeOk = (ans.typeVal === ctrl.type);
+        var fnOk   = (ans.fnVal === ctrl.fn) || (ctrl.fnAlt !== null && ans.fnVal === ctrl.fnAlt);
+
+        return {
+            typeOk: typeOk,
+            fnOk:   fnOk,
+            allOk:  typeOk && fnOk
+        };
+    }
+
+    /* ------------------------------------------------------------------
+       SUBMIT — grade all controls, render results, fire completion
+       ------------------------------------------------------------------ */
+    function submitClassifications() {
+        var correctCount = 0;
+        var allResults   = [];
+
+        for (var i = 0; i < CONTROLS.length; i++) {
+            var res = checkControl(i);
+            allResults.push(res);
+            if (res.allOk) { correctCount++; }
+
+            /* Apply row highlight */
+            var row = document.getElementById('ctrlRow' + i);
+            row.classList.remove('graded-correct', 'graded-incorrect');
+            row.classList.add(res.allOk ? 'graded-correct' : 'graded-incorrect');
+
+            /* Per-axis inline indicators */
+            var typeRes = document.getElementById('typeResult' + i);
+            typeRes.className = 'axis-result show ' + (res.typeOk ? 'ok' : 'bad');
+            typeRes.textContent = res.typeOk
+                ? 'Correct'
+                : 'Incorrect — answer: ' + TYPE_LABELS[CONTROLS[i].type];
+
+            var fnRes = document.getElementById('fnResult' + i);
+            var fnCorrectLabel = FN_LABELS[CONTROLS[i].fn];
+            if (CONTROLS[i].fnAlt) {
+                fnCorrectLabel += ' or ' + FN_LABELS[CONTROLS[i].fnAlt];
+            }
+            fnRes.className = 'axis-result show ' + (res.fnOk ? 'ok' : 'bad');
+            fnRes.textContent = res.fnOk
+                ? 'Correct'
+                : 'Incorrect — answer: ' + fnCorrectLabel;
+        }
+
+        var allCorrect = (correctCount === CONTROLS.length);
+
+        /* Score display */
+        var scoreNum     = document.getElementById('scoreNum');
+        var scoreVerdict = document.getElementById('scoreVerdict');
+
+        scoreNum.textContent = correctCount + '/' + CONTROLS.length;
+        scoreNum.className   = 'score-num ' + (allCorrect ? 'pass' : 'fail');
+
+        if (allCorrect) {
+            scoreVerdict.textContent = 'PASS — All 12 controls correctly classified';
+            scoreVerdict.className   = 'score-verdict pass';
+        } else {
+            var wrong = CONTROLS.length - correctCount;
+            scoreVerdict.textContent = 'NEEDS WORK — ' + wrong + ' control' + (wrong !== 1 ? 's' : '') + ' incorrect';
+            scoreVerdict.className   = 'score-verdict fail';
+        }
+
+        /* Rail chip */
+        document.getElementById('chipNum').textContent = correctCount + '';
+
+        /* Build per-control result cards */
+        renderResultCards(allResults);
+
+        /* Pass banner and completion */
+        var banner = document.getElementById('passBanner');
+        if (allCorrect) {
+            banner.classList.add('visible');
+            /* Score-gated completion — fires ONLY on perfect result */
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('shield', 'shield-pbq-control-classification', { returnUrl: '../index.html' });
+            }
+        } else {
+            banner.classList.remove('visible');
+        }
+
+        /* Show results panel and scroll into view */
+        var panel = document.getElementById('resultsPanel');
+        panel.classList.add('visible');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ------------------------------------------------------------------
+       RENDER RESULT CARDS
+       One card per control showing correctness, student answer, correct
+       answer (when wrong), and the rationale.
+       ------------------------------------------------------------------ */
+    function renderResultCards(allResults) {
+        var container = document.getElementById('resultsCards');
+        container.innerHTML = '';
+
+        for (var i = 0; i < CONTROLS.length; i++) {
+            var ctrl = CONTROLS[i];
+            var res  = allResults[i];
+            var ans  = studentAnswers[i];
+
+            var card = document.createElement('div');
+            card.className = 'result-card ' + (res.allOk ? 'correct' : 'incorrect');
+
+            /* Header row: status badge + control name */
+            var header = document.createElement('div');
+            header.className = 'result-card-header';
+
+            var statusBadge = document.createElement('span');
+            statusBadge.className = 'result-status';
+            statusBadge.textContent = res.allOk ? 'CORRECT' : 'INCORRECT';
+
+            var nameDiv = document.createElement('div');
+            nameDiv.className = 'result-ctrl-name';
+            nameDiv.textContent = ctrl.name;
+
+            header.appendChild(statusBadge);
+            header.appendChild(nameDiv);
+            card.appendChild(header);
+
+            /* Classification pills */
+            var pills = document.createElement('div');
+            pills.className = 'result-pills';
+
+            /* Type pill */
+            var typePill = document.createElement('span');
+            typePill.className = 'pill ' + (res.typeOk ? 'pill-correct' : 'pill-wrong');
+            typePill.textContent = 'TYPE: ' + (ans.typeVal ? TYPE_LABELS[ans.typeVal] : '(none)');
+            pills.appendChild(typePill);
+
+            /* If type was wrong, show the correct one */
+            if (!res.typeOk) {
+                var typeCorrectPill = document.createElement('span');
+                typeCorrectPill.className = 'pill pill-student';
+                typeCorrectPill.textContent = 'Should be: ' + TYPE_LABELS[ctrl.type];
+                pills.appendChild(typeCorrectPill);
+            }
+
+            /* Function pill */
+            var fnPill = document.createElement('span');
+            fnPill.className = 'pill ' + (res.fnOk ? 'pill-correct' : 'pill-wrong');
+            fnPill.textContent = 'FUNCTION: ' + (ans.fnVal ? FN_LABELS[ans.fnVal] : '(none)');
+            pills.appendChild(fnPill);
+
+            /* If function was wrong, show the correct one(s) */
+            if (!res.fnOk) {
+                var fnCorrectText = FN_LABELS[ctrl.fn];
+                if (ctrl.fnAlt) {
+                    fnCorrectText += ' or ' + FN_LABELS[ctrl.fnAlt];
+                }
+                var fnCorrectPill = document.createElement('span');
+                fnCorrectPill.className = 'pill pill-student';
+                fnCorrectPill.textContent = 'Should be: ' + fnCorrectText;
+                pills.appendChild(fnCorrectPill);
+            }
+
+            card.appendChild(pills);
+
+            /* Rationale */
+            var rationale = document.createElement('div');
+            rationale.className = 'result-rationale';
+            rationale.textContent = ctrl.rationale;
+
+            /* Append altNote if control has one and was answered correctly */
+            if (ctrl.altNote && res.fnOk) {
+                var altNoteEl = document.createElement('div');
+                altNoteEl.style.marginTop = '4px';
+                altNoteEl.style.fontStyle = 'italic';
+                altNoteEl.textContent = 'Note: ' + ctrl.altNote;
+                rationale.appendChild(document.createElement('br'));
+                rationale.appendChild(altNoteEl);
+            }
+
+            card.appendChild(rationale);
+            container.appendChild(card);
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       RESET ALL — clears every dropdown and all grading state
+       ------------------------------------------------------------------ */
+    function resetAll() {
+        /* Reset answer store */
+        for (var i = 0; i < studentAnswers.length; i++) {
+            studentAnswers[i] = { typeVal: '', fnVal: '' };
+        }
+
+        /* Reset all dropdown elements */
+        for (var j = 0; j < CONTROLS.length; j++) {
+            var typeSel = document.getElementById('typeSelect' + j);
+            var fnSel   = document.getElementById('fnSelect' + j);
+            if (typeSel) { typeSel.value = ''; }
+            if (fnSel)   { fnSel.value   = ''; }
+
+            /* Remove row highlight classes */
+            var row = document.getElementById('ctrlRow' + j);
+            if (row) {
+                row.classList.remove('graded-correct', 'graded-incorrect');
+            }
+
+            /* Clear inline axis result indicators */
+            var typeRes = document.getElementById('typeResult' + j);
+            if (typeRes) {
+                typeRes.className = 'axis-result';
+                typeRes.textContent = '';
+            }
+            var fnRes = document.getElementById('fnResult' + j);
+            if (fnRes) {
+                fnRes.className = 'axis-result';
+                fnRes.textContent = '';
+            }
+        }
+
+        /* Hide results panel */
+        document.getElementById('resultsPanel').classList.remove('visible');
+        document.getElementById('passBanner').classList.remove('visible');
+        document.getElementById('chipNum').textContent = '-';
+
+        updateProgress();
+    }
+
+    /* ------------------------------------------------------------------
+       BOOT
+       ------------------------------------------------------------------ */
+    init();
+</script>
+
+<!-- Dr. Hex floating mood-ring button -->
+<hex-ai-button mission-id="pbq-control-classification" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+
+</body>
+</html>

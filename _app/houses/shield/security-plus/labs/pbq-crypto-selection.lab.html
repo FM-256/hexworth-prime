@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="/components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="/components/ModuleProgress.js"></script>
+<script src="/components/FirebaseAuth.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PBQ: Cryptographic Solution Selection | Security+</title>
+<style>
+    /* ============================================================
+       ROOT VARIABLES
+       ============================================================ */
+    :root {
+        --bg:           #090910;
+        --bg-card:      #0f0f1a;
+        --bg-panel:     #14141f;
+        --bg-input:     #0a0a14;
+        --border:       rgba(248, 113, 113, 0.18);
+        --border-hi:    rgba(248, 113, 113, 0.50);
+        --red:          #f87171;
+        --red-dim:      rgba(248, 113, 113, 0.12);
+        --red-glow:     rgba(248, 113, 113, 0.22);
+        --amber:        #f59e0b;
+        --amber-bg:     rgba(245, 158, 11, 0.10);
+        --text:         #e2e8f0;
+        --text-dim:     #64748b;
+        --text-mid:     #94a3b8;
+        --success:      #22c55e;
+        --success-bg:   rgba(34, 197, 94, 0.12);
+        --danger:       #ef4444;
+        --danger-bg:    rgba(239, 68, 68, 0.12);
+        --cyan:         #06b6d4;    /* accents on correct-answer rationale cards */
+        --cyan-dim:     rgba(6, 182, 212, 0.10);
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.6;
+    }
+
+    /* ============================================================
+       NAV BAR
+       ============================================================ */
+    .lab-nav {
+        padding: 11px 24px;
+        background: #0d0d17;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .lab-nav a {
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 0.84rem;
+        transition: color 0.2s;
+    }
+    .lab-nav a:hover { color: var(--red); }
+    .lab-nav .badge {
+        background: rgba(248,113,113,0.14);
+        color: var(--red);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        padding: 3px 9px;
+        border-radius: 4px;
+    }
+
+    /* ============================================================
+       FULL-VIEWPORT LAYOUT — no max-width centering, full bleed
+       ============================================================ */
+    .lab-shell {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        grid-template-rows: auto 1fr;
+        min-height: calc(100vh - 42px);
+        gap: 0;
+    }
+
+    /* ── Left sidebar: scenario reference panel ────────────────── */
+    .sidebar {
+        grid-column: 1;
+        grid-row: 1 / 3;
+        background: var(--bg-card);
+        border-right: 1px solid var(--border);
+        padding: 1.5rem 1.25rem;
+        overflow-y: auto;
+    }
+
+    /* ── Main work area ─────────────────────────────────────────── */
+    .main-area {
+        grid-column: 2;
+        grid-row: 1 / 3;
+        display: flex;
+        flex-direction: column;
+        padding: 1.75rem 2rem 3rem;
+        overflow-y: auto;
+    }
+
+    @media (max-width: 900px) {
+        .lab-shell {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto;
+        }
+        .sidebar {
+            grid-column: 1;
+            grid-row: 1;
+            border-right: none;
+            border-bottom: 1px solid var(--border);
+        }
+        .main-area {
+            grid-column: 1;
+            grid-row: 2;
+            padding: 1.25rem;
+        }
+    }
+
+    /* ============================================================
+       HEADER — rendered inside .main-area
+       ============================================================ */
+    .lab-header {
+        background: var(--bg-card);
+        border: 1px solid var(--border-hi);
+        border-radius: 14px;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 0 28px var(--red-glow);
+    }
+    .lab-header h1 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--red);
+        margin-bottom: 0.35rem;
+        letter-spacing: -0.2px;
+    }
+    .pbq-tag {
+        display: inline-block;
+        background: rgba(239,68,68,0.15);
+        color: #f87171;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        padding: 2px 8px;
+        border-radius: 3px;
+        margin-bottom: 0.8rem;
+    }
+    .scenario-box {
+        background: var(--bg-panel);
+        border-left: 3px solid var(--red);
+        border-radius: 0 8px 8px 0;
+        padding: 0.85rem 1.1rem;
+        font-size: 0.9rem;
+        color: var(--text-mid);
+        margin-top: 0.65rem;
+    }
+    .scenario-box strong { color: var(--text); }
+    .lab-meta {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.9rem;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+    }
+    .lab-meta span { color: var(--text-mid); }
+
+    /* ============================================================
+       SIDEBAR CONTENT
+       ============================================================ */
+    .sidebar-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+    }
+
+    /* Primitive quick-reference cards */
+    .ref-card {
+        background: var(--bg-panel);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 8px;
+        padding: 0.7rem 0.9rem;
+        margin-bottom: 0.6rem;
+    }
+    .ref-card .ref-name {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--red);
+        margin-bottom: 0.2rem;
+    }
+    .ref-card .ref-desc {
+        font-size: 0.74rem;
+        color: var(--text-dim);
+        line-height: 1.45;
+    }
+
+    /* Divider within sidebar */
+    .sidebar-divider {
+        border: none;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        margin: 1rem 0;
+    }
+
+    .tip-box {
+        background: var(--amber-bg);
+        border: 1px solid rgba(245,158,11,0.25);
+        border-radius: 8px;
+        padding: 0.7rem 0.9rem;
+        font-size: 0.77rem;
+        color: var(--text-mid);
+        line-height: 1.5;
+    }
+    .tip-box strong { color: var(--amber); }
+
+    /* ============================================================
+       SCENARIO TABLE
+       ============================================================ */
+    .scenarios-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem;
+        margin-bottom: 1.75rem;
+    }
+    .section-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1.25rem;
+    }
+
+    /* Each scenario row */
+    .scenario-row {
+        display: grid;
+        grid-template-columns: 36px 1fr 260px;
+        gap: 0.85rem;
+        align-items: start;
+        padding: 1rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        margin-bottom: 0.6rem;
+        transition: border-color 0.2s, background 0.2s;
+    }
+    .scenario-row:hover {
+        background: rgba(255,255,255,0.02);
+    }
+    .scenario-row.graded-correct {
+        border-color: rgba(34,197,94,0.35);
+        background: var(--success-bg);
+    }
+    .scenario-row.graded-incorrect {
+        border-color: rgba(239,68,68,0.35);
+        background: var(--danger-bg);
+    }
+    /* Separator between rows */
+    .scenario-row + .scenario-row {
+        border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .scenario-row.graded-correct + .scenario-row,
+    .scenario-row.graded-incorrect + .scenario-row {
+        border-top: none;
+    }
+
+    .scenario-num {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--bg-panel);
+        border: 1px solid rgba(248,113,113,0.25);
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--red);
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .scenario-num.correct { background: var(--success-bg); border-color: rgba(34,197,94,0.5); color: var(--success); }
+    .scenario-num.incorrect { background: var(--danger-bg); border-color: rgba(239,68,68,0.5); color: var(--danger); }
+
+    .scenario-text {
+        font-size: 0.9rem;
+        color: var(--text);
+        line-height: 1.55;
+        padding-top: 4px;
+    }
+    .scenario-context {
+        font-size: 0.77rem;
+        color: var(--text-dim);
+        margin-top: 0.2rem;
+        font-style: italic;
+    }
+
+    /* Dropdown wrapper */
+    .scenario-select-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+    .scenario-select-wrap label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+
+    /* Styled select */
+    .crypto-select {
+        background: var(--bg-input);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 0.84rem;
+        padding: 0.45rem 2rem 0.45rem 0.65rem;
+        width: 100%;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+    }
+    .crypto-select:focus {
+        outline: none;
+        border-color: var(--red);
+        box-shadow: 0 0 0 2px rgba(248,113,113,0.12);
+    }
+    .crypto-select.answered {
+        border-color: rgba(248,113,113,0.4);
+    }
+    .graded-correct .crypto-select {
+        border-color: rgba(34,197,94,0.55);
+        color: var(--success);
+        pointer-events: none;
+    }
+    .graded-incorrect .crypto-select {
+        border-color: rgba(239,68,68,0.55);
+        color: var(--danger);
+        pointer-events: none;
+    }
+
+    /* Inline grade indicator below the select */
+    .grade-indicator {
+        display: none;
+        font-size: 0.76rem;
+        font-weight: 600;
+        margin-top: 0.2rem;
+    }
+    .graded-correct  .grade-indicator { display: block; color: var(--success); }
+    .graded-incorrect .grade-indicator { display: block; color: var(--danger); }
+
+    @media (max-width: 780px) {
+        .scenario-row {
+            grid-template-columns: 32px 1fr;
+        }
+        .scenario-select-wrap {
+            grid-column: 1 / -1;
+        }
+    }
+
+    /* ============================================================
+       SUBMIT SECTION
+       ============================================================ */
+    .submit-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem;
+    }
+
+    .submit-btn-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .btn-submit {
+        padding: 0.65rem 2rem;
+        background: var(--red);
+        color: #000;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.12s, box-shadow 0.2s;
+    }
+    .btn-submit:hover {
+        opacity: 0.88;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 18px var(--red-glow);
+    }
+    .btn-submit:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .btn-reset-all {
+        padding: 0.65rem 1.5rem;
+        background: transparent;
+        color: var(--text-dim);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-reset-all:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* Progress hint below submit */
+    .progress-hint {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-top: 0.5rem;
+    }
+    .progress-hint span { color: var(--red); font-weight: 700; }
+
+    /* ============================================================
+       RESULTS PANEL
+       ============================================================ */
+    .results-panel {
+        display: none;
+        margin-top: 1.5rem;
+    }
+    .results-panel.visible { display: block; }
+
+    /* Score summary */
+    .results-score {
+        text-align: center;
+        padding: 1.25rem 1rem;
+        background: var(--bg-panel);
+        border-radius: 10px;
+        margin-bottom: 1.25rem;
+    }
+    .score-num {
+        font-size: 3rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .score-num.pass { color: var(--success); }
+    .score-num.fail { color: var(--danger); }
+    .score-label {
+        font-size: 0.82rem;
+        color: var(--text-dim);
+        margin-top: 0.3rem;
+    }
+    .score-verdict {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-top: 0.5rem;
+    }
+    .score-verdict.pass { color: var(--success); }
+    .score-verdict.fail { color: var(--danger); }
+
+    /* ── Per-scenario result cards ────────────────────────────────
+       Shown in a 2-column grid after submission.
+       Each card: scenario number + student answer + correct answer + rationale.
+       ============================================================ */
+    .result-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .result-card {
+        background: var(--bg-panel);
+        border-radius: 10px;
+        padding: 0.9rem 1rem;
+        border: 1px solid transparent;
+    }
+    .result-card.correct {
+        border-color: rgba(34,197,94,0.30);
+        background: var(--success-bg);
+    }
+    .result-card.incorrect {
+        border-color: rgba(239,68,68,0.30);
+        background: var(--danger-bg);
+    }
+
+    .rc-head {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin-bottom: 0.5rem;
+    }
+    .rc-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        padding: 2px 7px;
+        border-radius: 3px;
+    }
+    .correct .rc-badge { background: rgba(34,197,94,0.2); color: var(--success); }
+    .incorrect .rc-badge { background: rgba(239,68,68,0.2); color: var(--danger); }
+
+    .rc-scenario-num {
+        font-size: 0.74rem;
+        color: var(--text-dim);
+    }
+
+    .rc-scenario-text {
+        font-size: 0.82rem;
+        color: var(--text-mid);
+        margin-bottom: 0.55rem;
+        line-height: 1.45;
+    }
+
+    .rc-answer-block {
+        font-size: 0.8rem;
+        line-height: 1.5;
+    }
+    .rc-answer-block .rc-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        display: block;
+        margin-bottom: 1px;
+    }
+    .rc-answer-block .rc-val {
+        font-weight: 600;
+        margin-bottom: 0.3rem;
+    }
+    .correct .rc-answer-block .rc-val  { color: var(--success); }
+    .incorrect .rc-val.student-ans     { color: var(--danger); }
+    .incorrect .rc-val.correct-ans     { color: var(--success); }
+
+    .rc-rationale {
+        background: rgba(6,182,212,0.07);
+        border-left: 2px solid var(--cyan);
+        border-radius: 0 5px 5px 0;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.76rem;
+        color: var(--text-mid);
+        margin-top: 0.5rem;
+        line-height: 1.45;
+    }
+
+    /* Pass banner */
+    .pass-banner {
+        display: none;
+        background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(6,182,212,0.08));
+        border: 1px solid rgba(34,197,94,0.40);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        text-align: center;
+        color: var(--success);
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .pass-banner.visible { display: block; }
+    .pass-banner p {
+        color: var(--text-mid);
+        font-weight: 400;
+        font-size: 0.84rem;
+        margin-top: 0.4rem;
+    }
+</style>
+</head>
+<body>
+
+<!-- Navigation bar -->
+<nav class="lab-nav">
+    <a href="../index.html">&larr; Security+ Hub</a>
+    <span class="badge">PBQ LAB</span>
+</nav>
+
+<div class="lab-shell">
+
+    <!-- ============================================================
+         LEFT SIDEBAR — cryptographic primitive quick reference
+         (Students keep this visible while answering)
+         ============================================================ -->
+    <aside class="sidebar">
+
+        <div class="sidebar-title">Primitive Reference</div>
+
+        <div class="ref-card">
+            <div class="ref-name">TLS 1.3</div>
+            <div class="ref-desc">Transport Layer Security. Encrypts data in transit over a network; uses a handshake to negotiate keys, then symmetric encryption for the session.</div>
+        </div>
+        <div class="ref-card">
+            <div class="ref-name">AES-256 (symmetric)</div>
+            <div class="ref-desc">Advanced Encryption Standard, 256-bit key. Same key encrypts and decrypts. Extremely fast — suited to bulk data (files, databases, volumes).</div>
+        </div>
+        <div class="ref-card">
+            <div class="ref-name">RSA-2048 (asymmetric)</div>
+            <div class="ref-desc">Public/private key pair. Public key encrypts; private key decrypts. Slow for bulk data; used for key wrapping, key exchange (older), or signatures.</div>
+        </div>
+        <div class="ref-card">
+            <div class="ref-name">SHA-256 (hash)</div>
+            <div class="ref-desc">Produces a fixed-length digest from any input. One-way — cannot recover the original. Used to verify integrity, NOT to encrypt data.</div>
+        </div>
+        <div class="ref-card">
+            <div class="ref-name">HMAC</div>
+            <div class="ref-desc">Hash-based Message Authentication Code. Combines a hash with a shared secret key. Provides both integrity and authentication of a message.</div>
+        </div>
+        <div class="ref-card">
+            <div class="ref-name">Diffie-Hellman (key exchange)</div>
+            <div class="ref-desc">A mathematical protocol that lets two parties derive a shared secret over an untrusted channel without ever transmitting the secret itself.</div>
+        </div>
+        <div class="ref-card">
+            <div class="ref-name">Digital Signature</div>
+            <div class="ref-desc">Sender hashes the data, then encrypts the hash with their private key. Anyone with the public key can verify it came from the correct sender and has not changed.</div>
+        </div>
+        <div class="ref-card">
+            <div class="ref-name">bcrypt / Argon2 (password hashing)</div>
+            <div class="ref-desc">Intentionally slow, salted hash algorithms designed for storing passwords. High cost factor makes brute-force attacks impractical even if the hash database is stolen.</div>
+        </div>
+        <div class="ref-card">
+            <div class="ref-name">Full Disk Encryption</div>
+            <div class="ref-desc">Encrypts every sector on a storage device (BitLocker on Windows, LUKS on Linux). Data is unreadable without the correct key, even if the drive is removed.</div>
+        </div>
+        <div class="ref-card">
+            <div class="ref-name">Certificate (X.509)</div>
+            <div class="ref-desc">A digitally-signed document that binds a public key to an identity. Issued by a Certificate Authority (CA). Used in TLS, code signing, S/MIME, and smart cards.</div>
+        </div>
+
+        <hr class="sidebar-divider">
+
+        <div class="tip-box">
+            <strong>Common confusions on SY0-701:</strong><br>
+            Hashing is one-way integrity verification — it does not encrypt.<br><br>
+            DH exchanges keys; it does not encrypt data.<br><br>
+            Signatures use the sender's private key (non-repudiation), not a shared key.<br><br>
+            bcrypt/Argon2 are for passwords — do not use AES to store passwords.
+        </div>
+
+    </aside><!-- /.sidebar -->
+
+    <!-- ============================================================
+         MAIN WORK AREA
+         ============================================================ -->
+    <main class="main-area">
+
+        <!-- ── Header / Scenario ─────────────────────────────────── -->
+        <header class="lab-header">
+            <span class="pbq-tag">PERFORMANCE-BASED QUESTION</span>
+            <h1>Cryptographic Solution Selection</h1>
+            <div class="scenario-box">
+                <strong>Scenario:</strong> You are a security analyst advising an organization on which
+                cryptographic primitive or protocol to apply in each situation. For each requirement
+                below, select the single best solution from the dropdown. All 8 must be correct to pass.
+            </div>
+            <div class="lab-meta">
+                <span>CompTIA Security+ SY0-701 Objectives 1.4 / 2.3</span>
+                <span>Cryptographic Solutions</span>
+                <span>8 Scenarios</span>
+            </div>
+        </header>
+
+        <!-- ── Scenario Table ────────────────────────────────────── -->
+        <section class="scenarios-section">
+            <div class="section-title">Requirements</div>
+
+            <!-- Scenario rows injected by JS -->
+            <div id="scenarioList"></div>
+
+        </section>
+
+        <!-- ── Submit / Reset ────────────────────────────────────── -->
+        <section class="submit-section">
+            <div class="section-title">Verification</div>
+            <p style="font-size:0.86rem; color:var(--text-mid);">
+                Select a solution for every scenario, then submit for grading.
+                All 8 must be correct. You may retry as many times as needed.
+            </p>
+            <div id="progressHint" class="progress-hint" style="margin-top:0.5rem;"></div>
+            <div class="submit-btn-row">
+                <button class="btn-submit" id="btnSubmit" onclick="submitAnswers()">Submit Answers</button>
+                <button class="btn-reset-all" onclick="resetAll()">Reset All</button>
+            </div>
+
+            <!-- Results panel -->
+            <div class="results-panel" id="resultsPanel">
+
+                <div class="results-score" id="resultsScore">
+                    <div class="score-num" id="scoreNum">0/8</div>
+                    <div class="score-label">scenarios answered correctly</div>
+                    <div class="score-verdict" id="scoreVerdict"></div>
+                </div>
+
+                <div class="result-cards" id="resultCards"></div>
+
+                <div class="pass-banner" id="passBanner">
+                    All 8 Cryptographic Solutions Correct
+                    <p>
+                        You correctly matched each requirement to the appropriate primitive or
+                        protocol. This is a core skill tested on the Security+ SY0-701 exam.
+                    </p>
+                </div>
+
+            </div>
+        </section>
+
+    </main><!-- /.main-area -->
+
+</div><!-- /.lab-shell -->
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+    /* ------------------------------------------------------------------
+       OPTION SET — identical dropdown for every scenario row.
+       The placeholder ("-- select --") value is '' and is the default.
+       ------------------------------------------------------------------ */
+    var OPTIONS = [
+        '',
+        'TLS 1.3',
+        'AES-256 (symmetric)',
+        'RSA-2048 (asymmetric)',
+        'SHA-256 (hash)',
+        'HMAC',
+        'Diffie-Hellman (key exchange)',
+        'Digital Signature (sign w/ private key)',
+        'bcrypt/Argon2 (password hashing)',
+        'Full Disk Encryption (BitLocker/LUKS)',
+        'Certificate (X.509)'
+    ];
+
+    /* ------------------------------------------------------------------
+       SCENARIO DATA
+       Each entry: requirement text, optional context line, correct option
+       value, and a rationale string displayed on the result card.
+
+       Rationales explicitly address the most common wrong-answer traps.
+       ------------------------------------------------------------------ */
+    var SCENARIOS = [
+        {
+            id: 1,
+            text: 'Encrypt web traffic in transit between a user\'s browser and a company web server.',
+            context: 'Requirement: protect data moving across an untrusted network; mutual auth is also needed.',
+            answer: 'TLS 1.3',
+            rationale: 'TLS 1.3 is the standard protocol for securing application-layer traffic over TCP. It negotiates keys using a handshake (internally using Diffie-Hellman for perfect forward secrecy), then encrypts the session. AES-256 alone is a cipher — it cannot establish keys or authenticate the server on its own; you need TLS to do that end-to-end.'
+        },
+        {
+            id: 2,
+            text: 'Encrypt a 500 GB database backup file stored on a network share.',
+            context: 'Requirement: encrypt a large volume of data at rest as fast as possible.',
+            answer: 'AES-256 (symmetric)',
+            rationale: 'AES-256 symmetric encryption is orders of magnitude faster than asymmetric algorithms for bulk data. Because the same key encrypts and decrypts, it is ideal for files, volumes, and database exports. RSA and Diffie-Hellman are not designed for encrypting large payloads directly — they are used to exchange or wrap symmetric keys.'
+        },
+        {
+            id: 3,
+            text: 'Verify that a downloaded ISO image has not been tampered with or corrupted during transfer.',
+            context: 'Requirement: integrity check only — the file does not need to be kept secret.',
+            answer: 'SHA-256 (hash)',
+            rationale: 'Hashing is one-way and produces a fixed digest. If the digest of the downloaded file matches the published digest, the file is intact. Hashing does NOT encrypt the data — anyone can read the file. For confidentiality you would use encryption; for integrity without a shared secret you use a hash.'
+        },
+        {
+            id: 4,
+            text: 'Two servers on an untrusted network need to establish a shared encryption key without transmitting that key across the network.',
+            context: 'Requirement: key establishment, no pre-shared secret, passive eavesdroppers must not learn the key.',
+            answer: 'Diffie-Hellman (key exchange)',
+            rationale: 'Diffie-Hellman lets two parties compute the same shared secret using public values exchanged over an untrusted channel. An eavesdropper who captures those public values cannot derive the secret. DH does not encrypt data itself — it produces the key material that a symmetric cipher (e.g., AES) then uses.'
+        },
+        {
+            id: 5,
+            text: 'A software vendor wants to prove that an update package genuinely came from them and has not been modified, with no possibility of later denying they released it.',
+            context: 'Requirement: authenticity + non-repudiation for a software artifact.',
+            answer: 'Digital Signature (sign w/ private key)',
+            rationale: 'A digital signature is created by hashing the content, then encrypting that hash with the vendor\'s private key. Anyone with the vendor\'s public key can verify the signature. Because only the vendor controls the private key, the signature provides non-repudiation — they cannot credibly deny signing the package. A certificate (X.509) publishes and vouches for the public key but is not the signature mechanism itself.'
+        },
+        {
+            id: 6,
+            text: 'An application stores user passwords in a database. If an attacker steals the database, password recovery via brute force must be computationally infeasible.',
+            context: 'Requirement: secure password storage — database breach must not expose plaintext passwords.',
+            answer: 'bcrypt/Argon2 (password hashing)',
+            rationale: 'bcrypt and Argon2 are purpose-built password hashing functions. They include automatic salting (preventing rainbow table attacks) and a configurable work factor that makes each hash attempt slow. AES-256 would be incorrect here — passwords should never be reversibly encrypted; they should be hashed. SHA-256 alone is too fast for passwords and lacks salting, making it vulnerable to brute force.'
+        },
+        {
+            id: 7,
+            text: 'A company issues laptops to remote workers. If a laptop is stolen, the data on its internal SSD must be unreadable without organizational credentials.',
+            context: 'Requirement: protect data at rest on a physical device from unauthorized access if the device is lost or stolen.',
+            answer: 'Full Disk Encryption (BitLocker/LUKS)',
+            rationale: 'Full Disk Encryption (FDE) encrypts every sector of the storage device. Without the correct key or credential, the drive is unreadable even if physically removed and connected to another system. AES-256 is the underlying cipher FDE uses, but AES alone does not manage key storage, pre-boot authentication, or the sector-by-sector encryption layer — BitLocker and LUKS handle all of that.'
+        },
+        {
+            id: 8,
+            text: 'An organization\'s HTTPS server needs to prove its identity to browsers. The proof must be issued by a trusted third party and must include the server\'s public key.',
+            context: 'Requirement: bind a public key to an organizational identity, validated by an external authority.',
+            answer: 'Certificate (X.509)',
+            rationale: 'An X.509 certificate is a CA-signed document that binds a public key to an entity\'s identity (domain, organization, or person). Browsers trust it because the CA\'s root certificate is pre-installed in the OS/browser trust store. The certificate is not a cipher or protocol — it is the credential that TLS uses to authenticate the server. Without a valid certificate, TLS still encrypts traffic, but the server\'s identity is unverified.'
+        }
+    ];
+
+    /* ------------------------------------------------------------------
+       STATE
+       Tracks the currently selected option value for each scenario (by id).
+       ------------------------------------------------------------------ */
+    var answers = {};   /* { scenarioId: selectedOptionValue } */
+    var submitted = false;
+
+    /* ------------------------------------------------------------------
+       RENDER SCENARIO ROWS
+       Builds the interactive dropdown rows from SCENARIOS data.
+       ------------------------------------------------------------------ */
+    function renderScenarios() {
+        var list = document.getElementById('scenarioList');
+        list.innerHTML = '';
+
+        for (var i = 0; i < SCENARIOS.length; i++) {
+            var s = SCENARIOS[i];
+            var row = document.createElement('div');
+            row.className = 'scenario-row';
+            row.id = 'row-' + s.id;
+
+            /* -- Number badge -- */
+            var numEl = document.createElement('div');
+            numEl.className = 'scenario-num';
+            numEl.id = 'num-' + s.id;
+            numEl.textContent = s.id;
+
+            /* -- Text column -- */
+            var textCol = document.createElement('div');
+
+            var reqText = document.createElement('div');
+            reqText.className = 'scenario-text';
+            reqText.textContent = s.text;
+
+            var ctxText = document.createElement('div');
+            ctxText.className = 'scenario-context';
+            ctxText.textContent = s.context;
+
+            textCol.appendChild(reqText);
+            textCol.appendChild(ctxText);
+
+            /* -- Select column -- */
+            var selectWrap = document.createElement('div');
+            selectWrap.className = 'scenario-select-wrap';
+
+            var lbl = document.createElement('label');
+            lbl.textContent = 'Select solution';
+            lbl.setAttribute('for', 'sel-' + s.id);
+
+            var sel = document.createElement('select');
+            sel.className = 'crypto-select';
+            sel.id = 'sel-' + s.id;
+            sel.setAttribute('aria-label', 'Solution for scenario ' + s.id);
+
+            /* Populate options; first option is placeholder */
+            for (var o = 0; o < OPTIONS.length; o++) {
+                var opt = document.createElement('option');
+                opt.value = OPTIONS[o];
+                opt.textContent = o === 0 ? '-- select a solution --' : OPTIONS[o];
+                sel.appendChild(opt);
+            }
+
+            /* Restore any existing answer */
+            if (answers[s.id]) {
+                sel.value = answers[s.id];
+            }
+
+            /* Listen for changes to track answered count */
+            (function(sid, selectEl) {
+                selectEl.addEventListener('change', function() {
+                    if (this.value !== '') {
+                        answers[sid] = this.value;
+                        selectEl.classList.add('answered');
+                    } else {
+                        delete answers[sid];
+                        selectEl.classList.remove('answered');
+                    }
+                    updateProgressHint();
+                    updateSubmitButton();
+                });
+            })(s.id, sel);
+
+            /* Grade indicator shown after submission */
+            var gradeEl = document.createElement('div');
+            gradeEl.className = 'grade-indicator';
+            gradeEl.id = 'grade-' + s.id;
+
+            selectWrap.appendChild(lbl);
+            selectWrap.appendChild(sel);
+            selectWrap.appendChild(gradeEl);
+
+            row.appendChild(numEl);
+            row.appendChild(textCol);
+            row.appendChild(selectWrap);
+
+            list.appendChild(row);
+        }
+
+        updateProgressHint();
+        updateSubmitButton();
+    }
+
+    /* ------------------------------------------------------------------
+       PROGRESS HINT — shows "X / 8 answered" while filling in
+       ------------------------------------------------------------------ */
+    function updateProgressHint() {
+        var count = Object.keys(answers).length;
+        var hint = document.getElementById('progressHint');
+        if (count === 0) {
+            hint.innerHTML = '';
+        } else if (count < SCENARIOS.length) {
+            hint.innerHTML = '<span>' + count + '</span> of ' + SCENARIOS.length + ' scenarios answered.';
+        } else {
+            hint.innerHTML = '<span>All ' + SCENARIOS.length + '</span> scenarios answered — ready to submit.';
+        }
+    }
+
+    /* Disable submit button until all rows have a selection */
+    function updateSubmitButton() {
+        var count = Object.keys(answers).length;
+        document.getElementById('btnSubmit').disabled = (count < SCENARIOS.length) || submitted;
+    }
+
+    /* ------------------------------------------------------------------
+       SUBMIT ANSWERS
+       Grades all scenarios, renders result cards, fires completion if all correct.
+       ------------------------------------------------------------------ */
+    function submitAnswers() {
+        if (submitted) { return; }
+
+        /* Freeze the selects while reviewing results */
+        submitted = true;
+
+        var correct = 0;
+        var results = [];
+
+        for (var i = 0; i < SCENARIOS.length; i++) {
+            var s   = SCENARIOS[i];
+            var ans = answers[s.id] || '';
+            var ok  = (ans === s.answer);
+            if (ok) { correct++; }
+            results.push({ scenario: s, studentAnswer: ans, ok: ok });
+        }
+
+        var allCorrect = (correct === SCENARIOS.length);
+
+        /* ── Apply graded classes to scenario rows ── */
+        for (var j = 0; j < results.length; j++) {
+            var r   = results[j];
+            var row = document.getElementById('row-' + r.scenario.id);
+            var num = document.getElementById('num-' + r.scenario.id);
+            var gradeEl = document.getElementById('grade-' + r.scenario.id);
+
+            row.classList.remove('graded-correct', 'graded-incorrect');
+            num.classList.remove('correct', 'incorrect');
+
+            if (r.ok) {
+                row.classList.add('graded-correct');
+                num.classList.add('correct');
+                gradeEl.textContent = 'Correct';
+            } else {
+                row.classList.add('graded-incorrect');
+                num.classList.add('incorrect');
+                gradeEl.textContent = 'Incorrect — see results below';
+            }
+        }
+
+        /* ── Score header ── */
+        var scoreNum     = document.getElementById('scoreNum');
+        var scoreVerdict = document.getElementById('scoreVerdict');
+
+        scoreNum.textContent = correct + '/' + SCENARIOS.length;
+        scoreNum.className   = 'score-num ' + (allCorrect ? 'pass' : 'fail');
+
+        if (allCorrect) {
+            scoreVerdict.textContent = 'PASS — All cryptographic solutions correct';
+            scoreVerdict.className   = 'score-verdict pass';
+        } else {
+            var wrong = SCENARIOS.length - correct;
+            scoreVerdict.textContent = 'NEEDS WORK — ' + wrong + ' solution(s) incorrect';
+            scoreVerdict.className   = 'score-verdict fail';
+        }
+
+        /* ── Per-scenario result cards ── */
+        renderResultCards(results);
+
+        /* ── Pass banner + completion gate ── */
+        var banner = document.getElementById('passBanner');
+        if (allCorrect) {
+            banner.classList.add('visible');
+            /* Score-gated completion — fires ONLY when every scenario is correct */
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('shield', 'shield-pbq-crypto-selection', { returnUrl: '../index.html' });
+            }
+        } else {
+            banner.classList.remove('visible');
+        }
+
+        /* Show results panel */
+        var panel = document.getElementById('resultsPanel');
+        panel.classList.add('visible');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        /* Unlock reset, keep submit disabled */
+        updateSubmitButton();
+    }
+
+    /* ------------------------------------------------------------------
+       RENDER RESULT CARDS
+       One card per scenario; always show the correct answer and rationale.
+       ------------------------------------------------------------------ */
+    function renderResultCards(results) {
+        var container = document.getElementById('resultCards');
+        container.innerHTML = '';
+
+        for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            var s = r.scenario;
+
+            var card = document.createElement('div');
+            card.className = 'result-card ' + (r.ok ? 'correct' : 'incorrect');
+
+            /* -- Head: badge + scenario number -- */
+            var head = document.createElement('div');
+            head.className = 'rc-head';
+
+            var badge = document.createElement('span');
+            badge.className = 'rc-badge';
+            badge.textContent = r.ok ? 'CORRECT' : 'INCORRECT';
+
+            var numLabel = document.createElement('span');
+            numLabel.className = 'rc-scenario-num';
+            numLabel.textContent = 'Scenario ' + s.id;
+
+            head.appendChild(badge);
+            head.appendChild(numLabel);
+
+            /* -- Scenario text (abbreviated) -- */
+            var scenText = document.createElement('div');
+            scenText.className = 'rc-scenario-text';
+            /* Truncate long scenario texts to keep cards compact */
+            var shortText = s.text.length > 90 ? s.text.substring(0, 88) + '...' : s.text;
+            scenText.textContent = shortText;
+
+            /* -- Answer block -- */
+            var ansBlock = document.createElement('div');
+            ansBlock.className = 'rc-answer-block';
+
+            if (!r.ok) {
+                /* Show student's wrong answer */
+                var yourLbl = document.createElement('span');
+                yourLbl.className = 'rc-label';
+                yourLbl.textContent = 'Your answer';
+
+                var yourVal = document.createElement('div');
+                yourVal.className = 'rc-val student-ans';
+                yourVal.textContent = r.studentAnswer || '(none selected)';
+
+                ansBlock.appendChild(yourLbl);
+                ansBlock.appendChild(yourVal);
+            }
+
+            /* Always show correct answer */
+            var corrLbl = document.createElement('span');
+            corrLbl.className = 'rc-label';
+            corrLbl.textContent = r.ok ? 'Correct answer' : 'Correct answer';
+
+            var corrVal = document.createElement('div');
+            corrVal.className = 'rc-val correct-ans';
+            corrVal.textContent = s.answer;
+
+            ansBlock.appendChild(corrLbl);
+            ansBlock.appendChild(corrVal);
+
+            /* -- Rationale -- */
+            var rationale = document.createElement('div');
+            rationale.className = 'rc-rationale';
+            rationale.textContent = s.rationale;
+
+            card.appendChild(head);
+            card.appendChild(scenText);
+            card.appendChild(ansBlock);
+            card.appendChild(rationale);
+
+            container.appendChild(card);
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       RESET ALL — clears answers and all visual state for a fresh attempt
+       ------------------------------------------------------------------ */
+    function resetAll() {
+        answers   = {};
+        submitted = false;
+
+        /* Re-render scenario rows from scratch (cleanest reset) */
+        renderScenarios();
+
+        /* Hide results panel */
+        document.getElementById('resultsPanel').classList.remove('visible');
+        document.getElementById('passBanner').classList.remove('visible');
+        document.getElementById('resultCards').innerHTML = '';
+    }
+
+    /* ------------------------------------------------------------------
+       BOOT
+       ------------------------------------------------------------------ */
+    renderScenarios();
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ─────────────────────────────
+     Docs: _docs/operations/dr-hex-button-integration.md              ── -->
+<hex-ai-button mission-id="pbq-crypto-selection" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+
+</body>
+</html>

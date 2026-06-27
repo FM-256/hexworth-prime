@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="/components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="/components/ModuleProgress.js"></script>
+<script src="/components/FirebaseAuth.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PBQ: Firewall Ruleset Configuration | Security+</title>
+<style>
+    /* ============================================================
+       ROOT VARIABLES — Security+ Shield theme
+       ============================================================ */
+    :root {
+        --bg:           #08090f;
+        --bg-card:      #0e0f1b;
+        --bg-panel:     #12131e;
+        --bg-input:     #0a0b14;
+        --border:       rgba(139, 92, 246, 0.18);
+        --border-hi:    rgba(139, 92, 246, 0.55);
+        --accent:       #8b5cf6;
+        --accent-dim:   rgba(139, 92, 246, 0.12);
+        --accent-glow:  rgba(139, 92, 246, 0.22);
+        --text:         #e2e8f0;
+        --text-dim:     #64748b;
+        --text-mid:     #94a3b8;
+        --success:      #22c55e;
+        --success-bg:   rgba(34, 197, 94, 0.12);
+        --danger:       #ef4444;
+        --danger-bg:    rgba(239, 68, 68, 0.12);
+        --warn:         #f59e0b;
+        --warn-bg:      rgba(245, 158, 11, 0.10);
+        /* Zone colour palette */
+        --z-internet:   #ef4444;
+        --z-internet-b: rgba(239, 68, 68, 0.14);
+        --z-dmz:        #f59e0b;
+        --z-dmz-b:      rgba(245, 158, 11, 0.14);
+        --z-internal:   #22c55e;
+        --z-internal-b: rgba(34, 197, 94, 0.14);
+        --z-any:        #94a3b8;
+        --z-any-b:      rgba(148, 163, 184, 0.10);
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.6;
+    }
+
+    /* ============================================================
+       NAV BAR
+       ============================================================ */
+    .lab-nav {
+        padding: 11px 24px;
+        background: #0b0c17;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .lab-nav a {
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 0.84rem;
+        transition: color 0.2s;
+    }
+    .lab-nav a:hover { color: var(--accent); }
+    .lab-nav .badge {
+        background: rgba(139,92,246,0.14);
+        color: var(--accent);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        padding: 3px 9px;
+        border-radius: 4px;
+    }
+    .lab-nav .domain-tag {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--text-dim);
+    }
+
+    /* ============================================================
+       FULL-BLEED OUTER WRAPPER
+       ============================================================ */
+    .lab-outer {
+        padding: 0;
+        width: 100%;
+    }
+
+    /* ============================================================
+       HEADER / SCENARIO — spans full width
+       ============================================================ */
+    .lab-header {
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border-hi);
+        padding: 1.5rem 2rem 1.25rem;
+        box-shadow: 0 4px 24px var(--accent-glow);
+    }
+    .lab-header-inner {
+        max-width: 100%;
+        display: flex;
+        align-items: flex-start;
+        gap: 2rem;
+        flex-wrap: wrap;
+    }
+    .lab-header-text { flex: 1; min-width: 0; }
+    .pbq-tag {
+        display: inline-block;
+        background: rgba(239,68,68,0.15);
+        color: #f87171;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        padding: 2px 8px;
+        border-radius: 3px;
+        margin-bottom: 0.6rem;
+    }
+    .lab-header h1 {
+        font-size: 1.55rem;
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.35rem;
+        letter-spacing: -0.3px;
+    }
+    .scenario-text {
+        font-size: 0.88rem;
+        color: var(--text-mid);
+        max-width: 760px;
+    }
+    .scenario-text strong { color: var(--text); }
+    .lab-meta {
+        display: flex;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+        margin-top: 0.75rem;
+        font-size: 0.78rem;
+        color: var(--text-dim);
+    }
+    .lab-meta span { color: var(--text-mid); }
+    .lab-meta .sep { color: var(--text-dim); }
+
+    /* ============================================================
+       MAIN GRID — left panel (requirements + topology) + right (rules)
+       ============================================================ */
+    .lab-grid {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 0;
+        min-height: calc(100vh - 130px);
+    }
+
+    /* ============================================================
+       LEFT PANEL — requirements + topology
+       ============================================================ */
+    .left-panel {
+        background: var(--bg-panel);
+        border-right: 1px solid rgba(255,255,255,0.06);
+        padding: 1.5rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .panel-section-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.9px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 0.75rem;
+    }
+
+    /* --- Zone legend --- */
+    .zone-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+    }
+    .zone-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: var(--text-mid);
+    }
+    .zone-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .zone-item small {
+        color: var(--text-dim);
+        font-size: 0.71rem;
+        margin-left: auto;
+    }
+
+    /* --- Topology SVG diagram --- */
+    .topo-wrap {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem;
+    }
+    .topo-wrap svg {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    /* --- Requirements list --- */
+    .req-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    .req-list li {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 0.6rem 0.75rem;
+        font-size: 0.79rem;
+        color: var(--text-mid);
+        counter-increment: req-counter;
+        display: flex;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    .req-num {
+        background: var(--accent-dim);
+        color: var(--accent);
+        font-size: 0.67rem;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 3px;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    /* --- Ordering tip --- */
+    .order-tip {
+        background: var(--warn-bg);
+        border: 1px solid rgba(245,158,11,0.28);
+        border-left: 3px solid var(--warn);
+        border-radius: 0 7px 7px 0;
+        padding: 0.65rem 0.85rem;
+        font-size: 0.78rem;
+        color: var(--text-mid);
+    }
+    .order-tip strong { color: var(--warn); }
+
+    /* ============================================================
+       RIGHT PANEL — rule table workspace
+       ============================================================ */
+    .right-panel {
+        padding: 1.5rem 1.75rem 2.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .workspace-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 0.25rem;
+    }
+    .workspace-subtitle {
+        font-size: 0.82rem;
+        color: var(--text-dim);
+        margin-bottom: 1rem;
+    }
+
+    /* ============================================================
+       RULE TABLE
+       ============================================================ */
+    .rule-table-wrap {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .rule-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .rule-table thead tr {
+        background: var(--bg-panel);
+        border-bottom: 1px solid var(--border-hi);
+    }
+    .rule-table thead th {
+        padding: 0.65rem 0.75rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        text-align: left;
+        white-space: nowrap;
+    }
+    .rule-table thead th:first-child {
+        width: 52px;
+        text-align: center;
+    }
+    .rule-table thead th.col-action  { width: 110px; }
+    .rule-table thead th.col-src     { width: 145px; }
+    .rule-table thead th.col-dst     { width: 145px; }
+    .rule-table thead th.col-svc     { width: 160px; }
+    .rule-table thead th.col-proto   { width: 110px; }
+
+    .rule-table tbody tr {
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        transition: background 0.15s;
+    }
+    .rule-table tbody tr:last-child { border-bottom: none; }
+    .rule-table tbody tr:hover { background: rgba(139,92,246,0.04); }
+
+    .rule-table tbody td {
+        padding: 0.6rem 0.75rem;
+        vertical-align: middle;
+    }
+    .rule-table tbody td:first-child {
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--text-dim);
+    }
+
+    /* Order badge */
+    .rule-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        background: var(--accent-dim);
+        color: var(--accent);
+        border-radius: 50%;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    /* Select dropdowns in the rule table */
+    .rule-select {
+        background: var(--bg-input);
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 0.82rem;
+        padding: 0.38rem 1.8rem 0.38rem 0.55rem;
+        width: 100%;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .rule-select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-dim);
+    }
+
+    /* Action select: colour by value */
+    .rule-select.action-allow { color: var(--success); }
+    .rule-select.action-deny  { color: var(--danger); }
+
+    /* Zone select: colour by value */
+    .rule-select.zone-internet { color: var(--z-internet); }
+    .rule-select.zone-dmz      { color: var(--z-dmz); }
+    .rule-select.zone-internal { color: var(--z-internal); }
+    .rule-select.zone-any      { color: var(--z-any); }
+
+    /* Service/protocol colour hints */
+    .rule-select.svc-https     { color: #38bdf8; }
+    .rule-select.svc-http      { color: var(--warn); }
+    .rule-select.svc-ssh       { color: #a78bfa; }
+    .rule-select.svc-dns       { color: #34d399; }
+    .rule-select.svc-any       { color: var(--text-dim); }
+    .rule-select.proto-any     { color: var(--text-dim); }
+
+    /* ============================================================
+       SUBMIT AREA
+       ============================================================ */
+    .submit-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+    }
+    .submit-section h2 {
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 0.9rem;
+    }
+    .submit-note {
+        font-size: 0.82rem;
+        color: var(--text-mid);
+        margin-bottom: 1rem;
+    }
+    .submit-btn-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .btn-check {
+        padding: 0.6rem 2rem;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.12s, box-shadow 0.2s;
+    }
+    .btn-check:hover {
+        opacity: 0.88;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .btn-reset-all {
+        padding: 0.6rem 1.5rem;
+        background: transparent;
+        color: var(--text-dim);
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-reset-all:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ============================================================
+       RESULTS PANEL
+       ============================================================ */
+    .results-panel {
+        display: none;
+        margin-top: 1.25rem;
+    }
+    .results-panel.visible { display: block; }
+
+    /* Score bar */
+    .results-score {
+        background: var(--bg-panel);
+        border-radius: 10px;
+        padding: 1.2rem 1.5rem;
+        margin-bottom: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .score-num {
+        font-size: 2.6rem;
+        font-weight: 800;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+    .score-num.pass { color: var(--success); }
+    .score-num.fail { color: var(--danger); }
+    .score-right {}
+    .score-label {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+    }
+    .score-verdict {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-top: 0.25rem;
+    }
+    .score-verdict.pass { color: var(--success); }
+    .score-verdict.fail { color: var(--danger); }
+
+    /* Per-rule result cards */
+    .results-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .result-card {
+        background: var(--bg-panel);
+        border: 1px solid transparent;
+        border-radius: 9px;
+        padding: 0.85rem 1.1rem;
+        display: grid;
+        grid-template-columns: 32px 1fr;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+    .result-card.correct {
+        border-color: rgba(34,197,94,0.30);
+        background: var(--success-bg);
+    }
+    .result-card.incorrect {
+        border-color: rgba(239,68,68,0.30);
+        background: var(--danger-bg);
+    }
+
+    .result-icon-col {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-top: 2px;
+    }
+    .result-status-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        padding: 3px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+    .result-card.correct .result-status-badge {
+        background: rgba(34,197,94,0.18);
+        color: var(--success);
+    }
+    .result-card.incorrect .result-status-badge {
+        background: rgba(239,68,68,0.18);
+        color: var(--danger);
+    }
+
+    .result-body {}
+    .result-rule-line {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .result-rule-num {
+        font-size: 0.7rem;
+        color: var(--text-dim);
+        font-weight: 400;
+    }
+    .result-mismatch {
+        font-size: 0.78rem;
+        color: var(--danger);
+        margin-top: 0.2rem;
+    }
+    .result-why {
+        font-size: 0.77rem;
+        color: var(--text-mid);
+        margin-top: 0.3rem;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        padding-top: 0.3rem;
+    }
+    .result-why strong { color: var(--text); }
+
+    /* Pass banner */
+    .pass-banner {
+        display: none;
+        background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(139,92,246,0.08));
+        border: 1px solid rgba(34,197,94,0.40);
+        border-radius: 10px;
+        padding: 1.25rem 1.75rem;
+        margin-top: 1rem;
+        text-align: center;
+    }
+    .pass-banner.visible { display: block; }
+    .pass-banner-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--success);
+        margin-bottom: 0.35rem;
+    }
+    .pass-banner p {
+        font-size: 0.84rem;
+        color: var(--text-mid);
+    }
+
+    /* Try Again button (shown inside results when failed) */
+    .btn-try-again {
+        margin-top: 1rem;
+        padding: 0.55rem 1.75rem;
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.18s, color 0.18s;
+    }
+    .btn-try-again:hover {
+        background: var(--accent);
+        color: #fff;
+    }
+
+    /* ============================================================
+       CRITICAL ORDER WARNING (shown when deny-all is not last)
+       ============================================================ */
+    .order-warning {
+        display: none;
+        background: rgba(239,68,68,0.10);
+        border: 1px solid rgba(239,68,68,0.35);
+        border-left: 3px solid var(--danger);
+        border-radius: 0 8px 8px 0;
+        padding: 0.7rem 1rem;
+        font-size: 0.8rem;
+        color: #fca5a5;
+        margin-bottom: 0.75rem;
+    }
+    .order-warning.visible { display: block; }
+    .order-warning strong { color: var(--danger); }
+
+    /* ============================================================
+       RESPONSIVE — collapse to single column below 900px
+       ============================================================ */
+    @media (max-width: 900px) {
+        .lab-grid {
+            grid-template-columns: 1fr;
+        }
+        .left-panel {
+            border-right: none;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+    }
+</style>
+</head>
+<body>
+
+<!-- Navigation bar -->
+<nav class="lab-nav">
+    <a href="../index.html">&larr; Security+ Hub</a>
+    <span class="badge">PBQ LAB</span>
+    <span class="domain-tag">Domain 4.5 &mdash; Firewall / 3.x Secure Architecture</span>
+</nav>
+
+<div class="lab-outer">
+
+    <!-- ==============================================================
+         HEADER — spans full width
+         ============================================================== -->
+    <header class="lab-header">
+        <div class="lab-header-inner">
+            <div class="lab-header-text">
+                <span class="pbq-tag">PERFORMANCE-BASED QUESTION</span>
+                <h1>Firewall Ruleset Configuration</h1>
+                <p class="scenario-text">
+                    <strong>Veridian Financial</strong> operates a perimeter firewall protecting three network zones.
+                    You are the security engineer responsible for defining the ordered ACL that enforces the
+                    company's security requirements. Configure all 7 rules in the correct order and with correct
+                    values &mdash; order matters.
+                </p>
+                <div class="lab-meta">
+                    <span>SY0-701 Domain 4.5</span>
+                    <span class="sep">|</span>
+                    <span>Firewall Policy / Least Privilege</span>
+                    <span class="sep">|</span>
+                    <span>7 Rules to Configure</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==============================================================
+         MAIN GRID — left requirements + right rule table
+         ============================================================== -->
+    <div class="lab-grid">
+
+        <!-- ============================================================
+             LEFT PANEL
+             ============================================================ -->
+        <aside class="left-panel">
+
+            <!-- Zone legend -->
+            <div>
+                <div class="panel-section-title">Network Zones</div>
+                <div class="zone-legend">
+                    <div class="zone-item">
+                        <div class="zone-dot" style="background:var(--z-internet)"></div>
+                        <span>INTERNET</span>
+                        <small>Untrusted / Public</small>
+                    </div>
+                    <div class="zone-item">
+                        <div class="zone-dot" style="background:var(--z-dmz)"></div>
+                        <span>DMZ &mdash; 10.10.50.0/24</span>
+                        <small>Semi-trusted</small>
+                    </div>
+                    <div class="zone-item">
+                        <div class="zone-dot" style="background:var(--z-internal)"></div>
+                        <span>INTERNAL &mdash; 10.10.0.0/16</span>
+                        <small>Trusted / Staff</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topology diagram (SVG, no emoji, no external imgs) -->
+            <div>
+                <div class="panel-section-title">Network Topology</div>
+                <div class="topo-wrap">
+                    <svg viewBox="0 0 290 260" xmlns="http://www.w3.org/2000/svg"
+                         role="img" aria-label="Veridian Financial firewall topology">
+                        <defs>
+                            <marker id="arr" markerWidth="6" markerHeight="6"
+                                    refX="3" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L6,3 z" fill="#64748b"/>
+                            </marker>
+                        </defs>
+
+                        <!-- INTERNET box -->
+                        <rect x="95" y="8" width="100" height="38" rx="6"
+                              fill="rgba(239,68,68,0.12)" stroke="rgba(239,68,68,0.5)" stroke-width="1.2"/>
+                        <text x="145" y="23" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="9.5"
+                              font-weight="700" fill="#ef4444">INTERNET</text>
+                        <text x="145" y="38" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="7.5"
+                              fill="#94a3b8">Untrusted / Public</text>
+
+                        <!-- Arrow down to firewall -->
+                        <line x1="145" y1="46" x2="145" y2="82"
+                              stroke="#64748b" stroke-width="1.3"
+                              stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+                        <!-- Firewall box (center) -->
+                        <rect x="82" y="82" width="126" height="42" rx="7"
+                              fill="rgba(139,92,246,0.14)" stroke="rgba(139,92,246,0.65)" stroke-width="1.5"/>
+                        <text x="145" y="98" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="9.5"
+                              font-weight="700" fill="#8b5cf6">PERIMETER FIREWALL</text>
+                        <text x="145" y="115" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="7"
+                              fill="#94a3b8">Ordered ACL Policy</text>
+
+                        <!-- Arrow down-left to DMZ -->
+                        <line x1="115" y1="124" x2="75" y2="162"
+                              stroke="#64748b" stroke-width="1.3" marker-end="url(#arr)"/>
+                        <!-- Arrow down-right to INTERNAL -->
+                        <line x1="175" y1="124" x2="215" y2="162"
+                              stroke="#64748b" stroke-width="1.3" marker-end="url(#arr)"/>
+
+                        <!-- DMZ box -->
+                        <rect x="10" y="162" width="130" height="46" rx="6"
+                              fill="rgba(245,158,11,0.10)" stroke="rgba(245,158,11,0.45)" stroke-width="1.2"/>
+                        <text x="75" y="177" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="9"
+                              font-weight="700" fill="#f59e0b">DMZ</text>
+                        <text x="75" y="191" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="7.2"
+                              fill="#94a3b8">10.10.50.0/24</text>
+                        <text x="75" y="202" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="7"
+                              fill="#64748b">WEB-DMZ: 10.10.50.10</text>
+
+                        <!-- INTERNAL box -->
+                        <rect x="150" y="162" width="130" height="46" rx="6"
+                              fill="rgba(34,197,94,0.10)" stroke="rgba(34,197,94,0.40)" stroke-width="1.2"/>
+                        <text x="215" y="177" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="9"
+                              font-weight="700" fill="#22c55e">INTERNAL</text>
+                        <text x="215" y="191" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="7.2"
+                              fill="#94a3b8">10.10.0.0/16</text>
+                        <text x="215" y="202" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="7"
+                              fill="#64748b">Staff workstations</text>
+
+                        <!-- Server icon in DMZ -->
+                        <rect x="55" y="220" width="40" height="22" rx="3"
+                              fill="none" stroke="rgba(245,158,11,0.35)" stroke-width="1"/>
+                        <text x="75" y="234" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="7.5"
+                              fill="#f59e0b">WEB-DMZ</text>
+
+                        <!-- Label for firewall legend -->
+                        <text x="145" y="252" text-anchor="middle"
+                              font-family="Segoe UI,system-ui,sans-serif" font-size="7"
+                              fill="#475569">Rules evaluated top-to-bottom, first match wins</text>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Security Requirements -->
+            <div>
+                <div class="panel-section-title">Security Requirements</div>
+                <ol class="req-list">
+                    <li>
+                        <span class="req-num">R1</span>
+                        The Internet must be able to reach the public web server in the DMZ over HTTPS (443) only.
+                    </li>
+                    <li>
+                        <span class="req-num">R2</span>
+                        Unencrypted HTTP (80) from the Internet to the DMZ must be blocked.
+                    </li>
+                    <li>
+                        <span class="req-num">R3</span>
+                        Internet traffic must never reach the Internal network directly.
+                    </li>
+                    <li>
+                        <span class="req-num">R4</span>
+                        Internal staff must be able to browse the Internet over HTTPS.
+                    </li>
+                    <li>
+                        <span class="req-num">R5</span>
+                        Internal admins must be able to manage the DMZ web server over SSH (22).
+                    </li>
+                    <li>
+                        <span class="req-num">R6</span>
+                        A compromised DMZ host must not be able to connect to Internal systems.
+                    </li>
+                    <li>
+                        <span class="req-num">R7</span>
+                        All other traffic not explicitly permitted must be blocked.
+                    </li>
+                </ol>
+            </div>
+
+            <!-- Order tip -->
+            <div class="order-tip">
+                <strong>Order matters:</strong> Firewall ACLs are evaluated top-to-bottom.
+                The first matching rule wins. A broad deny placed too early will block
+                everything below it &mdash; even legitimate allows.
+            </div>
+
+        </aside>
+
+        <!-- ============================================================
+             RIGHT PANEL — rule table + submit
+             ============================================================ -->
+        <main class="right-panel">
+
+            <div>
+                <div class="workspace-title">ACL Workspace</div>
+                <p class="workspace-subtitle">
+                    Configure each rule using the dropdowns. Rules are evaluated in order (1 first).
+                    Select the correct Action, Source Zone, Destination Zone, Service/Port, and Protocol.
+                </p>
+            </div>
+
+            <!-- Critical order warning (shown dynamically) -->
+            <div class="order-warning" id="orderWarning">
+                <strong>Order conflict detected:</strong> Your broad deny-all rule (Any to Any) is not
+                in position 7 &mdash; it will block rules below it before they can be evaluated.
+                Move it to the last position.
+            </div>
+
+            <!-- Rule table -->
+            <div class="rule-table-wrap">
+                <table class="rule-table" id="ruleTable" aria-label="Firewall ACL configuration table">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col" class="col-action">Action</th>
+                            <th scope="col" class="col-src">Source Zone</th>
+                            <th scope="col" class="col-dst">Destination Zone</th>
+                            <th scope="col" class="col-svc">Service / Port</th>
+                            <th scope="col" class="col-proto">Protocol</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ruleTableBody">
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Submit section -->
+            <div class="submit-section">
+                <h2>Check Configuration</h2>
+                <p class="submit-note">
+                    All 7 rules must be correct to pass. If any rule is wrong you will see a specific
+                    explanation &mdash; fix and re-check.
+                </p>
+                <div class="submit-btn-row">
+                    <button class="btn-check" onclick="checkConfiguration()">Check Configuration</button>
+                    <button class="btn-reset-all" onclick="resetAll()">Reset All Rules</button>
+                </div>
+
+                <!-- Results panel (hidden until checked) -->
+                <div class="results-panel" id="resultsPanel">
+
+                    <div class="results-score" id="resultsScore">
+                        <div class="score-num" id="scoreNum">0/7</div>
+                        <div class="score-right">
+                            <div class="score-label">rules configured correctly</div>
+                            <div class="score-verdict" id="scoreVerdict"></div>
+                        </div>
+                    </div>
+
+                    <div class="results-list" id="resultsList"></div>
+
+                    <div id="tryAgainRow" style="display:none;">
+                        <button class="btn-try-again" onclick="dismissResults()">Fix Rules &amp; Try Again</button>
+                    </div>
+
+                    <div class="pass-banner" id="passBanner">
+                        <div class="pass-banner-title">Configuration Verified &mdash; All 7 Rules Correct</div>
+                        <p>
+                            Your ACL correctly implements least privilege, explicit deny, DMZ isolation,
+                            and an implicit-deny catch-all. Veridian Financial's perimeter is properly hardened.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+    </div><!-- /.lab-grid -->
+</div><!-- /.lab-outer -->
+
+<!-- ==============================================================
+     JAVASCRIPT
+     ============================================================== -->
+<script>
+    /* ------------------------------------------------------------------
+       ANSWER KEY
+       Each entry mirrors a rule row the student must fill in.
+       Fields: action, src, dst, service, protocol
+       Values must match the option values in buildRow() exactly.
+       ------------------------------------------------------------------ */
+    var ANSWER_KEY = [
+        /* Rule 1 */ { action:'allow', src:'internet', dst:'dmz',      service:'https', protocol:'tcp' },
+        /* Rule 2 */ { action:'deny',  src:'internet', dst:'dmz',      service:'http',  protocol:'tcp' },
+        /* Rule 3 */ { action:'deny',  src:'internet', dst:'internal', service:'any',   protocol:'any' },
+        /* Rule 4 */ { action:'allow', src:'internal', dst:'internet', service:'https', protocol:'tcp' },
+        /* Rule 5 */ { action:'allow', src:'internal', dst:'dmz',      service:'ssh',   protocol:'tcp' },
+        /* Rule 6 */ { action:'deny',  src:'dmz',      dst:'internal', service:'any',   protocol:'any' },
+        /* Rule 7 */ { action:'deny',  src:'any',      dst:'any',      service:'any',   protocol:'any' }
+    ];
+
+    /* Teaching explanations: why each rule is correct, shown in results pass cards */
+    var RULE_WHY = [
+        'HTTPS/443 is the only protocol required for the public web server. Allowing only TLS traffic enforces encryption and limits attack surface.',
+        'Blocking plaintext HTTP prevents credential interception and forces clients to use the encrypted channel (rule 1).',
+        'The Internet should never bypass the DMZ to reach Internal systems. This broad deny enforces network segmentation before any Internal-specific rules.',
+        'Staff need outbound web browsing. Allowing Internal to Internet over HTTPS provides this without opening inbound attack paths.',
+        'SSH (22) over TCP gives administrators a secure management channel to the web server in the DMZ. Access is limited to Internal only.',
+        'A compromised DMZ host must not be able to initiate connections into the Internal network &mdash; this rule stops lateral movement from the DMZ.',
+        'An explicit implicit-deny catch-all blocks everything not previously permitted. This enforces default-deny and closes any gaps.'
+    ];
+
+    /* Mismatch feedback templates — keyed on which field is wrong */
+    var FIELD_LABELS = {
+        action:   'Action',
+        src:      'Source Zone',
+        dst:      'Destination Zone',
+        service:  'Service/Port',
+        protocol: 'Protocol'
+    };
+
+    /* ------------------------------------------------------------------
+       INITIAL (DEFAULT) STATE — intentionally blank so students must work
+       ------------------------------------------------------------------ */
+    var INITIAL = [
+        { action:'', src:'', dst:'', service:'', protocol:'' },
+        { action:'', src:'', dst:'', service:'', protocol:'' },
+        { action:'', src:'', dst:'', service:'', protocol:'' },
+        { action:'', src:'', dst:'', service:'', protocol:'' },
+        { action:'', src:'', dst:'', service:'', protocol:'' },
+        { action:'', src:'', dst:'', service:'', protocol:'' },
+        { action:'', src:'', dst:'', service:'', protocol:'' }
+    ];
+
+    /* Live rule state, updated from dropdowns on each check */
+    var ruleState = [];
+
+    /* ------------------------------------------------------------------
+       BUILD ROW HTML (called once at init)
+       Creates a table row with 5 dropdowns for a given rule index.
+       ------------------------------------------------------------------ */
+    function buildRow(idx) {
+        var ruleNum = idx + 1;
+        var tr = document.createElement('tr');
+        tr.id = 'ruleRow' + idx;
+
+        /* Column 1: Rule number badge */
+        var tdNum = document.createElement('td');
+        var numBadge = document.createElement('span');
+        numBadge.className = 'rule-num';
+        numBadge.textContent = ruleNum;
+        tdNum.appendChild(numBadge);
+        tr.appendChild(tdNum);
+
+        /* Column 2: Action */
+        tr.appendChild(buildSelectCell(idx, 'action', 'Action', [
+            { value: '',      label: '-- Select --' },
+            { value: 'allow', label: 'Allow' },
+            { value: 'deny',  label: 'Deny' }
+        ]));
+
+        /* Column 3: Source Zone */
+        tr.appendChild(buildSelectCell(idx, 'src', 'Source Zone', [
+            { value: '',         label: '-- Select --' },
+            { value: 'internet', label: 'INTERNET' },
+            { value: 'dmz',      label: 'DMZ' },
+            { value: 'internal', label: 'INTERNAL' },
+            { value: 'any',      label: 'Any' }
+        ]));
+
+        /* Column 4: Destination Zone */
+        tr.appendChild(buildSelectCell(idx, 'dst', 'Destination Zone', [
+            { value: '',         label: '-- Select --' },
+            { value: 'internet', label: 'INTERNET' },
+            { value: 'dmz',      label: 'DMZ' },
+            { value: 'internal', label: 'INTERNAL' },
+            { value: 'any',      label: 'Any' }
+        ]));
+
+        /* Column 5: Service / Port */
+        tr.appendChild(buildSelectCell(idx, 'service', 'Service/Port', [
+            { value: '',      label: '-- Select --' },
+            { value: 'https', label: 'HTTPS / 443' },
+            { value: 'http',  label: 'HTTP / 80' },
+            { value: 'ssh',   label: 'SSH / 22' },
+            { value: 'dns',   label: 'DNS / 53' },
+            { value: 'any',   label: 'Any' }
+        ]));
+
+        /* Column 6: Protocol */
+        tr.appendChild(buildSelectCell(idx, 'protocol', 'Protocol', [
+            { value: '',    label: '-- Select --' },
+            { value: 'tcp', label: 'TCP' },
+            { value: 'udp', label: 'UDP' },
+            { value: 'any', label: 'Any' }
+        ]));
+
+        return tr;
+    }
+
+    /* Builds a <td> containing a <select> with semantic id */
+    function buildSelectCell(ruleIdx, field, ariaLabel, options) {
+        var td = document.createElement('td');
+        var sel = document.createElement('select');
+        sel.className = 'rule-select';
+        sel.id = 'rule' + ruleIdx + '_' + field;
+        sel.setAttribute('aria-label', 'Rule ' + (ruleIdx + 1) + ' ' + ariaLabel);
+
+        for (var i = 0; i < options.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = options[i].value;
+            /* textContent is safe — no user data here */
+            opt.textContent = options[i].label;
+            sel.appendChild(opt);
+        }
+
+        /* Live colour update on change */
+        (function(s, f) {
+            s.addEventListener('change', function() {
+                applySelectColour(s, f);
+            });
+        })(sel, field);
+
+        td.appendChild(sel);
+        return td;
+    }
+
+    /* Applies a CSS class to a select based on its current value and field type */
+    function applySelectColour(sel, field) {
+        /* Strip all contextual colour classes */
+        sel.className = 'rule-select';
+        var v = sel.value;
+        if (!v) { return; }
+
+        if (field === 'action') {
+            sel.classList.add(v === 'allow' ? 'action-allow' : 'action-deny');
+        } else if (field === 'src' || field === 'dst') {
+            var zoneMap = {
+                internet: 'zone-internet',
+                dmz:      'zone-dmz',
+                internal: 'zone-internal',
+                any:      'zone-any'
+            };
+            if (zoneMap[v]) { sel.classList.add(zoneMap[v]); }
+        } else if (field === 'service') {
+            var svcMap = {
+                https: 'svc-https',
+                http:  'svc-http',
+                ssh:   'svc-ssh',
+                dns:   'svc-dns',
+                any:   'svc-any'
+            };
+            if (svcMap[v]) { sel.classList.add(svcMap[v]); }
+        } else if (field === 'protocol') {
+            if (v === 'any') { sel.classList.add('proto-any'); }
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       INIT — render all 7 rule rows
+       ------------------------------------------------------------------ */
+    function init() {
+        var tbody = document.getElementById('ruleTableBody');
+        tbody.innerHTML = '';
+        ruleState = [];
+
+        for (var i = 0; i < 7; i++) {
+            ruleState.push({ action:'', src:'', dst:'', service:'', protocol:'' });
+            tbody.appendChild(buildRow(i));
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       READ CURRENT RULE STATE from the DOM dropdowns
+       ------------------------------------------------------------------ */
+    function readRuleState() {
+        var fields = ['action', 'src', 'dst', 'service', 'protocol'];
+        for (var i = 0; i < 7; i++) {
+            for (var f = 0; f < fields.length; f++) {
+                var field = fields[f];
+                var sel = document.getElementById('rule' + i + '_' + field);
+                ruleState[i][field] = sel ? sel.value : '';
+            }
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       CHECK CONFIGURATION
+       Grades all 7 rules against ANSWER_KEY, shows per-rule feedback.
+       Completion fires ONLY when all 7 are correct.
+       ------------------------------------------------------------------ */
+    function checkConfiguration() {
+        readRuleState();
+
+        /* Check for dead-before-rule-7 deny-all (order education) */
+        var earlyDenyAll = false;
+        for (var i = 0; i < 6; i++) {
+            var r = ruleState[i];
+            if (r.action === 'deny' && r.src === 'any' && r.dst === 'any' &&
+                r.service === 'any' && r.protocol === 'any') {
+                earlyDenyAll = true;
+                break;
+            }
+        }
+        var orderWarning = document.getElementById('orderWarning');
+        if (earlyDenyAll) {
+            orderWarning.classList.add('visible');
+        } else {
+            orderWarning.classList.remove('visible');
+        }
+
+        /* Grade each rule */
+        var correctCount = 0;
+        var ruleResults = [];
+
+        for (var j = 0; j < 7; j++) {
+            var student = ruleState[j];
+            var correct = ANSWER_KEY[j];
+            var fields = ['action', 'src', 'dst', 'service', 'protocol'];
+            var wrongField = null;
+
+            for (var k = 0; k < fields.length; k++) {
+                if (student[fields[k]] !== correct[fields[k]]) {
+                    wrongField = fields[k];
+                    break;  /* Report first mismatch (most actionable) */
+                }
+            }
+
+            var isCorrect = (wrongField === null);
+            if (isCorrect) { correctCount++; }
+
+            ruleResults.push({
+                ruleNum:    j + 1,
+                isCorrect:  isCorrect,
+                wrongField: wrongField,
+                student:    student,
+                correct:    correct
+            });
+        }
+
+        var allCorrect = (correctCount === 7);
+
+        /* --- Score display --- */
+        var scoreNumEl   = document.getElementById('scoreNum');
+        var scoreVerdict = document.getElementById('scoreVerdict');
+        scoreNumEl.textContent = correctCount + '/7';
+        scoreNumEl.className   = 'score-num ' + (allCorrect ? 'pass' : 'fail');
+
+        if (allCorrect) {
+            scoreVerdict.textContent = 'PASS &mdash; All rules correctly configured';
+            scoreVerdict.className   = 'score-verdict pass';
+        } else {
+            scoreVerdict.textContent = 'NEEDS WORK &mdash; ' + (7 - correctCount) + ' rule(s) incorrect';
+            scoreVerdict.className   = 'score-verdict fail';
+        }
+        /* Use innerHTML only for controlled static string (no user input) */
+        scoreVerdict.innerHTML = scoreVerdict.textContent;
+
+        /* --- Per-rule result cards --- */
+        var list = document.getElementById('resultsList');
+        list.innerHTML = '';
+
+        for (var m = 0; m < ruleResults.length; m++) {
+            var res  = ruleResults[m];
+            var card = document.createElement('div');
+            card.className = 'result-card ' + (res.isCorrect ? 'correct' : 'incorrect');
+
+            /* Status badge column */
+            var iconCol = document.createElement('div');
+            iconCol.className = 'result-icon-col';
+            var badge = document.createElement('span');
+            badge.className = 'result-status-badge';
+            badge.textContent = res.isCorrect ? 'OK' : 'WRONG';
+            iconCol.appendChild(badge);
+            card.appendChild(iconCol);
+
+            /* Body column */
+            var body = document.createElement('div');
+            body.className = 'result-body';
+
+            /* Rule summary line */
+            var ruleLine = document.createElement('div');
+            ruleLine.className = 'result-rule-line';
+
+            var rNumSpan = document.createElement('span');
+            rNumSpan.className = 'result-rule-num';
+            rNumSpan.textContent = 'Rule ' + res.ruleNum + ':';
+            ruleLine.appendChild(rNumSpan);
+
+            /* Build a short canonical description of the correct rule */
+            var canonDesc = document.createTextNode(
+                buildRuleDesc(res.correct)
+            );
+            ruleLine.appendChild(canonDesc);
+            body.appendChild(ruleLine);
+
+            /* Mismatch explanation (if wrong) */
+            if (!res.isCorrect && res.wrongField) {
+                var mismatch = document.createElement('div');
+                mismatch.className = 'result-mismatch';
+                mismatch.textContent = buildMismatchMsg(res.wrongField, res.student, res.correct, res.ruleNum);
+                body.appendChild(mismatch);
+            }
+
+            /* Why explanation */
+            var why = document.createElement('div');
+            why.className = 'result-why';
+
+            var whyLabel = document.createElement('strong');
+            whyLabel.textContent = 'Why: ';
+            why.appendChild(whyLabel);
+            why.appendChild(document.createTextNode(RULE_WHY[m]));
+            body.appendChild(why);
+
+            card.appendChild(body);
+            list.appendChild(card);
+        }
+
+        /* --- Try Again / Pass controls --- */
+        var tryAgainRow = document.getElementById('tryAgainRow');
+        var passBanner  = document.getElementById('passBanner');
+
+        if (allCorrect) {
+            passBanner.classList.add('visible');
+            tryAgainRow.style.display = 'none';
+
+            /* Score-gated completion — fires ONLY when all 7 are correct */
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('shield', 'shield-pbq-firewall-config', { returnUrl: '../index.html' });
+            }
+        } else {
+            passBanner.classList.remove('visible');
+            tryAgainRow.style.display = 'block';
+        }
+
+        /* Show results panel */
+        var panel = document.getElementById('resultsPanel');
+        panel.classList.add('visible');
+
+        /* Scroll results into view */
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ------------------------------------------------------------------
+       BUILD RULE DESC
+       Formats the canonical answer as a short readable string.
+       ------------------------------------------------------------------ */
+    function buildRuleDesc(rule) {
+        var actionLabel   = rule.action.charAt(0).toUpperCase() + rule.action.slice(1);
+        var srcLabel      = zoneLabel(rule.src);
+        var dstLabel      = zoneLabel(rule.dst);
+        var serviceLabel  = serviceDisplayLabel(rule.service);
+        var protocolLabel = rule.protocol.toUpperCase();
+        return actionLabel + '  ' + srcLabel + ' -> ' + dstLabel
+            + '  ' + serviceLabel + '  ' + protocolLabel;
+    }
+
+    function zoneLabel(v) {
+        var map = { internet:'INTERNET', dmz:'DMZ', internal:'INTERNAL', any:'Any' };
+        return map[v] || v;
+    }
+
+    function serviceDisplayLabel(v) {
+        var map = { https:'HTTPS/443', http:'HTTP/80', ssh:'SSH/22', dns:'DNS/53', any:'Any' };
+        return map[v] || v;
+    }
+
+    /* ------------------------------------------------------------------
+       BUILD MISMATCH MESSAGE
+       Returns a specific, educational description of what is wrong.
+       ------------------------------------------------------------------ */
+    function buildMismatchMsg(wrongField, student, correct, ruleNum) {
+        var fieldName = FIELD_LABELS[wrongField] || wrongField;
+        var got       = valueLabel(wrongField, student[wrongField]);
+        var expected  = valueLabel(wrongField, correct[wrongField]);
+
+        /* Special case: explain ordering impact for deny-all in wrong position */
+        if (ruleNum === 7 && wrongField === 'src' && student.action === 'deny' &&
+            student.src !== 'any') {
+            return 'Rule 7 must be the explicit deny-all catch-all (Any -> Any, Deny, Any/Any). '
+                + 'Currently "' + fieldName + '" is set to ' + got + ' but should be ' + expected + '.';
+        }
+
+        if (wrongField === 'action') {
+            return 'Action is ' + got + ' but should be ' + expected
+                + '. ' + (correct.action === 'allow'
+                    ? 'This traffic is required by the security requirements.'
+                    : 'This traffic must be blocked explicitly before a broader allow could match it.');
+        }
+        if (wrongField === 'src') {
+            return 'Source Zone is ' + got + ' but should be ' + expected + '. '
+                + 'Check which zone is initiating this traffic flow.';
+        }
+        if (wrongField === 'dst') {
+            return 'Destination Zone is ' + got + ' but should be ' + expected + '. '
+                + 'Check which zone is the target of this traffic flow.';
+        }
+        if (wrongField === 'service') {
+            return 'Service/Port is ' + got + ' but should be ' + expected + '. '
+                + 'Least privilege: permit only the exact port required, not a broader range.';
+        }
+        if (wrongField === 'protocol') {
+            return 'Protocol is ' + got + ' but should be ' + expected + '. '
+                + (correct.protocol === 'tcp'
+                    ? 'HTTPS, HTTP, and SSH all operate over TCP.'
+                    : 'DNS uses UDP for standard queries and TCP for zone transfers; here any covers both.');
+        }
+        return fieldName + ' is incorrect (got: ' + got + ', expected: ' + expected + ').';
+    }
+
+    /* Maps a raw value to a human-readable label for mismatch messages */
+    function valueLabel(field, v) {
+        if (!v) { return '"not set"'; }
+        if (field === 'src' || field === 'dst') { return zoneLabel(v); }
+        if (field === 'service') { return serviceDisplayLabel(v); }
+        if (field === 'action') { return v.charAt(0).toUpperCase() + v.slice(1); }
+        if (field === 'protocol') { return v.toUpperCase(); }
+        return v;
+    }
+
+    /* ------------------------------------------------------------------
+       DISMISS RESULTS (Try Again)
+       Collapses the results panel so the student can adjust and re-check.
+       ------------------------------------------------------------------ */
+    function dismissResults() {
+        var panel = document.getElementById('resultsPanel');
+        panel.classList.remove('visible');
+        document.getElementById('orderWarning').classList.remove('visible');
+        /* Scroll back to the rule table */
+        document.getElementById('ruleTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ------------------------------------------------------------------
+       RESET ALL — restores all dropdowns to blank / unset
+       ------------------------------------------------------------------ */
+    function resetAll() {
+        var fields = ['action', 'src', 'dst', 'service', 'protocol'];
+        for (var i = 0; i < 7; i++) {
+            for (var f = 0; f < fields.length; f++) {
+                var field = fields[f];
+                var sel = document.getElementById('rule' + i + '_' + field);
+                if (sel) {
+                    sel.value = '';
+                    sel.className = 'rule-select';
+                }
+            }
+            ruleState[i] = { action:'', src:'', dst:'', service:'', protocol:'' };
+        }
+
+        /* Hide results and order warning */
+        document.getElementById('resultsPanel').classList.remove('visible');
+        document.getElementById('orderWarning').classList.remove('visible');
+    }
+
+    /* ------------------------------------------------------------------
+       START
+       ------------------------------------------------------------------ */
+    init();
+</script>
+
+<!-- Dr. Hex floating mood-ring button -->
+<hex-ai-button mission-id="pbq-firewall-config" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+
+</body>
+</html>
