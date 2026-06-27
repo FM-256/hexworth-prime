@@ -141,10 +141,13 @@ sticky tracker, score-gated, completion wiring):**
   Social/Network (`pbq-social-network-identification`), Threat-Actor (`pbq-threat-actor-attribution`). ✅ SHIPPED + LIVE.
 - **Wave 2 — classify (cloned `pbq-control-classification`):** Change Management (`pbq-change-management`),
   Governance & Asset Mgmt (`pbq-governance-asset`), Identity & Access AAA (`pbq-iam-aaa`, 2-axis). ✅ drive-QC'd 8/8, Chris PASS.
-- **Wave 3 — apply/diagnose/sequence:** Design Principles (Zero Trust planes), Cryptography & PKI (cert-chain diagnosis). REMAINING.
+- **Wave 3 — apply/diagnose:** Design Principles / Zero Trust (`pbq-design-principles`, single-axis classify),
+  Cryptography & PKI (`pbq-pki-diagnosis`, artifact-driven cert/TLS diagnosis from openssl/browser errors). ✅ drive-QC'd 8/8, Chris PASS.
 
-**Practice gap: 6 of 8 modules filled** (Wave 1 = 3 D2 modules; Wave 2 = Change Mgmt + Governance + AAA).
-Remaining 2: Design Principles & Best Practices (D1), Cryptography & PKI (D3) = Wave 3.
+**✅ PRACTICE GAP CLOSED — 8 of 8 modules filled. All 22 SY0-701 modules now have Learn + Practice + Assess.**
+(Wave 1 = Malware/Network-Social/Threat-Actor D2; Wave 2 = Change Mgmt/Governance/AAA; Wave 3 = Design Principles/PKI.)
+Verified: per-module manifest scan shows 0 modules missing practice. 8 new PBQ labs total, all artifact-driven or
+objective-classify, all drive-to-completion 8/8, all Chris PASS, all registered in manifest + ContentCatalog (searchable).
 Each PBQ: authored answer key (mine) → interactive-code-architect build → headless drive-to-completion QC
 → register manifest + ContentCatalog → Chris gate → deploy in batches.
 

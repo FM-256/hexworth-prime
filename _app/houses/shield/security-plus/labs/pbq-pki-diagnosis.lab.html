@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="../../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="../../../../components/ModuleProgress.js"></script>
+<script src="../../../../components/FirebaseAuth.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PBQ: PKI & Certificate Troubleshooting | Security+</title>
+<style>
+    /* ============================================================
+       ROOT VARIABLES
+       ============================================================ */
+    :root {
+        --bg:          #090910;
+        --bg-card:     #0f0f1a;
+        --bg-panel:    #14141f;
+        --bg-input:    #0a0a14;
+        --border:      rgba(239, 68, 68, 0.18);
+        --border-hi:   rgba(239, 68, 68, 0.45);
+        --red:         #ef4444;
+        --red-dim:     rgba(239, 68, 68, 0.12);
+        --red-glow:    rgba(239, 68, 68, 0.22);
+        --amber:       #f59e0b;
+        --amber-dim:   rgba(245, 158, 11, 0.10);
+        --cyan:        #06b6d4;
+        --text:        #e2e8f0;
+        --text-dim:    #64748b;
+        --text-mid:    #94a3b8;
+        --success:     #22c55e;
+        --success-bg:  rgba(34, 197, 94, 0.10);
+        --danger:      #ef4444;
+        --danger-bg:   rgba(239, 68, 68, 0.10);
+        --warn:        #f59e0b;
+        --warn-bg:     rgba(245, 158, 11, 0.09);
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.6;
+    }
+
+    /* ============================================================
+       NAV BAR
+       ============================================================ */
+    .lab-nav {
+        padding: 11px 24px;
+        background: #0d0d17;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .lab-nav a {
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 0.84rem;
+        transition: color 0.2s;
+    }
+    .lab-nav a:hover { color: var(--red); }
+    .lab-nav .badge {
+        background: rgba(239, 68, 68, 0.14);
+        color: var(--red);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        padding: 3px 9px;
+        border-radius: 4px;
+    }
+
+    /* ============================================================
+       OUTER SHELL — full viewport width, two-column beyond 900px
+       ============================================================ */
+    .lab-shell {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        min-height: calc(100vh - 44px);
+        gap: 0;
+    }
+
+    /* Left main column (evidence + submit) — explicit col 1 so it never
+       gets shoved into the narrow rail by grid auto-placement. */
+    .lab-main {
+        grid-column: 1;
+        padding: 2rem 2rem 4rem;
+    }
+
+    /* Right classification panel — explicit col 2, sticky progress tracker */
+    .side-panel {
+        grid-column: 2;
+        position: sticky;
+        top: 0;
+        align-self: start;
+        max-height: calc(100vh - 44px);
+        overflow-y: auto;
+        background: #0d0d17;
+        border-left: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 1.5rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    /* Responsive overrides MUST come after the base column rules above
+       (media queries add no specificity — later source wins). Stack to a
+       single column, panel below main, on narrow screens. */
+    @media (max-width: 900px) {
+        .lab-shell {
+            grid-template-columns: 1fr;
+        }
+        .lab-main,
+        .side-panel {
+            grid-column: 1;
+        }
+        .side-panel {
+            position: static;
+            max-height: none;
+            border-left: none !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+    }
+    .side-panel-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.9px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+    }
+
+    /* ============================================================
+       LAB HEADER / SCENARIO
+       ============================================================ */
+    .lab-header {
+        background: var(--bg-card);
+        border: 1px solid var(--border-hi);
+        border-radius: 14px;
+        padding: 1.75rem 2rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 0 28px var(--red-glow);
+    }
+    .lab-header h1 {
+        font-size: 1.65rem;
+        font-weight: 700;
+        color: var(--red);
+        margin-bottom: 0.4rem;
+        letter-spacing: -0.3px;
+    }
+    .pbq-tag {
+        display: inline-block;
+        background: rgba(239, 68, 68, 0.14);
+        color: #f87171;
+        font-size: 0.67rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        padding: 2px 8px;
+        border-radius: 3px;
+        margin-bottom: 0.9rem;
+    }
+    .scenario-box {
+        background: var(--bg-panel);
+        border-left: 3px solid var(--red);
+        border-radius: 0 8px 8px 0;
+        padding: 1rem 1.3rem;
+        font-size: 1.12rem;
+        color: var(--text-mid);
+        margin-top: 0.75rem;
+    }
+    .scenario-box strong { color: var(--text); }
+    .lab-meta {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        font-size: 0.95rem;
+        color: var(--text-dim);
+    }
+    .lab-meta span { color: var(--text-mid); }
+
+    /* ============================================================
+       INSTRUCTION TIP BAR
+       ============================================================ */
+    .tip {
+        background: var(--warn-bg);
+        border: 1px solid rgba(245, 158, 11, 0.22);
+        border-radius: 8px;
+        padding: 0.75rem 1.1rem;
+        font-size: 1rem;
+        color: var(--text-mid);
+        margin-bottom: 1.5rem;
+    }
+    .tip strong { color: var(--warn); }
+
+    /* ============================================================
+       SECTION HEADING
+       ============================================================ */
+    .section-title {
+        font-size: 0.79rem;
+        font-weight: 700;
+        letter-spacing: 0.9px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1.1rem;
+    }
+
+    /* ============================================================
+       EVIDENCE CARDS GRID
+       Full-width evidence list; each card is a horizontal strip.
+       ============================================================ */
+    .evidence-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .ev-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.1rem 1.25rem;
+        transition: border-color 0.22s, box-shadow 0.22s;
+    }
+    .ev-card:hover {
+        border-color: rgba(239, 68, 68, 0.35);
+    }
+    /* State variants applied by grading */
+    .ev-card.graded-correct {
+        border-color: rgba(34, 197, 94, 0.45);
+        background: var(--success-bg);
+    }
+    .ev-card.graded-incorrect {
+        border-color: rgba(239, 68, 68, 0.45);
+        background: var(--danger-bg);
+    }
+
+    /* Card top row: number badge + source label + dropdown */
+    .ev-card-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .ev-num {
+        flex-shrink: 0;
+        background: rgba(239, 68, 68, 0.14);
+        color: var(--red);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        padding: 3px 9px;
+        border-radius: 4px;
+        margin-top: 2px;
+    }
+    .ev-source {
+        font-size: 0.94rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-top: 4px;
+        flex: 1;
+    }
+
+    /* PKI problem dropdown — right side of card top row */
+    .ev-select-wrap {
+        flex-shrink: 0;
+    }
+    .ev-select {
+        background: var(--bg-input);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 1rem;
+        padding: 0.45rem 2rem 0.45rem 0.7rem;
+        cursor: pointer;
+        transition: border-color 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        min-width: 310px;
+    }
+    .ev-select:focus {
+        outline: none;
+        border-color: var(--red);
+    }
+    /* After grading, lock dropdowns */
+    .ev-select:disabled {
+        opacity: 0.75;
+        cursor: not-allowed;
+    }
+
+    /* Evidence artifact block — monospace openssl/browser error output */
+    .ev-artifact {
+        background: var(--bg-panel);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 7px;
+        padding: 0.75rem 1rem;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 1rem;
+        color: #b6c4d6;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+    /* Highlight key indicator tokens */
+    .ev-artifact .hi-red   { color: #f87171; font-weight: 600; }
+    .ev-artifact .hi-amber { color: #fbbf24; font-weight: 600; }
+    .ev-artifact .hi-green { color: #4ade80; font-weight: 600; }
+    .ev-artifact .hi-blue  { color: #60a5fa; font-weight: 600; }
+
+    /* Result badge shown after grading */
+    .ev-result {
+        display: none;
+        margin-top: 0.65rem;
+        font-size: 1rem;
+        border-radius: 6px;
+        padding: 0.5rem 0.8rem;
+        line-height: 1.45;
+    }
+    .ev-result.show { display: block; }
+    .ev-result.res-correct {
+        background: rgba(34, 197, 94, 0.08);
+        border: 1px solid rgba(34, 197, 94, 0.25);
+        color: var(--success);
+    }
+    .ev-result.res-incorrect {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        color: #f87171;
+    }
+    .ev-result .res-label {
+        font-weight: 700;
+        font-size: 0.96rem;
+        letter-spacing: 0.4px;
+        display: block;
+        margin-bottom: 0.2rem;
+    }
+    .ev-result .res-rationale {
+        color: var(--text-mid);
+        font-size: 0.98rem;
+    }
+
+    /* ============================================================
+       SIDE PANEL — PROGRESS TRACKER
+       ============================================================ */
+    .progress-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex: 1;
+    }
+    .prog-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.93rem;
+        color: var(--text-dim);
+        transition: border-color 0.2s, background 0.2s;
+    }
+    .prog-item.answered {
+        border-color: rgba(245, 158, 11, 0.3);
+        color: var(--text-mid);
+    }
+    .prog-item.correct {
+        border-color: rgba(34, 197, 94, 0.35);
+        background: rgba(34, 197, 94, 0.07);
+        color: var(--success);
+    }
+    .prog-item.incorrect {
+        border-color: rgba(239, 68, 68, 0.35);
+        background: rgba(239, 68, 68, 0.07);
+        color: #f87171;
+    }
+    .prog-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-dim);
+        flex-shrink: 0;
+        transition: background 0.2s;
+    }
+    .prog-item.answered .prog-dot  { background: var(--amber); }
+    .prog-item.correct  .prog-dot  { background: var(--success); }
+    .prog-item.incorrect .prog-dot { background: var(--danger); }
+
+    /* Side panel answer counter */
+    .prog-counter {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.7rem 0.9rem;
+        text-align: center;
+        margin-bottom: 0.9rem;
+    }
+    .prog-counter .count-num {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--red);
+        line-height: 1;
+    }
+    .prog-counter .count-label {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+        margin-top: 0.2rem;
+    }
+
+    /* ============================================================
+       SUBMIT SECTION
+       ============================================================ */
+    .submit-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem;
+    }
+    .submit-section h2 {
+        font-size: 0.79rem;
+        font-weight: 700;
+        letter-spacing: 0.9px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+    }
+    .submit-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 0;
+    }
+    .btn-submit {
+        padding: 0.65rem 2rem;
+        background: var(--red);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.12s, box-shadow 0.2s;
+    }
+    .btn-submit:hover {
+        opacity: 0.88;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 18px var(--red-glow);
+    }
+    .btn-reset-all {
+        padding: 0.65rem 1.4rem;
+        background: transparent;
+        color: var(--text-dim);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-reset-all:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ============================================================
+       RESULTS PANEL
+       ============================================================ */
+    .results-panel {
+        display: none;
+        margin-top: 1.5rem;
+    }
+    .results-panel.visible { display: block; }
+
+    .results-score {
+        text-align: center;
+        padding: 1.25rem 1rem;
+        background: var(--bg-panel);
+        border-radius: 10px;
+        margin-bottom: 1.1rem;
+    }
+    .score-num {
+        font-size: 2.9rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .score-num.pass { color: var(--success); }
+    .score-num.fail { color: var(--danger); }
+    .score-label {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-top: 0.3rem;
+    }
+    .score-verdict {
+        font-size: 0.96rem;
+        font-weight: 700;
+        margin-top: 0.5rem;
+    }
+    .score-verdict.pass { color: var(--success); }
+    .score-verdict.fail { color: var(--danger); }
+
+    /* Per-item result summary strip */
+    .results-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.55rem;
+        margin-bottom: 1.1rem;
+    }
+    .res-chip {
+        background: var(--bg-panel);
+        border: 1px solid transparent;
+        border-radius: 7px;
+        padding: 0.6rem 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+    }
+    .res-chip.correct {
+        border-color: rgba(34, 197, 94, 0.3);
+        background: var(--success-bg);
+    }
+    .res-chip.incorrect {
+        border-color: rgba(239, 68, 68, 0.3);
+        background: var(--danger-bg);
+    }
+    .res-chip-icon {
+        font-style: normal;
+        font-weight: 700;
+        font-size: 0.78rem;
+        flex-shrink: 0;
+    }
+    .res-chip.correct .res-chip-icon { color: var(--success); }
+    .res-chip.incorrect .res-chip-icon { color: #f87171; }
+    .res-chip-text { flex: 1; }
+    .res-chip-name { font-weight: 700; color: var(--text); display: block; }
+    .res-chip-detail { color: var(--text-dim); font-size: 0.72rem; }
+    .res-chip.correct .res-chip-name { color: var(--success); }
+    .res-chip.incorrect .res-chip-name { color: #f87171; }
+
+    /* Pass banner */
+    .pass-banner {
+        display: none;
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.13), rgba(6, 182, 212, 0.08));
+        border: 1px solid rgba(34, 197, 94, 0.38);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        text-align: center;
+        color: var(--success);
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .pass-banner.visible { display: block; }
+    .pass-banner p {
+        color: var(--text-mid);
+        font-weight: 400;
+        font-size: 0.84rem;
+        margin-top: 0.45rem;
+    }
+
+    /* ============================================================
+       UTILITY
+       ============================================================ */
+    .divider {
+        border: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        margin: 1.1rem 0;
+    }
+</style>
+</head>
+<body>
+
+<!-- Navigation bar -->
+<nav class="lab-nav">
+    <a href="../index.html">&larr; Security+ Hub</a>
+    <span class="badge">PBQ LAB</span>
+</nav>
+
+<div class="lab-shell">
+
+    <!-- ==============================================================
+         LEFT COLUMN — Header, Evidence Cards, Submit
+         ============================================================== -->
+    <main class="lab-main">
+
+        <!-- Lab header -->
+        <header class="lab-header">
+            <span class="pbq-tag">PERFORMANCE-BASED QUESTION</span>
+            <h1>PKI &amp; Certificate Troubleshooting</h1>
+            <div class="scenario-box">
+                <strong>Scenario:</strong> You are a sysadmin/SOC analyst triaging TLS and certificate
+                failures. For each artifact (browser error, <code>openssl s_client</code> output, or
+                certificate detail), identify the <strong>specific PKI problem</strong>. The evidence
+                points to one root cause.
+            </div>
+            <div class="lab-meta">
+                <span>Security+ SY0-701</span>
+                <span>Domain 1.4 / 3 &mdash; Cryptographic Solutions &amp; PKI</span>
+                <span>8 Evidence Items</span>
+            </div>
+        </header>
+
+        <!-- Instruction -->
+        <div class="tip">
+            <strong>Instructions:</strong> Read each artifact carefully and use the dropdown to identify
+            the specific PKI or certificate problem. When all 8 are answered, click
+            <strong>Submit for Grading</strong>. All 8 must be correct to pass and earn completion credit.
+        </div>
+
+        <div class="section-title">Evidence Items</div>
+
+        <!-- ============================================================
+             EVIDENCE CARDS
+             Each card: ev-num, ev-source, ev-select, ev-artifact, ev-result
+             ============================================================ -->
+        <div class="evidence-list" id="evidenceList">
+
+            <!-- CARD 1 — expired -->
+            <div class="ev-card" id="card-0">
+                <div class="ev-card-top">
+                    <span class="ev-num">ITEM 01</span>
+                    <span class="ev-source">openssl s_client &mdash; payments.acme-corp.com:443</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-0" aria-label="PKI problem for item 1">
+                            <option value="">-- Select PKI problem --</option>
+                            <option value="expired">Expired certificate</option>
+                            <option value="untrusted-root">Untrusted / unknown root CA</option>
+                            <option value="name-mismatch">Hostname (CN/SAN) mismatch</option>
+                            <option value="revoked">Revoked certificate</option>
+                            <option value="broken-chain">Incomplete chain (missing intermediate)</option>
+                            <option value="weak-algo">Weak signature algorithm</option>
+                            <option value="not-yet-valid">Certificate not yet valid</option>
+                            <option value="wrong-keyusage">Wrong key usage / EKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">$ openssl s_client -connect payments.acme-corp.com:443 -brief
+CONNECTION ESTABLISHED
+Protocol version: TLSv1.3
+Cipher suite: TLS_AES_256_GCM_SHA384
+Peer certificate: CN=payments.acme-corp.com
+Hash used: SHA256
+Signature type: RSA-PSS
+Verification: <span class="hi-red">FAILED</span>
+
+depth=0 CN=payments.acme-corp.com
+<span class="hi-red">verify error:num=10:certificate has expired</span>
+<span class="hi-red">notAfter=Jun  1 23:59:59 2026 GMT</span>
+
+Certificate details:
+  Subject: CN=payments.acme-corp.com
+  Issuer:  CN=DigiCert TLS RSA SHA256 2020 CA1
+  <span class="hi-green">notBefore=Jun  2 00:00:00 2025 GMT</span>
+  <span class="hi-red">notAfter =Jun  1 23:59:59 2026 GMT</span>
+
+Browser error (Chrome 125):
+  <span class="hi-red">NET::ERR_CERT_DATE_INVALID</span>
+  Your connection is not private.
+  This certificate <span class="hi-red">expired 26 days ago</span> (Jun 1, 2026).</div>
+                <div class="ev-result" id="res-0"></div>
+            </div>
+
+            <!-- CARD 2 — untrusted-root -->
+            <div class="ev-card" id="card-1">
+                <div class="ev-card-top">
+                    <span class="ev-num">ITEM 02</span>
+                    <span class="ev-source">openssl verify &mdash; internal-tool.acme.local</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-1" aria-label="PKI problem for item 2">
+                            <option value="">-- Select PKI problem --</option>
+                            <option value="expired">Expired certificate</option>
+                            <option value="untrusted-root">Untrusted / unknown root CA</option>
+                            <option value="name-mismatch">Hostname (CN/SAN) mismatch</option>
+                            <option value="revoked">Revoked certificate</option>
+                            <option value="broken-chain">Incomplete chain (missing intermediate)</option>
+                            <option value="weak-algo">Weak signature algorithm</option>
+                            <option value="not-yet-valid">Certificate not yet valid</option>
+                            <option value="wrong-keyusage">Wrong key usage / EKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">$ openssl verify -CApath /etc/ssl/certs internal-tool.acme.local.pem
+internal-tool.acme.local.pem: <span class="hi-red">CN=internal-tool.acme.local</span>
+<span class="hi-red">error 19 at 1 depth lookup: self signed certificate in certificate chain</span>
+<span class="hi-red">error internal-tool.acme.local.pem: verification failed</span>
+
+Certificate chain received:
+  depth=0  CN=internal-tool.acme.local
+           notBefore=Jan 15 00:00:00 2026 GMT
+           <span class="hi-green">notAfter =Jan 15 23:59:59 2027 GMT</span>  (valid for another 202 days)
+  depth=1  CN=Acme Internal CA
+           <span class="hi-amber">unable to get local issuer certificate</span>
+           <span class="hi-red">Issuer NOT found in system trust store (/etc/ssl/certs)</span>
+
+Note: The server sends a leaf + intermediate. The root
+"<span class="hi-red">CN=Acme Internal CA</span>" is a <span class="hi-red">private/corporate CA not distributed
+to this workstation</span> — it is unknown to the OS trust store.
+Dates and chain structure are valid; the CA itself is the problem.</div>
+                <div class="ev-result" id="res-1"></div>
+            </div>
+
+            <!-- CARD 3 — name-mismatch -->
+            <div class="ev-card" id="card-2">
+                <div class="ev-card-top">
+                    <span class="ev-num">ITEM 03</span>
+                    <span class="ev-source">Browser TLS error &mdash; mail.acme-corp.com</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-2" aria-label="PKI problem for item 3">
+                            <option value="">-- Select PKI problem --</option>
+                            <option value="expired">Expired certificate</option>
+                            <option value="untrusted-root">Untrusted / unknown root CA</option>
+                            <option value="name-mismatch">Hostname (CN/SAN) mismatch</option>
+                            <option value="revoked">Revoked certificate</option>
+                            <option value="broken-chain">Incomplete chain (missing intermediate)</option>
+                            <option value="weak-algo">Weak signature algorithm</option>
+                            <option value="not-yet-valid">Certificate not yet valid</option>
+                            <option value="wrong-keyusage">Wrong key usage / EKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">Browser: Chrome 125 — https://mail.acme-corp.com
+<span class="hi-red">NET::ERR_CERT_COMMON_NAME_INVALID</span>
+Your connection is not private.
+
+Certificate presented by server:
+  Subject CN : www.acme-corp.com
+  X509v3 Subject Alternative Names:
+    <span class="hi-green">DNS:www.acme-corp.com</span>
+    <span class="hi-green">DNS:acme-corp.com</span>
+
+Requested hostname : <span class="hi-red">mail.acme-corp.com</span>
+  <span class="hi-red">mail.acme-corp.com is NOT listed in the certificate SAN.</span>
+
+Certificate validity:
+  notBefore: Mar  1 00:00:00 2026 GMT
+  <span class="hi-green">notAfter : Mar  1 23:59:59 2027 GMT</span>  (valid, 247 days remaining)
+Chain    : <span class="hi-green">OK</span>  (DigiCert root trusted by OS)
+OCSP     : <span class="hi-green">good</span>  (not revoked)</div>
+                <div class="ev-result" id="res-2"></div>
+            </div>
+
+            <!-- CARD 4 — revoked -->
+            <div class="ev-card" id="card-3">
+                <div class="ev-card-top">
+                    <span class="ev-num">ITEM 04</span>
+                    <span class="ev-source">OCSP / CRL check &mdash; vpn.acme-corp.com</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-3" aria-label="PKI problem for item 4">
+                            <option value="">-- Select PKI problem --</option>
+                            <option value="expired">Expired certificate</option>
+                            <option value="untrusted-root">Untrusted / unknown root CA</option>
+                            <option value="name-mismatch">Hostname (CN/SAN) mismatch</option>
+                            <option value="revoked">Revoked certificate</option>
+                            <option value="broken-chain">Incomplete chain (missing intermediate)</option>
+                            <option value="weak-algo">Weak signature algorithm</option>
+                            <option value="not-yet-valid">Certificate not yet valid</option>
+                            <option value="wrong-keyusage">Wrong key usage / EKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">$ openssl s_client -connect vpn.acme-corp.com:443 -status 2&gt;&amp;1 | head -40
+
+OCSP response:
+<span class="hi-red">OCSP Response Status: revoked</span>
+  This Update: Jun 20 14:00:00 2026 GMT
+  <span class="hi-red">Revocation Time: Jun 19 09:12:44 2026 GMT</span>
+  <span class="hi-red">Revocation Reason: keyCompromise (1)</span>
+
+Certificate details:
+  Subject  : CN=vpn.acme-corp.com
+  Issuer   : CN=DigiCert TLS RSA SHA256 2020 CA1
+  <span class="hi-green">notBefore: Jan 10 00:00:00 2026 GMT</span>
+  <span class="hi-green">notAfter : Jan 10 23:59:59 2027 GMT</span>  (dates valid — 197 days remaining)
+  Chain    : <span class="hi-green">OK</span>  (trusted DigiCert root)
+  CN/SAN   : <span class="hi-green">vpn.acme-corp.com matches</span>
+
+CRL check (http://crl3.digicert.com/sha2-tlsrsa2020ca1-2.crl):
+  Serial 0A:E3:9F:11:7C:44:DE:B9:FF:02:87:1A:54
+  <span class="hi-red">Status: REVOKED — listed on CRL issued Jun 20 14:00:00 2026 GMT</span></div>
+                <div class="ev-result" id="res-3"></div>
+            </div>
+
+            <!-- CARD 5 — broken-chain -->
+            <div class="ev-card" id="card-4">
+                <div class="ev-card-top">
+                    <span class="ev-num">ITEM 05</span>
+                    <span class="ev-source">openssl s_client &mdash; api.acme-corp.com:443</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-4" aria-label="PKI problem for item 5">
+                            <option value="">-- Select PKI problem --</option>
+                            <option value="expired">Expired certificate</option>
+                            <option value="untrusted-root">Untrusted / unknown root CA</option>
+                            <option value="name-mismatch">Hostname (CN/SAN) mismatch</option>
+                            <option value="revoked">Revoked certificate</option>
+                            <option value="broken-chain">Incomplete chain (missing intermediate)</option>
+                            <option value="weak-algo">Weak signature algorithm</option>
+                            <option value="not-yet-valid">Certificate not yet valid</option>
+                            <option value="wrong-keyusage">Wrong key usage / EKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">$ openssl s_client -connect api.acme-corp.com:443
+depth=0  CN=api.acme-corp.com
+<span class="hi-red">verify error:num=20:unable to get local issuer certificate</span>
+<span class="hi-red">verify error:num=21:unable to verify the first certificate</span>
+Verify return code: <span class="hi-red">21 (unable to verify the first certificate)</span>
+
+Certificate chain:
+  0 s:CN=api.acme-corp.com
+    i:CN=DigiCert TLS RSA SHA256 2020 CA1
+    <span class="hi-red">--- chain stops here (only 1 certificate sent by server) ---</span>
+
+The <span class="hi-red">server did NOT send the intermediate certificate</span>
+(CN=DigiCert TLS RSA SHA256 2020 CA1).
+
+Root CA "DigiCert Global Root CA" <span class="hi-green">IS trusted</span> by this system
+  (present in /etc/ssl/certs/DigiCert_Global_Root_CA.pem)
+  — the root is NOT the problem; the <span class="hi-red">intermediate is simply absent</span>.
+
+Note: Chrome passes (cached the intermediate from a prior visit).
+curl and openssl fail because they do not use the browser cache.</div>
+                <div class="ev-result" id="res-4"></div>
+            </div>
+
+            <!-- CARD 6 — weak-algo -->
+            <div class="ev-card" id="card-5">
+                <div class="ev-card-top">
+                    <span class="ev-num">ITEM 06</span>
+                    <span class="ev-source">openssl x509 -text &mdash; legacy.acme-corp.com</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-5" aria-label="PKI problem for item 6">
+                            <option value="">-- Select PKI problem --</option>
+                            <option value="expired">Expired certificate</option>
+                            <option value="untrusted-root">Untrusted / unknown root CA</option>
+                            <option value="name-mismatch">Hostname (CN/SAN) mismatch</option>
+                            <option value="revoked">Revoked certificate</option>
+                            <option value="broken-chain">Incomplete chain (missing intermediate)</option>
+                            <option value="weak-algo">Weak signature algorithm</option>
+                            <option value="not-yet-valid">Certificate not yet valid</option>
+                            <option value="wrong-keyusage">Wrong key usage / EKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">$ openssl x509 -text -noout -in legacy.acme-corp.com.pem
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 4a:f8:11:cc:b2:3d:09:77
+    <span class="hi-red">Signature Algorithm: sha1WithRSAEncryption</span>
+        Issuer: CN=VeriSign Class 3 Secure Server CA - G3
+        Validity
+            <span class="hi-green">Not Before: May 14 00:00:00 2024 GMT</span>
+            <span class="hi-green">Not After : May 13 23:59:59 2026 GMT</span>  (valid)
+        Subject: CN=legacy.acme-corp.com
+        X509v3 Subject Alternative Names:
+            <span class="hi-green">DNS:legacy.acme-corp.com</span>
+        X509v3 Extended Key Usage:
+            <span class="hi-green">TLS Web Server Authentication</span>
+    <span class="hi-red">Signature Algorithm: sha1WithRSAEncryption</span>
+
+Browser warning (Chrome 125):
+  <span class="hi-red">NET::ERR_CERT_WEAK_SIGNATURE_ALGORITHM</span>
+  This certificate uses a <span class="hi-red">SHA-1 signature</span>, which is considered
+  obsolete cryptography and is no longer trusted.</div>
+                <div class="ev-result" id="res-5"></div>
+            </div>
+
+            <!-- CARD 7 — not-yet-valid -->
+            <div class="ev-card" id="card-6">
+                <div class="ev-card-top">
+                    <span class="ev-num">ITEM 07</span>
+                    <span class="ev-source">openssl s_client &mdash; newsite.acme-corp.com:443</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-6" aria-label="PKI problem for item 7">
+                            <option value="">-- Select PKI problem --</option>
+                            <option value="expired">Expired certificate</option>
+                            <option value="untrusted-root">Untrusted / unknown root CA</option>
+                            <option value="name-mismatch">Hostname (CN/SAN) mismatch</option>
+                            <option value="revoked">Revoked certificate</option>
+                            <option value="broken-chain">Incomplete chain (missing intermediate)</option>
+                            <option value="weak-algo">Weak signature algorithm</option>
+                            <option value="not-yet-valid">Certificate not yet valid</option>
+                            <option value="wrong-keyusage">Wrong key usage / EKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">$ openssl s_client -connect newsite.acme-corp.com:443 -brief
+CONNECTION ESTABLISHED
+Protocol version: TLSv1.3
+Cipher suite: TLS_AES_128_GCM_SHA256
+Peer certificate: CN=newsite.acme-corp.com
+Verification: <span class="hi-red">FAILED</span>
+
+depth=0 CN=newsite.acme-corp.com
+<span class="hi-red">verify error:num=9:certificate is not yet valid</span>
+<span class="hi-red">notBefore=Jul  5 00:00:00 2026 GMT</span>
+
+Certificate details:
+  Subject: CN=newsite.acme-corp.com
+  Issuer:  CN=DigiCert TLS RSA SHA256 2020 CA1
+  <span class="hi-red">notBefore=Jul  5 00:00:00 2026 GMT</span>  &lt;-- <span class="hi-red">8 days in the FUTURE</span>
+  <span class="hi-green">notAfter =Jul  5 23:59:59 2027 GMT</span>
+  Chain    : <span class="hi-green">OK</span>  (trusted root)
+  SAN      : <span class="hi-green">newsite.acme-corp.com matches</span>
+  OCSP     : <span class="hi-green">good</span>
+
+System clock on server: <span class="hi-amber">Jun 27 08:44:13 UTC 2026</span>
+Certificate valid-from: <span class="hi-red">Jul 05 00:00:00 UTC 2026</span></div>
+                <div class="ev-result" id="res-6"></div>
+            </div>
+
+            <!-- CARD 8 — wrong-keyusage -->
+            <div class="ev-card" id="card-7">
+                <div class="ev-card-top">
+                    <span class="ev-num">ITEM 08</span>
+                    <span class="ev-source">TLS handshake error &mdash; app-gw.acme-corp.com:443</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-7" aria-label="PKI problem for item 8">
+                            <option value="">-- Select PKI problem --</option>
+                            <option value="expired">Expired certificate</option>
+                            <option value="untrusted-root">Untrusted / unknown root CA</option>
+                            <option value="name-mismatch">Hostname (CN/SAN) mismatch</option>
+                            <option value="revoked">Revoked certificate</option>
+                            <option value="broken-chain">Incomplete chain (missing intermediate)</option>
+                            <option value="weak-algo">Weak signature algorithm</option>
+                            <option value="not-yet-valid">Certificate not yet valid</option>
+                            <option value="wrong-keyusage">Wrong key usage / EKU</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">$ openssl s_client -connect app-gw.acme-corp.com:443
+CONNECTED(00000003)
+depth=0 CN=app-gw.acme-corp.com
+<span class="hi-red">verify error:num=26:unsupported certificate purpose</span>
+
+$ openssl x509 -text -noout -in app-gw.pem | grep -A4 "Extended Key"
+        X509v3 Extended Key Usage:
+            <span class="hi-red">TLS Web Client Authentication</span>
+
+Expected for a TLS server:
+            <span class="hi-green">TLS Web Server Authentication</span>  &lt;-- <span class="hi-red">NOT present</span>
+
+Certificate details:
+  Subject : CN=app-gw.acme-corp.com
+  SAN     : <span class="hi-green">DNS:app-gw.acme-corp.com matches</span>
+  Validity: <span class="hi-green">notAfter=Dec 31 2026</span>  (valid)
+  Chain   : <span class="hi-green">OK</span>  (trusted root)
+  OCSP    : <span class="hi-green">good</span>
+
+Browser error (Firefox 127):
+  <span class="hi-red">SSL_ERROR_BAD_CERT_DOMAIN</span>
+  The certificate is not valid for this server because it was
+  issued for client authentication, not server authentication.</div>
+                <div class="ev-result" id="res-7"></div>
+            </div>
+
+        </div><!-- /.evidence-list -->
+
+        <!-- ============================================================
+             SUBMIT SECTION
+             ============================================================ -->
+        <section class="submit-section">
+            <h2>Verification</h2>
+            <p style="font-size:0.85rem; color:var(--text-mid); margin-bottom:1rem;">
+                Classify all 8 certificate artifacts correctly to earn completion credit.
+                All 8 must be correct &mdash; partial answers do not pass.
+            </p>
+            <div class="submit-row">
+                <button class="btn-submit" id="btnSubmit" onclick="submitAnswers()">Submit for Grading</button>
+                <button class="btn-reset-all" onclick="resetAll()">Reset All</button>
+            </div>
+
+            <!-- Results panel (hidden until graded) -->
+            <div class="results-panel" id="resultsPanel">
+
+                <hr class="divider">
+
+                <div class="results-score" id="resultsScore">
+                    <div class="score-num" id="scoreNum">0/8</div>
+                    <div class="score-label">certificate problems correctly identified</div>
+                    <div class="score-verdict" id="scoreVerdict"></div>
+                </div>
+
+                <div class="results-summary" id="resultsSummary"></div>
+
+                <div class="pass-banner" id="passBanner">
+                    All 8 PKI Problems Correctly Identified
+                    <p>
+                        You demonstrated the ability to read raw certificate and TLS artifacts and pinpoint
+                        the specific PKI failure &mdash; a core SY0-701 Domain 1.4 / 3 diagnostic skill.
+                    </p>
+                </div>
+
+            </div>
+        </section>
+
+    </main><!-- /.lab-main -->
+
+    <!-- ==============================================================
+         RIGHT COLUMN — Classification progress tracker
+         ============================================================== -->
+    <aside class="side-panel">
+        <div class="side-panel-title">Progress</div>
+
+        <div class="prog-counter">
+            <div class="count-num" id="countNum">0</div>
+            <div class="count-label">of 8 answered</div>
+        </div>
+
+        <div class="progress-list" id="progressList">
+            <div class="prog-item" id="prog-0">
+                <div class="prog-dot"></div>
+                Item 01 &mdash; openssl s_client
+            </div>
+            <div class="prog-item" id="prog-1">
+                <div class="prog-dot"></div>
+                Item 02 &mdash; openssl verify
+            </div>
+            <div class="prog-item" id="prog-2">
+                <div class="prog-dot"></div>
+                Item 03 &mdash; Browser Error
+            </div>
+            <div class="prog-item" id="prog-3">
+                <div class="prog-dot"></div>
+                Item 04 &mdash; OCSP / CRL
+            </div>
+            <div class="prog-item" id="prog-4">
+                <div class="prog-dot"></div>
+                Item 05 &mdash; openssl s_client
+            </div>
+            <div class="prog-item" id="prog-5">
+                <div class="prog-dot"></div>
+                Item 06 &mdash; openssl x509
+            </div>
+            <div class="prog-item" id="prog-6">
+                <div class="prog-dot"></div>
+                Item 07 &mdash; openssl s_client
+            </div>
+            <div class="prog-item" id="prog-7">
+                <div class="prog-dot"></div>
+                Item 08 &mdash; TLS Handshake
+            </div>
+        </div>
+
+    </aside>
+
+</div><!-- /.lab-shell -->
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+    /* ------------------------------------------------------------------
+       ANSWER KEY
+       Values match the <option value="..."> attributes in each dropdown.
+       Not rendered to the DOM — lives only in this JS object.
+       ------------------------------------------------------------------ */
+    var ANSWER_KEY = [
+        /* Item 01 — notAfter in the past, ERR_CERT_DATE_INVALID, "expired 26 days ago" */
+        {
+            value:     'expired',
+            label:     'Expired certificate',
+            rationale: 'The deciding indicator: notAfter=Jun 1 23:59:59 2026 GMT has already passed. The browser reports NET::ERR_CERT_DATE_INVALID and "expired 26 days ago." notBefore is valid, chain is trusted — the sole problem is the certificate lifetime ended.'
+        },
+        /* Item 02 — issuer is a private/corporate CA not in the OS trust store; error 19 */
+        {
+            value:     'untrusted-root',
+            label:     'Untrusted / unknown root CA',
+            rationale: 'The deciding indicator: "verify error:num=19:self signed certificate in certificate chain" — the issuing CA (CN=Acme Internal CA) is a private corporate CA absent from the system trust store. The leaf certificate dates are valid and the chain structure is intact; the CA itself is the unknown entity.'
+        },
+        /* Item 03 — SAN contains www.acme-corp.com and acme-corp.com; mail. is absent */
+        {
+            value:     'name-mismatch',
+            label:     'Hostname (CN/SAN) mismatch',
+            rationale: 'The deciding indicator: the certificate SAN lists DNS:www.acme-corp.com and DNS:acme-corp.com, but the requested hostname mail.acme-corp.com is not present. The browser reports NET::ERR_CERT_COMMON_NAME_INVALID. Dates, chain, and revocation status are all clean.'
+        },
+        /* Item 04 — OCSP status revoked, keyCompromise reason, serial on CRL; dates valid */
+        {
+            value:     'revoked',
+            label:     'Revoked certificate',
+            rationale: 'The deciding indicator: OCSP Response Status is "revoked" with Revocation Reason: keyCompromise. The serial is also confirmed on the CRL. The certificate dates are valid, the chain is trusted, and the hostname matches — only the revocation status is the problem.'
+        },
+        /* Item 05 — server sends only the leaf; error 20/21; root IS trusted; intermediate absent */
+        {
+            value:     'broken-chain',
+            label:     'Incomplete chain (missing intermediate)',
+            rationale: 'The deciding indicator: the server sent only the leaf certificate (chain depth 0). Error num=20 "unable to get local issuer certificate" occurs because the intermediate (DigiCert TLS RSA SHA256 2020 CA1) was never transmitted. The root CA is present in the OS trust store — the root is NOT the problem. Chrome passes only because it cached the intermediate from a prior visit.'
+        },
+        /* Item 06 — sha1WithRSAEncryption signature algorithm; ERR_CERT_WEAK_SIGNATURE_ALGORITHM */
+        {
+            value:     'weak-algo',
+            label:     'Weak signature algorithm',
+            rationale: 'The deciding indicator: "Signature Algorithm: sha1WithRSAEncryption" — SHA-1 is a deprecated hashing algorithm rejected by modern browsers with NET::ERR_CERT_WEAK_SIGNATURE_ALGORITHM. The certificate dates, hostname, chain, and key usage are all fine.'
+        },
+        /* Item 07 — notBefore is 8 days in the future; verify error:num=9 */
+        {
+            value:     'not-yet-valid',
+            label:     'Certificate not yet valid',
+            rationale: 'The deciding indicator: notBefore=Jul 5 00:00:00 2026 GMT, which is 8 days in the future relative to the current date (Jun 27). openssl reports "verify error:num=9:certificate is not yet valid." The certificate was issued prematurely or the wrong certificate was deployed ahead of its activation date.'
+        },
+        /* Item 08 — EKU is TLS Web Client Authentication, not Server Authentication; error 26 */
+        {
+            value:     'wrong-keyusage',
+            label:     'Wrong key usage / EKU',
+            rationale: 'The deciding indicator: X509v3 Extended Key Usage shows "TLS Web Client Authentication" only — TLS Web Server Authentication is absent. openssl reports "verify error:num=26:unsupported certificate purpose." A client certificate was accidentally installed on a server endpoint. Dates, name, chain, and revocation are all valid.'
+        }
+    ];
+
+    /* ------------------------------------------------------------------
+       STATE
+       Tracks whether each item has been answered and graded.
+       ------------------------------------------------------------------ */
+    var graded = false;   /* true after first submit */
+
+    /* ------------------------------------------------------------------
+       PROGRESS TRACKER
+       Updates the right-panel item badges as the student fills in answers.
+       ------------------------------------------------------------------ */
+    function updateProgress() {
+        var answered = 0;
+        for (var i = 0; i < 8; i++) {
+            var sel  = document.getElementById('sel-' + i);
+            var prog = document.getElementById('prog-' + i);
+            if (sel.value !== '') {
+                prog.classList.add('answered');
+                answered++;
+            } else {
+                prog.classList.remove('answered');
+            }
+        }
+        document.getElementById('countNum').textContent = answered;
+    }
+
+    /* Wire change listeners on every dropdown */
+    (function wireDropdowns() {
+        for (var i = 0; i < 8; i++) {
+            (function(idx) {
+                document.getElementById('sel-' + idx).addEventListener('change', function() {
+                    updateProgress();
+                });
+            })(i);
+        }
+    })();
+
+    /* ------------------------------------------------------------------
+       SUBMIT FOR GRADING
+       Checks all 8 answers against ANSWER_KEY and renders results.
+       Fires ModuleProgress.complete() ONLY when all 8 are correct.
+       ------------------------------------------------------------------ */
+    function submitAnswers() {
+        /* Validate that all dropdowns have a selection */
+        var unanswered = [];
+        for (var i = 0; i < 8; i++) {
+            if (document.getElementById('sel-' + i).value === '') {
+                unanswered.push(i + 1);
+            }
+        }
+        if (unanswered.length > 0) {
+            alert('Please classify all 8 items before submitting.\nUnanswered: Item ' + unanswered.join(', Item '));
+            return;
+        }
+
+        graded = true;
+        var correct = 0;
+
+        /* Grade each item and update card + progress state */
+        for (var j = 0; j < 8; j++) {
+            var sel       = document.getElementById('sel-' + j);
+            var card      = document.getElementById('card-' + j);
+            var resultEl  = document.getElementById('res-' + j);
+            var progItem  = document.getElementById('prog-' + j);
+            var isCorrect = (sel.value === ANSWER_KEY[j].value);
+
+            /* Lock dropdown */
+            sel.disabled = true;
+
+            /* Style the card */
+            card.classList.remove('graded-correct', 'graded-incorrect');
+            card.classList.add(isCorrect ? 'graded-correct' : 'graded-incorrect');
+
+            /* Build result block using textContent (no innerHTML with user data) */
+            var statusLabel = document.createElement('span');
+            statusLabel.className = 'res-label';
+            statusLabel.textContent = isCorrect
+                ? '[CORRECT]  ' + ANSWER_KEY[j].label
+                : '[INCORRECT]  You selected: ' + (sel.options[sel.selectedIndex].text) + '  |  Correct: ' + ANSWER_KEY[j].label;
+
+            var rationale = document.createElement('span');
+            rationale.className = 'res-rationale';
+            rationale.textContent = 'Why: ' + ANSWER_KEY[j].rationale;
+
+            resultEl.innerHTML = '';
+            resultEl.appendChild(statusLabel);
+            resultEl.appendChild(document.createElement('br'));
+            resultEl.appendChild(rationale);
+            resultEl.className = 'ev-result show ' + (isCorrect ? 'res-correct' : 'res-incorrect');
+
+            /* Update sidebar progress dot */
+            progItem.classList.remove('answered');
+            progItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            if (isCorrect) { correct++; }
+        }
+
+        /* Update progress counter */
+        document.getElementById('countNum').textContent = '8';
+
+        /* Score display */
+        var allCorrect   = (correct === 8);
+        var scoreNum     = document.getElementById('scoreNum');
+        var scoreVerdict = document.getElementById('scoreVerdict');
+
+        scoreNum.textContent = correct + '/8';
+        scoreNum.className   = 'score-num ' + (allCorrect ? 'pass' : 'fail');
+        scoreVerdict.textContent = allCorrect
+            ? 'PASS — All 8 PKI problems correctly identified'
+            : 'NEEDS WORK — ' + (8 - correct) + ' item(s) incorrect';
+        scoreVerdict.className = 'score-verdict ' + (allCorrect ? 'pass' : 'fail');
+
+        /* Per-item summary chips */
+        var summaryEl = document.getElementById('resultsSummary');
+        summaryEl.innerHTML = '';
+        for (var k = 0; k < 8; k++) {
+            var sel2      = document.getElementById('sel-' + k);
+            var isOk      = (sel2.value === ANSWER_KEY[k].value);
+            var chip      = document.createElement('div');
+            chip.className = 'res-chip ' + (isOk ? 'correct' : 'incorrect');
+
+            var icon = document.createElement('span');
+            icon.className = 'res-chip-icon';
+            icon.textContent = isOk ? '[OK]' : '[X]';
+
+            var textWrap = document.createElement('div');
+            textWrap.className = 'res-chip-text';
+
+            var nameLine = document.createElement('span');
+            nameLine.className = 'res-chip-name';
+            nameLine.textContent = 'Item 0' + (k + 1);
+
+            var detailLine = document.createElement('span');
+            detailLine.className = 'res-chip-detail';
+            detailLine.textContent = isOk
+                ? ANSWER_KEY[k].label
+                : 'Expected: ' + ANSWER_KEY[k].label;
+
+            textWrap.appendChild(nameLine);
+            textWrap.appendChild(detailLine);
+            chip.appendChild(icon);
+            chip.appendChild(textWrap);
+            summaryEl.appendChild(chip);
+        }
+
+        /* Pass banner + module completion — ONLY fires when all 8 correct */
+        var banner = document.getElementById('passBanner');
+        if (allCorrect) {
+            banner.classList.add('visible');
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('shield', 'shield-pbq-pki-diagnosis', { returnUrl: '../index.html' });
+            }
+        } else {
+            banner.classList.remove('visible');
+        }
+
+        /* Show results panel and scroll into view */
+        document.getElementById('resultsPanel').classList.add('visible');
+        document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ------------------------------------------------------------------
+       RESET ALL
+       Re-enables all dropdowns, clears selections, hides graded state.
+       ------------------------------------------------------------------ */
+    function resetAll() {
+        graded = false;
+
+        for (var i = 0; i < 8; i++) {
+            var sel      = document.getElementById('sel-' + i);
+            var card     = document.getElementById('card-' + i);
+            var resultEl = document.getElementById('res-' + i);
+            var progItem = document.getElementById('prog-' + i);
+
+            sel.value    = '';
+            sel.disabled = false;
+
+            card.classList.remove('graded-correct', 'graded-incorrect');
+            resultEl.className = 'ev-result';
+            resultEl.innerHTML = '';
+
+            progItem.classList.remove('answered', 'correct', 'incorrect');
+        }
+
+        document.getElementById('countNum').textContent = '0';
+        document.getElementById('resultsPanel').classList.remove('visible');
+        document.getElementById('passBanner').classList.remove('visible');
+
+        /* Scroll back to top */
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+     Always-visible chat entry point. State machine is attempt-driven;
+     button stays calm and serves as general chat entry until lab
+     activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+<hex-ai-button mission-id="pbq-pki-diagnosis" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>
