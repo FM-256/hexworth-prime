@@ -33,3 +33,4 @@ exact commands, not config-derived sequences). Harness: /tmp/ala-vrun.js (job JS
 Each walkthrough is also rendered to a branded instructor PDF and attached to its Confluence page.
 - Generate: `python3 _tools/scratch/build-ala-pdfs.py [file.md ...]` (no args = all 13) — python-markdown + WeasyPrint, branded template (title page, running header, page-numbered Instructor-Only footer). Output PDFs land next to the .md in the shared ALA folder.
 - Attach to Confluence: `python3 _tools/confluence/attach-ala-pdfs.py [file.pdf ...]` (no args = all 13) — uploads to each page's child/attachment. Re-uploading identical bytes returns a 400 no-op (already attached); changed content creates a new version.
+| ALA Final Cell-Σ Commissioning (Practical Final) | 34275330 | Matrix — ALA Final: Cell-Σ Commissioning (Practical Final Walkthrough) |

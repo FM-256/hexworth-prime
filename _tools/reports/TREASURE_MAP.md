@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-05-26 12:30:35 AM
+                    Scanned: 2026-06-27 1:19:44 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5091 |
-| Directories | 1216 |
-| Content Files | 5091 |
-| Scan Duration | 497ms |
+| Files Scanned | 5157 |
+| Directories | 1241 |
+| Content Files | 5157 |
+| Scan Duration | 506ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2304 |
-| html | 1510 |
+| presentation | 2322 |
+| html | 1549 |
 | lab | 587 |
 | quiz | 487 |
-| applet | 203 |
+| applet | 212 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 3611 |
-| Available | 3566 |
+| Total Modules | 3645 |
+| Available | 3600 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 1 |
+| Undeclared Files (CAT-002) | 14 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 27 |
-| Warning | 2300 |
-| Info | 681 |
-| **Total** | **12558** |
+| Suspect | 29 |
+| Warning | 986 |
+| Info | 691 |
+| **Total** | **11925** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3569 |
-| Not Ready | 12 |
-| Unknown | 1510 |
+| Ready | 3591 |
+| Not Ready | 17 |
+| Unknown | 1549 |
 
 
 ## FILE HIERARCHY
@@ -74,6 +74,7 @@
 │   ├── 📄 dr-hex-engagement.html
 │   ├── 📄 dr-hex-quality.html
 │   ├── 📄 epaper-boards.html
+│   ├── 📄 observatory.html
 │   └── 📁 scripts
 ├── 📁 announcements
 │   └── 📍 index.html
@@ -528,21 +529,21 @@
 ├── 📄 bot-knowledge-signal.html
 ├── 📄 bot-knowledge-web.html
 ├── 📄 bot-knowledge.html
-├── 📄 bot-test.html
 ├── 📁 bot-widgets
 ├── 📁 career
 │   ├── 📄 career-paths.html
 │   ├── 📍 index.html
+│   ├── 📄 internships.html
 │   ├── 📄 interview-prep.html
-│   └── 📄 resume-builder.html
+│   ├── 📄 job-board.html
+│   ├── 📄 resume-builder.html
+│   └── 📄 salary-data.html
 ├── ❓ career-quiz.html
 ├── 📁 components
 │   ├── 📁 analytics
 │   │   ├── 📄 attendance-heatmap.html
 │   │   ├── 📄 engagement-charts.html
 │   │   └── 📄 pulse-survey.html
-│   ├── 📁 chatbots
-│   │   └── 📁 bot-specs
 │   ├── 📁 hive
 │   │   ├── 📄 hive-competitive.html
 │   │   ├── 📄 hive-coop.html
@@ -846,7 +847,8 @@
 │       └── 🔬 xss-attacks-lab.html
 ├── 📄 dashboard.html
 ├── 📁 data
-│   └── 📁 course-trees
+│   ├── 📁 course-trees
+│   └── 📁 glossary
 ├── 📁 digital-life
 │   ├── 📁 behaviors
 │   ├── 📁 core
@@ -1123,6 +1125,7 @@
 │   │   │   ├── 📄 aoai-05.html
 │   │   │   ├── 📄 aoai-06.html
 │   │   │   └── 📍 index.html
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 certifications
 │   │   │   └── 📁 ai-102
 │   │   │       ├── 📄 ai102-01.html
@@ -1527,6 +1530,7 @@
 │   │   │       ├── ❓ az900-ch01.quiz.html
 │   │   │       ├── ❓ az900-ch02.quiz.html
 │   │   │       └── ❓ az900-ch03.quiz.html
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 cloud-essentials
 │   │   │   ├── 📁 exams
 │   │   │   │   ├── 📄 cb-final.exam.html
@@ -1596,9 +1600,18 @@
 │   │   │   └── 🔬 cloud-security.lab.html
 │   │   ├── 📁 modules [modules]
 │   │   │   └── 📁 wsa [modules]
+│   │   │       ├── 📁 _compare [modules]
+│   │   │       │   ├── 📍 index.html
+│   │   │       │   ├── 📁 s02-rds-architecture [modules]
+│   │   │       │   ├── 📁 s04-deployment-types [modules]
+│   │   │       │   ├── 📁 s08-rd-gateway [modules]
+│   │   │       │   ├── 📁 s18-session-management [modules]
+│   │   │       │   └── 📁 s21-lab-preview [modules]
+│   │   │       ├── 📄 acronyms.html
 │   │   │       ├── 📄 cloud-gui-style-samples.module.html
 │   │   │       ├── 📁 games [modules]
-│   │   │       │   └── 📄 cloud-save-the-pod.module.html
+│   │   │       │   ├── 📄 cloud-save-the-pod.module.html
+│   │   │       │   └── 📄 wsa-w3-module-studio.module.html
 │   │   │       ├── 📁 gauntlet [modules]
 │   │   │       │   ├── 📄 cloud-gauntlet.module.html
 │   │   │       │   └── 📍 index.html
@@ -1606,6 +1619,12 @@
 │   │   │       │   ├── 📄 cloud-gauntlet-advanced.module.html
 │   │   │       │   └── 📍 index.html
 │   │   │       ├── 📍 index.html
+│   │   │       ├── 📁 instructor [modules]
+│   │   │       │   ├── 📄 course-intro.html
+│   │   │       │   ├── 📍 index.html
+│   │   │       │   ├── 📄 week-01.html
+│   │   │       │   ├── 📄 week-02.html
+│   │   │       │   └── 📄 week-03.html
 │   │   │       ├── 📁 m01-fundamentals [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
@@ -1726,8 +1745,11 @@
 │   │   │       ├── 📁 midterm-outpost [modules]
 │   │   │       │   ├── 📄 cloud-simulation.module.html
 │   │   │       │   └── 📍 index.html
-│   │   │       └── 📁 reviews [modules]
-│   │   │           └── 📄 cloud-wsa-review.module.html
+│   │   │       ├── 📄 module-atlas.html
+│   │   │       ├── 📁 reviews [modules]
+│   │   │       │   └── 📄 cloud-wsa-review.module.html
+│   │   │       └── 📁 videos [modules]
+│   │   │           └── 📍 index.html
 │   │   ├── 📁 ms-102
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
@@ -2230,6 +2252,7 @@
 │   │   │       ├── 📄 arm-sk-09-networking.module.html
 │   │   │       ├── 📄 arm-sk-10-security.module.html
 │   │   │       └── 📍 index.html
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 cortex
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 devops
@@ -2600,6 +2623,7 @@
 │   ├── 📁 cysa-plus
 │   │   └── 📍 index.html
 │   ├── 📁 dark-arts
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 feh
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 games
@@ -2654,14 +2678,14 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 tools
 │   │   │   └── 📁 ctf-leaderboard
-│   │   │       ├── 📄 dark-arts-sample.tool.html
-│   │   │       └── 📍 index.html
+│   │   │       └── 📄 dark-arts-sample.tool.html
 │   │   └── 📁 vault
 │   │       └── 📁 ehe
 │   │           └── 🔬 da-ad-attack-lab.lab.html
 │   ├── 📁 devops-fundamentals
 │   │   └── 📍 index.html
 │   ├── 🏠 divergent [house:divergent]
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 cybersecurity-ethics
 │   │   │   ├── 📁 exams
 │   │   │   │   ├── 📄 cse-final.exam.html
@@ -2780,8 +2804,12 @@
 │   │   │   ├── 📄 eth-r2.html
 │   │   │   ├── 📄 eth-r3.html
 │   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 eth-5th-grader.review.html
 │   │   │   │   ├── 📄 eth-final.exam.html
-│   │   │   │   └── 📄 eth-midterm.exam.html
+│   │   │   │   ├── 📄 eth-jeopardy.review.html
+│   │   │   │   ├── 📄 eth-kahoot.review.html
+│   │   │   │   ├── 📄 eth-midterm.exam.html
+│   │   │   │   └── 📄 eth-wheel.review.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
 │   │   │   │   ├── 📁 eth-l01-vw-emissions [labs]
@@ -2810,7 +2838,9 @@
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 eth-l13-therac-25 [labs]
 │   │   │   │   │   └── 📍 index.html
-│   │   │   │   └── 📁 eth-l14-the-reckoning [labs]
+│   │   │   │   ├── 📁 eth-l14-the-reckoning [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   └── 📁 eth-l14-the-reckoning-v2 [labs]
 │   │   │   │       └── 📍 index.html
 │   │   │   ├── 📁 presentations [presentations]
 │   │   │   │   ├── 📊 eth-01-overview.presentation.html
@@ -2837,6 +2867,7 @@
 │   │   │   │   ├── 📊 eth-w2-lecture.presentation.html
 │   │   │   │   ├── 📊 eth-w2-privacy.presentation.html
 │   │   │   │   ├── 📊 eth-w3-it-impact.presentation.html
+│   │   │   │   ├── 📊 eth-w3-lecture.presentation.html
 │   │   │   │   ├── 📊 eth-w3-software-ethics.presentation.html
 │   │   │   │   ├── 📊 eth-w4-codes-of-ethics.presentation.html
 │   │   │   │   ├── 📊 eth-w4-it-organizations.presentation.html
@@ -2966,6 +2997,7 @@
 │   │   │   │           └── 🔬 eye-threat-actor-profiling.lab.html
 │   │   │   └── 📁 osint [applets]
 │   │   │       └── 📄 eye-google-dorking.applet.html
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 cysa
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
@@ -3189,9 +3221,10 @@
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   ├── 📁 labs [labs]
 │   │   │   │   │   │   ├── 🔬 forge-bluetooth-pairing.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-cable-building.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-cable-matching.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-cloud-scenarios.lab.html
-│   │   │   │   │   │   ├── 🔬 forge-command-line.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-cpu-install.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-cpu-sockets.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-diagnostic-tools.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-display-troubleshoot.lab.html
@@ -3199,7 +3232,9 @@
 │   │   │   │   │   │   ├── 🔬 forge-docking-config.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-email-config.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-esd-workspace.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-front-panel-header.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-hardware-diagnosis.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-keystone-jack.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-laptop-memory.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-mdm-config.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-mobile-email.lab.html
@@ -3218,6 +3253,7 @@
 │   │   │   │   │   │   ├── 🔬 forge-psu-connectors.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-raid-config.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-ram-identification.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-ram-install.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-router-config.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-server-roles.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-soho-designer.lab.html
@@ -3274,6 +3310,7 @@
 │   │   │   │   │   ├── 📁 labs [labs]
 │   │   │   │   │   │   ├── 🔬 forge-admin-tools.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-change-management.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-command-line.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-control-panel.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-core2-roleplay.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-documentation.lab.html
@@ -3373,6 +3410,7 @@
 │   │   │   │   └── 📁 wireless_networking [applets]
 │   │   │   │       └── 📄 forge-wireless-networking.applet.html
 │   │   │   └── 📍 index.html
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 forge-bit-dash.applet.html
 │   │   │   ├── 📄 forge-chip-match.applet.html
@@ -3589,6 +3627,7 @@
 │   │   │   └── 📄 forge-windows10-components.tool.html
 │   │   └── 📁 tutorials
 │   ├── 🏠 key [house:key]
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 key-cipher-bubbles.applet.html
 │   │   │   ├── 📊 key-cipher-cracker.presentation.html
@@ -3649,6 +3688,9 @@
 │   │       └── 📄 key-pqc.tool.html
 │   ├── 🏠 matrix [house:matrix]
 │   │   ├── 📁 adv-linux
+│   │   │   ├── 📁 activities
+│   │   │   │   └── 📄 website-down-hunt.html
+│   │   │   ├── 📄 ala-final.html
 │   │   │   ├── 📄 ala-r1.html
 │   │   │   ├── 📄 ala-r2.html
 │   │   │   ├── 📄 ala-r3.html
@@ -3659,6 +3701,12 @@
 │   │   │   │   └── 📄 ala-midterm.exam.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 📁 ala-hunt1-website-down [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-hunt2-perimeter-open [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 ala-hunt3-lost-authority [labs]
+│   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 ala-l01-dead-cell-recovery [labs]
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 ala-l02-grid-handshake [labs]
@@ -3685,18 +3733,22 @@
 │   │   │   │       └── 📍 index.html
 │   │   │   ├── 📁 presentations [presentations]
 │   │   │   │   ├── 📊 ala-w1-cli-operations.presentation.html
+│   │   │   │   ├── 📊 ala-w1-lecture.presentation.html
 │   │   │   │   ├── 📊 ala-w1-network-config.presentation.html
 │   │   │   │   ├── 📊 ala-w1-network-diag.presentation.html
 │   │   │   │   ├── 📊 ala-w1-systemd.presentation.html
 │   │   │   │   ├── 📊 ala-w2-antivirus.presentation.html
 │   │   │   │   ├── 📊 ala-w2-authentication.presentation.html
 │   │   │   │   ├── 📊 ala-w2-firewalls.presentation.html
+│   │   │   │   ├── 📊 ala-w2-lecture.presentation.html
 │   │   │   │   ├── 📊 ala-w2-packages.presentation.html
 │   │   │   │   ├── 📊 ala-w3-automation.presentation.html
 │   │   │   │   ├── 📊 ala-w3-bash-scripting.presentation.html
 │   │   │   │   ├── 📊 ala-w3-bind-deployment.presentation.html
 │   │   │   │   ├── 📊 ala-w3-dns-fundamentals.presentation.html
+│   │   │   │   ├── 📊 ala-w3-lecture.presentation.html
 │   │   │   │   ├── 📊 ala-w4-file-integrity.presentation.html
+│   │   │   │   ├── 📊 ala-w4-lecture.presentation.html
 │   │   │   │   ├── 📊 ala-w4-log-management.presentation.html
 │   │   │   │   └── 📊 ala-w4-performance.presentation.html
 │   │   │   └── 📁 quizzes [quizzes]
@@ -3704,6 +3756,8 @@
 │   │   │       ├── ❓ ala-w2.quiz.html
 │   │   │       ├── ❓ ala-w3.quiz.html
 │   │   │       └── ❓ ala-w4.quiz.html
+│   │   ├── 📄 careers.html
+│   │   ├── 📁 handouts
 │   │   ├── 📍 index.html
 │   │   ├── 📁 piverse
 │   │   │   ├── 📁 electronics
@@ -3994,6 +4048,8 @@
 │   │       │       ├── ❓ pc-esp-14.quiz.html
 │   │       │       └── ❓ pc-esp-15.quiz.html
 │   │       └── 📍 index.html
+│   ├── 🏠 observatory [house:observatory]
+│   │   └── 📍 index.html
 │   ├── 🏠 script [house:script]
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📍 index.html
@@ -4057,6 +4113,7 @@
 │   │   │   ├── 📄 script-pwsh-pipeline.applet.html
 │   │   │   ├── 📄 script-pwsh-scripting.applet.html
 │   │   │   └── 📄 script-reporting-automation.applet.html
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 clh
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 script-clh-001-intro.applet.html
@@ -4857,6 +4914,7 @@
 │   │   │       │   └── 📄 shield-threat-xss.applet.html
 │   │   │       └── 📁 zero_day [applets]
 │   │   │           └── 📄 shield-threat-zero-day.applet.html
+│   │   ├── 📄 careers.html
 │   │   ├── 📁 challenges
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📄 shield-attack-vector-challenge.applet.html
@@ -4941,8 +4999,13 @@
 │   │   │   │   ├── 📄 pis-20.html
 │   │   │   │   └── 📄 pis-21.html
 │   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 pis-5th-grader.review.html
 │   │   │   │   ├── 📄 pis-final.exam.html
-│   │   │   │   └── 📄 pis-midterm.exam.html
+│   │   │   │   ├── 📄 pis-jeopardy.review.html
+│   │   │   │   ├── 📄 pis-kahoot-host.review.html
+│   │   │   │   ├── 📄 pis-kahoot.review.html
+│   │   │   │   ├── 📄 pis-midterm.exam.html
+│   │   │   │   └── 📄 pis-wheel.review.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
 │   │   │   │   ├── 📁 pis-final-patient-zero [labs]
@@ -5170,7 +5233,30 @@
 │   │   │   ├── 📊 shield-sec101-m07.presentation.html
 │   │   │   └── 📊 shield-sec101-m08.presentation.html
 │   │   ├── 📁 security-plus
-│   │   │   └── 📍 index.html
+│   │   │   ├── 📍 index.html
+│   │   │   └── 📁 labs [labs]
+│   │   │       ├── 🔬 pbq-attack-identification.lab.html
+│   │   │       ├── 🔬 pbq-control-classification.lab.html
+│   │   │       ├── 🔬 pbq-crypto-selection.lab.html
+│   │   │       ├── 🔬 pbq-firewall-config.lab.html
+│   │   │       ├── 📁 shield-sp-blueteam-breach-capstone [labs]
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 shield-sp-blueteam-config-audit [labs]
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 shield-sp-blueteam-log-intrusion-hunt [labs]
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 shield-sp-blueteam-policy-classify [labs]
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 shield-sp-blueteam-risk-quant [labs]
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 shield-sp-blueteam-risk-register [labs]
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 shield-sp-blueteam-siem-triage [labs]
+│   │   │       │   └── 📍 index.html
+│   │   │       ├── 📁 shield-sp-blueteam-vendor-assessment [labs]
+│   │   │       │   └── 📍 index.html
+│   │   │       └── 📁 shield-sp-blueteam-vuln-triage [labs]
+│   │   │           └── 📍 index.html
 │   │   ├── 📁 speaker-notes
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 shield-aaa-flow.tool.html
@@ -5406,6 +5492,7 @@
 │       │       ├── 📄 bb-wl-09.html
 │       │       ├── 📄 bb-wl-10.html
 │       │       └── 📍 index.html
+│       ├── 📄 careers.html
 │       ├── 📁 ccna
 │       │   ├── 📍 index.html
 │       │   ├── 📁 labs [labs]
@@ -5567,16 +5654,6 @@
 │       │       ├── ❓ cr-w4-design.quiz.html
 │       │       └── ❓ cr-w4-troubleshoot.quiz.html
 │       ├── 📁 network-essentials
-│       │   ├── 📄 ne-01.html
-│       │   ├── 📄 ne-02.html
-│       │   ├── 📄 ne-03.html
-│       │   ├── 📄 ne-04.html
-│       │   ├── 📄 ne-05.html
-│       │   ├── 📄 ne-06.html
-│       │   ├── 📄 ne-07.html
-│       │   ├── 📄 ne-08.html
-│       │   ├── 📄 ne-09.html
-│       │   └── 📄 ne-10.html
 │       ├── 📁 network-plus
 │       │   ├── 📁 configs [config]
 │       │   ├── 📁 engine
@@ -5797,6 +5874,8 @@
 │       │   └── 🔬 web-lab-troubleshooting.reference.html
 │       └── 📁 tutorials
 ├── 📍 index.html
+├── 📁 join
+│   └── 📍 index.html
 ├── 📁 js
 ├── 📁 key
 │   └── 📁 districts
@@ -5944,6 +6023,7 @@
 ├── 📄 privacy.html
 ├── 📄 product-info.html
 ├── 📁 projects
+│   ├── 📄 ai-build-your-department.html
 │   ├── 📄 ai-data-augmentation.html
 │   ├── 📄 ai-explainable-ml.html
 │   ├── 📄 ai-face-detection.html
@@ -6029,14 +6109,21 @@
 │   ├── 📄 script-system-monitor.html
 │   ├── 📄 script-video-summarizer.html
 │   ├── 📄 script-web-crawler.html
+│   ├── 📄 shield-awareness-program.html
 │   ├── 📄 shield-aws-cognito.html
+│   ├── 📄 shield-control-framework-mapping.html
 │   ├── 📄 shield-fake-news.html
 │   ├── 📄 shield-firewall-iptables.html
+│   ├── 📄 shield-first-risk-assessment.html
+│   ├── 📄 shield-first-security-policy.html
 │   ├── 📄 shield-ids-ml.html
+│   ├── 📄 shield-incident-response-plan.html
 │   ├── 📄 shield-log-analyzer.html
 │   ├── 📄 shield-perimeter-alarm.html
 │   ├── 📄 shield-pi-ids.html
+│   ├── 📄 shield-tabletop-exercise.html
 │   ├── 📄 starter-calculator.html
+│   ├── 📄 starter-first-agent.html
 │   ├── 📄 starter-first-api.html
 │   ├── 📄 starter-first-app.html
 │   ├── 📄 starter-first-bot.html
@@ -6045,13 +6132,16 @@
 │   ├── 📄 starter-first-firewall.html
 │   ├── 📄 starter-first-gui.html
 │   ├── 📄 starter-first-hack.html
+│   ├── 📄 starter-first-knowledge-base.html
 │   ├── 📄 starter-first-network.html
 │   ├── 📄 starter-first-pipeline.html
 │   ├── 📄 starter-first-repo.html
 │   ├── 📄 starter-first-scan.html
 │   ├── 📄 starter-first-script.html
 │   ├── 📄 starter-first-server.html
+│   ├── 📄 starter-first-tool.html
 │   ├── 📄 starter-first-webpage.html
+│   ├── 📄 starter-first-workflow.html
 │   ├── 📄 starter-github-profile.html
 │   ├── 📄 starter-portfolio-site.html
 │   ├── 📄 web-elearning-flask.html
@@ -6070,6 +6160,7 @@
 │       └── 📁 iam
 │           └── 📍 index.html
 ├── 📁 signal
+│   ├── 📄 careers.html
 │   ├── 📁 firmware-bins
 │   │   ├── 📁 arduino-mega-blink
 │   │   │   └── 📁 v0.1
@@ -6794,8 +6885,13 @@
 | cloud-lab.lab | lab | ✓ | 0 |
 | cloud-ps.lab | lab | ✓ | 0 |
 | cloud-security.lab | lab | ✓ | 0 |
+| index | presentation | ✓ | 1 |
 | cloud-gauntlet.module | presentation | ✓ | 0 |
 | cloud-gauntlet-advanced.module | presentation | ✓ | 0 |
+| course-intro | presentation | ✓ | 1 |
+| week-01 | presentation | ✓ | 1 |
+| week-02 | presentation | ✓ | 1 |
+| week-03 | presentation | ✓ | 1 |
 | cloud-guilab.module | presentation | ✓ | 0 |
 | cloud-presentation.module | presentation | ✓ | 0 |
 | cloud-pslab.module | lab | ✓ | 0 |
@@ -7596,8 +7692,12 @@
 | eth-r1 | presentation | ✓ | 0 |
 | eth-r2 | presentation | ✓ | 0 |
 | eth-r3 | presentation | ✓ | 0 |
+| eth-5th-grader.review | presentation | ✓ | 0 |
 | eth-final.exam | presentation | ✓ | 0 |
+| eth-jeopardy.review | presentation | ✓ | 0 |
+| eth-kahoot.review | presentation | ✓ | 0 |
 | eth-midterm.exam | presentation | ✓ | 0 |
+| eth-wheel.review | presentation | ✓ | 0 |
 | eth-01-overview.presentation | presentation | ✓ | 0 |
 | eth-02-it-professionals.presentation | presentation | ✓ | 0 |
 | eth-03-cybersecurity-ethics.presentation | presentation | ✓ | 0 |
@@ -7622,6 +7722,7 @@
 | eth-w2-lecture.presentation | presentation | ✓ | 0 |
 | eth-w2-privacy.presentation | presentation | ✓ | 0 |
 | eth-w3-it-impact.presentation | presentation | ✓ | 0 |
+| eth-w3-lecture.presentation | presentation | ✓ | 0 |
 | eth-w3-software-ethics.presentation | presentation | ✓ | 0 |
 | eth-w4-codes-of-ethics.presentation | presentation | ✓ | 0 |
 | eth-w4-it-organizations.presentation | presentation | ✓ | 0 |
@@ -7805,10 +7906,12 @@
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | forge-bluetooth-pairing.lab | presentation | ✓ | 0 |
+| forge-cable-building.lab | presentation | ✓ | 0 |
 | forge-cable-matching.lab | presentation | ✓ | 0 |
 | forge-cloud-scenarios.lab | lab | ✓ | 0 |
-| forge-command-line.lab | lab | ✓ | 0 |
+| forge-cpu-install.lab | presentation | ✓ | 0 |
 | forge-cpu-sockets.lab | lab | ✓ | 0 |
 | forge-diagnostic-tools.lab | lab | ✓ | 0 |
 | forge-display-troubleshoot.lab | lab | ✓ | 0 |
@@ -7816,7 +7919,9 @@
 | forge-docking-config.lab | presentation | ✓ | 0 |
 | forge-email-config.lab | presentation | ✓ | 0 |
 | forge-esd-workspace.lab | presentation | ✓ | 0 |
+| forge-front-panel-header.lab | presentation | ✓ | 0 |
 | forge-hardware-diagnosis.lab | lab | ✓ | 0 |
+| forge-keystone-jack.lab | presentation | ✓ | 0 |
 | forge-laptop-memory.lab | presentation | ✓ | 0 |
 | forge-mdm-config.lab | lab | ✓ | 0 |
 | forge-mobile-email.lab | lab | ✓ | 0 |
@@ -7835,6 +7940,7 @@
 | forge-psu-connectors.lab | presentation | ✓ | 0 |
 | forge-raid-config.lab | lab | ✓ | 0 |
 | forge-ram-identification.lab | lab | ✓ | 0 |
+| forge-ram-install.lab | presentation | ✓ | 0 |
 | forge-router-config.lab | presentation | ✓ | 0 |
 | forge-server-roles.lab | presentation | ✓ | 0 |
 | forge-soho-designer.lab | lab | ✓ | 0 |
@@ -7866,6 +7972,7 @@
 | index | presentation | ✓ | 0 |
 | forge-admin-tools.lab | lab | ✓ | 0 |
 | forge-change-management.lab | lab | ✓ | 0 |
+| forge-command-line.lab | lab | ✓ | 0 |
 | forge-control-panel.lab | lab | ✓ | 0 |
 | forge-core2-roleplay.lab | presentation | ✓ | 0 |
 | forge-documentation.lab | lab | ✓ | 0 |
@@ -8144,6 +8251,7 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| ala-final | presentation | ✓ | 0 |
 | ala-r1 | presentation | ✓ | 0 |
 | ala-r2 | presentation | ✓ | 0 |
 | ala-r3 | presentation | ✓ | 0 |
@@ -8153,18 +8261,22 @@
 | ala-midterm | quiz | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | ala-w1-cli-operations.presentation | presentation | ✓ | 0 |
+| ala-w1-lecture.presentation | presentation | ✓ | 0 |
 | ala-w1-network-config.presentation | presentation | ✓ | 0 |
 | ala-w1-network-diag.presentation | presentation | ✓ | 0 |
 | ala-w1-systemd.presentation | presentation | ✓ | 0 |
 | ala-w2-antivirus.presentation | presentation | ✓ | 0 |
 | ala-w2-authentication.presentation | presentation | ✓ | 0 |
 | ala-w2-firewalls.presentation | presentation | ✓ | 0 |
+| ala-w2-lecture.presentation | presentation | ✓ | 0 |
 | ala-w2-packages.presentation | presentation | ✓ | 0 |
 | ala-w3-automation.presentation | presentation | ✓ | 0 |
 | ala-w3-bash-scripting.presentation | presentation | ✓ | 0 |
 | ala-w3-bind-deployment.presentation | presentation | ✓ | 0 |
 | ala-w3-dns-fundamentals.presentation | presentation | ✓ | 0 |
+| ala-w3-lecture.presentation | presentation | ✓ | 0 |
 | ala-w4-file-integrity.presentation | presentation | ✓ | 0 |
+| ala-w4-lecture.presentation | presentation | ✓ | 0 |
 | ala-w4-log-management.presentation | presentation | ✓ | 0 |
 | ala-w4-performance.presentation | presentation | ✓ | 0 |
 | ala-w1-quiz | quiz | ✓ | 0 |
@@ -8963,6 +9075,7 @@
 | shield-business-continuity-planner.applet | presentation | ✓ | 0 |
 | shield-change-management.applet | presentation | ✓ | 0 |
 | shield-malware-types.applet | presentation | ✓ | 0 |
+| careers | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | shield-cf-mm01-intro.lab | presentation | ✓ | 0 |
 | shield-cf-mm02-gov-agencies.lab | presentation | ✓ | 0 |
@@ -9000,6 +9113,7 @@
 | shield-threatdex.applet | applet | ✓ | 1 |
 | shield-web-security-headers-lab.applet | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
 | pis-01 | quiz | ✓ | 0 |
 | pis-02 | quiz | ✓ | 0 |
 | pis-03 | quiz | ✓ | 0 |
@@ -9021,8 +9135,12 @@
 | pis-19 | quiz | ✓ | 0 |
 | pis-20 | quiz | ✓ | 0 |
 | pis-21 | quiz | ✓ | 0 |
+| pis-5th-grader.review | presentation | ✓ | 0 |
 | pis-final | quiz | ✓ | 0 |
+| pis-jeopardy.review | presentation | ✓ | 0 |
+| pis-kahoot.review | presentation | ✓ | 0 |
 | pis-midterm | quiz | ✓ | 0 |
+| pis-wheel.review | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | pis-r1 | presentation | ✓ | 0 |
 | pis-r2 | presentation | ✓ | 0 |
@@ -9187,6 +9305,10 @@
 | shield-sec101-m07.presentation | presentation | ✓ | 0 |
 | shield-sec101-m08.presentation | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
+| pbq-attack-identification.lab | presentation | ✓ | 0 |
+| pbq-control-classification.lab | presentation | ✓ | 0 |
+| pbq-crypto-selection.lab | presentation | ✓ | 0 |
+| pbq-firewall-config.lab | presentation | ✓ | 0 |
 | shield-aaa-flow.tool | presentation | ✓ | 0 |
 | shield-bia.tool | presentation | ✓ | 0 |
 | shield-crisc-risk.tool | presentation | ✓ | 0 |
@@ -9218,11 +9340,13 @@
 | bot-knowledge-eye | applet | ✓ | 1 |
 | bot-knowledge-forge | applet | ✓ | 1 |
 | bot-knowledge-key | applet | ✓ | 1 |
+| bot-knowledge-matrix | applet | ✓ | 1 |
 | bot-knowledge-script | applet | ✓ | 1 |
 | bot-knowledge-shield | applet | ✓ | 1 |
 | bot-knowledge-signal | applet | ✓ | 1 |
 | bot-knowledge-web | applet | ✓ | 1 |
 | bot-knowledge | applet | ✓ | 1 |
+| internships | applet | ✓ | 1 |
 | career-quiz | applet | ✓ | 1 |
 | privacy-settings | presentation | ✓ | 1 |
 | profile | presentation | ✓ | 1 |
@@ -9484,7 +9608,6 @@
 | feh-10 | quiz | ✓ | 0 |
 | dark-arts-feh-comprehensive-review | presentation | ✓ | 0 |
 | dark-arts-sample.tool | presentation | ✓ | 0 |
-| index | presentation | ✓ | 0 |
 | da-ad-attack-lab.lab | lab | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | pfi-op-01.mission | presentation | ✓ | 0 |
@@ -9492,30 +9615,32 @@
 | pfi-op-03.mission | presentation | ✓ | 0 |
 | pfi-op-04.mission | presentation | ✓ | 0 |
 | product-info | applet | ✓ | 1 |
-| ai-explainable-ml | applet | ✓ | 1 |
-| ai-intrusion-detector | applet | ✓ | 1 |
-| ai-music-generation | applet | ✓ | 1 |
+| ai-data-augmentation | applet | ✓ | 1 |
 | ai-network-anomaly | applet | ✓ | 1 |
 | ai-rag-chatbot | applet | ✓ | 1 |
-| ai-reinforcement-taxi | applet | ✓ | 1 |
+| ai-rasa-chatbot | applet | ✓ | 1 |
 | cloud-container-checker | applet | ✓ | 1 |
+| cloud-serverless-django | applet | ✓ | 1 |
 | code-memory-game | applet | ✓ | 1 |
 | code-serial-console | applet | ✓ | 1 |
+| code-task-manager | applet | ✓ | 1 |
 | code-typing-speed | applet | ✓ | 1 |
+| code-wordle-clone | applet | ✓ | 1 |
+| darkarts-kali-setup | applet | ✓ | 1 |
 | darkarts-wifi-scanner | applet | ✓ | 1 |
-| eye-osint-dashboard | applet | ✓ | 1 |
+| divergent-field-terminal | applet | ✓ | 1 |
 | eye-playwright-testing | applet | ✓ | 1 |
 | eye-pytorch-onnx | applet | ✓ | 1 |
 | forge-crossword-puzzle | applet | ✓ | 1 |
+| forge-env-monitor | applet | ✓ | 1 |
 | forge-flashcard-engine | applet | ✓ | 1 |
 | forge-sensor-dashboard | applet | ✓ | 1 |
+| forge-virtualbox-first-vm | applet | ✓ | 1 |
 | key-blockchain | applet | ✓ | 1 |
-| key-brownie-contracts | applet | ✓ | 1 |
+| key-nft-marketplace | applet | ✓ | 1 |
 | key-password-vault | applet | ✓ | 1 |
-| matrix-climate-analysis | applet | ✓ | 1 |
-| matrix-customer-segmentation | applet | ✓ | 1 |
+| key-rfid-access | applet | ✓ | 1 |
 | matrix-data-viz | applet | ✓ | 1 |
-| matrix-kafka-streaming | applet | ✓ | 1 |
 | matrix-packet-visualizer | applet | ✓ | 1 |
 | matrix-plotly-viz | applet | ✓ | 1 |
 | matrix-sentiment-nlp | applet | ✓ | 1 |
@@ -9524,15 +9649,17 @@
 | matrix-traffic-dashboard | applet | ✓ | 1 |
 | script-data-logger | applet | ✓ | 1 |
 | script-data-pipeline | applet | ✓ | 1 |
+| script-etl-pipeline | applet | ✓ | 1 |
 | script-video-summarizer | applet | ✓ | 1 |
 | shield-fake-news | applet | ✓ | 1 |
+| shield-first-security-policy | applet | ✓ | 1 |
 | shield-log-analyzer | applet | ✓ | 1 |
 | starter-calculator | applet | ✓ | 1 |
 | starter-first-bot | applet | ✓ | 1 |
 | starter-first-database | applet | ✓ | 1 |
 | starter-first-gui | applet | ✓ | 1 |
+| web-elearning-flask | applet | ✓ | 1 |
 | web-online-portfolio | applet | ✓ | 1 |
-| web-pi-network-probe | applet | ✓ | 1 |
 | web-topology-visualizer | applet | ✓ | 1 |
 | pulse | applet | ✓ | 1 |
 | sg-92-swarm-simulator | applet | ✓ | 1 |
@@ -9545,7 +9672,8 @@
 | duckyscript-ide | presentation | ✓ | 2 |
 | dban.tool | applet | ✓ | 1 |
 | subscription | applet | ✓ | 1 |
-| instructor | applet | ✓ | 1 |
+| instructor | presentation | ✓ | 0 |
+| career-pathway-planner | applet | ✓ | 1 |
 | ws-01 | applet | ✓ | 1 |
 | ws-03 | applet | ✓ | 1 |
 | ws-04 | applet | ✓ | 1 |
@@ -9833,16 +9961,6 @@
 | cr-w3-transport.quiz | presentation | ✓ | 0 |
 | cr-w4-design.quiz | presentation | ✓ | 0 |
 | cr-w4-troubleshoot.quiz | presentation | ✓ | 0 |
-| ne-01 | presentation | ✓ | 0 |
-| ne-02 | presentation | ✓ | 0 |
-| ne-03 | presentation | ✓ | 0 |
-| ne-04 | presentation | ✓ | 0 |
-| ne-05 | presentation | ✓ | 0 |
-| ne-06 | presentation | ✓ | 0 |
-| ne-07 | presentation | ✓ | 0 |
-| ne-08 | presentation | ✓ | 0 |
-| ne-09 | presentation | ✓ | 0 |
-| ne-10 | presentation | ✓ | 0 |
 | final-practice.exam | presentation | ✓ | 0 |
 | flashcards.exam | presentation | ✓ | 0 |
 | jeopardy.review | presentation | ✓ | 0 |
@@ -10029,7 +10147,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (27) — heuristic, needs review
+### SUSPECT (29) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -10048,7 +10166,7 @@
   Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
-  File: `components/TenantShell.js`
+  File: `components/ObservatoryConsent.js`
   Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
@@ -10099,8 +10217,16 @@
   File: `houses/code/armory/compare.html`
   Fix: Remove console.log or replace with proper logging
 
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/matrix/adv-linux/ala-final.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `houses/shield/infosec/exams/pis-kahoot-host.review.html`
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
@@ -10139,7 +10265,7 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (2300)
+### WARNING (986)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -10198,6 +10324,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `bot-knowledge-matrix.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `bot-knowledge-script.html`
   Fix: Add entry to content-registry.js
 
@@ -10215,6 +10345,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `bot-knowledge.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `career/internships.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -10723,78 +10857,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/ai/agents/ai13-08-agent-eval.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/labs/ai900-ch01-intro-ai.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/labs/ai900-ch02-computer-vision.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/labs/ai900-ch03-nlp.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/labs/ai900-ch04-generative-ai.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/labs/ai900-ch05-predictive-models.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/labs/ai900-ch06-ai-services.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/presentations/ai900-ch01-intro-ai.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/presentations/ai900-ch02-computer-vision.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/presentations/ai900-ch03-nlp.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/presentations/ai900-ch04-generative-ai.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/presentations/ai900-ch05-predictive-models.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/presentations/ai900-ch06-ai-services.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/quizzes/ai900-ch01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/quizzes/ai900-ch02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/quizzes/ai900-ch03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/quizzes/ai900-ch04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/quizzes/ai900-ch05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/ai-900/quizzes/ai900-ch06.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -11469,17 +11531,9 @@
   File: `houses/ai/cortex/unsupervised/cx-uns-10.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/games/ai-agent-builder.applet.html`
-  Fix: Add entry to content-registry.js
-
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/ai/games/ai-triage-trainer.applet.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/games/ai-triage-trainer.applet.html`
-  Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/ai/hubs/ai-advanced-hub.html`
@@ -11491,122 +11545,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/ai/hubs/ai-azure-openai-hub.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/labs/ai-agent-workflow.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/labs/ai-ethics-debate.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/labs/ai-fine-tuning.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/labs/ai-prompt-injection.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/labs/ai-rag-pipeline.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/labs/ai-soc-triage.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/labs/ai-vector-database.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/modules/ai-agent-components.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/modules/ai-automation-rubric.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/modules/ai-guardrails.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/modules/ai-nocode-platforms.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/modules/ai-prompt-engineering.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/modules/ai-soc-automation.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/modules/ai-what-are-agents.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/presentations/ai-agent-patterns.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/presentations/ai-deployment.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/presentations/ai-foundations.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/presentations/ai-model-architecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/presentations/ai-prompt-engineering.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/presentations/ai-safety-guardrails.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/quizzes/ai-builder.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/quizzes/ai-foundations.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/quizzes/ai-security.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/tools/ai-benchmark-explorer.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/tools/ai-cost-calculator.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/tools/ai-flashcards.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/tools/ai-llm-comparison.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/tools/ai-prompt-tester.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/ai/tools/ai-tokenizer.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -11687,30 +11625,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/api/capstone/capi-cap-10.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/api/cloud-api-002.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/api/cloud-api-003.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/api/cloud-api-004.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/api/cloud-api-005.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/api/cloud-api-006.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/api/cloud-api-007.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -11953,412 +11867,40 @@
   File: `houses/cloud/api/rate-limiting/capi-rl-10.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/labs/az104-ch01-prerequisites.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/labs/az104-ch02-identities-governance.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/labs/az104-ch03-storage.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/labs/az104-ch04-compute.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/labs/az104-ch05-networking.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/labs/az104-ch06-monitor-backup.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/presentations/az104-ch01-prerequisites.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/presentations/az104-ch02-identities-governance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/presentations/az104-ch03-storage.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/presentations/az104-ch04-compute.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/presentations/az104-ch05-networking.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/presentations/az104-ch06-monitor-backup.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/quizzes/az104-ch01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/quizzes/az104-ch02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/quizzes/az104-ch03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/quizzes/az104-ch04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/quizzes/az104-ch05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-104/quizzes/az104-ch06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-900/labs/az900-ch01-cloud-concepts.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-900/labs/az900-ch02-azure-architecture.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-900/labs/az900-ch03-management-governance.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-900/presentations/az900-ch01-cloud-concepts.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-900/presentations/az900-ch02-azure-architecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-900/presentations/az900-ch03-management-governance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-900/quizzes/az900-ch01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-900/quizzes/az900-ch02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/az-900/quizzes/az900-ch03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/exams/cb-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/exams/cb-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/labs/cb-w1-concepts.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/labs/cb-w1-deployment.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/labs/cb-w2-automation.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/labs/cb-w2-security.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/labs/cb-w3-backup.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/labs/cb-w3-dr.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/labs/cb-w4-monitoring.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/labs/cb-w4-troubleshoot.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/presentations/cb-w1-concepts.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/presentations/cb-w1-deployment.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/presentations/cb-w2-automation.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/presentations/cb-w2-security.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/presentations/cb-w3-backup.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/presentations/cb-w3-dr.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/presentations/cb-w4-monitoring.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/presentations/cb-w4-troubleshoot.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/quizzes/cb-w1-concepts.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/quizzes/cb-w1-deployment.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/quizzes/cb-w2-automation.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/quizzes/cb-w2-security.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/quizzes/cb-w3-backup.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/quizzes/cb-w3-dr.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/quizzes/cb-w4-monitoring.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/cloud-essentials/quizzes/cb-w4-troubleshoot.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/labs/ms102-ch01-tenant.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/labs/ms102-ch02-users-groups.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/labs/ms102-ch03-roles-access.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/labs/ms102-ch04-entra-auth.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/labs/ms102-ch05-exchange.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/labs/ms102-ch06-sharepoint.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/labs/ms102-ch07-teams.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/labs/ms102-ch08-security-compliance.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/presentations/ms102-ch01-tenant.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/presentations/ms102-ch02-users-groups.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/presentations/ms102-ch03-roles-access.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/presentations/ms102-ch04-entra-auth.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/presentations/ms102-ch05-exchange.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/presentations/ms102-ch06-sharepoint.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/presentations/ms102-ch07-teams.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/presentations/ms102-ch08-security-compliance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/quizzes/ms102-ch01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/quizzes/ms102-ch02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/quizzes/ms102-ch03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/quizzes/ms102-ch04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/quizzes/ms102-ch05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/quizzes/ms102-ch06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/quizzes/ms102-ch07.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-102/quizzes/ms102-ch08.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-900/labs/ms900-ch01-cloud-m365.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-900/labs/ms900-ch02-security-compliance.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-900/labs/ms900-ch03-pricing-support.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-900/presentations/ms900-ch01-cloud-m365.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-900/presentations/ms900-ch02-security-compliance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-900/presentations/ms900-ch03-pricing-support.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-900/quizzes/ms900-ch01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-900/quizzes/ms900-ch02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/ms-900/quizzes/ms900-ch03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/labs/pl300-ch01-prepare-data.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/labs/pl300-ch02-model-data.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/labs/pl300-ch03-visualize.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/labs/pl300-ch04-deploy.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/labs/pl300-ch05-dax.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/presentations/pl300-ch01-prepare-data.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/presentations/pl300-ch02-model-data.presentation.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/_compare/index.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/presentations/pl300-ch03-visualize.presentation.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/instructor/course-intro.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/presentations/pl300-ch04-deploy.presentation.html`
+  File: `houses/cloud/modules/wsa/instructor/course-intro.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/presentations/pl300-ch05-dax.presentation.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/instructor/week-01.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/quizzes/pl300-ch01.quiz.html`
+  File: `houses/cloud/modules/wsa/instructor/week-01.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/quizzes/pl300-ch02.quiz.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/instructor/week-02.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/quizzes/pl300-ch03.quiz.html`
+  File: `houses/cloud/modules/wsa/instructor/week-02.html`
   Fix: Add entry to content-registry.js
 
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/quizzes/pl300-ch04.quiz.html`
-  Fix: Add entry to content-registry.js
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/modules/wsa/instructor/week-03.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/pl-300/quizzes/pl300-ch05.quiz.html`
+  File: `houses/cloud/modules/wsa/instructor/week-03.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -12806,487 +12348,7 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-02-registers.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-03-arithmetic.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-04-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-05-stack-functions.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-06-memory.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-07-syscalls.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-08-debugging.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-09-reverse-engineering.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/assembly/arm-asm-10-exploits.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-03-input-output.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-04-conditionals.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-05-loops.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-06-functions.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-07-text-processing.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-08-system-admin.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-09-security-scripts.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/bash/arm-bash-10-advanced.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-02-variables-types.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-03-operators-control.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-04-functions.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-05-arrays-strings.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-06-pointers.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-07-memory.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-08-structs-unions.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-09-file-io.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/c/arm-c-10-preprocessor.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/armory/compare.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-03-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-04-oop.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-05-inheritance.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-06-templates-stl.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-07-memory.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-08-modern-cpp.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-09-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/cpp/arm-cpp-10-advanced.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-03-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-04-oop.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-05-inheritance.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-06-collections.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-07-exceptions.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-08-async.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-09-aspnet.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/csharp/arm-cs-10-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-03-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-04-data-structures.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-05-interfaces.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-06-concurrency.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-07-errors-testing.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-08-stdlib.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-09-cli-cloud.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/go/arm-go-10-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-03-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-04-oop.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-05-inheritance.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-06-collections.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-07-exceptions.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-08-threads.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-09-spring.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/java/arm-java-10-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-02-variables-types.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-03-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-04-functions.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-05-arrays-objects.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-06-dom.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-07-async.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-08-classes-modules.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-09-typescript-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/javascript/arm-js-10-practical.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-02-lua-basics.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-03-lua-apps.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-04-perl-basics.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-05-perl-text.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-06-perl-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-07-r-basics.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-08-r-analysis.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-09-r-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/lua-perl-r/arm-lpr-10-comparison.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-03-control.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-04-arrays.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-05-oop.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-06-forms.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-07-pdo.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-08-sessions.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-09-modern.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/php/arm-php-10-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-02-cmdlets-pipeline.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-03-variables-types.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-04-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-05-objects.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-06-filesystem.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-07-active-directory.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-08-remoting.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-09-scripting.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/powershell/arm-ps-10-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-03-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-04-loops.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-05-functions.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-06-data-structures.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-07-strings-io.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-08-oop.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-09-modules-packages.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/python/arm-py-10-error-handling.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13327,166 +12389,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/armory/python-graphics/pg-10.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-03-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-04-collections.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-05-oop.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-06-blocks.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-07-file-io.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-08-regex.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-09-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/ruby/arm-rb-10-advanced.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-03-ownership.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-04-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-05-structs-enums.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-06-traits-generics.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-07-error-handling.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-08-collections.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-09-concurrency.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/rust/arm-rs-10-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-02-select.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-03-filtering.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-04-joins.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-05-aggregation.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-06-subqueries.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-07-crud.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-08-schema.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-09-security.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/sql/arm-sql-10-practical.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-02-variables.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-03-control-flow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-04-collections.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-05-oop.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-06-error-handling.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-07-concurrency.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-08-mobile-ui.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-09-networking.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/armory/swift-kotlin/arm-sk-10-security.module.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13678,74 +12580,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-10-branching-strategies.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-11-merge-conflicts.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-12-rebasing.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-13-stashing-tagging.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-14-git-hooks.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-15-git-internals.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-16-git-lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-36-repo-anatomy.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-37-forks-upstream.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-38-github-features.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-39-gitignore-readme.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-40-diff-comparing.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-41-undoing-things.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-42-git-tips-tricks.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-7-git-fundamentals.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-8-branches.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/devops/sections/git/do-9-remote-repos.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/devops/sections/iac/do-23-terraform.html`
   Fix: Add entry to content-registry.js
 
@@ -13898,54 +12732,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-capstone.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter01.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter02.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter03.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter04.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter05.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter06.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter07.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter08.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter09.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-chapter10.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-engineering/code-pye-midterm.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/modules/python-hub/labs/pyh-lab-graphics-01.html`
   Fix: Add entry to content-registry.js
 
@@ -14010,94 +12796,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-graphics-01.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-graphics-02.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-graphics-03.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-graphics-04.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-graphics-05.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-graphics-06.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-graphics-07.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-graphics-08.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-project-01.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-project-02.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-project-03.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-project-04.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-project-05.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-project-06.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-stdlib-01.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-stdlib-02.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-stdlib-03.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-stdlib-04.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-stdlib-05.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-stdlib-06.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-stdlib-07.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/modules/python-hub/modules/pyh-stdlib-08.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/modules/python-hub/quizzes/pyh-quiz-graphics-final.html`
   Fix: Add entry to content-registry.js
 
@@ -14122,316 +12820,12 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/exams/pfi-w4-final-exam.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/labs/pfi-w1-checkpoint.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/labs/pfi-w1-project.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/labs/pfi-w2-project.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/labs/pfi-w3-project-oop.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/labs/pfi-w3-project.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/labs/pfi-w4-final-project.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/labs/pfi-w4-gui-inclass.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-course-intro.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w1-conditionals.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w1-datatypes.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w1-loops.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w2-builtins.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w2-dicts.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w2-lists.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w2-strings.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w3-functions.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w3-graphics.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w3-oop.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w3-random.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w4-applied.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w4-gui-classroom.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/presentations/pfi-w4-gui.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/quizzes/pfi-w1-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/quizzes/pfi-w2-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/quizzes/pfi-w3-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-for-it/setup-guide.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/python-for-it/upgrade-guide.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/exams/sp-w2-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/exams/sp-w4-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/labs/sp-w1-datatypes.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/labs/sp-w1-intro.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/labs/sp-w2-loops.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/labs/sp-w2-strings.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/labs/sp-w3-collections.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/labs/sp-w3-functions.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/labs/sp-w4-analysis.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/labs/sp-w4-classes.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/presentations/sp-w1-datatypes.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/presentations/sp-w1-intro.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/presentations/sp-w2-loops.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/presentations/sp-w2-strings.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/presentations/sp-w3-collections.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/presentations/sp-w3-functions.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/presentations/sp-w4-analysis.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/presentations/sp-w4-classes.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/quizzes/sp-w1-datatypes.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/quizzes/sp-w1-intro.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/quizzes/sp-w2-loops.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/quizzes/sp-w2-strings.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/quizzes/sp-w3-collections.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/quizzes/sp-w3-functions.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/quizzes/sp-w4-analysis.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/python-programming/quizzes/sp-w4-classes.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/dark-arts/feh/index.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/games/dark-ids-evasion-lab.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/games/dark-m365-attack-lab.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/games/dark-malware-specimen-lab.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/games/dark-network-forensics-lab.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/games/dark-osint-recon-lab.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/games/dark-slowloris-dos-lab.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/vault/ehe/da-ad-attack-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/exams/cse-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/exams/cse-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-01-cyberethics-overview.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-02-security-professional-role.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-03-nist-csf.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-04-cyberspace-governance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-05-free-speech.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-06-ip-cyberspace.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-07-privacy-rights.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-08-cybercrime-moral-obligation.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-09-solarium-commission.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/presentations/cse-10-capstone.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/quizzes/cse-w1.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/quizzes/cse-w2.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/quizzes/cse-w3.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-ethics/quizzes/cse-w4.quiz.html`
-  Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/divergent/cybersecurity-policy/_source/csp-final-mc.exam.html`
@@ -14510,631 +12904,39 @@
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w1-concepts.presentation.html`
+  File: `houses/divergent/ethics-it/exams/eth-5th-grader.review.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w1-origins.presentation.html`
+  File: `houses/divergent/ethics-it/exams/eth-jeopardy.review.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w1-security-by-design.presentation.html`
+  File: `houses/divergent/ethics-it/exams/eth-kahoot.review.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w1-workforce.presentation.html`
+  File: `houses/divergent/ethics-it/exams/eth-wheel.review.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w2-bcp-drp.presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cable-building.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w2-human-factor.presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-install.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w2-programs.presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-front-panel-header.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w2-threats.presentation.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-keystone-jack.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w3-compliance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w3-governance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w3-laws.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w3-roles.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w4-nist-800-53.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w4-nist-csf.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w4-risk-management.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/presentations/csp-w4-sovereignty.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w1-concepts.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w1-origins.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w1-security-by-design.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w1-workforce.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w2-bcp-drp.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w2-human-factor.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w2-programs.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w2-threats.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w3-compliance.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w3-governance.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w3-laws.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w3-roles.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-800-53.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-csf.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w4-risk-management.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/cybersecurity-policy/quizzes/csp-w4-sovereignty.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-r1.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-r2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/eth-r3.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/exams/eth-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/exams/eth-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-01-overview.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-02-it-professionals.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-03-cybersecurity-ethics.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-04-week1-checkpoint.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-05-privacy.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-06-freedom-expression.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-07-intellectual-property.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-08-week2-checkpoint.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-09-software-development.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-10-it-impact.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-11-week3-checkpoint.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-12-social-media.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-13-it-organizations.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-14-codes-of-ethics.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-15-final-assessment.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-frameworks-characters.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w1-cybersecurity-ethics.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w1-ethics-overview.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w1-it-professionals.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w2-freedom-expression.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w2-intellectual-property.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w2-lecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w2-privacy.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w3-it-impact.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w3-software-ethics.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w4-codes-of-ethics.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w4-it-organizations.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/presentations/eth-w4-social-media.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/quizzes/eth-w1.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/quizzes/eth-w2.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/quizzes/eth-w3.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/applets/cyberops/eye-kill-chain-diamond.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/advanced-forensics/df-55-malware-forensics.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/disk-forensics/df-14-file-carving.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/evidence-foundations/df-01-evidence-types.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/log-timeline/df-41-windows-events.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/log-timeline/df-46-siem-integration.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/network-forensics/df-33-tcp-streams.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/forensics/sections/network-forensics/df-36-netflow.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/games/eye-detection-engineering.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/games/eye-log-analysis-lab.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/games/eye-security-onion-soc.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/games/eye-threat-hunting-lab.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-1.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/exams/bm-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/exams/bm-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/labs/bm-w1-cables.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/labs/bm-w1-mobo.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/labs/bm-w2-ram.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/labs/bm-w2-storage.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/labs/bm-w3-custom.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/labs/bm-w3-power.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/labs/bm-w4-printers.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/labs/bm-w4-troubleshoot.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/presentations/bm-w1-cables.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/presentations/bm-w1-motherboards.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/presentations/bm-w2-ram.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/presentations/bm-w2-storage.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/presentations/bm-w3-custom.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/presentations/bm-w3-power.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/presentations/bm-w4-printers.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/presentations/bm-w4-troubleshoot.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/quizzes/bm-w1-cables.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/quizzes/bm-w1-mobo.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/quizzes/bm-w2-ram.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/quizzes/bm-w2-storage.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/quizzes/bm-w3-custom.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/quizzes/bm-w3-power.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/quizzes/bm-w4-printers.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/hardware-support/quizzes/bm-w4-troubleshoot.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/intro-computers/presentations/fb-w1-fundamentals.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/intro-computers/presentations/fb-w1-word-basics.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/intro-computers/presentations/fb-w2-word-advanced.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-google-dorking.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m01-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m02-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m03-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m04-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m04-subnet-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m04-subnetting.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m05-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m06-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m07-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m08-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m09-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m10-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-m11-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-100/labs/forge-md100-midterm-sim.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/labs/forge-md101-m01-modern-management.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/labs/forge-md101-m02-device-enrollment.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/labs/forge-md101-m03-configuring-profiles.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/labs/forge-md101-m04-application-management.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/labs/forge-md101-m05-auth-compliance.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/labs/forge-md101-m06-managing-security.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/labs/forge-md101-m07-deployment-part1.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/labs/forge-md101-m08-deployment-part2.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/labs/forge-md101-m09-managing-updates.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/presentations/forge-md101-m01-modern-management.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/presentations/forge-md101-m02-device-enrollment.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/presentations/forge-md101-m04-application-management.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/presentations/forge-md101-m05-auth-compliance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/presentations/forge-md101-m06-managing-security.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/presentations/forge-md101-m07-deployment-part1.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/presentations/forge-md101-m08-deployment-part2.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/presentations/forge-md101-m09-managing-updates.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/quizzes/forge-md101-m01-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/quizzes/forge-md101-m02-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/quizzes/forge-md101-m03-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/quizzes/forge-md101-m04-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/quizzes/forge-md101-m05-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/quizzes/forge-md101-m06-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/quizzes/forge-md101-m07-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/quizzes/forge-md101-m08-quiz.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/md-101/quizzes/forge-md101-m09-quiz.quiz.html`
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-install.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -15150,1475 +12952,23 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/exams/sr-final.exam.html`
+  File: `houses/matrix/adv-linux/ala-final.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/exams/sr-midterm.exam.html`
+  File: `houses/matrix/adv-linux/presentations/ala-w1-lecture.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/labs/sr-w1-install.lab.html`
+  File: `houses/matrix/adv-linux/presentations/ala-w2-lecture.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/labs/sr-w1-roles.lab.html`
+  File: `houses/matrix/adv-linux/presentations/ala-w3-lecture.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/labs/sr-w2-storage.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/labs/sr-w2-virtual.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/labs/sr-w3-ha.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/labs/sr-w3-monitor.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/labs/sr-w4-containers.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/labs/sr-w4-troubleshoot.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/presentations/sr-w1-install.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/presentations/sr-w1-roles.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/presentations/sr-w2-storage.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/presentations/sr-w2-virtualization.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/presentations/sr-w3-ha.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/presentations/sr-w3-monitoring.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/presentations/sr-w4-containers.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/presentations/sr-w4-troubleshoot.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/quizzes/sr-w1-install.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/quizzes/sr-w1-roles.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/quizzes/sr-w2-storage.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/quizzes/sr-w2-virtual.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/quizzes/sr-w3-ha.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/quizzes/sr-w3-monitor.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/quizzes/sr-w4-containers.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/server-management/quizzes/sr-w4-troubleshoot.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-r1.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-r2.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-r3.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-r4.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-r5.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/exams/ala-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/exams/ala-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w1-cli-operations.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w1-network-config.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w1-network-diag.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w1-systemd.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w2-antivirus.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w2-authentication.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w2-firewalls.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w2-packages.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w3-automation.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w3-bash-scripting.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w3-bind-deployment.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w3-dns-fundamentals.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w4-file-integrity.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w4-log-management.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w4-performance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/quizzes/ala-w1.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/quizzes/ala-w2.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/quizzes/ala-w3.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/quizzes/ala-w4.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-01.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-02.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-03.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-04.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-05.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-06.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-07.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-08.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-09.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/labs/pv-e-10.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-01.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-02.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-03.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-04.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-05.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-06.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-07.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-08.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-09.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/presentations/pv-e-10.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-07.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-08.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-09.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/electronics/quizzes/pv-e-10.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/labs/pv-b-01.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/labs/pv-b-02.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/labs/pv-b-03.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/labs/pv-b-04.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/labs/pv-b-05.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/labs/pv-b-06.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/labs/pv-b-07.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/labs/pv-b-08.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/presentations/pv-b-01.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/presentations/pv-b-02.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/presentations/pv-b-03.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/presentations/pv-b-04.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/presentations/pv-b-05.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/presentations/pv-b-06.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/presentations/pv-b-07.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/presentations/pv-b-08.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/quizzes/pv-b-01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/quizzes/pv-b-02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/quizzes/pv-b-03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/quizzes/pv-b-04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/quizzes/pv-b-05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/quizzes/pv-b-06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/quizzes/pv-b-07.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/engineering/quizzes/pv-b-08.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-01.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-02.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-03.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-04.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-05.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-06.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-07.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-08.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-09.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/labs/pv-f-10.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-01.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-02.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-03.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-04.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-05.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-06.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-07.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-08.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-09.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/presentations/pv-f-10.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-07.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-08.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-09.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/fundamentals/quizzes/pv-f-10.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-01.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-02.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-03.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-04.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-05.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-06.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-07.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-08.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-09.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/labs/pv-m-10.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-01.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-02.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-03.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-04.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-05.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-06.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-07.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-08.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-09.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/presentations/pv-m-10.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-07.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-08.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-09.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/maker/quizzes/pv-m-10.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-01.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-02.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-03.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-04.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-05.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-06.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-07.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-08.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-09.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-10.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-11.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/labs/pv-mp-12.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-01.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-02.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-03.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-04.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-05.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-06.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-07.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-08.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-09.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-10.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-11.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/presentations/pv-mp-12.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-07.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-08.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-09.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-10.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-11.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/piverse/micropython/quizzes/pv-mp-12.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-01.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-02.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-03.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-04.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-05.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-06.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-07.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-08.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-09.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-10.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-11.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-12.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-13.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-14.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-15.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-16.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-17.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-18.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/labs/pc-ard-19.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-01.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-02.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-03.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-04.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-05.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-06.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-07.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-08.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-09.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-10.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-11.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-12.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-13.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-14.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-15.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-16.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-17.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-18.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/presentations/pc-ard-19.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-07.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-08.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-09.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-10.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-11.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-12.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-13.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-14.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-15.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-16.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-17.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-18.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/arduino/quizzes/pc-ard-19.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-01.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-02.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-03.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-04.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-05.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-06.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-07.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-08.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-09.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-10.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-11.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-12.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-13.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-14.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/labs/pc-esp-15.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-01.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-02.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-03.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-04.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-05.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-06.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-07.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-08.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-09.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-10.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-11.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-12.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-13.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-14.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/presentations/pc-esp-15.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-07.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-08.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-09.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-10.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-11.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-12.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-13.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-14.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/protocore/esp32/quizzes/pc-esp-15.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/script-clh-001.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/clh/script-clh-031-intro.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-001/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-001/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-002/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-002/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-003/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-003/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-004/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-004/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-005/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-005/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-006/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-006/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-007/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-007/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-008/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-008/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-009/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-009/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-010/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-010/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-011/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-011/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-012/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-012/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-013/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-013/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-014/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-014/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-015/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-015/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-016/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-016/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-017/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-017/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-018/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-018/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-019/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-019/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-020/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-020/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-021/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-021/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-022/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-022/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-023/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-023/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-024/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-024/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-025/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-025/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-026/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-026/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-027/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-027/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-028/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-028/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-029/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-029/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-030/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-030/script-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-031/script-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/courses/clh/modules/clh-031/script-lab.lab.html`
+  File: `houses/matrix/adv-linux/presentations/ala-w4-lecture.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -16627,258 +12977,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/linux-essentials/exams/ra-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/labs/ra-w1-kernel.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/labs/ra-w1-storage.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/labs/ra-w2-files.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/labs/ra-w2-servers.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/labs/ra-w3-security.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/labs/ra-w3-users.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/labs/ra-w4-logging.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/labs/ra-w4-troubleshoot.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/presentations/ra-w1-kernel.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/presentations/ra-w1-storage.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/presentations/ra-w2-files.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/presentations/ra-w2-servers.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/presentations/ra-w3-security.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/presentations/ra-w3-users.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/presentations/ra-w4-logging.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/presentations/ra-w4-troubleshoot.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/quizzes/ra-w1-kernel.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/quizzes/ra-w1-storage.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/quizzes/ra-w2-files.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/quizzes/ra-w2-servers.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/quizzes/ra-w3-security.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/quizzes/ra-w3-users.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/quizzes/ra-w4-logging.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/quizzes/ra-w4-troubleshoot.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-01-intro.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-02-select.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-03-where.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-04-sorting.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-05-foundations.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-06-crud.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-07-nulls.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-08-strings.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-09-numbers.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-10-dates.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-11-data.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-12-inner-join.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-13-outer-joins.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-14-advanced-joins.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-15-subqueries.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-16-ctes.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-17-joins.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-18-aggregates.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-19-group-by.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-20-window-funcs.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-21-pivoting.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-22-analytics.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-23-data-types.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-24-constraints.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-25-indexes.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-26-metadata.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-27-admin.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-28-ingestion.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-29-errors.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-30-quality.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-31-pipelines.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-32-engineering.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-33-sql.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-34-advanced.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/modules/databases/script-db-35-capstone.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/games/shield-contra.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/games/shield-debugger.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/games/shield-threatdex.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/games/shield-web-security-headers-lab.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -16966,463 +13064,35 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/exams/pis-final.exam.html`
+  File: `houses/shield/infosec/exams/pis-5th-grader.review.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/exams/pis-midterm.exam.html`
+  File: `houses/shield/infosec/exams/pis-jeopardy.review.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-r1.html`
+  File: `houses/shield/infosec/exams/pis-kahoot.review.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-r2.html`
+  File: `houses/shield/infosec/exams/pis-wheel.review.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-r3.html`
+  File: `houses/shield/security-plus/labs/pbq-attack-identification.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-r4.html`
+  File: `houses/shield/security-plus/labs/pbq-control-classification.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/pis-r5.html`
+  File: `houses/shield/security-plus/labs/pbq-crypto-selection.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w1-cia-triad.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w1-lecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w1-malware.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w1-security-controls.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w1-social-engineering.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w1-threat-actors.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w2-app-attacks.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w2-cryptography.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w2-device-security.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w2-lecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w2-network-attacks.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w3-inclass-task.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w3-lecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w3-network-architecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w3-pki.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w3-security-operations.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w3-wireless-cloud.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w4-authentication.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w4-identity-management.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w4-incident-response.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w4-inclass-task.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w4-lecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/presentations/pis-w4-risk-governance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/quizzes/pis-w1.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/quizzes/pis-w2.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/quizzes/pis-w3.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/quizzes/pis-w4.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/exams/fw-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/exams/fw-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w1-logical.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w1-physical.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w2-malware.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w2-wireless.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w3-os-security.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w3-social.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w3-workstation.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w4-data.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w4-mobile.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/labs/fw-w4-soho.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w1-logical.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w1-physical.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w2-malware.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w2-wireless.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w3-os-security.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w3-social-engineering.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w3-workstation.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w4-data-destruction.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w4-mobile.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/presentations/fw-w4-soho.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w1-logical.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w1-physical.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w2-malware.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w2-wireless.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w3-os-security.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w3-social.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w3-workstation.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w4-data.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w4-mobile.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/intro-security/quizzes/fw-w4-soho.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-01.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-02.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-03.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-04.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-05.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-06.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-07.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-08.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-09.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/ms-security/ms-sec-10.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/labs/sc200-ch01-defender-xdr.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/labs/sc200-ch02-defender-endpoint.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/labs/sc200-ch03-defender-office.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/labs/sc200-ch04-defender-identity.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/labs/sc200-ch05-defender-cloud-apps.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/labs/sc200-ch06-sentinel-setup.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/labs/sc200-ch07-sentinel-detection.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/labs/sc200-ch08-sentinel-response.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/labs/sc200-ch09-sentinel-hunting.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/presentations/sc200-ch01-defender-xdr.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/presentations/sc200-ch02-defender-endpoint.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/presentations/sc200-ch03-defender-office.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/presentations/sc200-ch04-defender-identity.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/presentations/sc200-ch05-defender-cloud-apps.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/presentations/sc200-ch06-sentinel-setup.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/presentations/sc200-ch07-sentinel-detection.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/presentations/sc200-ch08-sentinel-response.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/presentations/sc200-ch09-sentinel-hunting.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/quizzes/sc200-ch01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/quizzes/sc200-ch02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/quizzes/sc200-ch03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/quizzes/sc200-ch04.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/quizzes/sc200-ch05.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/quizzes/sc200-ch06.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/quizzes/sc200-ch07.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/quizzes/sc200-ch08.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-200/quizzes/sc200-ch09.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/labs/sc900-ch01-concepts.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/labs/sc900-ch02-entra-id.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/labs/sc900-ch03-security-solutions.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/labs/sc900-ch04-compliance.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/presentations/sc900-ch01-concepts.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/presentations/sc900-ch02-entra-id.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/presentations/sc900-ch03-security-solutions.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/presentations/sc900-ch04-compliance.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/quizzes/sc900-ch01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/quizzes/sc900-ch02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/quizzes/sc900-ch03.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/sc-900/quizzes/sc900-ch04.quiz.html`
+  File: `houses/shield/security-plus/labs/pbq-firewall-config.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -18026,439 +13696,7 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/labs/ccna-acl-lab.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/labs/ccna-ios-cli.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/labs/ccna-nat-config.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/labs/ccna-ospf-config.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/labs/ccna-troubleshooting.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/labs/ccna-vlan-config.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-01.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-02.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-03.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-04.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-05.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-06.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-07.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-08.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-09.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-10.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-11.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-12.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-13.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-14.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-15.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-16.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-17.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-18.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-19.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-20.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-21.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-22.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-23.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-24.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/modules/ccna-25.module.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/quizzes/ccna-comprehensive.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/quizzes/ccna-domain1.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/quizzes/ccna-domain2.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/quizzes/ccna-domain3.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/quizzes/ccna-domain4-5-6.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/tools/ccna-ospf-visualizer.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/ccna/tools/ccna-subnet-calculator.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/exams/web-network-plus-practice.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/games/web-dns-resolver-race.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/games/web-subnet-siege.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/exams/fl-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/exams/fl-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/labs/fl-w1-hardware.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/labs/fl-w1-ports.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/labs/fl-w2-soho.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/labs/fl-w2-wireless.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/labs/fl-w3-config.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/labs/fl-w3-services.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/labs/fl-w4-connections.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/labs/fl-w4-tools.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/presentations/fl-w1-hardware.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/presentations/fl-w1-ports.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/presentations/fl-w2-soho.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/presentations/fl-w2-wireless.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/presentations/fl-w3-config.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/presentations/fl-w3-services.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/presentations/fl-w4-connections.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/presentations/fl-w4-tools.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/quizzes/fl-w1-hardware.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/quizzes/fl-w1-ports.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/quizzes/fl-w2-soho.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/quizzes/fl-w2-wireless.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/quizzes/fl-w3-config.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/quizzes/fl-w3-services.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/quizzes/fl-w4-connections.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/intro-networks/quizzes/fl-w4-tools.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/labs/web-ne01-osi-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/labs/web-ne02-tcpip-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/labs/web-ne03-subnet-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/labs/web-ne07-nat-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/labs/web-ne08-wireless-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/exams/cr-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/exams/cr-midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/labs/cr-w1-access.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/labs/cr-w1-osi.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/labs/cr-w2-addressing.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/labs/cr-w2-network.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/labs/cr-w3-app.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/labs/cr-w3-transport.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/labs/cr-w4-design.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/labs/cr-w4-troubleshoot.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/presentations/cr-w1-access.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/presentations/cr-w1-osi.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/presentations/cr-w2-addressing.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/presentations/cr-w2-network-layer.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/presentations/cr-w3-application.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/presentations/cr-w3-transport.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/presentations/cr-w4-design.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/presentations/cr-w4-troubleshoot.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/quizzes/cr-w1-access.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/quizzes/cr-w1-osi.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/quizzes/cr-w2-addressing.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/quizzes/cr-w2-network.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/quizzes/cr-w3-app.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/quizzes/cr-w3-transport.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/quizzes/cr-w4-design.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/net-essentials/quizzes/cr-w4-troubleshoot.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-01.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-02.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-03.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-04.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-05.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-06.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-07.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-08.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-09.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-essentials/ne-10.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/exams/final-practice.exam.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -18466,463 +13704,11 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/exams/jeopardy.review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/network-plus/exams/midterm.exam.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/dns-troubleshooting.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/firewall-rules.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/n10009-ch01-security.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/n10009-ch02-troubleshooting.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/ne01-osi-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/ne02-tcpip-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/ne03-subnet-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/ne04-cable-testing-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/ne04-server-room-gui.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/ne07-nat-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/ne08-wireless-scenario.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/networking-fundamentals.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/packet-analysis.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/pbq-network-design.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/pbq-network-discovery.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/pbq-routing-troubleshoot.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/pbq-vlan-switch-config.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/static-routes.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/subnetting-practice.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/troubleshooting.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/labs/vlan-config.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-01.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-02.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-03.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-04-infrastructure.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-04.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-05.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-06.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-07.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-08.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-09.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-10-operations.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/modules/ne-10.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/arp.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/cables.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/cloud-networking.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/devices.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/dhcp.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/dns.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/eigrp.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/etherchannel.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/fhrp.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/high-availability.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/icmp.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/ipsec-gre.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/ipv6.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/n10009-ch01-security.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/n10009-ch02-troubleshooting.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/nat.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/network-access-methods.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/network-essentials.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/network-monitoring.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/network-security.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/ntp.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/organizational-processes.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/osi-deep-dive.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/osi-model.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/osi.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/ospf.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/performance-issues.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/physical-installations.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/ports.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/stp.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/subnetting.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/switch-operations.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/tcp.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/topologies.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/traffic-types.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/troubleshooting.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/vlan.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/wan-technologies.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/wireless-architecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/presentations/wireless.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/dns-dhcp.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/infrastructure.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/n10009-ch01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/n10009-ch02.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/operations.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/routing.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/security.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/switching.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/tcpip.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/troubleshooting.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/wan-cloud.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/quizzes/wireless.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/acl.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/cable.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/devices.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/etherchannel.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/ipv6.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/network-services.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/osi-deep-dive.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/osi.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/ospf-cost.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/port.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/qos.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/security.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/stp.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/subnetting.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/switch-operations.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/topology.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/troubleshooting.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/vlan.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/wireless-architecture.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/tools/wireless.tool.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `operator/missions/pfi-op-01.mission.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `operator/missions/pfi-op-02.mission.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `operator/missions/pfi-op-03.mission.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `operator/missions/pfi-op-04.mission.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/ai-explainable-ml.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/ai-intrusion-detector.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/ai-music-generation.html`
+  File: `projects/ai-data-augmentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -18934,11 +13720,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/ai-reinforcement-taxi.html`
+  File: `projects/ai-rasa-chatbot.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `projects/cloud-container-checker.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/cloud-serverless-django.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -18950,7 +13740,19 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/code-task-manager.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `projects/code-typing-speed.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/code-wordle-clone.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/darkarts-kali-setup.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -18958,7 +13760,7 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/eye-osint-dashboard.html`
+  File: `projects/divergent-field-terminal.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -18974,6 +13776,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/forge-env-monitor.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `projects/forge-flashcard-engine.html`
   Fix: Add entry to content-registry.js
 
@@ -18982,11 +13788,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/forge-virtualbox-first-vm.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `projects/key-blockchain.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/key-brownie-contracts.html`
+  File: `projects/key-nft-marketplace.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -18994,19 +13804,11 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/matrix-climate-analysis.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/matrix-customer-segmentation.html`
+  File: `projects/key-rfid-access.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `projects/matrix-data-viz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/matrix-kafka-streaming.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -19042,11 +13844,19 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/script-etl-pipeline.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `projects/script-video-summarizer.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `projects/shield-fake-news.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `projects/shield-first-security-policy.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -19070,11 +13880,11 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/web-online-portfolio.html`
+  File: `projects/web-elearning-flask.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `projects/web-pi-network-probe.html`
+  File: `projects/web-online-portfolio.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -19131,6 +13941,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `tenant/instructor.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `tools/career-pathway-planner.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -19341,7 +14155,63 @@
   File: `components/ContentCatalog.js`
   Fix: Create the file before setting status to 'available', or remove the dead href
 
-### INFO (681)
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `houses/matrix/adv-linux/ala-final.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
+  File: `tenant/instructor.html`
+  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+
+### INFO (691)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `about.html`
@@ -19408,6 +14278,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `bot-knowledge-matrix.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `bot-knowledge-script.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -19425,6 +14299,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `bot-knowledge.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `career/internships.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -19720,6 +14598,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/applets/comptia-aplus/core-1/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/games/forge-bit-dash.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -19796,6 +14678,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/careers.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/cyber-framework/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -19833,6 +14719,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -19900,15 +14790,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-explainable-ml.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-intrusion-detector.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-music-generation.html`
+  File: `projects/ai-data-augmentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -19920,11 +14802,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/ai-reinforcement-taxi.html`
+  File: `projects/ai-rasa-chatbot.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/cloud-container-checker.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/cloud-serverless-django.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -19936,7 +14822,19 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/code-task-manager.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/code-typing-speed.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/code-wordle-clone.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/darkarts-kali-setup.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -19944,7 +14842,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/eye-osint-dashboard.html`
+  File: `projects/divergent-field-terminal.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -19960,6 +14858,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/forge-env-monitor.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/forge-flashcard-engine.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -19968,11 +14870,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/forge-virtualbox-first-vm.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/key-blockchain.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/key-brownie-contracts.html`
+  File: `projects/key-nft-marketplace.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -19980,19 +14886,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-climate-analysis.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-customer-segmentation.html`
+  File: `projects/key-rfid-access.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/matrix-data-viz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/matrix-kafka-streaming.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -20028,11 +14926,19 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/script-etl-pipeline.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/script-video-summarizer.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `projects/shield-fake-news.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `projects/shield-first-security-policy.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -20056,11 +14962,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/web-online-portfolio.html`
+  File: `projects/web-elearning-flask.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `projects/web-pi-network-probe.html`
+  File: `projects/web-online-portfolio.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -20112,7 +15018,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `tenant/instructor.html`
+  File: `tools/career-pathway-planner.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -20579,9 +15485,12 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 3178 of 3611 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3212 of 3645 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
+
+**[SANDBOX-001]** Lab ID "cell-sigma" defined in LAB_INFO but not used on any page
+  File: `components/SandboxLauncher.js`
 
 **[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
   File: `houses/ai/cortex/adversarial/cx-adv-01.html`
@@ -21931,7 +16840,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (2250)
+### Unregistered Content (917)
 
 | Path | Type | House |
 |------|------|-------|
@@ -21949,11 +16858,13 @@
 | bot-knowledge-eye.html | applet | - |
 | bot-knowledge-forge.html | applet | - |
 | bot-knowledge-key.html | applet | - |
+| bot-knowledge-matrix.html | applet | - |
 | bot-knowledge-script.html | applet | - |
 | bot-knowledge-shield.html | applet | - |
 | bot-knowledge-signal.html | applet | - |
 | bot-knowledge-web.html | applet | - |
 | bot-knowledge.html | applet | - |
+| career/internships.html | applet | - |
 | career-quiz.html | applet | - |
 | components/profile/privacy-settings.html | presentation | - |
 | components/profile/profile.html | presentation | - |
@@ -22078,24 +16989,6 @@
 | houses/ai/agents/ai13-06-rag.html | presentation | ai |
 | houses/ai/agents/ai13-07-vector-databases.html | presentation | ai |
 | houses/ai/agents/ai13-08-agent-eval.html | presentation | ai |
-| houses/ai/ai-900/labs/ai900-ch01-intro-ai.lab.html | lab | ai |
-| houses/ai/ai-900/labs/ai900-ch02-computer-vision.lab.html | lab | ai |
-| houses/ai/ai-900/labs/ai900-ch03-nlp.lab.html | lab | ai |
-| houses/ai/ai-900/labs/ai900-ch04-generative-ai.lab.html | lab | ai |
-| houses/ai/ai-900/labs/ai900-ch05-predictive-models.lab.html | lab | ai |
-| houses/ai/ai-900/labs/ai900-ch06-ai-services.lab.html | lab | ai |
-| houses/ai/ai-900/presentations/ai900-ch01-intro-ai.presentation.html | presentation | ai |
-| houses/ai/ai-900/presentations/ai900-ch02-computer-vision.presentation.html | presentation | ai |
-| houses/ai/ai-900/presentations/ai900-ch03-nlp.presentation.html | presentation | ai |
-| houses/ai/ai-900/presentations/ai900-ch04-generative-ai.presentation.html | presentation | ai |
-| houses/ai/ai-900/presentations/ai900-ch05-predictive-models.presentation.html | presentation | ai |
-| houses/ai/ai-900/presentations/ai900-ch06-ai-services.presentation.html | presentation | ai |
-| houses/ai/ai-900/quizzes/ai900-ch01.quiz.html | quiz | ai |
-| houses/ai/ai-900/quizzes/ai900-ch02.quiz.html | quiz | ai |
-| houses/ai/ai-900/quizzes/ai900-ch03.quiz.html | quiz | ai |
-| houses/ai/ai-900/quizzes/ai900-ch04.quiz.html | quiz | ai |
-| houses/ai/ai-900/quizzes/ai900-ch05.quiz.html | quiz | ai |
-| houses/ai/ai-900/quizzes/ai900-ch06.quiz.html | quiz | ai |
 | houses/ai/automation/ai15-01-n8n-fundamentals.html | presentation | ai |
 | houses/ai/automation/ai15-02-ai-workflows.html | presentation | ai |
 | houses/ai/automation/ai15-03-webhooks.html | presentation | ai |
@@ -22264,40 +17157,9 @@
 | houses/ai/cortex/unsupervised/cx-uns-08.html | presentation | ai |
 | houses/ai/cortex/unsupervised/cx-uns-09.html | presentation | ai |
 | houses/ai/cortex/unsupervised/cx-uns-10.html | presentation | ai |
-| houses/ai/games/ai-agent-builder.applet.html | applet | ai |
-| houses/ai/games/ai-triage-trainer.applet.html | presentation | ai |
 | houses/ai/hubs/ai-advanced-hub.html | applet | ai |
 | houses/ai/hubs/ai-automation-hub.html | presentation | ai |
 | houses/ai/hubs/ai-azure-openai-hub.html | presentation | ai |
-| houses/ai/labs/ai-agent-workflow.lab.html | presentation | ai |
-| houses/ai/labs/ai-ethics-debate.lab.html | presentation | ai |
-| houses/ai/labs/ai-fine-tuning.lab.html | presentation | ai |
-| houses/ai/labs/ai-prompt-injection.lab.html | lab | ai |
-| houses/ai/labs/ai-rag-pipeline.lab.html | presentation | ai |
-| houses/ai/labs/ai-soc-triage.lab.html | presentation | ai |
-| houses/ai/labs/ai-vector-database.lab.html | presentation | ai |
-| houses/ai/modules/ai-agent-components.applet.html | presentation | ai |
-| houses/ai/modules/ai-automation-rubric.applet.html | presentation | ai |
-| houses/ai/modules/ai-guardrails.applet.html | presentation | ai |
-| houses/ai/modules/ai-nocode-platforms.applet.html | presentation | ai |
-| houses/ai/modules/ai-prompt-engineering.applet.html | presentation | ai |
-| houses/ai/modules/ai-soc-automation.applet.html | presentation | ai |
-| houses/ai/modules/ai-what-are-agents.applet.html | presentation | ai |
-| houses/ai/presentations/ai-agent-patterns.presentation.html | presentation | ai |
-| houses/ai/presentations/ai-deployment.presentation.html | presentation | ai |
-| houses/ai/presentations/ai-foundations.presentation.html | presentation | ai |
-| houses/ai/presentations/ai-model-architecture.presentation.html | presentation | ai |
-| houses/ai/presentations/ai-prompt-engineering.presentation.html | presentation | ai |
-| houses/ai/presentations/ai-safety-guardrails.presentation.html | presentation | ai |
-| houses/ai/quizzes/ai-builder.quiz.html | quiz | ai |
-| houses/ai/quizzes/ai-foundations.quiz.html | quiz | ai |
-| houses/ai/quizzes/ai-security.quiz.html | quiz | ai |
-| houses/ai/tools/ai-benchmark-explorer.tool.html | presentation | ai |
-| houses/ai/tools/ai-cost-calculator.tool.html | presentation | ai |
-| houses/ai/tools/ai-flashcards.tool.html | applet | ai |
-| houses/ai/tools/ai-llm-comparison.tool.html | presentation | ai |
-| houses/ai/tools/ai-prompt-tester.tool.html | presentation | ai |
-| houses/ai/tools/ai-tokenizer.tool.html | applet | ai |
 | houses/cloud/api/auth/capi-auth-01.html | presentation | cloud |
 | houses/cloud/api/auth/capi-auth-02.html | presentation | cloud |
 | houses/cloud/api/auth/capi-auth-03.html | presentation | cloud |
@@ -22318,12 +17180,6 @@
 | houses/cloud/api/capstone/capi-cap-08.html | presentation | cloud |
 | houses/cloud/api/capstone/capi-cap-09.html | presentation | cloud |
 | houses/cloud/api/capstone/capi-cap-10.html | presentation | cloud |
-| houses/cloud/api/cloud-api-002.presentation.html | lab | cloud |
-| houses/cloud/api/cloud-api-003.presentation.html | presentation | cloud |
-| houses/cloud/api/cloud-api-004.presentation.html | lab | cloud |
-| houses/cloud/api/cloud-api-005.presentation.html | lab | cloud |
-| houses/cloud/api/cloud-api-006.lab.html | presentation | cloud |
-| houses/cloud/api/cloud-api-007.presentation.html | presentation | cloud |
 | houses/cloud/api/cloud-patterns/capi-cloud-01.html | presentation | cloud |
 | houses/cloud/api/cloud-patterns/capi-cloud-02.html | presentation | cloud |
 | houses/cloud/api/cloud-patterns/capi-cloud-03.html | presentation | cloud |
@@ -22384,108 +17240,10 @@
 | houses/cloud/api/rate-limiting/capi-rl-08.html | presentation | cloud |
 | houses/cloud/api/rate-limiting/capi-rl-09.html | presentation | cloud |
 | houses/cloud/api/rate-limiting/capi-rl-10.html | presentation | cloud |
-| houses/cloud/az-104/labs/az104-ch01-prerequisites.lab.html | lab | cloud |
-| houses/cloud/az-104/labs/az104-ch02-identities-governance.lab.html | lab | cloud |
-| houses/cloud/az-104/labs/az104-ch03-storage.lab.html | lab | cloud |
-| houses/cloud/az-104/labs/az104-ch04-compute.lab.html | lab | cloud |
-| houses/cloud/az-104/labs/az104-ch05-networking.lab.html | lab | cloud |
-| houses/cloud/az-104/labs/az104-ch06-monitor-backup.lab.html | lab | cloud |
-| houses/cloud/az-104/presentations/az104-ch01-prerequisites.presentation.html | presentation | cloud |
-| houses/cloud/az-104/presentations/az104-ch02-identities-governance.presentation.html | presentation | cloud |
-| houses/cloud/az-104/presentations/az104-ch03-storage.presentation.html | presentation | cloud |
-| houses/cloud/az-104/presentations/az104-ch04-compute.presentation.html | presentation | cloud |
-| houses/cloud/az-104/presentations/az104-ch05-networking.presentation.html | presentation | cloud |
-| houses/cloud/az-104/presentations/az104-ch06-monitor-backup.presentation.html | presentation | cloud |
-| houses/cloud/az-104/quizzes/az104-ch01.quiz.html | quiz | cloud |
-| houses/cloud/az-104/quizzes/az104-ch02.quiz.html | quiz | cloud |
-| houses/cloud/az-104/quizzes/az104-ch03.quiz.html | quiz | cloud |
-| houses/cloud/az-104/quizzes/az104-ch04.quiz.html | quiz | cloud |
-| houses/cloud/az-104/quizzes/az104-ch05.quiz.html | quiz | cloud |
-| houses/cloud/az-104/quizzes/az104-ch06.quiz.html | quiz | cloud |
-| houses/cloud/az-900/labs/az900-ch01-cloud-concepts.lab.html | lab | cloud |
-| houses/cloud/az-900/labs/az900-ch02-azure-architecture.lab.html | lab | cloud |
-| houses/cloud/az-900/labs/az900-ch03-management-governance.lab.html | lab | cloud |
-| houses/cloud/az-900/presentations/az900-ch01-cloud-concepts.presentation.html | presentation | cloud |
-| houses/cloud/az-900/presentations/az900-ch02-azure-architecture.presentation.html | presentation | cloud |
-| houses/cloud/az-900/presentations/az900-ch03-management-governance.presentation.html | presentation | cloud |
-| houses/cloud/az-900/quizzes/az900-ch01.quiz.html | quiz | cloud |
-| houses/cloud/az-900/quizzes/az900-ch02.quiz.html | quiz | cloud |
-| houses/cloud/az-900/quizzes/az900-ch03.quiz.html | quiz | cloud |
-| houses/cloud/cloud-essentials/exams/cb-final.exam.html | presentation | cloud |
-| houses/cloud/cloud-essentials/exams/cb-midterm.exam.html | presentation | cloud |
-| houses/cloud/cloud-essentials/labs/cb-w1-concepts.lab.html | lab | cloud |
-| houses/cloud/cloud-essentials/labs/cb-w1-deployment.lab.html | lab | cloud |
-| houses/cloud/cloud-essentials/labs/cb-w2-automation.lab.html | lab | cloud |
-| houses/cloud/cloud-essentials/labs/cb-w2-security.lab.html | lab | cloud |
-| houses/cloud/cloud-essentials/labs/cb-w3-backup.lab.html | lab | cloud |
-| houses/cloud/cloud-essentials/labs/cb-w3-dr.lab.html | lab | cloud |
-| houses/cloud/cloud-essentials/labs/cb-w4-monitoring.lab.html | lab | cloud |
-| houses/cloud/cloud-essentials/labs/cb-w4-troubleshoot.lab.html | lab | cloud |
-| houses/cloud/cloud-essentials/presentations/cb-w1-concepts.presentation.html | presentation | cloud |
-| houses/cloud/cloud-essentials/presentations/cb-w1-deployment.presentation.html | presentation | cloud |
-| houses/cloud/cloud-essentials/presentations/cb-w2-automation.presentation.html | presentation | cloud |
-| houses/cloud/cloud-essentials/presentations/cb-w2-security.presentation.html | presentation | cloud |
-| houses/cloud/cloud-essentials/presentations/cb-w3-backup.presentation.html | presentation | cloud |
-| houses/cloud/cloud-essentials/presentations/cb-w3-dr.presentation.html | presentation | cloud |
-| houses/cloud/cloud-essentials/presentations/cb-w4-monitoring.presentation.html | presentation | cloud |
-| houses/cloud/cloud-essentials/presentations/cb-w4-troubleshoot.presentation.html | presentation | cloud |
-| houses/cloud/cloud-essentials/quizzes/cb-w1-concepts.quiz.html | presentation | cloud |
-| houses/cloud/cloud-essentials/quizzes/cb-w1-deployment.quiz.html | presentation | cloud |
-| houses/cloud/cloud-essentials/quizzes/cb-w2-automation.quiz.html | presentation | cloud |
-| houses/cloud/cloud-essentials/quizzes/cb-w2-security.quiz.html | presentation | cloud |
-| houses/cloud/cloud-essentials/quizzes/cb-w3-backup.quiz.html | presentation | cloud |
-| houses/cloud/cloud-essentials/quizzes/cb-w3-dr.quiz.html | presentation | cloud |
-| houses/cloud/cloud-essentials/quizzes/cb-w4-monitoring.quiz.html | presentation | cloud |
-| houses/cloud/cloud-essentials/quizzes/cb-w4-troubleshoot.quiz.html | presentation | cloud |
-| houses/cloud/games/cloud-api-foundations-lab.applet.html | applet | cloud |
-| houses/cloud/ms-102/labs/ms102-ch01-tenant.lab.html | lab | cloud |
-| houses/cloud/ms-102/labs/ms102-ch02-users-groups.lab.html | lab | cloud |
-| houses/cloud/ms-102/labs/ms102-ch03-roles-access.lab.html | lab | cloud |
-| houses/cloud/ms-102/labs/ms102-ch04-entra-auth.lab.html | lab | cloud |
-| houses/cloud/ms-102/labs/ms102-ch05-exchange.lab.html | presentation | cloud |
-| houses/cloud/ms-102/labs/ms102-ch06-sharepoint.lab.html | presentation | cloud |
-| houses/cloud/ms-102/labs/ms102-ch07-teams.lab.html | presentation | cloud |
-| houses/cloud/ms-102/labs/ms102-ch08-security-compliance.lab.html | presentation | cloud |
-| houses/cloud/ms-102/presentations/ms102-ch01-tenant.presentation.html | presentation | cloud |
-| houses/cloud/ms-102/presentations/ms102-ch02-users-groups.presentation.html | presentation | cloud |
-| houses/cloud/ms-102/presentations/ms102-ch03-roles-access.presentation.html | presentation | cloud |
-| houses/cloud/ms-102/presentations/ms102-ch04-entra-auth.presentation.html | presentation | cloud |
-| houses/cloud/ms-102/presentations/ms102-ch05-exchange.presentation.html | presentation | cloud |
-| houses/cloud/ms-102/presentations/ms102-ch06-sharepoint.presentation.html | presentation | cloud |
-| houses/cloud/ms-102/presentations/ms102-ch07-teams.presentation.html | presentation | cloud |
-| houses/cloud/ms-102/presentations/ms102-ch08-security-compliance.presentation.html | presentation | cloud |
-| houses/cloud/ms-102/quizzes/ms102-ch01.quiz.html | quiz | cloud |
-| houses/cloud/ms-102/quizzes/ms102-ch02.quiz.html | quiz | cloud |
-| houses/cloud/ms-102/quizzes/ms102-ch03.quiz.html | quiz | cloud |
-| houses/cloud/ms-102/quizzes/ms102-ch04.quiz.html | quiz | cloud |
-| houses/cloud/ms-102/quizzes/ms102-ch05.quiz.html | quiz | cloud |
-| houses/cloud/ms-102/quizzes/ms102-ch06.quiz.html | quiz | cloud |
-| houses/cloud/ms-102/quizzes/ms102-ch07.quiz.html | quiz | cloud |
-| houses/cloud/ms-102/quizzes/ms102-ch08.quiz.html | quiz | cloud |
-| houses/cloud/ms-900/labs/ms900-ch01-cloud-m365.lab.html | presentation | cloud |
-| houses/cloud/ms-900/labs/ms900-ch02-security-compliance.lab.html | lab | cloud |
-| houses/cloud/ms-900/labs/ms900-ch03-pricing-support.lab.html | presentation | cloud |
-| houses/cloud/ms-900/presentations/ms900-ch01-cloud-m365.presentation.html | presentation | cloud |
-| houses/cloud/ms-900/presentations/ms900-ch02-security-compliance.presentation.html | presentation | cloud |
-| houses/cloud/ms-900/presentations/ms900-ch03-pricing-support.presentation.html | presentation | cloud |
-| houses/cloud/ms-900/quizzes/ms900-ch01.quiz.html | quiz | cloud |
-| houses/cloud/ms-900/quizzes/ms900-ch02.quiz.html | quiz | cloud |
-| houses/cloud/ms-900/quizzes/ms900-ch03.quiz.html | quiz | cloud |
-| houses/cloud/pl-300/labs/pl300-ch01-prepare-data.lab.html | presentation | cloud |
-| houses/cloud/pl-300/labs/pl300-ch02-model-data.lab.html | presentation | cloud |
-| houses/cloud/pl-300/labs/pl300-ch03-visualize.lab.html | presentation | cloud |
-| houses/cloud/pl-300/labs/pl300-ch04-deploy.lab.html | presentation | cloud |
-| houses/cloud/pl-300/labs/pl300-ch05-dax.lab.html | presentation | cloud |
-| houses/cloud/pl-300/presentations/pl300-ch01-prepare-data.presentation.html | presentation | cloud |
-| houses/cloud/pl-300/presentations/pl300-ch02-model-data.presentation.html | presentation | cloud |
-| houses/cloud/pl-300/presentations/pl300-ch03-visualize.presentation.html | presentation | cloud |
-| houses/cloud/pl-300/presentations/pl300-ch04-deploy.presentation.html | presentation | cloud |
-| houses/cloud/pl-300/presentations/pl300-ch05-dax.presentation.html | presentation | cloud |
-| houses/cloud/pl-300/quizzes/pl300-ch01.quiz.html | quiz | cloud |
-| houses/cloud/pl-300/quizzes/pl300-ch02.quiz.html | quiz | cloud |
-| houses/cloud/pl-300/quizzes/pl300-ch03.quiz.html | quiz | cloud |
-| houses/cloud/pl-300/quizzes/pl300-ch04.quiz.html | quiz | cloud |
-| houses/cloud/pl-300/quizzes/pl300-ch05.quiz.html | quiz | cloud |
+| houses/cloud/modules/wsa/instructor/course-intro.html | presentation | cloud |
+| houses/cloud/modules/wsa/instructor/week-01.html | presentation | cloud |
+| houses/cloud/modules/wsa/instructor/week-02.html | presentation | cloud |
+| houses/cloud/modules/wsa/instructor/week-03.html | presentation | cloud |
 | houses/code/algorithm-chamber/capstone/ac-cap-01.html | presentation | code |
 | houses/code/algorithm-chamber/capstone/ac-cap-02.html | presentation | code |
 | houses/code/algorithm-chamber/capstone/ac-cap-03.html | presentation | code |
@@ -22596,127 +17354,7 @@
 | houses/code/algorithm-chamber/strings/ac-str-08.html | presentation | code |
 | houses/code/algorithm-chamber/strings/ac-str-09.html | presentation | code |
 | houses/code/algorithm-chamber/strings/ac-str-10.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-01-intro.module.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-02-registers.module.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-03-arithmetic.module.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-04-control-flow.module.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-05-stack-functions.module.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-06-memory.module.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-07-syscalls.module.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-08-debugging.module.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-09-reverse-engineering.module.html | presentation | code |
-| houses/code/armory/assembly/arm-asm-10-exploits.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-01-intro.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-02-variables.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-03-input-output.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-04-conditionals.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-05-loops.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-06-functions.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-07-text-processing.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-08-system-admin.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-09-security-scripts.module.html | presentation | code |
-| houses/code/armory/bash/arm-bash-10-advanced.module.html | presentation | code |
-| houses/code/armory/c/arm-c-01-intro.module.html | presentation | code |
-| houses/code/armory/c/arm-c-02-variables-types.module.html | presentation | code |
-| houses/code/armory/c/arm-c-03-operators-control.module.html | presentation | code |
-| houses/code/armory/c/arm-c-04-functions.module.html | presentation | code |
-| houses/code/armory/c/arm-c-05-arrays-strings.module.html | presentation | code |
-| houses/code/armory/c/arm-c-06-pointers.module.html | presentation | code |
-| houses/code/armory/c/arm-c-07-memory.module.html | presentation | code |
-| houses/code/armory/c/arm-c-08-structs-unions.module.html | presentation | code |
-| houses/code/armory/c/arm-c-09-file-io.module.html | presentation | code |
-| houses/code/armory/c/arm-c-10-preprocessor.module.html | presentation | code |
 | houses/code/armory/compare.html | applet | code |
-| houses/code/armory/cpp/arm-cpp-01-intro.module.html | presentation | code |
-| houses/code/armory/cpp/arm-cpp-02-variables.module.html | presentation | code |
-| houses/code/armory/cpp/arm-cpp-03-control-flow.module.html | presentation | code |
-| houses/code/armory/cpp/arm-cpp-04-oop.module.html | presentation | code |
-| houses/code/armory/cpp/arm-cpp-05-inheritance.module.html | presentation | code |
-| houses/code/armory/cpp/arm-cpp-06-templates-stl.module.html | presentation | code |
-| houses/code/armory/cpp/arm-cpp-07-memory.module.html | presentation | code |
-| houses/code/armory/cpp/arm-cpp-08-modern-cpp.module.html | presentation | code |
-| houses/code/armory/cpp/arm-cpp-09-security.module.html | presentation | code |
-| houses/code/armory/cpp/arm-cpp-10-advanced.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-01-intro.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-02-variables.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-03-control-flow.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-04-oop.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-05-inheritance.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-06-collections.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-07-exceptions.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-08-async.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-09-aspnet.module.html | presentation | code |
-| houses/code/armory/csharp/arm-cs-10-security.module.html | presentation | code |
-| houses/code/armory/go/arm-go-01-intro.module.html | presentation | code |
-| houses/code/armory/go/arm-go-02-variables.module.html | presentation | code |
-| houses/code/armory/go/arm-go-03-control-flow.module.html | presentation | code |
-| houses/code/armory/go/arm-go-04-data-structures.module.html | presentation | code |
-| houses/code/armory/go/arm-go-05-interfaces.module.html | presentation | code |
-| houses/code/armory/go/arm-go-06-concurrency.module.html | presentation | code |
-| houses/code/armory/go/arm-go-07-errors-testing.module.html | presentation | code |
-| houses/code/armory/go/arm-go-08-stdlib.module.html | presentation | code |
-| houses/code/armory/go/arm-go-09-cli-cloud.module.html | presentation | code |
-| houses/code/armory/go/arm-go-10-security.module.html | presentation | code |
-| houses/code/armory/java/arm-java-01-intro.module.html | presentation | code |
-| houses/code/armory/java/arm-java-02-variables.module.html | presentation | code |
-| houses/code/armory/java/arm-java-03-control-flow.module.html | presentation | code |
-| houses/code/armory/java/arm-java-04-oop.module.html | presentation | code |
-| houses/code/armory/java/arm-java-05-inheritance.module.html | presentation | code |
-| houses/code/armory/java/arm-java-06-collections.module.html | presentation | code |
-| houses/code/armory/java/arm-java-07-exceptions.module.html | presentation | code |
-| houses/code/armory/java/arm-java-08-threads.module.html | presentation | code |
-| houses/code/armory/java/arm-java-09-spring.module.html | presentation | code |
-| houses/code/armory/java/arm-java-10-security.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-01-intro.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-02-variables-types.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-03-control-flow.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-04-functions.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-05-arrays-objects.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-06-dom.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-07-async.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-08-classes-modules.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-09-typescript-intro.module.html | presentation | code |
-| houses/code/armory/javascript/arm-js-10-practical.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-01-intro.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-02-lua-basics.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-03-lua-apps.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-04-perl-basics.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-05-perl-text.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-06-perl-security.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-07-r-basics.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-08-r-analysis.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-09-r-security.module.html | presentation | code |
-| houses/code/armory/lua-perl-r/arm-lpr-10-comparison.module.html | presentation | code |
-| houses/code/armory/php/arm-php-01-intro.module.html | presentation | code |
-| houses/code/armory/php/arm-php-02-variables.module.html | presentation | code |
-| houses/code/armory/php/arm-php-03-control.module.html | presentation | code |
-| houses/code/armory/php/arm-php-04-arrays.module.html | presentation | code |
-| houses/code/armory/php/arm-php-05-oop.module.html | presentation | code |
-| houses/code/armory/php/arm-php-06-forms.module.html | presentation | code |
-| houses/code/armory/php/arm-php-07-pdo.module.html | presentation | code |
-| houses/code/armory/php/arm-php-08-sessions.module.html | presentation | code |
-| houses/code/armory/php/arm-php-09-modern.module.html | presentation | code |
-| houses/code/armory/php/arm-php-10-security.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-01-intro.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-02-cmdlets-pipeline.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-03-variables-types.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-04-control-flow.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-05-objects.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-06-filesystem.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-07-active-directory.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-08-remoting.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-09-scripting.module.html | presentation | code |
-| houses/code/armory/powershell/arm-ps-10-security.module.html | presentation | code |
-| houses/code/armory/python/arm-py-01-intro.module.html | presentation | code |
-| houses/code/armory/python/arm-py-02-variables.module.html | presentation | code |
-| houses/code/armory/python/arm-py-03-control-flow.module.html | presentation | code |
-| houses/code/armory/python/arm-py-04-loops.module.html | presentation | code |
-| houses/code/armory/python/arm-py-05-functions.module.html | presentation | code |
-| houses/code/armory/python/arm-py-06-data-structures.module.html | presentation | code |
-| houses/code/armory/python/arm-py-07-strings-io.module.html | presentation | code |
-| houses/code/armory/python/arm-py-08-oop.module.html | presentation | code |
-| houses/code/armory/python/arm-py-09-modules-packages.module.html | presentation | code |
-| houses/code/armory/python/arm-py-10-error-handling.module.html | presentation | code |
 | houses/code/armory/python-graphics/pg-01.html | presentation | code |
 | houses/code/armory/python-graphics/pg-02.html | presentation | code |
 | houses/code/armory/python-graphics/pg-03.html | presentation | code |
@@ -22727,46 +17365,6 @@
 | houses/code/armory/python-graphics/pg-08.html | presentation | code |
 | houses/code/armory/python-graphics/pg-09.html | presentation | code |
 | houses/code/armory/python-graphics/pg-10.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-01-intro.module.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-02-variables.module.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-03-control-flow.module.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-04-collections.module.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-05-oop.module.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-06-blocks.module.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-07-file-io.module.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-08-regex.module.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-09-security.module.html | presentation | code |
-| houses/code/armory/ruby/arm-rb-10-advanced.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-01-intro.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-02-variables.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-03-ownership.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-04-control-flow.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-05-structs-enums.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-06-traits-generics.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-07-error-handling.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-08-collections.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-09-concurrency.module.html | presentation | code |
-| houses/code/armory/rust/arm-rs-10-security.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-01-intro.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-02-select.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-03-filtering.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-04-joins.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-05-aggregation.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-06-subqueries.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-07-crud.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-08-schema.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-09-security.module.html | presentation | code |
-| houses/code/armory/sql/arm-sql-10-practical.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-01-intro.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-02-variables.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-03-control-flow.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-04-collections.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-05-oop.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-06-error-handling.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-07-concurrency.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-08-mobile-ui.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-09-networking.module.html | presentation | code |
-| houses/code/armory/swift-kotlin/arm-sk-10-security.module.html | presentation | code |
 | houses/code/devops/sections/ansible/do-82-ansible-fundamentals.html | presentation | code |
 | houses/code/devops/sections/ansible/do-83-automation-landscape.html | presentation | code |
 | houses/code/devops/sections/ansible/do-88-ansible-inventory.html | presentation | code |
@@ -22814,23 +17412,6 @@
 | houses/code/devops/sections/foundation/do-3-real-world-pipelines.html | presentation | code |
 | houses/code/devops/sections/foundation/do-68-data-formats.html | presentation | code |
 | houses/code/devops/sections/foundation/do-69-config-formats.html | presentation | code |
-| houses/code/devops/sections/git/do-10-branching-strategies.html | presentation | code |
-| houses/code/devops/sections/git/do-11-merge-conflicts.html | presentation | code |
-| houses/code/devops/sections/git/do-12-rebasing.html | presentation | code |
-| houses/code/devops/sections/git/do-13-stashing-tagging.html | presentation | code |
-| houses/code/devops/sections/git/do-14-git-hooks.html | presentation | code |
-| houses/code/devops/sections/git/do-15-git-internals.html | presentation | code |
-| houses/code/devops/sections/git/do-16-git-lab.html | presentation | code |
-| houses/code/devops/sections/git/do-36-repo-anatomy.html | presentation | code |
-| houses/code/devops/sections/git/do-37-forks-upstream.html | presentation | code |
-| houses/code/devops/sections/git/do-38-github-features.html | presentation | code |
-| houses/code/devops/sections/git/do-39-gitignore-readme.html | presentation | code |
-| houses/code/devops/sections/git/do-40-diff-comparing.html | presentation | code |
-| houses/code/devops/sections/git/do-41-undoing-things.html | presentation | code |
-| houses/code/devops/sections/git/do-42-git-tips-tricks.html | presentation | code |
-| houses/code/devops/sections/git/do-7-git-fundamentals.html | presentation | code |
-| houses/code/devops/sections/git/do-8-branches.html | presentation | code |
-| houses/code/devops/sections/git/do-9-remote-repos.html | presentation | code |
 | houses/code/devops/sections/iac/do-23-terraform.html | presentation | code |
 | houses/code/devops/sections/iac/do-24-iac-lab.html | presentation | code |
 | houses/code/devops/sections/iac/do-79-iac-fundamentals.html | presentation | code |
@@ -22869,18 +17450,6 @@
 | houses/code/devops/sections/workbench/do-33-env-vars-secrets.html | presentation | code |
 | houses/code/devops/sections/workbench/do-34-dev-containers.html | presentation | code |
 | houses/code/devops/sections/workbench/do-35-networking-basics.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-capstone.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter01.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter02.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter03.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter04.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter05.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter06.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter07.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter08.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter09.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-chapter10.module.html | presentation | code |
-| houses/code/modules/python-engineering/code-pye-midterm.module.html | presentation | code |
 | houses/code/modules/python-hub/labs/pyh-lab-graphics-01.html | lab | code |
 | houses/code/modules/python-hub/labs/pyh-lab-graphics-02.html | lab | code |
 | houses/code/modules/python-hub/labs/pyh-lab-graphics-03.html | lab | code |
@@ -22897,111 +17466,13 @@
 | houses/code/modules/python-hub/labs/pyh-lab-stdlib-06.html | lab | code |
 | houses/code/modules/python-hub/labs/pyh-lab-stdlib-07.html | lab | code |
 | houses/code/modules/python-hub/labs/pyh-lab-stdlib-08.html | lab | code |
-| houses/code/modules/python-hub/modules/pyh-graphics-01.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-graphics-02.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-graphics-03.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-graphics-04.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-graphics-05.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-graphics-06.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-graphics-07.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-graphics-08.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-project-01.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-project-02.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-project-03.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-project-04.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-project-05.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-project-06.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-stdlib-01.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-stdlib-02.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-stdlib-03.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-stdlib-04.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-stdlib-05.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-stdlib-06.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-stdlib-07.module.html | presentation | code |
-| houses/code/modules/python-hub/modules/pyh-stdlib-08.module.html | presentation | code |
 | houses/code/modules/python-hub/quizzes/pyh-quiz-graphics-final.html | presentation | code |
 | houses/code/modules/python-hub/quizzes/pyh-quiz-graphics-visual.html | presentation | code |
 | houses/code/modules/python-hub/quizzes/pyh-quiz-portfolio.html | presentation | code |
 | houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-final.html | presentation | code |
 | houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-foundations.html | presentation | code |
 | houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-systems.html | presentation | code |
-| houses/code/python-for-it/exams/pfi-w4-final-exam.exam.html | presentation | code |
-| houses/code/python-for-it/labs/pfi-w1-checkpoint.lab.html | applet | code |
-| houses/code/python-for-it/labs/pfi-w1-project.lab.html | lab | code |
-| houses/code/python-for-it/labs/pfi-w2-project.lab.html | lab | code |
-| houses/code/python-for-it/labs/pfi-w3-project-oop.lab.html | lab | code |
-| houses/code/python-for-it/labs/pfi-w3-project.lab.html | lab | code |
-| houses/code/python-for-it/labs/pfi-w4-final-project.lab.html | lab | code |
-| houses/code/python-for-it/labs/pfi-w4-gui-inclass.lab.html | lab | code |
-| houses/code/python-for-it/presentations/pfi-course-intro.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w1-conditionals.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w1-datatypes.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w1-loops.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w2-builtins.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w2-dicts.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w2-lists.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w2-strings.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w3-functions.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w3-graphics.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w3-oop.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w3-random.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w4-applied.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w4-gui-classroom.presentation.html | presentation | code |
-| houses/code/python-for-it/presentations/pfi-w4-gui.presentation.html | presentation | code |
-| houses/code/python-for-it/quizzes/pfi-w1-quiz.quiz.html | presentation | code |
-| houses/code/python-for-it/quizzes/pfi-w2-quiz.quiz.html | presentation | code |
-| houses/code/python-for-it/quizzes/pfi-w3-quiz.quiz.html | presentation | code |
-| houses/code/python-for-it/setup-guide.html | presentation | code |
 | houses/code/python-for-it/upgrade-guide.html | applet | code |
-| houses/code/python-programming/exams/sp-w2-midterm.exam.html | presentation | code |
-| houses/code/python-programming/exams/sp-w4-final.exam.html | presentation | code |
-| houses/code/python-programming/labs/sp-w1-datatypes.lab.html | lab | code |
-| houses/code/python-programming/labs/sp-w1-intro.lab.html | lab | code |
-| houses/code/python-programming/labs/sp-w2-loops.lab.html | lab | code |
-| houses/code/python-programming/labs/sp-w2-strings.lab.html | lab | code |
-| houses/code/python-programming/labs/sp-w3-collections.lab.html | lab | code |
-| houses/code/python-programming/labs/sp-w3-functions.lab.html | lab | code |
-| houses/code/python-programming/labs/sp-w4-analysis.lab.html | lab | code |
-| houses/code/python-programming/labs/sp-w4-classes.lab.html | lab | code |
-| houses/code/python-programming/presentations/sp-w1-datatypes.presentation.html | presentation | code |
-| houses/code/python-programming/presentations/sp-w1-intro.presentation.html | presentation | code |
-| houses/code/python-programming/presentations/sp-w2-loops.presentation.html | presentation | code |
-| houses/code/python-programming/presentations/sp-w2-strings.presentation.html | presentation | code |
-| houses/code/python-programming/presentations/sp-w3-collections.presentation.html | presentation | code |
-| houses/code/python-programming/presentations/sp-w3-functions.presentation.html | presentation | code |
-| houses/code/python-programming/presentations/sp-w4-analysis.presentation.html | presentation | code |
-| houses/code/python-programming/presentations/sp-w4-classes.presentation.html | presentation | code |
-| houses/code/python-programming/quizzes/sp-w1-datatypes.quiz.html | presentation | code |
-| houses/code/python-programming/quizzes/sp-w1-intro.quiz.html | presentation | code |
-| houses/code/python-programming/quizzes/sp-w2-loops.quiz.html | presentation | code |
-| houses/code/python-programming/quizzes/sp-w2-strings.quiz.html | presentation | code |
-| houses/code/python-programming/quizzes/sp-w3-collections.quiz.html | presentation | code |
-| houses/code/python-programming/quizzes/sp-w3-functions.quiz.html | presentation | code |
-| houses/code/python-programming/quizzes/sp-w4-analysis.quiz.html | presentation | code |
-| houses/code/python-programming/quizzes/sp-w4-classes.quiz.html | presentation | code |
-| houses/dark-arts/games/dark-ids-evasion-lab.applet.html | lab | - |
-| houses/dark-arts/games/dark-m365-attack-lab.applet.html | applet | - |
-| houses/dark-arts/games/dark-malware-specimen-lab.applet.html | applet | - |
-| houses/dark-arts/games/dark-network-forensics-lab.applet.html | applet | - |
-| houses/dark-arts/games/dark-osint-recon-lab.applet.html | lab | - |
-| houses/dark-arts/games/dark-slowloris-dos-lab.applet.html | applet | - |
-| houses/dark-arts/vault/ehe/da-ad-attack-lab.lab.html | lab | - |
-| houses/divergent/cybersecurity-ethics/exams/cse-final.exam.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/exams/cse-midterm.exam.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-01-cyberethics-overview.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-02-security-professional-role.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-03-nist-csf.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-04-cyberspace-governance.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-05-free-speech.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-06-ip-cyberspace.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-07-privacy-rights.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-08-cybercrime-moral-obligation.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-09-solarium-commission.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/presentations/cse-10-capstone.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-ethics/quizzes/cse-w1.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-ethics/quizzes/cse-w2.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-ethics/quizzes/cse-w3.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-ethics/quizzes/cse-w4.quiz.html | quiz | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-final-mc.exam.html | presentation | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-midterm-mc.exam.html | presentation | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-w1-concepts.lab.html | presentation | divergent |
@@ -23020,599 +17491,25 @@
 | houses/divergent/cybersecurity-policy/_source/csp-w4-nist-csf.lab.html | lab | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-w4-risk-management.lab.html | lab | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-w4-sovereignty.lab.html | lab | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w1-concepts.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w1-origins.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w1-security-by-design.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w1-workforce.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w2-bcp-drp.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w2-human-factor.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w2-programs.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w2-threats.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w3-compliance.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w3-governance.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w3-laws.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w3-roles.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w4-nist-800-53.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w4-nist-csf.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w4-risk-management.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/presentations/csp-w4-sovereignty.presentation.html | presentation | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w1-concepts.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w1-origins.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w1-security-by-design.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w1-workforce.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w2-bcp-drp.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w2-human-factor.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w2-programs.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w2-threats.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w3-compliance.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w3-governance.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w3-laws.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w3-roles.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-800-53.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w4-nist-csf.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w4-risk-management.quiz.html | quiz | divergent |
-| houses/divergent/cybersecurity-policy/quizzes/csp-w4-sovereignty.quiz.html | quiz | divergent |
-| houses/divergent/ethics-it/eth-r1.html | presentation | divergent |
-| houses/divergent/ethics-it/eth-r2.html | presentation | divergent |
-| houses/divergent/ethics-it/eth-r3.html | presentation | divergent |
-| houses/divergent/ethics-it/exams/eth-final.exam.html | presentation | divergent |
-| houses/divergent/ethics-it/exams/eth-midterm.exam.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-01-overview.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-02-it-professionals.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-03-cybersecurity-ethics.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-04-week1-checkpoint.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-05-privacy.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-06-freedom-expression.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-07-intellectual-property.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-08-week2-checkpoint.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-09-software-development.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-10-it-impact.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-11-week3-checkpoint.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-12-social-media.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-13-it-organizations.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-14-codes-of-ethics.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-15-final-assessment.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-frameworks-characters.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w1-cybersecurity-ethics.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w1-ethics-overview.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w1-it-professionals.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w2-freedom-expression.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w2-intellectual-property.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w2-lecture.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w2-privacy.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w3-it-impact.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w3-software-ethics.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w4-codes-of-ethics.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w4-it-organizations.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/presentations/eth-w4-social-media.presentation.html | presentation | divergent |
-| houses/divergent/ethics-it/quizzes/eth-w1.quiz.html | quiz | divergent |
-| houses/divergent/ethics-it/quizzes/eth-w2.quiz.html | quiz | divergent |
-| houses/divergent/ethics-it/quizzes/eth-w3.quiz.html | quiz | divergent |
-| houses/eye/applets/cyberops/eye-kill-chain-diamond.applet.html | presentation | eye |
-| houses/eye/forensics/sections/advanced-forensics/df-55-malware-forensics.module.html | applet | eye |
-| houses/eye/forensics/sections/advanced-forensics/df-61-ai-generated-imagery.module.html | applet | eye |
-| houses/eye/forensics/sections/disk-forensics/df-14-file-carving.module.html | applet | eye |
-| houses/eye/forensics/sections/evidence-foundations/df-01-evidence-types.module.html | applet | eye |
-| houses/eye/forensics/sections/evidence-foundations/df-10-evidence-capstone.module.html | applet | eye |
-| houses/eye/forensics/sections/log-timeline/df-41-windows-events.module.html | applet | eye |
-| houses/eye/forensics/sections/log-timeline/df-46-siem-integration.module.html | applet | eye |
-| houses/eye/forensics/sections/network-forensics/df-33-tcp-streams.module.html | applet | eye |
-| houses/eye/forensics/sections/network-forensics/df-36-netflow.module.html | applet | eye |
-| houses/eye/games/eye-detection-engineering.applet.html | applet | eye |
-| houses/eye/games/eye-log-analysis-lab.applet.html | applet | eye |
-| houses/eye/games/eye-security-onion-soc.applet.html | applet | eye |
-| houses/eye/games/eye-threat-hunting-lab.applet.html | applet | eye |
-| houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-1.quiz.html | quiz | forge |
-| houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-2.quiz.html | quiz | forge |
-| houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-3.quiz.html | quiz | forge |
-| houses/forge/applets/comptia-aplus/core-1/quizzes/forge-aplus-core1-prep-round-4.quiz.html | quiz | forge |
-| houses/forge/hardware-support/exams/bm-final.exam.html | quiz | forge |
-| houses/forge/hardware-support/exams/bm-midterm.exam.html | quiz | forge |
-| houses/forge/hardware-support/labs/bm-w1-cables.lab.html | lab | forge |
-| houses/forge/hardware-support/labs/bm-w1-mobo.lab.html | lab | forge |
-| houses/forge/hardware-support/labs/bm-w2-ram.lab.html | lab | forge |
-| houses/forge/hardware-support/labs/bm-w2-storage.lab.html | lab | forge |
-| houses/forge/hardware-support/labs/bm-w3-custom.lab.html | lab | forge |
-| houses/forge/hardware-support/labs/bm-w3-power.lab.html | lab | forge |
-| houses/forge/hardware-support/labs/bm-w4-printers.lab.html | lab | forge |
-| houses/forge/hardware-support/labs/bm-w4-troubleshoot.lab.html | lab | forge |
-| houses/forge/hardware-support/presentations/bm-w1-cables.presentation.html | presentation | forge |
-| houses/forge/hardware-support/presentations/bm-w1-motherboards.presentation.html | presentation | forge |
-| houses/forge/hardware-support/presentations/bm-w2-ram.presentation.html | presentation | forge |
-| houses/forge/hardware-support/presentations/bm-w2-storage.presentation.html | presentation | forge |
-| houses/forge/hardware-support/presentations/bm-w3-custom.presentation.html | presentation | forge |
-| houses/forge/hardware-support/presentations/bm-w3-power.presentation.html | presentation | forge |
-| houses/forge/hardware-support/presentations/bm-w4-printers.presentation.html | presentation | forge |
-| houses/forge/hardware-support/presentations/bm-w4-troubleshoot.presentation.html | presentation | forge |
-| houses/forge/hardware-support/quizzes/bm-w1-cables.quiz.html | quiz | forge |
-| houses/forge/hardware-support/quizzes/bm-w1-mobo.quiz.html | quiz | forge |
-| houses/forge/hardware-support/quizzes/bm-w2-ram.quiz.html | quiz | forge |
-| houses/forge/hardware-support/quizzes/bm-w2-storage.quiz.html | quiz | forge |
-| houses/forge/hardware-support/quizzes/bm-w3-custom.quiz.html | quiz | forge |
-| houses/forge/hardware-support/quizzes/bm-w3-power.quiz.html | quiz | forge |
-| houses/forge/hardware-support/quizzes/bm-w4-printers.quiz.html | quiz | forge |
-| houses/forge/hardware-support/quizzes/bm-w4-troubleshoot.quiz.html | quiz | forge |
-| houses/forge/intro-computers/presentations/fb-w1-fundamentals.presentation.html | presentation | forge |
-| houses/forge/intro-computers/presentations/fb-w1-word-basics.presentation.html | presentation | forge |
-| houses/forge/intro-computers/presentations/fb-w2-word-advanced.presentation.html | presentation | forge |
-| houses/forge/md-100/labs/forge-md100-google-dorking.lab.html | applet | forge |
-| houses/forge/md-100/labs/forge-md100-m01-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m02-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m03-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m04-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m04-subnet-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m04-subnetting.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m05-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m06-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m07-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m08-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m09-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m10-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-m11-sim.lab.html | lab | forge |
-| houses/forge/md-100/labs/forge-md100-midterm-sim.lab.html | lab | forge |
-| houses/forge/md-101/labs/forge-md101-m01-modern-management.lab.html | lab | forge |
-| houses/forge/md-101/labs/forge-md101-m02-device-enrollment.lab.html | lab | forge |
-| houses/forge/md-101/labs/forge-md101-m03-configuring-profiles.lab.html | lab | forge |
-| houses/forge/md-101/labs/forge-md101-m04-application-management.lab.html | lab | forge |
-| houses/forge/md-101/labs/forge-md101-m05-auth-compliance.lab.html | lab | forge |
-| houses/forge/md-101/labs/forge-md101-m06-managing-security.lab.html | lab | forge |
-| houses/forge/md-101/labs/forge-md101-m07-deployment-part1.lab.html | lab | forge |
-| houses/forge/md-101/labs/forge-md101-m08-deployment-part2.lab.html | lab | forge |
-| houses/forge/md-101/labs/forge-md101-m09-managing-updates.lab.html | lab | forge |
-| houses/forge/md-101/presentations/forge-md101-m01-modern-management.presentation.html | presentation | forge |
-| houses/forge/md-101/presentations/forge-md101-m02-device-enrollment.presentation.html | presentation | forge |
-| houses/forge/md-101/presentations/forge-md101-m03-configuring-profiles.presentation.html | presentation | forge |
-| houses/forge/md-101/presentations/forge-md101-m04-application-management.presentation.html | presentation | forge |
-| houses/forge/md-101/presentations/forge-md101-m05-auth-compliance.presentation.html | presentation | forge |
-| houses/forge/md-101/presentations/forge-md101-m06-managing-security.presentation.html | presentation | forge |
-| houses/forge/md-101/presentations/forge-md101-m07-deployment-part1.presentation.html | presentation | forge |
-| houses/forge/md-101/presentations/forge-md101-m08-deployment-part2.presentation.html | presentation | forge |
-| houses/forge/md-101/presentations/forge-md101-m09-managing-updates.presentation.html | presentation | forge |
-| houses/forge/md-101/quizzes/forge-md101-m01-quiz.quiz.html | quiz | forge |
-| houses/forge/md-101/quizzes/forge-md101-m02-quiz.quiz.html | quiz | forge |
-| houses/forge/md-101/quizzes/forge-md101-m03-quiz.quiz.html | quiz | forge |
-| houses/forge/md-101/quizzes/forge-md101-m04-quiz.quiz.html | quiz | forge |
-| houses/forge/md-101/quizzes/forge-md101-m05-quiz.quiz.html | quiz | forge |
-| houses/forge/md-101/quizzes/forge-md101-m06-quiz.quiz.html | quiz | forge |
-| houses/forge/md-101/quizzes/forge-md101-m07-quiz.quiz.html | quiz | forge |
-| houses/forge/md-101/quizzes/forge-md101-m08-quiz.quiz.html | quiz | forge |
-| houses/forge/md-101/quizzes/forge-md101-m09-quiz.quiz.html | quiz | forge |
+| houses/divergent/ethics-it/exams/eth-5th-grader.review.html | presentation | divergent |
+| houses/divergent/ethics-it/exams/eth-jeopardy.review.html | presentation | divergent |
+| houses/divergent/ethics-it/exams/eth-kahoot.review.html | presentation | divergent |
+| houses/divergent/ethics-it/exams/eth-wheel.review.html | presentation | divergent |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-cable-building.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-install.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-front-panel-header.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-keystone-jack.lab.html | presentation | forge |
+| houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-install.lab.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
-| houses/forge/server-management/exams/sr-final.exam.html | quiz | forge |
-| houses/forge/server-management/exams/sr-midterm.exam.html | quiz | forge |
-| houses/forge/server-management/labs/sr-w1-install.lab.html | lab | forge |
-| houses/forge/server-management/labs/sr-w1-roles.lab.html | lab | forge |
-| houses/forge/server-management/labs/sr-w2-storage.lab.html | lab | forge |
-| houses/forge/server-management/labs/sr-w2-virtual.lab.html | lab | forge |
-| houses/forge/server-management/labs/sr-w3-ha.lab.html | lab | forge |
-| houses/forge/server-management/labs/sr-w3-monitor.lab.html | lab | forge |
-| houses/forge/server-management/labs/sr-w4-containers.lab.html | lab | forge |
-| houses/forge/server-management/labs/sr-w4-troubleshoot.lab.html | lab | forge |
-| houses/forge/server-management/presentations/sr-w1-install.presentation.html | presentation | forge |
-| houses/forge/server-management/presentations/sr-w1-roles.presentation.html | presentation | forge |
-| houses/forge/server-management/presentations/sr-w2-storage.presentation.html | presentation | forge |
-| houses/forge/server-management/presentations/sr-w2-virtualization.presentation.html | presentation | forge |
-| houses/forge/server-management/presentations/sr-w3-ha.presentation.html | presentation | forge |
-| houses/forge/server-management/presentations/sr-w3-monitoring.presentation.html | presentation | forge |
-| houses/forge/server-management/presentations/sr-w4-containers.presentation.html | presentation | forge |
-| houses/forge/server-management/presentations/sr-w4-troubleshoot.presentation.html | presentation | forge |
-| houses/forge/server-management/quizzes/sr-w1-install.quiz.html | quiz | forge |
-| houses/forge/server-management/quizzes/sr-w1-roles.quiz.html | quiz | forge |
-| houses/forge/server-management/quizzes/sr-w2-storage.quiz.html | quiz | forge |
-| houses/forge/server-management/quizzes/sr-w2-virtual.quiz.html | quiz | forge |
-| houses/forge/server-management/quizzes/sr-w3-ha.quiz.html | quiz | forge |
-| houses/forge/server-management/quizzes/sr-w3-monitor.quiz.html | quiz | forge |
-| houses/forge/server-management/quizzes/sr-w4-containers.quiz.html | quiz | forge |
-| houses/forge/server-management/quizzes/sr-w4-troubleshoot.quiz.html | quiz | forge |
-| houses/matrix/adv-linux/ala-r1.html | presentation | matrix |
-| houses/matrix/adv-linux/ala-r2.html | presentation | matrix |
-| houses/matrix/adv-linux/ala-r3.html | presentation | matrix |
-| houses/matrix/adv-linux/ala-r4.html | presentation | matrix |
-| houses/matrix/adv-linux/ala-r5.html | presentation | matrix |
-| houses/matrix/adv-linux/exams/ala-final.exam.html | quiz | matrix |
-| houses/matrix/adv-linux/exams/ala-midterm.exam.html | quiz | matrix |
-| houses/matrix/adv-linux/presentations/ala-w1-cli-operations.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w1-network-config.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w1-network-diag.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w1-systemd.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w2-antivirus.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w2-authentication.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w2-firewalls.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w2-packages.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w3-automation.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w3-bash-scripting.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w3-bind-deployment.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w3-dns-fundamentals.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w4-file-integrity.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w4-log-management.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w4-performance.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/quizzes/ala-w1.quiz.html | quiz | matrix |
-| houses/matrix/adv-linux/quizzes/ala-w2.quiz.html | quiz | matrix |
-| houses/matrix/adv-linux/quizzes/ala-w3.quiz.html | quiz | matrix |
-| houses/matrix/adv-linux/quizzes/ala-w4.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-01.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-02.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-03.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-04.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-05.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-06.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-07.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-08.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-09.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/labs/pv-e-10.lab.html | lab | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-01.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-02.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-03.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-04.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-05.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-06.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-07.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-08.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-09.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/presentations/pv-e-10.presentation.html | presentation | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-01.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-02.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-03.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-04.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-05.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-06.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-07.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-08.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-09.quiz.html | quiz | matrix |
-| houses/matrix/piverse/electronics/quizzes/pv-e-10.quiz.html | quiz | matrix |
-| houses/matrix/piverse/engineering/labs/pv-b-01.lab.html | lab | matrix |
-| houses/matrix/piverse/engineering/labs/pv-b-02.lab.html | lab | matrix |
-| houses/matrix/piverse/engineering/labs/pv-b-03.lab.html | lab | matrix |
-| houses/matrix/piverse/engineering/labs/pv-b-04.lab.html | lab | matrix |
-| houses/matrix/piverse/engineering/labs/pv-b-05.lab.html | lab | matrix |
-| houses/matrix/piverse/engineering/labs/pv-b-06.lab.html | lab | matrix |
-| houses/matrix/piverse/engineering/labs/pv-b-07.lab.html | lab | matrix |
-| houses/matrix/piverse/engineering/labs/pv-b-08.lab.html | lab | matrix |
-| houses/matrix/piverse/engineering/presentations/pv-b-01.presentation.html | presentation | matrix |
-| houses/matrix/piverse/engineering/presentations/pv-b-02.presentation.html | presentation | matrix |
-| houses/matrix/piverse/engineering/presentations/pv-b-03.presentation.html | presentation | matrix |
-| houses/matrix/piverse/engineering/presentations/pv-b-04.presentation.html | presentation | matrix |
-| houses/matrix/piverse/engineering/presentations/pv-b-05.presentation.html | presentation | matrix |
-| houses/matrix/piverse/engineering/presentations/pv-b-06.presentation.html | presentation | matrix |
-| houses/matrix/piverse/engineering/presentations/pv-b-07.presentation.html | presentation | matrix |
-| houses/matrix/piverse/engineering/presentations/pv-b-08.presentation.html | presentation | matrix |
-| houses/matrix/piverse/engineering/quizzes/pv-b-01.quiz.html | quiz | matrix |
-| houses/matrix/piverse/engineering/quizzes/pv-b-02.quiz.html | quiz | matrix |
-| houses/matrix/piverse/engineering/quizzes/pv-b-03.quiz.html | quiz | matrix |
-| houses/matrix/piverse/engineering/quizzes/pv-b-04.quiz.html | quiz | matrix |
-| houses/matrix/piverse/engineering/quizzes/pv-b-05.quiz.html | quiz | matrix |
-| houses/matrix/piverse/engineering/quizzes/pv-b-06.quiz.html | quiz | matrix |
-| houses/matrix/piverse/engineering/quizzes/pv-b-07.quiz.html | quiz | matrix |
-| houses/matrix/piverse/engineering/quizzes/pv-b-08.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-01.lab.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-02.lab.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-03.lab.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-04.lab.html | lab | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-05.lab.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-06.lab.html | lab | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-07.lab.html | lab | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-08.lab.html | lab | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-09.lab.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/labs/pv-f-10.lab.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-01.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-02.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-03.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-04.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-05.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-06.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-07.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-08.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-09.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/presentations/pv-f-10.presentation.html | presentation | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-01.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-02.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-03.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-04.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-05.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-06.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-07.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-08.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-09.quiz.html | quiz | matrix |
-| houses/matrix/piverse/fundamentals/quizzes/pv-f-10.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-01.lab.html | presentation | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-02.lab.html | presentation | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-03.lab.html | presentation | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-04.lab.html | presentation | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-05.lab.html | presentation | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-06.lab.html | lab | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-07.lab.html | lab | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-08.lab.html | lab | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-09.lab.html | lab | matrix |
-| houses/matrix/piverse/maker/labs/pv-m-10.lab.html | lab | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-01.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-02.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-03.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-04.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-05.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-06.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-07.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-08.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-09.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/presentations/pv-m-10.presentation.html | presentation | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-01.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-02.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-03.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-04.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-05.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-06.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-07.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-08.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-09.quiz.html | quiz | matrix |
-| houses/matrix/piverse/maker/quizzes/pv-m-10.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-01.lab.html | lab | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-02.lab.html | lab | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-03.lab.html | lab | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-04.lab.html | lab | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-05.lab.html | presentation | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-06.lab.html | presentation | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-07.lab.html | presentation | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-08.lab.html | presentation | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-09.lab.html | presentation | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-10.lab.html | presentation | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-11.lab.html | lab | matrix |
-| houses/matrix/piverse/micropython/labs/pv-mp-12.lab.html | lab | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-01.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-02.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-03.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-04.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-05.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-06.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-07.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-08.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-09.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-10.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-11.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/presentations/pv-mp-12.presentation.html | presentation | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-01.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-02.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-03.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-04.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-05.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-06.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-07.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-08.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-09.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-10.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-11.quiz.html | quiz | matrix |
-| houses/matrix/piverse/micropython/quizzes/pv-mp-12.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-01.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-02.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-03.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-04.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-05.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-06.lab.html | presentation | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-07.lab.html | presentation | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-08.lab.html | presentation | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-09.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-10.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-11.lab.html | presentation | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-12.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-13.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-14.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-15.lab.html | presentation | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-16.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-17.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-18.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/labs/pc-ard-19.lab.html | lab | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-01.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-02.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-03.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-04.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-05.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-06.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-07.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-08.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-09.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-10.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-11.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-12.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-13.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-14.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-15.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-16.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-17.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-18.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/presentations/pc-ard-19.presentation.html | presentation | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-02.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-03.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-04.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-05.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-06.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-07.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-08.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-09.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-10.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-11.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-12.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-13.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-14.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-15.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-16.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-17.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-18.quiz.html | quiz | matrix |
-| houses/matrix/protocore/arduino/quizzes/pc-ard-19.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-01.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-02.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-03.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-04.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-05.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-06.lab.html | presentation | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-07.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-08.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-09.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-10.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-11.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-12.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-13.lab.html | presentation | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-14.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/labs/pc-esp-15.lab.html | lab | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-01.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-02.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-03.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-04.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-05.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-06.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-07.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-08.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-09.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-10.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-11.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-12.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-13.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-14.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/presentations/pc-esp-15.presentation.html | presentation | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-01.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-02.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-03.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-04.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-05.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-06.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-07.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-08.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-09.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-10.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-11.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-12.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-13.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-14.quiz.html | quiz | matrix |
-| houses/matrix/protocore/esp32/quizzes/pc-esp-15.quiz.html | quiz | matrix |
-| houses/script/clh/script-clh-001.lab.html | lab | script |
-| houses/script/clh/script-clh-031-intro.applet.html | presentation | script |
-| houses/script/courses/clh/modules/clh-001/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-001/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-002/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-002/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-003/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-003/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-004/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-004/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-005/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-005/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-006/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-006/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-007/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-007/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-008/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-008/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-009/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-009/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-010/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-010/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-011/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-011/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-012/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-012/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-013/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-013/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-014/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-014/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-015/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-015/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-016/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-016/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-017/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-017/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-018/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-018/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-019/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-019/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-020/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-020/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-021/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-021/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-022/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-022/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-023/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-023/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-024/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-024/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-025/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-025/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-026/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-026/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-027/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-027/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-028/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-028/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-029/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-029/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-030/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-030/script-lab.lab.html | lab | script |
-| houses/script/courses/clh/modules/clh-031/script-intro.module.html | presentation | script |
-| houses/script/courses/clh/modules/clh-031/script-lab.lab.html | lab | script |
+| houses/matrix/adv-linux/ala-final.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w1-lecture.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w2-lecture.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w3-lecture.presentation.html | presentation | matrix |
+| houses/matrix/adv-linux/presentations/ala-w4-lecture.presentation.html | presentation | matrix |
 | houses/script/linux-essentials/exams/ra-final.exam.html | presentation | script |
 | houses/script/linux-essentials/exams/ra-midterm.exam.html | presentation | script |
-| houses/script/linux-essentials/labs/ra-w1-kernel.lab.html | presentation | script |
-| houses/script/linux-essentials/labs/ra-w1-storage.lab.html | presentation | script |
-| houses/script/linux-essentials/labs/ra-w2-files.lab.html | presentation | script |
-| houses/script/linux-essentials/labs/ra-w2-servers.lab.html | presentation | script |
-| houses/script/linux-essentials/labs/ra-w3-security.lab.html | presentation | script |
-| houses/script/linux-essentials/labs/ra-w3-users.lab.html | presentation | script |
-| houses/script/linux-essentials/labs/ra-w4-logging.lab.html | presentation | script |
-| houses/script/linux-essentials/labs/ra-w4-troubleshoot.lab.html | presentation | script |
-| houses/script/linux-essentials/presentations/ra-w1-kernel.presentation.html | presentation | script |
-| houses/script/linux-essentials/presentations/ra-w1-storage.presentation.html | presentation | script |
-| houses/script/linux-essentials/presentations/ra-w2-files.presentation.html | presentation | script |
-| houses/script/linux-essentials/presentations/ra-w2-servers.presentation.html | presentation | script |
-| houses/script/linux-essentials/presentations/ra-w3-security.presentation.html | presentation | script |
-| houses/script/linux-essentials/presentations/ra-w3-users.presentation.html | presentation | script |
-| houses/script/linux-essentials/presentations/ra-w4-logging.presentation.html | presentation | script |
-| houses/script/linux-essentials/presentations/ra-w4-troubleshoot.presentation.html | presentation | script |
-| houses/script/linux-essentials/quizzes/ra-w1-kernel.quiz.html | presentation | script |
-| houses/script/linux-essentials/quizzes/ra-w1-storage.quiz.html | presentation | script |
-| houses/script/linux-essentials/quizzes/ra-w2-files.quiz.html | presentation | script |
-| houses/script/linux-essentials/quizzes/ra-w2-servers.quiz.html | presentation | script |
-| houses/script/linux-essentials/quizzes/ra-w3-security.quiz.html | presentation | script |
-| houses/script/linux-essentials/quizzes/ra-w3-users.quiz.html | presentation | script |
-| houses/script/linux-essentials/quizzes/ra-w4-logging.quiz.html | presentation | script |
-| houses/script/linux-essentials/quizzes/ra-w4-troubleshoot.quiz.html | presentation | script |
-| houses/script/modules/databases/script-db-01-intro.module.html | presentation | script |
-| houses/script/modules/databases/script-db-02-select.module.html | presentation | script |
-| houses/script/modules/databases/script-db-03-where.module.html | presentation | script |
-| houses/script/modules/databases/script-db-04-sorting.module.html | presentation | script |
-| houses/script/modules/databases/script-db-05-foundations.lab.html | lab | script |
-| houses/script/modules/databases/script-db-06-crud.module.html | presentation | script |
-| houses/script/modules/databases/script-db-07-nulls.module.html | presentation | script |
-| houses/script/modules/databases/script-db-08-strings.module.html | presentation | script |
-| houses/script/modules/databases/script-db-09-numbers.module.html | presentation | script |
-| houses/script/modules/databases/script-db-10-dates.module.html | presentation | script |
-| houses/script/modules/databases/script-db-11-data.lab.html | lab | script |
-| houses/script/modules/databases/script-db-12-inner-join.module.html | presentation | script |
-| houses/script/modules/databases/script-db-13-outer-joins.module.html | presentation | script |
-| houses/script/modules/databases/script-db-14-advanced-joins.module.html | presentation | script |
-| houses/script/modules/databases/script-db-15-subqueries.module.html | presentation | script |
-| houses/script/modules/databases/script-db-16-ctes.module.html | presentation | script |
-| houses/script/modules/databases/script-db-17-joins.lab.html | lab | script |
-| houses/script/modules/databases/script-db-18-aggregates.module.html | presentation | script |
-| houses/script/modules/databases/script-db-19-group-by.module.html | presentation | script |
-| houses/script/modules/databases/script-db-20-window-funcs.module.html | presentation | script |
-| houses/script/modules/databases/script-db-21-pivoting.module.html | presentation | script |
-| houses/script/modules/databases/script-db-22-analytics.lab.html | lab | script |
-| houses/script/modules/databases/script-db-23-data-types.module.html | presentation | script |
-| houses/script/modules/databases/script-db-24-constraints.module.html | presentation | script |
-| houses/script/modules/databases/script-db-25-indexes.module.html | presentation | script |
-| houses/script/modules/databases/script-db-26-metadata.module.html | presentation | script |
-| houses/script/modules/databases/script-db-27-admin.lab.html | lab | script |
-| houses/script/modules/databases/script-db-28-ingestion.module.html | presentation | script |
-| houses/script/modules/databases/script-db-29-errors.module.html | presentation | script |
-| houses/script/modules/databases/script-db-30-quality.module.html | presentation | script |
-| houses/script/modules/databases/script-db-31-pipelines.module.html | presentation | script |
-| houses/script/modules/databases/script-db-32-engineering.lab.html | lab | script |
-| houses/script/modules/databases/script-db-33-sql.quiz.html | quiz | script |
-| houses/script/modules/databases/script-db-34-advanced.quiz.html | quiz | script |
-| houses/script/modules/databases/script-db-35-capstone.lab.html | lab | script |
-| houses/shield/games/shield-contra.applet.html | applet | shield |
-| houses/shield/games/shield-debugger.applet.html | applet | shield |
-| houses/shield/games/shield-threatdex.applet.html | applet | shield |
-| houses/shield/games/shield-web-security-headers-lab.applet.html | applet | shield |
 | houses/shield/infosec/_source/pis-01.html | quiz | shield |
 | houses/shield/infosec/_source/pis-02.html | quiz | shield |
 | houses/shield/infosec/_source/pis-03.html | quiz | shield |
@@ -23634,121 +17531,14 @@
 | houses/shield/infosec/_source/pis-19.html | quiz | shield |
 | houses/shield/infosec/_source/pis-20.html | quiz | shield |
 | houses/shield/infosec/_source/pis-21.html | quiz | shield |
-| houses/shield/infosec/exams/pis-final.exam.html | quiz | shield |
-| houses/shield/infosec/exams/pis-midterm.exam.html | quiz | shield |
-| houses/shield/infosec/pis-r1.html | presentation | shield |
-| houses/shield/infosec/pis-r2.html | presentation | shield |
-| houses/shield/infosec/pis-r3.html | presentation | shield |
-| houses/shield/infosec/pis-r4.html | presentation | shield |
-| houses/shield/infosec/pis-r5.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w1-cia-triad.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w1-lecture.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w1-malware.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w1-security-controls.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w1-social-engineering.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w1-threat-actors.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w2-app-attacks.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w2-cryptography.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w2-device-security.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w2-lecture.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w2-network-attacks.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w3-inclass-task.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w3-lecture.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w3-network-architecture.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w3-pki.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w3-security-operations.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w3-wireless-cloud.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w4-authentication.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w4-identity-management.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w4-incident-response.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w4-inclass-task.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w4-lecture.presentation.html | presentation | shield |
-| houses/shield/infosec/presentations/pis-w4-risk-governance.presentation.html | presentation | shield |
-| houses/shield/infosec/quizzes/pis-w1.quiz.html | quiz | shield |
-| houses/shield/infosec/quizzes/pis-w2.quiz.html | quiz | shield |
-| houses/shield/infosec/quizzes/pis-w3.quiz.html | quiz | shield |
-| houses/shield/infosec/quizzes/pis-w4.quiz.html | quiz | shield |
-| houses/shield/intro-security/exams/fw-final.exam.html | quiz | shield |
-| houses/shield/intro-security/exams/fw-midterm.exam.html | quiz | shield |
-| houses/shield/intro-security/labs/fw-w1-logical.lab.html | presentation | shield |
-| houses/shield/intro-security/labs/fw-w1-physical.lab.html | presentation | shield |
-| houses/shield/intro-security/labs/fw-w2-malware.lab.html | presentation | shield |
-| houses/shield/intro-security/labs/fw-w2-wireless.lab.html | presentation | shield |
-| houses/shield/intro-security/labs/fw-w3-os-security.lab.html | presentation | shield |
-| houses/shield/intro-security/labs/fw-w3-social.lab.html | presentation | shield |
-| houses/shield/intro-security/labs/fw-w3-workstation.lab.html | presentation | shield |
-| houses/shield/intro-security/labs/fw-w4-data.lab.html | presentation | shield |
-| houses/shield/intro-security/labs/fw-w4-mobile.lab.html | presentation | shield |
-| houses/shield/intro-security/labs/fw-w4-soho.lab.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w1-logical.presentation.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w1-physical.presentation.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w2-malware.presentation.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w2-wireless.presentation.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w3-os-security.presentation.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w3-social-engineering.presentation.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w3-workstation.presentation.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w4-data-destruction.presentation.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w4-mobile.presentation.html | presentation | shield |
-| houses/shield/intro-security/presentations/fw-w4-soho.presentation.html | presentation | shield |
-| houses/shield/intro-security/quizzes/fw-w1-logical.quiz.html | quiz | shield |
-| houses/shield/intro-security/quizzes/fw-w1-physical.quiz.html | quiz | shield |
-| houses/shield/intro-security/quizzes/fw-w2-malware.quiz.html | quiz | shield |
-| houses/shield/intro-security/quizzes/fw-w2-wireless.quiz.html | quiz | shield |
-| houses/shield/intro-security/quizzes/fw-w3-os-security.quiz.html | quiz | shield |
-| houses/shield/intro-security/quizzes/fw-w3-social.quiz.html | quiz | shield |
-| houses/shield/intro-security/quizzes/fw-w3-workstation.quiz.html | quiz | shield |
-| houses/shield/intro-security/quizzes/fw-w4-data.quiz.html | quiz | shield |
-| houses/shield/intro-security/quizzes/fw-w4-mobile.quiz.html | quiz | shield |
-| houses/shield/intro-security/quizzes/fw-w4-soho.quiz.html | quiz | shield |
-| houses/shield/ms-security/ms-sec-01.html | presentation | shield |
-| houses/shield/ms-security/ms-sec-02.html | presentation | shield |
-| houses/shield/ms-security/ms-sec-03.html | presentation | shield |
-| houses/shield/ms-security/ms-sec-04.html | presentation | shield |
-| houses/shield/ms-security/ms-sec-05.html | presentation | shield |
-| houses/shield/ms-security/ms-sec-06.html | presentation | shield |
-| houses/shield/ms-security/ms-sec-07.html | presentation | shield |
-| houses/shield/ms-security/ms-sec-08.html | presentation | shield |
-| houses/shield/ms-security/ms-sec-09.html | presentation | shield |
-| houses/shield/ms-security/ms-sec-10.html | presentation | shield |
-| houses/shield/sc-200/labs/sc200-ch01-defender-xdr.lab.html | lab | shield |
-| houses/shield/sc-200/labs/sc200-ch02-defender-endpoint.lab.html | lab | shield |
-| houses/shield/sc-200/labs/sc200-ch03-defender-office.lab.html | lab | shield |
-| houses/shield/sc-200/labs/sc200-ch04-defender-identity.lab.html | lab | shield |
-| houses/shield/sc-200/labs/sc200-ch05-defender-cloud-apps.lab.html | lab | shield |
-| houses/shield/sc-200/labs/sc200-ch06-sentinel-setup.lab.html | lab | shield |
-| houses/shield/sc-200/labs/sc200-ch07-sentinel-detection.lab.html | lab | shield |
-| houses/shield/sc-200/labs/sc200-ch08-sentinel-response.lab.html | presentation | shield |
-| houses/shield/sc-200/labs/sc200-ch09-sentinel-hunting.lab.html | lab | shield |
-| houses/shield/sc-200/presentations/sc200-ch01-defender-xdr.presentation.html | presentation | shield |
-| houses/shield/sc-200/presentations/sc200-ch02-defender-endpoint.presentation.html | presentation | shield |
-| houses/shield/sc-200/presentations/sc200-ch03-defender-office.presentation.html | presentation | shield |
-| houses/shield/sc-200/presentations/sc200-ch04-defender-identity.presentation.html | presentation | shield |
-| houses/shield/sc-200/presentations/sc200-ch05-defender-cloud-apps.presentation.html | presentation | shield |
-| houses/shield/sc-200/presentations/sc200-ch06-sentinel-setup.presentation.html | presentation | shield |
-| houses/shield/sc-200/presentations/sc200-ch07-sentinel-detection.presentation.html | presentation | shield |
-| houses/shield/sc-200/presentations/sc200-ch08-sentinel-response.presentation.html | presentation | shield |
-| houses/shield/sc-200/presentations/sc200-ch09-sentinel-hunting.presentation.html | presentation | shield |
-| houses/shield/sc-200/quizzes/sc200-ch01.quiz.html | quiz | shield |
-| houses/shield/sc-200/quizzes/sc200-ch02.quiz.html | quiz | shield |
-| houses/shield/sc-200/quizzes/sc200-ch03.quiz.html | quiz | shield |
-| houses/shield/sc-200/quizzes/sc200-ch04.quiz.html | quiz | shield |
-| houses/shield/sc-200/quizzes/sc200-ch05.quiz.html | quiz | shield |
-| houses/shield/sc-200/quizzes/sc200-ch06.quiz.html | quiz | shield |
-| houses/shield/sc-200/quizzes/sc200-ch07.quiz.html | quiz | shield |
-| houses/shield/sc-200/quizzes/sc200-ch08.quiz.html | quiz | shield |
-| houses/shield/sc-200/quizzes/sc200-ch09.quiz.html | quiz | shield |
-| houses/shield/sc-900/labs/sc900-ch01-concepts.lab.html | lab | shield |
-| houses/shield/sc-900/labs/sc900-ch02-entra-id.lab.html | lab | shield |
-| houses/shield/sc-900/labs/sc900-ch03-security-solutions.lab.html | presentation | shield |
-| houses/shield/sc-900/labs/sc900-ch04-compliance.lab.html | presentation | shield |
-| houses/shield/sc-900/presentations/sc900-ch01-concepts.presentation.html | presentation | shield |
-| houses/shield/sc-900/presentations/sc900-ch02-entra-id.presentation.html | presentation | shield |
-| houses/shield/sc-900/presentations/sc900-ch03-security-solutions.presentation.html | presentation | shield |
-| houses/shield/sc-900/presentations/sc900-ch04-compliance.presentation.html | presentation | shield |
-| houses/shield/sc-900/quizzes/sc900-ch01.quiz.html | quiz | shield |
-| houses/shield/sc-900/quizzes/sc900-ch02.quiz.html | quiz | shield |
-| houses/shield/sc-900/quizzes/sc900-ch03.quiz.html | quiz | shield |
-| houses/shield/sc-900/quizzes/sc900-ch04.quiz.html | quiz | shield |
+| houses/shield/infosec/exams/pis-5th-grader.review.html | presentation | shield |
+| houses/shield/infosec/exams/pis-jeopardy.review.html | presentation | shield |
+| houses/shield/infosec/exams/pis-kahoot.review.html | presentation | shield |
+| houses/shield/infosec/exams/pis-wheel.review.html | presentation | shield |
+| houses/shield/security-plus/labs/pbq-attack-identification.lab.html | presentation | shield |
+| houses/shield/security-plus/labs/pbq-control-classification.lab.html | presentation | shield |
+| houses/shield/security-plus/labs/pbq-crypto-selection.lab.html | presentation | shield |
+| houses/shield/security-plus/labs/pbq-firewall-config.lab.html | presentation | shield |
 | houses/web/backbone/bgp/bb-bgp-01.html | presentation | web |
 | houses/web/backbone/bgp/bb-bgp-02.html | presentation | web |
 | houses/web/backbone/bgp/bb-bgp-03.html | presentation | web |
@@ -23899,252 +17689,35 @@
 | houses/web/backbone/wireless/bb-wl-08.html | presentation | web |
 | houses/web/backbone/wireless/bb-wl-09.html | presentation | web |
 | houses/web/backbone/wireless/bb-wl-10.html | presentation | web |
-| houses/web/ccna/labs/ccna-acl-lab.lab.html | lab | web |
-| houses/web/ccna/labs/ccna-ios-cli.lab.html | lab | web |
-| houses/web/ccna/labs/ccna-nat-config.lab.html | lab | web |
-| houses/web/ccna/labs/ccna-ospf-config.lab.html | lab | web |
-| houses/web/ccna/labs/ccna-troubleshooting.lab.html | lab | web |
-| houses/web/ccna/labs/ccna-vlan-config.lab.html | lab | web |
-| houses/web/ccna/modules/ccna-01.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-02.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-03.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-04.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-05.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-06.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-07.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-08.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-09.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-10.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-11.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-12.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-13.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-14.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-15.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-16.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-17.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-18.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-19.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-20.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-21.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-22.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-23.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-24.module.html | presentation | web |
-| houses/web/ccna/modules/ccna-25.module.html | presentation | web |
-| houses/web/ccna/quizzes/ccna-comprehensive.quiz.html | quiz | web |
-| houses/web/ccna/quizzes/ccna-domain1.quiz.html | quiz | web |
-| houses/web/ccna/quizzes/ccna-domain2.quiz.html | quiz | web |
-| houses/web/ccna/quizzes/ccna-domain3.quiz.html | quiz | web |
-| houses/web/ccna/quizzes/ccna-domain4-5-6.quiz.html | quiz | web |
-| houses/web/ccna/tools/ccna-ospf-visualizer.tool.html | applet | web |
-| houses/web/ccna/tools/ccna-subnet-calculator.tool.html | applet | web |
 | houses/web/exams/web-network-plus-practice.exam.html | presentation | web |
-| houses/web/games/web-dns-resolver-race.applet.html | applet | web |
-| houses/web/games/web-subnet-siege.applet.html | applet | web |
-| houses/web/intro-networks/exams/fl-final.exam.html | quiz | web |
-| houses/web/intro-networks/exams/fl-midterm.exam.html | quiz | web |
-| houses/web/intro-networks/labs/fl-w1-hardware.lab.html | lab | web |
-| houses/web/intro-networks/labs/fl-w1-ports.lab.html | lab | web |
-| houses/web/intro-networks/labs/fl-w2-soho.lab.html | lab | web |
-| houses/web/intro-networks/labs/fl-w2-wireless.lab.html | lab | web |
-| houses/web/intro-networks/labs/fl-w3-config.lab.html | lab | web |
-| houses/web/intro-networks/labs/fl-w3-services.lab.html | lab | web |
-| houses/web/intro-networks/labs/fl-w4-connections.lab.html | lab | web |
-| houses/web/intro-networks/labs/fl-w4-tools.lab.html | lab | web |
-| houses/web/intro-networks/presentations/fl-w1-hardware.presentation.html | presentation | web |
-| houses/web/intro-networks/presentations/fl-w1-ports.presentation.html | presentation | web |
-| houses/web/intro-networks/presentations/fl-w2-soho.presentation.html | presentation | web |
-| houses/web/intro-networks/presentations/fl-w2-wireless.presentation.html | presentation | web |
-| houses/web/intro-networks/presentations/fl-w3-config.presentation.html | presentation | web |
-| houses/web/intro-networks/presentations/fl-w3-services.presentation.html | presentation | web |
-| houses/web/intro-networks/presentations/fl-w4-connections.presentation.html | presentation | web |
-| houses/web/intro-networks/presentations/fl-w4-tools.presentation.html | presentation | web |
-| houses/web/intro-networks/quizzes/fl-w1-hardware.quiz.html | quiz | web |
-| houses/web/intro-networks/quizzes/fl-w1-ports.quiz.html | quiz | web |
-| houses/web/intro-networks/quizzes/fl-w2-soho.quiz.html | quiz | web |
-| houses/web/intro-networks/quizzes/fl-w2-wireless.quiz.html | quiz | web |
-| houses/web/intro-networks/quizzes/fl-w3-config.quiz.html | quiz | web |
-| houses/web/intro-networks/quizzes/fl-w3-services.quiz.html | quiz | web |
-| houses/web/intro-networks/quizzes/fl-w4-connections.quiz.html | quiz | web |
-| houses/web/intro-networks/quizzes/fl-w4-tools.quiz.html | quiz | web |
-| houses/web/labs/web-ne01-osi-scenario.lab.html | lab | web |
-| houses/web/labs/web-ne02-tcpip-scenario.lab.html | lab | web |
-| houses/web/labs/web-ne03-subnet-scenario.lab.html | lab | web |
-| houses/web/labs/web-ne07-nat-scenario.lab.html | lab | web |
-| houses/web/labs/web-ne08-wireless-scenario.lab.html | lab | web |
-| houses/web/net-essentials/exams/cr-final.exam.html | presentation | web |
-| houses/web/net-essentials/exams/cr-midterm.exam.html | presentation | web |
-| houses/web/net-essentials/labs/cr-w1-access.lab.html | lab | web |
-| houses/web/net-essentials/labs/cr-w1-osi.lab.html | lab | web |
-| houses/web/net-essentials/labs/cr-w2-addressing.lab.html | lab | web |
-| houses/web/net-essentials/labs/cr-w2-network.lab.html | lab | web |
-| houses/web/net-essentials/labs/cr-w3-app.lab.html | lab | web |
-| houses/web/net-essentials/labs/cr-w3-transport.lab.html | lab | web |
-| houses/web/net-essentials/labs/cr-w4-design.lab.html | lab | web |
-| houses/web/net-essentials/labs/cr-w4-troubleshoot.lab.html | lab | web |
-| houses/web/net-essentials/presentations/cr-w1-access.presentation.html | presentation | web |
-| houses/web/net-essentials/presentations/cr-w1-osi.presentation.html | presentation | web |
-| houses/web/net-essentials/presentations/cr-w2-addressing.presentation.html | presentation | web |
-| houses/web/net-essentials/presentations/cr-w2-network-layer.presentation.html | presentation | web |
-| houses/web/net-essentials/presentations/cr-w3-application.presentation.html | presentation | web |
-| houses/web/net-essentials/presentations/cr-w3-transport.presentation.html | presentation | web |
-| houses/web/net-essentials/presentations/cr-w4-design.presentation.html | presentation | web |
-| houses/web/net-essentials/presentations/cr-w4-troubleshoot.presentation.html | presentation | web |
-| houses/web/net-essentials/quizzes/cr-w1-access.quiz.html | presentation | web |
-| houses/web/net-essentials/quizzes/cr-w1-osi.quiz.html | presentation | web |
-| houses/web/net-essentials/quizzes/cr-w2-addressing.quiz.html | presentation | web |
-| houses/web/net-essentials/quizzes/cr-w2-network.quiz.html | presentation | web |
-| houses/web/net-essentials/quizzes/cr-w3-app.quiz.html | presentation | web |
-| houses/web/net-essentials/quizzes/cr-w3-transport.quiz.html | presentation | web |
-| houses/web/net-essentials/quizzes/cr-w4-design.quiz.html | presentation | web |
-| houses/web/net-essentials/quizzes/cr-w4-troubleshoot.quiz.html | presentation | web |
-| houses/web/network-essentials/ne-01.html | presentation | web |
-| houses/web/network-essentials/ne-02.html | presentation | web |
-| houses/web/network-essentials/ne-03.html | presentation | web |
-| houses/web/network-essentials/ne-04.html | presentation | web |
-| houses/web/network-essentials/ne-05.html | presentation | web |
-| houses/web/network-essentials/ne-06.html | presentation | web |
-| houses/web/network-essentials/ne-07.html | presentation | web |
-| houses/web/network-essentials/ne-08.html | presentation | web |
-| houses/web/network-essentials/ne-09.html | presentation | web |
-| houses/web/network-essentials/ne-10.html | presentation | web |
-| houses/web/network-plus/exams/final-practice.exam.html | presentation | web |
 | houses/web/network-plus/exams/flashcards.exam.html | presentation | web |
-| houses/web/network-plus/exams/jeopardy.review.html | presentation | web |
 | houses/web/network-plus/exams/midterm.exam.html | presentation | web |
-| houses/web/network-plus/labs/dns-troubleshooting.lab.html | lab | web |
-| houses/web/network-plus/labs/firewall-rules.lab.html | lab | web |
-| houses/web/network-plus/labs/n10009-ch01-security.lab.html | lab | web |
-| houses/web/network-plus/labs/n10009-ch02-troubleshooting.lab.html | lab | web |
-| houses/web/network-plus/labs/ne01-osi-scenario.lab.html | lab | web |
-| houses/web/network-plus/labs/ne02-tcpip-scenario.lab.html | lab | web |
-| houses/web/network-plus/labs/ne03-subnet-scenario.lab.html | lab | web |
-| houses/web/network-plus/labs/ne04-cable-testing-gui.lab.html | presentation | web |
-| houses/web/network-plus/labs/ne04-server-room-gui.lab.html | presentation | web |
-| houses/web/network-plus/labs/ne07-nat-scenario.lab.html | lab | web |
-| houses/web/network-plus/labs/ne08-wireless-scenario.lab.html | lab | web |
-| houses/web/network-plus/labs/networking-fundamentals.lab.html | lab | web |
-| houses/web/network-plus/labs/packet-analysis.lab.html | lab | web |
-| houses/web/network-plus/labs/pbq-network-design.lab.html | lab | web |
-| houses/web/network-plus/labs/pbq-network-discovery.lab.html | presentation | web |
-| houses/web/network-plus/labs/pbq-routing-troubleshoot.lab.html | presentation | web |
-| houses/web/network-plus/labs/pbq-vlan-switch-config.lab.html | presentation | web |
-| houses/web/network-plus/labs/static-routes.lab.html | lab | web |
-| houses/web/network-plus/labs/subnetting-practice.lab.html | lab | web |
-| houses/web/network-plus/labs/troubleshooting.lab.html | lab | web |
-| houses/web/network-plus/labs/vlan-config.lab.html | lab | web |
-| houses/web/network-plus/modules/ne-01.html | presentation | web |
-| houses/web/network-plus/modules/ne-02.html | presentation | web |
-| houses/web/network-plus/modules/ne-03.html | presentation | web |
-| houses/web/network-plus/modules/ne-04-infrastructure.html | presentation | web |
-| houses/web/network-plus/modules/ne-04.html | presentation | web |
-| houses/web/network-plus/modules/ne-05.html | presentation | web |
-| houses/web/network-plus/modules/ne-06.html | presentation | web |
-| houses/web/network-plus/modules/ne-07.html | presentation | web |
-| houses/web/network-plus/modules/ne-08.html | presentation | web |
-| houses/web/network-plus/modules/ne-09.html | presentation | web |
-| houses/web/network-plus/modules/ne-10-operations.html | presentation | web |
-| houses/web/network-plus/modules/ne-10.html | presentation | web |
-| houses/web/network-plus/presentations/arp.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/cables.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/cloud-networking.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/devices.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/dhcp.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/dns.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/eigrp.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/etherchannel.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/fhrp.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/high-availability.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/icmp.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/ipsec-gre.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/ipv6.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/n10009-ch01-security.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/n10009-ch02-troubleshooting.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/nat.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/network-access-methods.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/network-essentials.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/network-monitoring.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/network-security.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/ntp.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/organizational-processes.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/osi-deep-dive.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/osi-model.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/osi.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/ospf.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/performance-issues.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/physical-installations.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/ports.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/stp.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/subnetting.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/switch-operations.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/tcp.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/topologies.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/traffic-types.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/troubleshooting.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/vlan.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/wan-technologies.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/wireless-architecture.presentation.html | presentation | web |
-| houses/web/network-plus/presentations/wireless.presentation.html | presentation | web |
-| houses/web/network-plus/quizzes/ch7-20.quiz.html | presentation | web |
-| houses/web/network-plus/quizzes/dns-dhcp.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/infrastructure.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/n10009-ch01.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/n10009-ch02.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/operations.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/routing.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/security.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/switching.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/tcpip.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/troubleshooting.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/wan-cloud.quiz.html | quiz | web |
-| houses/web/network-plus/quizzes/wireless.quiz.html | quiz | web |
-| houses/web/network-plus/tools/acl.tool.html | presentation | web |
-| houses/web/network-plus/tools/cable.tool.html | presentation | web |
-| houses/web/network-plus/tools/devices.tool.html | presentation | web |
-| houses/web/network-plus/tools/etherchannel.tool.html | presentation | web |
-| houses/web/network-plus/tools/ipv6.tool.html | presentation | web |
-| houses/web/network-plus/tools/network-services.tool.html | presentation | web |
-| houses/web/network-plus/tools/osi-deep-dive.tool.html | presentation | web |
-| houses/web/network-plus/tools/osi.tool.html | presentation | web |
-| houses/web/network-plus/tools/ospf-cost.tool.html | presentation | web |
-| houses/web/network-plus/tools/port.tool.html | presentation | web |
-| houses/web/network-plus/tools/qos.tool.html | presentation | web |
-| houses/web/network-plus/tools/security.tool.html | presentation | web |
-| houses/web/network-plus/tools/stp.tool.html | presentation | web |
-| houses/web/network-plus/tools/subnetting.tool.html | presentation | web |
-| houses/web/network-plus/tools/switch-operations.tool.html | presentation | web |
-| houses/web/network-plus/tools/topology.tool.html | presentation | web |
-| houses/web/network-plus/tools/troubleshooting.tool.html | presentation | web |
-| houses/web/network-plus/tools/vlan.tool.html | presentation | web |
-| houses/web/network-plus/tools/wireless-architecture.tool.html | presentation | web |
-| houses/web/network-plus/tools/wireless.tool.html | presentation | web |
-| operator/missions/pfi-op-01.mission.html | presentation | - |
-| operator/missions/pfi-op-02.mission.html | presentation | - |
-| operator/missions/pfi-op-03.mission.html | presentation | - |
-| operator/missions/pfi-op-04.mission.html | presentation | - |
-| projects/ai-explainable-ml.html | applet | - |
-| projects/ai-intrusion-detector.html | applet | - |
-| projects/ai-music-generation.html | applet | - |
+| projects/ai-data-augmentation.html | applet | - |
 | projects/ai-network-anomaly.html | applet | - |
 | projects/ai-rag-chatbot.html | applet | - |
-| projects/ai-reinforcement-taxi.html | applet | - |
+| projects/ai-rasa-chatbot.html | applet | - |
 | projects/cloud-container-checker.html | applet | - |
+| projects/cloud-serverless-django.html | applet | - |
 | projects/code-memory-game.html | applet | - |
 | projects/code-serial-console.html | applet | - |
+| projects/code-task-manager.html | applet | - |
 | projects/code-typing-speed.html | applet | - |
+| projects/code-wordle-clone.html | applet | - |
+| projects/darkarts-kali-setup.html | applet | - |
 | projects/darkarts-wifi-scanner.html | applet | - |
-| projects/eye-osint-dashboard.html | applet | - |
+| projects/divergent-field-terminal.html | applet | - |
 | projects/eye-playwright-testing.html | applet | - |
 | projects/eye-pytorch-onnx.html | applet | - |
 | projects/forge-crossword-puzzle.html | applet | - |
+| projects/forge-env-monitor.html | applet | - |
 | projects/forge-flashcard-engine.html | applet | - |
 | projects/forge-sensor-dashboard.html | applet | - |
+| projects/forge-virtualbox-first-vm.html | applet | - |
 | projects/key-blockchain.html | applet | - |
-| projects/key-brownie-contracts.html | applet | - |
+| projects/key-nft-marketplace.html | applet | - |
 | projects/key-password-vault.html | applet | - |
-| projects/matrix-climate-analysis.html | applet | - |
-| projects/matrix-customer-segmentation.html | applet | - |
+| projects/key-rfid-access.html | applet | - |
 | projects/matrix-data-viz.html | applet | - |
-| projects/matrix-kafka-streaming.html | applet | - |
 | projects/matrix-packet-visualizer.html | applet | - |
 | projects/matrix-plotly-viz.html | applet | - |
 | projects/matrix-sentiment-nlp.html | applet | - |
@@ -24153,15 +17726,17 @@
 | projects/matrix-traffic-dashboard.html | applet | - |
 | projects/script-data-logger.html | applet | - |
 | projects/script-data-pipeline.html | applet | - |
+| projects/script-etl-pipeline.html | applet | - |
 | projects/script-video-summarizer.html | applet | - |
 | projects/shield-fake-news.html | applet | - |
+| projects/shield-first-security-policy.html | applet | - |
 | projects/shield-log-analyzer.html | applet | - |
 | projects/starter-calculator.html | applet | - |
 | projects/starter-first-bot.html | applet | - |
 | projects/starter-first-database.html | applet | - |
 | projects/starter-first-gui.html | applet | - |
+| projects/web-elearning-flask.html | applet | - |
 | projects/web-online-portfolio.html | applet | - |
-| projects/web-pi-network-probe.html | applet | - |
 | projects/web-topology-visualizer.html | applet | - |
 | pulse.html | applet | - |
 | signal/sections/drone-security/sg-92-swarm-simulator.html | applet | - |
@@ -24174,7 +17749,8 @@
 | signal/toolkit/duckyscript-ide.html | presentation | - |
 | signal/toolkit/tools/dban.tool.html | applet | - |
 | subscription.html | applet | - |
-| tenant/instructor.html | applet | - |
+| tenant/instructor.html | presentation | - |
+| tools/career-pathway-planner.html | applet | - |
 | wireshark/sections/fundamentals/ws-01-interface-tour.module.html | applet | - |
 | wireshark/sections/fundamentals/ws-03-capture-filters.module.html | applet | - |
 | wireshark/sections/fundamentals/ws-04-display-filters.module.html | applet | - |
