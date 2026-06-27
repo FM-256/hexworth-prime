@@ -51,7 +51,9 @@ labs) → Assess (quiz). Mirrors how A+ groups chapters and WSA groups modules, 
 
 ## DECISIONS
 1. **Structure — DECIDED 2026-06-27:** Domain → Modules (two levels). Domains at top; modules within
-   each domain; each module bundles content-first (Learn → Practice → Assess). [resolved]
+   each domain; each module bundles content-first (Learn → Practice → Assess). Modules are CONTENT-DRIVEN
+   teaching units grouped under objectives — a heavy objective (e.g. 1.2) SPLITS into multiple modules
+   (operator: "some objectives may require multiple modules"). [resolved]
 2. **PIS items — OPEN:** remove from the Security+ hub entirely, or keep in a clearly-labeled "Related"
    section? (53 items; PIS keeps its own hub regardless.)
 3. **Sequencing — OPEN:** reorganize structure first then build content, build content first, or one
