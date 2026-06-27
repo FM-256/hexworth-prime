@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-06-27 1:19:44 AM
+                    Scanned: 2026-06-27 5:15:54 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5157 |
-| Directories | 1241 |
-| Content Files | 5157 |
-| Scan Duration | 506ms |
+| Files Scanned | 5183 |
+| Directories | 1244 |
+| Content Files | 5183 |
+| Scan Duration | 528ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2322 |
-| html | 1549 |
+| presentation | 2330 |
+| html | 1550 |
 | lab | 587 |
-| quiz | 487 |
+| quiz | 504 |
 | applet | 212 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 3645 |
-| Available | 3600 |
+| Total Modules | 4280 |
+| Available | 4235 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 14 |
+| Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 29 |
-| Warning | 986 |
+| Warning | 949 |
 | Info | 691 |
-| **Total** | **11925** |
+| **Total** | **12980** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3591 |
+| Ready | 3616 |
 | Not Ready | 17 |
-| Unknown | 1549 |
+| Unknown | 1550 |
 
 
 ## FILE HIERARCHY
@@ -5233,30 +5233,59 @@
 │   │   │   ├── 📊 shield-sec101-m07.presentation.html
 │   │   │   └── 📊 shield-sec101-m08.presentation.html
 │   │   ├── 📁 security-plus
+│   │   │   ├── 📁 exams
+│   │   │   │   ├── 📄 sy0-701-practice-exam-1.exam.html
+│   │   │   │   └── 📄 sy0-701-practice-exam-2.exam.html
 │   │   │   ├── 📍 index.html
-│   │   │   └── 📁 labs [labs]
-│   │   │       ├── 🔬 pbq-attack-identification.lab.html
-│   │   │       ├── 🔬 pbq-control-classification.lab.html
-│   │   │       ├── 🔬 pbq-crypto-selection.lab.html
-│   │   │       ├── 🔬 pbq-firewall-config.lab.html
-│   │   │       ├── 📁 shield-sp-blueteam-breach-capstone [labs]
-│   │   │       │   └── 📍 index.html
-│   │   │       ├── 📁 shield-sp-blueteam-config-audit [labs]
-│   │   │       │   └── 📍 index.html
-│   │   │       ├── 📁 shield-sp-blueteam-log-intrusion-hunt [labs]
-│   │   │       │   └── 📍 index.html
-│   │   │       ├── 📁 shield-sp-blueteam-policy-classify [labs]
-│   │   │       │   └── 📍 index.html
-│   │   │       ├── 📁 shield-sp-blueteam-risk-quant [labs]
-│   │   │       │   └── 📍 index.html
-│   │   │       ├── 📁 shield-sp-blueteam-risk-register [labs]
-│   │   │       │   └── 📍 index.html
-│   │   │       ├── 📁 shield-sp-blueteam-siem-triage [labs]
-│   │   │       │   └── 📍 index.html
-│   │   │       ├── 📁 shield-sp-blueteam-vendor-assessment [labs]
-│   │   │       │   └── 📍 index.html
-│   │   │       └── 📁 shield-sp-blueteam-vuln-triage [labs]
-│   │   │           └── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 pbq-attack-identification.lab.html
+│   │   │   │   ├── 🔬 pbq-change-management.lab.html
+│   │   │   │   ├── 🔬 pbq-control-classification.lab.html
+│   │   │   │   ├── 🔬 pbq-crypto-selection.lab.html
+│   │   │   │   ├── 🔬 pbq-design-principles.lab.html
+│   │   │   │   ├── 🔬 pbq-firewall-config.lab.html
+│   │   │   │   ├── 🔬 pbq-governance-asset.lab.html
+│   │   │   │   ├── 🔬 pbq-iam-aaa.lab.html
+│   │   │   │   ├── 🔬 pbq-malware-identification.lab.html
+│   │   │   │   ├── 🔬 pbq-pki-diagnosis.lab.html
+│   │   │   │   ├── 🔬 pbq-social-network-identification.lab.html
+│   │   │   │   ├── 🔬 pbq-threat-actor-attribution.lab.html
+│   │   │   │   ├── 📁 shield-sp-blueteam-breach-capstone [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 shield-sp-blueteam-config-audit [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 shield-sp-blueteam-log-intrusion-hunt [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 shield-sp-blueteam-policy-classify [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 shield-sp-blueteam-risk-quant [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 shield-sp-blueteam-risk-register [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 shield-sp-blueteam-siem-triage [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   ├── 📁 shield-sp-blueteam-vendor-assessment [labs]
+│   │   │   │   │   └── 📍 index.html
+│   │   │   │   └── 📁 shield-sp-blueteam-vuln-triage [labs]
+│   │   │   │       └── 📍 index.html
+│   │   │   ├── 📁 quizzes [quizzes]
+│   │   │   │   ├── ❓ secplus-d1-change-management-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d1-crypto-solutions-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d1-design-principles-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d1-governance-asset-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d2-app-injection-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d2-malware-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d2-network-social-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d2-threat-actors-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d3-crypto-pki-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d3-iam-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d4-vuln-mgmt-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d5-compliance-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d5-governance-quiz.quiz.html
+│   │   │   │   ├── ❓ secplus-d5-risk-mgmt-quiz.quiz.html
+│   │   │   │   └── ❓ secplus-d5-vendor-risk-quiz.quiz.html
+│   │   │   └── 📁 reference
+│   │   │       └── 📄 sy0-701-acronyms.reference.html
 │   │   ├── 📁 speaker-notes
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 shield-aaa-flow.tool.html
@@ -9304,11 +9333,36 @@
 | shield-sec101-m06.presentation | presentation | ✓ | 0 |
 | shield-sec101-m07.presentation | presentation | ✓ | 0 |
 | shield-sec101-m08.presentation | presentation | ✓ | 0 |
+| shield-sy0-701-practice-exam-1 | quiz | ✓ | 0 |
+| shield-sy0-701-practice-exam-2 | quiz | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | pbq-attack-identification.lab | presentation | ✓ | 0 |
+| pbq-change-management.lab | presentation | ✓ | 0 |
 | pbq-control-classification.lab | presentation | ✓ | 0 |
 | pbq-crypto-selection.lab | presentation | ✓ | 0 |
+| pbq-design-principles.lab | presentation | ✓ | 0 |
 | pbq-firewall-config.lab | presentation | ✓ | 0 |
+| pbq-governance-asset.lab | presentation | ✓ | 0 |
+| pbq-iam-aaa.lab | presentation | ✓ | 0 |
+| pbq-malware-identification.lab | presentation | ✓ | 0 |
+| pbq-pki-diagnosis.lab | presentation | ✓ | 0 |
+| pbq-social-network-identification.lab | presentation | ✓ | 0 |
+| pbq-threat-actor-attribution.lab | presentation | ✓ | 0 |
+| shield-secplus-d1-change-management-quiz | quiz | ✓ | 0 |
+| shield-secplus-d1-crypto-solutions-quiz | quiz | ✓ | 0 |
+| shield-secplus-d1-design-principles-quiz | quiz | ✓ | 0 |
+| shield-secplus-d1-governance-asset-quiz | quiz | ✓ | 0 |
+| shield-secplus-d2-app-injection-quiz | quiz | ✓ | 0 |
+| shield-secplus-d2-malware-quiz | quiz | ✓ | 0 |
+| shield-secplus-d2-network-social-quiz | quiz | ✓ | 0 |
+| shield-secplus-d2-threat-actors-quiz | quiz | ✓ | 0 |
+| shield-secplus-d3-crypto-pki-quiz | quiz | ✓ | 0 |
+| shield-secplus-d3-iam-quiz | quiz | ✓ | 0 |
+| shield-secplus-d4-vuln-mgmt-quiz | quiz | ✓ | 0 |
+| shield-secplus-d5-compliance-quiz | quiz | ✓ | 0 |
+| shield-secplus-d5-governance-quiz | quiz | ✓ | 0 |
+| shield-secplus-d5-risk-mgmt-quiz | quiz | ✓ | 0 |
+| shield-secplus-d5-vendor-risk-quiz | quiz | ✓ | 0 |
 | shield-aaa-flow.tool | presentation | ✓ | 0 |
 | shield-bia.tool | presentation | ✓ | 0 |
 | shield-crisc-risk.tool | presentation | ✓ | 0 |
@@ -10265,7 +10319,7 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (986)
+### WARNING (949)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -10645,46 +10699,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/tools/bh-tool-reference.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-alias-hijacking.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-bashrc-poisoning.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-compromised-server.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-cred-harvester.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-hidden-files.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-invisible-process.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-log-analysis.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-path-hijacking.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-permission-analysis.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/labs/linux/da-linux-shell-resolution.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -12904,42 +12918,6 @@
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/exams/eth-5th-grader.review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/exams/eth-jeopardy.review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/exams/eth-kahoot.review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/divergent/ethics-it/exams/eth-wheel.review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cable-building.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-install.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-front-panel-header.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-keystone-jack.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-install.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/reviews/forge-md101-comprehensive-review.html`
   Fix: Add entry to content-registry.js
 
@@ -12953,30 +12931,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/matrix/adv-linux/ala-final.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w1-lecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w2-lecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w3-lecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/presentations/ala-w4-lecture.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/exams/ra-final.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/linux-essentials/exams/ra-midterm.exam.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13061,38 +13015,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/_source/pis-21.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/exams/pis-5th-grader.review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/exams/pis-jeopardy.review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/exams/pis-kahoot.review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/infosec/exams/pis-wheel.review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/security-plus/labs/pbq-attack-identification.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/security-plus/labs/pbq-control-classification.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/security-plus/labs/pbq-crypto-selection.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/security-plus/labs/pbq-firewall-config.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -13696,18 +13618,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/exams/web-network-plus-practice.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/exams/flashcards.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/network-plus/exams/midterm.exam.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `projects/ai-data-augmentation.html`
   Fix: Add entry to content-registry.js
 
@@ -13929,10 +13839,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `signal/toolkit/duckyscript-ide.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `signal/toolkit/tools/dban.tool.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -15485,7 +15391,7 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 3212 of 3645 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3211 of 4280 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
@@ -16840,7 +16746,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (917)
+### Unregistered Content (880)
 
 | Path | Type | House |
 |------|------|-------|
@@ -16936,16 +16842,6 @@
 | dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html | presentation | - |
 | dark-arts/vault/bug-hunting/tools/bh-tool-mobile.html | presentation | - |
 | dark-arts/vault/bug-hunting/tools/bh-tool-reference.html | presentation | - |
-| dark-arts/vault/labs/linux/da-linux-alias-hijacking.lab.html | lab | - |
-| dark-arts/vault/labs/linux/da-linux-bashrc-poisoning.lab.html | lab | - |
-| dark-arts/vault/labs/linux/da-linux-compromised-server.lab.html | lab | - |
-| dark-arts/vault/labs/linux/da-linux-cred-harvester.lab.html | lab | - |
-| dark-arts/vault/labs/linux/da-linux-hidden-files.lab.html | lab | - |
-| dark-arts/vault/labs/linux/da-linux-invisible-process.lab.html | lab | - |
-| dark-arts/vault/labs/linux/da-linux-log-analysis.lab.html | lab | - |
-| dark-arts/vault/labs/linux/da-linux-path-hijacking.lab.html | lab | - |
-| dark-arts/vault/labs/linux/da-linux-permission-analysis.lab.html | lab | - |
-| dark-arts/vault/labs/linux/da-linux-shell-resolution.lab.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-00.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-01.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-02.html | lab | - |
@@ -17491,25 +17387,10 @@
 | houses/divergent/cybersecurity-policy/_source/csp-w4-nist-csf.lab.html | lab | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-w4-risk-management.lab.html | lab | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-w4-sovereignty.lab.html | lab | divergent |
-| houses/divergent/ethics-it/exams/eth-5th-grader.review.html | presentation | divergent |
-| houses/divergent/ethics-it/exams/eth-jeopardy.review.html | presentation | divergent |
-| houses/divergent/ethics-it/exams/eth-kahoot.review.html | presentation | divergent |
-| houses/divergent/ethics-it/exams/eth-wheel.review.html | presentation | divergent |
-| houses/forge/applets/comptia-aplus/core-1/labs/forge-cable-building.lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-install.lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/forge-front-panel-header.lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/forge-keystone-jack.lab.html | presentation | forge |
-| houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-install.lab.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
 | houses/matrix/adv-linux/ala-final.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w1-lecture.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w2-lecture.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w3-lecture.presentation.html | presentation | matrix |
-| houses/matrix/adv-linux/presentations/ala-w4-lecture.presentation.html | presentation | matrix |
-| houses/script/linux-essentials/exams/ra-final.exam.html | presentation | script |
-| houses/script/linux-essentials/exams/ra-midterm.exam.html | presentation | script |
 | houses/shield/infosec/_source/pis-01.html | quiz | shield |
 | houses/shield/infosec/_source/pis-02.html | quiz | shield |
 | houses/shield/infosec/_source/pis-03.html | quiz | shield |
@@ -17531,14 +17412,6 @@
 | houses/shield/infosec/_source/pis-19.html | quiz | shield |
 | houses/shield/infosec/_source/pis-20.html | quiz | shield |
 | houses/shield/infosec/_source/pis-21.html | quiz | shield |
-| houses/shield/infosec/exams/pis-5th-grader.review.html | presentation | shield |
-| houses/shield/infosec/exams/pis-jeopardy.review.html | presentation | shield |
-| houses/shield/infosec/exams/pis-kahoot.review.html | presentation | shield |
-| houses/shield/infosec/exams/pis-wheel.review.html | presentation | shield |
-| houses/shield/security-plus/labs/pbq-attack-identification.lab.html | presentation | shield |
-| houses/shield/security-plus/labs/pbq-control-classification.lab.html | presentation | shield |
-| houses/shield/security-plus/labs/pbq-crypto-selection.lab.html | presentation | shield |
-| houses/shield/security-plus/labs/pbq-firewall-config.lab.html | presentation | shield |
 | houses/web/backbone/bgp/bb-bgp-01.html | presentation | web |
 | houses/web/backbone/bgp/bb-bgp-02.html | presentation | web |
 | houses/web/backbone/bgp/bb-bgp-03.html | presentation | web |
@@ -17689,9 +17562,6 @@
 | houses/web/backbone/wireless/bb-wl-08.html | presentation | web |
 | houses/web/backbone/wireless/bb-wl-09.html | presentation | web |
 | houses/web/backbone/wireless/bb-wl-10.html | presentation | web |
-| houses/web/exams/web-network-plus-practice.exam.html | presentation | web |
-| houses/web/network-plus/exams/flashcards.exam.html | presentation | web |
-| houses/web/network-plus/exams/midterm.exam.html | presentation | web |
 | projects/ai-data-augmentation.html | applet | - |
 | projects/ai-network-anomaly.html | applet | - |
 | projects/ai-rag-chatbot.html | applet | - |
@@ -17747,7 +17617,6 @@
 | signal/sections/red-team-hw/sg-37-packet-sniffer.html | applet | - |
 | signal/toolkit/c2-dashboard.html | applet | - |
 | signal/toolkit/duckyscript-ide.html | presentation | - |
-| signal/toolkit/tools/dban.tool.html | applet | - |
 | subscription.html | applet | - |
 | tenant/instructor.html | presentation | - |
 | tools/career-pathway-planner.html | applet | - |
