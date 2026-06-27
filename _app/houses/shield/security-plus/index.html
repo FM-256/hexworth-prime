@@ -315,6 +315,21 @@
         .badge-game         { background: rgba(249, 115, 22, 0.12);  color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.28); }
         .badge-tool         { background: rgba(16, 185, 129, 0.12);  color: #34d399; border: 1px solid rgba(16, 185, 129, 0.28); }
         .badge-other        { background: rgba(56, 189, 248, 0.12);  color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.28); }
+        .badge-pbq          { background: rgba(236, 72, 153, 0.14);  color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.32); }
+
+        /* ── Module blocks within a domain (content-first teaching units) ── */
+        .module-block { margin-top: 22px; padding-top: 12px; border-top: 1px solid rgba(59, 130, 246, 0.10); }
+        .module-block:first-child { border-top: 0; margin-top: 12px; }
+        .module-head { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; }
+        .module-seq { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: #3b82f6; color: #fff; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
+        .module-name { font-size: 0.98rem; font-weight: 700; color: #93c5fd; }
+        .module-count { font-size: 0.6rem; color: #64748b; background: rgba(100,116,139,0.12); padding: 2px 7px; border-radius: 999px; }
+        .module-tier { margin: 8px 0 4px; }
+        .module-tier-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; padding-left: 14px; position: relative; }
+        .module-tier-label::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 7px; height: 7px; border-radius: 2px; }
+        .module-tier-label.tier-0 { color: #60a5fa; } .module-tier-label.tier-0::before { background: #60a5fa; }
+        .module-tier-label.tier-1 { color: #f472b6; } .module-tier-label.tier-1::before { background: #f472b6; }
+        .module-tier-label.tier-2 { color: #fbbf24; } .module-tier-label.tier-2::before { background: #fbbf24; }
 
         /* ── Exam info box ── */
         .exam-info {
@@ -642,8 +657,8 @@
         function renderCard(item) {
             var icon     = TYPE_ICONS[item.type] || 'icon-shield.webp';
             var iconPath = '../../../assets/images/icons/' + icon;
-            var badgeCls = TYPE_BADGE_CLS[item.type] || 'badge-other';
-            var badgeTxt = TYPE_BADGE_TEXT[item.type] || item.type;
+            var badgeCls = item.pbq ? 'badge-pbq' : (TYPE_BADGE_CLS[item.type] || 'badge-other');
+            var badgeTxt = item.pbq ? 'PBQ' : (TYPE_BADGE_TEXT[item.type] || item.type);
             var labAppletCls = (item.type === 'lab' || item.type === 'applet') ? ' type-' + item.type : '';
 
             return '<a href="' + buildHref(item.href) + '" class="content-card' + labAppletCls + '" data-module="' + esc(item.id) + '">'
@@ -672,33 +687,76 @@
             return html;
         }
 
+        /* ── Content-first tier for an item: 0=Learn, 1=Practice, 2=Assess ── */
+        var TIER_LABELS = ['Learn', 'Practice', 'Assess'];
+        function contentTier(item) {
+            if (item.type === 'presentation' || item.type === 'applet') { return 0; }  /* Learn */
+            if (item.pbq || item.type === 'lab') { return 1; }                          /* Practice */
+            return 2;                                                                   /* Assess: quiz/tool/other */
+        }
+
+        /* ── Render the modules within a domain, ordered by mseq, content-first
+              within each module (Learn -> Practice -> Assess). ── */
+        function renderModules(items) {
+            var mods = {};
+            items.forEach(function (it) {
+                var key = it.module || 'Other';
+                if (!mods[key]) { mods[key] = { name: key, seq: it.mseq || 99, items: [] }; }
+                mods[key].items.push(it);
+                if (it.mseq && it.mseq < mods[key].seq) { mods[key].seq = it.mseq; }
+            });
+            var ordered = Object.keys(mods).map(function (k) { return mods[k]; })
+                .sort(function (a, b) { return (a.seq - b.seq) || a.name.localeCompare(b.name); });
+            var html = '';
+            ordered.forEach(function (mod, i) {
+                /* group this module's items into content-first tiers */
+                var byTier = [[], [], []];
+                mod.items.forEach(function (it) { byTier[contentTier(it)].push(it); });
+                var inner = '';
+                byTier.forEach(function (tierItems, t) {
+                    if (!tierItems.length) { return; }
+                    inner += '<div class="module-tier"><div class="module-tier-label tier-' + t + '">' + TIER_LABELS[t] + '</div><div class="content-grid">';
+                    tierItems.forEach(function (it) { inner += renderCard(it); });
+                    inner += '</div></div>';
+                });
+                html += '<div class="module-block">'
+                    + '<div class="module-head"><span class="module-seq">' + (i + 1) + '</span><span class="module-name">' + esc(mod.name) + '</span><span class="module-count">' + mod.items.length + '</span></div>'
+                    + inner
+                    + '</div>';
+            });
+            return html;
+        }
+
         /* ── Render a full domain section ─────────────────────────────────── */
         function renderDomain(domainKey, items, domainMeta) {
             var id        = domainMeta.id;
             var total     = items.length;
 
-            /* Group items by type, preserving TYPE_ORDER */
-            var byType = {};
-            items.forEach(function (item) {
-                var t = item.type || 'other';
-                if (!byType[t]) { byType[t] = []; }
-                byType[t].push(item);
-            });
-
-            /* Build subsections in TYPE_ORDER, then any remaining types */
+            /* Group items by MODULE (content-first) when any are tagged; else fall
+               back to the legacy type-grouping so domains not yet tagged still render. */
             var subsectionsHtml = '';
-            var rendered = {};
-            TYPE_ORDER.forEach(function (t) {
-                if (byType[t] && byType[t].length) {
-                    subsectionsHtml += renderSubsection(t, byType[t]);
-                    rendered[t] = true;
-                }
-            });
-            Object.keys(byType).forEach(function (t) {
-                if (!rendered[t]) {
-                    subsectionsHtml += renderSubsection(t, byType[t]);
-                }
-            });
+            if (items.some(function (it) { return it.module; })) {
+                subsectionsHtml = renderModules(items);
+            } else {
+                var byType = {};
+                items.forEach(function (item) {
+                    var t = item.type || 'other';
+                    if (!byType[t]) { byType[t] = []; }
+                    byType[t].push(item);
+                });
+                var rendered = {};
+                TYPE_ORDER.forEach(function (t) {
+                    if (byType[t] && byType[t].length) {
+                        subsectionsHtml += renderSubsection(t, byType[t]);
+                        rendered[t] = true;
+                    }
+                });
+                Object.keys(byType).forEach(function (t) {
+                    if (!rendered[t]) {
+                        subsectionsHtml += renderSubsection(t, byType[t]);
+                    }
+                });
+            }
 
             /* Build objectives list */
             var objHtml = '';
