@@ -107,6 +107,43 @@ shipped; the comprehensive content-vs-catalog scan + the 77 strict-orphans are s
 - [ ] Nancy refinements (domain-wide quizzes → domain level; curate 3 dup "Fundamentals" presentations).
 - [ ] (separate) MARA-SEARCH-1 comprehensive searchability scan.
 
+## UPDATE 2026-06-27 (continued) — PBQ practice-gap wave (the 8 missing-Practice modules)
+Verified from the manifest: ALL 22 modules now have Learn + Assess; the ONLY remaining content gap is
+PRACTICE — exactly 8 modules have 0 practice items. Filling them with one PBQ each is the next wave.
+
+**8 gap modules (module · domain · mseq to register the PBQ with):**
+- Change Management · D1 · mseq=5
+- Design Principles & Best Practices · D1 · mseq=3
+- Governance & Asset Management · D1 · mseq=4
+- Threat Actors & Motivations · D2 · mseq=1
+- Malware · D2 · mseq=2
+- Network & Social Engineering Attacks · D2 · mseq=3
+- Identity & Access (AAA) · D3 · mseq=1
+- Cryptography & PKI · D3 · mseq=2
+
+**Registration facts (verified):** `renderModules()` groups items by the `module` STRING; `mseq` only sets
+MODULE order (via min). So each PBQ registers with `module:"<exact name>", mseq:<module's value>,
+type:"lab", pbq:true, domain:"<domain>"` and renders in that module's Practice tier. D5 fully refuted as a
+gap — every D5 module already has a quiz + practice.
+
+**Nancy design corrections (adopted):**
+1. PBQs that "match a label to a scenario" must be ARTIFACT-DRIVEN (real logs/headers/transcripts/intel
+   briefs), NOT descriptive paragraphs that telegraph the answer — model the (good) artifact-based
+   `pbq-attack-identification.lab.html`, which uses real evidence. ([[feedback_labs_must_be_legit_engines]])
+2. Cryptography & PKI PBQ must be a cert-chain DIAGNOSIS / lifecycle task — NOT definition-matching — to
+   stay distinct from the existing `shield-crypto-pki` applet + `secplus-d3-crypto-pki-quiz`.
+3. Build in WAVES of ~3 grouped by format, not 8 at once.
+4. Client-side in-JS answer key is the accepted PBQ practice pattern (not a server-graded exam) — OK.
+
+**Wave plan (each clones the polished `pbq-attack-identification.lab.html`: full-width, 16px fonts,
+sticky tracker, score-gated, completion wiring):**
+- **Wave 1 — artifact-driven IDENTIFY (evidence cards):** Malware (`pbq-malware-identification`),
+  Social/Network (`pbq-social-network-identification`), Threat-Actor (`pbq-threat-actor-attribution`). [building]
+- **Wave 2 — classify/matrix:** Change Management, Governance & Asset Mgmt, Identity & Access (AAA).
+- **Wave 3 — apply/diagnose/sequence:** Design Principles (Zero Trust planes), Cryptography & PKI (cert-chain diagnosis).
+Each PBQ: authored answer key (mine) → interactive-code-architect build → headless drive-to-completion QC
+→ register manifest + ContentCatalog → Chris gate → deploy in batches.
+
 ## UPDATE 2026-06-27 (later) — side quick-links rail + acronym reference shipped
 Operator: "where are the side quick links? where we can have quick access to pbq's and acronyms etc" → "get it done."
 - [x] **Side quick-links rail** added to the hub (`index.html`). Converted the hub from a 1100px narrow-centered

@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="../../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="../../../../components/ModuleProgress.js"></script>
+<script src="../../../../components/FirebaseAuth.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PBQ: Threat Actor Attribution | Security+</title>
+<style>
+    /* ============================================================
+       ROOT VARIABLES
+       ============================================================ */
+    :root {
+        --bg:          #090910;
+        --bg-card:     #0f0f1a;
+        --bg-panel:    #14141f;
+        --bg-input:    #0a0a14;
+        --border:      rgba(239, 68, 68, 0.18);
+        --border-hi:   rgba(239, 68, 68, 0.45);
+        --red:         #ef4444;
+        --red-dim:     rgba(239, 68, 68, 0.12);
+        --red-glow:    rgba(239, 68, 68, 0.22);
+        --amber:       #f59e0b;
+        --amber-dim:   rgba(245, 158, 11, 0.10);
+        --cyan:        #06b6d4;
+        --text:        #e2e8f0;
+        --text-dim:    #64748b;
+        --text-mid:    #94a3b8;
+        --success:     #22c55e;
+        --success-bg:  rgba(34, 197, 94, 0.10);
+        --danger:      #ef4444;
+        --danger-bg:   rgba(239, 68, 68, 0.10);
+        --warn:        #f59e0b;
+        --warn-bg:     rgba(245, 158, 11, 0.09);
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.6;
+    }
+
+    /* ============================================================
+       NAV BAR
+       ============================================================ */
+    .lab-nav {
+        padding: 11px 24px;
+        background: #0d0d17;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .lab-nav a {
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 0.84rem;
+        transition: color 0.2s;
+    }
+    .lab-nav a:hover { color: var(--red); }
+    .lab-nav .badge {
+        background: rgba(239, 68, 68, 0.14);
+        color: var(--red);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        padding: 3px 9px;
+        border-radius: 4px;
+    }
+
+    /* ============================================================
+       OUTER SHELL — full viewport width, two-column beyond 900px
+       ============================================================ */
+    .lab-shell {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        min-height: calc(100vh - 44px);
+        gap: 0;
+    }
+
+    /* Left main column (evidence + submit) — explicit col 1 so it never
+       gets shoved into the narrow rail by grid auto-placement. */
+    .lab-main {
+        grid-column: 1;
+        padding: 2rem 2rem 4rem;
+    }
+
+    /* Right classification panel — explicit col 2, sticky progress tracker */
+    .side-panel {
+        grid-column: 2;
+        position: sticky;
+        top: 0;
+        align-self: start;
+        max-height: calc(100vh - 44px);
+        overflow-y: auto;
+        background: #0d0d17;
+        border-left: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 1.5rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    /* Responsive overrides MUST come after the base column rules above
+       (media queries add no specificity — later source wins). Stack to a
+       single column, panel below main, on narrow screens. */
+    @media (max-width: 900px) {
+        .lab-shell {
+            grid-template-columns: 1fr;
+        }
+        .lab-main,
+        .side-panel {
+            grid-column: 1;
+        }
+        .side-panel {
+            position: static;
+            max-height: none;
+            border-left: none !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+    }
+    .side-panel-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.9px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+    }
+
+    /* ============================================================
+       LAB HEADER / SCENARIO
+       ============================================================ */
+    .lab-header {
+        background: var(--bg-card);
+        border: 1px solid var(--border-hi);
+        border-radius: 14px;
+        padding: 1.75rem 2rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 0 28px var(--red-glow);
+    }
+    .lab-header h1 {
+        font-size: 1.65rem;
+        font-weight: 700;
+        color: var(--red);
+        margin-bottom: 0.4rem;
+        letter-spacing: -0.3px;
+    }
+    .pbq-tag {
+        display: inline-block;
+        background: rgba(239, 68, 68, 0.14);
+        color: #f87171;
+        font-size: 0.67rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        padding: 2px 8px;
+        border-radius: 3px;
+        margin-bottom: 0.9rem;
+    }
+    .scenario-box {
+        background: var(--bg-panel);
+        border-left: 3px solid var(--red);
+        border-radius: 0 8px 8px 0;
+        padding: 1rem 1.3rem;
+        font-size: 1.12rem;
+        color: var(--text-mid);
+        margin-top: 0.75rem;
+    }
+    .scenario-box strong { color: var(--text); }
+    .lab-meta {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        font-size: 0.95rem;
+        color: var(--text-dim);
+    }
+    .lab-meta span { color: var(--text-mid); }
+
+    /* ============================================================
+       INSTRUCTION TIP BAR
+       ============================================================ */
+    .tip {
+        background: var(--warn-bg);
+        border: 1px solid rgba(245, 158, 11, 0.22);
+        border-radius: 8px;
+        padding: 0.75rem 1.1rem;
+        font-size: 1rem;
+        color: var(--text-mid);
+        margin-bottom: 1.5rem;
+    }
+    .tip strong { color: var(--warn); }
+
+    /* ============================================================
+       SECTION HEADING
+       ============================================================ */
+    .section-title {
+        font-size: 0.79rem;
+        font-weight: 700;
+        letter-spacing: 0.9px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1.1rem;
+    }
+
+    /* ============================================================
+       EVIDENCE CARDS GRID
+       Full-width evidence list; each card is a horizontal strip.
+       ============================================================ */
+    .evidence-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .ev-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.1rem 1.25rem;
+        transition: border-color 0.22s, box-shadow 0.22s;
+    }
+    .ev-card:hover {
+        border-color: rgba(239, 68, 68, 0.35);
+    }
+    /* State variants applied by grading */
+    .ev-card.graded-correct {
+        border-color: rgba(34, 197, 94, 0.45);
+        background: var(--success-bg);
+    }
+    .ev-card.graded-incorrect {
+        border-color: rgba(239, 68, 68, 0.45);
+        background: var(--danger-bg);
+    }
+
+    /* Card top row: number badge + source label + dropdown */
+    .ev-card-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .ev-num {
+        flex-shrink: 0;
+        background: rgba(239, 68, 68, 0.14);
+        color: var(--red);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        padding: 3px 9px;
+        border-radius: 4px;
+        margin-top: 2px;
+    }
+    .ev-source {
+        font-size: 0.94rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-top: 4px;
+        flex: 1;
+    }
+
+    /* Threat actor type dropdown — right side of card top row */
+    .ev-select-wrap {
+        flex-shrink: 0;
+    }
+    .ev-select {
+        background: var(--bg-input);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 1rem;
+        padding: 0.45rem 2rem 0.45rem 0.7rem;
+        cursor: pointer;
+        transition: border-color 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        min-width: 300px;
+    }
+    .ev-select:focus {
+        outline: none;
+        border-color: var(--red);
+    }
+    /* After grading, lock dropdowns */
+    .ev-select:disabled {
+        opacity: 0.75;
+        cursor: not-allowed;
+    }
+
+    /* Evidence artifact block — monospace intel brief */
+    .ev-artifact {
+        background: var(--bg-panel);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 7px;
+        padding: 0.75rem 1rem;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 1rem;
+        color: #b6c4d6;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+    /* Highlight key indicator tokens */
+    .ev-artifact .hi-red   { color: #f87171; font-weight: 600; }
+    .ev-artifact .hi-amber { color: #fbbf24; font-weight: 600; }
+    .ev-artifact .hi-green { color: #4ade80; font-weight: 600; }
+    .ev-artifact .hi-blue  { color: #60a5fa; font-weight: 600; }
+
+    /* Result badge shown after grading */
+    .ev-result {
+        display: none;
+        margin-top: 0.65rem;
+        font-size: 1rem;
+        border-radius: 6px;
+        padding: 0.5rem 0.8rem;
+        line-height: 1.45;
+    }
+    .ev-result.show { display: block; }
+    .ev-result.res-correct {
+        background: rgba(34, 197, 94, 0.08);
+        border: 1px solid rgba(34, 197, 94, 0.25);
+        color: var(--success);
+    }
+    .ev-result.res-incorrect {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        color: #f87171;
+    }
+    .ev-result .res-label {
+        font-weight: 700;
+        font-size: 0.96rem;
+        letter-spacing: 0.4px;
+        display: block;
+        margin-bottom: 0.2rem;
+    }
+    .ev-result .res-rationale {
+        color: var(--text-mid);
+        font-size: 0.98rem;
+    }
+
+    /* ============================================================
+       SIDE PANEL — PROGRESS TRACKER
+       ============================================================ */
+    .progress-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex: 1;
+    }
+    .prog-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.93rem;
+        color: var(--text-dim);
+        transition: border-color 0.2s, background 0.2s;
+    }
+    .prog-item.answered {
+        border-color: rgba(245, 158, 11, 0.3);
+        color: var(--text-mid);
+    }
+    .prog-item.correct {
+        border-color: rgba(34, 197, 94, 0.35);
+        background: rgba(34, 197, 94, 0.07);
+        color: var(--success);
+    }
+    .prog-item.incorrect {
+        border-color: rgba(239, 68, 68, 0.35);
+        background: rgba(239, 68, 68, 0.07);
+        color: #f87171;
+    }
+    .prog-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-dim);
+        flex-shrink: 0;
+        transition: background 0.2s;
+    }
+    .prog-item.answered .prog-dot  { background: var(--amber); }
+    .prog-item.correct  .prog-dot  { background: var(--success); }
+    .prog-item.incorrect .prog-dot { background: var(--danger); }
+
+    /* Side panel answer counter */
+    .prog-counter {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.7rem 0.9rem;
+        text-align: center;
+        margin-bottom: 0.9rem;
+    }
+    .prog-counter .count-num {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--red);
+        line-height: 1;
+    }
+    .prog-counter .count-label {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+        margin-top: 0.2rem;
+    }
+
+    /* ============================================================
+       SUBMIT SECTION
+       ============================================================ */
+    .submit-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem;
+    }
+    .submit-section h2 {
+        font-size: 0.79rem;
+        font-weight: 700;
+        letter-spacing: 0.9px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+    }
+    .submit-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 0;
+    }
+    .btn-submit {
+        padding: 0.65rem 2rem;
+        background: var(--red);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.12s, box-shadow 0.2s;
+    }
+    .btn-submit:hover {
+        opacity: 0.88;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 18px var(--red-glow);
+    }
+    .btn-reset-all {
+        padding: 0.65rem 1.4rem;
+        background: transparent;
+        color: var(--text-dim);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-reset-all:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ============================================================
+       RESULTS PANEL
+       ============================================================ */
+    .results-panel {
+        display: none;
+        margin-top: 1.5rem;
+    }
+    .results-panel.visible { display: block; }
+
+    .results-score {
+        text-align: center;
+        padding: 1.25rem 1rem;
+        background: var(--bg-panel);
+        border-radius: 10px;
+        margin-bottom: 1.1rem;
+    }
+    .score-num {
+        font-size: 2.9rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .score-num.pass { color: var(--success); }
+    .score-num.fail { color: var(--danger); }
+    .score-label {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-top: 0.3rem;
+    }
+    .score-verdict {
+        font-size: 0.96rem;
+        font-weight: 700;
+        margin-top: 0.5rem;
+    }
+    .score-verdict.pass { color: var(--success); }
+    .score-verdict.fail { color: var(--danger); }
+
+    /* Per-item result summary strip */
+    .results-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.55rem;
+        margin-bottom: 1.1rem;
+    }
+    .res-chip {
+        background: var(--bg-panel);
+        border: 1px solid transparent;
+        border-radius: 7px;
+        padding: 0.6rem 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+    }
+    .res-chip.correct {
+        border-color: rgba(34, 197, 94, 0.3);
+        background: var(--success-bg);
+    }
+    .res-chip.incorrect {
+        border-color: rgba(239, 68, 68, 0.3);
+        background: var(--danger-bg);
+    }
+    .res-chip-icon {
+        font-style: normal;
+        font-weight: 700;
+        font-size: 0.78rem;
+        flex-shrink: 0;
+    }
+    .res-chip.correct .res-chip-icon { color: var(--success); }
+    .res-chip.incorrect .res-chip-icon { color: #f87171; }
+    .res-chip-text { flex: 1; }
+    .res-chip-name { font-weight: 700; color: var(--text); display: block; }
+    .res-chip-detail { color: var(--text-dim); font-size: 0.72rem; }
+    .res-chip.correct .res-chip-name { color: var(--success); }
+    .res-chip.incorrect .res-chip-name { color: #f87171; }
+
+    /* Pass banner */
+    .pass-banner {
+        display: none;
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.13), rgba(6, 182, 212, 0.08));
+        border: 1px solid rgba(34, 197, 94, 0.38);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        text-align: center;
+        color: var(--success);
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .pass-banner.visible { display: block; }
+    .pass-banner p {
+        color: var(--text-mid);
+        font-weight: 400;
+        font-size: 0.84rem;
+        margin-top: 0.45rem;
+    }
+
+    /* ============================================================
+       UTILITY
+       ============================================================ */
+    .divider {
+        border: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        margin: 1.1rem 0;
+    }
+</style>
+</head>
+<body>
+
+<!-- Navigation bar -->
+<nav class="lab-nav">
+    <a href="../index.html">&larr; Security+ Hub</a>
+    <span class="badge">PBQ LAB</span>
+</nav>
+
+<div class="lab-shell">
+
+    <!-- ==============================================================
+         LEFT COLUMN — Header, Intelligence Briefs, Submit
+         ============================================================== -->
+    <main class="lab-main">
+
+        <!-- Lab header -->
+        <header class="lab-header">
+            <span class="pbq-tag">PERFORMANCE-BASED QUESTION</span>
+            <h1>Threat Actor Attribution from Intelligence</h1>
+            <div class="scenario-box">
+                <strong>Scenario:</strong> You are a CTI analyst reviewing a set of threat-intelligence
+                briefs escalated from partner agencies and internal sensors. For each brief, attribute
+                the most likely <strong>threat actor type</strong> based on the observed TTPs, targeting
+                profile, sophistication, resources, and motivation. Each brief points to one actor type.
+            </div>
+            <div class="lab-meta">
+                <span>Security+ SY0-701</span>
+                <span>Domain 2.1 &mdash; Threat Actors &amp; Motivations</span>
+                <span>8 Intelligence Briefs</span>
+            </div>
+        </header>
+
+        <!-- Instruction -->
+        <div class="tip">
+            <strong>Instructions:</strong> Use the dropdown on each card to attribute the threat actor type.
+            When all 8 are answered, click <strong>Submit for Grading</strong>.
+            All 8 must be correct to pass and earn completion credit.
+        </div>
+
+        <div class="section-title">Intelligence Briefs</div>
+
+        <!-- ============================================================
+             EVIDENCE CARDS
+             Each card: ev-num, ev-source, ev-select, ev-artifact, ev-result
+             ============================================================ -->
+        <div class="evidence-list" id="evidenceList">
+
+            <!-- CARD 1 — Nation-State / APT (defense contractor espionage) -->
+            <div class="ev-card" id="card-0">
+                <div class="ev-card-top">
+                    <span class="ev-num">BRIEF 01</span>
+                    <span class="ev-source">CTI Brief &mdash; Defense Contractor Intrusion (14-month investigation)</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-0" aria-label="Threat actor type for brief 1">
+                            <option value="">-- Select threat actor type --</option>
+                            <option value="apt">Nation-State / APT</option>
+                            <option value="ocrime">Organized Crime</option>
+                            <option value="hacktivist">Hacktivist</option>
+                            <option value="insider">Insider Threat</option>
+                            <option value="scriptkiddie">Unskilled Attacker (Script Kiddie)</option>
+                            <option value="shadowit">Shadow IT</option>
+                            <option value="competitor">Competitor / Corporate Espionage</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">CLASSIFICATION : TLP:RED — Restricted to named recipients
+SOURCE         : DCSA / NSA Cybersecurity Directorate joint advisory
+SUBJECT        : Sustained intrusion into defense contractor — classified weapons program
+
+Observed TTPs
+  Initial access  : Spear-phishing with <span class="hi-red">zero-day exploit (CVE-XXXX-0181, heap overflow, unpatched at time)</span>
+  Persistence     : Custom implant "SILENTFANG" — <span class="hi-red">bespoke malware, no public tooling match</span>
+  Lateral movement: Pass-the-hash, Kerberoasting, novel SMB covert channel
+  Exfiltration    : Staged to encrypted dead-drop on compromised cloud infra; <span class="hi-red">low-and-slow, 2-4 MB/day</span>
+  Second zero-day : <span class="hi-red">CVE-XXXX-0294 (Windows kernel LPE) used for privilege escalation</span>
+  Dwell time      : <span class="hi-red">14 months</span> — first beacon to discovery
+
+Targeting
+  Victim sector   : <span class="hi-red">Tier-1 defense contractor holding SECRET clearances</span>
+  Data stolen     : <span class="hi-red">Classified weapons system design schematics (hypersonic glide vehicle)</span>
+  Collateral noise: Near-zero — no lateral scanning beyond target scope
+
+Sophistication   : <span class="hi-red">Very high</span> — two zero-days, fully custom implant, counter-forensics built in
+Resources        : <span class="hi-red">Very well-resourced</span> — zero-day acquisition + 14-month operation sustained
+Motivation       : <span class="hi-amber">Strategic intelligence / national security advantage</span> — no financial demand
+
+Attribution notes: Command-and-control infrastructure overlaps with <span class="hi-red">foreign military cyber unit</span>
+                   infrastructure cluster identified in a prior CISA advisory. No ransom, no ideology.</div>
+                <div class="ev-result" id="res-0"></div>
+            </div>
+
+            <!-- CARD 2 — Organized Crime (ransomware-as-a-service) -->
+            <div class="ev-card" id="card-1">
+                <div class="ev-card-top">
+                    <span class="ev-num">BRIEF 02</span>
+                    <span class="ev-source">CTI Brief &mdash; Healthcare Network Ransomware Incident</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-1" aria-label="Threat actor type for brief 2">
+                            <option value="">-- Select threat actor type --</option>
+                            <option value="apt">Nation-State / APT</option>
+                            <option value="ocrime">Organized Crime</option>
+                            <option value="hacktivist">Hacktivist</option>
+                            <option value="insider">Insider Threat</option>
+                            <option value="scriptkiddie">Unskilled Attacker (Script Kiddie)</option>
+                            <option value="shadowit">Shadow IT</option>
+                            <option value="competitor">Competitor / Corporate Espionage</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">CLASSIFICATION : TLP:AMBER
+SOURCE         : FBI Cyber Division / IC3 referral
+SUBJECT        : Double-extortion ransomware deployment — regional hospital network
+
+Observed TTPs
+  Initial access  : Valid VPN credentials purchased on dark-web broker market (prior breach)
+  Tooling         : <span class="hi-amber">RaaS affiliate toolkit</span> — LockBit 3.0 encryptor (off-the-shelf affiliate panel)
+  Pre-encryption  : 3.2 TB exfiltrated to attacker-controlled SFTP prior to detonation
+  Extortion       : <span class="hi-red">Double-extortion</span> — ransom demand + public leak site threat
+  Ransom demand   : <span class="hi-red">$4.7M USD in Bitcoin (BTC)</span> — wallet traced to mixing service
+  Leak site       : "LockBit Blog" — public countdown timer, partial data sample posted
+
+Targeting
+  Victim sector   : Healthcare — opportunistic (healthcare known for weak backups + high uptime pressure)
+  Targeting logic : <span class="hi-amber">Target selected for financial capacity + data sensitivity</span>, not ideology
+  Collateral harm : Hospital diverted ER patients during 6-day outage
+
+Sophistication   : Moderate — affiliate using established RaaS platform; professional operation
+Resources        : <span class="hi-amber">Moderate-high</span> — RaaS subscription model funds infrastructure
+Motivation       : <span class="hi-red">Purely financial</span> — no political or ideological messaging; negotiation portal active
+
+Attribution notes: Affiliate model — crime group sells access to the encryptor; <span class="hi-red">no state affiliation</span>,
+                   no ideological claim. Negotiation team operating during UTC+3 business hours.</div>
+                <div class="ev-result" id="res-1"></div>
+            </div>
+
+            <!-- CARD 3 — Hacktivist -->
+            <div class="ev-card" id="card-2">
+                <div class="ev-card-top">
+                    <span class="ev-num">BRIEF 03</span>
+                    <span class="ev-source">CTI Brief &mdash; Energy Company Public Attack Campaign</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-2" aria-label="Threat actor type for brief 3">
+                            <option value="">-- Select threat actor type --</option>
+                            <option value="apt">Nation-State / APT</option>
+                            <option value="ocrime">Organized Crime</option>
+                            <option value="hacktivist">Hacktivist</option>
+                            <option value="insider">Insider Threat</option>
+                            <option value="scriptkiddie">Unskilled Attacker (Script Kiddie)</option>
+                            <option value="shadowit">Shadow IT</option>
+                            <option value="competitor">Competitor / Corporate Espionage</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">CLASSIFICATION : TLP:WHITE — Cleared for public release
+SOURCE         : Open-source intelligence (OSINT) — social media + dark-web forum monitoring
+SUBJECT        : Coordinated attack campaign against petroleum company following pipeline approval
+
+Observed TTPs
+  Website defacement : Corporate homepage replaced with political banner reading
+                       <span class="hi-red">"FOSSIL FUELS KILL — SHUT IT DOWN #NoNewPipelines"</span>
+  DDoS               : <span class="hi-amber">Volumetric attack timed to coincide with company's pipeline approval press conference</span>
+  Data leak          : <span class="hi-red">Internal executive memos leaked</span> to activist blog and two journalists
+  Public credit      : <span class="hi-red">Group "GreenStrike" claimed responsibility on X (Twitter) and Mastodon within 1 hour</span>
+  Ransom demand      : <span class="hi-green">None</span>
+  Financial gain     : <span class="hi-green">None evident</span>
+
+Targeting
+  Victim selected    : Explicitly for <span class="hi-red">company's environmental record and pipeline project</span>
+  Timing             : Attack launched same day as board-approved pipeline expansion announcement
+
+Sophistication   : Low-moderate — defacement + DDoS + leak; no zero-days, no custom malware
+Resources        : Low — volunteer DDoS participants, commodity tooling
+Motivation       : <span class="hi-red">Ideological / political</span> — environmental protest; <span class="hi-red">desired maximum public attention</span>
+
+Attribution notes: <span class="hi-red">Public credit claimed</span> is a primary tell — financially motivated actors avoid attribution;
+                   state actors avoid it even more. Messaging consistent with environmental activism.</div>
+                <div class="ev-result" id="res-2"></div>
+            </div>
+
+            <!-- CARD 4 — Insider Threat -->
+            <div class="ev-card" id="card-3">
+                <div class="ev-card-top">
+                    <span class="ev-num">BRIEF 04</span>
+                    <span class="ev-source">CTI Brief &mdash; Intellectual Property Exfiltration — Engineering Firm</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-3" aria-label="Threat actor type for brief 4">
+                            <option value="">-- Select threat actor type --</option>
+                            <option value="apt">Nation-State / APT</option>
+                            <option value="ocrime">Organized Crime</option>
+                            <option value="hacktivist">Hacktivist</option>
+                            <option value="insider">Insider Threat</option>
+                            <option value="scriptkiddie">Unskilled Attacker (Script Kiddie)</option>
+                            <option value="shadowit">Shadow IT</option>
+                            <option value="competitor">Competitor / Corporate Espionage</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">CLASSIFICATION : TLP:RED — HR + Legal hold; law enforcement referral pending
+SOURCE         : DLP system alert + UEBA (User Entity and Behavior Analytics) correlation
+SUBJECT        : Bulk IP exfiltration by departing employee — mechanical engineering firm
+
+Observed TTPs
+  Actor           : <span class="hi-red">Current employee "R. Aldridge" — senior mechanical engineer</span>
+  Authentication  : <span class="hi-red">Valid corporate SSO credentials</span> — no credential theft, no external intrusion
+  Access vector   : Logged into internal file server using own account; <span class="hi-amber">no external attack path observed</span>
+  Data copied     : <span class="hi-red">4.2 GB of proprietary CAD design files + manufacturing tolerances</span>
+  Destination     : <span class="hi-red">Personal Dropbox account</span> — DLP blocked partial upload; 1.1 GB reached cloud
+  Timing          : <span class="hi-red">After-hours (22:14 - 23:47)</span> across 9 sessions in a 14-day window
+  Resignation     : Employee submitted notice <span class="hi-red">2 weeks after exfiltration began</span>; final day 3 days away
+  Role-boundary   : Accessed shares in <span class="hi-amber">Avionics and Propulsion divisions — outside job role</span>
+
+Targeting
+  No external C2, no malware, <span class="hi-red">no third-party actor</span> — threat originated entirely inside the perimeter
+
+Sophistication   : Low-moderate — used DLP evasion (personal cloud) but left clear audit trail
+Resources        : Low — own device + personal cloud storage
+Motivation       : <span class="hi-amber">Personal gain</span> — employee accepted offer from competitor; suspected IP theft for new employer
+
+Attribution notes: Defining tell = <span class="hi-red">valid credentials + current employment + access from within</span>.
+                   No evidence of external orchestration; insider motive confirmed by HR interview.</div>
+                <div class="ev-result" id="res-3"></div>
+            </div>
+
+            <!-- CARD 5 — Script Kiddie -->
+            <div class="ev-card" id="card-4">
+                <div class="ev-card-top">
+                    <span class="ev-num">BRIEF 05</span>
+                    <span class="ev-source">CTI Brief &mdash; Opportunistic Attack on Gaming Platform</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-4" aria-label="Threat actor type for brief 5">
+                            <option value="">-- Select threat actor type --</option>
+                            <option value="apt">Nation-State / APT</option>
+                            <option value="ocrime">Organized Crime</option>
+                            <option value="hacktivist">Hacktivist</option>
+                            <option value="insider">Insider Threat</option>
+                            <option value="scriptkiddie">Unskilled Attacker (Script Kiddie)</option>
+                            <option value="shadowit">Shadow IT</option>
+                            <option value="competitor">Competitor / Corporate Espionage</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">CLASSIFICATION : TLP:GREEN — Shareable within trusted community
+SOURCE         : SOC alert + public forum OSINT
+SUBJECT        : DDoS attack against online gaming platform; actor self-identified
+
+Observed TTPs
+  Attack vector   : <span class="hi-red">Low Orbit Ion Cannon (LOIC) — publicly available DDoS tool, default configuration</span>
+  No customization: <span class="hi-red">Tool run with default parameters; no payload modification, no spoofing</span>
+  Skill indicators: No custom code; <span class="hi-red">no reconnaissance observed</span> prior to attack
+  Evasion         : <span class="hi-amber">None</span> — real IP addresses visible in server logs; no VPN or proxy
+  Noise level     : <span class="hi-red">Extremely noisy</span> — attack generated 14,000 concurrent connections from single IP block
+  Additional tool : Attempted default Metasploit auxiliary/scanner/http/http_version scan on port 80
+                    <span class="hi-amber">(scanner, not an exploit; no successful exploitation)</span>
+
+Targeting
+  Victim          : <span class="hi-amber">Online gaming platform — opportunistic; no apparent grievance or prior contact</span>
+  Stated reason   : "Wanted to see if it would work"
+
+Sophistication   : <span class="hi-red">Very low</span> — off-the-shelf tools, default settings, no operational security
+Resources        : <span class="hi-red">Very low</span> — free public tools; single machine
+Motivation       : Curiosity / notoriety — <span class="hi-red">bragged on public Discord server within 30 minutes of attack</span>
+
+Attribution notes: <span class="hi-red">Public boasting + real-IP exposure + default tooling</span> are the definitive tells.
+                   No indicators of financial motivation, ideology, or organizational backing.</div>
+                <div class="ev-result" id="res-4"></div>
+            </div>
+
+            <!-- CARD 6 — Shadow IT -->
+            <div class="ev-card" id="card-5">
+                <div class="ev-card-top">
+                    <span class="ev-num">BRIEF 06</span>
+                    <span class="ev-source">CTI Brief &mdash; Unauthorized Cloud Footprint — Marketing Department</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-5" aria-label="Threat actor type for brief 6">
+                            <option value="">-- Select threat actor type --</option>
+                            <option value="apt">Nation-State / APT</option>
+                            <option value="ocrime">Organized Crime</option>
+                            <option value="hacktivist">Hacktivist</option>
+                            <option value="insider">Insider Threat</option>
+                            <option value="scriptkiddie">Unskilled Attacker (Script Kiddie)</option>
+                            <option value="shadowit">Shadow IT</option>
+                            <option value="competitor">Competitor / Corporate Espionage</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">CLASSIFICATION : TLP:AMBER — Internal distribution
+SOURCE         : Cloud Access Security Broker (CASB) discovery scan + IT audit
+SUBJECT        : Unapproved technology deployment by internal business unit
+
+Observed TTPs
+  Actors          : <span class="hi-amber">Marketing team (5 employees) — no malicious intent stated or evident</span>
+  Technology      : <span class="hi-red">Unsanctioned SaaS CRM (HubSpot trial, unapproved vendor)</span> — used to manage 12,000
+                    prospect records including names, emails, deal values
+  Compute         : <span class="hi-red">Unmanaged AWS EC2 instance</span> provisioned on a personal AWS account; used to run
+                    campaign automation scripts — MDM/EDR not installed; <span class="hi-red">public S3 bucket exposed</span>
+  Approval status : <span class="hi-red">No IT approval, no security review, no DPA signed with vendor</span>
+  Data at risk    : PII (prospect data) + internal deal-stage pipeline data held in <span class="hi-amber">non-contracted third-party</span>
+  Stated intent   : "IT procurement takes 6 weeks — we needed to move faster for the Q2 campaign"
+
+Targeting
+  <span class="hi-green">No external attacker</span> — risk introduced by <span class="hi-red">internal team bypassing approved IT processes</span>
+  No data theft, no malware, no exploitation observed
+
+Sophistication   : N/A — not an attack; an <span class="hi-amber">unmanaged technology risk</span> introduced without oversight
+Resources        : Low — personal credit card + SaaS free tiers
+Motivation       : <span class="hi-amber">Operational speed</span> — not malicious; team attempting to meet a business deadline
+
+Attribution notes: Defining tell = <span class="hi-red">internal team + unapproved technology + no malicious intent</span>.
+                   Risk = compliance exposure (GDPR/CCPA) + unmanaged attack surface, not deliberate harm.</div>
+                <div class="ev-result" id="res-5"></div>
+            </div>
+
+            <!-- CARD 7 — Competitor / Corporate Espionage -->
+            <div class="ev-card" id="card-6">
+                <div class="ev-card-top">
+                    <span class="ev-num">BRIEF 07</span>
+                    <span class="ev-source">CTI Brief &mdash; Targeted IP Theft Before Competitive Bid</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-6" aria-label="Threat actor type for brief 7">
+                            <option value="">-- Select threat actor type --</option>
+                            <option value="apt">Nation-State / APT</option>
+                            <option value="ocrime">Organized Crime</option>
+                            <option value="hacktivist">Hacktivist</option>
+                            <option value="insider">Insider Threat</option>
+                            <option value="scriptkiddie">Unskilled Attacker (Script Kiddie)</option>
+                            <option value="shadowit">Shadow IT</option>
+                            <option value="competitor">Competitor / Corporate Espionage</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">CLASSIFICATION : TLP:RED — Attorney-client privilege; do not distribute
+SOURCE         : Forensic investigation firm report + FBI referral
+SUBJECT        : Precision exfiltration of bid package + design IP ahead of $220M government contract
+
+Observed TTPs
+  Initial access  : Targeted spear-phishing of contracts VP; credential harvesting via lookalike domain
+  Tooling         : Professional — living-off-the-land (PowerShell, WMI, Certutil); <span class="hi-amber">no commodity malware</span>
+  Exfiltration    : <span class="hi-red">Precisely targeted: only the government contract bid package + product pricing models</span>
+                    No bulk collection; attacker knew exactly which SharePoint library to access
+  Timeline        : Intrusion-to-exfiltration window: <span class="hi-amber">72 hours</span> — rapid, surgical operation
+  Timing          : <span class="hi-red">Theft occurred exactly 7 days before the government bid submission deadline</span>
+
+Targeting
+  Victim          : Single company competing for a <span class="hi-red">specific $220M federal infrastructure contract</span>
+  Data interest   : <span class="hi-red">Confidential pricing + technical differentiators</span> — commercially actionable intelligence
+  Collateral      : None — attacker took only what was needed to win the bid
+
+Sophistication   : <span class="hi-amber">Moderate-high</span> — professional operators; targeted and time-bound; no persistence left
+Resources        : <span class="hi-amber">Moderate</span> — hired professional team or in-house capability; not state-level
+Motivation       : <span class="hi-red">Economic advantage</span> — steal bid data to undercut competitor and win the contract
+
+Attribution notes: <span class="hi-red">Economic motivation + surgical targeting + bid timing</span> point to a rival firm.
+                   No ransom, no ideology, no state strategic interest. Victim's rival submitted a
+                   suspiciously accurate bid the following week at 2.3% below victim's sealed price.</div>
+                <div class="ev-result" id="res-6"></div>
+            </div>
+
+            <!-- CARD 8 — Nation-State / APT (supply-chain variant — distinct from Card 1) -->
+            <div class="ev-card" id="card-7">
+                <div class="ev-card-top">
+                    <span class="ev-num">BRIEF 08</span>
+                    <span class="ev-source">CTI Brief &mdash; Software Build Pipeline Compromise (Supply-Chain)</span>
+                    <div class="ev-select-wrap">
+                        <select class="ev-select" id="sel-7" aria-label="Threat actor type for brief 8">
+                            <option value="">-- Select threat actor type --</option>
+                            <option value="apt">Nation-State / APT</option>
+                            <option value="ocrime">Organized Crime</option>
+                            <option value="hacktivist">Hacktivist</option>
+                            <option value="insider">Insider Threat</option>
+                            <option value="scriptkiddie">Unskilled Attacker (Script Kiddie)</option>
+                            <option value="shadowit">Shadow IT</option>
+                            <option value="competitor">Competitor / Corporate Espionage</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ev-artifact">CLASSIFICATION : TLP:RED — CISA emergency advisory; critical infrastructure warning
+SOURCE         : CISA / NCSC joint advisory — coordinated disclosure
+SUBJECT        : Backdoor inserted into signed software update — targets downstream government customers
+
+Observed TTPs
+  Victim (stage 1): <span class="hi-amber">IT management software vendor</span> — not the ultimate target
+  Compromise point: <span class="hi-red">Vendor's CI/CD build pipeline compromised</span> — attackers gained write access to
+                    the build system and inserted a <span class="hi-red">backdoor DLL into the signed software update package</span>
+  Code signing    : <span class="hi-red">Backdoor shipped with a VALID vendor code-signing certificate</span> — bypassed AV/EDR
+  Update delivery : Malicious update pushed to ~18,000 customers via normal auto-update mechanism
+  Actual targets  : <span class="hi-red">Attacker only activated backdoor on ~100 high-value DOWNSTREAM customers</span>
+                    (U.S. federal agencies, defense contractors) — others left dormant
+  Dwell time      : <span class="hi-red">9 months from build compromise to discovery</span>
+  Backdoor TTPs   : Beacon over HTTPS (443); used victim's own cloud services as C2 relay (living off trusted infra)
+
+Targeting
+  True target     : <span class="hi-red">U.S. government agencies and defense sector</span> — vendor was merely the access vector
+  Strategic goal  : <span class="hi-red">Long-term access for intelligence collection across multiple agencies simultaneously</span>
+  Financial demand: <span class="hi-green">None</span>; ransom: <span class="hi-green">None</span>; political message: <span class="hi-green">None</span>
+
+Sophistication   : <span class="hi-red">Extremely high</span> — build-pipeline compromise, signed malware, supply-chain reach,
+                   selective activation, living-off-trusted-infra C2
+Resources        : <span class="hi-red">Nation-state level</span> — sustained multi-year access to vendor environment required
+Motivation       : <span class="hi-red">Strategic espionage</span> — mass intelligence collection across government / defense sector
+
+Attribution notes: <span class="hi-red">Suspected state sponsorship</span> — TTPs overlap with previously attributed nation-state cluster.
+                   Entirely distinct from Brief 01: actor here chose a <span class="hi-amber">supply-chain vector</span> (compromise a
+                   trusted vendor to reach many targets) rather than direct intrusion into a single target.</div>
+                <div class="ev-result" id="res-7"></div>
+            </div>
+
+        </div><!-- /.evidence-list -->
+
+        <!-- ============================================================
+             SUBMIT SECTION
+             ============================================================ -->
+        <section class="submit-section">
+            <h2>Verification</h2>
+            <p style="font-size:0.85rem; color:var(--text-mid); margin-bottom:1rem;">
+                Attribute all 8 intelligence briefs correctly to earn completion credit.
+                All 8 must be correct &mdash; partial answers do not pass.
+            </p>
+            <div class="submit-row">
+                <button class="btn-submit" id="btnSubmit" onclick="submitAnswers()">Submit for Grading</button>
+                <button class="btn-reset-all" onclick="resetAll()">Reset All</button>
+            </div>
+
+            <!-- Results panel (hidden until graded) -->
+            <div class="results-panel" id="resultsPanel">
+
+                <hr class="divider">
+
+                <div class="results-score" id="resultsScore">
+                    <div class="score-num" id="scoreNum">0/8</div>
+                    <div class="score-label">intelligence briefs correctly attributed</div>
+                    <div class="score-verdict" id="scoreVerdict"></div>
+                </div>
+
+                <div class="results-summary" id="resultsSummary"></div>
+
+                <div class="pass-banner" id="passBanner">
+                    All 8 Threat Actors Correctly Attributed
+                    <p>
+                        You demonstrated the ability to read real threat intelligence and attribute the
+                        correct actor type from TTPs, resources, and motivation &mdash; a core SY0-701
+                        Domain 2.1 skill.
+                    </p>
+                </div>
+
+            </div>
+        </section>
+
+    </main><!-- /.lab-main -->
+
+    <!-- ==============================================================
+         RIGHT COLUMN — Attribution progress tracker
+         ============================================================== -->
+    <aside class="side-panel">
+        <div class="side-panel-title">Progress</div>
+
+        <div class="prog-counter">
+            <div class="count-num" id="countNum">0</div>
+            <div class="count-label">of 8 answered</div>
+        </div>
+
+        <div class="progress-list" id="progressList">
+            <div class="prog-item" id="prog-0">
+                <div class="prog-dot"></div>
+                Brief 01 &mdash; Defense Contractor
+            </div>
+            <div class="prog-item" id="prog-1">
+                <div class="prog-dot"></div>
+                Brief 02 &mdash; Healthcare Ransomware
+            </div>
+            <div class="prog-item" id="prog-2">
+                <div class="prog-dot"></div>
+                Brief 03 &mdash; Energy Company
+            </div>
+            <div class="prog-item" id="prog-3">
+                <div class="prog-dot"></div>
+                Brief 04 &mdash; IP Exfiltration
+            </div>
+            <div class="prog-item" id="prog-4">
+                <div class="prog-dot"></div>
+                Brief 05 &mdash; Gaming Platform
+            </div>
+            <div class="prog-item" id="prog-5">
+                <div class="prog-dot"></div>
+                Brief 06 &mdash; Marketing Cloud
+            </div>
+            <div class="prog-item" id="prog-6">
+                <div class="prog-dot"></div>
+                Brief 07 &mdash; Competitive Bid
+            </div>
+            <div class="prog-item" id="prog-7">
+                <div class="prog-dot"></div>
+                Brief 08 &mdash; Supply-Chain
+            </div>
+        </div>
+
+    </aside>
+
+</div><!-- /.lab-shell -->
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+    /* ------------------------------------------------------------------
+       ANSWER KEY
+       Values match the <option value="..."> attributes in each dropdown.
+       Not rendered to the DOM — lives only in this JS object.
+       Note: apt appears at index 0 (direct espionage) and index 7
+       (supply-chain) — two clearly distinct APT scenarios.
+       ------------------------------------------------------------------ */
+    var ANSWER_KEY = [
+        /* Brief 01 — 14-month dwell, two zero-days, custom malware, defense contractor, foreign military unit */
+        {
+            value:     'apt',
+            label:     'Nation-State / APT',
+            rationale: 'The deciding indicators are sophistication + resources + targeting: two zero-days, fully bespoke malware (SILENTFANG), 14-month deliberate low-noise operation, and the target is classified weapons IP at a defense contractor — all pointing to a foreign military cyber unit with nation-state backing. No financial demand and no ideological claim rule out every other actor type.'
+        },
+        /* Brief 02 — RaaS affiliate, double-extortion, BTC demand, purely financial */
+        {
+            value:     'ocrime',
+            label:     'Organized Crime',
+            rationale: 'The deciding indicators are motivation + business model: a RaaS affiliate toolkit (LockBit), a BTC ransom demand, a public leak-site countdown, and an active negotiation portal all signal a professional criminal enterprise motivated purely by financial gain. No ideology, no state nexus, no personal grievance — the victim was selected for financial capacity and data sensitivity alone.'
+        },
+        /* Brief 03 — Website defacement with political slogan, DDoS timed to corporate decision, public credit claimed, ideological */
+        {
+            value:     'hacktivist',
+            label:     'Hacktivist',
+            rationale: 'The deciding indicators are motivation + public attribution: the attack was timed to a specific corporate decision (pipeline approval), carried an explicit political slogan, included a document leak to embarrass leadership, and the group immediately claimed public credit. No ransom demand and no financial gain rule out organized crime; public credit rules out state actors and competitors.'
+        },
+        /* Brief 04 — Current employee, valid credentials, accessed out-of-role shares, personal Dropbox, resigned 2 weeks later */
+        {
+            value:     'insider',
+            label:     'Insider Threat',
+            rationale: 'The deciding indicators are access method + actor status: a current employee used valid corporate credentials to access files outside their job role and exfiltrated to a personal cloud account — no external intrusion, no malware, no third-party actor. The after-hours timing and pending resignation confirm a malicious insider scenario (departing employee stealing IP for a new employer).'
+        },
+        /* Brief 05 — LOIC default config, extremely noisy, opportunistic, public boasting, no skill */
+        {
+            value:     'scriptkiddie',
+            label:     'Unskilled Attacker (Script Kiddie)',
+            rationale: 'The deciding indicators are skill level + operational security: off-the-shelf tool (LOIC) run at default settings, no reconnaissance, no evasion, real IP addresses exposed in logs, and the attacker publicly boasted within 30 minutes. This combination of very low skill, very low resources, opportunistic targeting, and notoriety-seeking is the textbook unskilled attacker profile.'
+        },
+        /* Brief 06 — Marketing team, unsanctioned SaaS + unmanaged VM, no malicious intent, operational speed */
+        {
+            value:     'shadowit',
+            label:     'Shadow IT',
+            rationale: 'The deciding indicators are actor intent + actor status: an internal business team deployed unapproved technology (SaaS CRM + unmanaged cloud VM) without IT authorization, explicitly to bypass procurement timelines. There is no malicious intent, no external attacker, and no exploitation — only unmanaged risk from technology operating outside IT governance. This is the definition of Shadow IT.'
+        },
+        /* Brief 07 — Targeted bid data theft 7 days before submission, economic motivation, rival firm suspected */
+        {
+            value:     'competitor',
+            label:     'Competitor / Corporate Espionage',
+            rationale: 'The deciding indicators are motivation + targeting precision + timing: only the bid package and pricing were stolen, the theft occurred exactly 7 days before the contract deadline, and the rival submitted a suspiciously accurate underbid the following week. Economic advantage over a specific competitor is the motivation — not financial extortion, not ideology, not state strategy.'
+        },
+        /* Brief 08 — Build pipeline backdoor, signed update, downstream government targets, strategic espionage, state-suspected */
+        {
+            value:     'apt',
+            label:     'Nation-State / APT',
+            rationale: 'The deciding indicators are sophistication + resources + strategic motivation: compromising a vendor\'s CI/CD pipeline to insert a backdoor into a signed software update, patiently maintaining access for 9 months, then selectively activating only the ~100 highest-value government/defense targets for intelligence collection — this requires nation-state level resources and patience. No ransom, no ideology, no commercial goal; pure strategic espionage distinguishes this from every other actor type. The supply-chain vector makes this scenario distinct from Brief 01 (direct intrusion), but the attribution is the same actor category.'
+        }
+    ];
+
+    /* ------------------------------------------------------------------
+       STATE
+       Tracks whether each item has been answered and graded.
+       ------------------------------------------------------------------ */
+    var graded = false;   /* true after first submit */
+
+    /* ------------------------------------------------------------------
+       PROGRESS TRACKER
+       Updates the right-panel item badges as the student fills in answers.
+       ------------------------------------------------------------------ */
+    function updateProgress() {
+        var answered = 0;
+        for (var i = 0; i < 8; i++) {
+            var sel  = document.getElementById('sel-' + i);
+            var prog = document.getElementById('prog-' + i);
+            if (sel.value !== '') {
+                prog.classList.add('answered');
+                answered++;
+            } else {
+                prog.classList.remove('answered');
+            }
+        }
+        document.getElementById('countNum').textContent = answered;
+    }
+
+    /* Wire change listeners on every dropdown */
+    (function wireDropdowns() {
+        for (var i = 0; i < 8; i++) {
+            (function(idx) {
+                document.getElementById('sel-' + idx).addEventListener('change', function() {
+                    updateProgress();
+                });
+            })(i);
+        }
+    })();
+
+    /* ------------------------------------------------------------------
+       SUBMIT FOR GRADING
+       Checks all 8 answers against ANSWER_KEY and renders results.
+       Fires ModuleProgress.complete() ONLY when all 8 are correct.
+       ------------------------------------------------------------------ */
+    function submitAnswers() {
+        /* Validate that all dropdowns have a selection */
+        var unanswered = [];
+        for (var i = 0; i < 8; i++) {
+            if (document.getElementById('sel-' + i).value === '') {
+                unanswered.push(i + 1);
+            }
+        }
+        if (unanswered.length > 0) {
+            alert('Please attribute all 8 briefs before submitting.\nUnanswered: Brief ' + unanswered.join(', Brief '));
+            return;
+        }
+
+        graded = true;
+        var correct = 0;
+
+        /* Grade each item and update card + progress state */
+        for (var j = 0; j < 8; j++) {
+            var sel       = document.getElementById('sel-' + j);
+            var card      = document.getElementById('card-' + j);
+            var resultEl  = document.getElementById('res-' + j);
+            var progItem  = document.getElementById('prog-' + j);
+            var isCorrect = (sel.value === ANSWER_KEY[j].value);
+
+            /* Lock dropdown */
+            sel.disabled = true;
+
+            /* Style the card */
+            card.classList.remove('graded-correct', 'graded-incorrect');
+            card.classList.add(isCorrect ? 'graded-correct' : 'graded-incorrect');
+
+            /* Build result block using textContent (no innerHTML with user data) */
+            var statusLabel = document.createElement('span');
+            statusLabel.className = 'res-label';
+            statusLabel.textContent = isCorrect
+                ? '[CORRECT]  ' + ANSWER_KEY[j].label
+                : '[INCORRECT]  You selected: ' + (sel.options[sel.selectedIndex].text) + '  |  Correct: ' + ANSWER_KEY[j].label;
+
+            var rationale = document.createElement('span');
+            rationale.className = 'res-rationale';
+            rationale.textContent = 'Why: ' + ANSWER_KEY[j].rationale;
+
+            resultEl.innerHTML = '';
+            resultEl.appendChild(statusLabel);
+            resultEl.appendChild(document.createElement('br'));
+            resultEl.appendChild(rationale);
+            resultEl.className = 'ev-result show ' + (isCorrect ? 'res-correct' : 'res-incorrect');
+
+            /* Update sidebar progress dot */
+            progItem.classList.remove('answered');
+            progItem.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            if (isCorrect) { correct++; }
+        }
+
+        /* Update progress counter */
+        document.getElementById('countNum').textContent = '8';
+
+        /* Score display */
+        var allCorrect   = (correct === 8);
+        var scoreNum     = document.getElementById('scoreNum');
+        var scoreVerdict = document.getElementById('scoreVerdict');
+
+        scoreNum.textContent = correct + '/8';
+        scoreNum.className   = 'score-num ' + (allCorrect ? 'pass' : 'fail');
+        scoreVerdict.textContent = allCorrect
+            ? 'PASS — All 8 threat actors correctly attributed'
+            : 'NEEDS WORK — ' + (8 - correct) + ' brief(s) incorrect';
+        scoreVerdict.className = 'score-verdict ' + (allCorrect ? 'pass' : 'fail');
+
+        /* Per-item summary chips */
+        var summaryEl = document.getElementById('resultsSummary');
+        summaryEl.innerHTML = '';
+        for (var k = 0; k < 8; k++) {
+            var sel2      = document.getElementById('sel-' + k);
+            var isOk      = (sel2.value === ANSWER_KEY[k].value);
+            var chip      = document.createElement('div');
+            chip.className = 'res-chip ' + (isOk ? 'correct' : 'incorrect');
+
+            var icon = document.createElement('span');
+            icon.className = 'res-chip-icon';
+            icon.textContent = isOk ? '[OK]' : '[X]';
+
+            var textWrap = document.createElement('div');
+            textWrap.className = 'res-chip-text';
+
+            var nameLine = document.createElement('span');
+            nameLine.className = 'res-chip-name';
+            nameLine.textContent = 'Brief 0' + (k + 1);
+
+            var detailLine = document.createElement('span');
+            detailLine.className = 'res-chip-detail';
+            detailLine.textContent = isOk
+                ? ANSWER_KEY[k].label
+                : 'Expected: ' + ANSWER_KEY[k].label;
+
+            textWrap.appendChild(nameLine);
+            textWrap.appendChild(detailLine);
+            chip.appendChild(icon);
+            chip.appendChild(textWrap);
+            summaryEl.appendChild(chip);
+        }
+
+        /* Pass banner + module completion — ONLY fires when all 8 correct */
+        var banner = document.getElementById('passBanner');
+        if (allCorrect) {
+            banner.classList.add('visible');
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('shield', 'shield-pbq-threat-actor-attribution', { returnUrl: '../index.html' });
+            }
+        } else {
+            banner.classList.remove('visible');
+        }
+
+        /* Show results panel and scroll into view */
+        document.getElementById('resultsPanel').classList.add('visible');
+        document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ------------------------------------------------------------------
+       RESET ALL
+       Re-enables all dropdowns, clears selections, hides graded state.
+       ------------------------------------------------------------------ */
+    function resetAll() {
+        graded = false;
+
+        for (var i = 0; i < 8; i++) {
+            var sel      = document.getElementById('sel-' + i);
+            var card     = document.getElementById('card-' + i);
+            var resultEl = document.getElementById('res-' + i);
+            var progItem = document.getElementById('prog-' + i);
+
+            sel.value    = '';
+            sel.disabled = false;
+
+            card.classList.remove('graded-correct', 'graded-incorrect');
+            resultEl.className = 'ev-result';
+            resultEl.innerHTML = '';
+
+            progItem.classList.remove('answered', 'correct', 'incorrect');
+        }
+
+        document.getElementById('countNum').textContent = '0';
+        document.getElementById('resultsPanel').classList.remove('visible');
+        document.getElementById('passBanner').classList.remove('visible');
+
+        /* Scroll back to top */
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+
+<!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+     Always-visible chat entry point. State machine is attempt-driven;
+     button stays calm and serves as general chat entry until lab
+     activity ticks the mood-ring.
+     Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+<hex-ai-button mission-id="pbq-threat-actor-attribution" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>
