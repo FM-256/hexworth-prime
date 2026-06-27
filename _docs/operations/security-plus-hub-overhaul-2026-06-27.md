@@ -138,9 +138,13 @@ gap — every D5 module already has a quiz + practice.
 **Wave plan (each clones the polished `pbq-attack-identification.lab.html`: full-width, 16px fonts,
 sticky tracker, score-gated, completion wiring):**
 - **Wave 1 — artifact-driven IDENTIFY (evidence cards):** Malware (`pbq-malware-identification`),
-  Social/Network (`pbq-social-network-identification`), Threat-Actor (`pbq-threat-actor-attribution`). [building]
-- **Wave 2 — classify/matrix:** Change Management, Governance & Asset Mgmt, Identity & Access (AAA).
-- **Wave 3 — apply/diagnose/sequence:** Design Principles (Zero Trust planes), Cryptography & PKI (cert-chain diagnosis).
+  Social/Network (`pbq-social-network-identification`), Threat-Actor (`pbq-threat-actor-attribution`). ✅ SHIPPED + LIVE.
+- **Wave 2 — classify (cloned `pbq-control-classification`):** Change Management (`pbq-change-management`),
+  Governance & Asset Mgmt (`pbq-governance-asset`), Identity & Access AAA (`pbq-iam-aaa`, 2-axis). ✅ drive-QC'd 8/8, Chris PASS.
+- **Wave 3 — apply/diagnose/sequence:** Design Principles (Zero Trust planes), Cryptography & PKI (cert-chain diagnosis). REMAINING.
+
+**Practice gap: 6 of 8 modules filled** (Wave 1 = 3 D2 modules; Wave 2 = Change Mgmt + Governance + AAA).
+Remaining 2: Design Principles & Best Practices (D1), Cryptography & PKI (D3) = Wave 3.
 Each PBQ: authored answer key (mine) → interactive-code-architect build → headless drive-to-completion QC
 → register manifest + ContentCatalog → Chris gate → deploy in batches.
 

@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="/components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="/components/ModuleProgress.js"></script>
+<script src="/components/FirebaseAuth.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PBQ: Identity & Access (AAA) | Security+</title>
+<style>
+    /* ============================================================
+       ROOT VARIABLES
+       ============================================================ */
+    :root {
+        --bg:           #090910;
+        --bg-card:      #0f0f1a;
+        --bg-panel:     #14141f;
+        --bg-input:     #0a0a14;
+        --border:       rgba(139, 92, 246, 0.18);
+        --border-hi:    rgba(139, 92, 246, 0.55);
+        --purple:       #8b5cf6;
+        --purple-dim:   rgba(139, 92, 246, 0.12);
+        --purple-glow:  rgba(139, 92, 246, 0.25);
+        --text:         #e2e8f0;
+        --text-dim:     #64748b;
+        --text-mid:     #94a3b8;
+        --success:      #22c55e;
+        --success-bg:   rgba(34, 197, 94, 0.12);
+        --danger:       #ef4444;
+        --danger-bg:    rgba(239, 68, 68, 0.12);
+        --warn:         #f59e0b;
+        --warn-bg:      rgba(245, 158, 11, 0.1);
+        --partial:      #f59e0b;
+        --partial-bg:   rgba(245, 158, 11, 0.12);
+
+        /* AAA Pillar accent colours */
+        --aaa-authn:    #06b6d4;   /* cyan   - Authentication */
+        --aaa-authz:    #8b5cf6;   /* purple - Authorization  */
+        --aaa-acct:     #f59e0b;   /* amber  - Accounting     */
+
+        /* Authentication Factor accent colours */
+        --fac-know:     #3b82f6;   /* blue   - Something You Know */
+        --fac-have:     #f97316;   /* orange - Something You Have */
+        --fac-are:      #06b6d4;   /* cyan   - Something You Are  */
+        --fac-somewhere:#22c55e;   /* green  - Somewhere You Are  */
+        --fac-do:       #a855f7;   /* violet - Something You Do   */
+        --fac-na:       #64748b;   /* slate  - N/A                */
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.6;
+    }
+
+    /* ============================================================
+       NAV BAR
+       ============================================================ */
+    .lab-nav {
+        padding: 11px 20px;
+        background: #0d0d17;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .lab-nav a {
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 0.84rem;
+        transition: color 0.2s;
+    }
+    .lab-nav a:hover { color: var(--purple); }
+    .lab-nav .badge {
+        background: rgba(139, 92, 246, 0.14);
+        color: var(--purple);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        padding: 3px 9px;
+        border-radius: 4px;
+    }
+
+    /* ============================================================
+       FULL-BLEED LAYOUT — two-column dashboard on wide screens
+       ============================================================ */
+    .lab-outer {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        grid-template-rows: auto 1fr auto;
+        gap: 0;
+        min-height: calc(100vh - 44px);
+    }
+
+    /* Left main column */
+    .lab-main {
+        grid-column: 1;
+        grid-row: 1 / 4;
+        padding: 1.75rem 1.5rem 3rem 2rem;
+        border-right: 1px solid rgba(255,255,255,0.05);
+        overflow-y: auto;
+    }
+
+    /* Right rail */
+    .lab-rail {
+        grid-column: 2;
+        grid-row: 1 / 4;
+        padding: 1.75rem 1.5rem 3rem 1.5rem;
+        background: var(--bg-card);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    /* Collapse rail to below main at narrow viewports */
+    @media (max-width: 900px) {
+        .lab-outer {
+            display: block;
+        }
+        .lab-main {
+            padding: 1.25rem 1rem 1.5rem;
+        }
+        .lab-rail {
+            padding: 1.25rem 1rem 2rem;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+    }
+
+    /* ============================================================
+       HEADER / SCENARIO
+       ============================================================ */
+    .lab-header {
+        background: var(--bg-card);
+        border: 1px solid var(--border-hi);
+        border-radius: 14px;
+        padding: 1.75rem 2rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 0 28px var(--purple-glow);
+    }
+    .lab-header h1 {
+        font-size: 1.7rem;
+        font-weight: 700;
+        color: var(--purple);
+        margin-bottom: 0.4rem;
+        letter-spacing: -0.3px;
+    }
+    .lab-header .pbq-tag {
+        display: inline-block;
+        background: rgba(239,68,68,0.15);
+        color: #f87171;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        padding: 2px 8px;
+        border-radius: 3px;
+        margin-bottom: 0.9rem;
+    }
+    .scenario-box {
+        background: var(--bg-panel);
+        border-left: 3px solid var(--purple);
+        border-radius: 0 8px 8px 0;
+        padding: 0.9rem 1.2rem;
+        font-size: 1.1rem;
+        color: var(--text-mid);
+        margin-top: 0.75rem;
+    }
+    .scenario-box strong { color: var(--text); }
+    .lab-meta {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        font-size: 0.92rem;
+        color: var(--text-dim);
+    }
+    .lab-meta span { color: var(--text-mid); }
+
+    /* ============================================================
+       INSTRUCTION TIP
+       ============================================================ */
+    .tip {
+        background: var(--warn-bg);
+        border: 1px solid rgba(245,158,11,0.25);
+        border-radius: 8px;
+        padding: 0.7rem 1rem;
+        font-size: 1rem;
+        color: var(--text-mid);
+        margin-bottom: 1.5rem;
+    }
+    .tip strong { color: var(--warn); }
+
+    /* ============================================================
+       CONTROL MATRIX TABLE
+       ============================================================ */
+    .matrix-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .section-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 1.25rem;
+    }
+
+    .matrix-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 6px;
+    }
+
+    .matrix-table thead th {
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.7px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        padding: 0 0.75rem 0.5rem;
+        text-align: left;
+    }
+    .matrix-table thead th:first-child {
+        padding-left: 0.9rem;
+    }
+
+    /* Each control row */
+    .ctrl-row {
+        background: var(--bg-panel);
+        transition: background 0.18s;
+    }
+    .ctrl-row:hover {
+        background: rgba(139, 92, 246, 0.06);
+    }
+    /* Graded state classes applied after submission */
+    .ctrl-row.graded-correct td {
+        border-top: 1px solid rgba(34,197,94,0.35);
+        border-bottom: 1px solid rgba(34,197,94,0.35);
+    }
+    .ctrl-row.graded-correct td:first-child {
+        border-left: 3px solid var(--success);
+        border-radius: 8px 0 0 8px;
+    }
+    .ctrl-row.graded-correct td:last-child {
+        border-right: 1px solid rgba(34,197,94,0.35);
+        border-radius: 0 8px 8px 0;
+    }
+    .ctrl-row.graded-correct { background: var(--success-bg); }
+
+    .ctrl-row.graded-incorrect td {
+        border-top: 1px solid rgba(239,68,68,0.35);
+        border-bottom: 1px solid rgba(239,68,68,0.35);
+    }
+    .ctrl-row.graded-incorrect td:first-child {
+        border-left: 3px solid var(--danger);
+        border-radius: 8px 0 0 8px;
+    }
+    .ctrl-row.graded-incorrect td:last-child {
+        border-right: 1px solid rgba(239,68,68,0.35);
+        border-radius: 0 8px 8px 0;
+    }
+    .ctrl-row.graded-incorrect { background: var(--danger-bg); }
+
+    /* Ungraded row borders */
+    .ctrl-row td {
+        border-top: 1px solid transparent;
+        border-bottom: 1px solid transparent;
+        padding: 0.6rem 0.75rem;
+    }
+    .ctrl-row td:first-child {
+        border-left: 3px solid transparent;
+        border-radius: 8px 0 0 8px;
+        padding-left: 0.9rem;
+    }
+    .ctrl-row td:last-child {
+        border-right: 1px solid transparent;
+        border-radius: 0 8px 8px 0;
+    }
+
+    /* Row number badge */
+    .ctrl-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        background: var(--purple-dim);
+        color: var(--purple);
+        font-size: 0.76rem;
+        font-weight: 800;
+        border-radius: 50%;
+        flex-shrink: 0;
+        vertical-align: middle;
+        margin-right: 0.5rem;
+    }
+
+    /* Control name cell */
+    .ctrl-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+    }
+    .ctrl-name .ctrl-hint {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 400;
+        color: var(--text-dim);
+        white-space: normal;
+        margin-top: 1px;
+    }
+
+    /* Dropdown cells */
+    .ctrl-select-wrap {
+        position: relative;
+    }
+    .ctrl-select {
+        background: var(--bg-input);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 0.96rem;
+        padding: 0.42rem 1.8rem 0.42rem 0.65rem;
+        width: 100%;
+        min-width: 160px;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-color: var(--bg-input);
+    }
+    .ctrl-select:focus {
+        outline: none;
+        border-color: var(--purple);
+        box-shadow: 0 0 0 2px var(--purple-dim);
+    }
+    /* Greyed-out placeholder option */
+    .ctrl-select option[value=""] {
+        color: var(--text-dim);
+    }
+
+    /* After-submission: show per-axis result indicator inline */
+    .axis-result {
+        display: none;
+        font-size: 0.82rem;
+        font-weight: 700;
+        margin-top: 4px;
+        letter-spacing: 0.3px;
+    }
+    .axis-result.show { display: block; }
+    .axis-result.ok  { color: var(--success); }
+    .axis-result.bad { color: var(--danger);  }
+
+    /* ============================================================
+       STATUS BAR (live progress counter)
+       ============================================================ */
+    .progress-bar-wrap {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.75rem 1.1rem;
+        margin-bottom: 1.75rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .progress-count {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: var(--purple);
+        min-width: 48px;
+    }
+    .progress-label {
+        font-size: 0.88rem;
+        color: var(--text-dim);
+    }
+    .progress-track {
+        flex: 1;
+        height: 6px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        background: var(--purple);
+        border-radius: 3px;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+
+    /* ============================================================
+       SUBMIT SECTION
+       ============================================================ */
+    .submit-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.5rem;
+    }
+    .submit-btn-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+    .btn-submit {
+        padding: 0.65rem 2rem;
+        background: var(--purple);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.12s, box-shadow 0.2s;
+    }
+    .btn-submit:hover {
+        opacity: 0.88;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 18px var(--purple-glow);
+    }
+    .btn-submit:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    .btn-reset-all {
+        padding: 0.65rem 1.5rem;
+        background: transparent;
+        color: var(--text-dim);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-reset-all:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ============================================================
+       RESULTS PANEL
+       ============================================================ */
+    .results-panel {
+        display: none;
+        margin-top: 1.5rem;
+    }
+    .results-panel.visible { display: block; }
+
+    .results-score {
+        text-align: center;
+        padding: 1.25rem 1rem;
+        background: var(--bg-panel);
+        border-radius: 10px;
+        margin-bottom: 1.25rem;
+    }
+    .results-score .score-num {
+        font-size: 2.8rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .results-score .score-num.pass { color: var(--success); }
+    .results-score .score-num.fail { color: var(--danger); }
+    .results-score .score-label {
+        font-size: 0.9rem;
+        color: var(--text-dim);
+        margin-top: 0.3rem;
+    }
+    .results-score .score-verdict {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-top: 0.5rem;
+    }
+    .results-score .score-verdict.pass { color: var(--success); }
+    .results-score .score-verdict.fail { color: var(--danger); }
+
+    /* Per-control result cards */
+    .results-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 0.7rem;
+    }
+    .result-card {
+        background: var(--bg-panel);
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        font-size: 0.94rem;
+    }
+    .result-card.correct {
+        border-color: rgba(34,197,94,0.3);
+        background: var(--success-bg);
+    }
+    .result-card.incorrect {
+        border-color: rgba(239,68,68,0.3);
+        background: var(--danger-bg);
+    }
+    .result-card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        margin-bottom: 0.5rem;
+    }
+    .result-status {
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 2px 7px;
+        border-radius: 3px;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+    .result-card.correct .result-status {
+        background: rgba(34,197,94,0.18);
+        color: var(--success);
+    }
+    .result-card.incorrect .result-status {
+        background: rgba(239,68,68,0.18);
+        color: var(--danger);
+    }
+    .result-ctrl-name {
+        font-weight: 700;
+        color: var(--text);
+        font-size: 0.96rem;
+    }
+    .result-card.correct .result-ctrl-name { color: var(--success); }
+    .result-card.incorrect .result-ctrl-name { color: var(--danger); }
+
+    /* Classification pills in result card */
+    .result-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-bottom: 0.45rem;
+    }
+    .pill {
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        padding: 2px 7px;
+        border-radius: 12px;
+    }
+    .pill-student { background: rgba(255,255,255,0.07); color: var(--text-mid); }
+    .pill-correct { background: rgba(34,197,94,0.18);  color: var(--success); }
+    .pill-wrong   { background: rgba(239,68,68,0.18);  color: var(--danger);  }
+
+    .result-rationale {
+        font-size: 0.92rem;
+        color: var(--text-dim);
+        line-height: 1.5;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        padding-top: 0.4rem;
+        margin-top: 0.4rem;
+    }
+
+    /* Pass banner */
+    .pass-banner {
+        display: none;
+        background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(139,92,246,0.1));
+        border: 1px solid rgba(34,197,94,0.4);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin-top: 1.25rem;
+        text-align: center;
+        color: var(--success);
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .pass-banner.visible { display: block; }
+    .pass-banner p {
+        color: var(--text-mid);
+        font-weight: 400;
+        font-size: 0.94rem;
+        margin-top: 0.4rem;
+    }
+
+    /* ============================================================
+       RIGHT RAIL — REFERENCE CARDS
+       ============================================================ */
+    .rail-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+    }
+    .rail-card h3 {
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.7px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Category chips */
+    .cat-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .cat-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        font-size: 0.9rem;
+    }
+    .cat-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 4px;
+    }
+    .cat-name {
+        font-weight: 700;
+        color: var(--text);
+        font-size: 0.9rem;
+    }
+    .cat-desc {
+        font-size: 0.84rem;
+        color: var(--text-dim);
+        margin-top: 1px;
+    }
+
+    /* Divider */
+    .rail-divider {
+        height: 1px;
+        background: rgba(255,255,255,0.05);
+    }
+
+    /* Scoring chip in rail */
+    .score-chip {
+        text-align: center;
+        padding: 0.9rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border-hi);
+        border-radius: 10px;
+    }
+    .score-chip .chip-num {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: var(--purple);
+        line-height: 1;
+    }
+    .score-chip .chip-label {
+        font-size: 0.73rem;
+        color: var(--text-dim);
+        margin-top: 0.2rem;
+    }
+</style>
+</head>
+<body>
+
+<!-- Navigation bar -->
+<nav class="lab-nav">
+    <a href="../index.html">&larr; Security+ Hub</a>
+    <span class="badge">PBQ LAB</span>
+</nav>
+
+<div class="lab-outer">
+
+    <!-- ============================================================
+         LEFT MAIN COLUMN
+         ============================================================ -->
+    <main class="lab-main">
+
+        <!-- HEADER -->
+        <header class="lab-header">
+            <span class="pbq-tag">PERFORMANCE-BASED QUESTION</span>
+            <h1>Identity, Authentication &amp; Access Classification</h1>
+            <div class="scenario-box">
+                <strong>Scenario:</strong> For each access-control mechanism, classify (1) which
+                <strong>AAA pillar</strong> it belongs to, and (2) for authentication mechanisms,
+                which <strong>authentication factor</strong> it uses (select &ldquo;N/A&rdquo; for
+                non-authentication rows). Use the SY0-701 Domain 4.6 taxonomy.
+                All 8 items must be classified correctly on both axes to complete the lab.
+            </div>
+            <div class="lab-meta">
+                <span>Security+ SY0-701</span>
+                <span>Domain 4.6 &mdash; Identity &amp; Access Management</span>
+                <span>8 Items</span>
+            </div>
+        </header>
+
+        <!-- LIVE PROGRESS BAR -->
+        <div class="progress-bar-wrap">
+            <span class="progress-count" id="progressCount">0/16</span>
+            <span class="progress-label">dropdowns answered</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- INSTRUCTION TIP -->
+        <div class="tip">
+            <strong>Instructions:</strong> For each mechanism in the table below, select the correct
+            <strong>AAA Pillar</strong> and <strong>Authentication Factor</strong> from the two
+            dropdowns. Rows that do not involve authentication require &ldquo;N/A&rdquo; for the
+            factor column. All 16 selections must be set before you can submit.
+        </div>
+
+        <!-- CONTROL MATRIX -->
+        <section class="matrix-section">
+            <h2 class="section-title">IAM Classification Matrix</h2>
+
+            <div style="overflow-x: auto;">
+                <table class="matrix-table" id="matrixTable">
+                    <thead>
+                        <tr>
+                            <th style="width:38%;">Mechanism</th>
+                            <th style="width:30%;">AAA Pillar</th>
+                            <th style="width:32%;">Authentication Factor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrixBody">
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SUBMIT SECTION -->
+        <section class="submit-section">
+            <h2 class="section-title">Verification</h2>
+            <p style="font-size:0.86rem; color:var(--text-mid);">
+                Classify all 8 mechanisms correctly on both axes to pass. All 16 selections
+                must be correct simultaneously.
+            </p>
+            <div class="submit-btn-row">
+                <button class="btn-submit" id="btnSubmit" onclick="submitClassifications()">Grade My Classifications</button>
+                <button class="btn-reset-all" onclick="resetAll()">Reset All</button>
+            </div>
+
+            <!-- RESULTS PANEL (hidden until submitted) -->
+            <div class="results-panel" id="resultsPanel">
+
+                <div class="results-score" id="resultsScore">
+                    <div class="score-num" id="scoreNum">0/8</div>
+                    <div class="score-label">items fully correct</div>
+                    <div class="score-verdict" id="scoreVerdict"></div>
+                </div>
+
+                <!-- Per-item result cards -->
+                <div class="results-cards" id="resultsCards"></div>
+
+                <!-- Pass banner (shown only on perfect score) -->
+                <div class="pass-banner" id="passBanner">
+                    All 8 Mechanisms Correctly Classified
+                    <p>
+                        You have demonstrated command of SY0-701 Domain 4.6 AAA taxonomy.
+                        Both axes correct on every item.
+                    </p>
+                </div>
+
+            </div>
+        </section>
+
+    </main><!-- /.lab-main -->
+
+    <!-- ============================================================
+         RIGHT RAIL — REFERENCE
+         ============================================================ -->
+    <aside class="lab-rail">
+
+        <!-- Live score chip (updates on submission) -->
+        <div class="score-chip" id="scoreChip">
+            <div class="chip-num" id="chipNum">-</div>
+            <div class="chip-label">items correct (of 8)</div>
+        </div>
+
+        <!-- AAA Pillar reference -->
+        <div class="rail-card">
+            <h3>AAA Pillars</h3>
+            <div class="cat-list">
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--aaa-authn);"></div>
+                    <div>
+                        <div class="cat-name">Authentication</div>
+                        <div class="cat-desc">Verifying the identity of a user, device, or entity before granting access.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--aaa-authz);"></div>
+                    <div>
+                        <div class="cat-name">Authorization</div>
+                        <div class="cat-desc">Determining what an authenticated identity is permitted to access or do.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--aaa-acct);"></div>
+                    <div>
+                        <div class="cat-name">Accounting</div>
+                        <div class="cat-desc">Tracking and recording user activity to support auditing and non-repudiation.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rail-divider"></div>
+
+        <!-- Authentication Factor reference -->
+        <div class="rail-card">
+            <h3>Authentication Factors</h3>
+            <div class="cat-list">
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fac-know);"></div>
+                    <div>
+                        <div class="cat-name">Something You Know</div>
+                        <div class="cat-desc">Passwords, PINs, security questions, passphrases.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fac-have);"></div>
+                    <div>
+                        <div class="cat-name">Something You Have</div>
+                        <div class="cat-desc">Physical tokens, smart cards, FIDO2 keys, authenticator apps (OTP).</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fac-are);"></div>
+                    <div>
+                        <div class="cat-name">Something You Are</div>
+                        <div class="cat-desc">Biometrics: fingerprint, face, iris, retina.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fac-somewhere);"></div>
+                    <div>
+                        <div class="cat-name">Somewhere You Are</div>
+                        <div class="cat-desc">Location-based: GPS coordinates, geofencing, IP geolocation.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fac-do);"></div>
+                    <div>
+                        <div class="cat-name">Something You Do</div>
+                        <div class="cat-desc">Behavioral biometrics: typing rhythm, mouse dynamics, gait analysis.</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--fac-na);"></div>
+                    <div>
+                        <div class="cat-name">N/A</div>
+                        <div class="cat-desc">Select this for Authorization and Accounting rows — they do not involve an authentication factor.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rail-divider"></div>
+
+        <!-- Quick exam tip -->
+        <div class="rail-card">
+            <h3>Exam Strategy</h3>
+            <div class="cat-list">
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--purple);"></div>
+                    <div>
+                        <div class="cat-name">Ask: who, what, then log it</div>
+                        <div class="cat-desc">Authentication = who are you? Authorization = what can you do? Accounting = what did you do?</div>
+                    </div>
+                </div>
+                <div class="cat-item">
+                    <div class="cat-dot" style="background:var(--purple);"></div>
+                    <div>
+                        <div class="cat-name">Factor only applies to Authentication</div>
+                        <div class="cat-desc">If the row is about access decisions or logging, the factor column is always N/A.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </aside><!-- /.lab-rail -->
+
+</div><!-- /.lab-outer -->
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+    /* ------------------------------------------------------------------
+       ANSWER KEY
+       pillar:    the accepted AAA pillar value
+       factor:    the accepted authentication factor value
+                  ('na' is required for Authorization and Accounting rows)
+       rationale: one-sentence SY0-701 explanation shown in result card
+       ------------------------------------------------------------------ */
+    var CONTROLS = [
+        {
+            id: 1,
+            name: 'Password + PIN entry',
+            hint: 'The user proves identity by entering a secret string and a numeric secret only they should know',
+            pillar: 'authentication',
+            factor: 'know',
+            rationale: 'Passwords and PINs are secrets committed to memory, placing them squarely in the Something You Know factor under the Authentication pillar.'
+        },
+        {
+            id: 2,
+            name: 'Hardware token / authenticator code',
+            hint: 'The user presents a physical FIDO2 security key or a one-time code generated by an app on their enrolled device',
+            pillar: 'authentication',
+            factor: 'have',
+            rationale: 'A physical security key or enrolled device is a possession the user must hold, making this a Something You Have factor used to authenticate identity.'
+        },
+        {
+            id: 3,
+            name: 'Fingerprint / face scan',
+            hint: 'The user is verified by a unique physical biometric characteristic',
+            pillar: 'authentication',
+            factor: 'are',
+            rationale: 'Fingerprints and facial geometry are inherent physical traits, classifying this as the Something You Are factor within the Authentication pillar.'
+        },
+        {
+            id: 4,
+            name: 'Geofenced access',
+            hint: 'Login is permitted only when the device\'s GPS/network location places it inside the corporate campus',
+            pillar: 'authentication',
+            factor: 'somewhere',
+            rationale: 'Using the device\'s physical or network location to verify a login attempt is the Somewhere You Are factor, applied at the Authentication stage.'
+        },
+        {
+            id: 5,
+            name: 'Behavioral biometrics',
+            hint: 'Identity is continuously confirmed by the user\'s typing rhythm and mouse/gait patterns',
+            pillar: 'authentication',
+            factor: 'do',
+            rationale: 'Continuous behavioral signals such as typing cadence and gait represent the Something You Do factor, used to authenticate or re-authenticate a session.'
+        },
+        {
+            id: 6,
+            name: 'Role-based file access',
+            hint: 'After login, the system evaluates the user\'s assigned role and grants access only to the resources that role permits',
+            pillar: 'authorization',
+            factor: 'na',
+            rationale: 'Evaluating role assignments to determine which resources a logged-in user may access is Authorization; no authentication factor is involved at this stage.'
+        },
+        {
+            id: 7,
+            name: 'Audit logging',
+            hint: 'Every file access and command is recorded with the user, timestamp, and action to support later review and non-repudiation',
+            pillar: 'accounting',
+            factor: 'na',
+            rationale: 'Recording user actions with timestamps for forensic review and non-repudiation is the Accounting pillar; it occurs after authentication and authorization.'
+        },
+        {
+            id: 8,
+            name: 'Single sign-on federation',
+            hint: 'After authenticating once to the corporate identity provider, the user is authorized into Salesforce and Workday via SAML assertions',
+            pillar: 'authorization',
+            factor: 'na',
+            rationale: 'Once identity is established, propagating access rights to federated applications via SAML assertions is an Authorization function, not a re-authentication step.'
+        }
+    ];
+
+    /* Human-readable option labels */
+    var PILLAR_LABELS = {
+        authentication: 'Authentication',
+        authorization:  'Authorization',
+        accounting:     'Accounting'
+    };
+    var FACTOR_LABELS = {
+        know:      'Something You Know',
+        have:      'Something You Have',
+        are:       'Something You Are',
+        somewhere: 'Somewhere You Are',
+        do:        'Something You Do',
+        na:        'N/A (not an authentication factor)'
+    };
+
+    /* Student answer store: { pillarVal, factorVal } per item index */
+    var studentAnswers = [];
+
+    /* Total dropdown slots = 8 items x 2 axes = 16 */
+    var TOTAL_DROPDOWNS = 16;
+
+    /* ------------------------------------------------------------------
+       BOOT — render the matrix table rows
+       ------------------------------------------------------------------ */
+    function init() {
+        for (var i = 0; i < CONTROLS.length; i++) {
+            studentAnswers.push({ pillarVal: '', factorVal: '' });
+        }
+        renderMatrix();
+        updateProgress();
+    }
+
+    /* ------------------------------------------------------------------
+       BUILD TABLE ROWS
+       Uses createElement throughout — no innerHTML with dynamic data
+       ------------------------------------------------------------------ */
+    function renderMatrix() {
+        var tbody = document.getElementById('matrixBody');
+        tbody.innerHTML = '';
+
+        for (var i = 0; i < CONTROLS.length; i++) {
+            (function(idx) {
+                var ctrl = CONTROLS[idx];
+
+                var tr = document.createElement('tr');
+                tr.className = 'ctrl-row';
+                tr.id = 'ctrlRow' + idx;
+
+                /* ---- Cell 1: item name ---- */
+                var tdName = document.createElement('td');
+
+                var numBadge = document.createElement('span');
+                numBadge.className = 'ctrl-num';
+                numBadge.textContent = ctrl.id;
+
+                var nameSpan = document.createElement('span');
+                nameSpan.className = 'ctrl-name';
+                nameSpan.appendChild(numBadge);
+                nameSpan.appendChild(document.createTextNode(ctrl.name));
+
+                var hintSpan = document.createElement('span');
+                hintSpan.className = 'ctrl-hint';
+                hintSpan.textContent = ctrl.hint;
+                nameSpan.appendChild(hintSpan);
+
+                tdName.appendChild(nameSpan);
+
+                /* ---- Cell 2: AAA Pillar dropdown ---- */
+                var tdPillar = document.createElement('td');
+                var pillarWrap = document.createElement('div');
+                pillarWrap.className = 'ctrl-select-wrap';
+
+                var pillarSel = document.createElement('select');
+                pillarSel.className = 'ctrl-select';
+                pillarSel.id = 'pillarSelect' + idx;
+                pillarSel.setAttribute('aria-label', ctrl.name + ' -- AAA Pillar');
+
+                /* Blank placeholder */
+                var blankOpt = document.createElement('option');
+                blankOpt.value = '';
+                blankOpt.textContent = '-- Select Pillar --';
+                pillarSel.appendChild(blankOpt);
+
+                var pillarKeys = ['authentication', 'authorization', 'accounting'];
+                for (var p = 0; p < pillarKeys.length; p++) {
+                    var opt = document.createElement('option');
+                    opt.value = pillarKeys[p];
+                    opt.textContent = PILLAR_LABELS[pillarKeys[p]];
+                    pillarSel.appendChild(opt);
+                }
+
+                pillarSel.addEventListener('change', (function(i2) {
+                    return function() {
+                        studentAnswers[i2].pillarVal = this.value;
+                        updateProgress();
+                        /* Clear grading state when student changes answer */
+                        clearRowGrade(i2);
+                    };
+                })(idx));
+
+                /* Per-axis inline result indicator */
+                var pillarResult = document.createElement('div');
+                pillarResult.className = 'axis-result';
+                pillarResult.id = 'pillarResult' + idx;
+
+                pillarWrap.appendChild(pillarSel);
+                pillarWrap.appendChild(pillarResult);
+                tdPillar.appendChild(pillarWrap);
+
+                /* ---- Cell 3: Authentication Factor dropdown ---- */
+                var tdFactor = document.createElement('td');
+                var factorWrap = document.createElement('div');
+                factorWrap.className = 'ctrl-select-wrap';
+
+                var factorSel = document.createElement('select');
+                factorSel.className = 'ctrl-select';
+                factorSel.id = 'factorSelect' + idx;
+                factorSel.setAttribute('aria-label', ctrl.name + ' -- Authentication Factor');
+
+                var blankFactorOpt = document.createElement('option');
+                blankFactorOpt.value = '';
+                blankFactorOpt.textContent = '-- Select Factor --';
+                factorSel.appendChild(blankFactorOpt);
+
+                var factorKeys = ['know', 'have', 'are', 'somewhere', 'do', 'na'];
+                for (var f = 0; f < factorKeys.length; f++) {
+                    var fopt = document.createElement('option');
+                    fopt.value = factorKeys[f];
+                    fopt.textContent = FACTOR_LABELS[factorKeys[f]];
+                    factorSel.appendChild(fopt);
+                }
+
+                factorSel.addEventListener('change', (function(i3) {
+                    return function() {
+                        studentAnswers[i3].factorVal = this.value;
+                        updateProgress();
+                        clearRowGrade(i3);
+                    };
+                })(idx));
+
+                var factorResult = document.createElement('div');
+                factorResult.className = 'axis-result';
+                factorResult.id = 'factorResult' + idx;
+
+                factorWrap.appendChild(factorSel);
+                factorWrap.appendChild(factorResult);
+                tdFactor.appendChild(factorWrap);
+
+                tr.appendChild(tdName);
+                tr.appendChild(tdPillar);
+                tr.appendChild(tdFactor);
+                tbody.appendChild(tr);
+            })(i);
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       PROGRESS COUNTER
+       Counts non-empty dropdown selections and updates the progress bar.
+       ------------------------------------------------------------------ */
+    function updateProgress() {
+        var filled = 0;
+        for (var i = 0; i < studentAnswers.length; i++) {
+            if (studentAnswers[i].pillarVal  !== '') { filled++; }
+            if (studentAnswers[i].factorVal !== '') { filled++; }
+        }
+
+        document.getElementById('progressCount').textContent = filled + '/' + TOTAL_DROPDOWNS;
+        var pct = (filled / TOTAL_DROPDOWNS) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+
+        /* Enable submit only when every dropdown has a selection */
+        var allFilled = (filled === TOTAL_DROPDOWNS);
+        document.getElementById('btnSubmit').disabled = !allFilled;
+    }
+
+    /* ------------------------------------------------------------------
+       CLEAR ROW GRADING STATE
+       Called when a student changes a dropdown after grading.
+       ------------------------------------------------------------------ */
+    function clearRowGrade(idx) {
+        var row = document.getElementById('ctrlRow' + idx);
+        if (row) {
+            row.classList.remove('graded-correct', 'graded-incorrect');
+        }
+        var pillarRes = document.getElementById('pillarResult' + idx);
+        if (pillarRes) {
+            pillarRes.className = 'axis-result';
+            pillarRes.textContent = '';
+        }
+        var factorRes = document.getElementById('factorResult' + idx);
+        if (factorRes) {
+            factorRes.className = 'axis-result';
+            factorRes.textContent = '';
+        }
+        /* Hide results panel if student edits after grading */
+        document.getElementById('resultsPanel').classList.remove('visible');
+        document.getElementById('chipNum').textContent = '-';
+    }
+
+    /* ------------------------------------------------------------------
+       CHECK SINGLE ITEM
+       Returns { pillarOk, factorOk, allOk }.
+       The factor answer must exactly match ctrl.factor — 'na' is the only
+       correct value for Authorization and Accounting rows.
+       ------------------------------------------------------------------ */
+    function checkControl(idx) {
+        var ctrl = CONTROLS[idx];
+        var ans  = studentAnswers[idx];
+
+        var pillarOk = (ans.pillarVal === ctrl.pillar);
+        var factorOk = (ans.factorVal === ctrl.factor);
+
+        return {
+            pillarOk: pillarOk,
+            factorOk: factorOk,
+            allOk:    pillarOk && factorOk
+        };
+    }
+
+    /* ------------------------------------------------------------------
+       SUBMIT — grade all items, render results, fire completion
+       ------------------------------------------------------------------ */
+    function submitClassifications() {
+        var correctCount = 0;
+        var allResults   = [];
+
+        for (var i = 0; i < CONTROLS.length; i++) {
+            var res = checkControl(i);
+            allResults.push(res);
+            if (res.allOk) { correctCount++; }
+
+            /* Apply row highlight */
+            var row = document.getElementById('ctrlRow' + i);
+            row.classList.remove('graded-correct', 'graded-incorrect');
+            row.classList.add(res.allOk ? 'graded-correct' : 'graded-incorrect');
+
+            /* Per-axis inline indicators */
+            var pillarRes = document.getElementById('pillarResult' + i);
+            pillarRes.className = 'axis-result show ' + (res.pillarOk ? 'ok' : 'bad');
+            pillarRes.textContent = res.pillarOk
+                ? 'Correct'
+                : 'Incorrect -- answer: ' + PILLAR_LABELS[CONTROLS[i].pillar];
+
+            var factorRes = document.getElementById('factorResult' + i);
+            factorRes.className = 'axis-result show ' + (res.factorOk ? 'ok' : 'bad');
+            factorRes.textContent = res.factorOk
+                ? 'Correct'
+                : 'Incorrect -- answer: ' + FACTOR_LABELS[CONTROLS[i].factor];
+        }
+
+        var allCorrect = (correctCount === CONTROLS.length);
+
+        /* Score display */
+        var scoreNum     = document.getElementById('scoreNum');
+        var scoreVerdict = document.getElementById('scoreVerdict');
+
+        scoreNum.textContent = correctCount + '/' + CONTROLS.length;
+        scoreNum.className   = 'score-num ' + (allCorrect ? 'pass' : 'fail');
+
+        if (allCorrect) {
+            scoreVerdict.textContent = 'PASS -- All 8 items correctly classified';
+            scoreVerdict.className   = 'score-verdict pass';
+        } else {
+            var wrong = CONTROLS.length - correctCount;
+            scoreVerdict.textContent = 'NEEDS WORK -- ' + wrong + ' item' + (wrong !== 1 ? 's' : '') + ' incorrect';
+            scoreVerdict.className   = 'score-verdict fail';
+        }
+
+        /* Rail chip */
+        document.getElementById('chipNum').textContent = correctCount + '';
+
+        /* Build per-item result cards */
+        renderResultCards(allResults);
+
+        /* Pass banner and score-gated completion */
+        var banner = document.getElementById('passBanner');
+        if (allCorrect) {
+            banner.classList.add('visible');
+            /* Fires ONLY when every row is correct on both axes */
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('shield', 'shield-pbq-iam-aaa', { returnUrl: '../index.html' });
+            }
+        } else {
+            banner.classList.remove('visible');
+        }
+
+        /* Show results panel and scroll into view */
+        var panel = document.getElementById('resultsPanel');
+        panel.classList.add('visible');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ------------------------------------------------------------------
+       RENDER RESULT CARDS
+       One card per item showing correctness, student answer, correct
+       answer (when wrong), and the rationale.
+       ------------------------------------------------------------------ */
+    function renderResultCards(allResults) {
+        var container = document.getElementById('resultsCards');
+        container.innerHTML = '';
+
+        for (var i = 0; i < CONTROLS.length; i++) {
+            var ctrl = CONTROLS[i];
+            var res  = allResults[i];
+            var ans  = studentAnswers[i];
+
+            var card = document.createElement('div');
+            card.className = 'result-card ' + (res.allOk ? 'correct' : 'incorrect');
+
+            /* Header row: status badge + item name */
+            var header = document.createElement('div');
+            header.className = 'result-card-header';
+
+            var statusBadge = document.createElement('span');
+            statusBadge.className = 'result-status';
+            statusBadge.textContent = res.allOk ? 'CORRECT' : 'INCORRECT';
+
+            var nameDiv = document.createElement('div');
+            nameDiv.className = 'result-ctrl-name';
+            nameDiv.textContent = ctrl.name;
+
+            header.appendChild(statusBadge);
+            header.appendChild(nameDiv);
+            card.appendChild(header);
+
+            /* Classification pills */
+            var pills = document.createElement('div');
+            pills.className = 'result-pills';
+
+            /* Pillar pill */
+            var pillarPill = document.createElement('span');
+            pillarPill.className = 'pill ' + (res.pillarOk ? 'pill-correct' : 'pill-wrong');
+            pillarPill.textContent = 'PILLAR: ' + (ans.pillarVal ? PILLAR_LABELS[ans.pillarVal] : '(none)');
+            pills.appendChild(pillarPill);
+
+            /* If pillar was wrong, show correct one */
+            if (!res.pillarOk) {
+                var pillarCorrectPill = document.createElement('span');
+                pillarCorrectPill.className = 'pill pill-student';
+                pillarCorrectPill.textContent = 'Should be: ' + PILLAR_LABELS[ctrl.pillar];
+                pills.appendChild(pillarCorrectPill);
+            }
+
+            /* Factor pill */
+            var factorPill = document.createElement('span');
+            factorPill.className = 'pill ' + (res.factorOk ? 'pill-correct' : 'pill-wrong');
+            factorPill.textContent = 'FACTOR: ' + (ans.factorVal ? FACTOR_LABELS[ans.factorVal] : '(none)');
+            pills.appendChild(factorPill);
+
+            /* If factor was wrong, show correct one */
+            if (!res.factorOk) {
+                var factorCorrectPill = document.createElement('span');
+                factorCorrectPill.className = 'pill pill-student';
+                factorCorrectPill.textContent = 'Should be: ' + FACTOR_LABELS[ctrl.factor];
+                pills.appendChild(factorCorrectPill);
+            }
+
+            card.appendChild(pills);
+
+            /* Rationale */
+            var rationale = document.createElement('div');
+            rationale.className = 'result-rationale';
+            rationale.textContent = ctrl.rationale;
+            card.appendChild(rationale);
+
+            container.appendChild(card);
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       RESET ALL — clears every dropdown and all grading state
+       ------------------------------------------------------------------ */
+    function resetAll() {
+        /* Reset answer store */
+        for (var i = 0; i < studentAnswers.length; i++) {
+            studentAnswers[i] = { pillarVal: '', factorVal: '' };
+        }
+
+        /* Reset all dropdown elements and row state */
+        for (var j = 0; j < CONTROLS.length; j++) {
+            var pillarSel = document.getElementById('pillarSelect' + j);
+            var factorSel = document.getElementById('factorSelect' + j);
+            if (pillarSel) { pillarSel.value = ''; }
+            if (factorSel) { factorSel.value = ''; }
+
+            /* Remove row highlight classes */
+            var row = document.getElementById('ctrlRow' + j);
+            if (row) {
+                row.classList.remove('graded-correct', 'graded-incorrect');
+            }
+
+            /* Clear inline axis result indicators */
+            var pillarRes = document.getElementById('pillarResult' + j);
+            if (pillarRes) {
+                pillarRes.className = 'axis-result';
+                pillarRes.textContent = '';
+            }
+            var factorRes = document.getElementById('factorResult' + j);
+            if (factorRes) {
+                factorRes.className = 'axis-result';
+                factorRes.textContent = '';
+            }
+        }
+
+        /* Hide results panel */
+        document.getElementById('resultsPanel').classList.remove('visible');
+        document.getElementById('passBanner').classList.remove('visible');
+        document.getElementById('chipNum').textContent = '-';
+
+        updateProgress();
+    }
+
+    /* ------------------------------------------------------------------
+       BOOT
+       ------------------------------------------------------------------ */
+    init();
+</script>
+
+<!-- Dr. Hex floating mood-ring button -->
+<hex-ai-button mission-id="pbq-iam-aaa" house="shield"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
+
+</body>
+</html>
