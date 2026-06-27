@@ -106,3 +106,20 @@ shipped; the comprehensive content-vs-catalog scan + the 77 strict-orphans are s
       D3 Cryptography & PKI · D3 Identity & Access (AAA). → next wave: build PBQs for these.
 - [ ] Nancy refinements (domain-wide quizzes → domain level; curate 3 dup "Fundamentals" presentations).
 - [ ] (separate) MARA-SEARCH-1 comprehensive searchability scan.
+
+## UPDATE 2026-06-27 (later) — side quick-links rail + acronym reference shipped
+Operator: "where are the side quick links? where we can have quick access to pbq's and acronyms etc" → "get it done."
+- [x] **Side quick-links rail** added to the hub (`index.html`). Converted the hub from a 1100px narrow-centered
+      single column (a hard-rule violation) to a full-width two-column layout (`.container` 1100→1400px +
+      `.page-layout` grid `1fr 300px`), matching the operator-approved WSA hub. New sticky `<aside>` rendered by
+      `renderSidebar()` (manifest-driven), 3 sections: **Quick Access** (Acronyms · Practice Exams · Games),
+      **Performance-Based Qs** (direct links to all 4 PBQ labs — previously buried inside domain cards),
+      **Exam Domains** (D1–D5 jumps; click opens+scrolls the card via a hashchange handler). Webp icons, no emoji.
+- [x] **SY0-701 Acronym Reference** page built: `security-plus/reference/sy0-701-acronyms.reference.html`.
+      321 entries / 320 unique abbreviations, extracted VERBATIM via pdftotext from the official CompTIA
+      SY0-701 Exam Objectives v5.0 acronym appendix. Live filter (abbr OR expansion, "Showing N of M"),
+      full-width 4-col grid, AccessGuard-gated. Registered in ContentCatalog (`shield-sy0-701-acronyms`) so
+      GlobalSearch surfaces it.
+- QC: headless render-QC of both (two-column real, sticky, ≤1200px collapse, 0 broken icons, 0 console errors,
+      filter round-trips 321→1→321, 10 expansions spot-checked accurate). Nancy must-not-break checks pass
+      (no overflow/body.filter → Dr. Hex FAB stays fixed). Chris: PASS.

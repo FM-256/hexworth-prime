@@ -53,7 +53,67 @@
             overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
         }
 
-        .container { max-width: 1100px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* ── Two-column layout: main content + sticky quick-links rail ──
+           DO NOT add overflow:hidden/auto, transform, filter, or will-change to
+           .container / .page-layout / .hub-main — any of those breaks the sticky
+           sidebar AND the Dr. Hex position:fixed FAB (CLAUDE.md rule 5). */
+        .page-layout {
+            display: grid; grid-template-columns: 1fr 300px;
+            gap: 24px; align-items: start;
+        }
+        .hub-main { min-width: 0; }   /* allow card text ellipsis to work in grid track */
+
+        .sidebar {
+            position: sticky; top: 20px; align-self: start;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .sidebar-section {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 16px; box-shadow: var(--shadow-md);
+        }
+        .sidebar-section-title {
+            font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 2px; color: var(--text-muted);
+            margin-bottom: 12px; padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .quick-link {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 11px; border-radius: 8px; text-decoration: none;
+            color: var(--text-primary); transition: all 0.2s ease;
+            margin-bottom: 6px; border: 1px solid transparent;
+        }
+        .quick-link:last-child { margin-bottom: 0; }
+        .quick-link:hover {
+            background: rgba(59, 130, 246, 0.08);
+            border-color: var(--border-hover); transform: translateX(3px);
+        }
+        .quick-link-icon {
+            width: 18px; height: 18px; border-radius: 4px;
+            flex-shrink: 0; object-fit: cover; opacity: 0.9;
+        }
+        .quick-link-text {
+            font-size: 0.82rem; font-weight: 600; font-family: 'Segoe UI', sans-serif;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+        }
+        .quick-link-num {
+            margin-left: auto; font-size: 0.6rem; font-weight: 700; color: var(--shield-primary);
+            background: rgba(59, 130, 246, 0.10); border: 1px solid rgba(59, 130, 246, 0.20);
+            padding: 1px 6px; border-radius: 3px; flex-shrink: 0;
+        }
+        .quick-link.feature { background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.18); }
+        .quick-link.pbq:hover { background: rgba(236, 72, 153, 0.10); border-color: rgba(236, 72, 153, 0.32); }
+        .quick-link.pbq:hover .quick-link-num { color: #f472b6; }
+
+        /* Collapse to single column on narrower viewports (matches WSA breakpoint).
+           Sidebar drops below the main content and flows its sections in a row. */
+        @media (max-width: 1200px) {
+            .page-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; flex-direction: row; flex-wrap: wrap; }
+            .sidebar-section { flex: 1 1 260px; }
+        }
 
         /* ── Top bar ── */
         .top-bar {
@@ -469,14 +529,22 @@
             <div class="progress-text" id="progressText">Loading...</div>
         </div>
 
-        <!-- Domain sections — injected by buildHub() -->
-        <div class="section-heading">Exam Domains</div>
-        <div id="hub-root">
-            <div class="load-state" id="load-state">Loading curriculum...</div>
-        </div>
+        <!-- Two-column: main curriculum (left) + quick-links rail (right) -->
+        <div class="page-layout">
+            <div class="hub-main">
+                <!-- Domain sections — injected by buildHub() -->
+                <div class="section-heading">Exam Domains</div>
+                <div id="hub-root">
+                    <div class="load-state" id="load-state">Loading curriculum...</div>
+                </div>
 
-        <!-- Quizzes and Games — injected by buildHub() -->
-        <div id="extra-sections"></div>
+                <!-- Quizzes and Games — injected by buildHub() -->
+                <div id="extra-sections"></div>
+            </div>
+
+            <!-- Quick-links rail — injected by renderSidebar() -->
+            <aside class="sidebar" id="hub-sidebar" aria-label="Quick links"></aside>
+        </div>
 
         <!-- Dr. Hex AI study assistant -->
         <hex-ai-button mission-id="security-plus" house="shield"></hex-ai-button>
@@ -905,6 +973,57 @@
                 + '</div>';
         }
 
+        /* ── Build one quick-link <a> for the sidebar rail ─────────────────── */
+        function sidebarLink(href, iconFile, text, opts) {
+            opts = opts || {};
+            var cls = 'quick-link' + (opts.cls ? ' ' + opts.cls : '');
+            var num = (opts.num != null) ? '<span class="quick-link-num">' + opts.num + '</span>' : '';
+            var titleAttr = opts.title ? ' title="' + esc(opts.title) + '"' : '';
+            return '<a href="' + href + '" class="' + cls + '"' + titleAttr + '>'
+                + '<img src="../../../assets/images/icons/' + iconFile + '" alt="" class="quick-link-icon">'
+                + '<span class="quick-link-text">' + esc(text) + '</span>'
+                + num + '</a>';
+        }
+
+        /* ── Render the quick-links rail (Acronyms + exams/quizzes/games,
+              the PBQs, and domain jumps). Manifest-driven so it tracks data. ── */
+        function renderSidebar(examItems, pbqItems, quizItems, gameItems) {
+            var aside = document.getElementById('hub-sidebar');
+            if (!aside) { return; }
+            var html = '';
+
+            /* Quick Access: reference + assessment shortcuts */
+            var qa = sidebarLink('reference/sy0-701-acronyms.reference.html', 'icon-list.webp',
+                                 'Acronyms', { cls: 'feature', title: 'SY0-701 acronym reference' });
+            if (examItems.length) { qa += sidebarLink('#sec-exams',   'icon-clipboard.webp', 'Practice Exams', { num: examItems.length }); }
+            if (quizItems.length) { qa += sidebarLink('#sec-quizzes', 'icon-quiz.webp',      'Quizzes',        { num: quizItems.length }); }
+            if (gameItems.length) { qa += sidebarLink('#sec-games',   'icon-gamepad.webp',   'Games',          { num: gameItems.length }); }
+            html += '<div class="sidebar-section"><div class="sidebar-section-title">Quick Access</div>' + qa + '</div>';
+
+            /* Performance-Based Questions — direct links (otherwise scattered in domains) */
+            if (pbqItems.length) {
+                var pb = '';
+                pbqItems.forEach(function (it) {
+                    var label = (it.title || '').replace(/^PBQ:\s*/, '');
+                    pb += sidebarLink(buildHref(it.href), 'icon-target.webp', label, { cls: 'pbq', title: it.title });
+                });
+                html += '<div class="sidebar-section"><div class="sidebar-section-title">Performance-Based Qs</div>' + pb + '</div>';
+            }
+
+            /* Exam Domains — jump to each domain card (#d1..#d5) */
+            var dj = '';
+            DOMAIN_ORDER.forEach(function (dk) {
+                var meta = DOMAIN_META[dk];
+                if (!meta) { return; }
+                /* meta.short may carry HTML entities (e.g. "&amp;"); decode so esc() renders it once */
+                var label = meta.num + ' ' + (meta.short || '').replace(/&amp;/g, '&');
+                dj += sidebarLink('#' + meta.id, 'icon-shield.webp', label, { title: dk });
+            });
+            html += '<div class="sidebar-section"><div class="sidebar-section-title">Exam Domains</div>' + dj + '</div>';
+
+            aside.innerHTML = html;
+        }
+
         /* ── Main hub builder — called after manifest fetch ────────────────── */
         function buildHub(manifest) {
             var items     = manifest.items;
@@ -943,6 +1062,10 @@
             /* Practice Exams render at the TOP (prominent), before the domains. */
             hubRoot.innerHTML = renderExamsSection(examItems) + (domainHtml || '<div class="load-state">No domain content loaded.</div>');
             extraRoot.innerHTML = renderQuizzesSection(quizItems) + renderGamesSection(gameItems);
+
+            /* Quick-links rail — PBQs are any item flagged pbq, across all domains. */
+            var pbqItems = items.filter(function (it) { return it.pbq; });
+            renderSidebar(examItems, pbqItems, quizItems, gameItems);
 
             /* Update live resource count stat in header */
             var liveEl = document.getElementById('stat-live-count');
@@ -1056,6 +1179,24 @@
             var card = document.getElementById(id);
             if (card) { card.classList.toggle('open'); }
         }
+
+        /* ── openTarget — open a domain/section card and scroll it into view.
+              Shared by the initial #hash resolve and sidebar quick-link clicks. ── */
+        function openTarget(id) {
+            var card = document.getElementById(id);
+            if (!card) { return; }
+            card.classList.add('open');
+            setTimeout(function () {
+                card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 60);
+        }
+
+        /* A quick-link to #d3 etc. only changes the hash when the page is already
+           loaded; open+scroll the target card in response. */
+        window.addEventListener('hashchange', function () {
+            var id = window.location.hash.substring(1);
+            if (id) { openTarget(id); }
+        });
 
         /* ── Auto-open from URL hash (e.g. #d2) ──────────────────────────── */
         (function () {
