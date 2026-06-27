@@ -229,3 +229,27 @@ The Firestore seeding is the throughput bottleneck (gated production write) + th
 2. Confirm the **18 non-graded games** are OUT (flashcards/jeopardy/wheel have no scoring).
 3. **Firestore production-seed authorization** — batch-authorize per wave, or one standing authorization for the marathon?
 4. Want the **QUIZ-002b rule extended** to catch exams (so the metric stops under-counting)?
+
+---
+
+## EXAM WAVE COMPLETE — 2026-06-27 (13 of 13)
+
+All 13 client-graded EXAMS converted to server-side grading and LIVE. Operator decision: keep instant
+feedback (no deferring). Pattern: strip the embedded answer key; each answer validated per-question via the
+`gradeQuiz` Cloud Function (instant Correct/Incorrect + explanation preserved); answer key lives only in
+`quiz_keys/{moduleId}` (Firestore, seeded + `verify-quiz-keys.js PASSED`). Uses existing infra — no new
+Cloud Function.
+
+- **cr-midterm** (proof, deployed first).
+- **Family A** (multi-line skeleton, exact-match converter): cr-final, bm-midterm, bm-final.
+- **Family B** (minified, brace-matching converter): cb-midterm/final, sr-midterm-exam/sr-final-exam,
+  sp-w2-midterm/sp-w4-final, pfi-w4-final-exam, ra-midterm-exam/ra-final-exam. ra exams used a no-TOPICS
+  block (no topic breakdown).
+
+**Verified:** all 13 headless-tested end-to-end at 100% (instant feedback via server, completion fires,
+0 console errors); **all 13 QUIZ_ID↔seeded-key reconciled** (incl. the `-exam` suffixes — closes the QC-54
+0/N trap); answer keys confirmed gone from live source.
+
+**Remaining QC-57:** ~94 client-graded QUIZZES + 7 reviews (the non-exam violations). The 18 non-graded
+interactives (flashcards/jeopardy/wheel) stay excluded. Next waves: the quizzes, grouped by course/structure,
+same convert→seed→verify→deploy flow.
