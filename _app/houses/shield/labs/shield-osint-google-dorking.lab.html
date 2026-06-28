@@ -1,704 +1,1265 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>OSINT: Google Dorking Lab - Shield House | Hexworth Prime</title>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT Recon Terminal - Shield House</title>
+    <style>
+        :root {
+            --bg:#0b0f1a; --panel:#121a2e; --panel2:#0f1626;
+            --line:rgba(148,163,184,.16); --line2:rgba(148,163,184,.28);
+            --txt:#e2e8f0; --muted:#94a3b8; --dim:#64748b;
+            --accent:#3b82f6; --accent2:#60a5fa; --accent3:#93c5fd;
+            --ok:#22c55e; --okbg:rgba(34,197,94,.12);
+            --bad:#ef4444; --badbg:rgba(239,68,68,.12);
+            --warn:#fbbf24; --warnbg:rgba(251,191,36,.12);
+            --osint:#8b5cf6; --osintbg:rgba(139,92,246,.10);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html,body { height:100%; }
+        body {
+            font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+            background:radial-gradient(1200px 600px at 80% -10%, rgba(139,92,246,.09), transparent 60%),
+                       radial-gradient(900px 500px at 0% 110%, rgba(59,130,246,.06), transparent 55%), var(--bg);
+            color:var(--txt); min-height:100vh; overflow-x:hidden;
+        }
+        .mono { font-family:'Courier New', ui-monospace, monospace; }
+        img.ic { width:1em; height:1em; vertical-align:-0.14em; display:inline-block; }
 
-<!-- Access Control -->
-<script src="../../../components/AccessGuard.js"></script>
-<script>
-    AccessGuard.require('sorted');
-</script>
-<!-- Achievement & Progress Integration -->
-<script src="../../../components/AchievementManager.js"></script>
-<script src="../../../components/ModuleProgress.js"></script>
+        /* ── HUD ── */
+        .hud {
+            position:sticky; top:0; z-index:40;
+            display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+            padding:14px 26px;
+            background:linear-gradient(180deg, rgba(11,15,26,.96), rgba(11,15,26,.82));
+            backdrop-filter:blur(10px);
+            border-bottom:1px solid var(--line);
+        }
+        .hud-brand { display:flex; align-items:center; gap:13px; }
+        .hud-badge {
+            width:42px; height:42px; border-radius:11px; flex:0 0 auto;
+            display:grid; place-items:center;
+            background:linear-gradient(135deg, rgba(139,92,246,.28), rgba(139,92,246,.08));
+            border:1px solid rgba(139,92,246,.4);
+        }
+        .hud-badge img { width:22px; height:22px; }
+        .hud-titles h1 { font-size:1.16rem; font-weight:650; }
+        .hud-titles p { font-size:.78rem; color:var(--muted); margin-top:1px; }
+        .hud-spacer { flex:1 1 auto; }
+        .hud-chip {
+            display:flex; align-items:center; gap:9px;
+            padding:8px 14px; border-radius:10px;
+            background:var(--panel); border:1px solid var(--line);
+            font-size:.82rem;
+        }
+        .hud-chip .k { color:var(--muted); }
+        .hud-chip .v { font-weight:700; color:var(--accent2); }
+        .frameworks-chip { font-size:.72rem; color:var(--dim); }
+        .back-link {
+            display:inline-flex; align-items:center; gap:7px;
+            color:var(--muted); font-size:.82rem; text-decoration:none;
+        }
+        .back-link:hover { color:var(--accent2); }
+        .back-link img { width:14px; height:14px; }
 
-<style>
-  :root{
-    --bg:#0f172a;
-    --panel:#111827;
-    --muted:#94a3b8;
-    --accent:#10b981;
-    --accent2:#22d3ee;
-    --text:#e5e7eb;
-    --chip:#1f2937;
-    --warning:#f59e0b;
-    --danger:#ef4444;
-  }
-  *{box-sizing:border-box}
-  body{margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
-       color:var(--text); background: radial-gradient(1200px 800px at 20% -10%, #1e3a32 0%, #0b1220 60%, #060912 100%) fixed;}
+        /* ── Shell layout ── */
+        .shell {
+            display:grid;
+            grid-template-columns:300px minmax(0,1fr) 320px;
+            gap:18px; padding:18px 22px 90px;
+            align-items:start;
+        }
+        @media (max-width:1180px) {
+            .shell { grid-template-columns:1fr; }
+            .rail,.status { position:static !important; }
+        }
+        .panel {
+            background:linear-gradient(180deg, var(--panel), var(--panel2));
+            border:1px solid var(--line); border-radius:14px;
+        }
+        .rail, .status { position:sticky; top:84px; display:flex; flex-direction:column; gap:16px; }
+        .p-head {
+            display:flex; align-items:center; gap:9px;
+            padding:13px 16px; border-bottom:1px solid var(--line);
+        }
+        .p-head img { width:17px; height:17px; }
+        .p-head h2 { font-size:.82rem; text-transform:uppercase; letter-spacing:1.1px; color:var(--accent3); font-weight:650; }
+        .p-body { padding:15px 16px; }
 
-  /* Page Header */
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    background: linear-gradient(180deg, rgba(16,185,129,.08), rgba(16,185,129,.03));
-    border-bottom: 1px solid rgba(16,185,129,.2);
-  }
-  .page-header a {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s;
-  }
-  .page-header a:hover {
-    color: var(--accent2);
-  }
-  .brand {
-    font-weight: 600;
-    color: var(--text);
-  }
-  .brand span {
-    margin-right: 4px;
-  }
+        /* ── Mission list ── */
+        .missions { list-style:none; display:flex; flex-direction:column; gap:4px; }
+        .m-item {
+            display:flex; align-items:center; gap:11px; cursor:pointer;
+            padding:10px 11px; border-radius:9px; border:1px solid transparent;
+            transition:.15s;
+        }
+        .m-item:hover { background:rgba(139,92,246,.06); }
+        .m-item.active { background:rgba(139,92,246,.12); border-color:rgba(139,92,246,.32); }
+        .m-item.done .m-num { background:var(--ok); border-color:var(--ok); color:#06210f; }
+        .m-num {
+            width:26px; height:26px; flex:0 0 auto; border-radius:50%;
+            display:grid; place-items:center; font-size:.82rem; font-weight:700;
+            background:var(--panel); border:1px solid var(--line2); color:var(--muted);
+        }
+        .m-item.active .m-num { border-color:var(--osint); color:#c4b5fd; }
+        .m-txt .mt { font-size:.86rem; font-weight:600; }
+        .m-txt .ms { font-size:.72rem; color:var(--muted); }
 
-  header{padding:48px 24px 8px; text-align:center}
-  h1{margin:0; font-size:clamp(24px,3.5vw,40px); letter-spacing:.5px}
-  .sub{color:var(--muted); margin-top:8px}
-  .wrap{max-width:1200px; margin:24px auto 64px; padding:0 20px}
+        /* ── Operator reference ── */
+        .ref { border-top:1px solid var(--line); padding:10px 0; }
+        .ref:first-child { border-top:none; padding-top:2px; }
+        .ref .rh { display:flex; align-items:center; gap:8px; font-weight:650; font-size:.84rem; }
+        .ref .rtag { margin-left:auto; font-size:.62rem; padding:2px 6px; border-radius:5px; background:rgba(139,92,246,.14); color:#c4b5fd; }
+        .ref p { font-size:.75rem; color:var(--muted); margin-top:4px; line-height:1.5; }
+        .ref code { color:var(--accent3); font-size:.71rem; }
 
-  /* Cards */
-  .card{background:linear-gradient(180deg, rgba(16,185,129,.06), rgba(16,185,129,.02));
-        border:1px solid rgba(16,185,129,.15); border-radius:16px; padding:20px; margin:16px 0; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+        /* ── Workbench stages ── */
+        .ws { display:none; }
+        .ws.show { display:block; animation:fade .25s ease; }
+        @keyframes fade { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+        .ws-intro { padding:16px 18px; }
+        .ws-intro h3 { font-size:1.02rem; margin-bottom:7px; display:flex; align-items:center; gap:9px; }
+        .ws-intro p { color:var(--muted); font-size:.87rem; line-height:1.6; }
+        .ws-intro .obj {
+            margin-top:11px; padding:11px 13px; border-radius:10px;
+            background:var(--osintbg); border:1px solid rgba(139,92,246,.28);
+            font-size:.83rem;
+        }
+        .ws-intro .obj b { color:#c4b5fd; }
 
-  /* Warning Callout */
-  .warning-box {
-    background: linear-gradient(135deg, rgba(245,158,11,.12), rgba(239,68,68,.12));
-    border: 2px solid rgba(245,158,11,.4);
-    border-radius: 12px;
-    padding: 20px;
-    margin: 24px 0;
-    display: flex;
-    gap: 16px;
-    align-items: start;
-  }
-  .warning-box .icon {
-    font-size: 32px;
-    flex-shrink: 0;
-  }
-  .warning-box h3 {
-    margin: 0 0 8px;
-    color: var(--warning);
-    font-size: 18px;
-  }
-  .warning-box p {
-    margin: 4px 0;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-  .warning-box strong {
-    color: var(--danger);
-  }
+        /* ── Auth framing banner ── */
+        .auth-banner {
+            margin:0 18px 6px; padding:10px 14px; border-radius:10px; font-size:.78rem;
+            background:rgba(251,191,36,.08); border:1px solid rgba(251,191,36,.22);
+            color:#fde68a; display:flex; align-items:center; gap:9px;
+        }
+        .auth-banner img { width:15px; height:15px; flex:0 0 auto; }
 
-  .grid{display:grid; gap:16px}
-  @media(min-width:900px){.grid{grid-template-columns:1.1fr .9fr}}
-  h2{font-size:clamp(18px,2.4vw,26px); margin:0 0 12px}
-  h3{font-size:clamp(16px,2vw,20px); margin:16px 0 8px; color:var(--accent)}
+        /* ── Query input area ── */
+        .wb { padding:4px 18px 18px; }
+        .field { margin:12px 0; }
+        .field label { display:block; font-size:.75rem; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.5px; }
+        .dork-input {
+            width:100%; background:var(--panel2);
+            border:1px solid var(--line2); border-radius:9px; color:var(--txt);
+            font-family:'Courier New', monospace; font-size:.9rem;
+            padding:12px 14px; resize:none;
+        }
+        .dork-input:focus { outline:none; border-color:var(--osint); }
+        .dork-input.correct { border-color:var(--ok); }
+        .dork-input.wrong { border-color:var(--bad); }
 
-  table{width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border-radius:12px; border:1px solid rgba(16,185,129,.15)}
-  th, td{padding:12px 14px; text-align:left; vertical-align:top}
-  thead th{background:linear-gradient(180deg, rgba(16,185,129,.15), rgba(34,211,238,.12)); color:#d1fae5}
-  tbody tr:nth-child(odd){background:rgba(16,185,129,.04)}
+        .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+        .btn {
+            display:inline-flex; align-items:center; gap:9px; cursor:pointer;
+            padding:10px 17px; border-radius:9px; border:1px solid transparent;
+            font-size:.85rem; font-weight:650; font-family:inherit; transition:.15s;
+        }
+        .btn img { width:15px; height:15px; }
+        .btn-primary {
+            background:linear-gradient(135deg, var(--osint), #6d28d9);
+            color:#fff; box-shadow:0 4px 14px rgba(139,92,246,.3);
+        }
+        .btn-primary:hover { filter:brightness(1.08); transform:translateY(-1px); }
+        .btn-ghost { background:var(--panel2); border-color:var(--line2); color:var(--txt); }
+        .btn-ghost:hover { border-color:var(--osint); }
 
-  code, kbd{background:var(--chip); color:#d1fae5; padding:.15em .45em; border-radius:8px; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; font-size: 13px;}
-  pre{margin:0; padding:14px; background:#0b1020; border:1px solid rgba(16,185,129,.15); border-radius:12px; overflow:auto; position: relative;}
-  pre code {
-    background: transparent;
-    padding: 0;
-  }
+        /* ── Results pane ── */
+        .results-pane {
+            margin:14px 0 0; border-radius:11px; overflow:hidden;
+            border:1px solid var(--line2);
+        }
+        .results-header {
+            display:flex; align-items:center; gap:10px;
+            padding:9px 14px; background:rgba(139,92,246,.08);
+            border-bottom:1px solid var(--line);
+            font-size:.78rem; color:var(--muted);
+        }
+        .results-header img { width:14px; height:14px; }
+        .results-header .rcount { font-weight:700; color:var(--accent3); }
+        .results-list { display:flex; flex-direction:column; }
+        .result-item {
+            padding:11px 14px; border-top:1px solid var(--line);
+            transition:.12s;
+        }
+        .result-item:first-child { border-top:none; }
+        .result-item:hover { background:rgba(139,92,246,.04); }
+        .result-url { font-family:'Courier New', monospace; font-size:.73rem; color:#c4b5fd; margin-bottom:4px; }
+        .result-title { font-size:.84rem; font-weight:600; margin-bottom:3px; }
+        .result-snippet { font-size:.76rem; color:var(--muted); line-height:1.5; }
+        .result-tag {
+            display:inline-block; font-size:.63rem; padding:2px 6px; border-radius:5px;
+            margin-left:8px; font-weight:600; vertical-align:1px;
+        }
+        .tag-pdf { background:rgba(239,68,68,.18); color:#fca5a5; border:1px solid rgba(239,68,68,.25); }
+        .tag-dir { background:rgba(251,191,36,.18); color:#fde68a; border:1px solid rgba(251,191,36,.25); }
+        .tag-cfg { background:rgba(245,158,11,.18); color:#fcd34d; border:1px solid rgba(245,158,11,.25); }
+        .tag-login { background:rgba(59,130,246,.18); color:var(--accent3); border:1px solid rgba(59,130,246,.25); }
+        .tag-page { background:rgba(148,163,184,.12); color:var(--muted); border:1px solid var(--line); }
+        .tag-bak { background:rgba(249,115,22,.18); color:#fdba74; border:1px solid rgba(249,115,22,.25); }
+        .no-results {
+            padding:22px 14px; text-align:center; font-size:.84rem; color:var(--dim);
+        }
 
-  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
-  .chip{background:linear-gradient(90deg, rgba(16,185,129,.15), rgba(34,211,238,.12));
-        border:1px solid rgba(16,185,129,.2); padding:6px 10px; border-radius:999px; font-size:13px; color:#a7f3d0}
-  .tip{font-size:14px; color:var(--muted); margin-bottom: 8px;}
-  .accent{color:var(--accent)}
-  .accent2{color:var(--accent2)}
-  .examples ol{margin:0; padding-left:20px}
-  .examples li{margin:10px 0}
+        .verdict-box {
+            margin-top:13px; padding:12px 14px; border-radius:10px;
+            font-size:.85rem; display:none; align-items:center; gap:10px;
+        }
+        .verdict-box.show { display:flex; }
+        .verdict-box img { width:18px; height:18px; flex:0 0 auto; }
+        .verdict-box.good { background:var(--okbg); border:1px solid rgba(34,197,94,.4); color:#bbf7d0; }
+        .verdict-box.bad { background:var(--badbg); border:1px solid rgba(239,68,68,.4); color:#fecaca; }
+        .verdict-box.info { background:var(--warnbg); border:1px solid rgba(251,191,36,.3); color:#fde68a; }
+        .note { font-size:.76rem; color:var(--dim); margin-top:9px; }
 
-  /* Interactive Query Builder */
-  .builder {
-    background: rgba(16,185,129,.03);
-    border: 1px solid rgba(16,185,129,.2);
-    border-radius: 12px;
-    padding: 20px;
-    margin-top: 16px;
-  }
-  .builder label {
-    display: block;
-    margin: 12px 0 6px;
-    font-weight: 500;
-    font-size: 14px;
-    color: var(--accent);
-  }
-  .builder input, .builder select, .builder textarea {
-    width: 100%;
-    padding: 10px 12px;
-    background: rgba(0,0,0,.3);
-    border: 1px solid rgba(16,185,129,.2);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-  }
-  .builder textarea {
-    font-family: ui-monospace, monospace;
-    resize: vertical;
-    min-height: 80px;
-  }
-  .builder button {
-    margin-top: 12px;
-    padding: 10px 20px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    font-size: 14px;
-  }
-  .builder button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(16,185,129,.3);
-  }
-  .builder button:active {
-    transform: translateY(0);
-  }
-  .builder .output {
-    margin-top: 16px;
-    padding: 14px;
-    background: #0b1020;
-    border: 1px solid rgba(16,185,129,.2);
-    border-radius: 8px;
-    font-family: ui-monospace, monospace;
-    font-size: 13px;
-    color: var(--accent2);
-    word-break: break-all;
-  }
+        /* ── cert ── */
+        .cert {
+            display:none; margin:8px 18px 18px; padding:22px; border-radius:14px; text-align:center;
+            background:linear-gradient(135deg, rgba(139,92,246,.14), rgba(34,197,94,.10));
+            border:1px solid rgba(139,92,246,.4);
+        }
+        .cert.show { display:block; animation:fade .3s ease; }
+        .cert img.seal { width:52px; height:52px; }
+        .cert h3 { font-size:1.3rem; margin:10px 0 6px; }
+        .cert p { color:var(--muted); font-size:.9rem; max-width:620px; margin:0 auto; line-height:1.6; }
+        .cert .maps { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+        .cert .maps span { font-size:.72rem; padding:5px 10px; border-radius:7px; background:rgba(255,255,255,.06); border:1px solid var(--line); }
 
-  /* Copy button for code blocks */
-  .copy-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    padding: 4px 8px;
-    background: rgba(16,185,129,.2);
-    border: 1px solid rgba(16,185,129,.3);
-    border-radius: 6px;
-    color: var(--accent);
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s;
-    opacity: 0;
-  }
-  pre:hover .copy-btn {
-    opacity: 1;
-  }
-  .copy-btn:hover {
-    background: rgba(16,185,129,.3);
-  }
-  .copy-btn.copied {
-    background: var(--accent);
-    color: #000;
-  }
+        /* ── right rail ── */
+        .props { display:flex; flex-direction:column; gap:7px; }
+        .prop {
+            display:flex; align-items:center; gap:10px;
+            padding:9px 11px; border-radius:9px;
+            background:var(--panel2); border:1px solid var(--line);
+            font-size:.82rem;
+        }
+        .prop .dot { width:9px; height:9px; border-radius:50%; background:var(--dim); flex:0 0 auto; }
+        .prop.on { border-color:rgba(34,197,94,.4); }
+        .prop.on .dot { background:var(--ok); box-shadow:0 0 8px var(--ok); }
+        .prop .pn { font-weight:600; }
+        .prop .ps { color:var(--muted); font-size:.72rem; }
+        .log { margin-top:13px; display:flex; flex-direction:column; gap:6px; max-height:260px; overflow:auto; }
+        .logrow { font-family:'Courier New', monospace; font-size:.72rem; color:var(--muted); padding:5px 8px; border-left:2px solid var(--line2); }
+        .logrow b { color:#c4b5fd; }
+        .logrow.hit b { color:var(--ok); }
 
-  /* Complete button */
-  .complete-section {
-    text-align: center;
-    margin: 32px 0;
-  }
-  .complete-btn {
-    padding: 14px 32px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border: none;
-    border-radius: 12px;
-    color: white;
-    font-weight: 600;
-    font-size: 16px;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  .complete-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(16,185,129,.4);
-  }
-  .complete-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-  .complete-btn.completed {
-    background: linear-gradient(135deg, #059669, #0891b2);
-  }
+        /* ── toast (absolute + scroll offset per HEUR-008) ── */
+        .toast {
+            position:absolute; left:50%; transform:translateX(-50%) translateY(20px);
+            background:var(--panel); border:1px solid var(--line2);
+            border-radius:11px; padding:13px 20px; font-size:.86rem;
+            z-index:60; opacity:0; pointer-events:none; transition:.3s;
+            display:flex; align-items:center; gap:10px;
+            box-shadow:0 10px 40px rgba(0,0,0,.5);
+        }
+        .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+        .toast img { width:18px; height:18px; }
 
-  footer{color:var(--muted); text-align:center; padding:24px; font-size: 14px;}
-  a{color:#7dd3fc; text-decoration:none}
-  a:hover{text-decoration:underline}
-
-  ul {
-    line-height: 1.6;
-  }
-  ul li {
-    margin: 8px 0;
-  }
-</style>
+        /* ── hint toggle ── */
+        .hint-toggle {
+            font-size:.76rem; color:var(--dim); cursor:pointer; user-select:none;
+            display:inline-flex; align-items:center; gap:5px; margin-top:8px; text-decoration:underline;
+        }
+        .hint-toggle:hover { color:var(--muted); }
+        .hint-box {
+            display:none; margin-top:9px; padding:10px 13px; border-radius:9px;
+            background:rgba(139,92,246,.07); border:1px solid rgba(139,92,246,.22);
+            font-size:.78rem; color:#c4b5fd; font-family:'Courier New', monospace;
+        }
+        .hint-box.open { display:block; }
+    </style>
 </head>
 <body>
-  <header class="page-header">
-    <a href="../index.html">← Back to Shield House</a>
-    <span class="brand"><span><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></span> Hexworth Prime</span>
-  </header>
-
-  <header>
-    <h1>OSINT: <span class="accent">Google Dorking</span> Laboratory</h1>
-    <p class="sub">Master advanced search operators to discover exposed resources and security vulnerabilities.</p>
-  </header>
-
-  <main class="wrap">
-    <!-- Ethical Warning -->
-    <div class="warning-box">
-      <div class="icon"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
-      <div>
-        <h2>Ethical Use Warning</h2>
-        <p><strong>This lab is for educational and authorized security testing only.</strong></p>
-        <p>Using these techniques to access systems without authorization is illegal and unethical. Always obtain proper permission before conducting security assessments.</p>
-        <p>As a Shield House member, you are expected to use these skills responsibly to protect systems, not exploit them.</p>
-      </div>
-    </div>
-
-    <div class="grid">
-      <!-- LEFT: Operators -->
-      <section class="card">
-        <h2>Core Google Dork Operators</h2>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Operator</th>
-              <th scope="col">Purpose</th>
-              <th scope="col">Security Example</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>filetype:</code></td>
-              <td>Return specific file types (pdf, env, sql, log, etc.).</td>
-              <td><code>filetype:env "DB_PASSWORD"</code></td>
-            </tr>
-            <tr>
-              <td><code>intitle:</code></td>
-              <td>Term must appear in the page title.</td>
-              <td><code>intitle:"index of" /backup/</code></td>
-            </tr>
-            <tr>
-              <td><code>intext:</code></td>
-              <td>Term must appear in the page body.</td>
-              <td><code>intext:"confidential" filetype:pdf</code></td>
-            </tr>
-            <tr>
-              <td><code>site:</code></td>
-              <td>Restrict to a domain or TLD.</td>
-              <td><code>site:example.com filetype:sql</code></td>
-            </tr>
-            <tr>
-              <td><code>-</code> (minus)</td>
-              <td>Exclude terms or domains.</td>
-              <td><code>intitle:admin -site:wordpress.org</code></td>
-            </tr>
-            <tr>
-              <td><code>"…"</code></td>
-              <td>Match an exact phrase.</td>
-              <td><code>"phpMyAdmin" "running on"</code></td>
-            </tr>
-            <tr>
-              <td><code>OR</code></td>
-              <td>Match either of two terms/phrases.</td>
-              <td><code>(admin OR administrator) login</code></td>
-            </tr>
-            <tr>
-              <td><code>inurl:</code></td>
-              <td>Term must appear in the URL.</td>
-              <td><code>inurl:admin.php</code></td>
-            </tr>
-            <tr>
-              <td><code>ext:</code></td>
-              <td>Alternative to filetype:</td>
-              <td><code>ext:log "error"</code></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="chips" aria-label="Key tactics">
-          <span class="chip">Combine multiple operators</span>
-          <span class="chip">Use quotes for exact matches</span>
-          <span class="chip">Exclude false positives</span>
-          <span class="chip">Target specific domains</span>
+    <header class="hud">
+        <div class="hud-brand">
+            <div class="hud-badge"><img src="/assets/images/icons/icon-eye.webp" alt=""></div>
+            <div class="hud-titles">
+                <h1>OSINT Recon Terminal</h1>
+                <p>Veridian Health Systems &mdash; authorized passive reconnaissance assessment</p>
+            </div>
         </div>
-      </section>
+        <div class="hud-spacer"></div>
+        <div class="hud-chip frameworks-chip mono">OSINT &middot; Passive Recon &middot; SY0-701 2.x</div>
+        <div class="hud-chip"><span class="k">Objectives</span> <span class="v" id="hudScore">0 / 5</span></div>
+        <a class="back-link" href="../security-plus/index.html"><img src="/assets/images/icons/icon-door.webp" alt="">Security+ Hub</a>
+    </header>
 
-      <!-- RIGHT: Tactics -->
-      <section class="card">
-        <h2>Reconnaissance Tactics</h2>
-        <ul>
-          <li><strong>Configuration Files:</strong> Search for <code>filetype:env</code>, <code>filetype:config</code>, or <code>filetype:yml</code> with keywords like "password" or "api_key".</li>
-          <li><strong>Directory Listings:</strong> Use <code>intitle:"index of"</code> to find exposed directories containing backups, logs, or sensitive files.</li>
-          <li><strong>Login Portals:</strong> Combine <code>inurl:admin</code> or <code>intitle:login</code> with domain targeting to map authentication surfaces.</li>
-          <li><strong>Sensitive Documents:</strong> Search for PDFs or DOCs with keywords like "confidential", "internal only", or "do not distribute".</li>
-          <li><strong>Version Disclosure:</strong> Find software versions with queries like <code>"powered by" "version"</code> to identify outdated systems.</li>
-        </ul>
-        <p class="tip">Google caches pages, so you may find content that has since been secured. Always verify current state.</p>
-      </section>
+    <div class="shell">
+        <!-- LEFT: missions + operator reference -->
+        <aside class="rail">
+            <section class="panel">
+                <div class="p-head"><img src="/assets/images/icons/icon-target.webp" alt=""><h2>Recon Objectives</h2></div>
+                <div class="p-body">
+                    <ul class="missions" id="missionList">
+                        <li class="m-item active" data-m="1" onclick="goMission(1)">
+                            <span class="m-num">1</span>
+                            <span class="m-txt"><span class="mt">Exposed Documents</span><span class="ms">site: + filetype:</span></span>
+                        </li>
+                        <li class="m-item" data-m="2" onclick="goMission(2)">
+                            <span class="m-num">2</span>
+                            <span class="m-txt"><span class="mt">Auth Portals</span><span class="ms">inurl: + OR + intitle:</span></span>
+                        </li>
+                        <li class="m-item" data-m="3" onclick="goMission(3)">
+                            <span class="m-num">3</span>
+                            <span class="m-txt"><span class="mt">Open Directories</span><span class="ms">intitle:"index of"</span></span>
+                        </li>
+                        <li class="m-item" data-m="4" onclick="goMission(4)">
+                            <span class="m-num">4</span>
+                            <span class="m-txt"><span class="mt">Backup &amp; Config Files</span><span class="ms">filetype: + OR + -exclude</span></span>
+                        </li>
+                        <li class="m-item" data-m="5" onclick="goMission(5)">
+                            <span class="m-num">5</span>
+                            <span class="m-txt"><span class="mt">Subdomain Intel</span><span class="ms">site: + intext: subdomain</span></span>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="p-head"><img src="/assets/images/icons/icon-list.webp" alt=""><h2>Dork Operators</h2></div>
+                <div class="p-body">
+                    <div class="ref">
+                        <div class="rh"><img class="ic" src="/assets/images/icons/icon-network.webp" alt="">site:<span class="rtag">domain filter</span></div>
+                        <p>Restricts results to a domain. <code>site:example.com</code> matches the root and all subdomains. <code>site:dev.example.com</code> targets a specific subdomain.</p>
+                    </div>
+                    <div class="ref">
+                        <div class="rh"><img class="ic" src="/assets/images/icons/icon-document.webp" alt="">filetype: / ext:<span class="rtag">file type</span></div>
+                        <p>Returns a specific file type. <code>filetype:pdf</code> or <code>ext:bak</code>. Both are equivalent; the engine accepts both forms.</p>
+                    </div>
+                    <div class="ref">
+                        <div class="rh"><img class="ic" src="/assets/images/icons/icon-eye.webp" alt="">intitle:<span class="rtag">page title</span></div>
+                        <p>Term must appear in the page or document title. Classic recon: <code>intitle:"index of"</code> surfaces open directory listings.</p>
+                    </div>
+                    <div class="ref">
+                        <div class="rh"><img class="ic" src="/assets/images/icons/icon-magnifier.webp" alt="">inurl:<span class="rtag">URL path</span></div>
+                        <p>Term must appear in the URL. Useful for admin portals: <code>inurl:admin</code>, <code>inurl:login</code>.</p>
+                    </div>
+                    <div class="ref">
+                        <div class="rh"><img class="ic" src="/assets/images/icons/icon-document.webp" alt="">intext:<span class="rtag">body content</span></div>
+                        <p>Term must appear anywhere in the page body. Combine with <code>site:</code> to probe for specific data on a target.</p>
+                    </div>
+                    <div class="ref">
+                        <div class="rh"><img class="ic" src="/assets/images/icons/icon-key.webp" alt="">"phrase" &middot; OR &middot; -term<span class="rtag">combinators</span></div>
+                        <p>Quoted strings match exact phrases. <code>OR</code> (uppercase) matches either. Leading <code>-</code> excludes a term or domain: <code>-site:tutorial.com</code>.</p>
+                    </div>
+                </div>
+            </section>
+        </aside>
+
+        <!-- CENTER: dork query engine -->
+        <main class="panel" style="overflow:hidden;">
+
+            <!-- OBJECTIVE 1: Exposed PDF documents on target domain -->
+            <section class="ws show" data-ws="1">
+                <div class="ws-intro">
+                    <h3><img class="ic" src="/assets/images/icons/icon-document.webp" alt="">Objective 1 &mdash; Exposed Documents on Target Domain</h3>
+                    <p>The penetration test engagement letter authorizes passive OSINT against <strong>veridian-health.example</strong>. Your first task: discover any PDF documents indexed under the target domain. PDFs often contain patient intake forms, policy docs, and staff directories that were never meant to be public.</p>
+                    <div class="obj"><b>Objective:</b> craft a dork that returns ONLY PDF files hosted on <code>veridian-health.example</code>. A too-broad query returns noise from other domains and fails the objective.</div>
+                </div>
+                <div class="auth-banner">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="">
+                    Authorized assessment &mdash; fictional target only. All results come from a simulated in-page index; no real network requests are made.
+                </div>
+                <div class="wb">
+                    <div class="field">
+                        <label>Your Google Dork Query</label>
+                        <input type="text" class="dork-input mono" id="dork1" placeholder="e.g. site:veridian-health.example filetype:pdf" autocomplete="off" spellcheck="false" oninput="clearVerdict(1)">
+                    </div>
+                    <div class="row">
+                        <button class="btn btn-primary" onclick="checkObjective(1)"><img src="/assets/images/icons/icon-magnifier.webp" alt="">Run Query</button>
+                        <button class="btn btn-ghost" onclick="clearDork(1)"><img src="/assets/images/icons/icon-gear.webp" alt="">Clear</button>
+                        <span class="hint-toggle" onclick="toggleHint(1)"><img class="ic" src="/assets/images/icons/icon-key.webp" alt=""> Show hint</span>
+                    </div>
+                    <div class="hint-box" id="hint1">Combine two operators: site: to lock to the target domain, and filetype: or ext: to filter for PDF. The order does not matter. Example structure: <code>site:target.com filetype:ext</code></div>
+                    <div class="results-pane" id="results1"></div>
+                    <div class="verdict-box" id="v1"></div>
+                    <p class="note">OSINT context &mdash; SY0-701 2.x (Threat Intelligence): passive recon gathers data from publicly available sources without touching the target's systems. Indexed documents are a common OSINT finding in real assessments.</p>
+                </div>
+            </section>
+
+            <!-- OBJECTIVE 2: Auth portals -->
+            <section class="ws" data-ws="2">
+                <div class="ws-intro">
+                    <h3><img class="ic" src="/assets/images/icons/icon-padlock.webp" alt="">Objective 2 &mdash; Map Authentication Portals</h3>
+                    <p>Now identify every login and admin interface exposed on the target domain. Knowing the attack surface of authentication portals is a key deliverable in a penetration test scoping phase. A target may have multiple login pages (patient portal, staff portal, admin panel) that each represent a potential entry point.</p>
+                    <div class="obj"><b>Objective:</b> craft a dork that returns all login and admin portal pages on <code>veridian-health.example</code>. A correct dork must match pages with "login" in the URL OR "admin" in the title, scoped to the target domain.</div>
+                </div>
+                <div class="auth-banner">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="">
+                    Authorized assessment &mdash; fictional target. Mapping auth surfaces is a standard passive recon step before any active testing begins.
+                </div>
+                <div class="wb">
+                    <div class="field">
+                        <label>Your Google Dork Query</label>
+                        <input type="text" class="dork-input mono" id="dork2" placeholder="e.g. site:veridian-health.example inurl:login" autocomplete="off" spellcheck="false" oninput="clearVerdict(2)">
+                    </div>
+                    <div class="row">
+                        <button class="btn btn-primary" onclick="checkObjective(2)"><img src="/assets/images/icons/icon-magnifier.webp" alt="">Run Query</button>
+                        <button class="btn btn-ghost" onclick="clearDork(2)"><img src="/assets/images/icons/icon-gear.webp" alt="">Clear</button>
+                        <span class="hint-toggle" onclick="toggleHint(2)"><img class="ic" src="/assets/images/icons/icon-key.webp" alt=""> Show hint</span>
+                    </div>
+                    <div class="hint-box" id="hint2">Use site: + then either inurl:login OR intitle:admin (the OR keyword must be uppercase). Example: <code>site:target.com inurl:login OR intitle:admin</code></div>
+                    <div class="results-pane" id="results2"></div>
+                    <div class="verdict-box" id="v2"></div>
+                    <p class="note">Attack surface mapping &mdash; identifying auth portals during passive recon avoids touching the target prematurely. This data feeds the scoping section of a pen test report (PTES / OSSTMM).</p>
+                </div>
+            </section>
+
+            <!-- OBJECTIVE 3: Open directory listings -->
+            <section class="ws" data-ws="3">
+                <div class="ws-intro">
+                    <h3><img class="ic" src="/assets/images/icons/icon-list.webp" alt="">Objective 3 &mdash; Find Open Directory Listings</h3>
+                    <p>Web servers with directory browsing enabled expose their entire folder tree. These "Index of" pages are a gold mine: backup archives, unlinked scripts, database dumps, and SSH keys frequently appear in improperly secured directories. This is one of the most commonly exploited OSINT findings.</p>
+                    <div class="obj"><b>Objective:</b> find open directory listings on <code>veridian-health.example</code>. The page title of such pages is always "Index of /..." &mdash; construct a dork that matches this exact title pattern scoped to the target.</div>
+                </div>
+                <div class="auth-banner">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="">
+                    Authorized assessment. Directory enumeration is passive when performed via search engine cache &mdash; no direct web server contact.
+                </div>
+                <div class="wb">
+                    <div class="field">
+                        <label>Your Google Dork Query</label>
+                        <input type="text" class="dork-input mono" id="dork3" placeholder='e.g. site:veridian-health.example intitle:"index of"' autocomplete="off" spellcheck="false" oninput="clearVerdict(3)">
+                    </div>
+                    <div class="row">
+                        <button class="btn btn-primary" onclick="checkObjective(3)"><img src="/assets/images/icons/icon-magnifier.webp" alt="">Run Query</button>
+                        <button class="btn btn-ghost" onclick="clearDork(3)"><img src="/assets/images/icons/icon-gear.webp" alt="">Clear</button>
+                        <span class="hint-toggle" onclick="toggleHint(3)"><img class="ic" src="/assets/images/icons/icon-key.webp" alt=""> Show hint</span>
+                    </div>
+                    <div class="hint-box" id="hint3">Use site: scoped to the target, plus intitle: with the exact phrase "index of" in quotes. The phrase is case-insensitive in real Google; this engine accepts any case. Structure: <code>site:target.com intitle:"index of"</code></div>
+                    <div class="results-pane" id="results3"></div>
+                    <div class="verdict-box" id="v3"></div>
+                    <p class="note">Misconfiguration class &mdash; open directory listing is a CWE-548 exposure. In a real engagement this finding goes into the report as an information disclosure vulnerability, often rated MEDIUM severity.</p>
+                </div>
+            </section>
+
+            <!-- OBJECTIVE 4: Backup and config files -->
+            <section class="ws" data-ws="4">
+                <div class="ws-intro">
+                    <h3><img class="ic" src="/assets/images/icons/icon-warning.webp" alt="">Objective 4 &mdash; Locate Exposed Backup and Config Files</h3>
+                    <p>Configuration and backup files left in web-accessible locations are critical findings. A <code>.env</code> file contains database credentials and API keys; a <code>.bak</code> file is typically a copy of a live config or database. These file types should never be served over HTTP.</p>
+                    <div class="obj"><b>Objective:</b> find exposed <code>.env</code> OR <code>.bak</code> files on <code>veridian-health.example</code>. Your dork must use a filetype/ext operator with OR logic to match both types, scoped to the target domain. Queries that omit the domain scope or target only one type fail.</div>
+                </div>
+                <div class="auth-banner">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="">
+                    Authorized assessment. Credential exposure via misconfigured file serving is a HIGH severity finding in most pen test frameworks.
+                </div>
+                <div class="wb">
+                    <div class="field">
+                        <label>Your Google Dork Query</label>
+                        <input type="text" class="dork-input mono" id="dork4" placeholder="e.g. site:veridian-health.example filetype:env OR ext:bak" autocomplete="off" spellcheck="false" oninput="clearVerdict(4)">
+                    </div>
+                    <div class="row">
+                        <button class="btn btn-primary" onclick="checkObjective(4)"><img src="/assets/images/icons/icon-magnifier.webp" alt="">Run Query</button>
+                        <button class="btn btn-ghost" onclick="clearDork(4)"><img src="/assets/images/icons/icon-gear.webp" alt="">Clear</button>
+                        <span class="hint-toggle" onclick="toggleHint(4)"><img class="ic" src="/assets/images/icons/icon-key.webp" alt=""> Show hint</span>
+                    </div>
+                    <div class="hint-box" id="hint4">Combine site: with two filetype/ext operators joined by OR: <code>site:target.com filetype:env OR ext:bak</code>. Both filetype: and ext: are accepted by this engine and are equivalent. OR must be uppercase.</div>
+                    <div class="results-pane" id="results4"></div>
+                    <div class="verdict-box" id="v4"></div>
+                    <p class="note">Credential exposure via file serving &mdash; classified as CWE-200 (Exposure of Sensitive Information). A real <code>.env</code> file typically contains <code>DB_PASSWORD</code>, <code>API_SECRET</code>, and cloud storage keys in plaintext.</p>
+                </div>
+            </section>
+
+            <!-- OBJECTIVE 5: Subdomain intel -->
+            <section class="ws" data-ws="5">
+                <div class="ws-intro">
+                    <h3><img class="ic" src="/assets/images/icons/icon-network.webp" alt="">Objective 5 &mdash; Discover Subdomain Intelligence</h3>
+                    <p>The final objective maps a specific non-obvious subdomain of the target: the staging environment. Staging servers are frequently misconfigured, often running with debug mode on, and may share credentials with production. Passive OSINT via Google can surface subdomains that do not appear in DNS brute-force wordlists.</p>
+                    <div class="obj"><b>Objective:</b> find the <code>staging.veridian-health.example</code> subdomain specifically, and confirm it contains the string "internal use only" in the page body. Your dork must use <code>site:</code> scoped to the specific subdomain AND <code>intext:</code> to match the content. A dork that only scopes to the root domain returns too many results and fails.</div>
+                </div>
+                <div class="auth-banner">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="">
+                    Authorized assessment. Staging environment discovery is a critical passive recon finding &mdash; shadow IT surfaces routinely bypass WAF and patch cadences.
+                </div>
+                <div class="wb">
+                    <div class="field">
+                        <label>Your Google Dork Query</label>
+                        <input type="text" class="dork-input mono" id="dork5" placeholder='e.g. site:staging.veridian-health.example intext:"internal use only"' autocomplete="off" spellcheck="false" oninput="clearVerdict(5)">
+                    </div>
+                    <div class="row">
+                        <button class="btn btn-primary" onclick="checkObjective(5)"><img src="/assets/images/icons/icon-magnifier.webp" alt="">Run Query</button>
+                        <button class="btn btn-ghost" onclick="clearDork(5)"><img src="/assets/images/icons/icon-gear.webp" alt="">Clear</button>
+                        <span class="hint-toggle" onclick="toggleHint(5)"><img class="ic" src="/assets/images/icons/icon-key.webp" alt=""> Show hint</span>
+                    </div>
+                    <div class="hint-box" id="hint5">Scope site: to the exact subdomain (not the root domain), then add intext: with the quoted phrase. Structure: <code>site:staging.target.com intext:"internal use only"</code></div>
+                    <div class="results-pane" id="results5"></div>
+                    <div class="verdict-box" id="v5"></div>
+                    <p class="note">Shadow infrastructure &mdash; staging environments that are exposed to Google indexing are a common HIGH severity finding. They often run older software versions and reuse production credentials without MFA enforcement.</p>
+                </div>
+
+                <!-- cert appears inside final objective panel -->
+                <div class="cert" id="cert">
+                    <img class="seal" src="/assets/images/icons/icon-trophy.webp" alt="">
+                    <h3>OSINT Analyst Certified</h3>
+                    <p>You conducted a full passive reconnaissance assessment against a sanctioned target &mdash; mapping exposed documents, authentication portals, open directory listings, credential-bearing config files, and subdomain infrastructure &mdash; using only publicly available search engine operators and zero direct target contact. That is the discipline of passive OSINT.</p>
+                    <div class="maps">
+                        <span>OSINT &middot; Passive Recon</span>
+                        <span>SY0-701 2.x Threat Intelligence</span>
+                        <span>site: &middot; filetype: &middot; intitle: &middot; inurl: &middot; intext:</span>
+                        <span>CWE-200 / CWE-548</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- RIGHT: objective status + query log -->
+        <aside class="status">
+            <section class="panel">
+                <div class="p-head"><img src="/assets/images/icons/icon-eye.webp" alt=""><h2>Recon Status</h2></div>
+                <div class="p-body">
+                    <div class="props" id="props"></div>
+                    <div class="log" id="log"></div>
+                </div>
+            </section>
+        </aside>
     </div>
 
-    <!-- Copy-Paste Examples -->
-    <section class="card examples">
-      <h2>Security-Focused Examples</h2>
-      <p class="tip">Click the copy button to grab any query, then test it in Google (on authorized targets only).</p>
-      <ol>
-        <li>
-          <div class="tip">Exposed .env files with database credentials</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:env "DB_PASSWORD"</code></pre>
-        </li>
-        <li>
-          <div class="tip">Configuration files containing API keys</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:config "api_key" OR "apikey"</code></pre>
-        </li>
-        <li>
-          <div class="tip">Exposed directory listings for admin panels</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"index of" /admin/</code></pre>
-        </li>
-        <li>
-          <div class="tip">Login portals and admin interfaces</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"admin login" OR intext:"administrator login"</code></pre>
-        </li>
-        <li>
-          <div class="tip">Confidential PDF documents</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:pdf "confidential" OR "internal use only"</code></pre>
-        </li>
-        <li>
-          <div class="tip">SQL database dumps</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:sql "INSERT INTO" "VALUES"</code></pre>
-        </li>
-        <li>
-          <div class="tip">Log files with potential credentials</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:log "password" OR "username"</code></pre>
-        </li>
-        <li>
-          <div class="tip">Exposed backup files</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"index of" (backup OR .bak OR .zip)</code></pre>
-        </li>
-        <li>
-          <div class="tip">phpMyAdmin installations</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"phpMyAdmin" "running on" inurl:phpmyadmin</code></pre>
-        </li>
-        <li>
-          <div class="tip">WordPress config files with credentials</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:txt inurl:wp-config.php "DB_PASSWORD"</code></pre>
-        </li>
-        <li>
-          <div class="tip">SSH private keys accidentally exposed</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"index of" .ssh "id_rsa" OR "id_dsa"</code></pre>
-        </li>
-        <li>
-          <div class="tip">Webcams and IoT devices with default credentials</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>inurl:"/view/index.shtml" OR intitle:"Live View / - AXIS"</code></pre>
-        </li>
-        <li>
-          <div class="tip">Exposed Git repositories</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"index of" ".git" "parent directory"</code></pre>
-        </li>
-        <li>
-          <div class="tip">Server status pages revealing information</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intitle:"Apache Status" "Apache Server Status for"</code></pre>
-        </li>
-        <li>
-          <div class="tip">Error messages revealing paths and versions</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>intext:"sql syntax near" OR intext:"syntax error has occurred"</code></pre>
-        </li>
-      </ol>
-    </section>
-
-    <!-- Interactive Query Builder -->
-    <section class="card">
-      <h2>Interactive Query Builder</h2>
-      <p class="tip">Build custom Google dorks by selecting operators and entering your search terms.</p>
-
-      <div class="builder">
-        <label for="search-term">Primary Search Term:</label>
-        <input type="text" id="search-term" placeholder='e.g., "password", "admin", "confidential"' />
-
-        <label for="file-type">File Type (optional):</label>
-        <select id="file-type">
-          <option value="">-- None --</option>
-          <option value="env">.env</option>
-          <option value="pdf">PDF</option>
-          <option value="sql">SQL</option>
-          <option value="log">LOG</option>
-          <option value="config">CONFIG</option>
-          <option value="yml">YML</option>
-          <option value="xml">XML</option>
-          <option value="txt">TXT</option>
-          <option value="doc">DOC</option>
-          <option value="xls">XLS</option>
-        </select>
-
-        <label for="location">Location Constraint:</label>
-        <select id="location">
-          <option value="">-- None --</option>
-          <option value="intitle">In Title</option>
-          <option value="intext">In Text</option>
-          <option value="inurl">In URL</option>
-        </select>
-
-        <label for="site-target">Target Site (optional):</label>
-        <input type="text" id="site-target" placeholder="e.g., example.com or .edu" />
-
-        <label for="exclude-term">Exclude Term (optional):</label>
-        <input type="text" id="exclude-term" placeholder="e.g., pinterest.com, tutorial" />
-
-        <label for="advanced">Advanced: Additional Operators (optional):</label>
-        <textarea id="advanced" placeholder='e.g., OR "api_key" OR intitle:"backup"'></textarea>
-
-        <button onclick="buildQuery()">Generate Query</button>
-
-        <div id="query-output" class="output" style="display:none;"></div>
-        <button id="test-query" style="display:none; margin-top: 8px;" onclick="testQuery()">Test in Google (New Tab)</button>
-        <button id="copy-query" style="display:none; margin-top: 8px;" onclick="copyBuiltQuery()">Copy Query</button>
-      </div>
-    </section>
-
-    <!-- Practice Challenges -->
-    <section class="card">
-      <h2>Practice Challenges</h2>
-      <p class="tip">Test your dorking skills with these real-world scenarios. Try to craft the query yourself before revealing the solution.</p>
-
-      <div style="margin-top: 16px;">
-        <h3>Challenge 1: Find Exposed Database Backups</h3>
-        <p style="color: var(--muted); font-size: 14px; margin: 8px 0;">
-          Task: Find SQL database backup files that contain the word "users" in their content, excluding tutorial sites.
-        </p>
-        <details style="margin: 8px 0; padding: 12px; background: rgba(16,185,129,.05); border-radius: 8px;">
-          <summary style="cursor: pointer; font-weight: 500; color: var(--accent);">Show Solution</summary>
-          <pre style="margin-top: 12px;"><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>filetype:sql intext:"users" -site:tutorial -site:stackoverflow.com</code></pre>
-        </details>
-      </div>
-
-      <div style="margin-top: 16px;">
-        <h3>Challenge 2: Discover Admin Panels on a Specific Domain</h3>
-        <p style="color: var(--muted); font-size: 14px; margin: 8px 0;">
-          Task: Find all admin login pages on educational institutions (.edu domains).
-        </p>
-        <details style="margin: 8px 0; padding: 12px; background: rgba(16,185,129,.05); border-radius: 8px;">
-          <summary style="cursor: pointer; font-weight: 500; color: var(--accent);">Show Solution</summary>
-          <pre style="margin-top: 12px;"><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>site:edu (intitle:"admin login" OR inurl:admin OR inurl:administrator)</code></pre>
-        </details>
-      </div>
-
-      <div style="margin-top: 16px;">
-        <h3>Challenge 3: Locate Exposed Configuration Files</h3>
-        <p style="color: var(--muted); font-size: 14px; margin: 8px 0;">
-          Task: Find configuration files (.yml or .config) that contain either "password" or "secret".
-        </p>
-        <details style="margin: 8px 0; padding: 12px; background: rgba(16,185,129,.05); border-radius: 8px;">
-          <summary style="cursor: pointer; font-weight: 500; color: var(--accent);">Show Solution</summary>
-          <pre style="margin-top: 12px;"><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>(filetype:yml OR filetype:config) ("password" OR "secret")</code></pre>
-        </details>
-      </div>
-
-      <div style="margin-top: 16px;">
-        <h3>Challenge 4: Find Sensitive Internal Documents</h3>
-        <p style="color: var(--muted); font-size: 14px; margin: 8px 0;">
-          Task: Discover PDF documents marked as "confidential" or "internal" on government domains (.gov).
-        </p>
-        <details style="margin: 8px 0; padding: 12px; background: rgba(16,185,129,.05); border-radius: 8px;">
-          <summary style="cursor: pointer; font-weight: 500; color: var(--accent);">Show Solution</summary>
-          <pre style="margin-top: 12px;"><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>site:gov filetype:pdf ("confidential" OR "internal" OR "classified")</code></pre>
-        </details>
-      </div>
-    </section>
-
-    <!-- Completion Section -->
-    <div class="complete-section">
-      <button id="complete-btn" class="complete-btn" onclick="markComplete()">
-        Mark Lab as Complete
-      </button>
-      <p id="time-spent" style="margin-top: 12px; color: var(--muted); font-size: 14px;"></p>
+    <div class="toast" id="toast">
+        <img src="/assets/images/icons/icon-checkmark.webp" alt="" id="toastIcon">
+        <span id="toastMsg"></span>
     </div>
-  </main>
 
-  <footer>
-    <p>Pro tip: Start broad, then narrow with <code>intitle:</code>, <code>intext:</code>, and <code>-site:</code> exclusions.</p>
-    <p style="margin-top: 8px; font-size: 12px;">Remember: With great power comes great responsibility. Use these skills ethically.</p>
-  </footer>
+    <script>
+    /* ============================================================
+       OSINT RECON TERMINAL
+       Engine: a real dork query parser + evaluator runs every
+       student-typed query against a 28-entry simulated search index.
+       Operators parsed: site:, filetype:, ext:, intitle:, inurl:,
+       intext:, "exact phrase", -exclude, OR, plain terms.
+       Five objectives each require a correctly-scoped dork that
+       returns the correct target result set. Wrong/broad dorks
+       return wrong results and do not pass the objective.
+       SY0-701 2.x passive reconnaissance / OSINT.
+       ============================================================ */
 
-  <script>
-    // Track time spent on page
-    let startTime = Date.now();
-    let completionTracked = false;
+    /* ----------------------------------------------------------------
+       SIMULATED SEARCH INDEX
+       28 mock pages. Each has: url, title, filetype, content (body
+       text searchable by intext:), and tags for UI display.
+    ---------------------------------------------------------------- */
+    const INDEX = [
+        /* -- veridian-health.example root domain -- */
+        {
+            url: 'https://veridian-health.example/about.html',
+            title: 'About Us - Veridian Health Systems',
+            filetype: 'html', tags: ['page'],
+            content: 'Veridian Health Systems provides integrated healthcare solutions. Our mission is patient-centered care.',
+        },
+        {
+            url: 'https://veridian-health.example/services.html',
+            title: 'Our Services - Veridian Health Systems',
+            filetype: 'html', tags: ['page'],
+            content: 'Primary care, cardiology, oncology, radiology services available at Veridian Health.',
+        },
+        {
+            url: 'https://veridian-health.example/docs/staff-handbook.pdf',
+            title: 'Staff Handbook 2024 - Veridian Health Systems',
+            filetype: 'pdf', tags: ['pdf'],
+            content: 'Employee policies, code of conduct, PTO schedule, payroll contacts. For internal staff use.',
+        },
+        {
+            url: 'https://veridian-health.example/docs/patient-intake-form.pdf',
+            title: 'Patient Intake Form - Veridian Health',
+            filetype: 'pdf', tags: ['pdf'],
+            content: 'Patient registration, insurance information, emergency contacts, consent form. Veridian Health.',
+        },
+        {
+            url: 'https://veridian-health.example/docs/hipaa-notice.pdf',
+            title: 'HIPAA Notice of Privacy Practices - Veridian Health',
+            filetype: 'pdf', tags: ['pdf'],
+            content: 'Your rights under HIPAA. How we use and disclose protected health information. Veridian Health Systems.',
+        },
+        {
+            url: 'https://veridian-health.example/login.php',
+            title: 'Staff Login - Veridian Health Systems',
+            filetype: 'php', tags: ['login'],
+            content: 'Username and password required. Veridian Health staff login portal.',
+        },
+        {
+            url: 'https://veridian-health.example/patient-portal/login.php',
+            title: 'Patient Portal Login - Veridian Health',
+            filetype: 'php', tags: ['login'],
+            content: 'Access your medical records, appointments, and messages through the Veridian Patient Portal.',
+        },
+        {
+            url: 'https://veridian-health.example/admin/index.php',
+            title: 'Admin Panel - Veridian Health Systems',
+            filetype: 'php', tags: ['login'],
+            content: 'Administrator dashboard. Restricted access. Veridian Health internal tools.',
+        },
+        {
+            url: 'https://veridian-health.example/backup/',
+            title: 'Index of /backup',
+            filetype: 'dir', tags: ['dir'],
+            content: 'Parent directory. db-backup-2024-01.sql.gz, config-backup.tar.gz, wp-config.php.bak',
+        },
+        {
+            url: 'https://veridian-health.example/files/',
+            title: 'Index of /files',
+            filetype: 'dir', tags: ['dir'],
+            content: 'Parent directory. staff-photos/, reports/, archive-2023.zip',
+        },
+        {
+            url: 'https://veridian-health.example/.env',
+            title: '.env - Veridian Health',
+            filetype: 'env', tags: ['cfg'],
+            content: 'DB_HOST=db.internal DB_USER=vhsadmin DB_PASSWORD=Vh$Admin2024 API_SECRET=sk_live_9x2pQ MAIL_KEY=SG.xYz123',
+        },
+        {
+            url: 'https://veridian-health.example/config.bak',
+            title: 'config.bak - Veridian Health',
+            filetype: 'bak', tags: ['bak'],
+            content: 'Backup of web application config. DB connection strings, session secrets, payment gateway API keys.',
+        },
+        {
+            url: 'https://veridian-health.example/web.config.bak',
+            title: 'web.config.bak - Veridian Health',
+            filetype: 'bak', tags: ['bak'],
+            content: 'IIS web.config backup. Application pool settings, connection strings, authentication configuration.',
+        },
+        /* -- dev subdomain -- */
+        {
+            url: 'https://dev.veridian-health.example/',
+            title: 'Dev Environment - Veridian Health',
+            filetype: 'html', tags: ['page'],
+            content: 'Development environment for Veridian Health. Do not use for patient data.',
+        },
+        {
+            url: 'https://dev.veridian-health.example/admin/',
+            title: 'Admin Panel - Dev - Veridian Health',
+            filetype: 'html', tags: ['login'],
+            content: 'Development admin interface. Access restricted to engineering team. Debug mode enabled.',
+        },
+        /* -- staging subdomain -- */
+        {
+            url: 'https://staging.veridian-health.example/',
+            title: 'Staging Environment - Veridian Health',
+            filetype: 'html', tags: ['page'],
+            content: 'Staging server for Veridian Health Systems. Internal use only. Not for production traffic.',
+        },
+        {
+            url: 'https://staging.veridian-health.example/portal/',
+            title: 'Staging Patient Portal - Veridian Health',
+            filetype: 'html', tags: ['page'],
+            content: 'Staging patient portal. Internal use only. Pre-release build v3.1.2-beta. Credentials mirror production.',
+        },
+        {
+            url: 'https://staging.veridian-health.example/docs/migration-plan.pdf',
+            title: 'EHR Migration Plan 2024 - Veridian Health (DRAFT)',
+            filetype: 'pdf', tags: ['pdf'],
+            content: 'Internal use only. Database migration timeline, rollback procedures, vendor contacts. Veridian Health IT.',
+        },
+        /* -- api subdomain -- */
+        {
+            url: 'https://api.veridian-health.example/v1/docs',
+            title: 'API Documentation - Veridian Health',
+            filetype: 'html', tags: ['page'],
+            content: 'REST API documentation for Veridian Health integration partners. OAuth2 endpoints, rate limits.',
+        },
+        {
+            url: 'https://api.veridian-health.example/.env',
+            title: '.env - API Server - Veridian Health',
+            filetype: 'env', tags: ['cfg'],
+            content: 'STRIPE_SECRET=sk_live_api999 TWILIO_SID=AC9x JWT_SECRET=ve$riAPIsecret2024 DB_URL=postgres://api:p4ss@db.internal/vhs',
+        },
+        /* -- noise: unrelated domains (decoys to test site: scoping) -- */
+        {
+            url: 'https://medcaregroup.example/staff-login.php',
+            title: 'Staff Login - MedCare Group',
+            filetype: 'php', tags: ['login'],
+            content: 'MedCare Group employee portal. Username and password required.',
+        },
+        {
+            url: 'https://healthinfo-tutorials.example/google-dorking.pdf',
+            title: 'Google Dorking for OSINT - Tutorial',
+            filetype: 'pdf', tags: ['pdf'],
+            content: 'Educational guide to using Google search operators for OSINT reconnaissance.',
+        },
+        {
+            url: 'https://securitytraining.example/osint-lab/',
+            title: 'OSINT Lab - Security Training',
+            filetype: 'html', tags: ['page'],
+            content: 'Practice OSINT techniques in a safe environment. No authorization required for this training domain.',
+        },
+        {
+            url: 'https://opensourcehealth.example/docs/ehr-guide.pdf',
+            title: 'EHR Implementation Guide - Open Source Health',
+            filetype: 'pdf', tags: ['pdf'],
+            content: 'Comprehensive guide to deploying open source EHR systems.',
+        },
+        {
+            url: 'https://hospitaltech.example/backup/',
+            title: 'Index of /backup',
+            filetype: 'dir', tags: ['dir'],
+            content: 'Parent directory. Old backups, archive files.',
+        },
+        {
+            url: 'https://clinicalsystems.example/login.php',
+            title: 'Login - Clinical Systems Platform',
+            filetype: 'php', tags: ['login'],
+            content: 'Clinical Systems login portal for authorized users.',
+        },
+        {
+            url: 'https://dentalplus.example/admin.php',
+            title: 'Admin - Dental Plus',
+            filetype: 'php', tags: ['login'],
+            content: 'Administrator access only. Dental Plus practice management system.',
+        },
+        {
+            url: 'https://pharmanet.example/config.bak',
+            title: 'config.bak - PharmaNet',
+            filetype: 'bak', tags: ['bak'],
+            content: 'PharmaNet application configuration backup.',
+        }
+    ];
 
-    // Update time display
-    setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const minutes = Math.floor(elapsed / 60);
-      const seconds = elapsed % 60;
-      document.getElementById('time-spent').textContent =
-        `Time spent: ${minutes}m ${seconds}s`;
-    }, 1000);
+    /* ----------------------------------------------------------------
+       DORK QUERY PARSER
+       Parses a raw dork string into structured constraints.
+       Returns an object: { site, filetype, intitle, inurl, intext,
+         phrases, excludeTerms, orGroups, plainTerms }
+    ---------------------------------------------------------------- */
+    function parseDork(raw) {
+        const q = raw.trim();
+        const result = {
+            site: null,           // string: value after site:
+            filetype: null,       // array of strings (OR logic between multiple filetype/ext tokens)
+            intitle: null,        // string (phrase or word)
+            inurl: null,          // string
+            intext: null,         // string
+            phrases: [],          // exact quoted strings not consumed as operator values
+            excludeTerms: [],     // strings after leading -
+            orInurlIntitle: false,// true when OR appears between inurl: and intitle: tokens
+            plainTerms: []        // bare words
+        };
 
-    // Auto-complete after 5 minutes
-    setTimeout(() => {
-      if (!completionTracked) {
-        autoComplete();
-      }
-    }, 5 * 60 * 1000);
+        // Work on a mutable copy; strip operators in order (long/specific first to avoid substring collisions)
+        let working = q;
 
-    // Query Builder
-    function buildQuery() {
-      const term = document.getElementById('search-term').value.trim();
-      const fileType = document.getElementById('file-type').value;
-      const location = document.getElementById('location').value;
-      const site = document.getElementById('site-target').value.trim();
-      const exclude = document.getElementById('exclude-term').value.trim();
-      const advanced = document.getElementById('advanced').value.trim();
+        /* Extract exclude terms FIRST (-word, -site:domain) so that site: extraction below
+           does not accidentally consume -site:domain as the primary target domain.
+           Match only when - appears at token boundary (start of string or after whitespace),
+           NOT hyphens inside domain names like veridian-health.example. */
+        const exRePre = /(^|\s)-(\S+)/g;
+        let exMPre;
+        while ((exMPre = exRePre.exec(working)) !== null) { result.excludeTerms.push(exMPre[2].toLowerCase()); }
+        working = working.replace(/(^|\s)-\S+/g, ' ');
 
-      if (!term && !fileType && !location && !site && !advanced) {
-        alert('Please enter at least one search parameter.');
-        return;
-      }
+        /* site: (now -site:domain is already stripped so this only matches positive site: tokens) */
+        const siteM = working.match(/site:([^\s]+)/i);
+        if (siteM) { result.site = siteM[1].toLowerCase(); working = working.replace(siteM[0], ' '); }
 
-      let query = '';
+        /* intitle:"..." or intitle:word (extract before filetype to avoid any collision) */
+        const intitleM = working.match(/intitle:(?:"([^"]+)"|([^\s]+))/i);
+        if (intitleM) { result.intitle = (intitleM[1] || intitleM[2]).toLowerCase(); working = working.replace(intitleM[0], ' '); }
 
-      // Add location constraint if specified
-      if (location && term) {
-        query += `${location}:"${term}" `;
-      } else if (term) {
-        query += `"${term}" `;
-      }
+        /* inurl:"..." or inurl:word */
+        const inurlM = working.match(/inurl:(?:"([^"]+)"|([^\s]+))/i);
+        if (inurlM) { result.inurl = (inurlM[1] || inurlM[2]).toLowerCase(); working = working.replace(inurlM[0], ' '); }
 
-      // Add file type
-      if (fileType) {
-        query += `filetype:${fileType} `;
-      }
+        /* intext:"..." or intext:word -- must be extracted BEFORE filetype/ext
+           because 'ext:' is a substring of 'intext:' and would cause the filetype
+           regex to consume part of the intext value */
+        const intextM = working.match(/intext:(?:"([^"]+)"|([^\s]+))/i);
+        if (intextM) { result.intext = (intextM[1] || intextM[2]).toLowerCase(); working = working.replace(intextM[0], ' '); }
 
-      // Add site constraint
-      if (site) {
-        query += `site:${site} `;
-      }
+        /* filetype: or ext: -- only match as whole tokens (not inside 'intext:' which is already stripped).
+           Collect all occurrences; OR between them is handled by returning an array. */
+        const ftRe = /\bfiletype:([^\s]+)|\bext:([^\s]+)/gi;
+        let ftM;
+        const ftAll = [];
+        while ((ftM = ftRe.exec(working)) !== null) { ftAll.push((ftM[1] || ftM[2]).toLowerCase()); }
+        if (ftAll.length > 0) { result.filetype = ftAll; working = working.replace(/\bfiletype:[^\s]+|\bext:[^\s]+/gi, ' '); }
 
-      // Add exclusion
-      if (exclude) {
-        query += `-site:${exclude} `;
-      }
+        /* Exact phrases "..." (remaining) */
+        const phraseRe = /"([^"]+)"/g;
+        let phrM;
+        while ((phrM = phraseRe.exec(working)) !== null) { result.phrases.push(phrM[1].toLowerCase()); }
+        working = working.replace(/"[^"]+"/g, ' ');
 
-      // Add advanced operators
-      if (advanced) {
-        query += advanced + ' ';
-      }
+        /* excludeTerms were extracted at the top of parseDork; no secondary pass needed */
 
-      query = query.trim();
-
-      // Display the query
-      const output = document.getElementById('query-output');
-      output.textContent = query;
-      output.style.display = 'block';
-      document.getElementById('test-query').style.display = 'inline-block';
-      document.getElementById('copy-query').style.display = 'inline-block';
-
-      // Store for testing
-      window.currentQuery = query;
-    }
-
-    function testQuery() {
-      if (window.currentQuery) {
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(window.currentQuery)}`;
-        window.open(searchUrl, '_blank');
-      }
-    }
-
-    function copyBuiltQuery() {
-      const output = document.getElementById('query-output');
-      navigator.clipboard.writeText(output.textContent).then(() => {
-        const btn = document.getElementById('copy-query');
-        const originalText = btn.textContent;
-        btn.textContent = 'Copied!';
-        btn.style.background = 'var(--accent)';
-        setTimeout(() => {
-          btn.textContent = originalText;
-          btn.style.background = '';
-        }, 2000);
-      });
-    }
-
-    // Copy code from pre blocks
-    function copyCode(btn) {
-      const code = btn.parentElement.querySelector('code').textContent;
-      navigator.clipboard.writeText(code).then(() => {
-        btn.textContent = 'Copied!';
-        btn.classList.add('copied');
-        setTimeout(() => {
-          btn.textContent = 'Copy';
-          btn.classList.remove('copied');
-        }, 2000);
-      });
-    }
-
-    // Mark as complete
-    function markComplete() {
-      if (!completionTracked) {
-        completionTracked = true;
-        const btn = document.getElementById('complete-btn');
-        btn.textContent = '✓ Lab Completed';
-        btn.classList.add('completed');
-        btn.disabled = true;
-
-        // Track completion
-        if (typeof ModuleProgress !== 'undefined') {
-          ModuleProgress.complete('shield', 'shield-osint-google-dorking', { returnToDashboard: false });
+        /* Detect OR between inurl and intitle tokens (already stripped -- check original query) */
+        if (result.inurl && result.intitle) {
+            /* OR present when the query contains both operators with OR between them */
+            const orPattern = /inurl:[^\s]+\s+OR\s+intitle:|intitle:[^\s]+\s+OR\s+inurl:/i;
+            if (orPattern.test(q)) { result.orInurlIntitle = true; }
         }
 
-        // Optional: Track achievement
-        if (typeof AchievementManager !== 'undefined') {
-          // This could unlock a "Google Dork Master" achievement
-          // AchievementManager.unlock('dork-master');
-        }
+        /* Remove OR keyword */
+        working = working.replace(/\bOR\b/g, ' ');
 
-        alert('Lab completed! Progress saved.');
-      }
+        /* Remaining bare words */
+        const words = working.trim().split(/\s+/).filter(w => w.length > 1);
+        result.plainTerms = words.map(w => w.toLowerCase());
+
+        return result;
     }
 
-    function autoComplete() {
-      if (!completionTracked) {
-        completionTracked = true;
-        const btn = document.getElementById('complete-btn');
-        btn.textContent = '✓ Lab Auto-Completed (5+ minutes)';
-        btn.classList.add('completed');
-        btn.disabled = true;
+    /* ----------------------------------------------------------------
+       DORK EVALUATOR
+       Runs a parsed dork against a single index entry.
+       Returns true if the entry matches ALL specified constraints.
+    ---------------------------------------------------------------- */
+    function matchEntry(entry, parsed) {
+        const url = entry.url.toLowerCase();
+        const title = entry.title.toLowerCase();
+        const body = entry.content.toLowerCase();
+        const ft = entry.filetype.toLowerCase();
 
-        // Track completion
-        if (typeof ModuleProgress !== 'undefined') {
-          ModuleProgress.complete('shield', 'shield-osint-google-dorking', { returnToDashboard: false });
+        /* site: constraint -- url must contain the site value as a domain component */
+        if (parsed.site) {
+            /* Extract host from url */
+            let host = '';
+            try { host = new URL(entry.url).hostname.toLowerCase(); } catch(e) { host = url; }
+            /* site:veridian-health.example matches root and all subdomains */
+            /* site:staging.veridian-health.example matches ONLY that subdomain */
+            const siteVal = parsed.site;
+            if (siteVal.startsWith('.')) {
+                /* .example.com -- TLD-level match */
+                if (!host.endsWith(siteVal)) return false;
+            } else {
+                /* exact host OR subdomain of siteVal */
+                if (host !== siteVal && !host.endsWith('.' + siteVal)) return false;
+            }
         }
-      }
+
+        /* filetype: / ext: -- match any of the provided types (OR logic between multiple) */
+        if (parsed.filetype && parsed.filetype.length > 0) {
+            const anyFt = parsed.filetype.some(f => ft === f);
+            if (!anyFt) return false;
+        }
+
+        /* intitle: and inurl: -- apply OR semantics if both are present with OR in the dork.
+           When orInurlIntitle=true, the entry passes if it matches EITHER constraint, not both. */
+        if (parsed.intitle && parsed.inurl) {
+            if (parsed.orInurlIntitle) {
+                /* OR: must match at least one of the two */
+                if (!title.includes(parsed.intitle) && !url.includes(parsed.inurl)) return false;
+            } else {
+                /* AND: must match both */
+                if (!title.includes(parsed.intitle)) return false;
+                if (!url.includes(parsed.inurl)) return false;
+            }
+        } else {
+            if (parsed.intitle && !title.includes(parsed.intitle)) return false;
+            if (parsed.inurl && !url.includes(parsed.inurl)) return false;
+        }
+
+        /* intext: */
+        if (parsed.intext) {
+            if (!body.includes(parsed.intext)) return false;
+        }
+
+        /* Exact phrases (remaining quoted strings) */
+        for (const phr of parsed.phrases) {
+            if (!title.includes(phr) && !body.includes(phr) && !url.includes(phr)) return false;
+        }
+
+        /* Plain terms -- must appear somewhere */
+        for (const term of parsed.plainTerms) {
+            if (!title.includes(term) && !body.includes(term) && !url.includes(term)) return false;
+        }
+
+        /* Exclude terms */
+        for (const ex of parsed.excludeTerms) {
+            /* -site:domain format */
+            if (ex.startsWith('site:')) {
+                const exDomain = ex.slice(5);
+                let host = '';
+                try { host = new URL(entry.url).hostname.toLowerCase(); } catch(e) { host = url; }
+                if (host === exDomain || host.endsWith('.' + exDomain)) return false;
+            } else {
+                /* General term exclude: if it appears anywhere, exclude */
+                if (title.includes(ex) || body.includes(ex) || url.includes(ex)) return false;
+            }
+        }
+
+        return true;
     }
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      // Ctrl/Cmd + Enter to build query
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        buildQuery();
-      }
+    /* ----------------------------------------------------------------
+       runQuery(dorkString)
+       Public function: run a dork against the full index.
+       Returns array of matching entries.
+    ---------------------------------------------------------------- */
+    function runQuery(dorkString) {
+        if (!dorkString || !dorkString.trim()) return [];
+        const parsed = parseDork(dorkString);
+        return INDEX.filter(e => matchEntry(e, parsed));
+    }
+
+    /* ----------------------------------------------------------------
+       OBJECTIVE DEFINITIONS
+       Each objective specifies:
+         - requiredIds: set of urls that MUST be in the results
+         - forbidden: if any of these url substrings appear, fail (too-broad)
+         - minHits / maxHits: result count bounds
+         - requiredOps: parsed operator keys that must be set (discrimination)
+         - forbiddenOps: operator keys that, if absent, cause fail
+       A passing dork returns all required results AND no forbidden
+       results AND stays within count bounds AND uses required operators.
+    ---------------------------------------------------------------- */
+    const OBJECTIVES = {
+        1: {
+            label: 'Exposed Documents',
+            description: 'PDF files on veridian-health.example',
+            /* Must match all 3 PDFs on the root/subdomain target */
+            requiredUrls: [
+                'https://veridian-health.example/docs/staff-handbook.pdf',
+                'https://veridian-health.example/docs/patient-intake-form.pdf',
+                'https://veridian-health.example/docs/hipaa-notice.pdf',
+            ],
+            /* If noise PDFs from other domains appear, the dork is too broad */
+            forbiddenUrls: [
+                'https://healthinfo-tutorials.example/google-dorking.pdf',
+                'https://opensourcehealth.example/docs/ehr-guide.pdf',
+            ],
+            requiredOps: ['site', 'filetype'],
+            message: {
+                pass: 'Correct &mdash; 3 PDF documents discovered on <code>veridian-health.example</code>: staff handbook, patient intake form, and HIPAA notice. These are live OSINT findings. Your dork correctly used <code>site:</code> to scope to the target domain and <code>filetype:</code> to filter for PDFs.',
+                broad: 'Your dork returns PDFs from other domains &mdash; missing the <code>site:</code> scope. A real assessment report must scope findings to the authorized target only.',
+                noOp: 'Your dork needs both <code>site:</code> (to scope to the target) and <code>filetype:pdf</code> (to filter file type). Both operators are required.',
+                noHit: 'Your dork does not return the target PDFs. Check that <code>site:</code> points to <code>veridian-health.example</code> and <code>filetype:pdf</code> is included.',
+            }
+        },
+        2: {
+            label: 'Auth Portals',
+            description: 'Login and admin interfaces on target',
+            requiredUrls: [
+                'https://veridian-health.example/login.php',
+                'https://veridian-health.example/patient-portal/login.php',
+                'https://veridian-health.example/admin/index.php',
+            ],
+            forbiddenUrls: [
+                'https://medcaregroup.example/staff-login.php',
+                'https://clinicalsystems.example/login.php',
+                'https://dentalplus.example/admin.php',
+            ],
+            requiredOps: ['site'],
+            /* Must use inurl or intitle operator (OR both) */
+            requiresAnyOp: ['inurl', 'intitle'],
+            message: {
+                pass: 'Correct &mdash; 3 authentication surfaces mapped on <code>veridian-health.example</code>: staff login, patient portal login, and admin panel. Your dork scoped to the target domain and matched on URL or title patterns.',
+                broad: 'Your dork returns login pages from other domains. Add <code>site:veridian-health.example</code> to scope the results to the authorized target.',
+                noOp: 'Your dork needs <code>site:</code> to scope to the target plus <code>inurl:login</code> or <code>intitle:admin</code> (or both with OR) to find auth surfaces.',
+                noHit: 'The dork does not surface the target auth portals. Try: <code>site:veridian-health.example inurl:login OR intitle:admin</code>.',
+            }
+        },
+        3: {
+            label: 'Open Directories',
+            description: 'Directory listings on target domain',
+            requiredUrls: [
+                'https://veridian-health.example/backup/',
+                'https://veridian-health.example/files/',
+            ],
+            forbiddenUrls: [
+                'https://hospitaltech.example/backup/',
+            ],
+            requiredOps: ['site', 'intitle'],
+            message: {
+                pass: 'Correct &mdash; 2 open directory listings found on <code>veridian-health.example</code>: <code>/backup/</code> (containing a DB dump and config backup) and <code>/files/</code>. Your <code>intitle:"index of"</code> pattern is the classic detection dork for this misconfiguration.',
+                broad: 'Your dork returns directory listings from other domains. Add <code>site:veridian-health.example</code> to constrain results to the target.',
+                noOp: 'This objective requires <code>site:</code> and <code>intitle:"index of"</code>. The intitle: operator with the exact phrase is what identifies web server directory listings.',
+                noHit: 'No directory listings found. Make sure you are using <code>intitle:"index of"</code> (quoted phrase) combined with <code>site:veridian-health.example</code>.',
+            }
+        },
+        4: {
+            label: 'Backup and Config Files',
+            description: '.env and .bak files on target',
+            /* site:veridian-health.example correctly matches ALL subdomains including api.
+               The api.env IS a valid finding when the student scopes to the target org. */
+            requiredUrls: [
+                'https://veridian-health.example/.env',
+                'https://veridian-health.example/config.bak',
+                'https://veridian-health.example/web.config.bak',
+            ],
+            /* Only truly off-domain noise is forbidden */
+            forbiddenUrls: [
+                'https://pharmanet.example/config.bak',
+            ],
+            requiredOps: ['site', 'filetype'],
+            requiresBothFiletypes: ['env', 'bak'],
+            message: {
+                pass: 'Correct &mdash; credential-bearing files discovered on <code>veridian-health.example</code>: a <code>.env</code> file (containing plaintext DB password, API secret, and mail key) and 2 <code>.bak</code> config backups. The api subdomain&apos;s <code>.env</code> is also a valid finding &mdash; <code>site:</code> correctly matches all subdomains of the target org. HIGH severity.',
+                broad: 'Your dork returns config files from unrelated domains. Scope to the target with <code>site:veridian-health.example</code>.',
+                noOp: 'This objective requires both <code>filetype:env</code> AND <code>ext:bak</code> (or equivalent) with OR between them, scoped to the target with <code>site:</code>.',
+                noHit: 'No backup or config files found. Try: <code>site:veridian-health.example filetype:env OR ext:bak</code>.',
+            }
+        },
+        5: {
+            label: 'Subdomain Intel',
+            description: 'staging. subdomain with specific content',
+            requiredUrls: [
+                'https://staging.veridian-health.example/',
+                'https://staging.veridian-health.example/portal/',
+            ],
+            forbiddenUrls: [
+                'https://veridian-health.example/about.html',
+                'https://dev.veridian-health.example/',
+                'https://api.veridian-health.example/v1/docs',
+            ],
+            requiredOps: ['site', 'intext'],
+            requiresExactSubdomain: 'staging.veridian-health.example',
+            message: {
+                pass: 'Correct &mdash; staging environment discovered. Two pages on <code>staging.veridian-health.example</code> contain "internal use only": the root and the patient portal. The staging site mirrors production credentials and runs a pre-release build. This is a critical OSINT finding.',
+                broad: 'Your dork returns results from the root domain or other subdomains. Scope <code>site:</code> to exactly <code>staging.veridian-health.example</code> to isolate the staging subdomain.',
+                noOp: 'This objective requires <code>site:staging.veridian-health.example</code> (specific subdomain) AND <code>intext:"internal use only"</code> to confirm the content.',
+                noHit: 'No staging pages found. Make sure <code>site:</code> targets the specific subdomain <code>staging.veridian-health.example</code> and <code>intext:</code> includes the quoted phrase.',
+            }
+        }
+    };
+
+    /* ----------------------------------------------------------------
+       RIGHT-RAIL STATE
+    ---------------------------------------------------------------- */
+    const PROP_DEFS = [
+        { id:'docs',   pn:'Exposed Documents',   ps:'PDFs on target domain' },
+        { id:'portals',pn:'Auth Portals',         ps:'login and admin surfaces' },
+        { id:'dirs',   pn:'Open Directories',     ps:'index-of listings' },
+        { id:'creds',  pn:'Backup / Config Files',ps:'.env and .bak exposure' },
+        { id:'sub',    pn:'Subdomain Intel',      ps:'staging environment found' },
+    ];
+    const OBJ_PROP = { 1:'docs', 2:'portals', 3:'dirs', 4:'creds', 5:'sub' };
+
+    const solved = new Set(); // objective numbers solved
+    let certified = false;
+
+    /* ----------------------------------------------------------------
+       OBJECTIVE GRADER
+       checkObjective(n) -- called by Run Query button on each mission.
+       Runs the query, shows results, grades against objective spec.
+    ---------------------------------------------------------------- */
+    function checkObjective(n) {
+        const input = document.getElementById('dork' + n);
+        const dork = input.value.trim();
+        if (!dork) {
+            vbox(n, 'info', 'icon-warning', 'Enter a dork query first.');
+            return;
+        }
+
+        const parsed = parseDork(dork);
+        const results = runQuery(dork);
+        const obj = OBJECTIVES[n];
+
+        /* Show the results in the UI */
+        renderResults(n, results);
+        logLine(n, dork, results.length);
+
+        /* Grade the submission */
+        const grade = gradeObjective(n, results, parsed);
+
+        if (grade.pass) {
+            input.classList.remove('wrong'); input.classList.add('correct');
+            vbox(n, 'good', 'icon-checkmark', obj.message.pass);
+            completeMission(n);
+        } else {
+            input.classList.remove('correct'); input.classList.add('wrong');
+            const msg = grade.reason === 'broad' ? obj.message.broad
+                      : grade.reason === 'noOp'  ? obj.message.noOp
+                      : obj.message.noHit;
+            vbox(n, 'bad', 'icon-warning', msg);
+        }
+    }
+
+    /* Evaluate results + parsed operators against objective spec */
+    function gradeObjective(n, results, parsed) {
+        const obj = OBJECTIVES[n];
+        const resultUrls = results.map(r => r.url);
+
+        /* Check required operators are present */
+        const missingOps = obj.requiredOps.filter(op => !parsed[op]);
+        if (missingOps.length > 0) return { pass:false, reason:'noOp' };
+
+        /* requiresAnyOp: at least one of these must be set */
+        if (obj.requiresAnyOp) {
+            const hasAny = obj.requiresAnyOp.some(op => parsed[op]);
+            if (!hasAny) return { pass:false, reason:'noOp' };
+        }
+
+        /* requiresBothFiletypes: both must be in the filetype array */
+        if (obj.requiresBothFiletypes && parsed.filetype) {
+            const hasAll = obj.requiresBothFiletypes.every(ft => parsed.filetype.includes(ft));
+            if (!hasAll) return { pass:false, reason:'noOp' };
+        } else if (obj.requiresBothFiletypes && !parsed.filetype) {
+            return { pass:false, reason:'noOp' };
+        }
+
+        /* requiresExactSubdomain: site: value must match exactly */
+        if (obj.requiresExactSubdomain && parsed.site) {
+            if (parsed.site !== obj.requiresExactSubdomain) return { pass:false, reason:'broad' };
+        } else if (obj.requiresExactSubdomain && !parsed.site) {
+            return { pass:false, reason:'noOp' };
+        }
+
+        /* Check forbidden urls not in results */
+        const hasForbidden = obj.forbiddenUrls.some(f => resultUrls.includes(f));
+        if (hasForbidden) return { pass:false, reason:'broad' };
+
+        /* Check all required urls ARE in results */
+        const hasAllRequired = obj.requiredUrls.every(r => resultUrls.includes(r));
+        if (!hasAllRequired) return { pass:false, reason:'noHit' };
+
+        return { pass:true };
+    }
+
+    /* ----------------------------------------------------------------
+       RESULTS RENDERER
+       Renders the query results as a simulated search results list.
+    ---------------------------------------------------------------- */
+    function renderResults(n, results) {
+        const pane = document.getElementById('results' + n);
+        if (!pane) return;
+
+        if (results.length === 0) {
+            pane.innerHTML = '<div class="results-header"><img src="/assets/images/icons/icon-magnifier.webp" alt=""><span>Query returned <span class="rcount">0 results</span></span></div><div class="no-results">No indexed pages match this query. Refine your operators.</div>';
+            return;
+        }
+
+        const header = '<div class="results-header"><img src="/assets/images/icons/icon-eye.webp" alt=""><span>Simulated index returned <span class="rcount">' + results.length + ' result' + (results.length !== 1 ? 's' : '') + '</span></span></div>';
+        const items = results.map(r => {
+            const tagHtml = r.tags.map(t => '<span class="result-tag tag-' + t + '">' + t.toUpperCase() + '</span>').join('');
+            /* Truncate snippet for display */
+            const snippet = r.content.length > 140 ? r.content.slice(0, 140) + '...' : r.content;
+            return '<div class="result-item">'
+                + '<div class="result-url">' + r.url + '</div>'
+                + '<div class="result-title">' + r.title + tagHtml + '</div>'
+                + '<div class="result-snippet">' + snippet + '</div>'
+                + '</div>';
+        }).join('');
+        pane.innerHTML = header + '<div class="results-list">' + items + '</div>';
+    }
+
+    /* ----------------------------------------------------------------
+       UI HELPERS
+    ---------------------------------------------------------------- */
+    /* Show a verdict box (good/bad/info) beneath the objective input */
+    function vbox(n, kind, icon, html) {
+        const v = document.getElementById('v' + n);
+        v.className = 'verdict-box show ' + kind;
+        v.innerHTML = '<img src="/assets/images/icons/' + icon + '.webp" alt="">' + html;
+    }
+
+    /* Clear verdict and input styling when student edits the input */
+    function clearVerdict(n) {
+        const v = document.getElementById('v' + n);
+        if (v) v.className = 'verdict-box';
+        const inp = document.getElementById('dork' + n);
+        if (inp) { inp.classList.remove('correct', 'wrong'); }
+    }
+
+    function clearDork(n) {
+        const inp = document.getElementById('dork' + n);
+        if (inp) { inp.value = ''; inp.classList.remove('correct', 'wrong'); }
+        const v = document.getElementById('v' + n);
+        if (v) v.className = 'verdict-box';
+        const pane = document.getElementById('results' + n);
+        if (pane) pane.innerHTML = '';
+    }
+
+    function toggleHint(n) {
+        const h = document.getElementById('hint' + n);
+        if (h) h.classList.toggle('open');
+    }
+
+    /* Switch the centre workbench to mission n */
+    function goMission(n) {
+        document.querySelectorAll('.ws').forEach(w => w.classList.toggle('show', +w.dataset.ws === n));
+        document.querySelectorAll('.m-item').forEach(m => m.classList.toggle('active', +m.dataset.m === n));
+        window.scrollTo({ top:0, behavior:'smooth' });
+    }
+
+    /* Log a query attempt to the right-rail log */
+    function logLine(n, dork, hits) {
+        const l = document.getElementById('log');
+        const r = document.createElement('div');
+        r.className = 'logrow' + (hits > 0 ? ' hit' : '');
+        r.innerHTML = '[OBJ-' + n + '] <b>' + hits + ' hit' + (hits !== 1 ? 's' : '') + '</b>: ' + dork.slice(0, 48) + (dork.length > 48 ? '...' : '');
+        l.prepend(r);
+    }
+
+    /* Re-render the right-rail status scorecard */
+    function renderProps() {
+        document.getElementById('props').innerHTML = PROP_DEFS.map(p =>
+            '<div class="prop' + (solved.has(objectiveForProp(p.id)) ? ' on' : '') + '">'
+            + '<span class="dot"></span>'
+            + '<span><span class="pn">' + p.pn + '</span> <span class="ps">' + p.ps + '</span></span>'
+            + '</div>'
+        ).join('');
+        document.getElementById('hudScore').textContent = solved.size + ' / 5';
+    }
+
+    function objectiveForProp(propId) {
+        for (const [n, pid] of Object.entries(OBJ_PROP)) { if (pid === propId) return +n; }
+        return -1;
+    }
+
+    /* Mark an objective complete; certify when all 5 solved */
+    function completeMission(n) {
+        const first = !solved.has(n);
+        solved.add(n);
+        document.querySelector('.m-item[data-m="' + n + '"]').classList.add('done');
+        renderProps();
+        if (first) {
+            toast('Objective ' + n + ' complete &mdash; ' + OBJECTIVES[n].label, 'icon-checkmark');
+        }
+        if (solved.size === 5 && !certified) {
+            certified = true;
+            document.getElementById('cert').classList.add('show');
+            document.getElementById('cert').scrollIntoView({ block:'center', behavior:'smooth' });
+            awardCompletion();
+            toast('All 5 objectives solved &mdash; OSINT analyst certified', 'icon-trophy');
+        }
+    }
+
+    /* Toast: position absolute + scroll offset per HEUR-008 (body filter breaks sticky/fixed stacking) */
+    function toast(msg, icon) {
+        const t = document.getElementById('toast');
+        t.style.top = (window.scrollY + window.innerHeight - 72) + 'px';
+        document.getElementById('toastIcon').src = '/assets/images/icons/' + (icon || 'icon-checkmark') + '.webp';
+        document.getElementById('toastMsg').innerHTML = msg;
+        t.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => t.classList.remove('show'), 4200);
+    }
+
+    /* Fire ProgressManager completion (moduleId = manifest id) */
+    function awardCompletion() {
+        try {
+            if (typeof ProgressManager !== 'undefined' && ProgressManager.completeModule) {
+                ProgressManager.completeModule('shield-osint-google-dorking', 'shield', 'lab');
+            }
+        } catch(e) {}
+        try {
+            if (typeof AchievementManager !== 'undefined' && AchievementManager.unlock) {
+                AchievementManager.unlock('shield-osint-analyst');
+            }
+        } catch(e) {}
+    }
+
+    /* ----------------------------------------------------------------
+       BOOT
+    ---------------------------------------------------------------- */
+    document.addEventListener('DOMContentLoaded', () => {
+        renderProps();
+        /* Support pressing Enter in any dork input to run the query */
+        for (let n = 1; n <= 5; n++) {
+            const inp = document.getElementById('dork' + n);
+            if (inp) {
+                inp.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); checkObjective(n); }
+                });
+            }
+        }
     });
-  </script>
+    </script>
 
-    <!-- ── Dr. Hex floating mood-ring button ──────────────────────────
-         Always-visible chat entry point. State machine is attempt-driven;
-         button stays calm and serves as a general chat entry until lab
-         activity ticks the mood-ring.
-         Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+    <script src="../../../components/ProgressSystem.js"></script>
     <hex-ai-button mission-id="shield-osint-google-dorking" house="shield"></hex-ai-button>
     <script type="module" src="/_lib/HexAIButton.js"></script>
 </body>
