@@ -77,6 +77,10 @@ function staticChecks(src) {
   const EMOJI_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2692}-\u{2699}\u{FE00}-\u{FE0F}\u{200D}\u{2702}-\u{27B0}\u{1FA00}-\u{1FAFF}\u{231A}-\u{231B}\u{23E9}-\u{23FA}\u{2934}-\u{2935}]/gu;
   const emoji = src.match(EMOJI_RE);
   out.push(['No emoji (EduScan rule)', !emoji, emoji?`found ${[...new Set(emoji)].join(' ')}`:'']);
+  // HEUR-035: no literal em-dash (U+2014) in content (operator style; the &mdash; entity is fine)
+  const contentOnly = src.replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<script[\s\S]*?<\/script>/gi,'');
+  const emdash = (contentOnly.match(/—/g)||[]).length;
+  out.push(['HEUR-035 no literal em-dash', emdash===0, emdash?`${emdash} found (use commas, or the &mdash; entity)`:'']);
   // (full-bleed is verified at runtime by content-width ratio, not by regex)
   return out;
 }
