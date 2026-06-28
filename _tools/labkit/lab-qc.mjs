@@ -45,7 +45,7 @@ const MIME = { '.html':'text/html', '.js':'application/javascript', '.mjs':'appl
 function stubFor(url) {
   if (/AccessGuard\.js/.test(url))        return 'window.AccessGuard={require:function(){}};';
   if (/AchievementManager\.js/.test(url)) return 'window.AchievementManager={unlock:function(){},award:function(){}};';
-  if (/ModuleProgress\.js/.test(url))     return 'window.ModuleProgress={isCompleted:function(){return false;},complete:function(){},trackVisit:function(){},getCompleted:function(){return[];}};';
+  if (/ModuleProgress\.js/.test(url))     return 'window.ModuleProgress={isCompleted:function(){return false;},complete:function(h,m,o){window.__qcCompleted=[m,h,"lab"];},trackVisit:function(){},getCompleted:function(){return[];}};';
   if (/ProgressSystem\.js/.test(url))     return 'window.ProgressManager={completeModule:function(h,i,t){window.__qcCompleted=[h,i,t];}};';
   if (/(HexAIButton|FirebaseAuth|TenantShell|TenantRouter|ContentDiscovery|GlobalSearch)\.js/.test(url)) return '';
   return null;
@@ -71,8 +71,10 @@ function staticChecks(src) {
     || /href\s*=\s*["'][^"']*(\.\.\/index\.html|\.\.\/\.\.\/index\.html|dashboard\.html)/i.test(src)
     || /(Return to|Go\s*Back|Exit\s*Lab|&larr;\s*\w|←\s*\w)/i.test(src);
   out.push(['NAV-001 back navigation recognized', navOk]);
-  // Critical Rule #5 / HEUR-008: no position:fixed
-  out.push(['HEUR-008 no position:fixed', !/position\s*:\s*fixed/i.test(src)]);
+  // Critical Rule #5 / HEUR-008: no position:fixed (strip HTML/CSS/JS comments first
+  // so a comment that merely mentions "position:fixed" isn't a false positive)
+  const noComments = src.replace(/<!--[\s\S]*?-->/g,'').replace(/\/\*[\s\S]*?\*\//g,'').replace(/(^|[^:])\/\/[^\n]*/g,'$1');
+  out.push(['HEUR-008 no position:fixed', !/position\s*:\s*fixed/i.test(noComments)]);
   // Critical Rule #2: no emoji — mirror EduScan's exact emoji.js codepoint set
   const EMOJI_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{2B50}\u{2692}-\u{2699}\u{FE00}-\u{FE0F}\u{200D}\u{2702}-\u{27B0}\u{1FA00}-\u{1FAFF}\u{231A}-\u{231B}\u{23E9}-\u{23FA}\u{2934}-\u{2935}]/gu;
   const emoji = src.match(EMOJI_RE);
