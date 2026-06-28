@@ -123,7 +123,7 @@ async function runLab(cfg) {
       return req.respond({status:404, body:'not found'});
     });
 
-    await page.goto('http://lab.test/'+cfg.lab, { waitUntil:'load', timeout:20000 });
+    await page.goto('http://localhost/'+cfg.lab, { waitUntil:'load', timeout:20000 });
     await new Promise(r => setTimeout(r, 600));
 
     // 3) no console errors
@@ -167,7 +167,7 @@ async function runLab(cfg) {
 
     // 6) wrong -> does NOT certify / complete  (fresh load)
     await page.evaluate(() => { try { localStorage.clear(); } catch(e){} window.__qcCompleted=null; });
-    await page.goto('http://lab.test/'+cfg.lab, { waitUntil:'load', timeout:20000 });
+    await page.goto('http://localhost/'+cfg.lab, { waitUntil:'load', timeout:20000 });
     await new Promise(r => setTimeout(r, 500));
     await page.evaluate(cfg.wrong);
     await new Promise(r => setTimeout(r, cfg.solveWaitMs || 11000));
