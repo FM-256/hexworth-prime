@@ -287,3 +287,48 @@ proved subtle structural variants exist — fail-loud + test catches them).
 
 **Effort:** ~94 quizzes; 86 fast (proven converter), 8 need a new converter. ~12 track-waves + 1 Family-4 wave.
 Bottleneck: Firestore seeding (gated, per-wave auth) + per-quiz QUIZ_ID reconciliation. Plus 7 reviews (TBD).
+
+---
+
+## CONTINUATION — NEXT MARATHON (handoff 2026-06-28)
+
+**Where we are:** Exams **13/13 DONE + live**. Quizzes **8/94 DONE** (cloud-essentials, quiz Wave 1).
+Remaining: **86 quizzes** (Families 1–3, proven converter) + **8 Family-4** (new converter) + **7 reviews** (TBD).
+The 18 non-graded interactives (flashcards/jeopardy/wheel) stay excluded.
+
+**Remaining quiz tracks (per-wave batches, ~all uniform within a track):**
+cybersecurity-policy 16 · net-essentials 8 · intro-networks 8 · server-management 8 (minified) ·
+python-programming 8 · linux-essentials 8 (minified) · hardware-support 8 · shield/infosec 4 ·
+divergent/cybersecurity-ethics 4 · divergent/ethics-it 3 · code/python-for-it 3.
+Family-4 (separate): cloud/openstack 4 + forge/applets comptia-aplus core-1 prep-rounds 4 (`correct:` field, NO selectAnswer).
+
+**PROVEN RECIPE (per track-wave) — repeat exactly:**
+1. **Read ONE quiz's structure first** (don't blind-apply): `function selectAnswer` body — TOPICS or not? a live
+   `scoreLabel` update? submit text ('See Results' vs 'Submit Exam' vs other)? minified or multi-line? Build a
+   **track-tailored block** that preserves those per-track UI bits. (cloud-essentials had no-TOPICS + scoreLabel +
+   'See Results'; ra exams had no-TOPICS + 'Submit Exam'; cb/sr/sp exams had TOPICS.)
+2. Convert all quizzes in the track with the brace-matching replacer (handles minified/multi-line + `ans:`/`"ans":`):
+   extract `QUIZ_ID` from EACH page's own `ModuleProgress.complete/completeQuiz('<house>','<moduleId>')` call (QC-54
+   safety — some have `-exam`/`-quiz` suffixes); extract the answer array; strip `,\s*"?ans"?\s*:\s*\d+`; prepend the
+   `gradeOne` helper + `QUIZ_ID` + replace `selectAnswer`. Assert each step matched once (fail-loud).
+3. **Headless-test EACH quiz** (stub `gradeQuiz` against the extracted key, drive correct answers → expect 100% +
+   completion + 0 console errors). ra proved subtle variants exist (no-TOPICS) — the test catches them.
+4. Add keys to `functions/quiz_keys.json` (assert each `quizId` NOT already present — no overwrite, Nancy).
+5. **Seed** `node push-quiz-keys.js --filter <quizId>` per key — **Rule #10 gated production write; needs per-wave
+   operator authorization + branch == master**. Then `node verify-quiz-keys.js <ids...>` → "Verification PASSED".
+6. **Reconcile** every page: `var QUIZ_ID == seeded quiz_keys id` AND page sends `quizId: QUIZ_ID` (closes the
+   QC-54 0/N trap — the headless test does NOT catch a QUIZ_ID mismatch because it stubs gradeQuiz).
+7. Commit + ONE `./deploy.sh --skip-chris --skip-chris-reason "..."` per wave. Verify live: 0 `ans` in source.
+
+**Reusable assets (this session):** the brace-matching converter + headless drive-test harness are in the
+git history (commits for cr-midterm / Family A / Family B / cloud-essentials). The `gradeOne` helper + async
+`selectAnswer` block are copy-paste-ready (see any converted exam, e.g. `houses/web/net-essentials/exams/cr-midterm.exam.html`).
+
+**Family-4 (openstack/applets) — NOT yet patterned:** uses `questions=[{...correct:N}]` + a non-`selectAnswer`
+grader. Read one (`houses/cloud/openstack/quizzes/cloud-openstack-intro-quiz.quiz.html`) to design its converter
+before seeding. moduleIds e.g. `openstack-intro-quiz`.
+
+**Gotchas:** (a) per-track UI bits (scoreLabel/submit text/TOPICS) — read first. (b) moduleId suffixes vary
+(`-exam`, `-quiz`, none). (c) Firestore seed is gated — per-wave auth, master only. (d) headless test ≠ QUIZ_ID
+reconcile — do BOTH. (e) if a convert breaks a file, `git checkout HEAD -- <file>` to restore the original + redo
+(back up the broken copy to /tmp first).
