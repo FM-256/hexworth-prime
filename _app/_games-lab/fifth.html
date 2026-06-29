@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!--
+        Are You Smarter Than a 5th Grader — data-driven engine.
+        Components are loaded with onerror guards matching kahoot.html:
+        a missing script must never blank the page or break gameplay.
+    -->
+    <script src="../components/AccessGuard.js" onerror="window._accessGuardMissing=true"></script>
+    <script src="../components/HexworthGameAudio.js" onerror="window._audioMissing=true"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Are You Smarter Than a 5th Grader? | Game Lab (Hexworth Prime)</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-clipboard.webp">
+    <style>
+        /* ================================================================
+           CSS TOKENS
+           --accent / --accent-dim / --accent-glow / --bg / --card / --text
+           are overwritten at runtime by applyTheme() from the course JSON.
+
+           SEMANTIC COLOURS are fixed constants and must NOT come from data:
+             --gold    : money amounts and milestone rungs
+             --green   : correct answers, banked state
+             --red     : wrong answers and the drop-out button
+             --orange  : COPY lifeline
+             --purple  : PEEK lifeline
+           These match the clone exactly.
+        ================================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            /* Defaults; runtime-overridden by applyTheme() */
+            --accent:      #3b82f6;
+            --accent-dim:  rgba(59,130,246,0.12);
+            --accent-glow: rgba(59,130,246,0.30);
+            --bg:          #0a0a0f;
+            --card:        #12121a;
+            --text:        #e0e0e0;
+            /* Semantic fixed colours -- never overridden by course theme */
+            --text-dim:    #8b949e;
+            --border:      rgba(255,255,255,0.08);
+            --gold:        #ffcc00;
+            --green:       #10b981;
+            --red:         #ef4444;
+            --orange:      #f59e0b;
+            --purple:      #8b5cf6;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ── Loading / Error screens ── */
+        .state-screen {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            min-height: 100vh; gap: 20px; padding: 40px;
+            text-align: center;
+        }
+        .state-screen h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+        .state-screen p  { font-size: 14px; color: var(--text-dim); max-width: 420px; }
+        .state-screen a  {
+            color: var(--accent); font-weight: 600; text-decoration: none;
+            padding: 10px 24px; border: 1px solid rgba(255,255,255,0.18); border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .state-screen a:hover { background: var(--accent-dim); }
+        .spinner {
+            width: 40px; height: 40px; border-radius: 50%;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Shared header ── */
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px;
+            background: rgba(10,10,15,0.96);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge {
+            font-size: 11px; padding: 3px 10px; border-radius: 4px;
+            background: var(--accent-dim); color: var(--accent);
+            font-weight: 700; letter-spacing: 1px;
+        }
+        .header h1 { font-size: 15px; font-weight: 600; color: var(--accent); }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        /* Audio toggle -- matches kahoot.html exactly */
+        .audio-toggle {
+            background: transparent; color: var(--accent);
+            border: 1px solid rgba(255,255,255,0.18); border-radius: 6px;
+            padding: 6px 8px; cursor: pointer; line-height: 0;
+            transition: background 0.15s, border-color 0.15s;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .audio-toggle:hover { background: var(--accent-dim); border-color: var(--accent); }
+        .audio-toggle .ico-on  { display: inline; }
+        .audio-toggle .ico-off { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-on  { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-off { display: inline; }
+        .audio-toggle[aria-pressed="true"] { color: rgba(255,255,255,0.35); }
+
+        /* Back link */
+        .back-link {
+            font-size: 13px; color: var(--accent); font-weight: 600;
+            text-decoration: none; padding: 6px 14px; border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.18); transition: all 0.2s;
+        }
+        .back-link:hover { background: var(--accent-dim); }
+
+        /* ================================================================
+           MAIN CONTENT WRAPPER — full-bleed, no narrow centered column.
+           The game arena fills the viewport width.
+        ================================================================ */
+        .content { padding: 28px 24px 80px; }
+
+        /* ── Hero ── */
+        .hero { text-align: center; padding: 32px 0 24px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .hero-sub {
+            font-size: 15px; color: var(--text-dim);
+            max-width: 720px; margin: 0 auto;
+        }
+        .hero-meta {
+            display: flex; justify-content: center; gap: 24px; margin-top: 18px;
+            font-size: 12px; color: var(--text-dim);
+        }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* ── Instructions box ── */
+        .instructions {
+            background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 20px 24px; margin-bottom: 20px;
+        }
+        .instructions h3 {
+            font-size: 11px; color: var(--accent); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 12px; font-weight: 700;
+        }
+        .instructions ul { list-style: none; }
+        .instructions li {
+            padding: 5px 0; font-size: 14px; color: var(--text-dim);
+            display: flex; align-items: flex-start; gap: 10px;
+        }
+        .instructions li::before {
+            content: '\25B8'; color: var(--accent); font-weight: bold;
+            flex-shrink: 0; margin-top: 2px;
+        }
+
+        /* ── Game arena: question panel (left) + money ladder (right) ── */
+        .game-arena {
+            display: grid;
+            grid-template-columns: 1fr 220px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* Status bar spans the full grid width */
+        .status-bar {
+            grid-column: 1 / -1;
+            display: flex; align-items: center; justify-content: space-between; gap: 16px;
+            background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 14px 20px;
+        }
+        .status-group { display: flex; align-items: center; gap: 20px; }
+        .status-item { text-align: center; }
+        .status-label {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 3px;
+        }
+        /* Gold is a semantic fixed colour — money display is always gold */
+        .status-value {
+            font-size: 26px; font-weight: 800; color: var(--gold);
+            transition: transform 0.2s;
+        }
+        .status-value.bump { transform: scale(1.15); }
+        .status-value.small { font-size: 18px; color: var(--accent); }
+        .status-divider { width: 1px; height: 40px; background: var(--border); }
+        .reset-btn {
+            padding: 8px 18px; border: 1px solid rgba(255,255,255,0.18); border-radius: 6px;
+            background: transparent; color: var(--accent); font-size: 12px;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .reset-btn:hover { background: var(--accent-dim); }
+
+        /* ── Question panel ── */
+        .question-panel {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            overflow: hidden;
+        }
+        .question-header {
+            background: var(--accent-dim); border-bottom: 1px solid var(--border);
+            padding: 14px 20px; display: flex; align-items: center; gap: 14px;
+        }
+        .question-grade-tag {
+            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+            padding: 4px 12px; border-radius: 20px;
+            background: var(--accent-dim); color: var(--accent);
+            border: 1px solid var(--accent-glow);
+            white-space: nowrap;
+        }
+        /* Gold is semantic -- value tag is always gold */
+        .question-value-tag {
+            font-size: 18px; font-weight: 800; color: var(--gold);
+            margin-left: auto; white-space: nowrap;
+        }
+        .question-body { padding: 24px 20px 20px; }
+        .question-text {
+            font-size: 18px; font-weight: 600; color: #fff; line-height: 1.5;
+            margin-bottom: 24px; min-height: 60px;
+        }
+        .options-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .opt-btn {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 14px 16px; background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border); border-radius: 10px;
+            cursor: pointer; transition: all 0.2s; text-align: left;
+            font-size: 14px; color: var(--text);
+        }
+        .opt-btn:hover:not(:disabled) {
+            border-color: var(--accent-glow);
+            background: var(--accent-dim);
+        }
+        .opt-btn:disabled { cursor: default; }
+        /* Semantic colours for reveal state */
+        .opt-btn.correct {
+            border-color: var(--green); background: rgba(16,185,129,0.10);
+            color: #6ee7b7;
+        }
+        .opt-btn.wrong {
+            border-color: var(--red); background: rgba(239,68,68,0.08);
+            color: #fca5a5;
+        }
+        .opt-letter {
+            width: 28px; height: 28px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 6px; background: var(--accent-dim);
+            border: 1px solid var(--accent-glow);
+            font-weight: 700; font-size: 13px; color: var(--accent);
+        }
+        .opt-btn.correct .opt-letter { background: var(--green); border-color: var(--green); color: #fff; }
+        .opt-btn.wrong   .opt-letter { background: var(--red);   border-color: var(--red);   color: #fff; }
+
+        /* Feedback / explanation shown below options after an answer */
+        .question-feedback {
+            margin-top: 14px; padding: 12px 16px; border-radius: 8px;
+            font-size: 13px; line-height: 1.6; display: none;
+        }
+        .question-feedback.correct {
+            display: block; background: rgba(16,185,129,0.08);
+            border: 1px solid rgba(16,185,129,0.30); color: #86efac;
+        }
+        .question-feedback.wrong {
+            display: block; background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.30); color: #fca5a5;
+        }
+
+        /* ── Lifelines bar ── */
+        .lifelines-bar {
+            border-top: 1px solid var(--border);
+            padding: 14px 20px;
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        .lifelines-label {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-dim); flex-shrink: 0;
+        }
+        .lifeline-btn {
+            padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+            border: 1px solid transparent;
+        }
+        /* Each lifeline has a fixed semantic colour, independent of course theme */
+        .lifeline-btn.peek {
+            background: rgba(139,92,246,0.15); color: var(--purple);
+            border-color: rgba(139,92,246,0.30);
+        }
+        .lifeline-btn.peek:hover:not(:disabled) { background: rgba(139,92,246,0.25); }
+        .lifeline-btn.copy {
+            background: rgba(245,158,11,0.15); color: var(--orange);
+            border-color: rgba(245,158,11,0.30);
+        }
+        .lifeline-btn.copy:hover:not(:disabled) { background: rgba(245,158,11,0.25); }
+        .lifeline-btn.save {
+            background: rgba(16,185,129,0.15); color: var(--green);
+            border-color: rgba(16,185,129,0.30);
+        }
+        .lifeline-btn.save:hover:not(:disabled) { background: rgba(16,185,129,0.25); }
+        .lifeline-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .lifeline-used-tag { font-size: 10px; margin-left: 4px; opacity: 0.7; }
+
+        /* Drop Out button -- always red, semantic */
+        .dropout-btn {
+            margin-left: auto;
+            padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+            background: rgba(239,68,68,0.10); color: var(--red);
+            border: 1px solid rgba(239,68,68,0.25);
+        }
+        .dropout-btn:hover:not(:disabled) { background: rgba(239,68,68,0.20); }
+        .dropout-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* Peek reveal box */
+        .peek-box {
+            display: none; margin-top: 12px;
+            padding: 12px 16px; border-radius: 8px;
+            background: rgba(139,92,246,0.08);
+            border: 1px solid rgba(139,92,246,0.25);
+            font-size: 13px; color: #c4b5fd;
+        }
+        .peek-box.visible { display: block; animation: fadeUp 0.3s ease-out; }
+
+        /* Save lifeline active notice */
+        .save-active-notice {
+            display: none; padding: 8px 14px; border-radius: 6px; font-size: 12px;
+            background: rgba(16,185,129,0.10); border: 1px solid rgba(16,185,129,0.25);
+            color: var(--green); margin-top: 8px; font-weight: 600;
+        }
+        .save-active-notice.visible { display: block; }
+
+        @keyframes fadeUp {
+            from { transform: translateY(8px); opacity: 0; }
+            to   { transform: translateY(0);   opacity: 1; }
+        }
+
+        /* ── Money Ladder (right column) ── */
+        .money-ladder {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            overflow: hidden;
+            /*
+                NOTE: position:sticky is used here. The platform rule that
+                position:fixed breaks under body.style.filter does NOT apply to
+                sticky. We do not set body.style.filter anywhere in this file.
+            */
+            position: sticky; top: 72px;
+        }
+        .ladder-title {
+            background: var(--accent-dim); border-bottom: 1px solid var(--border);
+            padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--accent);
+        }
+        /* column-reverse renders the highest rung at the top */
+        .ladder-steps { display: flex; flex-direction: column-reverse; }
+        .ladder-step {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: all 0.3s; font-size: 13px;
+        }
+        .ladder-step:first-child { border-bottom: none; }
+        .ladder-step .step-num    { font-size: 10px; color: var(--text-dim); min-width: 20px; }
+        .ladder-step .step-amount { font-weight: 700; color: var(--text-dim); font-size: 13px; }
+        .ladder-step .step-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--border); flex-shrink: 0; transition: all 0.3s;
+        }
+
+        /* Ladder states -- semantic colours */
+        .ladder-step.current {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+        }
+        .ladder-step.current .step-amount { color: var(--accent); }
+        .ladder-step.current .step-num    { color: var(--accent); }
+        .ladder-step.current .step-dot {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            animation: dotPulse 1.2s ease-in-out infinite;
+        }
+        /* Green = banked (semantic) */
+        .ladder-step.banked { background: rgba(16,185,129,0.08); border-left: 3px solid var(--green); }
+        .ladder-step.banked .step-amount { color: var(--green); }
+        .ladder-step.banked .step-dot    { background: var(--green); }
+        /* Gold = milestone safe-haven (semantic) */
+        .ladder-step.milestone            { background: rgba(255,204,0,0.05); }
+        .ladder-step.milestone .step-amount { color: var(--gold); }
+        .ladder-step.milestone .step-dot    { background: var(--gold); }
+        /* Milestone + current stacks: current styling takes precedence via order */
+        .ladder-step.milestone.current .step-amount { color: var(--accent); }
+
+        @keyframes dotPulse {
+            0%, 100% { transform: scale(1);   opacity: 1; }
+            50%       { transform: scale(1.4); opacity: 0.8; }
+        }
+
+        /* ── Final Modal Overlay ── */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.88); z-index: 500;
+            align-items: center; justify-content: center; padding: 24px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--card); border: 3px solid var(--accent);
+            border-radius: 16px; max-width: 680px; width: 100%;
+            padding: 44px 40px 36px; text-align: center; position: relative;
+            box-shadow: 0 0 60px var(--accent-glow), 0 0 120px rgba(0,0,0,0.2);
+            animation: modalIn 0.3s ease-out;
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to   { transform: scale(1);    opacity: 1; }
+        }
+        /* Icon area: uses a webp image, no emoji */
+        .modal-icon-img { width: 56px; height: 56px; margin-bottom: 16px; }
+        .modal-title  { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .modal-subtitle { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; }
+        /* Gold is semantic -- always gold for banked amount */
+        .modal-bank {
+            font-size: 52px; font-weight: 800; color: var(--gold); margin: 16px 0;
+            text-shadow: 0 0 20px rgba(255,204,0,0.30);
+        }
+        .modal-bank.zero { color: var(--text-dim); text-shadow: none; }
+        .modal-grade {
+            font-size: 16px; font-weight: 700; padding: 10px 28px;
+            border-radius: 8px; display: inline-block; margin: 12px 0 24px;
+        }
+        /* Grade badge colours are semantic, not course-theme */
+        .grade-s { background: rgba(255,204,0,0.15);  color: var(--gold);   border: 1px solid rgba(255,204,0,0.30); }
+        .grade-a { background: var(--accent-dim);     color: var(--accent); border: 1px solid var(--accent-glow); }
+        .grade-b { background: var(--accent-dim);     color: var(--accent); border: 1px solid var(--accent-glow); }
+        .grade-c { background: rgba(245,158,11,0.15); color: var(--orange); border: 1px solid rgba(245,158,11,0.30); }
+        .grade-f { background: rgba(239,68,68,0.15);  color: var(--red);    border: 1px solid rgba(239,68,68,0.30); }
+        .modal-stats {
+            display: flex; justify-content: center; gap: 32px;
+            margin-bottom: 28px; font-size: 13px; color: var(--text-dim);
+        }
+        .modal-stat { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .modal-stat-num  { font-size: 22px; font-weight: 700; }
+        .modal-stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .modal-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .modal-btn {
+            padding: 12px 28px; border: none; border-radius: 8px; font-size: 14px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .modal-btn.primary {
+            background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff;
+        }
+        .modal-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 4px 16px var(--accent-glow); }
+        .modal-btn.secondary {
+            background: rgba(255,255,255,0.08); color: #fff;
+            border: 1px solid rgba(255,255,255,0.20);
+        }
+        .modal-btn.secondary:hover { background: rgba(255,255,255,0.14); }
+
+        /* ── Complete section below content (matches clone) ── */
+        .complete-section {
+            text-align: center; padding: 40px 0 20px;
+            border-top: 1px solid var(--border); margin-top: 48px;
+            display: none;
+        }
+        .complete-section.visible { display: block; animation: fadeUp 0.4s ease-out; }
+        .complete-section p { font-size: 14px; color: var(--text-dim); margin-bottom: 16px; }
+        .complete-btn {
+            padding: 14px 36px; border: none; border-radius: 8px; font-size: 14px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+            background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--accent-glow); }
+
+        /* ── Responsive ── */
+        @media (max-width: 800px) {
+            .game-arena { grid-template-columns: 1fr; }
+            .money-ladder { position: static; }
+            .ladder-steps { flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
+            .ladder-step  { border-left: none; border-bottom: none; border-radius: 6px; padding: 6px 10px; }
+            .ladder-step.current { border-left: none; border: 1px solid var(--accent); }
+            .ladder-step.banked  { border-left: none; border: 1px solid var(--green); }
+            .options-grid { grid-template-columns: 1fr; }
+            .hero h2 { font-size: 22px; }
+            .modal { padding: 28px 20px; }
+            .modal-bank { font-size: 36px; }
+        }
+        @media (max-width: 480px) {
+            .content { padding: 20px 12px 60px; }
+            .header  { padding: 10px 12px; }
+            .status-bar { flex-wrap: wrap; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading screen: shown until JSON fetch resolves -->
+    <div class="state-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <h2>Loading course data&hellip;</h2>
+        <p>Fetching the question bank for this 5th Grader game.</p>
+    </div>
+
+    <!-- Error screen: shown if course JSON is missing or malformed -->
+    <div class="state-screen" id="errorScreen" style="display:none">
+        <h2>Course Not Found</h2>
+        <p id="errorMessage">The requested course data could not be loaded. Check the course ID in the URL.</p>
+        <a href="index.html">&larr; Course Picker</a>
+    </div>
+
+    <!-- Full game UI: hidden until JSON loads successfully -->
+    <div id="gameRoot" style="display:none">
+
+        <!-- Shared header (same structure/classes as kahoot.html) -->
+        <header class="header">
+            <div class="header-left">
+                <span class="header-badge" id="headerBadge">5TH-GRADER</span>
+                <h1 id="headerTitle">Are You Smarter Than a 5th Grader?</h1>
+            </div>
+            <div class="header-right">
+                <!-- Audio toggle -- matching kahoot.html implementation exactly -->
+                <button id="audioToggle" class="audio-toggle" type="button"
+                        aria-pressed="false" title="Toggle game audio">
+                    <span aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" class="ico-on">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" class="ico-off">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <line x1="23" y1="9" x2="17" y2="15"></line>
+                            <line x1="17" y1="9" x2="23" y2="15"></line>
+                        </svg>
+                    </span>
+                </button>
+                <!-- Back link points to index.html (course picker) as per kahoot.html convention -->
+                <a href="index.html" class="back-link" id="backLink">&larr; Course Picker</a>
+            </div>
+        </header>
+
+        <main class="content">
+
+            <!-- Hero section: populated from data by populateLobby() -->
+            <div class="hero">
+                <img class="hero-icon" id="heroIcon" src="" alt="">
+                <h2 id="heroTitle">5th Grader Review</h2>
+                <p class="hero-sub" id="heroSub"></p>
+                <div class="hero-meta">
+                    <span>
+                        <img src="/assets/images/icons/icon-clock.webp" alt="" width="14" height="14">
+                        <span id="heroDuration">~15 min</span>
+                    </span>
+                    <span>
+                        <img src="/assets/images/icons/icon-game.webp" alt="" width="14" height="14">
+                        Game
+                    </span>
+                    <span>
+                        <img src="/assets/images/icons/icon-books.webp" alt="" width="14" height="14">
+                        All Topics
+                    </span>
+                </div>
+            </div>
+
+            <!-- Instructions box: rules populated from data schema -->
+            <div class="instructions">
+                <h3>How to Play</h3>
+                <ul id="rulesList">
+                    <!-- Rules are inserted by buildRules() from data after load -->
+                </ul>
+            </div>
+
+            <!-- Game arena: status bar (full width), question panel + ladder -->
+            <div class="game-arena">
+
+                <!-- Status bar spans both columns via grid-column: 1 / -1 -->
+                <div class="status-bar">
+                    <div class="status-group">
+                        <div class="status-item">
+                            <div class="status-label">Bank</div>
+                            <div class="status-value" id="bankDisplay">$0</div>
+                        </div>
+                        <div class="status-divider"></div>
+                        <div class="status-item">
+                            <div class="status-label">Question</div>
+                            <div class="status-value small" id="qNumDisplay">1 / ?</div>
+                        </div>
+                        <div class="status-divider"></div>
+                        <div class="status-item">
+                            <div class="status-label">Playing for</div>
+                            <div class="status-value small" id="playingForDisplay">$0</div>
+                        </div>
+                    </div>
+                    <button class="reset-btn" id="resetBtn">Reset Game</button>
+                </div>
+
+                <!-- Question panel (left column) -->
+                <div class="question-panel" id="questionPanel">
+                    <div class="question-header">
+                        <span class="question-grade-tag" id="gradeTag">Loading...</span>
+                        <span class="question-value-tag" id="valueTag">$0</span>
+                    </div>
+                    <div class="question-body">
+                        <div class="question-text" id="questionText">Loading...</div>
+                        <div class="options-grid" id="optionsGrid"></div>
+                        <div class="question-feedback" id="questionFeedback"></div>
+                        <div class="peek-box" id="peekBox"></div>
+                        <div class="save-active-notice" id="saveNotice">
+                            SAVE lifeline active: your next wrong answer is forgiven
+                        </div>
+                    </div>
+                    <!-- Lifelines bar at bottom of question panel -->
+                    <div class="lifelines-bar">
+                        <span class="lifelines-label">Lifelines:</span>
+                        <button class="lifeline-btn peek" id="lifelinePeek">PEEK</button>
+                        <button class="lifeline-btn copy" id="lifelineCopy">COPY</button>
+                        <button class="lifeline-btn save" id="lifelineSave">SAVE</button>
+                        <button class="dropout-btn" id="dropoutBtn">Drop Out</button>
+                    </div>
+                </div>
+
+                <!-- Money Ladder (right column) -->
+                <div class="money-ladder" id="moneyLadder">
+                    <div class="ladder-title">Money Ladder</div>
+                    <div class="ladder-steps" id="ladderSteps">
+                        <!-- Built by buildLadder() after JSON load -->
+                    </div>
+                </div>
+
+            </div><!-- /game-arena -->
+
+            <!-- Complete section: appears below the game after end -->
+            <div class="complete-section" id="completeSection">
+                <p>Game over. Ready to log your result?</p>
+                <button class="complete-btn" id="completeBtn">Mark as Complete</button>
+            </div>
+
+        </main>
+
+    </div><!-- /gameRoot -->
+
+    <!-- Final result modal overlay -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal">
+            <!-- Icon: a webp image set by endGame() based on outcome -->
+            <img class="modal-icon-img" id="modalIconImg"
+                 src="/assets/images/icons/icon-game.webp" alt="">
+            <div class="modal-title"    id="modalTitle">Game Over</div>
+            <div class="modal-subtitle" id="modalSubtitle"></div>
+            <div class="modal-bank"     id="modalBank">$0</div>
+            <div id="modalGrade"></div>
+            <div class="modal-stats"    id="modalStats"></div>
+            <div class="modal-actions">
+                <button class="modal-btn primary"   id="modalPlayAgain">Play Again</button>
+                <button class="modal-btn secondary" id="modalClose">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ================================================================
+       FIFTH GRADER ENGINE
+       Data-driven shell — loads ?course=<id> from URL, fetches
+       data/fifth/<id>.json, applies theme, then runs the full
+       Are You Smarter Than a 5th Grader? game loop.
+
+       Gameplay mechanics replicated exactly from the clone at
+       pis-5th-grader.review.html. Critical rules:
+
+         PEEK    : reveals correct answer in a peek-box (no credit).
+                   Player must still click an answer; question is not
+                   skipped or auto-advanced.
+
+         COPY    : auto-selects correct answer, marks answered=true,
+                   advances with bank FROZEN at its current value
+                   (the COPY question is NOT banked).
+
+         SAVE    : activates saveActive=true immediately on click.
+                   When the next wrong answer occurs while saveActive,
+                   the wrong is absorbed: saveActive=false,
+                   lifelineSaveUsed=true, and we advance as correct
+                   (the question IS banked as if answered correctly).
+
+         Wrong   : bank resets to lastMilestoneBank() (last milestone
+                   amount the player had passed), or $0 if none passed.
+                   currentQ is NOT incremented (stays on the failed rung).
+
+         Dropout : endGame('dropout') — bank stays at current value.
+
+         Win     : all questions answered correctly → endGame(true).
+
+       Grades based on finalBank as percentage of highest question value:
+         S-RANK  : 100% (won all, sweeping the ladder)
+         A-RANK  : pct >= 30
+         B-RANK  : pct >= 10
+         C-RANK  : pct >= 3
+         F-RANK  : otherwise
+       (gradeLabels from data.gradeLabels override the rank text)
+    ================================================================ */
+
+    /* ── Step 1: Parse ?course=<id> from URL ──────────────────────────
+       If absent, redirect to index.html (the course picker).
+       This matches kahoot.html's redirect-if-no-param pattern.      */
+    var params   = new URLSearchParams(window.location.search);
+    var courseId = (params.get('course') || '').trim().toLowerCase();
+
+    if (!courseId) {
+        window.location.replace('index.html');
+    }
+
+    /* ── Global game data (populated after JSON fetch) ──────────────── */
+    var courseData     = null;   /* full parsed JSON */
+    var QUESTIONS      = [];     /* data.questions array */
+    var MILESTONE_IDXS = [];     /* indices where milestone:true */
+    var MAX_VALUE      = 0;      /* highest question value for grade calc */
+
+    /* ── Game state ─────────────────────────────────────────────────── */
+    var currentQ          = 0;
+    var bank              = 0;
+    var gameActive        = true;
+
+    /* Lifeline state: false = available */
+    var lifelinePeekUsed  = false;
+    var lifelineCopyUsed  = false;
+    var lifelineSaveUsed  = false;
+    var saveActive        = false;  /* SAVE queued, not yet spent */
+
+    var answered          = false;  /* current question answered */
+
+    /* ── XSS safety: textContent round-trip escape ───────────────────
+       Used when injecting data-derived text into innerHTML contexts.  */
+    function escText(str) {
+        var d = document.createElement('span');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    /* ── applyTheme: write course theme to :root CSS vars ────────────
+       Only accent/bg/card/text are set from data. Semantic colours
+       (gold, green, red, orange, purple) remain fixed in the CSS.    */
+    function applyTheme(theme) {
+        if (!theme) return;
+        var root = document.documentElement;
+        if (theme.accent) root.style.setProperty('--accent', theme.accent);
+        if (theme.bg)     root.style.setProperty('--bg',     theme.bg);
+        if (theme.card)   root.style.setProperty('--card',   theme.card);
+        if (theme.text)   root.style.setProperty('--text',   theme.text);
+
+        /* Derive --accent-dim and --accent-glow from the accent hex */
+        if (theme.accent) {
+            root.style.setProperty('--accent-dim',  hexToRgba(theme.accent, 0.12));
+            root.style.setProperty('--accent-glow', hexToRgba(theme.accent, 0.30));
+        }
+
+        /* Apply body background immediately to prevent a flash */
+        document.body.style.background = theme.bg || 'var(--bg)';
+    }
+
+    /* Converts a hex colour string to an rgba(...) string with the
+       given alpha value. Accepts 3- or 6-digit hex with or without #. */
+    function hexToRgba(hex, alpha) {
+        var h = hex.replace('#', '');
+        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+        var r = parseInt(h.substring(0,2), 16);
+        var g = parseInt(h.substring(2,4), 16);
+        var b = parseInt(h.substring(4,6), 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    /* ── populateLobby: fill hero, header, and rules from data ──────── */
+    function populateLobby(data) {
+        /* Header */
+        document.getElementById('headerBadge').textContent = data.badge || '5TH-GRADER';
+        document.getElementById('headerTitle').textContent = data.title || 'Are You Smarter Than a 5th Grader?';
+        document.title = (data.title || 'Review') + ' | 5th Grader (Hexworth Prime)';
+
+        /* Back link: keep as index.html (course picker) per kahoot.html convention */
+
+        /* Hero */
+        var iconEl = document.getElementById('heroIcon');
+        if (data.icon) { iconEl.src = data.icon; iconEl.alt = data.title || ''; }
+        document.getElementById('heroTitle').textContent =
+            (data.title || 'Review') + ': 5th Grader Review';
+        document.getElementById('heroSub').textContent      = data.subtitle || '';
+        document.getElementById('heroDuration').textContent = data.duration  || '~15 min';
+
+        /* Rules list: static rules with question count woven in */
+        var total = data.questions.length;
+        buildRules(total, data);
+    }
+
+    /* Builds the How to Play rules list. All text via textContent. */
+    function buildRules(total, data) {
+        var list = document.getElementById('rulesList');
+        list.innerHTML = '';
+        var rules = [
+            'Answer all ' + total + ' questions to climb the money ladder from ' +
+                formatMoney(data.questions[0].value) + ' to ' +
+                formatMoney(data.questions[total - 1].value),
+            'One wrong answer ends the game and locks in your last safe-haven (milestone) amount',
+            'Use Drop Out at any time to walk away with your current winnings',
+            'PEEK: reveals the correct answer privately -- no credit; you must still answer',
+            'COPY: the correct answer is applied automatically but the question is not banked -- ' +
+                'you advance with your current winnings only',
+            'SAVE: activates a shield against your next wrong answer -- if you get one wrong ' +
+                'while SAVE is active, you advance as if correct',
+            'Milestone rungs (shown in gold) are permanent safe-havens: reaching one locks in ' +
+                'that amount even if you answer wrong later',
+            'Final rank is based on your banked amount as a fraction of the top prize'
+        ];
+        rules.forEach(function(text) {
+            var li = document.createElement('li');
+            li.textContent = text;
+            list.appendChild(li);
+        });
+    }
+
+    /* ── buildLadder: create all ladder-step elements from QUESTIONS ──
+       column-reverse CSS means index 0 renders at the bottom.        */
+    function buildLadder() {
+        var container = document.getElementById('ladderSteps');
+        container.innerHTML = '';
+        QUESTIONS.forEach(function(q, idx) {
+            var step = document.createElement('div');
+            step.className = 'ladder-step';
+            step.id = 'step-' + idx;
+            if (q.milestone) step.classList.add('milestone');
+
+            /* Number label */
+            var numSpan = document.createElement('span');
+            numSpan.className = 'step-num';
+            numSpan.textContent = idx + 1;
+
+            /* Amount label -- textContent is safe */
+            var amtSpan = document.createElement('span');
+            amtSpan.className = 'step-amount';
+            amtSpan.textContent = formatMoney(q.value);
+
+            /* Pulsing dot (state-driven via CSS) */
+            var dot = document.createElement('span');
+            dot.className = 'step-dot';
+
+            step.appendChild(numSpan);
+            step.appendChild(amtSpan);
+            step.appendChild(dot);
+            container.appendChild(step);
+        });
+        refreshLadder();
+    }
+
+    /* Applies current/banked state classes to all ladder steps. */
+    function refreshLadder() {
+        QUESTIONS.forEach(function(_, idx) {
+            var step = document.getElementById('step-' + idx);
+            if (!step) return;
+            /* Reset transient state classes; preserve milestone */
+            step.classList.remove('current', 'banked');
+            if (idx < currentQ)                step.classList.add('banked');
+            if (idx === currentQ && gameActive) step.classList.add('current');
+        });
+    }
+
+    /* ── loadQuestion: render the current question into the panel ─────
+       Clears feedback/peek, re-renders option buttons, syncs UI.     */
+    function loadQuestion() {
+        if (currentQ >= QUESTIONS.length) {
+            /* Defensive guard -- should be caught earlier */
+            endGame(true);
+            return;
+        }
+        answered = false;
+
+        var q = QUESTIONS[currentQ];
+
+        /* Grade tag: textContent is safe */
+        document.getElementById('gradeTag').textContent      = q.gradeTag || '';
+        document.getElementById('valueTag').textContent      = formatMoney(q.value);
+        document.getElementById('questionText').textContent  = q.q;
+        document.getElementById('qNumDisplay').textContent   = (currentQ + 1) + ' / ' + QUESTIONS.length;
+        document.getElementById('playingForDisplay').textContent = formatMoney(q.value);
+
+        /* Option buttons: created via DOM (no innerHTML for data text) */
+        var grid = document.getElementById('optionsGrid');
+        grid.innerHTML = '';
+        var letters = ['A','B','C','D'];
+        q.options.forEach(function(optText, i) {
+            var btn = document.createElement('button');
+            btn.className = 'opt-btn';
+            btn.id = 'opt-' + i;
+
+            /* opt-letter badge */
+            var letterSpan = document.createElement('span');
+            letterSpan.className = 'opt-letter';
+            letterSpan.textContent = letters[i];
+
+            /* Option text -- textContent prevents XSS */
+            var textSpan = document.createElement('span');
+            textSpan.textContent = optText;
+
+            btn.appendChild(letterSpan);
+            btn.appendChild(textSpan);
+            btn.addEventListener('click', makeAnswerHandler(i));
+            grid.appendChild(btn);
+        });
+
+        /* Clear feedback box */
+        var fb = document.getElementById('questionFeedback');
+        fb.className = 'question-feedback';
+        fb.textContent = '';
+
+        /* Clear peek box */
+        var pb = document.getElementById('peekBox');
+        pb.className = 'peek-box';
+        pb.innerHTML = '';
+
+        /* Show/hide save notice */
+        document.getElementById('saveNotice').className =
+            'save-active-notice' + (saveActive ? ' visible' : '');
+
+        refreshLadder();
+        updateStatusBar();
+        syncLifelineButtons();
+    }
+
+    /* Closure over option index to prevent stale-click bugs. */
+    function makeAnswerHandler(optIdx) {
+        var qIdx = currentQ;
+        return function() {
+            if (!gameActive || answered) return;
+            if (currentQ !== qIdx) return;   /* guard: stale click after advance */
+            selectAnswer(optIdx);
+        };
+    }
+
+    /* ── selectAnswer: core answer-processing logic ───────────────────
+       Exact mechanics from the clone:
+         - Correct: advance after 1800ms; bank the question's value.
+         - Wrong + saveActive: absorb wrong, advance as if correct.
+         - Wrong (bare): drop to lastMilestoneBank, endGame(false).   */
+    function selectAnswer(idx) {
+        if (!gameActive || answered) return;
+        answered = true;
+
+        var q = QUESTIONS[currentQ];
+        var isCorrect = (idx === q.answer);
+
+        /* Disable all option buttons and reveal correct/wrong styling */
+        for (var i = 0; i < q.options.length; i++) {
+            var btn = document.getElementById('opt-' + i);
+            btn.disabled = true;
+            if (i === q.answer)              btn.classList.add('correct');
+            else if (i === idx && !isCorrect) btn.classList.add('wrong');
+        }
+
+        var fb = document.getElementById('questionFeedback');
+
+        if (isCorrect) {
+            /* Correct answer */
+            fb.className = 'question-feedback correct';
+            fb.textContent = 'Correct! ' + (q.note || '');
+            /* Milestone reached: small fanfare; otherwise standard correct */
+            if (window.HexworthGameAudio) {
+                if (q.milestone) HexworthGameAudio.dailyDouble();
+                else             HexworthGameAudio.correct();
+            }
+            setTimeout(advanceAfterCorrect, 1800);
+
+        } else if (saveActive) {
+            /* SAVE lifeline absorbs the wrong answer */
+            saveActive       = false;
+            lifelineSaveUsed = true;
+            document.getElementById('saveNotice').classList.remove('visible');
+            syncLifelineButtons();
+            fb.className = 'question-feedback correct';
+            fb.textContent = 'SAVE lifeline triggered! Wrong, but you are protected. ' + (q.note || '');
+            if (window.HexworthGameAudio) HexworthGameAudio.streak();
+            setTimeout(advanceAfterCorrect, 2000);
+
+        } else {
+            /* Real wrong answer */
+            fb.className = 'question-feedback wrong';
+            fb.textContent = 'Incorrect. ' + (q.note || '');
+            if (window.HexworthGameAudio) HexworthGameAudio.wrong();
+            setTimeout(function() { endGame(false); }, 2000);
+        }
+    }
+
+    /* Bank the current question's value, advance currentQ, load next.
+       Called after a correct answer or a SAVE-absorbed wrong answer.  */
+    function advanceAfterCorrect() {
+        bank = QUESTIONS[currentQ].value;  /* bank = this question's value */
+        currentQ++;
+        if (currentQ >= QUESTIONS.length) {
+            endGame(true);  /* won the whole game */
+        } else {
+            loadQuestion();
+        }
+    }
+
+    /* ── LIFELINES ────────────────────────────────────────────────────
+       Each lifeline uses a flag to prevent double-use.               */
+
+    /* PEEK: reveals correct answer text in the peek-box.
+       Does NOT answer the question; player must still click.          */
+    function usePeek() {
+        if (!gameActive || answered || lifelinePeekUsed) return;
+        lifelinePeekUsed = true;
+        syncLifelineButtons();
+
+        var q = QUESTIONS[currentQ];
+        var letters = ['A','B','C','D'];
+
+        /* Build peek-box content safely: strong text via DOM */
+        var pb = document.getElementById('peekBox');
+        pb.innerHTML = '';  /* clear first */
+        var prefix = document.createTextNode('PEEK: The correct answer is ');
+        var strong = document.createElement('strong');
+        strong.textContent = letters[q.answer] + ', ' + q.options[q.answer];
+        var suffix = document.createTextNode(
+            '. (No credit for this question if you use this information.)'
+        );
+        pb.appendChild(prefix);
+        pb.appendChild(strong);
+        pb.appendChild(suffix);
+        pb.classList.add('visible');
+    }
+
+    /* COPY: auto-selects correct answer; bank is NOT updated for this
+       question. Advances with the bank value frozen at its current
+       amount. Matches clone behaviour exactly.                        */
+    function useCopy() {
+        if (!gameActive || answered || lifelineCopyUsed) return;
+        lifelineCopyUsed = true;
+        syncLifelineButtons();
+
+        answered = true;
+        var q = QUESTIONS[currentQ];
+
+        /* Reveal correct option in the UI */
+        for (var i = 0; i < q.options.length; i++) {
+            var btn = document.getElementById('opt-' + i);
+            btn.disabled = true;
+            if (i === q.answer) btn.classList.add('correct');
+        }
+
+        var fb = document.getElementById('questionFeedback');
+        fb.className = 'question-feedback correct';
+        fb.textContent =
+            'COPY lifeline used. Correct answer applied automatically. ' +
+            'This question is not banked: you advance with your current ' +
+            formatMoney(bank) + '.';
+
+        /* Advance WITHOUT banking: do not call advanceAfterCorrect().
+           Increment currentQ directly and load the next question.    */
+        setTimeout(function() {
+            currentQ++;
+            if (currentQ >= QUESTIONS.length) {
+                endGame(true);
+            } else {
+                loadQuestion();
+            }
+        }, 2200);
+    }
+
+    /* SAVE: arms the save shield. The lifeline is consumed immediately
+       on activation (lifelineSaveUsed=true prevents re-activation).
+       The shield fires inside selectAnswer() when saveActive is true.  */
+    function useSave() {
+        if (!gameActive || answered || lifelineSaveUsed || saveActive) return;
+        saveActive       = true;
+        lifelineSaveUsed = true;  /* used to prevent re-arm */
+        syncLifelineButtons();
+        document.getElementById('saveNotice').classList.add('visible');
+    }
+
+    /* Drop Out: bank current winnings and end game immediately. */
+    function dropOut() {
+        if (!gameActive) return;
+        gameActive = false;
+        endGame('dropout');
+    }
+
+    /* Sync lifeline button disabled state and label text. */
+    function syncLifelineButtons() {
+        var peek = document.getElementById('lifelinePeek');
+        var copy = document.getElementById('lifelineCopy');
+        var save = document.getElementById('lifelineSave');
+        var drop = document.getElementById('dropoutBtn');
+
+        peek.disabled = lifelinePeekUsed || !gameActive;
+        copy.disabled = lifelineCopyUsed || !gameActive;
+        /* SAVE is disabled once used OR once the shield is queued (saveActive) */
+        save.disabled = lifelineSaveUsed || saveActive || !gameActive;
+        drop.disabled = !gameActive;
+
+        /* Update label text to include (used)/(active) tag */
+        peek.innerHTML = 'PEEK' +
+            (lifelinePeekUsed ? '<span class="lifeline-used-tag">(used)</span>' : '');
+        copy.innerHTML = 'COPY' +
+            (lifelineCopyUsed ? '<span class="lifeline-used-tag">(used)</span>' : '');
+        save.innerHTML = 'SAVE' +
+            (lifelineSaveUsed ? '<span class="lifeline-used-tag">(active)</span>' : '');
+    }
+
+    /* ── lastMilestoneBank: find the highest milestone the player passed
+       currentQ is the rung the player just answered wrong (0-based).
+       "Passed a milestone" means currentQ > milestoneIdx, i.e. the player
+       banked that rung and is now on a higher one.                    */
+    function lastMilestoneBank() {
+        for (var i = MILESTONE_IDXS.length - 1; i >= 0; i--) {
+            var mIdx = MILESTONE_IDXS[i];
+            if (currentQ > mIdx) {
+                return QUESTIONS[mIdx].value;
+            }
+        }
+        return 0;
+    }
+
+    /* ── endGame: determine final bank, build modal, display result ───
+       outcome: true (won all), false (wrong answer), 'dropout'       */
+    function endGame(outcome) {
+        gameActive = false;
+        syncLifelineButtons();
+        refreshLadder();
+
+        if (window.HexworthGameAudio) HexworthGameAudio.finalFanfare();
+
+        /* Determine the displayed bank amount */
+        var finalBank;
+        if (outcome === false) {
+            /* Wrong answer: drop back to last milestone or $0 */
+            finalBank = lastMilestoneBank();
+        } else {
+            /* Correct win or dropout: use current bank */
+            finalBank = bank;
+        }
+
+        /* Grade: percentage of MAX_VALUE */
+        var pct = (MAX_VALUE > 0) ? Math.round((finalBank / MAX_VALUE) * 100) : 0;
+
+        /* Grade labels from data, with built-in fallbacks */
+        var gl = (courseData && courseData.gradeLabels) ? courseData.gradeLabels : {
+            s: 'S-RANK -- Master',
+            a: 'A-RANK -- Senior Analyst',
+            b: 'B-RANK -- Practitioner',
+            c: 'C-RANK -- Apprentice',
+            f: 'F-RANK -- Back to Training'
+        };
+
+        var gradeText, gradeClass, iconSrc;
+
+        if (outcome === true && currentQ >= QUESTIONS.length) {
+            /* Won the entire ladder */
+            iconSrc    = '/assets/images/icons/icon-star.webp';
+            gradeText  = gl.s;
+            gradeClass = 'grade-s';
+        } else if (pct >= 30) {
+            iconSrc    = '/assets/images/icons/icon-shield.webp';
+            gradeText  = gl.a;
+            gradeClass = 'grade-a';
+        } else if (pct >= 10) {
+            iconSrc    = '/assets/images/icons/icon-books.webp';
+            gradeText  = gl.b;
+            gradeClass = 'grade-b';
+        } else if (pct >= 3) {
+            iconSrc    = '/assets/images/icons/icon-clipboard.webp';
+            gradeText  = gl.c;
+            gradeClass = 'grade-c';
+        } else {
+            iconSrc    = '/assets/images/icons/icon-clock.webp';
+            gradeText  = gl.f;
+            gradeClass = 'grade-f';
+        }
+
+        /* Pick modal title and subtitle based on outcome */
+        var title, subtitle;
+        if (outcome === true && currentQ >= QUESTIONS.length) {
+            title    = 'You Won ' + formatMoney(MAX_VALUE) + '!';
+            subtitle = 'You answered all ' + QUESTIONS.length + ' questions correctly.';
+        } else if (outcome === 'dropout') {
+            title    = 'You Dropped Out';
+            subtitle = 'You walked away with your winnings.';
+        } else {
+            title    = 'Wrong Answer';
+            subtitle = 'Your bank resets to the last safe-haven milestone.';
+        }
+
+        /* Populate modal -- all data goes through textContent */
+        document.getElementById('modalIconImg').src   = iconSrc;
+        document.getElementById('modalIconImg').alt   = gradeText;
+        document.getElementById('modalTitle').textContent    = title;
+        document.getElementById('modalSubtitle').textContent = subtitle;
+
+        var bankEl = document.getElementById('modalBank');
+        bankEl.textContent = formatMoney(finalBank);
+        bankEl.className   = finalBank === 0 ? 'modal-bank zero' : 'modal-bank';
+
+        /* Grade badge: escText() because it goes into innerHTML */
+        document.getElementById('modalGrade').innerHTML =
+            '<span class="modal-grade ' + gradeClass + '">' + escText(gradeText) + '</span>';
+
+        /* Stats row */
+        var qAnswered = currentQ;  /* matches clone: currentQ at game end */
+        document.getElementById('modalStats').innerHTML =
+            '<div class="modal-stat">' +
+                '<span class="modal-stat-num" style="color:var(--accent)">' + qAnswered + '</span>' +
+                '<span class="modal-stat-label">Questions Answered</span>' +
+            '</div>' +
+            '<div class="modal-stat">' +
+                '<span class="modal-stat-num" style="color:var(--gold)">' + pct + '%</span>' +
+                '<span class="modal-stat-label">of Max</span>' +
+            '</div>';
+
+        /* Show the modal */
+        document.getElementById('modalOverlay').classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        /* Show the complete section at the bottom of the page */
+        document.getElementById('completeSection').classList.add('visible');
+    }
+
+    /* ── updateStatusBar: refresh bank / question / playing-for display */
+    function updateStatusBar() {
+        var bankEl = document.getElementById('bankDisplay');
+        bankEl.textContent = formatMoney(bank);
+        bankEl.classList.add('bump');
+        setTimeout(function() { bankEl.classList.remove('bump'); }, 200);
+        document.getElementById('qNumDisplay').textContent =
+            (currentQ + 1) + ' / ' + QUESTIONS.length;
+        document.getElementById('playingForDisplay').textContent =
+            formatMoney(QUESTIONS[currentQ] ? QUESTIONS[currentQ].value : 0);
+    }
+
+    /* ── resetGame: restore all state and restart from rung 1 ────────── */
+    function resetGame() {
+        currentQ          = 0;
+        bank              = 0;
+        gameActive        = true;
+        lifelinePeekUsed  = false;
+        lifelineCopyUsed  = false;
+        lifelineSaveUsed  = false;
+        saveActive        = false;
+        answered          = false;
+
+        document.getElementById('completeSection').classList.remove('visible');
+        document.body.style.overflow = '';
+
+        buildLadder();
+        loadQuestion();
+    }
+
+    /* ── closeModal: hide the final result overlay ────────────────────── */
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    /* ── formatMoney: format a dollar amount as a US string ──────────── */
+    function formatMoney(n) {
+        if (typeof n !== 'number' || isNaN(n)) return '$0';
+        return '$' + n.toLocaleString('en-US');
+    }
+
+    /* ── wireAudio: connect the audio toggle to HexworthGameAudio ────────
+       Matches kahoot.html's wireAudio() implementation exactly.
+       If HexworthGameAudio is absent, the toggle does nothing and
+       gameplay is completely unaffected.                              */
+    function wireAudio() {
+        var btn = document.getElementById('audioToggle');
+        if (!btn || !window.HexworthGameAudio) return;
+
+        function syncPressed() {
+            btn.setAttribute('aria-pressed', String(HexworthGameAudio.isMuted()));
+        }
+        syncPressed();
+
+        btn.addEventListener('click', function() {
+            HexworthGameAudio.init();
+            HexworthGameAudio.resume();
+            var nowMuted = HexworthGameAudio.toggleMute();
+            btn.setAttribute('aria-pressed', String(nowMuted));
+        });
+
+        if (!HexworthGameAudio.isEnabled()) {
+            HexworthGameAudio.mute();
+            btn.setAttribute('aria-pressed', 'true');
+        }
+    }
+
+    /* ── wireButtons: attach onclick handlers to static buttons ─────────
+       Lifeline and action buttons are wired here (not inline onclick)
+       to keep forward-reference concerns inside the script block.    */
+    function wireButtons() {
+        document.getElementById('lifelinePeek').addEventListener('click', function() { usePeek(); });
+        document.getElementById('lifelineCopy').addEventListener('click', function() { useCopy(); });
+        document.getElementById('lifelineSave').addEventListener('click', function() { useSave(); });
+        document.getElementById('dropoutBtn').addEventListener('click',   function() { dropOut(); });
+        document.getElementById('resetBtn').addEventListener('click',     function() { resetGame(); });
+        document.getElementById('modalPlayAgain').addEventListener('click', function() {
+            resetGame();
+            closeModal();
+        });
+        document.getElementById('modalClose').addEventListener('click', closeModal);
+        document.getElementById('completeBtn').addEventListener('click', completeModule);
+
+        /* Close modal on overlay backdrop click */
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+    }
+
+    /* ── Keyboard: 1-4 or A-D to answer; no other shortcuts ─────────── */
+    document.addEventListener('keydown', function(e) {
+        if (!gameActive || answered) return;
+        var keyMap = { '1':0, '2':1, '3':2, '4':3, 'a':0, 'b':1, 'c':2, 'd':3 };
+        var k = e.key.toLowerCase();
+        if (k in keyMap) selectAnswer(keyMap[k]);
+    });
+
+    /* ── AccessGuard: call require() matching kahoot.html's pattern ────
+       Wrapped in a try/catch so a missing guard never aborts the game. */
+    (function guardOptional() {
+        if (typeof AccessGuard !== 'undefined') {
+            try { AccessGuard.require('sorted'); } catch(e) { /* sandbox: no-op */ }
+        }
+    })();
+
+    /* ── completeModule: record completion via ModuleProgress ─────────
+       courseId doubles as the module ID within the fifth-grader house.
+       Falls back gracefully if ModuleProgress is not loaded.          */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete(courseId, 'fifth-grader', { returnToDashboard: false });
+        }
+        /* Update both complete buttons to a "Completed!" state */
+        var completeBtns = [
+            document.getElementById('completeBtn')
+        ];
+        completeBtns.forEach(function(btn) {
+            if (!btn) return;
+            btn.textContent   = 'Completed!';
+            btn.style.background = 'rgba(59,130,246,0.2)';
+            btn.style.color      = 'var(--accent)';
+            btn.style.cursor     = 'default';
+            btn.onclick          = null;
+        });
+    }
+
+    /* ── Main init: fetch JSON, validate, apply theme, start game ──────
+       Matches kahoot.html's init IIFE pattern exactly.
+       Fetch path: data/fifth/<courseId>.json
+       On error: show error screen; never blank the page.             */
+    (function init() {
+        var dataUrl = 'data/fifth/' + courseId + '.json';
+
+        fetch(dataUrl)
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ' loading ' + dataUrl);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                /* Validate minimal required shape */
+                if (!Array.isArray(data.questions) || data.questions.length === 0) {
+                    throw new Error('JSON missing required "questions" array');
+                }
+                data.questions.forEach(function(q, i) {
+                    if (!Array.isArray(q.options) || q.options.length !== 4) {
+                        throw new Error('Question ' + i + ' must have exactly 4 options');
+                    }
+                    if (typeof q.answer !== 'number' || q.answer < 0 || q.answer > 3) {
+                        throw new Error('Question ' + i + ' has invalid answer index');
+                    }
+                    if (typeof q.value !== 'number') {
+                        throw new Error('Question ' + i + ' missing numeric value');
+                    }
+                });
+
+                /* Store globally */
+                courseData = data;
+                QUESTIONS  = data.questions;
+
+                /* Build milestone index list from data */
+                MILESTONE_IDXS = [];
+                QUESTIONS.forEach(function(q, idx) {
+                    if (q.milestone) MILESTONE_IDXS.push(idx);
+                });
+
+                /* MAX_VALUE = last question's value (highest rung) */
+                MAX_VALUE = QUESTIONS[QUESTIONS.length - 1].value;
+
+                /* Apply course theme before any UI is shown */
+                applyTheme(data.theme);
+
+                /* Hide loading screen, reveal game root */
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('gameRoot').style.display       = '';
+
+                /* Populate static hero/rules */
+                populateLobby(data);
+
+                /* Wire all button handlers */
+                wireButtons();
+
+                /* Wire audio toggle */
+                wireAudio();
+
+                /* Build ladder and load first question */
+                buildLadder();
+                loadQuestion();
+            })
+            .catch(function(err) {
+                /* Never blank the page on error -- show the error screen */
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('errorScreen').style.display   = '';
+                document.getElementById('errorMessage').textContent =
+                    'Could not load course "' + courseId + '": ' + err.message +
+                    '. Check the course ID in the URL or return to the picker.';
+                console.error('[Fifth Grader Engine] Data load failed:', err);
+            });
+    })();
+    </script>
+</body>
+</html>

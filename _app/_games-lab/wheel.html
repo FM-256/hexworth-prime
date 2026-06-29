@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- AccessGuard and HexworthGameAudio are optional: loaded if present, silently skipped if absent.
+         The onerror guards match the kahoot.html shell convention so a missing component never blanks
+         the page or throws uncaught errors. -->
+    <script src="../components/AccessGuard.js" onerror="window._accessGuardMissing=true"></script>
+    <script src="../components/HexworthGameAudio.js" onerror="window._audioMissing=true"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wheel Review | Game Lab (Hexworth Prime)</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-game.webp">
+    <style>
+        /* ================================================================
+           CSS CUSTOM PROPERTIES
+           --accent / --accent-dim / --accent-glow / --bg / --card / --text
+           are injected at runtime from data.theme via applyTheme().
+
+           SEMANTIC COLORS (gold, green, red) are FIXED CONSTANTS and must
+           NEVER come from course data — every course shares the same meaning
+           for money/score (gold), correct/solved (green), and wrong/miss (red).
+           ================================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            /* Overwritten by applyTheme() after JSON loads */
+            --accent:      #3b82f6;
+            --accent-dim:  rgba(59,130,246,0.12);
+            --accent-glow: rgba(59,130,246,0.3);
+            --bg:          #0a0a0f;
+            --card:        #12121a;
+            --text:        #e0e0e0;
+            --text-dim:    #8b949e;
+            --border:      rgba(255,255,255,0.08);
+            --border2:     rgba(255,255,255,0.18);
+
+            /* FIXED semantic palette -- never overwritten by data */
+            --gold:        #ffcc00;
+            --green:       #10b981;
+            --red:         #ef4444;
+            --orange:      #f59e0b;
+            --purple:      #8b5cf6;
+
+            /* Wheel-of-Fortune board colours -- fixed atmospheric constants */
+            --wof-bg:          #060c2a;
+            --wof-tile:        #0a1240;
+            --wof-tile-active: #1a2e8a;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ── Loading / Error state screens ──────────────────────────── */
+        .state-screen {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            min-height: 100vh; gap: 20px; padding: 40px;
+            text-align: center;
+        }
+        .state-screen h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+        .state-screen p  { font-size: 14px; color: var(--text-dim); max-width: 460px; }
+        .state-screen a  {
+            color: var(--accent); font-weight: 600; text-decoration: none;
+            padding: 10px 24px; border: 1px solid var(--border2); border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .state-screen a:hover { background: var(--accent-dim); }
+        .spinner {
+            width: 40px; height: 40px; border-radius: 50%;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Shared header ───────────────────────────────────────────── */
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px;
+            background: rgba(10,10,15,0.96);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge {
+            font-size: 11px; padding: 3px 10px; border-radius: 4px;
+            background: var(--accent-dim); color: var(--accent);
+            font-weight: 700; letter-spacing: 1px;
+        }
+        .header h1 { font-size: 15px; font-weight: 600; color: var(--accent); }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        /* Audio toggle -- exact structure from kahoot.html */
+        .audio-toggle {
+            background: transparent; color: var(--accent);
+            border: 1px solid var(--border2); border-radius: 6px;
+            padding: 6px 8px; cursor: pointer; line-height: 0;
+            transition: background 0.15s, border-color 0.15s;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .audio-toggle:hover { background: var(--accent-dim); border-color: var(--accent); }
+        .audio-toggle .ico-on  { display: inline; }
+        .audio-toggle .ico-off { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-on  { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-off { display: inline; }
+        .audio-toggle[aria-pressed="true"] { color: rgba(255,255,255,0.35); }
+
+        /* Back link -- mirrors kahoot.html */
+        .back-link {
+            font-size: 13px; color: var(--accent); font-weight: 600;
+            text-decoration: none; padding: 6px 14px; border-radius: 6px;
+            border: 1px solid var(--border2); transition: all 0.2s;
+        }
+        .back-link:hover { background: var(--accent-dim); }
+
+        /* ── Full-bleed game root -- NEVER narrow centered ───────────── */
+        #gameRoot { display: none; }
+
+        /* ── Content wrapper ─────────────────────────────────────────── */
+        .content { padding: 24px 24px 80px; }
+
+        /* ── Hero ────────────────────────────────────────────────────── */
+        .hero { text-align: center; padding: 28px 0 20px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+        .hero-sub { font-size: 14px; color: var(--text-dim); max-width: 660px; margin: 0 auto; }
+        .hero-meta {
+            display: flex; justify-content: center; gap: 24px; margin-top: 14px;
+            font-size: 12px; color: var(--text-dim);
+        }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* ── Instructions panel ──────────────────────────────────────── */
+        .instructions {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px 20px; margin-bottom: 14px;
+        }
+        .instructions h3 {
+            font-size: 11px; color: var(--accent); text-transform: uppercase;
+            letter-spacing: 1.5px; margin-bottom: 10px;
+        }
+        .instructions ul { list-style: none; }
+        .instructions li {
+            padding: 3px 0; font-size: 13px; color: var(--text-dim);
+            display: flex; align-items: flex-start; gap: 10px;
+        }
+        .instructions li::before {
+            content: '>'; color: var(--accent); font-weight: bold;
+            flex-shrink: 0; margin-top: 2px;
+        }
+
+        /* ── Scoring callout ──────────────────────────────────────────── */
+        .callout {
+            border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px;
+        }
+        .callout-title {
+            font-weight: 700; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-bottom: 4px;
+        }
+        .callout p { color: var(--text-dim); }
+        .callout-info { background: rgba(59,130,246,0.07); border-left: 3px solid var(--accent); }
+        .callout-info .callout-title { color: var(--accent); }
+
+        /* ── Main game layout: full bleed two-column ─────────────────── */
+        .game-wrap {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* ── Puzzle board (left column) ─────────────────────────────── */
+        .puzzle-section {
+            background: var(--card); border: 2px solid var(--accent);
+            border-radius: 12px; overflow: hidden;
+        }
+        .puzzle-header {
+            background: var(--wof-bg); padding: 10px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(59,130,246,0.2);
+        }
+        .round-indicator {
+            font-size: 12px; font-weight: 700; color: var(--accent);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        /* Category banner -- gold is FIXED (the WoF "category" colour) */
+        .category-banner {
+            text-align: center; padding: 10px 20px;
+            font-size: 13px; font-weight: 700; color: var(--gold);
+            text-transform: uppercase; letter-spacing: 2px;
+            background: rgba(255,204,0,0.06);
+            border-bottom: 1px solid rgba(255,204,0,0.12);
+        }
+
+        /* ── Phrase display: rows of letter tiles ─────────────────── */
+        .phrase-display {
+            padding: 20px 20px 16px;
+            display: flex; flex-direction: column; gap: 10px;
+            background: var(--wof-bg); min-height: 130px;
+        }
+        .phrase-row {
+            display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;
+        }
+        .letter-tile {
+            width: 36px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 4px;
+            font-size: 20px; font-weight: 800; color: #fff;
+            text-transform: uppercase; user-select: none;
+            transition: all 0.25s ease;
+        }
+        /* Hidden tile: letter not yet guessed */
+        .letter-tile.hidden {
+            background: var(--wof-tile);
+            border: 2px solid rgba(59,130,246,0.25);
+            color: transparent;
+        }
+        /* Revealed tile -- accent border, flip animation */
+        .letter-tile.revealed {
+            background: var(--wof-tile-active);
+            border: 2px solid rgba(59,130,246,0.6);
+            animation: tileFlip 0.3s ease-out;
+        }
+        /* Pre-revealed: punctuation/digits shown from the start */
+        .letter-tile.prerevealed {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.7);
+        }
+        /* Space gap between words */
+        .letter-tile.space {
+            background: transparent; border: none; width: 14px;
+        }
+        @keyframes tileFlip {
+            0%   { transform: scaleY(0.1); background: var(--gold); }
+            50%  { transform: scaleY(1.1); }
+            100% { transform: scaleY(1); background: var(--wof-tile-active); }
+        }
+
+        /* ── Miss pip row ────────────────────────────────────────────── */
+        .miss-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 20px; background: rgba(239,68,68,0.04);
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .miss-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .miss-pips { display: flex; gap: 5px; }
+        .miss-pip {
+            width: 14px; height: 14px; border-radius: 50%;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+            transition: background 0.2s;
+        }
+        /* Active pip is FIXED red -- always means "miss" */
+        .miss-pip.active { background: var(--red); border-color: var(--red); }
+
+        /* ── Per-puzzle result banner (inside puzzle-section) ────────── */
+        .puzzle-result-banner {
+            display: none; padding: 16px 20px; text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .puzzle-result-banner.visible { display: block; }
+        .puzzle-result-banner.win  { background: rgba(16,185,129,0.08); }
+        .puzzle-result-banner.lose { background: rgba(239,68,68,0.06); }
+        .result-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+        .result-title.win-text  { color: var(--green); }  /* FIXED semantic */
+        .result-title.lose-text { color: var(--red); }    /* FIXED semantic */
+        .result-phrase { font-size: 18px; font-weight: 700; color: var(--gold); letter-spacing: 2px; }
+        .result-earned { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+        .next-puzzle-btn {
+            margin-top: 12px; padding: 11px 28px; border: none; border-radius: 8px;
+            font-size: 13px; font-weight: 700; cursor: pointer;
+            background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff;
+            transition: all 0.2s;
+        }
+        .next-puzzle-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px var(--accent-glow); }
+
+        /* ── Puzzle progress pips row (below game-wrap) ──────────────── */
+        .puzzle-nav-row {
+            display: flex; align-items: center; gap: 10px; margin-top: 14px;
+            flex-wrap: wrap;
+        }
+        .puzzle-pip-wrap { display: flex; gap: 6px; flex: 1; }
+        .puzzle-pip {
+            flex: 1; height: 8px; border-radius: 4px;
+            background: rgba(255,255,255,0.08);
+            transition: background 0.3s;
+        }
+        .puzzle-pip.done-win  { background: var(--green); }  /* FIXED semantic */
+        .puzzle-pip.done-lose { background: var(--red); }    /* FIXED semantic */
+        .puzzle-pip.current   { background: var(--accent); animation: pipPulse 1.2s infinite alternate; }
+        @keyframes pipPulse { from { opacity: 0.6; } to { opacity: 1; } }
+
+        /* ── Side panel (right column) ───────────────────────────────── */
+        .side-panel { display: flex; flex-direction: column; gap: 14px; }
+
+        /* Score card -- gold is FIXED (money/score colour) */
+        .score-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px;
+        }
+        .score-card-title {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 8px;
+        }
+        .score-amount {
+            font-size: 36px; font-weight: 800; color: var(--gold);
+            transition: transform 0.2s;
+        }
+        .score-amount.bump { transform: scale(1.12); }
+        .score-stats { display: flex; gap: 16px; margin-top: 10px; }
+        .stat-item { text-align: center; }
+        .stat-num { font-size: 20px; font-weight: 700; }
+        .stat-num.green { color: var(--green); }  /* FIXED semantic */
+        .stat-num.red   { color: var(--red); }    /* FIXED semantic */
+        .stat-lbl { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Spin value card */
+        .spin-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px; text-align: center;
+        }
+        .spin-label {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 4px;
+        }
+        .spin-value {
+            font-size: 32px; font-weight: 800; color: var(--accent);
+            transition: all 0.2s;
+        }
+        /* During spin animation, pulse the value in gold */
+        .spin-value.spinning { color: var(--gold); animation: spinPulse 0.15s infinite alternate; }
+        @keyframes spinPulse {
+            from { transform: scale(0.95); opacity: 0.7; }
+            to   { transform: scale(1.05); opacity: 1; }
+        }
+        .spin-note { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+        /* Action buttons card */
+        .action-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .action-title {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 2px;
+        }
+        .action-btn {
+            padding: 10px 16px; border: none; border-radius: 7px; font-size: 13px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; width: 100%;
+            text-align: center; letter-spacing: 0.3px;
+        }
+        /* Spin button uses accent */
+        .btn-spin {
+            background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff;
+        }
+        .btn-spin:hover  { transform: translateY(-1px); box-shadow: 0 4px 16px var(--accent-glow); }
+        .btn-spin:disabled { opacity: 0.4; transform: none; box-shadow: none; cursor: not-allowed; }
+
+        /* Buy Vowel uses orange -- FIXED (cost / spend colour) */
+        .btn-vowel {
+            background: rgba(245,158,11,0.13); color: var(--orange);
+            border: 1px solid rgba(245,158,11,0.3);
+        }
+        .btn-vowel:hover   { background: rgba(245,158,11,0.28); }
+        .btn-vowel:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* Solve button uses purple -- distinct from spin/vowel */
+        .btn-solve {
+            background: rgba(139,92,246,0.13); color: var(--purple);
+            border: 1px solid rgba(139,92,246,0.3);
+        }
+        .btn-solve:hover   { background: rgba(139,92,246,0.28); }
+        .btn-solve:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* Instructor reveal -- red, smaller, de-emphasised */
+        .btn-reveal-override {
+            background: rgba(239,68,68,0.08); color: var(--red);
+            border: 1px solid rgba(239,68,68,0.22); font-size: 11px; padding: 7px 12px;
+        }
+        .btn-reveal-override:hover   { background: rgba(239,68,68,0.18); }
+        .btn-reveal-override:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* ── On-screen alphabet keyboard ─────────────────────────────── */
+        .used-letters-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px;
+        }
+        .used-title {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 10px;
+        }
+        .alpha-grid {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+        }
+        .alpha-key {
+            height: 30px; border-radius: 5px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; cursor: pointer;
+            transition: all 0.15s; user-select: none;
+            border: 1px solid var(--border2);
+            background: var(--accent-dim); color: var(--accent);
+        }
+        .alpha-key:hover { background: rgba(255,255,255,0.12); }
+        /* Vowel keys use orange tint to distinguish them visually */
+        .alpha-key.vowel-key {
+            border-color: rgba(245,158,11,0.35);
+            background: rgba(245,158,11,0.07);
+            color: var(--orange);
+        }
+        .alpha-key.vowel-key:hover { background: rgba(245,158,11,0.18); }
+        /* Used + hit = green FIXED semantic */
+        .alpha-key.hit  { background: rgba(16,185,129,0.12); color: var(--green); border-color: rgba(16,185,129,0.3); }
+        /* Used + miss = red FIXED semantic */
+        .alpha-key.miss {
+            background: rgba(239,68,68,0.07); color: rgba(239,68,68,0.4);
+            border-color: rgba(239,68,68,0.15);
+        }
+        /* Used and fully dimmed */
+        .alpha-key.used {
+            background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.06); cursor: default; pointer-events: none;
+        }
+
+        /* ── Solve locked badge ──────────────────────────────────────── */
+        .solve-locked-badge {
+            display: none; font-size: 11px; color: var(--red); font-weight: 700;
+        }
+
+        /* ── Feedback toast ──────────────────────────────────────────── */
+        /* NOTE: position:fixed is used here because the toast lives outside
+           the puzzle-section which does NOT set body.style.filter, so HEUR-008
+           does not apply to this element. The toast is purely cosmetic; losing
+           it to a filter bug would not break gameplay. */
+        .feedback-toast {
+            position: fixed; bottom: 32px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 700;
+            z-index: 600; transition: transform 0.3s, opacity 0.3s; opacity: 0;
+            white-space: nowrap; pointer-events: none;
+        }
+        .feedback-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .feedback-toast.good { background: rgba(16,185,129,0.92); color: #fff; }
+        .feedback-toast.bad  { background: rgba(239,68,68,0.92);  color: #fff; }
+        .feedback-toast.info { background: rgba(59,130,246,0.92);  color: #fff; }
+        .feedback-toast.warn { background: rgba(245,158,11,0.92);  color: #111; }
+
+        /* ── Solve modal ─────────────────────────────────────────────── */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.88);
+            z-index: 500; align-items: center; justify-content: center; padding: 24px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--card); border: 2px solid var(--accent);
+            border-radius: 16px; max-width: 560px; width: 100%;
+            padding: 36px 32px 28px; text-align: center; position: relative;
+            box-shadow: 0 0 60px var(--accent-glow);
+            animation: modalIn 0.3s ease-out;
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to   { transform: scale(1);    opacity: 1; }
+        }
+        .modal-close {
+            position: absolute; top: 12px; right: 16px; background: none; border: none;
+            color: rgba(255,255,255,0.4); font-size: 22px; cursor: pointer;
+            padding: 4px 8px; transition: color 0.2s;
+        }
+        .modal-close:hover { color: #fff; }
+        .modal-title { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 16px; }
+        .solve-input {
+            width: 100%; padding: 14px 16px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border2); border-radius: 8px;
+            color: #fff; font-size: 16px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; text-align: center; outline: none;
+            margin-bottom: 16px;
+        }
+        .solve-input:focus { border-color: var(--accent); background: var(--accent-dim); }
+        .modal-actions { display: flex; gap: 12px; justify-content: center; }
+        .modal-btn {
+            padding: 11px 26px; border: none; border-radius: 8px; font-size: 13px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+        }
+        .modal-btn.primary {
+            background: linear-gradient(135deg, var(--accent), #2563eb); color: #fff;
+        }
+        .modal-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 4px 16px var(--accent-glow); }
+        .modal-btn.cancel {
+            background: rgba(255,255,255,0.08); color: var(--text-dim);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .modal-btn.cancel:hover { background: rgba(255,255,255,0.14); }
+        .modal-note { font-size: 12px; color: var(--text-dim); margin-top: 12px; }
+
+        /* ── Buy Vowel modal -- vowel buttons inside ──────────────────── */
+        .vowel-btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+
+        /* ── Final score card ────────────────────────────────────────── */
+        .final-score {
+            display: none; background: var(--card); border: 2px solid var(--accent);
+            border-radius: 12px; padding: 36px; text-align: center; margin-top: 28px;
+        }
+        .final-score.visible { display: block; animation: fadeUp 0.5s ease-out; }
+        @keyframes fadeUp {
+            from { transform: translateY(16px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+        .final-score h3 { font-size: 22px; color: #fff; font-weight: 800; margin-bottom: 4px; }
+        .final-subtitle { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; }
+        .final-amount {
+            font-size: 52px; font-weight: 800; color: var(--gold); margin: 12px 0 8px;
+            text-shadow: 0 0 20px rgba(255,204,0,0.3);
+        }
+        .final-stats {
+            display: flex; justify-content: center; gap: 28px; margin-bottom: 20px;
+            font-size: 14px; color: var(--text-dim);
+        }
+        .final-stats .stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .final-stats .stat-n { font-size: 20px; font-weight: 700; }
+        .final-stats .stat-n.green { color: var(--green); }
+        .final-stats .stat-n.blue  { color: var(--accent); }
+        .final-stats .stat-d { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .grade {
+            font-size: 15px; font-weight: 700; padding: 10px 24px;
+            border-radius: 8px; display: inline-block; margin-top: 8px;
+        }
+        .grade-s { background: rgba(255,204,0,0.14);  color: var(--gold);   border: 1px solid rgba(255,204,0,0.3); }
+        .grade-a { background: var(--accent-dim);      color: var(--accent); border: 1px solid var(--border2); }
+        .grade-b { background: rgba(16,185,129,0.1);   color: var(--green);  border: 1px solid rgba(16,185,129,0.3); }
+        .grade-c { background: rgba(245,158,11,0.12);  color: var(--orange); border: 1px solid rgba(245,158,11,0.3); }
+        .grade-f { background: rgba(239,68,68,0.12);   color: var(--red);    border: 1px solid rgba(239,68,68,0.3); }
+
+        /* ── Responsive ──────────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .game-wrap { grid-template-columns: 1fr; }
+            .side-panel { display: grid; grid-template-columns: 1fr 1fr; }
+            .used-letters-card { grid-column: 1 / -1; }
+        }
+        @media (max-width: 640px) {
+            .hero h2 { font-size: 20px; }
+            .letter-tile { width: 28px; height: 36px; font-size: 15px; }
+            .letter-tile.space { width: 10px; }
+            .side-panel { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading screen: shown until JSON fetch resolves -->
+    <div class="state-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <h2>Loading course data&hellip;</h2>
+        <p>Fetching wheel puzzles for this course.</p>
+    </div>
+
+    <!-- Error screen: shown on fetch failure or missing course param -->
+    <div class="state-screen" id="errorScreen" style="display:none">
+        <h2>Course Not Found</h2>
+        <p id="errorMessage">The requested wheel data file could not be loaded.
+           Check the ?course= parameter in the URL or return to the picker.</p>
+        <a href="index.html">&larr; Back to Course Picker</a>
+    </div>
+
+    <!-- Full game UI: hidden until data loads successfully -->
+    <div id="gameRoot" style="display:none">
+
+        <!-- Shared header (badge + title + audio toggle + back link) -->
+        <header class="header">
+            <div class="header-left">
+                <span class="header-badge" id="headerBadge">WHEEL</span>
+                <h1 id="headerTitle">Wheel Review</h1>
+            </div>
+            <div class="header-right">
+                <button id="audioToggle" class="audio-toggle" type="button"
+                        aria-pressed="false" title="Toggle game audio">
+                    <span aria-hidden="true">
+                        <!-- Speaker-on icon -->
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" class="ico-on">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                        <!-- Speaker-off (muted) icon -->
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" class="ico-off">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <line x1="23" y1="9" x2="17" y2="15"></line>
+                            <line x1="17" y1="9" x2="23" y2="15"></line>
+                        </svg>
+                    </span>
+                </button>
+                <!-- "Course Picker" back link matches kahoot.html convention -->
+                <a href="index.html" class="back-link" id="backLink">&larr; Course Picker</a>
+            </div>
+        </header>
+
+        <main class="content">
+
+            <!-- Hero: populated by populateHero(data) from JSON -->
+            <div class="hero">
+                <img class="hero-icon" id="heroIcon" src="" alt="">
+                <h2 id="heroTitle">Wheel of Fortune Review</h2>
+                <p class="hero-sub" id="heroSub"></p>
+                <div class="hero-meta">
+                    <span>
+                        <img src="/assets/images/icons/icon-clock.webp" alt="" width="14" height="14">
+                        <span id="heroDuration">~20 min</span>
+                    </span>
+                    <span>
+                        <img src="/assets/images/icons/icon-game.webp" alt="" width="14" height="14">
+                        Game
+                    </span>
+                    <span>
+                        <img src="/assets/images/icons/icon-books.webp" alt="" width="14" height="14">
+                        All Levels
+                    </span>
+                </div>
+            </div>
+
+            <!-- How-to-play instructions -->
+            <div class="instructions">
+                <h3>How to Play</h3>
+                <ul>
+                    <li>Instructor reads the category aloud -- students identify the hidden phrase one letter at a time</li>
+                    <li>Click <strong>Spin</strong> to get a dollar value, then click a consonant to guess it. Each occurrence earns that spin value</li>
+                    <li>Click <strong>Buy Vowel</strong> to spend $250 and reveal all occurrences of A, E, I, O, or U (vowels do not earn spin value)</li>
+                    <li>Click <strong>Solve</strong> at any time to guess the full phrase -- correct = puzzle won + $1,000 bonus; wrong = locked for one turn (spin to unlock)</li>
+                    <li><strong>Reveal Puzzle</strong> is an instructor override to move on -- no score change</li>
+                </ul>
+            </div>
+
+            <!-- Scoring callout -->
+            <div class="callout callout-info">
+                <div class="callout-title">Scoring</div>
+                <p>Consonants: spin value x occurrences. Vowels: costs $250, no reward. Solve bonus: $1,000 on correct guess. Wrong solve: locked for one turn (spin or buy vowel to unlock).</p>
+            </div>
+
+            <!-- Main game: left=puzzle board, right=side panel -->
+            <div class="game-wrap">
+
+                <!-- LEFT: Puzzle board -->
+                <div>
+                    <div class="puzzle-section">
+                        <div class="puzzle-header">
+                            <span class="round-indicator" id="roundIndicator">Round 1 of 8</span>
+                            <span class="solve-locked-badge" id="solveLockedBadge">SOLVE LOCKED (1 turn)</span>
+                        </div>
+                        <div class="category-banner" id="categoryBanner">--</div>
+                        <div class="phrase-display" id="phraseDisplay"></div>
+                        <div class="miss-row">
+                            <span class="miss-label">Misses</span>
+                            <div class="miss-pips" id="missPips"></div>
+                        </div>
+                        <!-- Per-puzzle result shown after endPuzzle() -->
+                        <div class="puzzle-result-banner" id="puzzleResultBanner">
+                            <div class="result-title" id="resultTitle"></div>
+                            <div class="result-phrase" id="resultPhrase"></div>
+                            <div class="result-earned" id="resultEarned"></div>
+                            <button class="next-puzzle-btn" id="nextPuzzleBtn">Next Puzzle</button>
+                        </div>
+                    </div>
+
+                    <!-- Puzzle progress pips (one per puzzle in the set) -->
+                    <div class="puzzle-nav-row">
+                        <div class="puzzle-pip-wrap" id="puzzlePips"></div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Side panel -->
+                <div class="side-panel">
+
+                    <!-- Score card -->
+                    <div class="score-card">
+                        <div class="score-card-title">Total Score</div>
+                        <div class="score-amount" id="scoreDisplay">$0</div>
+                        <div class="score-stats">
+                            <div class="stat-item">
+                                <div class="stat-num green" id="puzzlesWonDisplay">0</div>
+                                <div class="stat-lbl">Won</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-num red" id="puzzlesLostDisplay">0</div>
+                                <div class="stat-lbl">Lost</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Spin value display -->
+                    <div class="spin-card">
+                        <div class="spin-label">Spin Value</div>
+                        <div class="spin-value" id="spinValueDisplay">--</div>
+                        <div class="spin-note" id="spinNote">Click Spin to get a value</div>
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div class="action-card">
+                        <div class="action-title">Actions</div>
+                        <button class="action-btn btn-spin" id="btnSpin">Spin the Wheel</button>
+                        <button class="action-btn btn-vowel" id="btnBuyVowel">Buy Vowel ($250)</button>
+                        <button class="action-btn btn-solve" id="btnSolve">Solve the Puzzle</button>
+                        <button class="action-btn btn-reveal-override" id="btnRevealOverride">Reveal Puzzle (Instructor)</button>
+                    </div>
+
+                    <!-- On-screen alphabet keyboard -->
+                    <div class="used-letters-card">
+                        <div class="used-title">Letters</div>
+                        <div class="alpha-grid" id="alphaGrid"></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Final score card: shown after last puzzle is played -->
+            <div class="final-score" id="finalScore">
+                <h3>Game Complete</h3>
+                <div class="final-subtitle" id="finalSubtitle"></div>
+                <div class="final-amount" id="finalAmount">$0</div>
+                <div class="final-stats" id="finalStats">
+                    <div class="stat">
+                        <span class="stat-n green" id="fWon">0</span>
+                        <span class="stat-d">Puzzles Won</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-n blue" id="fPct">0%</span>
+                        <span class="stat-d">Win Rate</span>
+                    </div>
+                </div>
+                <div id="finalGrade"></div>
+            </div>
+
+        </main>
+    </div><!-- /gameRoot -->
+
+    <!-- Solve modal: enter full phrase guess -->
+    <div class="modal-overlay" id="solveModal">
+        <div class="modal">
+            <button class="modal-close" id="solveBtnClose" title="Close">&times;</button>
+            <div class="modal-title">Solve the Puzzle</div>
+            <input type="text" class="solve-input" id="solveInput"
+                   placeholder="TYPE THE PHRASE..." maxlength="80">
+            <div class="modal-actions">
+                <button class="modal-btn primary" id="solveSubmitBtn">Submit</button>
+                <button class="modal-btn cancel" id="solveCancelBtn">Cancel</button>
+            </div>
+            <div class="modal-note">Correct: puzzle won + $1,000 bonus. Wrong: solve locked for one turn.</div>
+        </div>
+    </div>
+
+    <!-- Buy Vowel modal: pick an unguessed vowel -->
+    <div class="modal-overlay" id="vowelModal">
+        <div class="modal">
+            <button class="modal-close" id="vowelBtnClose" title="Close">&times;</button>
+            <div class="modal-title">Buy a Vowel (-$250)</div>
+            <div class="vowel-btn-row" id="vowelButtons"></div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="vowelCancelBtn">Cancel</button>
+            </div>
+            <div class="modal-note">Costs $250. Reveals all occurrences of the chosen vowel.</div>
+        </div>
+    </div>
+
+    <!-- Feedback toast notification -->
+    <div class="feedback-toast" id="feedbackToast"></div>
+
+    <script>
+    /* ================================================================
+       WHEEL OF FORTUNE ENGINE -- data-driven, theme-adaptive
+       Shell conventions (matching kahoot.html):
+         1. Parse ?course=<id> from URL; redirect to index.html if absent
+         2. fetch('data/wheel/<id>.json') with error screen on failure
+         3. applyTheme(data.theme) writes --accent/--bg/--card/--text to :root
+         4. Header/hero populated from data (title, subtitle, badge, icon, duration)
+         5. AccessGuard.require() guarded the same way as kahoot.html
+         6. HexworthGameAudio guarded with window.HexworthGameAudio checks
+         7. Full-bleed layout, no narrow centered column, no emoji
+         8. All data-derived text via textContent/DOM nodes (no innerHTML+data)
+         9. Functions defined before any event wiring (no forward references)
+    ================================================================ */
+
+    /* ── Step 1: Parse ?course= from URL ──────────────────────────── */
+    var params   = new URLSearchParams(window.location.search);
+    var courseId = (params.get('course') || '').trim().toLowerCase();
+
+    /* No course param -- redirect to picker immediately */
+    if (!courseId) {
+        window.location.replace('index.html');
+    }
+
+    /* ── AccessGuard: same optional-guard pattern as kahoot.html ─── */
+    (function guardOptional() {
+        if (typeof AccessGuard !== 'undefined') {
+            try { AccessGuard.require('sorted'); } catch(e) { /* sandbox: no-op */ }
+        }
+    })();
+
+    /* ================================================================
+       CONSTANTS
+       ================================================================ */
+
+    /* Classic WoF denomination wedge values; bankrupt omitted for classroom flow */
+    var WHEEL_VALUES = [400, 500, 550, 600, 650, 700, 800, 900, 1000, 1100, 1200, 1400, 1500, 1800, 2000, 2500];
+
+    /* A-Z vowel set (uppercase) */
+    var VOWELS = { 'A':1, 'E':1, 'I':1, 'O':1, 'U':1 };
+
+    var VOWEL_COST    = 250;    /* dollar cost to buy any vowel */
+    var SOLVE_BONUS   = 1000;   /* bonus added to score on correct solve */
+    var MAX_MISS_PIPS = 5;      /* visual cap on miss indicator dots */
+
+    /* Spin animation: number of random-value flickers before settling */
+    var SPIN_TICKS = 14;
+    var SPIN_TICK_MS = 80;
+
+    /* ================================================================
+       GAME DATA (populated after JSON fetch)
+       ================================================================ */
+    var courseData = null;   /* full JSON object */
+    var puzzles    = [];     /* courseData.puzzles array */
+
+    /* ================================================================
+       GAME STATE
+       All mutable state lives here. resetPuzzleState() clears per-puzzle
+       fields without touching the cross-puzzle totals.
+       ================================================================ */
+    var state = {
+        /* Cross-puzzle totals */
+        puzzleIdx:      0,
+        totalScore:     0,
+        puzzlesWon:     0,
+        puzzlesLost:    0,
+        puzzleResults:  [],   /* 'win' | 'lose' per completed puzzle */
+
+        /* Per-puzzle state (reset by resetPuzzleState) */
+        revealedLetters: {},  /* { 'A': true, ... } -- letters guessed or bought */
+        spinValue:       null,
+        hasSpun:         false,
+        solveLocked:     false,
+        misses:          0,
+        puzzleComplete:  false
+    };
+
+    /* ================================================================
+       UTILITY HELPERS
+       ================================================================ */
+
+    /** HTML-escape a string for safe insertion via innerHTML.
+        Only used for the grade label which is trusted static class text,
+        but we apply it defensively wherever innerHTML is used. */
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    /** Convert a CSS hex colour to an rgba() string with the given alpha.
+        Used by applyTheme() to derive --accent-dim and --accent-glow. */
+    function hexToRgba(hex, alpha) {
+        var h = (hex || '#888').replace('#', '');
+        if (h.length === 3) { h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; }
+        var r = parseInt(h.substring(0,2), 16);
+        var g = parseInt(h.substring(2,4), 16);
+        var b = parseInt(h.substring(4,6), 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    /** Returns the number of times letter `ch` appears in the current puzzle phrase.
+        Phrase is already uppercase; `ch` must be uppercase. */
+    function countOccurrences(ch) {
+        var phrase = puzzles[state.puzzleIdx].phrase.toUpperCase();
+        var n = 0;
+        for (var i = 0; i < phrase.length; i++) {
+            if (phrase[i] === ch) n++;
+        }
+        return n;
+    }
+
+    /** Returns true if `ch` is a guessable A-Z letter (as opposed to a space,
+        digit, or punctuation that is pre-revealed on the board). */
+    function isGuessableLetter(ch) {
+        return ch >= 'A' && ch <= 'Z';
+    }
+
+    /** Normalise a solve attempt: collapse whitespace and trim for comparison. */
+    function normalisePhrase(str) {
+        return str.replace(/\s+/g, ' ').trim().toUpperCase();
+    }
+
+    /** Returns true if all guessable letters in the current puzzle are revealed. */
+    function isPuzzleSolved() {
+        var phrase = puzzles[state.puzzleIdx].phrase.toUpperCase();
+        for (var i = 0; i < phrase.length; i++) {
+            var ch = phrase[i];
+            if (isGuessableLetter(ch) && !state.revealedLetters[ch]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Returns true if `ch` (uppercase) is a letter that actually appears
+        in the current puzzle phrase (used to classify keyboard keys as hit/miss). */
+    function isHitLetter(ch) {
+        return countOccurrences(ch) > 0;
+    }
+
+    /** Returns true if all vowels are either already revealed or not in the puzzle. */
+    function allVowelsUsed() {
+        var vs = ['A','E','I','O','U'];
+        for (var i = 0; i < vs.length; i++) {
+            if (!state.revealedLetters[vs[i]]) return false;
+        }
+        return true;
+    }
+
+    /* ================================================================
+       THEME APPLICATION
+       Writes --accent / --accent-dim / --accent-glow / --bg / --card /
+       --text to :root from data.theme. SEMANTIC colours (--gold, --green,
+       --red) are NEVER modified -- they are fixed constants in the CSS.
+       ================================================================ */
+
+    /** Apply the course theme from data.theme to CSS custom properties on :root. */
+    function applyTheme(theme) {
+        if (!theme) return;
+        var root = document.documentElement;
+
+        if (theme.accent) {
+            root.style.setProperty('--accent',      theme.accent);
+            root.style.setProperty('--accent-dim',  hexToRgba(theme.accent, 0.12));
+            root.style.setProperty('--accent-glow', hexToRgba(theme.accent, 0.30));
+            root.style.setProperty('--border2',     hexToRgba(theme.accent, 0.30));
+        }
+        if (theme.bg)   root.style.setProperty('--bg',   theme.bg);
+        if (theme.card) root.style.setProperty('--card', theme.card);
+        if (theme.text) root.style.setProperty('--text', theme.text);
+
+        /* Flush body background immediately to prevent a flash before the
+           first paint. Safe because --bg is now set on :root. */
+        document.body.style.background = 'var(--bg)';
+    }
+
+    /* ================================================================
+       LOBBY POPULATION
+       Write data-sourced values into the pre-built hero and header using
+       textContent (not innerHTML) to prevent any XSS from JSON data.
+       ================================================================ */
+
+    /** Populate header badge, title, hero icon, subtitle, and duration from JSON. */
+    function populateHero(data) {
+        /* Header */
+        document.getElementById('headerBadge').textContent = data.badge || 'WHEEL';
+        document.getElementById('headerTitle').textContent = (data.title || 'Wheel Review') + ' -- Wheel';
+        document.title = (data.title || 'Wheel Review') + ' | Wheel Review (Hexworth Prime)';
+
+        /* Hero */
+        var iconEl = document.getElementById('heroIcon');
+        if (data.icon) { iconEl.src = data.icon; iconEl.alt = data.title || ''; }
+        document.getElementById('heroTitle').textContent =
+            (data.title || 'Wheel of Fortune') + ' -- Wheel of Fortune Review';
+        document.getElementById('heroSub').textContent   = data.subtitle || '';
+        document.getElementById('heroDuration').textContent = data.duration || '~20 min';
+
+        /* Back link: keep generic "Course Picker" to match kahoot.html */
+        /* (index.html is the picker for _games-lab) */
+    }
+
+    /* ================================================================
+       BOARD RENDERING
+       All puzzle data is inserted via textContent / DOM APIs.
+       ================================================================ */
+
+    /** Build the phrase-display tile grid from the current puzzle.
+        Only A-Z letters are hidden; spaces become gap tiles; all other
+        characters (digits, punctuation, hyphens) are pre-revealed. */
+    function renderPhraseDisplay() {
+        var phrase = puzzles[state.puzzleIdx].phrase.toUpperCase();
+        var display = document.getElementById('phraseDisplay');
+
+        /* Remove existing children without innerHTML */
+        while (display.firstChild) { display.removeChild(display.firstChild); }
+
+        /* Wrap into word-groups, then lay out on rows with a ~14-tile limit
+           per row (matching the pis-wheel source). */
+        var words = phrase.split(' ');
+        var rows = [];
+        var currentRow = [];
+        var currentLen = 0;
+        var LINE_LIMIT = 14;
+
+        for (var wi = 0; wi < words.length; wi++) {
+            var word = words[wi];
+            var need = word.length + (currentRow.length > 0 ? 1 : 0); /* +1 for the space gap */
+            if (currentLen + need > LINE_LIMIT && currentRow.length > 0) {
+                rows.push(currentRow.slice());
+                currentRow = [];
+                currentLen = 0;
+            }
+            if (currentRow.length > 0) {
+                currentRow.push({ type: 'space' });
+                currentLen += 1;
+            }
+            for (var ci = 0; ci < word.length; ci++) {
+                currentRow.push({ type: 'letter', ch: word[ci] });
+                currentLen += 1;
+            }
+        }
+        if (currentRow.length > 0) rows.push(currentRow);
+
+        /* Build DOM */
+        for (var ri = 0; ri < rows.length; ri++) {
+            var row = rows[ri];
+            var rowEl = document.createElement('div');
+            rowEl.className = 'phrase-row';
+
+            for (var ti = 0; ti < row.length; ti++) {
+                var token = row[ti];
+                var tile  = document.createElement('div');
+
+                if (token.type === 'space') {
+                    tile.className = 'letter-tile space';
+                } else {
+                    var ch = token.ch;
+                    if (!isGuessableLetter(ch)) {
+                        /* Digit, punctuation, hyphen -- always visible */
+                        tile.className = 'letter-tile prerevealed';
+                        tile.textContent = ch;
+                    } else if (state.revealedLetters[ch]) {
+                        tile.className = 'letter-tile revealed';
+                        tile.textContent = ch;
+                        tile.dataset.ch = ch;
+                    } else {
+                        tile.className = 'letter-tile hidden';
+                        tile.textContent = ch; /* visible to screen readers; colour: transparent */
+                        tile.dataset.ch = ch;
+                    }
+                }
+                rowEl.appendChild(tile);
+            }
+            display.appendChild(rowEl);
+        }
+    }
+
+    /** Build the A-Z clickable keyboard grid.
+        Consonants fire guessConsonant(); vowels fire buyVowelDirect().
+        Used letters are visually dimmed and pointer-events removed. */
+    function renderAlphaGrid() {
+        var grid = document.getElementById('alphaGrid');
+        while (grid.firstChild) { grid.removeChild(grid.firstChild); }
+
+        for (var code = 65; code <= 90; code++) {
+            var ch = String.fromCharCode(code);
+            var key = document.createElement('div');
+            key.id = 'key-' + ch;
+
+            var isVowel = !!VOWELS[ch];
+            var isUsed  = !!state.revealedLetters[ch];
+
+            if (isUsed) {
+                /* Classify as hit (letter exists in phrase) or miss (absent) */
+                var wasHit = isHitLetter(ch);
+                key.className = 'alpha-key used ' + (wasHit ? 'hit' : 'miss');
+            } else if (isVowel) {
+                key.className = 'alpha-key vowel-key';
+            } else {
+                key.className = 'alpha-key';
+            }
+
+            key.textContent = ch;
+
+            /* Attach click only for unused letters */
+            if (!isUsed) {
+                (function(letter, vowel) {
+                    key.addEventListener('click', function() {
+                        if (vowel) {
+                            buyVowelDirect(letter);
+                        } else {
+                            guessConsonant(letter);
+                        }
+                    });
+                })(ch, isVowel);
+            }
+
+            grid.appendChild(key);
+        }
+    }
+
+    /** Render the miss pip row (up to MAX_MISS_PIPS dots, red when active). */
+    function renderMissPips() {
+        var wrap = document.getElementById('missPips');
+        while (wrap.firstChild) { wrap.removeChild(wrap.firstChild); }
+        for (var i = 0; i < MAX_MISS_PIPS; i++) {
+            var pip = document.createElement('div');
+            pip.className = 'miss-pip' + (i < state.misses ? ' active' : '');
+            wrap.appendChild(pip);
+        }
+    }
+
+    /** Render the horizontal progress pips (one per puzzle). */
+    function renderPuzzlePips() {
+        var wrap = document.getElementById('puzzlePips');
+        while (wrap.firstChild) { wrap.removeChild(wrap.firstChild); }
+        for (var i = 0; i < puzzles.length; i++) {
+            var pip = document.createElement('div');
+            var cls = 'puzzle-pip';
+            if (i < state.puzzleIdx) {
+                cls += ' ' + (state.puzzleResults[i] === 'win' ? 'done-win' : 'done-lose');
+            } else if (i === state.puzzleIdx) {
+                cls += ' current';
+            }
+            pip.className = cls;
+            wrap.appendChild(pip);
+        }
+    }
+
+    /** Update the round indicator and category banner from current puzzle data.
+        Both use textContent -- no innerHTML with puzzle data. */
+    function renderMeta() {
+        document.getElementById('roundIndicator').textContent =
+            'Round ' + (state.puzzleIdx + 1) + ' of ' + puzzles.length;
+        document.getElementById('categoryBanner').textContent =
+            puzzles[state.puzzleIdx].category || '';
+        /* Show/hide the solve-locked badge */
+        document.getElementById('solveLockedBadge').style.display =
+            state.solveLocked ? '' : 'none';
+    }
+
+    /** Update score display with a brief scale bump animation. */
+    function renderScore() {
+        var el = document.getElementById('scoreDisplay');
+        el.textContent = '$' + state.totalScore;
+        el.classList.add('bump');
+        /* Remove bump class after animation completes */
+        setTimeout(function() { el.classList.remove('bump'); }, 220);
+        document.getElementById('puzzlesWonDisplay').textContent  = state.puzzlesWon;
+        document.getElementById('puzzlesLostDisplay').textContent = state.puzzlesLost;
+    }
+
+    /** Full render cycle: meta, board, keyboard, pips, score, buttons.
+        Called after every state mutation. */
+    function renderAll() {
+        renderMeta();
+        renderPhraseDisplay();
+        renderAlphaGrid();
+        renderMissPips();
+        renderPuzzlePips();
+        renderScore();
+        syncButtonStates();
+    }
+
+    /* ================================================================
+       BUTTON STATE SYNC
+       Centralises all disabled/enabled logic for the four action buttons.
+       Called at the end of every renderAll() pass.
+       ================================================================ */
+
+    /** Sync enabled/disabled state of all action buttons based on current game state. */
+    function syncButtonStates() {
+        var done = state.puzzleComplete;
+
+        /* Spin: disabled if already spun this turn OR puzzle is done */
+        document.getElementById('btnSpin').disabled = done || state.hasSpun;
+
+        /* Buy Vowel: disabled if insufficient score, all vowels used, or puzzle done */
+        document.getElementById('btnBuyVowel').disabled =
+            done || state.totalScore < VOWEL_COST || allVowelsUsed();
+
+        /* Solve: disabled if locked (wrong guess last turn) or puzzle done */
+        document.getElementById('btnSolve').disabled = done || state.solveLocked;
+
+        /* Reveal override: disabled only when puzzle is already done */
+        document.getElementById('btnRevealOverride').disabled = done;
+    }
+
+    /* ================================================================
+       SPIN MECHANIC
+       ================================================================ */
+
+    /** Execute a wheel spin: animate through random values for SPIN_TICKS
+        iterations, then settle on a randomly pre-chosen final value.
+        Marks hasSpun=true and unlocks the solve button if previously locked. */
+    function doSpin() {
+        if (state.hasSpun || state.puzzleComplete) return;
+
+        var spinEl = document.getElementById('spinValueDisplay');
+        var noteEl = document.getElementById('spinNote');
+
+        /* Pick final value before animation starts (no post-hoc rigging) */
+        var finalVal = WHEEL_VALUES[Math.floor(Math.random() * WHEEL_VALUES.length)];
+
+        spinEl.className = 'spin-value spinning';
+
+        var ticks = 0;
+        var ticker = setInterval(function() {
+            ticks++;
+            /* Show a random preview value each tick */
+            var preview = WHEEL_VALUES[Math.floor(Math.random() * WHEEL_VALUES.length)];
+            spinEl.textContent = '$' + preview;
+
+            if (ticks >= SPIN_TICKS) {
+                clearInterval(ticker);
+
+                /* Settle on the pre-determined final value */
+                state.spinValue  = finalVal;
+                state.hasSpun    = true;
+                state.solveLocked = false; /* spinning always unlocks solve */
+
+                spinEl.textContent = '$' + finalVal;
+                spinEl.className   = 'spin-value';
+
+                noteEl.textContent = 'Pick a consonant -- $' + finalVal + ' x occurrences';
+
+                /* Re-sync: solve button re-enabled, spin button disabled */
+                syncButtonStates();
+
+                showToast('Landed on $' + finalVal + '. Pick a consonant!', 'info');
+                if (window.HexworthGameAudio) HexworthGameAudio.startTimer && HexworthGameAudio.startTimer(1);
+            }
+        }, SPIN_TICK_MS);
+    }
+
+    /* ================================================================
+       CONSONANT GUESS
+       ================================================================ */
+
+    /** Handle a consonant key click.
+        Requires an active spin; reveals the letter across all tiles;
+        earns (spinValue * occurrences) if present, records a miss otherwise. */
+    function guessConsonant(ch) {
+        if (state.puzzleComplete) return;
+        if (VOWELS[ch]) return; /* should not happen -- vowel keys call buyVowelDirect */
+        if (state.revealedLetters[ch]) return;
+
+        if (!state.hasSpun) {
+            showToast('Spin the wheel first!', 'warn');
+            return;
+        }
+
+        /* Consume the spin -- player must spin again for the next consonant */
+        state.revealedLetters[ch] = true;
+        state.hasSpun             = false;
+
+        var occ = countOccurrences(ch);
+        if (occ > 0) {
+            var earned = state.spinValue * occ;
+            state.totalScore += earned;
+            showToast(ch + ' appears ' + occ + 'x -- +$' + earned + '!', 'good');
+            if (window.HexworthGameAudio) HexworthGameAudio.correct && HexworthGameAudio.correct();
+        } else {
+            state.misses++;
+            showToast('No ' + ch + ' in the puzzle. Miss!', 'bad');
+            if (window.HexworthGameAudio) HexworthGameAudio.wrong && HexworthGameAudio.wrong();
+        }
+
+        /* Reset spin display */
+        document.getElementById('spinValueDisplay').textContent = '--';
+        document.getElementById('spinNote').textContent         = 'Click Spin to get a value';
+
+        /* Check if the guess completes the puzzle (all letters now revealed) */
+        if (isPuzzleSolved()) {
+            endPuzzle('win', 'All letters revealed!');
+        } else {
+            renderAll();
+        }
+    }
+
+    /* ================================================================
+       BUY VOWEL
+       Two entry points:
+         (a) buyVowelDirect(ch) -- called directly from the alphabet keyboard
+         (b) openBuyVowel()     -- opens the pick-a-vowel modal (side button)
+       Both ultimately call buyVowelDirect().
+       ================================================================ */
+
+    /** Reveal a specific vowel (called from either the keyboard or the modal).
+        Deducts $250, reveals all tile occurrences, records a miss if vowel absent.
+        Does NOT consume or require a spin -- vowels bypass the spin mechanic. */
+    function buyVowelDirect(ch) {
+        if (!VOWELS[ch]) return;
+        if (state.revealedLetters[ch]) return;
+        if (state.puzzleComplete) return;
+
+        if (state.totalScore < VOWEL_COST) {
+            showToast('Need $250 to buy a vowel', 'warn');
+            return;
+        }
+
+        state.totalScore -= VOWEL_COST;
+        state.revealedLetters[ch] = true;
+
+        var occ = countOccurrences(ch);
+        if (occ > 0) {
+            showToast('Vowel ' + ch + ' bought! ' + occ + ' occurrence' + (occ !== 1 ? 's' : '') + ' revealed.', 'info');
+            if (window.HexworthGameAudio) HexworthGameAudio.correct && HexworthGameAudio.correct();
+        } else {
+            state.misses++;
+            showToast('No ' + ch + ' in the puzzle. $250 spent.', 'bad');
+            if (window.HexworthGameAudio) HexworthGameAudio.wrong && HexworthGameAudio.wrong();
+        }
+
+        if (isPuzzleSolved()) {
+            endPuzzle('win', 'All letters revealed!');
+        } else {
+            renderAll();
+        }
+    }
+
+    /** Open the Buy Vowel modal and populate it with unguessed vowels. */
+    function openBuyVowel() {
+        if (state.puzzleComplete) return;
+        if (state.totalScore < VOWEL_COST) {
+            showToast('Need $250 to buy a vowel', 'warn');
+            return;
+        }
+
+        var wrap = document.getElementById('vowelButtons');
+        while (wrap.firstChild) { wrap.removeChild(wrap.firstChild); }
+
+        var vs = ['A','E','I','O','U'];
+        var available = 0;
+        for (var i = 0; i < vs.length; i++) {
+            var v = vs[i];
+            if (state.revealedLetters[v]) continue;
+            available++;
+
+            /* Create vowel button via DOM (not innerHTML with data) */
+            (function(vowel) {
+                var btn = document.createElement('button');
+                btn.className = 'action-btn btn-vowel';
+                btn.style.width = '64px';
+                btn.textContent = vowel;
+                btn.addEventListener('click', function() {
+                    closeVowelModal();
+                    buyVowelDirect(vowel);
+                });
+                wrap.appendChild(btn);
+            })(v);
+        }
+
+        if (available === 0) {
+            var msg = document.createElement('span');
+            msg.style.color = 'var(--text-dim)';
+            msg.style.fontSize = '13px';
+            msg.textContent = 'All vowels already revealed.';
+            wrap.appendChild(msg);
+        }
+
+        document.getElementById('vowelModal').classList.add('active');
+    }
+
+    /** Close the Buy Vowel modal. */
+    function closeVowelModal() {
+        document.getElementById('vowelModal').classList.remove('active');
+    }
+
+    /* ================================================================
+       SOLVE MECHANIC
+       ================================================================ */
+
+    /** Open the Solve modal (clears any previous input). */
+    function openSolveModal() {
+        if (state.puzzleComplete || state.solveLocked) return;
+        document.getElementById('solveInput').value = '';
+        document.getElementById('solveModal').classList.add('active');
+        setTimeout(function() { document.getElementById('solveInput').focus(); }, 100);
+    }
+
+    /** Close the Solve modal. */
+    function closeSolveModal() {
+        document.getElementById('solveModal').classList.remove('active');
+    }
+
+    /** Evaluate a solve attempt. Correct: reveal all tiles + $1,000 bonus + end puzzle.
+        Wrong: lock solve for one turn (player must spin before trying again). */
+    function submitSolve() {
+        var raw = document.getElementById('solveInput').value.trim();
+        closeSolveModal();
+        if (!raw) return;
+
+        var attempt = normalisePhrase(raw);
+        var correct = normalisePhrase(puzzles[state.puzzleIdx].phrase);
+
+        if (attempt === correct) {
+            /* Correct solve -- reveal everything and award bonus */
+            state.totalScore += SOLVE_BONUS;
+            var phrase = puzzles[state.puzzleIdx].phrase.toUpperCase();
+            for (var i = 0; i < phrase.length; i++) {
+                var ch = phrase[i];
+                if (isGuessableLetter(ch)) { state.revealedLetters[ch] = true; }
+            }
+            if (window.HexworthGameAudio) HexworthGameAudio.dailyDouble && HexworthGameAudio.dailyDouble();
+            endPuzzle('win', '$' + SOLVE_BONUS + ' solve bonus earned!');
+        } else {
+            /* Wrong solve -- lock for 1 turn and require a spin to re-unlock */
+            state.solveLocked = true;
+            state.hasSpun     = false; /* force spin before next consonant too */
+            showToast('Wrong! Solve locked for one turn -- spin to unlock.', 'bad');
+            if (window.HexworthGameAudio) HexworthGameAudio.wrong && HexworthGameAudio.wrong();
+            renderAll();
+        }
+    }
+
+    /* ================================================================
+       INSTRUCTOR REVEAL OVERRIDE
+       ================================================================ */
+
+    /** Instructor override: reveal the full phrase without awarding score.
+        Records the puzzle as 'lose' and moves to the result banner. */
+    function revealPuzzleOverride() {
+        if (state.puzzleComplete) return;
+        var phrase = puzzles[state.puzzleIdx].phrase.toUpperCase();
+        for (var i = 0; i < phrase.length; i++) {
+            var ch = phrase[i];
+            if (isGuessableLetter(ch)) { state.revealedLetters[ch] = true; }
+        }
+        endPuzzle('lose', 'Instructor revealed. No score change.');
+    }
+
+    /* ================================================================
+       PUZZLE COMPLETION
+       ================================================================ */
+
+    /** Finalise the current puzzle (win or lose).
+        Shows the result banner, updates cross-puzzle counters, and locks
+        the action buttons until the player clicks Next Puzzle. */
+    function endPuzzle(mode, noteText) {
+        state.puzzleComplete          = true;
+        state.puzzleResults[state.puzzleIdx] = mode;
+
+        if (mode === 'win') {
+            state.puzzlesWon++;
+        } else {
+            state.puzzlesLost++;
+        }
+
+        /* Result banner elements -- textContent throughout */
+        var banner  = document.getElementById('puzzleResultBanner');
+        var titleEl = document.getElementById('resultTitle');
+        var phraseEl = document.getElementById('resultPhrase');
+        var earnedEl = document.getElementById('resultEarned');
+        var nextBtn  = document.getElementById('nextPuzzleBtn');
+
+        titleEl.className   = 'result-title ' + (mode === 'win' ? 'win-text' : 'lose-text');
+        titleEl.textContent = mode === 'win' ? 'Puzzle Solved!' : 'Puzzle Revealed';
+
+        /* Safe: puzzle phrase is data -- use textContent */
+        phraseEl.textContent = puzzles[state.puzzleIdx].phrase.toUpperCase();
+
+        /* Safe: noteText is internal string; hint is data (use textContent) */
+        earnedEl.textContent = noteText + '  |  ' + (puzzles[state.puzzleIdx].hint || '');
+
+        /* Last puzzle gets "View Final Score" label */
+        if (state.puzzleIdx >= puzzles.length - 1) {
+            nextBtn.textContent = 'View Final Score';
+        } else {
+            nextBtn.textContent = 'Next Puzzle';
+        }
+
+        banner.className = 'puzzle-result-banner visible ' + mode;
+
+        renderAll(); /* will sync buttons: all disabled while puzzleComplete */
+    }
+
+    /* ================================================================
+       ADVANCE TO NEXT PUZZLE / FINAL
+       ================================================================ */
+
+    /** Called by the "Next Puzzle" / "View Final Score" button.
+        If more puzzles remain, resets per-puzzle state and re-renders.
+        Otherwise, shows the final score card. */
+    function advancePuzzle() {
+        if (state.puzzleIdx >= puzzles.length - 1) {
+            showFinalScore();
+            return;
+        }
+        state.puzzleIdx++;
+        resetPuzzleState();
+        document.getElementById('puzzleResultBanner').className = 'puzzle-result-banner';
+        renderAll();
+    }
+
+    /** Reset all per-puzzle mutable state.
+        Cross-puzzle totals (score, won, lost, results) are preserved. */
+    function resetPuzzleState() {
+        state.revealedLetters = {};
+        state.spinValue       = null;
+        state.hasSpun         = false;
+        state.solveLocked     = false;
+        state.misses          = 0;
+        state.puzzleComplete  = false;
+        document.getElementById('spinValueDisplay').textContent = '--';
+        document.getElementById('spinNote').textContent         = 'Click Spin to get a value';
+    }
+
+    /* ================================================================
+       FINAL SCORE
+       ================================================================ */
+
+    /** Show the final score card after all puzzles are played.
+        Computes win-rate, selects a grade label from data.gradeLabels
+        (with hardcoded fallbacks), and animates the card into view. */
+    function showFinalScore() {
+        if (window.HexworthGameAudio) HexworthGameAudio.finalFanfare && HexworthGameAudio.finalFanfare();
+
+        var total  = puzzles.length;
+        var pct    = Math.round((state.puzzlesWon / total) * 100);
+
+        document.getElementById('finalAmount').textContent   = '$' + state.totalScore;
+        document.getElementById('finalSubtitle').textContent = 'All ' + total + ' puzzles played';
+        document.getElementById('fWon').textContent          = state.puzzlesWon + ' / ' + total;
+        document.getElementById('fPct').textContent          = pct + '%';
+
+        /* Grade labels come from data.gradeLabels; fall back to generic strings */
+        var gl = (courseData && courseData.gradeLabels) ? courseData.gradeLabels : {
+            s: 'S-RANK -- Master',
+            a: 'A-RANK -- Expert',
+            b: 'B-RANK -- Proficient',
+            c: 'C-RANK -- Learning',
+            f: 'F-RANK -- Keep Studying'
+        };
+        var gradeText, gradeClass;
+        if      (pct >= 90) { gradeText = gl.s; gradeClass = 'grade-s'; }
+        else if (pct >= 75) { gradeText = gl.a; gradeClass = 'grade-a'; }
+        else if (pct >= 55) { gradeText = gl.b; gradeClass = 'grade-b'; }
+        else if (pct >= 30) { gradeText = gl.c; gradeClass = 'grade-c'; }
+        else                { gradeText = gl.f; gradeClass = 'grade-f'; }
+
+        /* Grade label uses escapeHtml before innerHTML -- gradeText comes from data */
+        document.getElementById('finalGrade').innerHTML =
+            '<span class="grade ' + gradeClass + '">' + escapeHtml(gradeText) + '</span>';
+
+        var card = document.getElementById('finalScore');
+        card.classList.add('visible');
+
+        setTimeout(function() {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+    }
+
+    /* ================================================================
+       TOAST NOTIFICATION
+       ================================================================ */
+    var toastTimer = null;
+
+    /** Show a brief feedback toast. type: 'good' | 'bad' | 'info' | 'warn'. */
+    function showToast(msg, type) {
+        var el = document.getElementById('feedbackToast');
+        el.textContent = msg;
+        el.className   = 'feedback-toast ' + type + ' show';
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function() {
+            el.classList.remove('show');
+        }, 2800);
+    }
+
+    /* ================================================================
+       AUDIO WIRING
+       Matches the defensive pattern from kahoot.html: all calls are
+       guarded with if (window.HexworthGameAudio). Missing audio never
+       breaks gameplay -- it is purely cosmetic.
+       ================================================================ */
+
+    /** Wire the audio toggle button to HexworthGameAudio.
+        Called after the game root is revealed (after data loads). */
+    function wireAudio() {
+        var btn = document.getElementById('audioToggle');
+        if (!btn || !window.HexworthGameAudio) return;
+
+        btn.setAttribute('aria-pressed', String(HexworthGameAudio.isMuted()));
+
+        btn.addEventListener('click', function() {
+            HexworthGameAudio.init();
+            HexworthGameAudio.resume();
+            var nowMuted = HexworthGameAudio.toggleMute();
+            btn.setAttribute('aria-pressed', String(nowMuted));
+        });
+
+        if (!HexworthGameAudio.isEnabled()) {
+            HexworthGameAudio.mute();
+            btn.setAttribute('aria-pressed', 'true');
+        }
+    }
+
+    /* ================================================================
+       MODAL EVENT WIRING
+       Click-outside-to-close and Escape key for both modals.
+       Attached after DOM is ready (inline in this script block).
+       ================================================================ */
+
+    /** Close solve modal when clicking the overlay background. */
+    document.getElementById('solveModal').addEventListener('click', function(e) {
+        if (e.target === this) closeSolveModal();
+    });
+
+    /** Close vowel modal when clicking the overlay background. */
+    document.getElementById('vowelModal').addEventListener('click', function(e) {
+        if (e.target === this) closeVowelModal();
+    });
+
+    /** Escape key closes either modal. */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeSolveModal();
+            closeVowelModal();
+        }
+        /* Enter inside the solve input submits the guess */
+        if (e.key === 'Enter' && document.activeElement === document.getElementById('solveInput')) {
+            submitSolve();
+        }
+    });
+
+    /* Modal close buttons */
+    document.getElementById('solveBtnClose').addEventListener('click',  closeSolveModal);
+    document.getElementById('solveCancelBtn').addEventListener('click',  closeSolveModal);
+    document.getElementById('solveSubmitBtn').addEventListener('click',  submitSolve);
+    document.getElementById('vowelBtnClose').addEventListener('click',   closeVowelModal);
+    document.getElementById('vowelCancelBtn').addEventListener('click',  closeVowelModal);
+
+    /* Action buttons -- attached here so no inline onclick= on elements (avoids forward-ref issues) */
+    document.getElementById('btnSpin').addEventListener('click',          doSpin);
+    document.getElementById('btnBuyVowel').addEventListener('click',      openBuyVowel);
+    document.getElementById('btnSolve').addEventListener('click',         openSolveModal);
+    document.getElementById('btnRevealOverride').addEventListener('click', revealPuzzleOverride);
+    document.getElementById('nextPuzzleBtn').addEventListener('click',    advancePuzzle);
+
+    /* ================================================================
+       GAME INITIALISATION
+       ================================================================ */
+
+    /** Initialise game state for a fresh run.
+        Called once after data loads, right before first renderAll(). */
+    function initGame() {
+        state.puzzleIdx     = 0;
+        state.totalScore    = 0;
+        state.puzzlesWon    = 0;
+        state.puzzlesLost   = 0;
+        state.puzzleResults = [];
+        resetPuzzleState();
+        renderAll();
+    }
+
+    /* ================================================================
+       MAIN ENTRY: fetch JSON, validate, apply theme, launch
+       Matches kahoot.html fetch/error/guard pattern exactly.
+       ================================================================ */
+    (function init() {
+        var dataUrl = 'data/wheel/' + courseId + '.json';
+
+        fetch(dataUrl)
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ' fetching ' + dataUrl);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                /* Validate minimal required shape */
+                if (!Array.isArray(data.puzzles) || data.puzzles.length === 0) {
+                    throw new Error('JSON is missing a non-empty "puzzles" array');
+                }
+                for (var i = 0; i < data.puzzles.length; i++) {
+                    var p = data.puzzles[i];
+                    if (typeof p.phrase !== 'string' || !p.phrase.trim()) {
+                        throw new Error('Puzzle ' + i + ' is missing a "phrase" string');
+                    }
+                    if (typeof p.category !== 'string' || !p.category.trim()) {
+                        throw new Error('Puzzle ' + i + ' is missing a "category" string');
+                    }
+                }
+
+                /* Store globally */
+                courseData = data;
+                puzzles    = data.puzzles;
+
+                /* Apply theme FIRST so colours are correct before any element reveals */
+                applyTheme(data.theme);
+
+                /* Populate header / hero from data */
+                populateHero(data);
+
+                /* Swap screens: hide loading, show game (explicit 'block' so the
+                   inline style overrides the #gameRoot{display:none} CSS rule) */
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('gameRoot').style.display      = 'block';
+
+                /* Wire audio toggle */
+                wireAudio();
+
+                /* Start game */
+                initGame();
+            })
+            .catch(function(err) {
+                /* Show descriptive error screen -- page never blanks */
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('errorScreen').style.display   = '';
+                document.getElementById('errorMessage').textContent =
+                    'Could not load course "' + courseId + '": ' + err.message +
+                    '. Verify the ?course= parameter and that data/wheel/' +
+                    courseId + '.json exists.';
+                console.error('[Wheel Engine] Data load failed:', err);
+            });
+    })();
+
+    </script>
+</body>
+</html>

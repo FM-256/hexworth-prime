@@ -57,7 +57,7 @@ export const REGISTRY = [
   { id: 'fifth/pis',        type: 'fifth',    course: 'pis',     varName: 'QUESTIONS',  file: 'houses/shield/infosec/exams/pis-5th-grader.review.html',      engine: false },
 ];
 
-export const ENGINE_TYPES = new Set(['jeopardy', 'kahoot']);
+export const ENGINE_TYPES = new Set(['jeopardy', 'kahoot', 'wheel', 'fifth']);
 
 // ---- Theme builders ---------------------------------------------------------
 function hexToRgb(hex) {

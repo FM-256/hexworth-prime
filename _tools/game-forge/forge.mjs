@@ -38,6 +38,9 @@ function extractLiteral(src, varName) {
       if (ch === str) str = null;
       continue;
     }
+    // skip comments so brackets/quotes inside them (e.g. /* Kant's ... */) don't desync the scan
+    if (ch === '/' && src[i + 1] === '*') { i += 2; while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i++; i++; continue; }
+    if (ch === '/' && src[i + 1] === '/') { while (i < src.length && src[i] !== '\n') i++; continue; }
     if (ch === "'" || ch === '"' || ch === '`') { str = ch; continue; }
     if (ch === open) depth++;
     else if (ch === close) { depth--; if (depth === 0) return src.slice(start, i + 1); }
@@ -64,10 +67,18 @@ function metaBase(type, course) {
   }
   const c = COURSES[course];
   if (!c) throw new Error(`no COURSES config for '${course}'`);
+  // default hero subtitle + duration per game type (covers jeopardy/kahoot/wheel/fifth)
+  const SUBTITLE = {
+    jeopardy: 'Jeopardy Review',
+    kahoot: 'Rapid-fire review — faster correct answers score more',
+    wheel: 'Guess the hidden phrases — spin for consonants, buy vowels, solve the puzzle',
+    fifth: 'Climb the money ladder — one question per grade level',
+  };
+  const DURATION = { jeopardy: '~30 min', kahoot: '~15 min', wheel: '~20 min', fifth: '~15 min' };
   const meta = {
     title: c.title,
-    subtitle: type === 'jeopardy' ? 'Jeopardy Review' : 'Rapid-fire review — faster correct answers score more',
-    icon: c.icon, badge: c.badge, duration: type === 'jeopardy' ? '~30 min' : '~15 min',
+    subtitle: SUBTITLE[type] || 'Review',
+    icon: c.icon, badge: c.badge, duration: DURATION[type] || '~20 min',
     gradeLabels: { ...GRADE_LABELS },
     theme: type === 'jeopardy' ? jeopardyTheme(c) : kahootTheme(c),
   };
@@ -100,6 +111,26 @@ function mapKahoot(QUESTIONS) {
     note: q.exp != null ? String(q.exp) : (q.note != null ? String(q.note) : ''),
   }));
 }
+// legacy Wheel {phrase, category, hint} maps 1:1
+function mapWheel(PUZZLES) {
+  return PUZZLES.map(p => ({
+    phrase: String(p.phrase),
+    category: String(p.category),
+    hint: p.hint != null ? String(p.hint) : '',
+  }));
+}
+// legacy 5th-Grader {value, gradeTag, q, opts[4], ans, exp, milestone} -> options/answer/note
+function mapFifth(QUESTIONS) {
+  return QUESTIONS.map(q => ({
+    value: Number(q.value),
+    gradeTag: String(q.gradeTag || ''),
+    q: String(q.q),
+    options: (q.opts || q.options || []).map(String),
+    answer: Number(q.ans ?? q.answer),
+    note: q.exp != null ? String(q.exp) : (q.note != null ? String(q.note) : ''),
+    milestone: !!q.milestone,
+  }));
+}
 
 // ---- convert one ------------------------------------------------------------
 function convertOne(entry) {
@@ -116,6 +147,14 @@ function convertOne(entry) {
     out = { ...meta, categories };
   } else if (entry.type === 'kahoot') {
     const questions = mapKahoot(data);
+    itemCount = questions.length;
+    out = { ...meta, questions };
+  } else if (entry.type === 'wheel') {
+    const puzzles = mapWheel(data);
+    itemCount = puzzles.length;
+    out = { ...meta, puzzles };
+  } else if (entry.type === 'fifth') {
+    const questions = mapFifth(data);
     itemCount = questions.length;
     out = { ...meta, questions };
   } else {
