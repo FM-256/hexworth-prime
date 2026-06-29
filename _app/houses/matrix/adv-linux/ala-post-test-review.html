@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Security / Auth: must run first -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALA Post-Test Review | Advanced Linux Administration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --bg-dark:#060d08; --bg-card:#0a130c; --bg-card2:#0c1710;
+            --accent:#00ff41; --accent-dim:rgba(0,255,65,.12); --green:#10b981;
+            --amber:#fbbf24; --amber-dim:rgba(251,191,36,.12);
+            --text-primary:#e0e0e0; --text-secondary:#8b9e8e; --dim:#5a6b5d;
+            --border:rgba(0,255,65,.1); --border2:rgba(0,255,65,.22);
+            --mono:'JetBrains Mono', ui-monospace, monospace;
+        }
+        html,body { height:100%; }
+        body { font-family:'Inter', system-ui, sans-serif; background:var(--bg-dark); color:var(--text-primary);
+            min-height:100vh; overflow-x:hidden; line-height:1.6; }
+        a { color:var(--accent); text-decoration:none; }
+        img.ic { width:1em; height:1em; vertical-align:-0.13em; }
+        code, .mono { font-family:var(--mono); }
+
+        /* ── Top bar ─────────────────────────────────── */
+        .topbar { position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+            padding:13px 26px; background:linear-gradient(180deg, rgba(6,13,8,.97), rgba(6,13,8,.85));
+            backdrop-filter:blur(8px); border-bottom:1px solid var(--border); }
+        .breadcrumb { font-family:var(--mono); font-size:.8rem; color:var(--text-secondary); }
+        .breadcrumb b { color:var(--accent); }
+        .topbar .spacer { flex:1 1 auto; }
+        .ne-back { font-family:var(--mono); font-size:.82rem; padding:7px 13px; border:1px solid var(--border2);
+            border-radius:7px; color:var(--accent); }
+        .ne-back:hover { background:var(--accent-dim); }
+
+        /* ── Header ──────────────────────────────────── */
+        .pt-header { padding:26px 26px 6px; }
+        .pt-header h1 { font-size:1.55rem; font-weight:700; letter-spacing:.3px; }
+        .pt-header h1 .pre { color:var(--accent); font-family:var(--mono); }
+        .pt-header p { color:var(--text-secondary); font-size:.93rem; margin-top:6px; max-width:none; }
+        .pt-meta { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+        .pt-meta span { font-family:var(--mono); font-size:.72rem; padding:5px 10px; border-radius:6px;
+            background:var(--bg-card); border:1px solid var(--border); color:var(--text-secondary); }
+
+        /* ── Full-bleed shell ────────────────────────── */
+        .shell { display:grid; grid-template-columns:260px minmax(0,1fr); gap:24px; padding:14px 26px 90px; align-items:start; }
+        @media (max-width:900px){ .shell{ grid-template-columns:1fr; } .toc{ position:static !important; } }
+
+        /* ── TOC side rail ───────────────────────────── */
+        .toc { position:sticky; top:74px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px 12px; }
+        .toc h2 { font-family:var(--mono); font-size:.7rem; text-transform:uppercase; letter-spacing:1.4px; color:var(--accent);
+            padding:4px 8px 10px; }
+        .toc a { display:flex; align-items:center; gap:9px; padding:8px 9px; border-radius:7px; font-size:.85rem;
+            color:var(--text-secondary); border-left:2px solid transparent; }
+        .toc a:hover { background:var(--accent-dim); color:var(--text-primary); }
+        .toc a .n { font-family:var(--mono); font-size:.72rem; color:var(--dim); width:18px; flex:0 0 auto; }
+        .toc .div { height:1px; background:var(--border); margin:8px 4px; }
+
+        /* ── Content ─────────────────────────────────── */
+        .content { min-width:0; }
+        .ne-section { background:var(--bg-card); border:1px solid var(--border); border-radius:13px; padding:20px 22px; margin-bottom:18px; }
+        .ne-section-title { display:flex; align-items:center; gap:11px; font-size:1.12rem; font-weight:650; margin-bottom:4px; }
+        .ne-section-title img { width:20px; height:20px; }
+        .ne-section-title .legacy-tag { margin-left:auto; font-family:var(--mono); font-size:.62rem; letter-spacing:1px;
+            padding:3px 8px; border-radius:5px; background:var(--amber-dim); color:var(--amber); border:1px solid rgba(251,191,36,.3); }
+        .ne-section > p { color:var(--text-secondary); font-size:.9rem; margin:6px 0 14px; }
+
+        .cmd { margin:13px 0; }
+        .cmd .label { display:flex; align-items:baseline; gap:10px; margin-bottom:6px; }
+        .cmd .label .name { font-family:var(--mono); font-weight:600; color:var(--accent); font-size:.92rem; }
+        .cmd .label .what { color:var(--text-secondary); font-size:.84rem; }
+        .ne-code { font-family:var(--mono); font-size:.84rem; background:#04190a; border:1px solid var(--border2);
+            border-radius:8px; padding:11px 13px; color:#b6ffce; overflow-x:auto; white-space:pre; }
+        .ne-code .c { color:var(--dim); }
+        .inline { font-family:var(--mono); background:var(--bg-card2); border:1px solid var(--border); border-radius:5px;
+            padding:1px 6px; font-size:.84em; color:#b6ffce; }
+        .why { font-size:.84rem; color:var(--text-secondary); margin-top:6px; }
+        .why b { color:var(--text-primary); }
+
+        .legacy { margin-top:12px; padding:11px 13px; border-radius:9px; background:var(--amber-dim);
+            border:1px solid rgba(251,191,36,.3); font-size:.83rem; color:#fde68a; }
+        .legacy b { color:var(--amber); }
+        .legacy img { width:14px; height:14px; vertical-align:-0.15em; margin-right:5px; }
+
+        /* ── Answer index table ──────────────────────── */
+        .qindex table { width:100%; border-collapse:collapse; font-size:.85rem; }
+        .qindex th, .qindex td { text-align:left; padding:9px 11px; border-bottom:1px solid var(--border); vertical-align:top; }
+        .qindex th { font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:1px; color:var(--accent); }
+        .qindex td.q { font-family:var(--mono); color:var(--dim); white-space:nowrap; }
+        .qindex td.a code { color:var(--accent); font-weight:600; }
+        .qindex tr:hover { background:rgba(0,255,65,.03); }
+        .qindex .leg { color:var(--amber); font-family:var(--mono); font-size:.66rem; }
+
+        /* ── Completion ──────────────────────────────── */
+        .ne-complete { background:var(--bg-card); border:1px solid var(--border2); border-radius:13px; padding:22px; text-align:center; margin-top:8px; }
+        .ne-complete h3 { font-size:1.05rem; margin-bottom:6px; }
+        .ne-complete p { color:var(--text-secondary); font-size:.88rem; max-width:560px; margin:0 auto 14px; }
+        .btn-complete { font-family:var(--mono); font-size:.88rem; font-weight:600; cursor:pointer; padding:11px 22px;
+            border-radius:9px; border:1px solid var(--accent); background:var(--accent-dim); color:var(--accent); transition:.15s; }
+        .btn-complete:hover { background:var(--accent); color:#04190a; }
+        .btn-complete.done { background:var(--green); border-color:var(--green); color:#04190a; cursor:default; }
+        .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <span class="breadcrumb"><a href="index.html">Adv Linux</a> / <b>ALA Post-Test Review</b></span>
+        <span class="spacer"></span>
+        <a href="index.html" class="ne-back">&lt; Course Index</a>
+    </header>
+
+    <div class="pt-header">
+        <h1><span class="pre mono">ALA //</span> Post-Test Review</h1>
+        <p>A focused review of every concept on the Advanced Linux Administration Post Test. Part 1 is a topic-by-topic study guide with the exact commands and why they matter; Part 2 is a question-by-question answer index in test order. Legacy SUSE-era items are flagged with their modern equivalent.</p>
+        <div class="pt-meta">
+            <span>CTS4321C &middot; Advanced Linux Administration</span>
+            <span>25 questions reviewed</span>
+            <span>9 topic areas</span>
+        </div>
+    </div>
+
+    <div class="shell">
+        <!-- ── TOC side rail ──────────────────────── -->
+        <aside class="toc" aria-label="Contents">
+            <h2>Study Guide</h2>
+            <a href="#t1"><span class="n">1</span> Viewing files</a>
+            <a href="#t2"><span class="n">2</span> Files &amp; directories</a>
+            <a href="#t3"><span class="n">3</span> Ownership &amp; permissions</a>
+            <a href="#t4"><span class="n">4</span> Shell &amp; scripting</a>
+            <a href="#t5"><span class="n">5</span> Networking</a>
+            <a href="#t6"><span class="n">6</span> Storage &amp; system</a>
+            <a href="#t7"><span class="n">7</span> Software &amp; builds</a>
+            <a href="#t8"><span class="n">8</span> Boot &amp; services</a>
+            <a href="#t9"><span class="n">9</span> Monitoring</a>
+            <div class="div"></div>
+            <h2>Answer Index</h2>
+            <a href="#qindex"><span class="n">Q</span> All 25 questions</a>
+        </aside>
+
+        <!-- ── Content ────────────────────────────── -->
+        <main class="content">
+
+            <!-- 1. Viewing files -->
+            <section class="ne-section" id="t1">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-document.webp" alt="">1. Viewing &amp; inspecting files</div>
+                <p>Read parts of a file without opening the whole thing &mdash; essential for large logs.</p>
+                <div class="cmd"><div class="label"><span class="name">head</span><span class="what">first lines of a file (default 10)</span></div>
+                    <div class="ne-code">head server_log.txt        <span class="c"># first 10 lines</span>
+head -n 20 server_log.txt  <span class="c"># first 20 lines</span></div>
+                    <div class="why"><b>Q1:</b> use <span class="inline">head</span> to assess the start of a large log. <span class="inline">cat</span> dumps the whole file, <span class="inline">tail</span> shows the end, <span class="inline">more</span> scrolls but does not limit to the first 10.</div></div>
+                <div class="cmd"><div class="label"><span class="name">tail</span><span class="what">last lines; <span class="inline">tail -f</span> follows live</span></div>
+                    <div class="ne-code">tail -f /var/log/syslog    <span class="c"># watch new lines as they arrive</span></div></div>
+            </section>
+
+            <!-- 2. Files & directories -->
+            <section class="ne-section" id="t2">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-database.webp" alt="">2. Files &amp; directories</div>
+                <p>Create, copy, and archive files and whole directory trees.</p>
+                <div class="cmd"><div class="label"><span class="name">mkdir</span><span class="what">create a directory</span></div>
+                    <div class="ne-code">mkdir /path/to/project_docs
+mkdir -p a/b/c            <span class="c"># create parent dirs as needed</span></div>
+                    <div class="why"><b>Q4:</b> <span class="inline">mkdir</span> creates the new directory in the specified location.</div></div>
+                <div class="cmd"><div class="label"><span class="name">touch</span><span class="what">create an empty file / update timestamp</span></div>
+                    <div class="ne-code">touch /home/user/config.txt</div>
+                    <div class="why"><b>Q5:</b> <span class="inline">touch</span> creates the file if it does not exist, and updates the timestamp if it does.</div></div>
+                <div class="cmd"><div class="label"><span class="name">cp -r</span><span class="what">copy a directory recursively</span></div>
+                    <div class="ne-code">cp -r /src/dir /dest/dir   <span class="c"># include all files + subdirectories</span></div>
+                    <div class="why"><b>Q3:</b> <span class="inline">-r</span> (recursive) copies the entire tree, preserving files and subdirectories.</div></div>
+                <div class="cmd"><div class="label"><span class="name">tar</span><span class="what">archive container format (.tar)</span></div>
+                    <div class="ne-code">tar -czf backup.tar.gz /src   <span class="c"># create gzip archive</span>
+tar -xzf backup.tar.gz        <span class="c"># extract</span></div>
+                    <div class="why"><b>Q13:</b> <span class="inline">tar</span> bundles files and directory structures into one archive; convention is the <span class="inline">.tar</span> extension.</div></div>
+                <div class="cmd"><div class="label"><span class="name">rsync</span><span class="what">copy/sync directories across a network</span></div>
+                    <div class="ne-code">rsync -av /src/ user@host:/dest/   <span class="c"># mirror over SSH, only changes</span></div>
+                    <div class="why"><b>Q23:</b> <span class="inline">rsync</span> is intended to copy complete directories across a network to another computer (efficiently, transferring only differences).</div></div>
+            </section>
+
+            <!-- 3. Ownership & permissions -->
+            <section class="ne-section" id="t3">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-padlock.webp" alt="">3. Ownership &amp; permissions</div>
+                <p>Control who owns a file and what they may do with it.</p>
+                <div class="cmd"><div class="label"><span class="name">chown user:group</span><span class="what">change owner and group</span></div>
+                    <div class="ne-code">chown john:staff /path/to/file</div>
+                    <div class="why"><b>Q2:</b> <span class="inline">chown john:staff</span> sets user <span class="inline">john</span> and group <span class="inline">staff</span>. <span class="inline">chmod</span> changes permissions not ownership; <span class="inline">chgrp</span> changes only the group; <span class="inline">setfacl</span> changes the ACL, not ownership.</div></div>
+                <div class="cmd"><div class="label"><span class="name">sticky bit</span><span class="what">restrict deletion in shared dirs</span></div>
+                    <div class="ne-code">chmod +t /shared        <span class="c"># or chmod 1777 /shared</span>
+ls -ld /tmp             <span class="c"># drwxrwxrwt  (the 't')</span></div>
+                    <div class="why"><b>Q11:</b> the <span class="inline">sticky</span> bit on a shared directory (like <span class="inline">/tmp</span>) prevents users from deleting each other's files &mdash; only the owner (or root) can delete a file.</div></div>
+                <div class="cmd"><div class="label"><span class="name">ACLs &mdash; setfacl / getfacl</span><span class="what">per-user / per-group permissions</span></div>
+                    <div class="ne-code">setfacl -m u:john:rw file   <span class="c"># grant john read+write</span>
+getfacl file               <span class="c"># view the ACL</span></div>
+                    <div class="why"><b>Q25:</b> <span class="inline">setfacl</span> changes a file's ACL. <b>Q12:</b> a <em>minimum</em> ACL contains just the entries for owner, owning group, and other (the conventional permission bits); an <em>extended</em> ACL adds named users/groups plus a mask.</div></div>
+            </section>
+
+            <!-- 4. Shell & scripting -->
+            <section class="ne-section" id="t4">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-terminal.webp" alt="">4. Shell &amp; scripting</div>
+                <p>Bash basics tested on the exam.</p>
+                <div class="cmd"><div class="label"><span class="name">let</span><span class="what">integer arithmetic in Bash</span></div>
+                    <div class="ne-code">let result=4+5         <span class="c"># result = 9</span>
+let "count += 1"</div>
+                    <div class="why"><b>Q14:</b> <span class="inline">let</span> performs an arithmetic operation in Bash (equivalent to <span class="inline">$(( ))</span>).</div></div>
+                <div class="cmd"><div class="label"><span class="name"># comment</span><span class="what">a comment in a shell script</span></div>
+                    <div class="ne-code"># this line is a comment, ignored by the shell</div>
+                    <div class="why"><b>Q22:</b> a comment is introduced with the <span class="inline">#</span> character. (Note: <span class="inline">#</span> at the end of a prompt also signals a root shell.)</div></div>
+                <div class="cmd"><div class="label"><span class="name">Ctrl-C</span><span class="what">interrupt a running command</span></div>
+                    <div class="ne-code">ping example.com       <span class="c"># press Ctrl-C to stop</span></div>
+                    <div class="why"><b>Q8:</b> <span class="inline">ping</span> keeps sending packets until terminated by <span class="inline">Ctrl-C</span> (SIGINT).</div></div>
+            </section>
+
+            <!-- 5. Networking -->
+            <section class="ne-section" id="t5">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-network.webp" alt="">5. Networking &amp; DNS</div>
+                <p>Bring interfaces up, query DNS, and configure name resolution.</p>
+                <div class="cmd"><div class="label"><span class="name">ip link set &lt;dev&gt; up</span><span class="what">enable a network interface</span></div>
+                    <div class="ne-code">ip link set eth0 up        <span class="c"># bring eth0 up</span>
+ip link set eth0 down      <span class="c"># take it down</span></div>
+                    <div class="why"><b>Q7:</b> <span class="inline">ip link set eth0 up</span> enables the device (the modern replacement for <span class="inline">ifconfig eth0 up</span>).</div></div>
+                <div class="cmd"><div class="label"><span class="name">ping -w</span><span class="what">overall deadline in seconds</span></div>
+                    <div class="ne-code">ping -w 10 example.com     <span class="c"># exit after 10s regardless of packets</span></div>
+                    <div class="why"><b>Q9:</b> <span class="inline">ping -w maxwait</span> sets a timeout/deadline in seconds after which ping exits, regardless of packets sent or received. (Contrast <span class="inline">-c</span> = packet count.)</div></div>
+                <div class="cmd"><div class="label"><span class="name">MX record</span><span class="what">mail server for a domain</span></div>
+                    <div class="ne-code">example.com.  IN  MX  10  mail.example.com.</div>
+                    <div class="why"><b>Q10:</b> an <span class="inline">MX</span> (Mail eXchanger) entry in the DNS zone file defines the mail server for a domain (forward resolution).</div></div>
+                <div class="cmd"><div class="label"><span class="name">/etc/resolv.conf</span><span class="what">DNS resolver configuration</span></div>
+                    <div class="ne-code">nameserver 8.8.8.8
+search example.com</div>
+                    <div class="why"><b>Q24:</b> name resolution (which DNS servers the host queries) is configured in <span class="inline">/etc/resolv.conf</span>.</div></div>
+            </section>
+
+            <!-- 6. Storage & system -->
+            <section class="ne-section" id="t6">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-database.webp" alt="">6. Storage &amp; system status</div>
+                <p>Mounts, swap, and load.</p>
+                <div class="cmd"><div class="label"><span class="name">/etc/fstab</span><span class="what">filesystems mounted at boot</span></div>
+                    <div class="ne-code">/dev/sda2   none   swap   sw   0 0
+UUID=...     /      ext4   defaults  0 1</div>
+                    <div class="why"><b>Q19:</b> every swap partition (and every persistent mount) has an entry in <span class="inline">/etc/fstab</span>.</div></div>
+                <div class="cmd"><div class="label"><span class="name">swap partition</span><span class="what">disk-backed virtual memory</span></div>
+                    <div class="ne-code">swapon --show
+free -h                    <span class="c"># see swap usage</span></div>
+                    <div class="why"><b>Q20:</b> the <span class="inline">swap</span> partition frees physical memory by copying temporarily unused memory pages to disk.</div></div>
+                <div class="cmd"><div class="label"><span class="name">uptime</span><span class="what">load average over 1/5/15 min</span></div>
+                    <div class="ne-code">uptime
+<span class="c"># 14:22  up 3 days,  load average: 0.15, 0.21, 0.18</span></div>
+                    <div class="why"><b>Q21:</b> <span class="inline">uptime</span> displays the system load over the last 1, 5, and 15 minutes.</div></div>
+            </section>
+
+            <!-- 7. Software & builds -->
+            <section class="ne-section" id="t7">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-gear.webp" alt="">7. Software &amp; builds</div>
+                <p>Package relationships and building from source.</p>
+                <div class="cmd"><div class="label"><span class="name">dependencies</span><span class="what">packages / targets a thing needs</span></div>
+                    <div class="ne-code">target: dependency1 dependency2
+	command-to-build-target</div>
+                    <div class="why"><b>Q15:</b> every <span class="inline">Makefile</span> rule consists of <em>targets</em>, their <em>dependencies</em> (prerequisites that must exist/build first), and the <em>commands</em> that build the target. Package managers resolve software dependencies the same way.</div></div>
+            </section>
+
+            <!-- 8. Boot & services (legacy) -->
+            <section class="ne-section" id="t8">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-gear.webp" alt="">8. Boot &amp; services<span class="legacy-tag">LEGACY</span></div>
+                <p>Two items here use older installer / SUSE conventions. Know the exam answer, and the modern equivalent.</p>
+                <div class="cmd"><div class="label"><span class="name">Boot from Hard Disk</span><span class="what">installer boot-menu option</span></div>
+                    <div class="why"><b>Q6:</b> on the installation boot menu, <span class="inline">Boot from Hard Disk</span> boots the OS already installed on disk (instead of starting the installer).</div></div>
+                <div class="cmd"><div class="label"><span class="name">chkconfig apache2 off</span><span class="what">remove a service from the init process</span></div>
+                    <div class="ne-code">chkconfig apache2 off      <span class="c"># SysV: stop apache2 starting at boot</span></div>
+                    <div class="why"><b>Q17:</b> <span class="inline">chkconfig apache2 off</span> removes the apache2 service from the init (boot) process. The distractors (<span class="inline">top</span>, <span class="inline">vmstat</span>, <span class="inline">iostat</span>) are monitoring tools, not service managers.</div>
+                    <div class="legacy"><img src="/assets/images/icons/icon-warning.webp" alt=""><b>Legacy &rarr; modern:</b> on systemd use <span class="inline">systemctl disable apache2</span> (stop it starting at boot) and <span class="inline">systemctl stop apache2</span> (stop it now).</div></div>
+                <div class="cmd"><div class="label"><span class="name">rcapache2 stop</span><span class="what">stop Apache (SUSE init script)</span></div>
+                    <div class="ne-code">rcapache2 stop             <span class="c"># SUSE rc-script form</span></div>
+                    <div class="why"><b>Q18:</b> the exam answer is <span class="inline">rcapache2 stop</span>, a SUSE <span class="inline">rc</span> service wrapper.</div>
+                    <div class="legacy"><img src="/assets/images/icons/icon-warning.webp" alt=""><b>Legacy &rarr; modern:</b> on current systemd systems use <span class="inline">systemctl stop apache2</span> (or <span class="inline">httpd</span> on RHEL). Enable/disable at boot with <span class="inline">systemctl enable/disable</span> (replaces the old <span class="inline">chkconfig</span>).</div></div>
+            </section>
+
+            <!-- 9. Monitoring (legacy) -->
+            <section class="ne-section" id="t9">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-network.webp" alt="">9. Network monitoring<span class="legacy-tag">LEGACY</span></div>
+                <div class="cmd"><div class="label"><span class="name">Traffic-vis</span><span class="what">analyze connections to hosts</span></div>
+                    <div class="why"><b>Q16:</b> the exam answer is <span class="inline">Traffic-vis</span>, an older program that analyzes network connections to specific hosts.</div>
+                    <div class="legacy"><img src="/assets/images/icons/icon-warning.webp" alt=""><b>Legacy &rarr; modern:</b> for live per-connection traffic today use <span class="inline">iftop</span>, <span class="inline">nload</span>, <span class="inline">bmon</span>, or <span class="inline">ss -tup</span> / <span class="inline">nethogs</span>.</div></div>
+            </section>
+
+            <!-- Part 2: answer index -->
+            <section class="ne-section qindex" id="qindex">
+                <div class="ne-section-title"><img src="/assets/images/icons/icon-list.webp" alt="">Answer index &mdash; all 25 questions (test order)</div>
+                <p>The correct answer for every question, with a one-line why and the topic it maps to.</p>
+                <table>
+                    <thead><tr><th>Q</th><th>Tests</th><th>Answer</th><th>Why</th></tr></thead>
+                    <tbody>
+                        <tr><td class="q">Q1</td><td>View start of a log</td><td class="a"><code>head</code></td><td>First 10 lines; cat=all, tail=end, more=scroll.</td></tr>
+                        <tr><td class="q">Q2</td><td>Change owner+group</td><td class="a"><code>chown john:staff</code></td><td>chmod=perms, chgrp=group only, setfacl=ACL.</td></tr>
+                        <tr><td class="q">Q3</td><td>Copy a directory tree</td><td class="a"><code>cp -r</code></td><td>Recursive; preserves all files + subdirs.</td></tr>
+                        <tr><td class="q">Q4</td><td>Make a directory</td><td class="a"><code>mkdir</code></td><td>Creates the directory in the given location.</td></tr>
+                        <tr><td class="q">Q5</td><td>Create empty file</td><td class="a"><code>touch</code></td><td>Creates if absent; updates timestamp if present.</td></tr>
+                        <tr><td class="q">Q6</td><td>Installer boot menu <span class="leg">[legacy]</span></td><td class="a"><code>Boot from Hard Disk</code></td><td>Boots the OS already installed on disk.</td></tr>
+                        <tr><td class="q">Q7</td><td>Enable an interface</td><td class="a"><code>ip link set eth0 up</code></td><td>Modern replacement for ifconfig up.</td></tr>
+                        <tr><td class="q">Q8</td><td>Stop ping</td><td class="a"><code>Ctrl-C</code></td><td>Sends SIGINT to terminate.</td></tr>
+                        <tr><td class="q">Q9</td><td>Ping deadline</td><td class="a"><code>ping -w maxwait</code></td><td>Exit after N seconds regardless of packets.</td></tr>
+                        <tr><td class="q">Q10</td><td>Mail server in DNS</td><td class="a"><code>MX</code></td><td>MX record defines the domain's mail server.</td></tr>
+                        <tr><td class="q">Q11</td><td>Protect shared-dir files</td><td class="a"><code>sticky</code> bit</td><td>Only the owner/root can delete (e.g. /tmp).</td></tr>
+                        <tr><td class="q">Q12</td><td>ACL with owner/group/other</td><td class="a"><code>minimum</code> ACL</td><td>Just the standard perm bits as ACL entries.</td></tr>
+                        <tr><td class="q">Q13</td><td>Archive container</td><td class="a"><code>tar</code></td><td>Bundles files/dirs; .tar convention.</td></tr>
+                        <tr><td class="q">Q14</td><td>Bash arithmetic</td><td class="a"><code>let</code></td><td>Performs integer arithmetic.</td></tr>
+                        <tr><td class="q">Q15</td><td>Makefile parts</td><td class="a"><code>dependencies</code></td><td>Targets, dependencies, and commands.</td></tr>
+                        <tr><td class="q">Q16</td><td>Analyze connections <span class="leg">[legacy]</span></td><td class="a"><code>Traffic-vis</code></td><td>Modern: iftop / nload / nethogs.</td></tr>
+                        <tr><td class="q">Q17</td><td>Remove svc from init <span class="leg">[legacy]</span></td><td class="a"><code>chkconfig apache2 off</code></td><td>SysV/SUSE; modern: systemctl disable apache2.</td></tr>
+                        <tr><td class="q">Q18</td><td>Stop apache2 <span class="leg">[legacy]</span></td><td class="a"><code>rcapache2 stop</code></td><td>SUSE rc-script; modern: systemctl stop apache2.</td></tr>
+                        <tr><td class="q">Q19</td><td>Swap partition entry</td><td class="a"><code>/etc/fstab</code></td><td>Where mounts + swap are declared.</td></tr>
+                        <tr><td class="q">Q20</td><td>Frees physical memory</td><td class="a"><code>swap</code></td><td>Pages unused memory to disk.</td></tr>
+                        <tr><td class="q">Q21</td><td>Load over 1/5/15 min</td><td class="a"><code>uptime</code></td><td>Shows uptime + load averages.</td></tr>
+                        <tr><td class="q">Q22</td><td>Shell comment char</td><td class="a"><code>#</code></td><td>Everything after # on a line is ignored.</td></tr>
+                        <tr><td class="q">Q23</td><td>Copy dirs over network</td><td class="a"><code>rsync</code></td><td>Efficient sync; transfers only changes.</td></tr>
+                        <tr><td class="q">Q24</td><td>Name resolution config</td><td class="a"><code>/etc/resolv.conf</code></td><td>Nameservers + search domains.</td></tr>
+                        <tr><td class="q">Q25</td><td>Change a file's ACL</td><td class="a"><code>setfacl</code></td><td>getfacl to view, setfacl to modify.</td></tr>
+                    </tbody>
+                </table>
+                <p style="margin-top:12px; font-size:.8rem; color:var(--dim);">Note: question order follows the Post Test (Q1 through Q25).</p>
+            </section>
+
+            <!-- Completion -->
+            <section class="ne-complete">
+                <h3>Reviewed the Post-Test material</h3>
+                <p>Mark this review complete once you have gone through the topic guide and the answer index. You can revisit it any time before the exam.</p>
+                <button class="btn-complete" id="completeBtn" type="button">Mark review complete</button>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        /* ── Module completion (mirrors the ALA review pages) ── */
+        const MODULE_HOUSE = 'matrix';
+        const MODULE_ID    = 'ala-post-test-review';
+        const btn = document.getElementById('completeBtn');
+        function markDone() {
+            btn.textContent = 'Review complete';
+            btn.classList.add('done');
+            btn.disabled = true;
+        }
+        btn.addEventListener('click', function () {
+            try { if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete(MODULE_HOUSE, MODULE_ID); } catch (e) {}
+            markDone();
+        });
+        try {
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.isCompleted(MODULE_HOUSE, MODULE_ID)) markDone();
+        } catch (e) {}
+    </script>
+</body>
+</html>
