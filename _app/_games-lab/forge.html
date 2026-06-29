@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Forge &mdash; Hexworth Prime</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Game Forge admin dashboard. Full-bleed (never a narrow centered column).
+           Reads forge-manifest.json + forge-lint/*.json — both produced by the
+           dev-time Node tool _tools/game-forge/. This surface REVIEWS + PREVIEWS;
+           it does not itself run the conversion. */
+        :root {
+            --bg: #07090d; --panel: #0d1117; --panel2: #11161f; --border: rgba(255,255,255,0.08);
+            --text: #e6edf3; --dim: #8b949e; --accent: #2dd4bf; --accent-dim: rgba(45,212,191,0.12);
+            --ok: #34d399; --warn: #f59e0b; --err: #f87171; --info: #818cf8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        code, .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Header */
+        .fg-header { display: flex; align-items: center; gap: 14px; padding: 18px 28px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, var(--panel), var(--bg)); flex-wrap: wrap; }
+        .fg-header h1 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.01em; }
+        .fg-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 700; color: var(--accent); border: 1px solid rgba(45,212,191,0.4); background: var(--accent-dim); border-radius: 4px; padding: 3px 8px; }
+        .fg-sub { color: var(--dim); font-size: 0.82rem; flex-basis: 100%; margin-top: 2px; }
+
+        .fg-wrap { padding: 22px 28px 60px; }
+
+        /* Stat strip — full width grid */
+        .fg-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .fg-stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+        .fg-stat .num { font-size: 1.9rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+        .fg-stat .lbl { color: var(--dim); font-size: 0.74rem; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+        /* Pipeline explainer */
+        .fg-pipe { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 26px; }
+        .fg-step { background: var(--panel2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 14px 16px; }
+        .fg-step .n { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-weight: 700; font-size: 0.8rem; }
+        .fg-step h4 { font-size: 0.92rem; margin: 4px 0; }
+        .fg-step p { color: var(--dim); font-size: 0.78rem; line-height: 1.5; }
+        .fg-step.future { border-left-color: var(--info); opacity: 0.92; }
+        .fg-step.future .n { color: var(--info); }
+
+        .fg-section-title { font-size: 0.95rem; font-weight: 700; margin: 8px 0 14px; display: flex; align-items: center; gap: 10px; }
+        .fg-section-title .count { color: var(--dim); font-weight: 500; font-size: 0.8rem; }
+
+        /* Catalog table — full width */
+        .fg-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 30px; }
+        .fg-table th { text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dim); padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--panel2); }
+        .fg-table td { padding: 13px 16px; border-bottom: 1px solid var(--border); font-size: 0.84rem; vertical-align: middle; }
+        .fg-table tr:last-child td { border-bottom: none; }
+        .fg-table tr:hover td { background: rgba(255,255,255,0.015); }
+        .game-name { font-weight: 600; }
+        .game-type { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--accent); text-transform: uppercase; }
+        .src { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--dim); word-break: break-all; }
+
+        .pill { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; }
+        .pill-ok { background: rgba(52,211,153,0.12); color: var(--ok); border: 1px solid rgba(52,211,153,0.3); }
+        .pill-future { background: rgba(129,140,248,0.12); color: var(--info); border: 1px solid rgba(129,140,248,0.3); }
+        .pill-err { background: rgba(248,113,113,0.12); color: var(--err); border: 1px solid rgba(248,113,113,0.3); }
+
+        .lint-chips { display: flex; gap: 5px; }
+        .chip { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 5px; cursor: default; }
+        .chip-e { background: rgba(248,113,113,0.12); color: var(--err); }
+        .chip-w { background: rgba(245,158,11,0.12); color: var(--warn); }
+        .chip-i { background: rgba(129,140,248,0.12); color: var(--info); }
+        .chip-clean { background: rgba(52,211,153,0.1); color: var(--ok); }
+        .chip.clickable { cursor: pointer; }
+        .chip.clickable:hover { filter: brightness(1.3); }
+
+        .btn { font-family: 'Inter', sans-serif; font-size: 0.76rem; font-weight: 600; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); cursor: pointer; transition: all 0.15s; }
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-preview { border-color: rgba(45,212,191,0.3); color: var(--accent); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* Modal (preview + lint detail) */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 24px; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 1500px; height: auto; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+        .modal-head h3 { font-size: 0.95rem; }
+        .modal-close { background: none; border: 1px solid var(--border); color: var(--text); border-radius: 6px; width: 30px; height: 30px; cursor: pointer; font-size: 1.1rem; }
+        .modal-body { flex: 1; overflow: auto; }
+        .modal-body iframe { width: 100%; height: 84vh; border: none; display: block; }
+        .lint-list { padding: 18px 22px; }
+        .lint-row { display: grid; grid-template-columns: 70px 130px 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; align-items: baseline; }
+        .lint-row .sev { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .lint-row .code { font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; color: var(--dim); }
+        .lint-row .where { color: var(--dim); font-size: 0.72rem; margin-top: 2px; }
+        .sev-error { color: var(--err); } .sev-warn { color: var(--warn); } .sev-info { color: var(--info); }
+        .empty { color: var(--dim); padding: 30px; text-align: center; }
+
+        .note { background: rgba(129,140,248,0.06); border: 1px solid rgba(129,140,248,0.25); border-radius: 10px; padding: 16px 20px; margin-bottom: 26px; }
+        .note h4 { font-size: 0.88rem; color: var(--info); margin-bottom: 6px; }
+        .note p { color: var(--dim); font-size: 0.82rem; line-height: 1.55; }
+        .note code { color: var(--accent); font-size: 0.78rem; }
+    </style>
+</head>
+<body>
+    <header class="fg-header">
+        <h1>Game Forge</h1>
+        <span class="fg-badge">SANDBOX</span>
+        <p class="fg-sub">Automates converting legacy hardcoded review-game clones into the shared data-driven format, and audits each for quality. Conversion + audit run from the dev tool <code class="mono">_tools/game-forge/</code>; this dashboard reviews the results and previews any converted game live.</p>
+    </header>
+
+    <div class="fg-wrap">
+        <div class="fg-stats" id="statStrip"></div>
+
+        <div class="fg-pipe">
+            <div class="fg-step"><div class="n">01 / EXTRACT</div><h4>Parse legacy clones</h4><p>Reads each hardcoded clone, isolates its embedded data with a string-aware scanner, and parses it with the real JS engine &mdash; zero corruption on quotes or apostrophes.</p></div>
+            <div class="fg-step"><div class="n">02 / NORMALIZE</div><h4>Map to shared schema</h4><p>Both legacy dialects fold into one engine schema and write to a <code class="mono">data-extracted/</code> staging path &mdash; never overwriting live data without a diff.</p></div>
+            <div class="fg-step"><div class="n">03 / AUDIT</div><h4>Deterministic lint</h4><p>Structural checks: empty fields, bad answer indices, duplicate or skewed questions, board shape, format consistency. No guessing.</p></div>
+            <div class="fg-step future"><div class="n">04 / IMPROVE &middot; NEXT</div><h4>AI content rewrite</h4><p>On-demand Claude rewrite of weak distractors and clue phrasing. Requires an approved Anthropic API key + a callable function &mdash; staged, not yet live.</p></div>
+        </div>
+
+        <div class="fg-section-title">Converted &mdash; data-driven &amp; previewable <span class="count" id="convCount"></span></div>
+        <table class="fg-table" id="convTable"><thead><tr>
+            <th>Game</th><th>Course</th><th>Source clone</th><th>Items</th><th>Quality audit</th><th>Preview</th>
+        </tr></thead><tbody id="convBody"></tbody></table>
+
+        <div class="fg-section-title">Catalogued &mdash; awaiting shared engine <span class="count" id="pendCount"></span></div>
+        <table class="fg-table" id="pendTable"><thead><tr>
+            <th>Game</th><th>Course</th><th>Source clone</th><th>Items</th><th>Status</th><th></th>
+        </tr></thead><tbody id="pendBody"></tbody></table>
+
+        <div class="note">
+            <h4>How conversion is run</h4>
+            <p>This is the review surface. To (re)convert and audit, an operator runs <code>node _tools/game-forge/forge.mjs</code> then <code>node _tools/game-forge/lint.mjs</code>, reviews the <code>git diff</code> of <code>_games-lab/data/</code>, and ships. Triggering this from a browser button is the next phase and needs a callable Cloud Function (step 04).</p>
+        </div>
+    </div>
+
+    <!-- Preview / lint modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-head">
+                <h3 id="modalTitle">Preview</h3>
+                <button class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+    /* Fetch the manifest + per-game lint reports, then render the dashboard. */
+    var MANIFEST = null;
+    var LINT = {}; /* id -> lint report */
+
+    /* Build a stat card */
+    function stat(num, lbl, color) {
+        return '<div class="fg-stat"><div class="num" style="color:' + (color || 'var(--text)') + '">' + num + '</div><div class="lbl">' + lbl + '</div></div>';
+    }
+
+    /* Render the four summary stat cards from manifest totals */
+    function renderStats(m) {
+        var t = m.totals, li = m.lint || {};
+        document.getElementById('statStrip').innerHTML =
+            stat(t.clones, 'Legacy clones', 'var(--text)') +
+            stat(t.converted + '/' + t.engineTyped, 'Converted', 'var(--ok)') +
+            stat(t.needsEngine, 'Need engine', 'var(--info)') +
+            stat((li.totalIssues != null ? li.totalIssues : '0'), 'Audit findings', li.totalIssues ? 'var(--warn)' : 'var(--ok)');
+    }
+
+    /* HTML-escape (defends preview/lint text inserted into the DOM) */
+    function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+
+    /* Lint chip cluster for a game row; clickable when there are findings */
+    function lintChips(g) {
+        var l = g.lint;
+        if (!l) return '<span class="chip chip-i">n/a</span>';
+        var total = l.error + l.warn + l.info;
+        if (total === 0) return '<span class="chip chip-clean">clean</span>';
+        var cls = 'chip clickable', html = '';
+        if (l.error) html += '<span class="' + cls + ' chip-e" onclick="showLint(\'' + g.id + '\')">' + l.error + ' E</span>';
+        if (l.warn)  html += '<span class="' + cls + ' chip-w" onclick="showLint(\'' + g.id + '\')">' + l.warn + ' W</span>';
+        if (l.info)  html += '<span class="' + cls + ' chip-i" onclick="showLint(\'' + g.id + '\')">' + l.info + ' I</span>';
+        return '<div class="lint-chips">' + html + '</div>';
+    }
+
+    /* Render converted + pending catalog tables */
+    function renderTables(m) {
+        var conv = m.games.filter(function (g) { return g.converted; });
+        var pend = m.games.filter(function (g) { return !g.converted; });
+        document.getElementById('convCount').textContent = conv.length + ' games';
+        document.getElementById('pendCount').textContent = pend.length + ' games';
+
+        document.getElementById('convBody').innerHTML = conv.map(function (g) {
+            return '<tr>' +
+                '<td><div class="game-name">' + esc(g.courseTitle) + '</div><span class="game-type">' + esc(g.type) + '</span></td>' +
+                '<td class="mono">' + esc(g.course) + '</td>' +
+                '<td class="src">' + esc(g.sourceFile) + '</td>' +
+                '<td class="mono">' + g.itemCount + '</td>' +
+                '<td>' + lintChips(g) + '</td>' +
+                '<td><button class="btn btn-preview" onclick="preview(\'' + g.type + '\',\'' + g.course + '\',\'' + esc(g.courseTitle) + '\')">Play preview</button></td>' +
+                '</tr>';
+        }).join('') || '<tr><td colspan="6" class="empty">No converted games.</td></tr>';
+
+        document.getElementById('pendBody').innerHTML = pend.map(function (g) {
+            var status = g.error ? '<span class="pill pill-err">failed</span>'
+                : '<span class="pill pill-future">needs ' + esc(g.type) + ' engine</span>';
+            return '<tr>' +
+                '<td><div class="game-name">' + esc(g.courseTitle) + '</div><span class="game-type">' + esc(g.type) + '</span></td>' +
+                '<td class="mono">' + esc(g.course) + '</td>' +
+                '<td class="src">' + esc(g.sourceFile) + '</td>' +
+                '<td class="mono">' + (g.itemCount || '&mdash;') + '</td>' +
+                '<td>' + status + '</td><td></td>' +
+                '</tr>';
+        }).join('') || '<tr><td colspan="6" class="empty">All clones have an engine.</td></tr>';
+    }
+
+    /* Open a converted game in the engine inside the modal */
+    function preview(type, course, title) {
+        document.getElementById('modalTitle').textContent = 'Preview: ' + title + ' (' + type + ')';
+        document.getElementById('modalBody').innerHTML = '<iframe src="' + type + '.html?course=' + encodeURIComponent(course) + '" title="game preview"></iframe>';
+        document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    /* Show the lint findings for a game in the modal */
+    function showLint(id) {
+        var r = LINT[id];
+        document.getElementById('modalTitle').textContent = 'Audit findings: ' + id;
+        var rows = (r && r.issues || []).map(function (x) {
+            return '<div class="lint-row"><div class="sev sev-' + x.severity + '">' + x.severity + '</div>' +
+                '<div class="code">' + esc(x.code) + '</div>' +
+                '<div><div>' + esc(x.msg) + '</div><div class="where">' + esc(x.where) + '</div></div></div>';
+        }).join('');
+        document.getElementById('modalBody').innerHTML = '<div class="lint-list">' + (rows || '<div class="empty">No findings.</div>') + '</div>';
+        document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    /* Close the modal and tear down any running preview iframe */
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('active');
+        document.getElementById('modalBody').innerHTML = '';
+    }
+    document.getElementById('modalOverlay').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+    /* Boot: load manifest, then lint reports for converted games, then render */
+    fetch('forge-manifest.json', { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) throw new Error('manifest ' + r.status); return r.json(); })
+        .then(function (m) {
+            MANIFEST = m;
+            renderStats(m); renderTables(m);
+            /* lazily pull each converted game's lint report for the detail modal */
+            m.games.filter(function (g) { return g.converted; }).forEach(function (g) {
+                fetch('forge-lint/' + g.id.replace('/', '__') + '.json', { cache: 'no-store' })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (rep) { if (rep) LINT[g.id] = rep; })
+                    .catch(function () {});
+            });
+        })
+        .catch(function (err) {
+            document.getElementById('statStrip').innerHTML = '<div class="empty">Could not load forge-manifest.json &mdash; run <code class="mono">node _tools/game-forge/forge.mjs</code> first. (' + esc(err.message) + ')</div>';
+        });
+    </script>
+</body>
+</html>

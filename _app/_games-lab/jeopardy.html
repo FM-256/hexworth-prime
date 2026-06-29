@@ -567,7 +567,7 @@
                     <li>Higher values = harder clues; start low if warming up</li>
                     <li>Build a streak of correct answers for bonus glory</li>
                     <li>One cell on the board is the <strong>Daily Double</strong>: wager any amount from $5 up to the higher of your current score or $500</li>
-                    <li>Clear all 25 cells to see your final score and category breakdown</li>
+                    <li>Clear all cells to see your final score and category breakdown</li>
                 </ul>
             </div>
 
@@ -620,7 +620,7 @@
             <!-- Final score -->
             <div class="final-score" id="finalScore">
                 <h3>Game Complete</h3>
-                <div class="final-subtitle">All 25 clues answered</div>
+                <div class="final-subtitle">All clues answered</div>
                 <div class="final-amount" id="finalAmount">$0</div>
                 <div class="final-stats">
                     <div class="stat"><span class="stat-num green"  id="fCorrect">0</span><span class="stat-desc">Correct</span></div>
@@ -757,7 +757,8 @@
     /* ── Board construction ─────────────────────────────────────────── */
     function rollDailyDouble() {
         dailyDoubleCat   = Math.floor(Math.random() * categories.length);
-        dailyDoubleRow   = Math.floor(Math.random() * 5);
+        var ddClues      = (categories[dailyDoubleCat].clues || []).length || 1;
+        dailyDoubleRow   = Math.floor(Math.random() * ddClues);
         dailyDoubleFound = false;
     }
 
@@ -776,21 +777,35 @@
 
         rollDailyDouble();
 
-        /* Value rows: 100 to 500 */
-        var values = [100, 200, 300, 400, 500];
-        values.forEach(function(val, rowIdx) {
+        /* Board is data-driven: column count = number of categories, row count =
+           max clues in any category, value labels taken from each clue's own
+           value (supports 5x5, 6-category, and non-100..500 ladders alike). */
+        board.style.gridTemplateColumns = 'repeat(' + categories.length + ', 1fr)';
+        var nRows = categories.reduce(function(m, c) { return Math.max(m, (c.clues || []).length); }, 0);
+        /* let (not var) so each row's click closures capture their own rowIdx */
+        for (let rowIdx = 0; rowIdx < nRows; rowIdx++) {
             categories.forEach(function(cat, colIdx) {
                 var cell = document.createElement('div');
                 cell.className = 'value-cell';
+                var clue = (cat.clues || [])[rowIdx];
+                if (!clue) {                       /* ragged category — blank, non-interactive */
+                    cell.classList.add('used');
+                    cell.setAttribute('aria-hidden', 'true');
+                    board.appendChild(cell);
+                    return;
+                }
                 cell.dataset.cat = colIdx;
                 cell.dataset.row = rowIdx;
                 cell.id = 'cell-' + colIdx + '-' + rowIdx;
-                /* Dollar sign + value; no user-supplied HTML needed */
-                cell.innerHTML = '<span class="dollar">$</span>' + val;
+                /* Dollar sign + the clue's own value; no user-supplied HTML needed */
+                cell.innerHTML = '<span class="dollar">$</span>' + clue.value;
                 cell.addEventListener('click', function() { openClue(colIdx, rowIdx); });
                 board.appendChild(cell);
             });
-        });
+        }
+        /* Sync the 'Remaining' counter to the true clue total after build/reset */
+        var crEl = document.getElementById('cellsRemaining');
+        if (crEl) crEl.textContent = cellsLeft;
     }
 
     /* ── Clue timer ─────────────────────────────────────────────────── */
@@ -1125,7 +1140,8 @@
     /* ── Reset ──────────────────────────────────────────────────────── */
     function resetGame() {
         closeModal();
-        score = 0; correctCount = 0; wrongCount = 0; cellsLeft = 25;
+        score = 0; correctCount = 0; wrongCount = 0;
+        cellsLeft = categories.reduce(function(s, c) { return s + c.clues.length; }, 0);
         currentClue = null; answerRevealed = false;
         currentStreak = 0; bestStreak = 0;
         catScores.forEach(function(cs) {
