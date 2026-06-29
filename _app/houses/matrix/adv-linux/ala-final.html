@@ -435,6 +435,37 @@
             } catch (e) { /* analytics is a side-channel */ }
         }
 
+        // ── Capstone reward: the incoming codec transmission ──
+        // Plays the "welcome to the Resistance" cutscene when the cell is fully
+        // commissioned (Stage 9 audit flag captured). Embeds the standalone
+        // transmission page as a full-screen iframe overlay, passing the real
+        // operator callsign; closes when the cutscene posts 'codec-return'.
+        var _codecPlayed = false;
+        function playCommissioningTransmission() {
+            if (_codecPlayed) return;                 // fire once per session
+            _codecPlayed = true;
+            var nameEl = document.getElementById('opName');
+            var callsign = (nameEl && nameEl.textContent.trim()) || 'OPERATOR';
+            var rank = 'Field Operator, Sector 7';
+            var ov = document.createElement('div');
+            ov.id = 'codecOverlay';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#000;opacity:0;transition:opacity 0.5s;';
+            var fr = document.createElement('iframe');
+            fr.title = 'Incoming transmission';
+            fr.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+            fr.src = 'transmission.html?callsign=' + encodeURIComponent(callsign) + '&rank=' + encodeURIComponent(rank);
+            ov.appendChild(fr);
+            document.body.appendChild(ov);
+            requestAnimationFrame(function () { ov.style.opacity = '1'; });
+        }
+        // Close the codec overlay when the embedded cutscene asks to return.
+        function closeCodecOverlay() {
+            var ov = document.getElementById('codecOverlay');
+            if (!ov) return;
+            ov.style.opacity = '0';
+            setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 500);
+        }
+
         // ── Flag submission (server-validated) ──
         async function submitFlag() {
             const input = document.getElementById('flagInput'), res = document.getElementById('flagRes'), btn = document.getElementById('flagBtn');
@@ -481,6 +512,11 @@
                         if (stage.key === 'audit' && typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
                             ModuleProgress.complete('matrix', 'ala-final-practical', { type: 'lab', silent: true, returnToDashboard: false });
                             reportStageActivity('arena_complete', { flags: captured.size, totalFlags: STAGES.length });
+                        }
+                        // Capstone reward: roll the incoming codec transmission after a
+                        // beat so the "COMMISSIONED" confirmation lands first.
+                        if (stage.key === 'audit') {
+                            setTimeout(playCommissioningTransmission, 900);
                         }
                     }
                 } else {
@@ -759,6 +795,8 @@
             const closeOv = () => document.getElementById('overlay').classList.remove('show');
             document.getElementById('ovClose').onclick = closeOv;
             document.addEventListener('keydown', e => { if (e.key === 'Escape') closeOv(); });
+            // Close the capstone codec overlay when the embedded cutscene returns.
+            window.addEventListener('message', e => { if (e && e.data === 'codec-return') closeCodecOverlay(); });
         }
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
     })();
