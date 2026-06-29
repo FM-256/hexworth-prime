@@ -311,6 +311,22 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
         .modal-answer.revealed { display: block; animation: fadeUp 0.3s ease-out; }
+        /* "Why?" explanation toggle + in-place panel (shown after reveal) */
+        .modal-why-btn {
+            display: block; margin: -8px auto 16px; cursor: pointer;
+            font: 600 13px var(--sans, 'Inter', sans-serif); color: var(--accent);
+            background: transparent; border: 1px solid var(--accent);
+            border-radius: 8px; padding: 6px 16px; transition: background 0.15s;
+        }
+        .modal-why-btn:hover { background: var(--accent-dim); }
+        .modal-why-btn .why-caret { display: inline-block; transition: transform 0.2s; }
+        .modal-why-btn.open .why-caret { transform: rotate(180deg); }
+        .modal-why-panel {
+            text-align: left; margin: 0 auto 22px; padding: 14px 18px; max-width: 640px;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+            border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
+            font-size: 14px; line-height: 1.6; color: var(--text-dim, #cbd5e1);
+        }
 
         /* Think-timer bar */
         .clue-timer-track {
@@ -648,6 +664,9 @@
             <div class="modal-clue"     id="modalClue"></div>
             <div class="modal-prompt"   id="modalPrompt">Think of your response, then click Reveal (or press Space)</div>
             <div class="modal-answer"   id="modalAnswer"></div>
+            <!-- Optional "Why?" explanation: appears after reveal if the clue has one -->
+            <button class="modal-why-btn" id="modalWhyBtn" style="display:none;" onclick="toggleClueWhy()" aria-expanded="false">Why? <span class="why-caret">&#9662;</span></button>
+            <div class="modal-why-panel" id="modalWhyPanel" hidden></div>
             <div class="modal-actions"  id="modalActions">
                 <button class="modal-btn reveal" onclick="revealAnswer()">Reveal Response</button>
             </div>
@@ -858,6 +877,7 @@
             value: clue.value,
             response: clue.response,
             clue: clue.clue,
+            explain: clue.explain || '',
             isDailyDouble: isDailyDouble,
             wager: 0
         };
@@ -894,6 +914,15 @@
         var answerEl = document.getElementById('modalAnswer');
         answerEl.textContent = currentClue.response;
         answerEl.classList.remove('revealed');
+
+        /* Reset the "Why?" toggle to hidden+collapsed for each new clue */
+        var whyBtn = document.getElementById('modalWhyBtn');
+        var whyPanel = document.getElementById('modalWhyPanel');
+        whyBtn.style.display = 'none';
+        whyBtn.classList.remove('open');
+        whyBtn.setAttribute('aria-expanded', 'false');
+        whyPanel.hidden = true;
+        whyPanel.textContent = '';
 
         document.getElementById('modalActions').innerHTML =
             '<button class="modal-btn reveal" onclick="revealAnswer()">Reveal Response</button>';
@@ -971,7 +1000,23 @@
         document.getElementById('modalActions').innerHTML =
             '<button class="modal-btn correct" onclick="judgeAnswer(true)">I Got It Right</button>' +
             '<button class="modal-btn wrong"   onclick="judgeAnswer(false)">I Got It Wrong</button>';
+        /* Show the optional "Why?" explanation toggle once the answer is out */
+        var whyBtn = document.getElementById('modalWhyBtn');
+        if (currentClue && currentClue.explain) { whyBtn.style.display = ''; }
     }
+
+    /* Toggle the clue's "Why?" explanation in place (text set via textContent,
+       XSS-safe). Builds the panel content on first open. */
+    function toggleClueWhy() {
+        var btn   = document.getElementById('modalWhyBtn');
+        var panel = document.getElementById('modalWhyPanel');
+        var willOpen = panel.hidden;
+        if (willOpen && currentClue) panel.textContent = currentClue.explain || '';
+        panel.hidden = !willOpen;
+        btn.classList.toggle('open', willOpen);
+        btn.setAttribute('aria-expanded', String(willOpen));
+    }
+    window.toggleClueWhy = toggleClueWhy;
 
     function judgeAnswer(correct) {
         if (!currentClue) return;
