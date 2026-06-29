@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- AccessGuard is optional in this sandbox: loaded if present, skipped if absent.
+         The typeof guard below prevents a crash when running standalone. -->
+    <script src="../components/AccessGuard.js" onerror="window._accessGuardMissing=true"></script>
+    <script src="../components/HexworthGameAudio.js" onerror="window._audioMissing=true"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kahoot Review | Game Lab (Hexworth Prime)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ================================================================
+           CSS CUSTOM PROPERTIES
+           Base palette defined here; runtime JS overwrites --accent, --bg,
+           --card, --text from the course JSON theme block.
+           ================================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --accent:      #888;
+            --accent-dim:  rgba(136,136,136,0.12);
+            --accent-glow: rgba(136,136,136,0.25);
+            --bg:          #0a0a0f;
+            --card:        #12121a;
+            --text:        #e0e0e0;
+            --text-dim:    #8b949e;
+            --border:      rgba(255,255,255,0.08);
+            --border2:     rgba(255,255,255,0.18);
+            --gold:        #ffcc00;
+            --green:       #10b981;
+            --red:         #ef4444;
+            --orange:      #f59e0b;
+            /* Kahoot 4-button palette -- independent of course theme */
+            --btn-a-bg:    rgba(59,130,246,0.18);
+            --btn-a-border:rgba(59,130,246,0.4);
+            --btn-b-bg:    rgba(239,68,68,0.18);
+            --btn-b-border:rgba(239,68,68,0.4);
+            --btn-c-bg:    rgba(245,158,11,0.18);
+            --btn-c-border:rgba(245,158,11,0.4);
+            --btn-d-bg:    rgba(16,185,129,0.18);
+            --btn-d-border:rgba(16,185,129,0.4);
+            --mono:        'JetBrains Mono', ui-monospace, monospace;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* ── Loading / Error states ── */
+        .state-screen {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            min-height: 100vh; gap: 20px; padding: 40px;
+            text-align: center;
+        }
+        .state-screen h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+        .state-screen p  { font-size: 14px; color: var(--text-dim); max-width: 420px; }
+        .state-screen a  {
+            color: var(--accent); font-weight: 600; text-decoration: none;
+            padding: 10px 24px; border: 1px solid var(--border2); border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .state-screen a:hover { background: var(--accent-dim); }
+        .spinner {
+            width: 40px; height: 40px; border-radius: 50%;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Shared header ── */
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px;
+            background: rgba(10,10,15,0.96);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge {
+            font-family: var(--mono);
+            font-size: 11px; padding: 3px 10px; border-radius: 4px;
+            background: var(--accent-dim); color: var(--accent);
+            font-weight: 700; letter-spacing: 1px;
+        }
+        .header h1 {
+            font-family: var(--mono);
+            font-size: 15px; font-weight: 600; color: var(--accent);
+        }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        /* Audio toggle */
+        .audio-toggle {
+            background: transparent; color: var(--accent);
+            border: 1px solid var(--border2); border-radius: 6px;
+            padding: 6px 8px; cursor: pointer; line-height: 0;
+            transition: background 0.15s, border-color 0.15s;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .audio-toggle:hover { background: var(--accent-dim); border-color: var(--accent); }
+        .audio-toggle .ico-on  { display: inline; }
+        .audio-toggle .ico-off { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-on  { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-off { display: inline; }
+        .audio-toggle[aria-pressed="true"] { color: rgba(255,255,255,0.35); }
+
+        /* Back link */
+        .back-link {
+            font-family: var(--mono);
+            font-size: 13px; color: var(--accent); font-weight: 600;
+            text-decoration: none; padding: 6px 14px; border-radius: 6px;
+            border: 1px solid var(--border2); transition: all 0.2s;
+        }
+        .back-link:hover { background: var(--accent-dim); }
+
+        /* ── Screen switching ── */
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        /* ================================================================
+           SCREEN 1: LOBBY
+           ================================================================ */
+        .lobby { max-width: 720px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        .hero { text-align: center; padding: 36px 0 28px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 {
+            font-size: 28px; font-weight: 800; color: var(--accent); margin-bottom: 8px;
+            font-family: var(--mono);
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 580px; margin: 0 auto; }
+        .hero-meta {
+            display: flex; justify-content: center; gap: 24px; margin-top: 20px;
+            font-size: 12px; color: var(--text-dim);
+        }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Shape legend */
+        .shape-legend {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px;
+        }
+        .shape-item {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px 14px;
+        }
+        .shape-icon { width: 32px; height: 32px; flex-shrink: 0; }
+        .shape-label { font-size: 13px; font-weight: 600; }
+
+        /* Rules card */
+        .rules-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 20px 24px; margin-bottom: 20px;
+        }
+        .rules-card h3 {
+            font-size: 11px; color: var(--accent); text-transform: uppercase;
+            letter-spacing: 1.5px; margin-bottom: 12px; font-family: var(--mono);
+        }
+        .rules-card ul { list-style: none; }
+        .rules-card li {
+            padding: 5px 0; font-size: 14px; color: var(--text-dim);
+            display: flex; align-items: flex-start; gap: 10px;
+        }
+        .rules-card li::before {
+            content: '>'; color: var(--accent); font-weight: bold;
+            font-family: var(--mono); flex-shrink: 0; margin-top: 2px;
+        }
+
+        .start-btn {
+            display: block; width: 100%; padding: 18px;
+            background: linear-gradient(135deg, #004d14, var(--accent));
+            border: none; border-radius: 10px; color: #000;
+            font-size: 16px; font-weight: 800; cursor: pointer;
+            transition: all 0.2s; text-align: center; letter-spacing: 0.5px;
+            font-family: var(--mono);
+        }
+        /* Fallback for themes where accent is not green (e.g. PIS blue) */
+        .start-btn.theme-light { color: #fff; background: linear-gradient(135deg, var(--accent), #7c3aed); }
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        /* ================================================================
+           SCREEN 2: ACTIVE GAME
+           ================================================================ */
+        .game-screen { max-width: 1200px; margin: 0 auto; padding: 16px 24px; }
+
+        /* Top bar */
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px; gap: 12px;
+        }
+        .topbar-stat {
+            display: flex; flex-direction: column; align-items: center;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 8px 16px; min-width: 80px;
+        }
+        .topbar-stat-label {
+            font-size: 10px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 2px; font-family: var(--mono);
+        }
+        .topbar-stat-value {
+            font-size: 20px; font-weight: 800; color: var(--gold);
+            font-family: var(--mono);
+        }
+        .topbar-stat-value.accent { color: var(--accent); }
+        .topbar-stat-value.green  { color: var(--green); }
+
+        .topbar-host-controls { display: flex; gap: 8px; }
+        .host-btn {
+            padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s; border: 1px solid;
+            font-family: var(--mono);
+        }
+        .host-btn-pause {
+            background: rgba(245,158,11,0.10); color: #f59e0b;
+            border-color: rgba(245,158,11,0.30);
+        }
+        .host-btn-pause:hover { background: rgba(245,158,11,0.20); }
+        .host-btn-pause.paused { background: rgba(245,158,11,0.25); color: #fbbf24; }
+        .host-btn-skip {
+            background: var(--accent-dim); color: var(--accent);
+            border-color: var(--border2);
+        }
+        .host-btn-skip:hover { background: rgba(255,255,255,0.1); }
+
+        /* Question area */
+        .question-area {
+            background: var(--card); border: 1px solid var(--border2);
+            border-radius: 12px; padding: 24px 28px; margin-bottom: 16px;
+            min-height: 110px; display: flex; flex-direction: column;
+            justify-content: center; text-align: center;
+        }
+        .question-counter {
+            font-size: 11px; color: var(--accent); text-transform: uppercase;
+            letter-spacing: 1.5px; margin-bottom: 10px; font-family: var(--mono);
+        }
+        .question-text {
+            font-size: 20px; font-weight: 700; color: #fff; line-height: 1.4;
+            font-family: var(--mono);
+        }
+
+        /* Timer */
+        .timer-label {
+            text-align: center; font-size: 13px; color: var(--text-dim);
+            margin-bottom: 14px; font-weight: 600; font-family: var(--mono);
+        }
+        .timer-label span { font-size: 18px; color: var(--gold); font-weight: 800; }
+        .timer-wrap {
+            position: relative; height: 10px; background: rgba(255,255,255,0.06);
+            border-radius: 5px; margin-bottom: 16px; overflow: hidden;
+        }
+        .timer-fill {
+            position: absolute; left: 0; top: 0; height: 100%;
+            border-radius: 5px; transition: background-color 0.3s;
+        }
+
+        /* Answer grid */
+        .answer-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 12px; margin-bottom: 16px;
+        }
+        .answer-btn {
+            display: flex; align-items: center; gap: 14px;
+            padding: 18px 20px; border-radius: 10px; border: 2px solid transparent;
+            cursor: pointer; font-size: 15px; font-weight: 600; color: #fff;
+            transition: transform 0.12s, filter 0.12s, border-color 0.2s;
+            min-height: 72px; position: relative; overflow: hidden; text-align: left;
+        }
+        .answer-btn:hover:not(:disabled) { transform: scale(1.02); filter: brightness(1.12); }
+        .answer-btn:disabled { cursor: default; }
+        .answer-btn.locked  { pointer-events: none; }
+
+        .answer-shape {
+            width: 36px; height: 36px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .answer-shape svg { width: 36px; height: 36px; }
+
+        /* Per-button colours -- fixed Kahoot palette, not theme-dependent */
+        .answer-btn.btn-a { background: var(--btn-a-bg); border-color: var(--btn-a-border); }
+        .answer-btn.btn-b { background: var(--btn-b-bg); border-color: var(--btn-b-border); }
+        .answer-btn.btn-c { background: var(--btn-c-bg); border-color: var(--btn-c-border); }
+        .answer-btn.btn-d { background: var(--btn-d-bg); border-color: var(--btn-d-border); }
+
+        /* Reveal states */
+        .answer-btn.reveal-correct {
+            background: rgba(16,185,129,0.35) !important;
+            border-color: #10b981 !important;
+            animation: correctPulse 0.5s ease-out;
+        }
+        .answer-btn.reveal-wrong {
+            background: rgba(239,68,68,0.15) !important;
+            border-color: rgba(239,68,68,0.3) !important;
+            filter: grayscale(0.5) brightness(0.7);
+        }
+        .answer-btn.reveal-neutral {
+            filter: grayscale(0.3) brightness(0.65);
+        }
+        @keyframes correctPulse {
+            0%   { transform: scale(1); }
+            35%  { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
+
+        .answer-text {
+            flex: 1; line-height: 1.35;
+            font-family: var(--mono); font-size: 14px;
+        }
+
+        /* Pause overlay --
+           position:fixed is safe here because we NEVER set body.style.filter
+           in this file (HEUR-008 only fires when filter is applied to body). */
+        .pause-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+            z-index: 300; align-items: center; justify-content: center;
+        }
+        .pause-overlay.active { display: flex; }
+        .pause-card {
+            background: var(--card); border: 2px solid var(--accent);
+            border-radius: 16px; padding: 40px 48px; text-align: center;
+            box-shadow: 0 0 40px var(--accent-glow);
+        }
+        .pause-card h3 {
+            font-size: 24px; font-weight: 800; color: var(--accent); margin-bottom: 8px;
+            font-family: var(--mono);
+        }
+        .pause-card p { color: var(--text-dim); font-size: 14px; margin-bottom: 20px; }
+        .pause-resume-btn {
+            padding: 12px 28px; border: none; border-radius: 8px;
+            background: var(--accent); color: #000; font-size: 14px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+            font-family: var(--mono);
+        }
+        .pause-resume-btn.theme-light { color: #fff; }
+        .pause-resume-btn:hover { filter: brightness(1.12); }
+
+        /* ================================================================
+           SCREEN 3: REVEAL (between questions)
+           ================================================================ */
+        .reveal-screen { max-width: 720px; margin: 0 auto; padding: 24px; }
+        .reveal-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 28px 32px; margin-bottom: 16px;
+            text-align: center;
+        }
+        .reveal-result-label {
+            font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+            margin-bottom: 8px; font-family: var(--mono);
+        }
+        .reveal-result-label.correct { color: var(--green); }
+        .reveal-result-label.wrong   { color: var(--red); }
+        .reveal-result-label.skipped { color: var(--text-dim); }
+        .reveal-pts {
+            font-size: 40px; font-weight: 800; color: var(--gold);
+            margin-bottom: 4px; font-family: var(--mono);
+        }
+        .reveal-pts.zero { color: var(--text-dim); }
+        .reveal-streak {
+            font-size: 13px; color: var(--accent); font-weight: 700;
+            margin-bottom: 16px; font-family: var(--mono);
+        }
+        .reveal-exp {
+            font-size: 14px; color: var(--text-dim); line-height: 1.6;
+            padding: 12px 16px; background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            text-align: left; margin-bottom: 16px;
+        }
+        .reveal-running {
+            display: flex; justify-content: center; gap: 24px; margin-bottom: 20px;
+        }
+        .reveal-stat { text-align: center; }
+        .reveal-stat-val {
+            font-size: 22px; font-weight: 800; font-family: var(--mono);
+        }
+        .reveal-stat-lbl {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; font-family: var(--mono);
+        }
+        .reveal-next-btn {
+            display: block; width: 100%; padding: 14px;
+            background: linear-gradient(135deg, #004d14, var(--accent));
+            border: none; border-radius: 8px; color: #000; font-size: 14px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+            font-family: var(--mono);
+        }
+        .reveal-next-btn.theme-light { color: #fff; background: linear-gradient(135deg, var(--accent), #7c3aed); }
+        .reveal-next-btn:hover {
+            transform: translateY(-2px); box-shadow: 0 4px 16px var(--accent-glow);
+        }
+
+        /* ================================================================
+           FINAL MODAL
+           ================================================================ */
+        .final-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.93); z-index: 400;
+            align-items: center; justify-content: center; padding: 24px;
+        }
+        .final-overlay.active { display: flex; }
+        .final-modal {
+            background: var(--card); border: 2px solid var(--accent);
+            border-radius: 18px; max-width: 600px; width: 100%;
+            padding: 44px 40px 36px; text-align: center;
+            box-shadow: 0 0 60px var(--accent-glow), 0 0 120px rgba(0,0,0,0.15);
+            animation: modalIn 0.3s ease-out;
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to   { transform: scale(1);    opacity: 1; }
+        }
+        .final-modal h2 {
+            font-size: 26px; font-weight: 800; color: var(--accent); margin-bottom: 6px;
+            font-family: var(--mono);
+            text-shadow: 0 0 16px var(--accent-glow);
+        }
+        .final-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; font-family: var(--mono); }
+        .final-score-big {
+            font-size: 60px; font-weight: 800; color: var(--gold); margin-bottom: 6px;
+            text-shadow: 0 0 24px rgba(255,204,0,0.3);
+            font-family: var(--mono);
+        }
+        .final-score-max { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; font-family: var(--mono); }
+        .final-stats-row {
+            display: flex; justify-content: center; gap: 20px;
+            margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .final-stat { text-align: center; }
+        .final-stat-num { font-size: 22px; font-weight: 800; font-family: var(--mono); }
+        .final-stat-lbl {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; font-family: var(--mono);
+        }
+        .final-stat-num.green { color: var(--green); }
+        .final-stat-num.red   { color: var(--red); }
+        .final-stat-num.blue  { color: var(--accent); }
+        .final-stat-num.gold  { color: var(--gold); }
+        .final-grade {
+            font-size: 15px; font-weight: 700; padding: 10px 24px;
+            border-radius: 8px; display: inline-block; margin-bottom: 24px;
+            font-family: var(--mono);
+        }
+        .grade-s { background: rgba(255,204,0,0.12);   color: var(--gold);    border: 1px solid rgba(255,204,0,0.3); }
+        .grade-a { background: var(--accent-dim);      color: var(--accent);  border: 1px solid var(--border2); }
+        .grade-b { background: rgba(16,185,129,0.10);  color: var(--green);   border: 1px solid rgba(16,185,129,0.3); }
+        .grade-c { background: rgba(245,158,11,0.12);  color: #fbbf24;        border: 1px solid rgba(245,158,11,0.3); }
+        .grade-f { background: rgba(239,68,68,0.12);   color: var(--red);     border: 1px solid rgba(239,68,68,0.3); }
+        .final-actions {
+            display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+        }
+        .final-btn {
+            padding: 12px 24px; border-radius: 8px; font-size: 13px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s; border: 1px solid;
+            font-family: var(--mono); text-decoration: none;
+            display: inline-flex; align-items: center;
+        }
+        .final-btn-primary {
+            background: var(--accent); color: #000; border-color: var(--accent);
+        }
+        .final-btn-primary.theme-light { color: #fff; }
+        .final-btn-primary:hover { filter: brightness(1.1); }
+        .final-btn-secondary {
+            background: transparent; color: var(--accent); border-color: var(--border2);
+        }
+        .final-btn-secondary:hover { background: var(--accent-dim); }
+
+        /* ── Responsive ── */
+        @media (max-width: 700px) {
+            .hero h2    { font-size: 22px; }
+            .question-text { font-size: 16px; }
+            .answer-grid { grid-template-columns: 1fr; }
+            .answer-btn  { min-height: 60px; }
+            .final-modal { padding: 28px 20px; }
+            .final-score-big { font-size: 44px; }
+            .topbar { flex-wrap: wrap; }
+            .shape-legend { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .game-screen { padding: 10px 12px; }
+            .lobby { padding: 20px 12px 60px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading screen: shown until JSON fetch resolves -->
+    <div class="state-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <h2>Loading course data&hellip;</h2>
+        <p>Fetching the question bank for this Kahoot review.</p>
+    </div>
+
+    <!-- Error screen: shown if course JSON is missing or malformed -->
+    <div class="state-screen" id="errorScreen" style="display:none">
+        <h2>Course Not Found</h2>
+        <p id="errorMessage">The requested course data file could not be loaded. Check the course ID in the URL or return to the picker.</p>
+        <a href="index.html">&larr; Back to Course Picker</a>
+    </div>
+
+    <!-- Full game UI: hidden until data loads successfully -->
+    <div id="gameRoot" style="display:none">
+
+        <!-- Shared header -->
+        <header class="header">
+            <div class="header-left">
+                <span class="header-badge" id="headerBadge">KAHOOT</span>
+                <h1 id="headerTitle">Kahoot Review</h1>
+            </div>
+            <div class="header-right">
+                <button id="audioToggle" class="audio-toggle" type="button"
+                        aria-pressed="false" title="Toggle game audio">
+                    <span aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" class="ico-on">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" class="ico-off">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <line x1="23" y1="9" x2="17" y2="15"></line>
+                            <line x1="17" y1="9" x2="23" y2="15"></line>
+                        </svg>
+                    </span>
+                </button>
+                <a href="index.html" class="back-link">&larr; Course Picker</a>
+            </div>
+        </header>
+
+        <!-- ════════════════════════════════════════════════
+             SCREEN 1: Lobby (pre-game)
+        ════════════════════════════════════════════════ -->
+        <div id="screenLobby" class="screen active">
+            <div class="lobby">
+                <div class="hero">
+                    <img class="hero-icon" id="heroIcon" src="" alt="">
+                    <h2 id="heroTitle">Kahoot Review</h2>
+                    <p class="hero-sub" id="heroSub"></p>
+                    <div class="hero-meta">
+                        <span>
+                            <img src="/assets/images/icons/icon-clock.webp" alt="" width="14" height="14">
+                            <span id="heroDuration">~20 min</span>
+                        </span>
+                        <span>
+                            <img src="/assets/images/icons/icon-game.webp" alt="" width="14" height="14">
+                            Game
+                        </span>
+                        <span>
+                            <img src="/assets/images/icons/icon-books.webp" alt="" width="14" height="14">
+                            All Levels
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Answer shape legend -->
+                <div class="shape-legend">
+                    <div class="shape-item">
+                        <div class="shape-icon">
+                            <svg viewBox="0 0 36 36"><polygon points="18,3 35,33 1,33" fill="#3b82f6"/></svg>
+                        </div>
+                        <span class="shape-label" style="color:#3b82f6;">Blue Triangle: Answer A</span>
+                    </div>
+                    <div class="shape-item">
+                        <div class="shape-icon">
+                            <svg viewBox="0 0 36 36"><rect x="5" y="5" width="26" height="26" fill="#ef4444" transform="rotate(45 18 18)"/></svg>
+                        </div>
+                        <span class="shape-label" style="color:#ef4444;">Red Diamond: Answer B</span>
+                    </div>
+                    <div class="shape-item">
+                        <div class="shape-icon">
+                            <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="#f59e0b"/></svg>
+                        </div>
+                        <span class="shape-label" style="color:#f59e0b;">Gold Circle: Answer C</span>
+                    </div>
+                    <div class="shape-item">
+                        <div class="shape-icon">
+                            <svg viewBox="0 0 36 36"><rect x="3" y="3" width="30" height="30" rx="4" fill="#10b981"/></svg>
+                        </div>
+                        <span class="shape-label" style="color:#10b981;">Green Square: Answer D</span>
+                    </div>
+                </div>
+
+                <div class="rules-card">
+                    <h3>How to Play</h3>
+                    <ul>
+                        <li>30 seconds per question; the timer bar drains left to right</li>
+                        <li>Correct answer earns 500 to 1,000 points depending on speed</li>
+                        <li>From the 3rd correct answer onward, each correct earns a +200 streak bonus</li>
+                        <li>Wrong answer, timeout, or skip earns 0 points and resets the streak</li>
+                        <li>Host can pause the timer or skip a question at any time</li>
+                        <li id="questionCountRule">Questions drawn from the full course bank</li>
+                    </ul>
+                </div>
+
+                <button class="start-btn" id="startBtn" onclick="startGame()">
+                    Start Game
+                </button>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════
+             SCREEN 2: Active Game
+        ════════════════════════════════════════════════ -->
+        <div id="screenGame" class="screen">
+            <div class="game-screen">
+                <!-- Top bar: Q counter | Score | Streak | Host controls -->
+                <div class="topbar">
+                    <div class="topbar-stat">
+                        <div class="topbar-stat-label">Question</div>
+                        <div class="topbar-stat-value accent" id="qCounter">1/25</div>
+                    </div>
+                    <div class="topbar-stat">
+                        <div class="topbar-stat-label">Score</div>
+                        <div class="topbar-stat-value" id="scoreDisplay">0</div>
+                    </div>
+                    <div class="topbar-stat">
+                        <div class="topbar-stat-label">Streak</div>
+                        <div class="topbar-stat-value green" id="streakDisplay">0</div>
+                    </div>
+                    <div class="topbar-host-controls">
+                        <button class="host-btn host-btn-pause" id="pauseBtn" onclick="togglePause()">Pause</button>
+                        <button class="host-btn host-btn-skip"  onclick="skipQuestion()">Skip</button>
+                    </div>
+                </div>
+
+                <!-- Question -->
+                <div class="question-area">
+                    <div class="question-counter" id="questionCounter">QUESTION 1 OF 25</div>
+                    <div class="question-text"    id="questionText">Loading&hellip;</div>
+                </div>
+
+                <!-- Timer -->
+                <div class="timer-label">Time remaining: <span id="timerLabel">30</span>s</div>
+                <div class="timer-wrap">
+                    <div class="timer-fill" id="timerFill" style="width:100%;"></div>
+                </div>
+
+                <!-- Answer buttons (2x2 grid) -->
+                <div class="answer-grid" id="answerGrid">
+                    <!-- Populated by renderQuestion() -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════
+             SCREEN 3: Between-question Reveal
+        ════════════════════════════════════════════════ -->
+        <div id="screenReveal" class="screen">
+            <div class="reveal-screen">
+                <div class="reveal-card">
+                    <div class="reveal-result-label" id="revealResultLabel">Correct!</div>
+                    <div class="reveal-pts"          id="revealPts">+850</div>
+                    <div class="reveal-streak"       id="revealStreak" style="display:none;"></div>
+                    <div class="reveal-exp"          id="revealExp"></div>
+                    <div class="reveal-running">
+                        <div class="reveal-stat">
+                            <div class="reveal-stat-val" style="color:var(--gold)"  id="revealRunningScore">0</div>
+                            <div class="reveal-stat-lbl">Total Score</div>
+                        </div>
+                        <div class="reveal-stat">
+                            <div class="reveal-stat-val" style="color:var(--green)" id="revealCorrect">0</div>
+                            <div class="reveal-stat-lbl">Correct</div>
+                        </div>
+                        <div class="reveal-stat">
+                            <div class="reveal-stat-val" style="color:var(--text-dim)" id="revealRemaining">25</div>
+                            <div class="reveal-stat-lbl">Remaining</div>
+                        </div>
+                    </div>
+                    <button class="reveal-next-btn" id="revealNextBtn" onclick="advanceFromReveal()">
+                        Next Question
+                    </button>
+                </div>
+
+                <!-- Locked copy of answer grid shown during reveal -->
+                <div class="answer-grid" id="revealAnswerGrid"></div>
+            </div>
+        </div>
+
+    </div><!-- /gameRoot -->
+
+    <!-- Pause overlay (outside gameRoot so it layers over everything) -->
+    <div class="pause-overlay" id="pauseOverlay">
+        <div class="pause-card">
+            <h3>// PAUSED</h3>
+            <p>Timer is holding. Click Resume when ready.</p>
+            <button class="pause-resume-btn" id="pauseResumeBtn" onclick="togglePause()">Resume</button>
+        </div>
+    </div>
+
+    <!-- Final score modal -->
+    <div class="final-overlay" id="finalOverlay">
+        <div class="final-modal">
+            <h2>// GAME COMPLETE</h2>
+            <div class="final-sub" id="finalSub">All questions answered</div>
+            <div class="final-score-big" id="finalScoreBig">0</div>
+            <div class="final-score-max">total points (base + streak bonuses)</div>
+            <div class="final-stats-row">
+                <div class="final-stat">
+                    <div class="final-stat-num green" id="fCorrect">0</div>
+                    <div class="final-stat-lbl">Correct</div>
+                </div>
+                <div class="final-stat">
+                    <div class="final-stat-num red"  id="fWrong">0</div>
+                    <div class="final-stat-lbl">Wrong</div>
+                </div>
+                <div class="final-stat">
+                    <div class="final-stat-num blue" id="fPct">0%</div>
+                    <div class="final-stat-lbl">Accuracy</div>
+                </div>
+                <div class="final-stat">
+                    <div class="final-stat-num gold" id="fBestStreak">0</div>
+                    <div class="final-stat-lbl">Best Streak</div>
+                </div>
+            </div>
+            <div id="finalGrade"></div>
+            <br>
+            <div class="final-actions">
+                <button class="final-btn final-btn-secondary" id="playAgainBtn" onclick="restartGame()">Play Again</button>
+                <a href="index.html" class="final-btn final-btn-secondary">
+                    Play Another Course &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ================================================================
+       KAHOOT ENGINE -- data-driven, theme-adaptive
+       Flow:
+         1. Parse ?course=<id> from URL; redirect to index if absent
+         2. fetch('data/kahoot/<id>.json')
+         3. Apply theme CSS vars to :root from data.theme block
+         4. Render lobby (hero, rules) from data
+         5. All gameplay: timer, 4 answer shapes, speed scoring,
+            streak bonus, reveal, final scoreboard
+       ================================================================ */
+
+    /* ── Step 1: Parse course ID from URL ─────────────────────────── */
+    var params   = new URLSearchParams(window.location.search);
+    var courseId = (params.get('course') || '').trim().toLowerCase();
+
+    /* No course param -- redirect to the picker immediately. */
+    if (!courseId) {
+        window.location.replace('index.html');
+    }
+
+    /* ── Game configuration constants ─────────────────────────────── */
+    var TIMER_SECONDS  = 30;   /* seconds per question */
+    var MAX_PTS        = 1000; /* points for instant correct answer */
+    var MIN_PTS        = 500;  /* points for correct at timer expiry */
+    var STREAK_BONUS   = 200;  /* bonus per correct once streak >= 3 */
+
+    /* ── Game state -- initialised by startGame() on each play ────── */
+    var courseData     = null;
+    var questions      = [];
+    var totalQuestions = 0;
+    var currentIdx     = 0;
+    var score          = 0;
+    var correctCount   = 0;
+    var wrongCount     = 0;
+    var currentStreak  = 0;
+    var bestStreak     = 0;
+    var timerStartMs   = 0;
+    var totalPausedMs  = 0;
+    var timerPaused    = false;
+    var pauseStartMs   = 0;
+    var timerRAF       = null;
+    var questionActive = false;
+
+    /* ── AccessGuard: optional in sandbox ─────────────────────────── */
+    (function guardOptional() {
+        if (typeof AccessGuard !== 'undefined') {
+            try { AccessGuard.require('sorted'); } catch(e) { /* sandbox: no-op */ }
+        }
+    })();
+
+    /* ── Shape SVGs for answer buttons (A=triangle, B=diamond, C=circle, D=square) */
+    var SHAPES = [
+        '<svg viewBox="0 0 36 36" width="28" height="28"><polygon points="18,3 35,33 1,33" fill="#3b82f6"/></svg>',
+        '<svg viewBox="0 0 36 36" width="28" height="28"><rect x="5" y="5" width="26" height="26" fill="#ef4444" transform="rotate(45 18 18)"/></svg>',
+        '<svg viewBox="0 0 36 36" width="28" height="28"><circle cx="18" cy="18" r="15" fill="#f59e0b"/></svg>',
+        '<svg viewBox="0 0 36 36" width="28" height="28"><rect x="3" y="3" width="30" height="30" rx="4" fill="#10b981"/></svg>'
+    ];
+    var BTN_CLASSES = ['btn-a', 'btn-b', 'btn-c', 'btn-d'];
+
+    /* ── Screen management ─────────────────────────────────────────── */
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(function(s) {
+            s.classList.remove('active');
+        });
+        document.getElementById(id).classList.add('active');
+    }
+
+    /* ── Theme application ─────────────────────────────────────────── */
+    function applyTheme(theme) {
+        if (!theme) return;
+        var root = document.documentElement;
+
+        /* Write base theme keys to CSS vars */
+        if (theme.accent) root.style.setProperty('--accent', theme.accent);
+        if (theme.bg)     root.style.setProperty('--bg',     theme.bg);
+        if (theme.card)   root.style.setProperty('--card',   theme.card);
+        if (theme.text)   root.style.setProperty('--text',   theme.text);
+
+        /* Derive accentDim and accentGlow from accent hex */
+        if (theme.accent) {
+            var rgba12 = hexToRgba(theme.accent, 0.12);
+            var rgba25 = hexToRgba(theme.accent, 0.25);
+            root.style.setProperty('--accent-dim',  rgba12);
+            root.style.setProperty('--accent-glow', rgba25);
+            root.style.setProperty('--border2',     hexToRgba(theme.accent, 0.30));
+        }
+
+        /* Update body background immediately to prevent flash */
+        document.body.style.background = 'var(--bg)';
+
+        /* Detect whether accent is a light colour (PIS blue vs ALA green).
+           For light-on-dark accents like blue, text on accent buttons must be white.
+           Heuristic: if blue channel is dominant, treat as "light theme" button. */
+        var isLightText = isLightAccent(theme.accent);
+        if (isLightText) {
+            var startBtn = document.getElementById('startBtn');
+            if (startBtn) startBtn.classList.add('theme-light');
+            var resumeBtn = document.getElementById('pauseResumeBtn');
+            if (resumeBtn) resumeBtn.classList.add('theme-light');
+            var nextBtn = document.getElementById('revealNextBtn');
+            if (nextBtn) nextBtn.classList.add('theme-light');
+            var primaryBtn = document.querySelector('.final-btn-primary');
+            if (primaryBtn) primaryBtn.classList.add('theme-light');
+        }
+    }
+
+    /* Returns true when the accent needs white text (e.g. blue, purple)
+       rather than black text (e.g. green, yellow). Simple luminance check. */
+    function isLightAccent(hex) {
+        if (!hex) return false;
+        var h = hex.replace('#', '');
+        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+        var r = parseInt(h.substring(0,2), 16) / 255;
+        var g = parseInt(h.substring(2,4), 16) / 255;
+        var b = parseInt(h.substring(4,6), 16) / 255;
+        /* Perceived luminance (W3C formula) */
+        var L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        return L < 0.5; /* dark colours need white text on buttons */
+    }
+
+    function hexToRgba(hex, alpha) {
+        var h = hex.replace('#', '');
+        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+        var r = parseInt(h.substring(0,2), 16);
+        var g = parseInt(h.substring(2,4), 16);
+        var b = parseInt(h.substring(4,6), 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    /* ── Populate lobby from data ───────────────────────────────────── */
+    function populateLobby(data) {
+        var q = data.questions;
+        totalQuestions = q.length;
+
+        /* Header */
+        document.getElementById('headerBadge').textContent = data.badge || 'KAHOOT';
+        document.getElementById('headerTitle').textContent = data.title || 'Kahoot Review';
+        document.title = data.title + ' | Kahoot Review (Hexworth Prime)';
+
+        /* Hero */
+        var iconEl = document.getElementById('heroIcon');
+        if (data.icon) { iconEl.src = data.icon; iconEl.alt = data.title; }
+        document.getElementById('heroTitle').textContent = data.title + ': Kahoot Review';
+        document.getElementById('heroSub').textContent  = data.subtitle || '';
+        document.getElementById('heroDuration').textContent = data.duration || '~20 min';
+
+        /* Rules -- last bullet gets count context */
+        document.getElementById('questionCountRule').textContent =
+            totalQuestions + ' questions drawn from the full ' + data.title + ' course bank';
+
+        /* Start button label */
+        document.getElementById('startBtn').textContent = 'Start Game';
+    }
+
+    /* ── Game start ─────────────────────────────────────────────────── */
+    function startGame() {
+        currentIdx    = 0;
+        score         = 0;
+        correctCount  = 0;
+        wrongCount    = 0;
+        currentStreak = 0;
+        bestStreak    = 0;
+        timerPaused   = false;
+
+        /* Lazy-init audio on first user gesture */
+        if (window.HexworthGameAudio && HexworthGameAudio.isEnabled() && !HexworthGameAudio.isMuted()) {
+            HexworthGameAudio.init();
+            HexworthGameAudio.resume();
+        }
+
+        showScreen('screenGame');
+        renderQuestion();
+    }
+
+    /* ── Render current question ────────────────────────────────────── */
+    function renderQuestion() {
+        if (currentIdx >= totalQuestions) {
+            showFinalScreen();
+            return;
+        }
+
+        var q = questions[currentIdx];
+        questionActive = true;
+        totalPausedMs  = 0;
+        timerPaused    = false;
+        timerStartMs   = Date.now();
+
+        /* Start countdown audio ticks */
+        if (window.HexworthGameAudio) HexworthGameAudio.startTimer(TIMER_SECONDS);
+
+        /* Reset pause button */
+        var pauseBtn = document.getElementById('pauseBtn');
+        pauseBtn.textContent = 'Pause';
+        pauseBtn.classList.remove('paused');
+
+        /* Top bar */
+        document.getElementById('qCounter').textContent =
+            (currentIdx + 1) + '/' + totalQuestions;
+        document.getElementById('questionCounter').textContent =
+            'QUESTION ' + (currentIdx + 1) + ' OF ' + totalQuestions;
+        document.getElementById('scoreDisplay').textContent  = score;
+        document.getElementById('streakDisplay').textContent = currentStreak;
+
+        /* Question text -- textContent prevents XSS from any data values */
+        document.getElementById('questionText').textContent = q.q;
+
+        /* Answer buttons */
+        var grid = document.getElementById('answerGrid');
+        grid.innerHTML = '';
+        for (var i = 0; i < q.options.length; i++) {
+            var btn = document.createElement('button');
+            btn.className   = 'answer-btn ' + BTN_CLASSES[i];
+            btn.dataset.idx = i;
+            /* SHAPES SVG is static trusted markup; answer text is escaped via escText */
+            btn.innerHTML =
+                '<div class="answer-shape">' + SHAPES[i] + '</div>' +
+                '<span class="answer-text">' + escText(q.options[i]) + '</span>';
+            btn.addEventListener('click', makeAnswerHandler(i));
+            grid.appendChild(btn);
+        }
+
+        startTimer();
+    }
+
+    /* Closure captures the correct question index at render time,
+       preventing stale-click bugs if the player clicks after a timeout. */
+    function makeAnswerHandler(optIdx) {
+        var qIdx = currentIdx;
+        return function() {
+            if (!questionActive) return;
+            if (currentIdx !== qIdx) return;
+            handleAnswer(optIdx);
+        };
+    }
+
+    /* XSS-safe text serialisation via textContent round-trip */
+    function escText(str) {
+        var d = document.createElement('span');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    /* ── Timer ──────────────────────────────────────────────────────── */
+    function startTimer() {
+        if (timerRAF) cancelAnimationFrame(timerRAF);
+        animateTimer();
+    }
+
+    function animateTimer() {
+        timerRAF = requestAnimationFrame(function() {
+            if (timerPaused || !questionActive) return;
+
+            var nowMs     = Date.now();
+            var elapsed   = (nowMs - timerStartMs - totalPausedMs) / 1000;
+            var remaining = Math.max(0, TIMER_SECONDS - elapsed);
+            var fraction  = remaining / TIMER_SECONDS; /* 1 = full, 0 = empty */
+
+            /* Update fill width */
+            var fill = document.getElementById('timerFill');
+            fill.style.width = (fraction * 100) + '%';
+
+            /* Colour transition: accent -> yellow -> red */
+            var r, g, b;
+            if (fraction > 0.5) {
+                /* Accent to yellow */
+                var t = (1 - fraction) * 2;
+                r = Math.round(0   + (245 - 0)   * t);
+                g = Math.round(180 + (158 - 180) * t);
+                b = Math.round(80  + (11  - 80)  * t);
+            } else {
+                /* Yellow to red */
+                var t2 = (0.5 - fraction) * 2;
+                r = Math.round(245 + (239 - 245) * t2);
+                g = Math.round(158 + (68  - 158) * t2);
+                b = Math.round(11  + (68  - 11)  * t2);
+            }
+            fill.style.background = 'rgb(' + r + ',' + g + ',' + b + ')';
+
+            document.getElementById('timerLabel').textContent = Math.ceil(remaining);
+
+            if (remaining <= 0) {
+                handleTimeout();
+                return;
+            }
+
+            animateTimer();
+        });
+    }
+
+    function stopTimer() {
+        questionActive = false;
+        if (timerRAF) cancelAnimationFrame(timerRAF);
+        timerRAF = null;
+    }
+
+    /* ── Pause / Resume ─────────────────────────────────────────────── */
+    function togglePause() {
+        if (!questionActive && !timerPaused) return;
+
+        if (!timerPaused) {
+            timerPaused  = true;
+            pauseStartMs = Date.now();
+            document.getElementById('pauseBtn').textContent = 'Paused';
+            document.getElementById('pauseBtn').classList.add('paused');
+            document.getElementById('pauseOverlay').classList.add('active');
+            if (window.HexworthGameAudio) HexworthGameAudio.stopTimer();
+        } else {
+            totalPausedMs += Date.now() - pauseStartMs;
+            timerPaused    = false;
+            document.getElementById('pauseBtn').textContent = 'Pause';
+            document.getElementById('pauseBtn').classList.remove('paused');
+            document.getElementById('pauseOverlay').classList.remove('active');
+            animateTimer();
+        }
+    }
+
+    /* ── Skip question ──────────────────────────────────────────────── */
+    function skipQuestion() {
+        if (!questionActive) return;
+        stopTimer();
+        if (window.HexworthGameAudio) HexworthGameAudio.stopTimer();
+        /* Streak resets on skip; no points awarded */
+        currentStreak = 0;
+        showReveal(null, 0);
+    }
+
+    /* ── Handle answer click ────────────────────────────────────────── */
+    function handleAnswer(optIdx) {
+        if (!questionActive) return;
+
+        var nowMs   = Date.now();
+        var elapsed = (nowMs - timerStartMs - totalPausedMs) / 1000;
+        stopTimer();
+
+        var q       = questions[currentIdx];
+        var correct = (optIdx === q.answer);
+
+        lockAnswerGrid();
+
+        /* Colour-code buttons */
+        var btns = document.querySelectorAll('#answerGrid .answer-btn');
+        btns.forEach(function(btn) {
+            var idx = parseInt(btn.dataset.idx, 10);
+            if (idx === q.answer) {
+                btn.classList.add('reveal-correct');
+            } else if (idx === optIdx && !correct) {
+                btn.classList.add('reveal-wrong');
+            } else {
+                btn.classList.add('reveal-neutral');
+            }
+        });
+
+        if (window.HexworthGameAudio) HexworthGameAudio.stopTimer();
+
+        var pts = 0;
+        if (correct) {
+            /* Linear scoring: 1000 at t=0, 500 at t=TIMER_SECONDS */
+            var fraction = Math.max(0, (TIMER_SECONDS - elapsed) / TIMER_SECONDS);
+            pts = Math.round(MIN_PTS + (MAX_PTS - MIN_PTS) * fraction);
+
+            correctCount++;
+            currentStreak++;
+            if (currentStreak > bestStreak) bestStreak = currentStreak;
+
+            if (currentStreak >= 3) {
+                pts += STREAK_BONUS;
+                if (window.HexworthGameAudio) HexworthGameAudio.streak();
+            } else if (window.HexworthGameAudio) {
+                HexworthGameAudio.correct();
+            }
+
+            score += pts;
+        } else {
+            wrongCount++;
+            currentStreak = 0;
+            if (window.HexworthGameAudio) HexworthGameAudio.wrong();
+        }
+
+        /* Brief visual hold before switching to reveal */
+        setTimeout(function() {
+            showReveal(correct ? 'correct' : 'wrong', pts);
+        }, 800);
+    }
+
+    /* ── Timeout ────────────────────────────────────────────────────── */
+    function handleTimeout() {
+        if (!questionActive) return;
+        stopTimer();
+        if (window.HexworthGameAudio) {
+            HexworthGameAudio.stopTimer();
+            HexworthGameAudio.wrong();
+        }
+
+        var q = questions[currentIdx];
+        wrongCount++;
+        currentStreak = 0;
+
+        lockAnswerGrid();
+        var btns = document.querySelectorAll('#answerGrid .answer-btn');
+        btns.forEach(function(btn) {
+            var idx = parseInt(btn.dataset.idx, 10);
+            if (idx === q.answer) {
+                btn.classList.add('reveal-correct');
+            } else {
+                btn.classList.add('reveal-neutral');
+            }
+        });
+
+        setTimeout(function() { showReveal('timeout', 0); }, 800);
+    }
+
+    function lockAnswerGrid() {
+        document.querySelectorAll('#answerGrid .answer-btn').forEach(function(btn) {
+            btn.classList.add('locked');
+        });
+    }
+
+    /* ── Reveal screen ──────────────────────────────────────────────── */
+    /* outcome: 'correct' | 'wrong' | 'timeout' | null (skip) */
+    function showReveal(outcome, pts) {
+        var q = questions[currentIdx];
+
+        /* Clone live answer grid into reveal panel (non-interactive) */
+        var revealGrid = document.getElementById('revealAnswerGrid');
+        revealGrid.innerHTML = document.getElementById('answerGrid').innerHTML;
+        revealGrid.querySelectorAll('.answer-btn').forEach(function(btn) {
+            btn.classList.add('locked');
+            btn.style.cursor = 'default';
+        });
+
+        /* Result label */
+        var label = document.getElementById('revealResultLabel');
+        if (outcome === 'correct') {
+            label.textContent = 'Correct!';
+            label.className   = 'reveal-result-label correct';
+        } else if (outcome === 'wrong') {
+            label.textContent = 'Wrong';
+            label.className   = 'reveal-result-label wrong';
+        } else if (outcome === 'timeout') {
+            label.textContent = 'Time expired';
+            label.className   = 'reveal-result-label wrong';
+        } else {
+            label.textContent = 'Skipped';
+            label.className   = 'reveal-result-label skipped';
+        }
+
+        /* Points earned */
+        var ptsEl = document.getElementById('revealPts');
+        if (pts > 0) {
+            ptsEl.textContent = '+' + pts;
+            ptsEl.className   = 'reveal-pts';
+        } else {
+            ptsEl.textContent = '+0';
+            ptsEl.className   = 'reveal-pts zero';
+        }
+
+        /* Streak badge */
+        var streakEl = document.getElementById('revealStreak');
+        if (outcome === 'correct' && currentStreak >= 3) {
+            streakEl.textContent   = currentStreak + '-answer streak! +' + STREAK_BONUS + ' bonus';
+            streakEl.style.display = '';
+        } else {
+            streakEl.style.display = 'none';
+        }
+
+        /* Explanation text (textContent prevents XSS from JSON data) */
+        document.getElementById('revealExp').textContent = q.note || '';
+
+        /* Running totals */
+        document.getElementById('revealRunningScore').textContent = score;
+        document.getElementById('revealCorrect').textContent      = correctCount;
+        document.getElementById('revealRemaining').textContent    = totalQuestions - currentIdx - 1;
+
+        /* Next button label */
+        var nextBtn = document.getElementById('revealNextBtn');
+        nextBtn.textContent = (currentIdx >= totalQuestions - 1)
+            ? 'See Final Score'
+            : 'Next Question';
+
+        showScreen('screenReveal');
+    }
+
+    /* ── Advance from reveal ────────────────────────────────────────── */
+    function advanceFromReveal() {
+        currentIdx++;
+        if (currentIdx >= totalQuestions) {
+            showFinalScreen();
+        } else {
+            showScreen('screenGame');
+            renderQuestion();
+        }
+    }
+
+    /* ── Final screen ───────────────────────────────────────────────── */
+    function showFinalScreen() {
+        if (window.HexworthGameAudio) {
+            HexworthGameAudio.stopTimer();
+            HexworthGameAudio.finalFanfare();
+        }
+
+        var pct = Math.round((correctCount / totalQuestions) * 100);
+
+        document.getElementById('finalScoreBig').textContent = score.toLocaleString();
+        document.getElementById('finalSub').textContent      = 'All ' + totalQuestions + ' questions answered';
+        document.getElementById('fCorrect').textContent      = correctCount;
+        document.getElementById('fWrong').textContent        = wrongCount;
+        document.getElementById('fPct').textContent          = pct + '%';
+        document.getElementById('fBestStreak').textContent   = bestStreak;
+
+        /* Grade labels come from data; fall back to generic strings */
+        var gl = (courseData && courseData.gradeLabels) ? courseData.gradeLabels : {
+            s: 'S-RANK -- Master',
+            a: 'A-RANK -- Expert',
+            b: 'B-RANK -- Proficient',
+            c: 'C-RANK -- Learning',
+            f: 'F-RANK -- Keep Studying'
+        };
+        var gradeText, gradeClass;
+        if      (pct >= 90) { gradeText = gl.s; gradeClass = 'grade-s'; }
+        else if (pct >= 75) { gradeText = gl.a; gradeClass = 'grade-a'; }
+        else if (pct >= 55) { gradeText = gl.b; gradeClass = 'grade-b'; }
+        else if (pct >= 30) { gradeText = gl.c; gradeClass = 'grade-c'; }
+        else                { gradeText = gl.f; gradeClass = 'grade-f'; }
+
+        /* escapeHtml() before innerHTML insertion */
+        document.getElementById('finalGrade').innerHTML =
+            '<span class="final-grade ' + gradeClass + '">' + escapeHtml(gradeText) + '</span>';
+
+        document.getElementById('finalOverlay').classList.add('active');
+    }
+
+    /* ── Restart ────────────────────────────────────────────────────── */
+    function restartGame() {
+        document.getElementById('finalOverlay').classList.remove('active');
+        showScreen('screenLobby');
+    }
+
+    /* ── Security: HTML-escape for data-sourced text in innerHTML ───── */
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    /* ── Audio wiring ───────────────────────────────────────────────── */
+    function wireAudio() {
+        var btn = document.getElementById('audioToggle');
+        if (!btn || !window.HexworthGameAudio) return;
+
+        function syncPressed() {
+            btn.setAttribute('aria-pressed', String(HexworthGameAudio.isMuted()));
+        }
+        syncPressed();
+
+        btn.addEventListener('click', function() {
+            HexworthGameAudio.init();
+            HexworthGameAudio.resume();
+            var nowMuted = HexworthGameAudio.toggleMute();
+            btn.setAttribute('aria-pressed', String(nowMuted));
+        });
+
+        if (!HexworthGameAudio.isEnabled()) {
+            HexworthGameAudio.mute();
+            btn.setAttribute('aria-pressed', 'true');
+        }
+    }
+
+    /* ── Main entry: fetch + initialise ─────────────────────────────── */
+    (function init() {
+        var dataUrl = 'data/kahoot/' + courseId + '.json';
+
+        fetch(dataUrl)
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ' loading ' + dataUrl);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                /* Validate minimal required shape */
+                if (!Array.isArray(data.questions) || data.questions.length === 0) {
+                    throw new Error('JSON missing required "questions" array');
+                }
+                data.questions.forEach(function(q, i) {
+                    if (!Array.isArray(q.options) || q.options.length !== 4) {
+                        throw new Error('Question ' + i + ' must have exactly 4 options');
+                    }
+                    if (typeof q.answer !== 'number' || q.answer < 0 || q.answer > 3) {
+                        throw new Error('Question ' + i + ' has invalid answer index');
+                    }
+                });
+
+                /* Store data globally */
+                courseData     = data;
+                questions      = data.questions;
+                totalQuestions = questions.length;
+
+                /* Apply theme FIRST so colours are correct before reveal */
+                applyTheme(data.theme);
+
+                /* Hide loading screen, show game root */
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('gameRoot').style.display      = '';
+
+                populateLobby(data);
+                wireAudio();
+            })
+            .catch(function(err) {
+                /* Show error screen with course-specific message */
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('errorScreen').style.display   = '';
+                document.getElementById('errorMessage').textContent =
+                    'Could not load course "' + courseId + '": ' + err.message +
+                    '. Check the course ID in the URL, or return to the picker and select a course.';
+                console.error('[Kahoot Engine] Data load failed:', err);
+            });
+    })();
+    </script>
+</body>
+</html>

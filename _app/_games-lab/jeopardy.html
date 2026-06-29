@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- AccessGuard is optional in this sandbox: loaded if present, skipped if absent.
+         The typeof guard below prevents a crash when running standalone. -->
+    <script src="../components/AccessGuard.js" onerror="window._accessGuardMissing=true"></script>
+    <script src="../components/HexworthGameAudio.js" onerror="window._audioMissing=true"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy Review | Game Lab (Hexworth Prime)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ================================================================
+           CSS CUSTOM PROPERTIES
+           Base palette defined here; runtime JS overwrites --accent, --bg,
+           --card, --text, etc. from the course JSON theme block.
+           This ensures the page is not blank before the fetch resolves.
+           ================================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --accent:       #888;
+            --accent-dim:   rgba(136,136,136,0.12);
+            --accent-glow:  rgba(136,136,136,0.25);
+            --bg:           #0a0a0f;
+            --card:         #12121a;
+            --text:         #e0e0e0;
+            --text-dim:     #8b949e;
+            --border:       rgba(255,255,255,0.08);
+            --border2:      rgba(255,255,255,0.18);
+            --board-bg:     #060ce9;
+            --cell-used:    #0a0c3a;
+            --cell-hover:   #1a1fe0;
+            --gold:         #ffcc00;
+            --gold-classic: #ffcc00;
+            --green:        #10b981;
+            --red:          #ef4444;
+            --orange:       #f59e0b;
+            --blue:         #3b82f6;
+            --purple:       #8b5cf6;
+            --mono:         'JetBrains Mono', ui-monospace, monospace;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.7;
+        }
+
+        /* ── Loading / Error states ── */
+        .state-screen {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            min-height: 100vh; gap: 20px; padding: 40px;
+            text-align: center;
+        }
+        .state-screen h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+        .state-screen p  { font-size: 14px; color: var(--text-dim); max-width: 420px; }
+        .state-screen a  {
+            color: var(--accent); font-weight: 600; text-decoration: none;
+            padding: 10px 24px; border: 1px solid var(--border2); border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .state-screen a:hover { background: var(--accent-dim); }
+        .spinner {
+            width: 40px; height: 40px; border-radius: 50%;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Header ── */
+        .header {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px;
+            background: rgba(10,10,15,0.96);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-badge {
+            font-family: var(--mono);
+            font-size: 11px; padding: 3px 10px; border-radius: 4px;
+            background: var(--accent-dim); color: var(--accent);
+            font-weight: 700; letter-spacing: 1px;
+        }
+        .header h1 {
+            font-family: var(--mono);
+            font-size: 15px; font-weight: 600; color: var(--accent);
+        }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        /* Audio toggle */
+        .audio-toggle {
+            background: transparent; color: var(--accent);
+            border: 1px solid var(--border2); border-radius: 6px;
+            padding: 6px 8px; cursor: pointer; line-height: 0;
+            transition: background 0.15s, border-color 0.15s;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .audio-toggle:hover { background: var(--accent-dim); border-color: var(--accent); }
+        .audio-toggle .ico-on  { display: inline; }
+        .audio-toggle .ico-off { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-on  { display: none; }
+        .audio-toggle[aria-pressed="true"] .ico-off { display: inline; }
+        .audio-toggle[aria-pressed="true"] { color: rgba(255,255,255,0.35); }
+
+        /* Back link */
+        .back-link {
+            font-family: var(--mono);
+            font-size: 13px; color: var(--accent); font-weight: 600;
+            text-decoration: none; padding: 6px 14px; border-radius: 6px;
+            border: 1px solid var(--border2); transition: all 0.2s;
+        }
+        .back-link:hover { background: var(--accent-dim); }
+
+        /* ── Main content wrapper ── */
+        .content { max-width: 1000px; margin: 0 auto; padding: 32px 24px 80px; }
+
+        /* ── Hero ── */
+        .hero { text-align: center; padding: 36px 0 28px; }
+        .hero-icon { width: 56px; height: 56px; border-radius: 12px; margin-bottom: 16px; }
+        .hero h2 {
+            font-size: 28px; font-weight: 800; color: var(--accent);
+            font-family: var(--mono); margin-bottom: 8px;
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
+        .hero-sub { font-size: 15px; color: var(--text-dim); max-width: 620px; margin: 0 auto; }
+        .hero-meta {
+            display: flex; justify-content: center; gap: 24px; margin-top: 20px;
+            font-size: 12px; color: var(--text-dim); font-family: var(--mono);
+        }
+        .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* ── Callout boxes ── */
+        .callout {
+            border-radius: 8px; padding: 16px 18px; margin: 16px 0 24px; font-size: 13px;
+        }
+        .callout-title {
+            font-weight: 700; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 6px; font-family: var(--mono);
+        }
+        .callout p { color: var(--text-dim); }
+        .callout em { color: var(--accent); font-style: normal; font-family: var(--mono); }
+        .callout-info { background: var(--accent-dim); border-left: 3px solid var(--accent); }
+        .callout-info .callout-title { color: var(--accent); }
+        .callout-key  { background: var(--accent-dim); border-left: 3px solid var(--accent); }
+        .callout-key  .callout-title { color: var(--accent); }
+
+        /* ── Instructions ── */
+        .instructions {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 20px 24px; margin-bottom: 20px;
+        }
+        .instructions h3 {
+            font-size: 11px; color: var(--accent); text-transform: uppercase;
+            letter-spacing: 1.5px; margin-bottom: 12px; font-family: var(--mono);
+        }
+        .instructions ul { list-style: none; }
+        .instructions li {
+            padding: 5px 0; font-size: 14px; color: var(--text-dim);
+            display: flex; align-items: flex-start; gap: 10px;
+        }
+        .instructions li::before {
+            content: '>'; color: var(--accent); font-weight: bold;
+            font-family: var(--mono); flex-shrink: 0; margin-top: 2px;
+        }
+
+        /* ── Scoreboard ── */
+        .scoreboard {
+            display: flex; align-items: center; justify-content: center; gap: 32px;
+            padding: 16px 24px; margin-bottom: 20px;
+            background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+        }
+        .score-display  { text-align: center; }
+        .score-label    {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 4px; font-family: var(--mono);
+        }
+        .score-value    {
+            font-size: 32px; font-weight: 800; color: var(--accent);
+            font-family: var(--mono); transition: transform 0.2s, color 0.2s;
+            text-shadow: 0 0 12px var(--accent-glow);
+        }
+        .score-value.negative { color: var(--red); text-shadow: none; }
+        .score-value.bump     { transform: scale(1.15); }
+        .stat-block  { text-align: center; }
+        .stat-label  {
+            font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; font-family: var(--mono);
+        }
+        .stat-value  { font-size: 18px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+        .stat-value.correct-color { color: var(--green); }
+        .stat-value.wrong-color   { color: var(--red); }
+        .stat-divider { width: 1px; height: 36px; background: var(--border); }
+        .reset-btn {
+            padding: 8px 18px; border: 1px solid var(--border2); border-radius: 6px;
+            background: transparent; color: var(--accent); font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; font-family: var(--mono);
+        }
+        .reset-btn:hover { background: var(--accent-dim); }
+
+        /* ── Streak bar ── */
+        .streak-bar {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 8px 16px; margin-bottom: 16px; font-size: 12px; color: var(--text-dim);
+            background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+            transition: all 0.3s; font-family: var(--mono);
+        }
+        .streak-bar.hot { border-color: var(--gold-classic); background: rgba(255,204,0,0.05); }
+        .streak-bar .streak-count { font-weight: 800; color: var(--accent); font-size: 16px; }
+        .streak-bar.hot .streak-count { color: var(--gold-classic); }
+        .streak-bar .streak-label  { font-weight: 600; }
+
+        /* ── Jeopardy board ── */
+        .jeopardy-board {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px;
+            background: #000; border: 3px solid var(--accent); border-radius: 10px;
+            overflow: hidden; margin-bottom: 32px;
+            box-shadow: 0 0 32px var(--accent-glow);
+        }
+        .cat-header {
+            background: var(--board-bg); padding: 14px 8px; text-align: center;
+            font-size: 11px; font-weight: 800; color: var(--accent);
+            text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.3; min-height: 64px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--mono);
+            border-bottom: 2px solid var(--border2);
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+        .value-cell {
+            background: var(--board-bg); padding: 20px 8px; text-align: center;
+            font-size: 24px; font-weight: 800; color: var(--accent);
+            cursor: pointer; transition: all 0.2s; user-select: none;
+            font-family: var(--mono);
+            text-shadow: 0 0 10px var(--accent-glow);
+            display: flex; align-items: center; justify-content: center;
+            min-height: 72px;
+        }
+        .value-cell:hover {
+            background: var(--cell-hover); transform: scale(1.03); z-index: 2;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        .value-cell.used {
+            background: var(--cell-used); color: rgba(255,255,255,0.06);
+            cursor: default; text-shadow: none; pointer-events: none;
+        }
+        .value-cell.flash-correct { animation: flashCorrect 0.6s ease-out; }
+        .value-cell.flash-wrong   { animation: flashWrong   0.6s ease-out; }
+        @keyframes flashCorrect {
+            0%   { background: #10b981; }
+            100% { background: var(--cell-used); }
+        }
+        @keyframes flashWrong {
+            0%   { background: #ef4444; }
+            100% { background: var(--cell-used); }
+        }
+        .value-cell .dollar { font-size: 16px; margin-right: 1px; }
+
+        /* ── Modal overlay ──
+           position:fixed is safe here because we NEVER set body.style.filter
+           in this file (HEUR-008 only fires when filter is applied to body). */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92); z-index: 500;
+            align-items: center; justify-content: center; padding: 24px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--board-bg); border: 3px solid var(--accent);
+            border-radius: 16px; max-width: 680px; width: 100%;
+            padding: 44px 40px 36px; text-align: center; position: relative;
+            box-shadow: 0 0 60px var(--accent-glow), 0 0 120px rgba(0,0,0,0.3);
+            animation: modalIn 0.3s ease-out;
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to   { transform: scale(1);    opacity: 1; }
+        }
+        .modal-close {
+            position: absolute; top: 12px; right: 16px;
+            background: none; border: none; color: rgba(255,255,255,0.4);
+            font-size: 22px; cursor: pointer; padding: 4px 8px; transition: color 0.2s;
+        }
+        .modal-close:hover { color: var(--accent); }
+        .modal-category {
+            font-size: 11px; color: var(--accent); text-transform: uppercase;
+            letter-spacing: 2px; margin-bottom: 6px; font-family: var(--mono); font-weight: 700;
+        }
+        .modal-value {
+            font-size: 22px; font-weight: 800; color: var(--accent);
+            margin-bottom: 28px; font-family: var(--mono);
+            text-shadow: 0 0 12px var(--accent-glow);
+        }
+        .modal-clue {
+            font-size: 21px; font-weight: 600; color: #fff; line-height: 1.55;
+            margin-bottom: 28px; min-height: 80px;
+        }
+        .modal-prompt {
+            font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 20px;
+            font-style: italic; font-family: var(--mono);
+        }
+        .modal-answer {
+            display: none; font-size: 18px; font-weight: 700; color: var(--accent);
+            background: rgba(0,0,0,0.4); border-radius: 10px; padding: 18px 22px;
+            margin-bottom: 24px; line-height: 1.5; font-family: var(--mono);
+            text-shadow: 0 0 8px var(--accent-glow);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal-answer.revealed { display: block; animation: fadeUp 0.3s ease-out; }
+
+        /* Think-timer bar */
+        .clue-timer-track {
+            position: absolute; left: 14px; right: 14px; bottom: 14px;
+            height: 4px; background: rgba(255,255,255,0.06);
+            border-radius: 2px; overflow: hidden;
+        }
+        .clue-timer-track[hidden] { display: none; }
+        .clue-timer-bar {
+            height: 100%; width: 100%;
+            background: linear-gradient(90deg, var(--accent) 0%, #fbbf24 60%, #ef4444 100%);
+            transform-origin: left center; transform: scaleX(1);
+        }
+        .clue-timer-bar.running { transform: scaleX(0); }
+
+        /* Daily Double modal overrides */
+        .modal-overlay.is-daily-double .modal {
+            border-color: var(--gold-classic);
+            box-shadow: 0 0 60px rgba(255,204,0,0.3), 0 0 120px rgba(255,204,0,0.12);
+            animation: ddPulse 0.45s ease-out;
+        }
+        @keyframes ddPulse {
+            0%   { transform: scale(0.7);  opacity: 0; }
+            60%  { transform: scale(1.04); opacity: 1; }
+            100% { transform: scale(1);    opacity: 1; }
+        }
+        .modal-overlay.is-daily-double .modal-category {
+            color: var(--gold-classic); font-weight: 800; font-size: 14px; letter-spacing: 4px;
+        }
+        .modal-overlay.is-daily-double .modal-value {
+            color: #fff; font-size: 16px; letter-spacing: 1px; text-transform: uppercase;
+            text-shadow: none;
+        }
+        .dd-wager-row {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; margin-bottom: 22px;
+        }
+        .dd-wager-label  { font-size: 14px; color: rgba(255,255,255,0.75); font-weight: 600; }
+        .dd-wager-dollar { font-size: 26px; font-weight: 800; color: var(--gold-classic); }
+        .dd-wager-input  {
+            background: rgba(0,0,0,0.4); border: 2px solid var(--gold-classic);
+            color: #fff; font-size: 26px; font-weight: 800;
+            padding: 8px 14px; border-radius: 8px; width: 140px;
+            text-align: center; font-family: var(--mono); outline: none;
+        }
+        .dd-wager-input:focus {
+            background: rgba(0,0,0,0.6);
+            box-shadow: 0 0 0 3px rgba(255,204,0,0.2);
+        }
+        .dd-wager-input::-webkit-outer-spin-button,
+        .dd-wager-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .dd-wager-input[type=number] { -moz-appearance: textfield; }
+
+        @keyframes fadeUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+        .modal-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .modal-btn {
+            padding: 12px 28px; border: none; border-radius: 8px; font-size: 14px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+            text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--mono);
+        }
+        .modal-btn.reveal {
+            background: var(--accent-dim); color: var(--accent);
+            border: 1px solid var(--border2);
+        }
+        .modal-btn.reveal:hover { background: rgba(255,255,255,0.15); }
+        .modal-btn.correct {
+            background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+        }
+        .modal-btn.correct:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(16,185,129,0.4); }
+        .modal-btn.wrong {
+            background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff;
+        }
+        .modal-btn.wrong:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(239,68,68,0.4); }
+
+        /* ── Category breakdown ── */
+        .cat-breakdown { display: none; margin-top: 24px; }
+        .cat-breakdown.visible { display: block; }
+        .cat-breakdown h4 {
+            font-size: 12px; color: var(--accent); text-transform: uppercase;
+            letter-spacing: 1.5px; margin-bottom: 14px; text-align: center;
+            font-family: var(--mono);
+        }
+        .cat-row {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+            padding: 10px 14px; background: var(--accent-dim); border-radius: 8px;
+        }
+        .cat-row-name {
+            font-size: 11px; font-weight: 700; color: #fff; min-width: 140px;
+            text-align: right; font-family: var(--mono);
+        }
+        .cat-row-bar-wrap {
+            flex: 1; height: 20px; background: rgba(255,255,255,0.05);
+            border-radius: 4px; overflow: hidden;
+        }
+        .cat-row-bar {
+            height: 100%; border-radius: 4px; transition: width 0.8s ease-out; min-width: 0;
+        }
+        .cat-row-bar.positive { background: linear-gradient(90deg, var(--accent), #60a5fa); }
+        .cat-row-bar.negative { background: linear-gradient(90deg, var(--red), #f87171); }
+        .cat-row-score {
+            font-size: 13px; font-weight: 700; min-width: 60px;
+            text-align: right; font-family: var(--mono);
+        }
+        .cat-row-score.positive { color: var(--accent); }
+        .cat-row-score.negative { color: var(--red); }
+        .cat-row-score.zero     { color: var(--text-dim); }
+
+        /* ── Final score card ── */
+        .final-score {
+            display: none; background: var(--card); border: 2px solid var(--accent);
+            border-radius: 12px; padding: 36px; text-align: center; margin-top: 32px;
+            box-shadow: 0 0 24px var(--accent-glow);
+        }
+        .final-score.visible { display: block; animation: fadeUp 0.5s ease-out; }
+        .final-score h3 { font-size: 22px; color: #fff; margin-bottom: 4px; font-weight: 800; }
+        .final-subtitle { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; font-family: var(--mono); }
+        .final-amount {
+            font-size: 52px; font-weight: 800; color: var(--accent); margin: 16px 0 8px;
+            font-family: var(--mono); text-shadow: 0 0 20px var(--accent-glow);
+        }
+        .final-amount.negative { color: var(--red); text-shadow: 0 0 20px rgba(239,68,68,0.3); }
+        .final-stats {
+            display: flex; justify-content: center; gap: 24px;
+            font-size: 14px; color: var(--text-dim); margin-bottom: 20px;
+        }
+        .final-stats .stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .final-stats .stat-num { font-size: 20px; font-weight: 700; font-family: var(--mono); }
+        .final-stats .stat-num.green  { color: var(--green); }
+        .final-stats .stat-num.red    { color: var(--red); }
+        .final-stats .stat-num.purple { color: var(--accent); }
+        .final-stats .stat-desc { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .grade {
+            font-size: 16px; font-weight: 700; padding: 10px 24px;
+            border-radius: 8px; display: inline-block; margin-top: 8px;
+            font-family: var(--mono);
+        }
+        .grade-s { background: var(--accent-dim);           color: var(--accent);  border: 1px solid var(--border2); }
+        .grade-a { background: rgba(139,92,246,0.12);        color: var(--purple);  border: 1px solid rgba(139,92,246,0.3); }
+        .grade-b { background: rgba(59,130,246,0.12);        color: var(--blue);    border: 1px solid rgba(59,130,246,0.3); }
+        .grade-c { background: rgba(245,158,11,0.12);        color: var(--orange);  border: 1px solid rgba(245,158,11,0.3); }
+        .grade-f { background: rgba(239,68,68,0.12);         color: var(--red);     border: 1px solid rgba(239,68,68,0.3); }
+
+        .best-streak-display {
+            margin-top: 16px; font-size: 13px; color: var(--text-dim); font-family: var(--mono);
+        }
+        .best-streak-display .best-num { font-weight: 800; color: var(--accent); font-size: 18px; }
+
+        /* ── Play another course link (shown in final card) ── */
+        .play-another {
+            display: inline-block; margin-top: 20px;
+            color: var(--accent); font-family: var(--mono); font-size: 13px; font-weight: 600;
+            text-decoration: none; padding: 8px 20px; border-radius: 6px;
+            border: 1px solid var(--border2); transition: background 0.2s;
+        }
+        .play-another:hover { background: var(--accent-dim); }
+
+        /* ── Responsive ── */
+        @media (max-width: 700px) {
+            .hero h2 { font-size: 22px; }
+            .jeopardy-board { gap: 2px; }
+            .cat-header { font-size: 8px; padding: 10px 4px; min-height: 56px; letter-spacing: 0; }
+            .value-cell { font-size: 16px; padding: 12px 4px; min-height: 52px; }
+            .value-cell .dollar { font-size: 12px; }
+            .modal { padding: 28px 20px; }
+            .modal-clue { font-size: 17px; }
+            .modal-answer { font-size: 15px; }
+            .scoreboard { gap: 12px; flex-wrap: wrap; padding: 12px 16px; }
+            .score-value { font-size: 24px; }
+            .cat-row-name { min-width: 100px; font-size: 10px; }
+            .final-amount { font-size: 36px; }
+            .final-stats { gap: 12px; flex-wrap: wrap; }
+        }
+        @media (max-width: 480px) {
+            .content { padding: 20px 12px 60px; }
+            .header  { padding: 10px 12px; }
+            .cat-header { font-size: 7px; padding: 8px 2px; min-height: 48px; }
+            .value-cell { font-size: 13px; min-height: 44px; padding: 8px 2px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading screen: shown until JSON fetch resolves -->
+    <div class="state-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <h2>Loading course data&hellip;</h2>
+        <p>Fetching the question bank for this Jeopardy board.</p>
+    </div>
+
+    <!-- Error screen: shown if course JSON is missing or malformed -->
+    <div class="state-screen" id="errorScreen" style="display:none">
+        <h2>Course Not Found</h2>
+        <p id="errorMessage">The requested course data file could not be loaded. Check the course ID in the URL or return to the picker.</p>
+        <a href="index.html">&larr; Back to Course Picker</a>
+    </div>
+
+    <!-- Full game UI: hidden until data loads successfully -->
+    <div id="gameRoot" style="display:none">
+        <header class="header">
+            <div class="header-left">
+                <span class="header-badge" id="headerBadge">JEOPARDY</span>
+                <h1 id="headerTitle">Jeopardy Review</h1>
+            </div>
+            <div class="header-right">
+                <button id="audioToggle" class="audio-toggle" type="button"
+                        aria-pressed="false" title="Toggle game audio">
+                    <span aria-hidden="true">
+                        <!-- Volume-on SVG -->
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" class="ico-on">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                        <!-- Volume-off SVG -->
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" class="ico-off">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <line x1="23" y1="9" x2="17" y2="15"></line>
+                            <line x1="17" y1="9" x2="23" y2="15"></line>
+                        </svg>
+                    </span>
+                </button>
+                <a href="index.html" class="back-link">&larr; Course Picker</a>
+            </div>
+        </header>
+
+        <main class="content">
+            <!-- Hero -->
+            <div class="hero">
+                <img class="hero-icon" id="heroIcon" src="" alt="">
+                <h2 id="heroTitle">Jeopardy Review</h2>
+                <p class="hero-sub" id="heroSub"></p>
+                <div class="hero-meta">
+                    <span><img src="/assets/images/icons/icon-clock.webp" alt="" width="14" height="14"> <span id="heroDuration">~25 min</span></span>
+                    <span><img src="/assets/images/icons/icon-game.webp"  alt="" width="14" height="14"> Game</span>
+                    <span><img src="/assets/images/icons/icon-books.webp" alt="" width="14" height="14"> All Levels</span>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="instructions">
+                <h3>How to Play</h3>
+                <ul>
+                    <li>Select any cell on the board to reveal a Jeopardy-style clue</li>
+                    <li>The clue is phrased as an "answer"; think of the matching "question"</li>
+                    <li>Click <strong>Reveal Response</strong> to see the correct question (or press Space / Enter)</li>
+                    <li>Self-judge: mark correct to earn the value, or wrong to lose it</li>
+                    <li>Higher values = harder clues; start low if warming up</li>
+                    <li>Build a streak of correct answers for bonus glory</li>
+                    <li>One cell on the board is the <strong>Daily Double</strong>: wager any amount from $5 up to the higher of your current score or $500</li>
+                    <li>Clear all 25 cells to see your final score and category breakdown</li>
+                </ul>
+            </div>
+
+            <!-- Jeopardy format reminder (populated from data) -->
+            <div class="callout callout-info" id="formatCallout" style="display:none">
+                <div class="callout-title">Jeopardy Format Reminder</div>
+                <p id="formatCalloutText"></p>
+            </div>
+
+            <!-- Scoreboard -->
+            <div class="scoreboard">
+                <div class="score-display">
+                    <div class="score-label">Score</div>
+                    <div class="score-value" id="scoreDisplay">$0</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-block">
+                    <div class="stat-label">Correct</div>
+                    <div class="stat-value correct-color" id="correctDisplay">0</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-label">Wrong</div>
+                    <div class="stat-value wrong-color" id="wrongDisplay">0</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-block">
+                    <div class="stat-label">Remaining</div>
+                    <div class="stat-value" id="cellsRemaining">25</div>
+                </div>
+                <div class="stat-divider"></div>
+                <button class="reset-btn" onclick="resetGame()">Reset Board</button>
+            </div>
+
+            <!-- Streak bar -->
+            <div class="streak-bar" id="streakBar">
+                <img src="/assets/images/icons/icon-fire.webp" alt="" width="16" height="16">
+                <span class="streak-label">Streak:</span>
+                <span class="streak-count" id="streakCount">0</span>
+            </div>
+
+            <!-- Board (populated by buildBoard()) -->
+            <div class="jeopardy-board" id="jeopardyBoard"></div>
+
+            <!-- Category legend (populated from data) -->
+            <div class="callout callout-key" id="categoryLegendCallout" style="display:none">
+                <div class="callout-title">Categories Covered</div>
+                <p id="categoryLegendText"></p>
+            </div>
+
+            <!-- Final score -->
+            <div class="final-score" id="finalScore">
+                <h3>Game Complete</h3>
+                <div class="final-subtitle">All 25 clues answered</div>
+                <div class="final-amount" id="finalAmount">$0</div>
+                <div class="final-stats">
+                    <div class="stat"><span class="stat-num green"  id="fCorrect">0</span><span class="stat-desc">Correct</span></div>
+                    <div class="stat"><span class="stat-num red"    id="fWrong">0</span><span class="stat-desc">Wrong</span></div>
+                    <div class="stat"><span class="stat-num purple" id="fPct">0%</span><span class="stat-desc">of Max</span></div>
+                </div>
+                <div id="finalGrade"></div>
+                <div class="best-streak-display" id="bestStreakDisplay"></div>
+                <div class="cat-breakdown" id="catBreakdown">
+                    <h4>Category Breakdown</h4>
+                    <div id="catBreakdownRows"></div>
+                </div>
+                <!-- Link back to picker after finishing a game -->
+                <a href="index.html" class="play-another">Play Another Course &rarr;</a>
+            </div>
+        </main>
+    </div><!-- /gameRoot -->
+
+    <!-- Modal overlay (outside gameRoot so it layers over everything) -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal">
+            <button class="modal-close" onclick="closeModal()" title="Close">&times;</button>
+            <div class="modal-category" id="modalCategory"></div>
+            <div class="modal-value"    id="modalValue"></div>
+            <div class="modal-clue"     id="modalClue"></div>
+            <div class="modal-prompt"   id="modalPrompt">Think of your response, then click Reveal (or press Space)</div>
+            <div class="modal-answer"   id="modalAnswer"></div>
+            <div class="modal-actions"  id="modalActions">
+                <button class="modal-btn reveal" onclick="revealAnswer()">Reveal Response</button>
+            </div>
+            <!-- Timer bar: drains over CLUE_TIMER_SECONDS. Synced to audio think loop. -->
+            <div class="clue-timer-track" id="clueTimerTrack" hidden>
+                <div class="clue-timer-bar" id="clueTimerBar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ================================================================
+       JEOPARDY ENGINE -- data-driven, theme-adaptive
+       Flow:
+         1. Parse ?course=<id> from URL
+         2. fetch('data/jeopardy/<id>.json')
+         3. Apply theme CSS vars to :root from data
+         4. Render hero, board, callouts from data
+         5. All gameplay (clue modal, Daily Double, scoring, final card)
+            is 100% engine code -- zero course-specific hardcoding
+       ================================================================ */
+
+    /* ── Step 1: Parse course ID from URL ─────────────────────────── */
+    const params    = new URLSearchParams(window.location.search);
+    const courseId  = (params.get('course') || '').trim().toLowerCase();
+
+    /* No course param = redirect to the picker immediately. */
+    if (!courseId) {
+        window.location.replace('index.html');
+    }
+
+    /* ── Step 2: Fetch course data ─────────────────────────────────── */
+    const CLUE_TIMER_SECONDS = 30;
+
+    /* Game state -- initialised after data loads; reset() reinitialises. */
+    let courseData      = null;
+    let categories      = [];
+    let catScores       = [];
+    let score           = 0;
+    let correctCount    = 0;
+    let wrongCount      = 0;
+    let cellsLeft       = 25;
+    let currentClue     = null;
+    let answerRevealed  = false;
+    let currentStreak   = 0;
+    let bestStreak      = 0;
+    let dailyDoubleCat  = 0;
+    let dailyDoubleRow  = 0;
+    let dailyDoubleFound = false;
+
+    /* ── AccessGuard: optional in sandbox ─────────────────────────── */
+    (function guardOptional() {
+        if (typeof AccessGuard !== 'undefined') {
+            try { AccessGuard.require('sorted'); } catch(e) { /* sandbox: no-op */ }
+        }
+    })();
+
+    /* ── Theme application ─────────────────────────────────────────── */
+    function applyTheme(theme) {
+        /* Write every data theme key to a matching CSS custom property.
+           The JSON keys match the CSS var names (minus the leading --). */
+        const root = document.documentElement;
+        if (!theme) return;
+
+        const map = {
+            accent:     '--accent',
+            accentDim:  '--accent-dim',
+            accentGlow: '--accent-glow',
+            bg:         '--bg',
+            card:       '--card',
+            text:       '--text',
+            textDim:    '--text-dim',
+            border:     '--border',
+            border2:    '--border2',
+            boardBg:    '--board-bg',
+            cellUsedBg: '--cell-used',
+            cellHoverBg:'--cell-hover'
+        };
+
+        Object.entries(map).forEach(function([key, cssVar]) {
+            if (theme[key]) root.style.setProperty(cssVar, theme[key]);
+        });
+
+        /* Derive accentDim/accentGlow from accent if not explicit in data. */
+        if (theme.accent && !theme.accentDim) {
+            root.style.setProperty('--accent-dim',  hexToRgba(theme.accent, 0.12));
+        }
+        if (theme.accent && !theme.accentGlow) {
+            root.style.setProperty('--accent-glow', hexToRgba(theme.accent, 0.25));
+        }
+
+        /* Update body background now so there is no flash between CSS default
+           and the applied theme while the page renders the board. */
+        document.body.style.background = 'var(--bg)';
+    }
+
+    /* Convert a hex colour to rgba(r,g,b,a) string for derived vars. */
+    function hexToRgba(hex, alpha) {
+        var h = hex.replace('#', '');
+        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+        var r = parseInt(h.substring(0,2), 16);
+        var g = parseInt(h.substring(2,4), 16);
+        var b = parseInt(h.substring(4,6), 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    /* ── Board construction ─────────────────────────────────────────── */
+    function rollDailyDouble() {
+        dailyDoubleCat   = Math.floor(Math.random() * categories.length);
+        dailyDoubleRow   = Math.floor(Math.random() * 5);
+        dailyDoubleFound = false;
+    }
+
+    function buildBoard() {
+        const board = document.getElementById('jeopardyBoard');
+        board.innerHTML = '';
+
+        /* Category header row */
+        categories.forEach(function(cat) {
+            var h = document.createElement('div');
+            h.className = 'cat-header';
+            /* textContent is safe here -- no innerHTML with user data */
+            h.textContent = cat.name;
+            board.appendChild(h);
+        });
+
+        rollDailyDouble();
+
+        /* Value rows: 100 to 500 */
+        var values = [100, 200, 300, 400, 500];
+        values.forEach(function(val, rowIdx) {
+            categories.forEach(function(cat, colIdx) {
+                var cell = document.createElement('div');
+                cell.className = 'value-cell';
+                cell.dataset.cat = colIdx;
+                cell.dataset.row = rowIdx;
+                cell.id = 'cell-' + colIdx + '-' + rowIdx;
+                /* Dollar sign + value; no user-supplied HTML needed */
+                cell.innerHTML = '<span class="dollar">$</span>' + val;
+                cell.addEventListener('click', function() { openClue(colIdx, rowIdx); });
+                board.appendChild(cell);
+            });
+        });
+    }
+
+    /* ── Clue timer ─────────────────────────────────────────────────── */
+    function startClueTimer() {
+        var track = document.getElementById('clueTimerTrack');
+        var bar   = document.getElementById('clueTimerBar');
+        if (!track || !bar) return;
+        bar.classList.remove('running');
+        bar.style.transition = 'none';
+        bar.style.transform  = 'scaleX(1)';
+        track.hidden = false;
+        void bar.offsetWidth;  /* force reflow before applying transition */
+        bar.style.transition = 'transform ' + CLUE_TIMER_SECONDS + 's linear';
+        bar.classList.add('running');
+    }
+
+    function stopClueTimer() {
+        var track = document.getElementById('clueTimerTrack');
+        var bar   = document.getElementById('clueTimerBar');
+        if (!bar || !track) return;
+        bar.classList.remove('running');
+        bar.style.transition = 'none';
+        bar.style.transform  = 'scaleX(1)';
+        track.hidden = true;
+    }
+
+    /* Fired by HexworthGameAudio when the think loop expires (30 s). */
+    function onClueTimeExpired() {
+        stopClueTimer();
+        if (!answerRevealed && currentClue) {
+            revealAnswer();
+            if (window.HexworthGameAudio) HexworthGameAudio.wrong();
+        }
+    }
+
+    /* ── Clue modal ─────────────────────────────────────────────────── */
+    function openClue(catIdx, rowIdx) {
+        /* Re-entry guard: ignore click while a modal is open */
+        if (document.getElementById('modalOverlay').classList.contains('active')) return;
+
+        var cat  = categories[catIdx];
+        var clue = cat.clues[rowIdx];
+        var isDailyDouble = !dailyDoubleFound
+            && catIdx === dailyDoubleCat
+            && rowIdx === dailyDoubleRow;
+
+        currentClue = {
+            catIdx: catIdx,
+            rowIdx: rowIdx,
+            value: clue.value,
+            response: clue.response,
+            clue: clue.clue,
+            isDailyDouble: isDailyDouble,
+            wager: 0
+        };
+        answerRevealed = false;
+
+        if (isDailyDouble) {
+            openDailyDoubleSplash();
+            if (window.HexworthGameAudio) HexworthGameAudio.dailyDouble();
+            return;
+        }
+        renderClueModal();
+        startClueTimer();
+        if (window.HexworthGameAudio) HexworthGameAudio.startThink(CLUE_TIMER_SECONDS, onClueTimeExpired);
+    }
+
+    function renderClueModal() {
+        var cat  = categories[currentClue.catIdx];
+        var isDD = !!currentClue.isDailyDouble;
+
+        /* Use innerHTML here so the em dash entity in the DD label renders
+           correctly. cat.name is escaped via escapeHtml() to prevent XSS. */
+        document.getElementById('modalCategory').innerHTML = isDD
+            ? 'DAILY DOUBLE &mdash; ' + escapeHtml(cat.name)
+            : escapeHtml(cat.name);
+        document.getElementById('modalValue').textContent = isDD
+            ? 'Wager: $' + currentClue.wager
+            : '$' + currentClue.value;
+        document.getElementById('modalClue').textContent = currentClue.clue;
+
+        var promptEl = document.getElementById('modalPrompt');
+        promptEl.textContent = 'Think of your response, then click Reveal (or press Space)';
+        promptEl.style.display = '';
+
+        var answerEl = document.getElementById('modalAnswer');
+        answerEl.textContent = currentClue.response;
+        answerEl.classList.remove('revealed');
+
+        document.getElementById('modalActions').innerHTML =
+            '<button class="modal-btn reveal" onclick="revealAnswer()">Reveal Response</button>';
+
+        var overlay = document.getElementById('modalOverlay');
+        overlay.classList.add('active');
+        overlay.classList.toggle('is-daily-double', isDD);
+        document.body.style.overflow = 'hidden';
+    }
+
+    function openDailyDoubleSplash() {
+        var cat      = categories[currentClue.catIdx];
+        var maxWager = Math.max(score, 500);
+
+        document.getElementById('modalCategory').textContent = 'DAILY DOUBLE';
+        document.getElementById('modalValue').textContent    = cat.name;
+        document.getElementById('modalClue').textContent     =
+            'You found the Daily Double. Wager any amount from $5 up to ' +
+            '$' + maxWager + '. Get it right to win your wager; get it wrong to lose it.';
+        document.getElementById('modalPrompt').style.display = 'none';
+
+        var answerEl = document.getElementById('modalAnswer');
+        answerEl.textContent = '';
+        answerEl.classList.remove('revealed');
+
+        document.getElementById('modalActions').innerHTML =
+            '<div class="dd-wager-row">' +
+              '<label for="ddWagerInput" class="dd-wager-label">Your wager:</label>' +
+              '<span class="dd-wager-dollar">$</span>' +
+              '<input type="number" id="ddWagerInput" class="dd-wager-input"' +
+                ' min="5" max="' + maxWager + '" step="5"' +
+                ' value="' + Math.min(500, maxWager) + '"' +
+                ' inputmode="numeric" autofocus>' +
+            '</div>' +
+            '<button class="modal-btn reveal" onclick="submitDailyDoubleWager()">Lock In Wager</button>';
+
+        var overlay = document.getElementById('modalOverlay');
+        overlay.classList.add('active');
+        overlay.classList.add('is-daily-double');
+        document.body.style.overflow = 'hidden';
+
+        setTimeout(function() {
+            var inp = document.getElementById('ddWagerInput');
+            if (inp) { inp.focus(); inp.select(); }
+        }, 50);
+    }
+
+    function submitDailyDoubleWager() {
+        var inp = document.getElementById('ddWagerInput');
+        if (!inp || !currentClue) return;
+        var maxWager = Math.max(score, 500);
+        var raw      = (inp.value || '').trim();
+        var wager;
+        if (/^\d+$/.test(raw)) {
+            wager = parseInt(raw, 10);
+        } else {
+            wager = 5;
+        }
+        if (wager < 5)        wager = 5;
+        if (wager > maxWager) wager = maxWager;
+        currentClue.wager  = wager;
+        dailyDoubleFound   = true;
+        renderClueModal();
+        startClueTimer();
+        if (window.HexworthGameAudio) HexworthGameAudio.startThink(CLUE_TIMER_SECONDS, onClueTimeExpired);
+    }
+
+    function revealAnswer() {
+        if (answerRevealed) return;
+        answerRevealed = true;
+        stopClueTimer();
+        if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
+        document.getElementById('modalAnswer').classList.add('revealed');
+        document.getElementById('modalPrompt').style.display = 'none';
+        document.getElementById('modalActions').innerHTML =
+            '<button class="modal-btn correct" onclick="judgeAnswer(true)">I Got It Right</button>' +
+            '<button class="modal-btn wrong"   onclick="judgeAnswer(false)">I Got It Wrong</button>';
+    }
+
+    function judgeAnswer(correct) {
+        if (!currentClue) return;
+        stopClueTimer();
+        if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
+        if (window.HexworthGameAudio) {
+            if (correct) HexworthGameAudio.correct();
+            else         HexworthGameAudio.wrong();
+        }
+
+        var catIdx = currentClue.catIdx;
+        /* Daily Double scores the wager, not face value */
+        var stake  = currentClue.isDailyDouble ? currentClue.wager : currentClue.value;
+
+        if (correct) {
+            score += stake;
+            correctCount++;
+            currentStreak++;
+            if (currentStreak > bestStreak) bestStreak = currentStreak;
+            catScores[catIdx].earned  += stake;
+            catScores[catIdx].correct++;
+        } else {
+            score -= stake;
+            wrongCount++;
+            currentStreak = 0;
+            catScores[catIdx].earned  -= stake;
+            catScores[catIdx].wrong++;
+        }
+        catScores[catIdx].possible += stake;
+
+        var cell = document.getElementById('cell-' + currentClue.catIdx + '-' + currentClue.rowIdx);
+        if (cell) {
+            cell.classList.add('used');
+            cell.classList.add(correct ? 'flash-correct' : 'flash-wrong');
+            cell.innerHTML = '';
+        }
+        cellsLeft--;
+        updateScoreboard();
+        updateStreak();
+        closeModal();
+
+        if (cellsLeft <= 0) {
+            setTimeout(showFinalScore, 600);
+        }
+    }
+
+    function closeModal() {
+        var overlay = document.getElementById('modalOverlay');
+        overlay.classList.remove('active');
+        overlay.classList.remove('is-daily-double');
+        document.body.style.overflow = '';
+        currentClue    = null;
+        stopClueTimer();
+        if (window.HexworthGameAudio) HexworthGameAudio.stopThink();
+    }
+
+    /* ── Scoreboard ─────────────────────────────────────────────────── */
+    function updateScoreboard() {
+        var display = document.getElementById('scoreDisplay');
+        if (score < 0) {
+            display.textContent = '-$' + Math.abs(score);
+            display.classList.add('negative');
+        } else {
+            display.textContent = '$' + score;
+            display.classList.remove('negative');
+        }
+        display.classList.add('bump');
+        setTimeout(function() { display.classList.remove('bump'); }, 200);
+        document.getElementById('correctDisplay').textContent = correctCount;
+        document.getElementById('wrongDisplay').textContent   = wrongCount;
+        document.getElementById('cellsRemaining').textContent = cellsLeft;
+    }
+
+    /* ── Streak ─────────────────────────────────────────────────────── */
+    function updateStreak() {
+        document.getElementById('streakCount').textContent = currentStreak;
+        var bar = document.getElementById('streakBar');
+        if (currentStreak >= 3) {
+            bar.classList.add('hot');
+        } else {
+            bar.classList.remove('hot');
+        }
+    }
+
+    /* ── Final score & breakdown ────────────────────────────────────── */
+    function showFinalScore() {
+        if (window.HexworthGameAudio) HexworthGameAudio.finalFanfare();
+
+        var maxScore = 7500; /* (100+200+300+400+500) * 5 */
+        var pctRaw     = Math.max(0, Math.round((score / maxScore) * 100));
+        var pctDisplay = Math.min(100, pctRaw);
+
+        var amountEl = document.getElementById('finalAmount');
+        if (score < 0) {
+            amountEl.textContent = '-$' + Math.abs(score);
+            amountEl.classList.add('negative');
+        } else {
+            amountEl.textContent = '$' + score;
+            amountEl.classList.remove('negative');
+        }
+        document.getElementById('fCorrect').textContent = correctCount;
+        document.getElementById('fWrong').textContent   = wrongCount;
+        document.getElementById('fPct').textContent     = pctDisplay + '%';
+
+        /* Grade ladder -- labels come from the course data, not hardcoded */
+        var gl = (courseData && courseData.gradeLabels) ? courseData.gradeLabels : {
+            s: 'S-RANK -- Master',
+            a: 'A-RANK -- Expert',
+            b: 'B-RANK -- Proficient',
+            c: 'C-RANK -- Learning',
+            f: 'F-RANK -- Keep Studying'
+        };
+        var gradeText, gradeClass;
+        if      (pctRaw >= 90) { gradeText = gl.s; gradeClass = 'grade-s'; }
+        else if (pctRaw >= 75) { gradeText = gl.a; gradeClass = 'grade-a'; }
+        else if (pctRaw >= 55) { gradeText = gl.b; gradeClass = 'grade-b'; }
+        else if (pctRaw >= 30) { gradeText = gl.c; gradeClass = 'grade-c'; }
+        else                   { gradeText = gl.f; gradeClass = 'grade-f'; }
+
+        document.getElementById('finalGrade').innerHTML =
+            '<span class="grade ' + gradeClass + '">' + escapeHtml(gradeText) + '</span>';
+
+        var streakEl = document.getElementById('bestStreakDisplay');
+        if (bestStreak >= 3) {
+            streakEl.innerHTML = 'Best Streak: <span class="best-num">' + bestStreak + '</span> in a row';
+        } else {
+            streakEl.textContent = 'Best Streak: ' + bestStreak;
+        }
+
+        /* Category breakdown bars */
+        var maxCatScore = 1500;
+        var rowsEl = document.getElementById('catBreakdownRows');
+        rowsEl.innerHTML = '';
+        categories.forEach(function(cat, idx) {
+            var cs     = catScores[idx];
+            var earned = cs.earned;
+            var barPct = Math.min(100, Math.abs(earned) / maxCatScore * 100);
+            var isNeg  = earned < 0;
+            var isZero = earned === 0;
+
+            var row = document.createElement('div');
+            row.className = 'cat-row';
+            row.innerHTML =
+                '<div class="cat-row-name">' + escapeHtml(cat.name) + '</div>' +
+                '<div class="cat-row-bar-wrap">' +
+                    '<div class="cat-row-bar ' + (isNeg ? 'negative' : 'positive') + '" style="width:0%"></div>' +
+                '</div>' +
+                '<div class="cat-row-score ' + (isNeg ? 'negative' : (isZero ? 'zero' : 'positive')) + '">' +
+                    (isNeg ? '-$' + Math.abs(earned) : '$' + earned) +
+                    ' <span style="font-size:10px;color:var(--text-dim)">(' + cs.correct + '/' + (cs.correct + cs.wrong) + ')</span>' +
+                '</div>';
+            rowsEl.appendChild(row);
+            setTimeout(function() {
+                var bar = row.querySelector('.cat-row-bar');
+                if (bar) bar.style.width = barPct + '%';
+            }, 50 + idx * 100);
+        });
+
+        document.getElementById('finalScore').classList.add('visible');
+        document.getElementById('catBreakdown').classList.add('visible');
+        setTimeout(function() {
+            document.getElementById('finalScore').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+    }
+
+    /* ── Reset ──────────────────────────────────────────────────────── */
+    function resetGame() {
+        closeModal();
+        score = 0; correctCount = 0; wrongCount = 0; cellsLeft = 25;
+        currentClue = null; answerRevealed = false;
+        currentStreak = 0; bestStreak = 0;
+        catScores.forEach(function(cs) {
+            cs.earned = 0; cs.possible = 0; cs.correct = 0; cs.wrong = 0;
+        });
+        updateScoreboard();
+        updateStreak();
+        buildBoard();
+        document.getElementById('finalScore').classList.remove('visible');
+        document.getElementById('catBreakdown').classList.remove('visible');
+    }
+
+    /* ── Security: HTML escape for any data-sourced text in innerHTML ─ */
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    /* ── Populate static hero / callouts from data ──────────────────── */
+    function populateHero(data) {
+        /* Header */
+        document.getElementById('headerBadge').textContent = data.badge || 'JEOPARDY';
+        document.getElementById('headerTitle').textContent = data.title || 'Jeopardy Review';
+        document.title = data.title + ' | Jeopardy Review (Hexworth Prime)';
+
+        /* Hero section */
+        var iconEl = document.getElementById('heroIcon');
+        if (data.icon) { iconEl.src = data.icon; iconEl.alt = data.title; }
+        document.getElementById('heroTitle').textContent =
+            (data.title || 'Jeopardy') + ': Jeopardy Review';
+        document.getElementById('heroSub').textContent =
+            'Review the ' + (data.title || 'course') + ' in classic Jeopardy style. ' +
+            'Five categories covering ' +
+            data.categories.map(function(c) { return c.name; }).join(', ') + '. ' +
+            'Pick a category, read the clue, answer in the form of a question. Clear the board.';
+        document.getElementById('heroDuration').textContent = data.duration || '~25 min';
+
+        /* Jeopardy format reminder callout */
+        if (data.jeopardyFormatExample) {
+            var ex  = data.jeopardyFormatExample;
+            var txt = 'The board shows "answers" and you respond with "questions." ' +
+                      'For example, if the clue is “' + ex.clueText +
+                      '”, the correct response is “' + ex.responseText +
+                      '”. Always phrase your answer as a question.';
+            document.getElementById('formatCalloutText').textContent = txt;
+            document.getElementById('formatCallout').style.display = '';
+        }
+
+        /* Category legend callout */
+        if (data.categoryLegend) {
+            /* categoryLegend is trusted static content we wrote ourselves in the JSON. */
+            document.getElementById('categoryLegendText').innerHTML = data.categoryLegend;
+            document.getElementById('categoryLegendCallout').style.display = '';
+        }
+    }
+
+    /* ── Audio wiring ───────────────────────────────────────────────── */
+    function wireAudio() {
+        var btn = document.getElementById('audioToggle');
+        if (!btn || !window.HexworthGameAudio) return;
+
+        function syncPressed() {
+            btn.setAttribute('aria-pressed', String(HexworthGameAudio.isMuted()));
+        }
+        syncPressed();
+
+        btn.addEventListener('click', function() {
+            HexworthGameAudio.init();
+            HexworthGameAudio.resume();
+            var nowMuted = HexworthGameAudio.toggleMute();
+            btn.setAttribute('aria-pressed', String(nowMuted));
+        });
+
+        var boardEl = document.getElementById('jeopardyBoard');
+        if (boardEl) {
+            boardEl.addEventListener('click', function() {
+                if (HexworthGameAudio.isEnabled() && !HexworthGameAudio.isMuted()) {
+                    HexworthGameAudio.init();
+                    HexworthGameAudio.resume();
+                }
+            }, { once: true });
+        }
+
+        if (!HexworthGameAudio.isEnabled()) {
+            HexworthGameAudio.mute();
+            btn.setAttribute('aria-pressed', 'true');
+        }
+    }
+
+    /* ── Keyboard support ───────────────────────────────────────────── */
+    document.addEventListener('keydown', function(e) {
+        var overlay = document.getElementById('modalOverlay');
+        if (!overlay.classList.contains('active')) return;
+        if (e.key === 'Escape') { closeModal(); return; }
+
+        /* DD wager input: Enter submits, other keys go to the input naturally */
+        var wagerInput = document.getElementById('ddWagerInput');
+        if (wagerInput) {
+            if (e.key === 'Enter') { e.preventDefault(); submitDailyDoubleWager(); }
+            return;
+        }
+        if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            if (!answerRevealed) revealAnswer();
+        }
+        if (answerRevealed) {
+            if      (e.key === '1' || e.key === 'y' || e.key === 'Y') judgeAnswer(true);
+            else if (e.key === '2' || e.key === 'n' || e.key === 'N') judgeAnswer(false);
+        }
+    });
+
+    /* Close modal on backdrop click */
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    /* ── Main entry: fetch + initialise ─────────────────────────────── */
+    (function init() {
+        var dataUrl = 'data/jeopardy/' + courseId + '.json';
+
+        fetch(dataUrl)
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ' loading ' + dataUrl);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                /* Validate minimal required shape */
+                if (!data.categories || !Array.isArray(data.categories) || data.categories.length === 0) {
+                    throw new Error('JSON missing required "categories" array');
+                }
+                data.categories.forEach(function(cat, ci) {
+                    if (!Array.isArray(cat.clues) || cat.clues.length === 0) {
+                        throw new Error('Category ' + ci + ' has no clues');
+                    }
+                });
+
+                /* Store globally for gameplay */
+                courseData = data;
+                categories = data.categories;
+                catScores  = categories.map(function() {
+                    return { earned: 0, possible: 0, correct: 0, wrong: 0 };
+                });
+                cellsLeft = categories.reduce(function(sum, cat) {
+                    return sum + cat.clues.length;
+                }, 0);
+
+                /* Apply theme FIRST so the reveal has the right colours */
+                applyTheme(data.theme);
+
+                /* Hide loading screen, show game */
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('gameRoot').style.display = '';
+
+                populateHero(data);
+                buildBoard();
+                updateScoreboard();
+                updateStreak();
+                wireAudio();
+            })
+            .catch(function(err) {
+                /* Show error screen */
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('errorScreen').style.display = '';
+                document.getElementById('errorMessage').textContent =
+                    'Could not load course "' + courseId + '": ' + err.message +
+                    '. Check the course ID in the URL, or return to the picker and select a course.';
+                console.error('[Jeopardy Engine] Data load failed:', err);
+            });
+    })();
+    </script>
+</body>
+</html>
