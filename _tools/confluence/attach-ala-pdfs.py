@@ -28,6 +28,7 @@ PAGES = {
     'ALA-L11-Flatline-SOLUTION.pdf': '28639234',
     'ALA-L12-Full-Cell-Audit-SOLUTION.pdf': '28672002',
     'ALA-Hunt1-Website-Down-SOLUTION.pdf': '28672019',
+    'ALA-Final-Cell-Sigma-Commissioning-SOLUTION.pdf': '34275330',
 }
 
 # Upload one PDF as a Confluence attachment on the given page. POSTs to the page's
