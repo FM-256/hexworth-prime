@@ -266,6 +266,34 @@
             display: block; background: rgba(239,68,68,0.08);
             border: 1px solid rgba(239,68,68,0.30); color: #fca5a5;
         }
+        /* "Why?" toggle + panel (why-correct + why-each-wrong) + Continue button */
+        .why-btn {
+            display: block; margin: 12px auto 0; cursor: pointer;
+            font: 600 13px 'Inter', sans-serif; color: var(--accent);
+            background: transparent; border: 1px solid var(--accent);
+            border-radius: 8px; padding: 6px 16px;
+        }
+        .why-btn:hover { background: var(--accent-dim); }
+        .why-btn .why-caret { display: inline-block; transition: transform 0.2s; }
+        .why-btn.open .why-caret { transform: rotate(180deg); }
+        .why-panel {
+            text-align: left; margin: 12px 0 0; padding: 14px 16px;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px; font-size: 13.5px; line-height: 1.55; color: var(--text);
+        }
+        .why-panel h5 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 5px; }
+        .why-correct h5 { color: var(--green); }
+        .why-correct p { margin: 0; color: var(--text-dim); }
+        .why-wrong h5 { color: var(--red); margin-top: 13px; }
+        .why-wrong ul { margin: 0; padding-left: 18px; }
+        .why-wrong li { margin-bottom: 6px; color: var(--text-dim); }
+        .why-wrong .opt { font-weight: 600; color: var(--text); }
+        .continue-btn {
+            display: block; margin: 16px auto 0; cursor: pointer;
+            font: 700 14px 'Inter', sans-serif; color: #fff;
+            background: var(--accent); border: none; border-radius: 10px; padding: 11px 28px;
+        }
+        .continue-btn:hover { filter: brightness(1.08); }
 
         /* ── Lifelines bar ── */
         .lifelines-bar {
@@ -606,6 +634,10 @@
                         <div class="question-text" id="questionText">Loading...</div>
                         <div class="options-grid" id="optionsGrid"></div>
                         <div class="question-feedback" id="questionFeedback"></div>
+                        <!-- Optional "Why?" panel (why-correct + why-each-wrong) shown after answering -->
+                        <button class="why-btn" id="fifthWhyBtn" style="display:none;" onclick="toggleFifthWhy()" aria-expanded="false">Why? <span class="why-caret">&#9662;</span></button>
+                        <div class="why-panel" id="fifthWhyPanel" hidden></div>
+                        <button class="continue-btn" id="continueBtn" style="display:none;" onclick="fifthContinue()">Continue</button>
                         <div class="peek-box" id="peekBox"></div>
                         <div class="save-active-notice" id="saveNotice">
                             SAVE lifeline active: your next wrong answer is forgiven
@@ -631,11 +663,6 @@
 
             </div><!-- /game-arena -->
 
-            <!-- Complete section: appears below the game after end -->
-            <div class="complete-section" id="completeSection">
-                <p>Game over. Ready to log your result?</p>
-                <button class="complete-btn" id="completeBtn">Mark as Complete</button>
-            </div>
 
         </main>
 
@@ -910,6 +937,11 @@
         fb.className = 'question-feedback';
         fb.textContent = '';
 
+        /* Reset the Why / Continue UI for the new question */
+        document.getElementById('fifthWhyBtn').style.display = 'none';
+        document.getElementById('fifthWhyPanel').hidden = true;
+        document.getElementById('continueBtn').style.display = 'none';
+
         /* Clear peek box */
         var pb = document.getElementById('peekBox');
         pb.className = 'peek-box';
@@ -965,7 +997,7 @@
                 if (q.milestone) HexworthGameAudio.dailyDouble();
                 else             HexworthGameAudio.correct();
             }
-            setTimeout(advanceAfterCorrect, 1800);
+            revealAndWait(q, advanceAfterCorrect, (currentQ >= QUESTIONS.length - 1) ? 'See Final Score' : 'Continue');
 
         } else if (saveActive) {
             /* SAVE lifeline absorbs the wrong answer */
@@ -976,16 +1008,88 @@
             fb.className = 'question-feedback correct';
             fb.textContent = 'SAVE lifeline triggered! Wrong, but you are protected. ' + (q.note || '');
             if (window.HexworthGameAudio) HexworthGameAudio.streak();
-            setTimeout(advanceAfterCorrect, 2000);
+            revealAndWait(q, advanceAfterCorrect, (currentQ >= QUESTIONS.length - 1) ? 'See Final Score' : 'Continue');
 
         } else {
             /* Real wrong answer */
             fb.className = 'question-feedback wrong';
             fb.textContent = 'Incorrect. ' + (q.note || '');
             if (window.HexworthGameAudio) HexworthGameAudio.wrong();
-            setTimeout(function() { endGame(false); }, 2000);
+            revealAndWait(q, function() { endGame(false); }, 'See Results');
         }
     }
+
+    /* After an answer, show the optional "Why?" panel + a manual Continue button
+       (replaces the old auto-advance so the player can read the explanation).
+       nextAction is invoked when Continue is clicked; label sets the button text. */
+    var pendingAdvance = null;
+    function revealAndWait(q, nextAction, label) {
+        pendingAdvance = nextAction;
+        renderFifthWhy(q);
+        var cont = document.getElementById('continueBtn');
+        cont.textContent = label;
+        cont.style.display = '';
+    }
+
+    /* Continue button handler: tear down the why/continue UI, run the stored action. */
+    function fifthContinue() {
+        var cont = document.getElementById('continueBtn');
+        cont.style.display = 'none';
+        document.getElementById('fifthWhyBtn').style.display = 'none';
+        document.getElementById('fifthWhyPanel').hidden = true;
+        var act = pendingAdvance; pendingAdvance = null;
+        if (act) act();
+    }
+    window.fifthContinue = fifthContinue;
+
+    /* Build the "Why?" panel from q.explain {correct, wrong[]} (wrong[] aligned to
+       options; correct index skipped). All text via textContent (XSS-safe). Hidden
+       if the question has no explain content. */
+    function renderFifthWhy(q) {
+        var btn   = document.getElementById('fifthWhyBtn');
+        var panel = document.getElementById('fifthWhyPanel');
+        panel.hidden = true;
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+        var ex = q.explain || null;
+        var wrong = (ex && ex.wrong) || [];
+        var hasWrong = wrong.some(function (w, i) { return i !== q.answer && w; });
+        if (!ex || (!ex.correct && !hasWrong)) { btn.style.display = 'none'; panel.innerHTML = ''; return; }
+        btn.style.display = '';
+        panel.innerHTML = '';
+        if (ex.correct) {
+            var c = document.createElement('div'); c.className = 'why-correct';
+            var ch = document.createElement('h5'); ch.textContent = "Why it's correct"; c.appendChild(ch);
+            var cp = document.createElement('p'); cp.textContent = ex.correct; c.appendChild(cp);
+            panel.appendChild(c);
+        }
+        if (hasWrong) {
+            var w = document.createElement('div'); w.className = 'why-wrong';
+            var wh = document.createElement('h5'); wh.textContent = 'Why not the others'; w.appendChild(wh);
+            var ul = document.createElement('ul');
+            (q.options || []).forEach(function (opt, i) {
+                if (i === q.answer || !wrong[i]) return;
+                var li = document.createElement('li');
+                var span = document.createElement('span'); span.className = 'opt';
+                span.textContent = opt + ': ';
+                li.appendChild(span);
+                li.appendChild(document.createTextNode(wrong[i]));
+                ul.appendChild(li);
+            });
+            w.appendChild(ul); panel.appendChild(w);
+        }
+    }
+
+    /* Toggle the Why panel open/closed in place. */
+    function toggleFifthWhy() {
+        var btn   = document.getElementById('fifthWhyBtn');
+        var panel = document.getElementById('fifthWhyPanel');
+        var willOpen = panel.hidden;
+        panel.hidden = !willOpen;
+        btn.classList.toggle('open', willOpen);
+        btn.setAttribute('aria-expanded', String(willOpen));
+    }
+    window.toggleFifthWhy = toggleFifthWhy;
 
     /* Bank the current question's value, advance currentQ, load next.
        Called after a correct answer or a SAVE-absorbed wrong answer.  */
@@ -1216,9 +1320,6 @@
         /* Show the modal */
         document.getElementById('modalOverlay').classList.add('active');
         document.body.style.overflow = 'hidden';
-
-        /* Show the complete section at the bottom of the page */
-        document.getElementById('completeSection').classList.add('visible');
     }
 
     /* ── updateStatusBar: refresh bank / question / playing-for display */
@@ -1244,7 +1345,6 @@
         saveActive        = false;
         answered          = false;
 
-        document.getElementById('completeSection').classList.remove('visible');
         document.body.style.overflow = '';
 
         buildLadder();
@@ -1303,7 +1403,6 @@
             closeModal();
         });
         document.getElementById('modalClose').addEventListener('click', closeModal);
-        document.getElementById('completeBtn').addEventListener('click', completeModule);
 
         /* Close modal on overlay backdrop click */
         document.getElementById('modalOverlay').addEventListener('click', function(e) {
@@ -1327,26 +1426,6 @@
         }
     })();
 
-    /* ── completeModule: record completion via ModuleProgress ─────────
-       courseId doubles as the module ID within the fifth-grader house.
-       Falls back gracefully if ModuleProgress is not loaded.          */
-    function completeModule() {
-        if (typeof ModuleProgress !== 'undefined') {
-            ModuleProgress.complete(courseId, 'fifth-grader', { returnToDashboard: false });
-        }
-        /* Update both complete buttons to a "Completed!" state */
-        var completeBtns = [
-            document.getElementById('completeBtn')
-        ];
-        completeBtns.forEach(function(btn) {
-            if (!btn) return;
-            btn.textContent   = 'Completed!';
-            btn.style.background = 'rgba(59,130,246,0.2)';
-            btn.style.color      = 'var(--accent)';
-            btn.style.cursor     = 'default';
-            btn.onclick          = null;
-        });
-    }
 
     /* ── Main init: fetch JSON, validate, apply theme, start game ──────
        Matches kahoot.html's init IIFE pattern exactly.
