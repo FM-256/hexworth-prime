@@ -376,6 +376,30 @@
             border-radius: 0 8px 8px 0;
             text-align: left; margin-bottom: 16px;
         }
+        /* "Why?" deeper-explanation toggle + in-place panel */
+        .reveal-why-btn {
+            display: block; margin: 0 auto 12px; cursor: pointer;
+            font: 600 13px 'Inter', sans-serif; color: var(--accent);
+            background: transparent; border: 1px solid var(--accent);
+            border-radius: 8px; padding: 7px 18px; transition: background 0.15s;
+        }
+        .reveal-why-btn:hover { background: var(--accent-dim); }
+        .reveal-why-btn .why-caret { display: inline-block; transition: transform 0.2s; }
+        .reveal-why-btn.open .why-caret { transform: rotate(180deg); }
+        .reveal-why-panel {
+            text-align: left; margin: 0 auto 16px; padding: 14px 16px;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px; font-size: 13.5px; line-height: 1.55; color: var(--text);
+        }
+        .reveal-why-panel h5 {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 5px;
+        }
+        .why-correct h5 { color: var(--green); }
+        .why-correct p { margin: 0; color: var(--text-dim); }
+        .why-wrong h5 { color: var(--red); margin-top: 13px; }
+        .why-wrong ul { margin: 0; padding-left: 18px; }
+        .why-wrong li { margin-bottom: 6px; color: var(--text-dim); }
+        .why-wrong .opt { font-weight: 600; color: var(--text); }
         .reveal-running {
             display: flex; justify-content: center; gap: 24px; margin-bottom: 20px;
         }
@@ -665,6 +689,9 @@
                     <div class="reveal-pts"          id="revealPts">+850</div>
                     <div class="reveal-streak"       id="revealStreak" style="display:none;"></div>
                     <div class="reveal-exp"          id="revealExp"></div>
+                    <!-- Optional deeper explanation: why-correct + why-each-wrong, expanded in place -->
+                    <button class="reveal-why-btn" id="revealWhyBtn" style="display:none;" onclick="toggleWhy()" aria-expanded="false">Why? <span class="why-caret">&#9662;</span></button>
+                    <div class="reveal-why-panel" id="revealWhyPanel" hidden></div>
                     <div class="reveal-running">
                         <div class="reveal-stat">
                             <div class="reveal-stat-val" style="color:var(--gold)"  id="revealRunningScore">0</div>
@@ -1205,6 +1232,9 @@
         /* Explanation text (textContent prevents XSS from JSON data) */
         document.getElementById('revealExp').textContent = q.note || '';
 
+        /* Optional deeper "Why?" panel (why-correct + why-each-wrong) */
+        renderWhyPanel(q);
+
         /* Running totals */
         document.getElementById('revealRunningScore').textContent = score;
         document.getElementById('revealCorrect').textContent      = correctCount;
@@ -1218,6 +1248,67 @@
 
         showScreen('screenReveal');
     }
+
+    /* ── "Why?" deeper-explanation panel ────────────────────────────────
+       Builds an in-place, collapsible panel from q.explain {correct, wrong[]}
+       (wrong[] is aligned to options; the correct index is skipped). All text
+       is inserted via textContent/DOM nodes (XSS-safe). If the question has no
+       explain content, the toggle button is hidden and nothing renders. The
+       panel resets to collapsed on every question. */
+    function renderWhyPanel(q) {
+        var btn   = document.getElementById('revealWhyBtn');
+        var panel = document.getElementById('revealWhyPanel');
+        /* reset to collapsed for each question */
+        panel.hidden = true;
+        btn.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+
+        var ex = q.explain || null;
+        var wrong = (ex && ex.wrong) || [];
+        var hasWrong = wrong.some(function (w, i) { return i !== q.answer && w; });
+        if (!ex || (!ex.correct && !hasWrong)) {
+            btn.style.display = 'none';
+            panel.innerHTML = '';
+            return;
+        }
+        btn.style.display = '';
+        panel.innerHTML = '';
+
+        /* Why the correct answer is right */
+        if (ex.correct) {
+            var c = document.createElement('div'); c.className = 'why-correct';
+            var ch = document.createElement('h5'); ch.textContent = "Why it's correct"; c.appendChild(ch);
+            var cp = document.createElement('p'); cp.textContent = ex.correct; c.appendChild(cp);
+            panel.appendChild(c);
+        }
+        /* Why each distractor is wrong */
+        if (hasWrong) {
+            var w = document.createElement('div'); w.className = 'why-wrong';
+            var wh = document.createElement('h5'); wh.textContent = 'Why not the others'; w.appendChild(wh);
+            var ul = document.createElement('ul');
+            (q.options || []).forEach(function (opt, i) {
+                if (i === q.answer || !wrong[i]) return;
+                var li = document.createElement('li');
+                var span = document.createElement('span'); span.className = 'opt';
+                span.textContent = opt + ': ';
+                li.appendChild(span);
+                li.appendChild(document.createTextNode(wrong[i]));
+                ul.appendChild(li);
+            });
+            w.appendChild(ul); panel.appendChild(w);
+        }
+    }
+
+    /* Toggle the Why panel open/closed in place — never leaves the reveal */
+    function toggleWhy() {
+        var btn   = document.getElementById('revealWhyBtn');
+        var panel = document.getElementById('revealWhyPanel');
+        var willOpen = panel.hidden;
+        panel.hidden = !willOpen;
+        btn.classList.toggle('open', willOpen);
+        btn.setAttribute('aria-expanded', String(willOpen));
+    }
+    window.toggleWhy = toggleWhy;
 
     /* ── Advance from reveal ────────────────────────────────────────── */
     function advanceFromReveal() {
