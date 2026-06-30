@@ -161,7 +161,11 @@ def main():
     `--orphans` runs the deploy-safety audit (unregistered edition files) instead."""
     argv = sys.argv[1:]
     if '--orphans' in argv:
-        orphans = check_orphans()
+        try:
+            orphans = check_orphans()
+        except Exception as e:  # malformed editions.json, FS error, etc. -> clean message, still blocking
+            print(f"ORPHAN AUDIT ERROR (could not complete): {type(e).__name__}: {e}")
+            sys.exit(1)
         if orphans:
             print(f"ORPHAN EDITIONS ({len(orphans)}) -- live edition files missing from editions.json:")
             for o in orphans:

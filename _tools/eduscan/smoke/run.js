@@ -439,6 +439,34 @@ async function main() {
             allPassed = false;
         }
 
+        // ── Editions orphan audit (deploy-safety) ────────────────────
+        // Blocks the deploy if any curated-edition file (data/<type>/<course>.<slug>.json)
+        // is NOT registered in editions.json: such a file is unsurfaced in the picker yet
+        // still URL-reachable by the engine (?ed=<slug>) — i.e. potentially un-QC'd content
+        // would be live. Normal flow never produces one (promote registers BEFORE copying to
+        // live). Runs the Python auditor in _tools/game-forge (outside _tools/eduscan, so it's
+        // invisible to META-003's box-validator registry — same posture as the PIS smokes).
+        try {
+            const { execFileSync } = require('child_process');
+            const repoRoot = path.join(__dirname, '..', '..', '..');
+            execFileSync('python3', [path.join(repoRoot, '_tools', 'game-forge', 'edition_gate.py'), '--orphans'],
+                { stdio: 'pipe' });
+            console.log('  ✓ Editions orphan audit (every edition file registered in editions.json)');
+        } catch (e) {
+            if (e.code === 'ENOENT') {
+                // python3 not on PATH — environment issue, not an editions finding. Don't brick
+                // unrelated deploys; warn and continue (the auditor also runs inside generate_edition.mjs promote).
+                console.log('  ⚠ Editions orphan audit — SKIPPED (python3 not found on PATH; not blocking)');
+            } else {
+                // The auditor ran and exited non-zero: a real orphan, a malformed editions.json,
+                // or a crash. Surface ALL output (unfiltered) so any failure mode is diagnosable.
+                console.log('  ✗ Editions orphan audit — FAILED (deploy-blocking)');
+                const out = (e.stdout?.toString() || '') + (e.stderr?.toString() || '');
+                out.split('\n').filter(l => l.trim()).slice(0, 10).forEach(l => console.log('      ' + l.trimEnd()));
+                allPassed = false;
+            }
+        }
+
         // ── BOX-* validator cascade ──────────────────────────────────
         // 11 validators built 2026-05-22 catching the PIS-FINAL defect classes:
         //   - BOX-001: flag_registry seed coverage (blocking)
