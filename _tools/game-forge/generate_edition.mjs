@@ -201,10 +201,11 @@ async function generate(type, course, slug, mapPath) {
   fs.mkdirSync(stageDir, { recursive: true });
   const tmpMap = path.join(STAGED, `_map_${type}_${course}_${slug}.json`);
   fs.writeFileSync(tmpMap, JSON.stringify(map, null, 2));
+  const subtitle = editionLabel(slug); // e.g. practice-c -> "Practice Set C" (NOT hardcoded to B)
   if (type === 'jeopardy') {
-    py('build_jeopardy_edition.py', [course, slug, 'Jeopardy Review — Practice Set B', tmpMap, '--out-dir', stageDir]);
+    py('build_jeopardy_edition.py', [course, slug, `Jeopardy Review — ${subtitle}`, tmpMap, '--out-dir', stageDir]);
   } else {
-    py('build_seq_edition.py', [type, course, slug, 'Practice Set B', tmpMap, '--out-dir', stageDir]);
+    py('build_seq_edition.py', [type, course, slug, subtitle, tmpMap, '--out-dir', stageDir]);
   }
 
   // 3) deterministic gate on the staged pair (additive vs current live)
