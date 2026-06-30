@@ -147,6 +147,7 @@ Pre-deploy is the LAST gate before live. Catching a HUB-001 break here means the
 | `validators/functional/smoke.js` | Real-browser headless navigation — too slow for earlier stages |
 | `validators/functional/browser.js` | DOM checks that need a rendered page |
 | `_tools/eduscan/smoke/run.js` | The 15-target smoke gate (HEUR-029 detection + dispatch hub + per-course hubs) |
+| `_tools/game-forge/edition_gate.py --orphans` (standalone block in `run.js`) | Curated-edition deploy-safety: blocks if a live edition file (`data/<type>/<course>.<slug>.json`) has no `editions.json` entry — unsurfaced in the picker yet URL-reachable by the engine (`?ed=<slug>`), i.e. potentially un-QC'd content. ENOENT (python3 missing) → non-blocking skip; malformed `editions.json` → clean block. Lives outside `_tools/eduscan/` + the `BOX_VALIDATORS` array (like the PIS functional smokes), so it is intentionally NOT a META-001/002/003 registry code. |
 | `nexus.js full --no-publish` | Cross-house diagnostic, orphan detection, content-tree integrity |
 | **BOX-* cascade** (see table below) | 21 validators for CTF-engine box configs — too cross-file for pre-commit |
 | `firmware-manifest-audit.js` (FIRM-001) | C2-device firmware manifest schema check |
@@ -175,7 +176,7 @@ Pre-deploy is the LAST gate before live. Catching a HUB-001 break here means the
 15. /dispatch/index.html                                   Dispatch hub (manifest + tour + filters)
 ```
 
-Plus 2 functional smokes (PIS-M2 midterm, PIS-FINAL practical) and the BOX-* cascade — total 38 checkpoints.
+Plus 2 functional smokes (PIS-M2 midterm, PIS-FINAL practical), the curated-edition orphan audit (`edition_gate.py --orphans`), and the BOX-* cascade — total 38 checkpoints.
 
 Each target gets headless Puppeteer navigation, JS error capture, and assertion-based pass/fail. If any target throws a JS error or fails its assertions, the deploy aborts with the exact error.
 
