@@ -59,16 +59,25 @@ def strip_objective(obj):
         return [strip_objective(v) for v in obj]
     return obj
 
-def check_additive(typ, course):
-    """Check A: Ed1 differs from git HEAD only by added `objective` keys."""
+def check_additive(typ, course, ed1_override=None):
+    """Check A: the tagged Ed1 differs from its baseline only by added `objective` keys.
+
+    Live mode (no override): baseline is git HEAD of the canonical file.
+    Staged mode (ed1_override set): baseline is the CURRENT live canonical file, so the
+    check proves the staged tagged-Ed1 only added objectives to what's live right now."""
     rel = f'_app/_games-lab/data/{typ}/{course}.json'
-    cur = json.load(open(os.path.join(REPO, rel)))
-    head = git_head_json(rel)
+    live = os.path.join(REPO, rel)
     errs = []
-    if head is None:
-        return [f"(note) {rel} not in git HEAD yet -- additive check skipped (new file)"]
-    if strip_objective(cur) != strip_objective(head):
-        errs.append(f"Ed1 {rel} changed MORE than additive `objective` keys vs git HEAD "
+    if ed1_override:
+        cur = json.load(open(ed1_override))
+        base = json.load(open(live))            # baseline = current live Ed1
+    else:
+        cur = json.load(open(live))
+        base = git_head_json(rel)               # baseline = git HEAD
+        if base is None:
+            return [f"(note) {rel} not in git HEAD yet -- additive check skipped (new file)"]
+    if strip_objective(cur) != strip_objective(base):
+        errs.append(f"Ed1 changed MORE than additive `objective` keys vs baseline "
                     f"(some non-objective field was modified)")
     # every item must now carry a non-empty objective
     for key, it in items_of(typ, cur):
@@ -85,11 +94,13 @@ def required_fields(typ):
         'fifth':    ['q', 'options', 'answer', 'explain', 'objective'],
     }[typ]
 
-def check_parity(typ, course, slug):
-    """Check B: Ed2 structural parity with Ed1 + required fields + valid answers."""
+def check_parity(typ, course, slug, ed1_override=None, ed2_override=None):
+    """Check B: Ed2 structural parity with Ed1 + required fields + valid answers.
+
+    Overrides let the gate read a STAGED Ed1/Ed2 pair instead of the live data dir."""
     d = os.path.join(DATA, typ)
-    ed1 = json.load(open(os.path.join(d, f'{course}.json')))
-    ed2p = os.path.join(d, f'{course}.{slug}.json')
+    ed1 = json.load(open(ed1_override or os.path.join(d, f'{course}.json')))
+    ed2p = ed2_override or os.path.join(d, f'{course}.{slug}.json')
     if not os.path.exists(ed2p):
         return [f"Ed2 file missing: {ed2p}"]
     ed2 = json.load(open(ed2p))
@@ -120,17 +131,59 @@ def check_parity(typ, course, slug):
         # jeopardy response should be a non-empty 'What is..'-style string (soft: just non-empty checked above)
     return errs
 
+def check_orphans():
+    """Deploy-safety audit: every edition file in live data/ must be registered in
+    editions.json. An orphan (`<course>.<slug>.json` with no manifest entry) is un-surfaced
+    yet URL-reachable by the engine -- exactly the un-QC'd-content leak we forbid. Returns
+    a list of orphan descriptions (empty = clean)."""
+    manifest = json.load(open(os.path.join(DATA, 'editions.json'))) if os.path.exists(os.path.join(DATA, 'editions.json')) else {}
+    orphans = []
+    for typ in ('jeopardy', 'kahoot', 'wheel', 'fifth'):
+        d = os.path.join(DATA, typ)
+        if not os.path.isdir(d):
+            continue
+        for fn in sorted(os.listdir(d)):
+            if not fn.endswith('.json'):
+                continue
+            stem = fn[:-5]
+            if '.' not in stem:
+                continue  # canonical game, not an edition
+            course, slug = stem.split('.', 1)
+            ids = [e.get('id') for e in (manifest.get(typ, {}).get(course) or [])]
+            if slug not in ids:
+                orphans.append(f"{typ}/{fn} (slug '{slug}' not in editions.json[{typ}][{course}])")
+    return orphans
+
 def main():
-    """Run checks A and B, print PASS/FAIL with reasons."""
-    if len(sys.argv) != 4:
-        sys.exit("usage: edition_gate.py <type> <course> <slug>")
-    typ, course, slug = sys.argv[1:4]
+    """Run checks A and B, print PASS/FAIL with reasons.
+
+    Optional `--ed1 <path> --ed2 <path>` gate a STAGED pair (additive vs current live).
+    `--orphans` runs the deploy-safety audit (unregistered edition files) instead."""
+    argv = sys.argv[1:]
+    if '--orphans' in argv:
+        orphans = check_orphans()
+        if orphans:
+            print(f"ORPHAN EDITIONS ({len(orphans)}) -- live edition files missing from editions.json:")
+            for o in orphans:
+                print("  - " + o)
+            print("Remove the file OR register it (promote) before deploy.")
+            sys.exit(1)
+        print("ORPHAN CHECK PASS (every live edition file is registered in editions.json)")
+        sys.exit(0)
+    ed1_override = ed2_override = None
+    if '--ed1' in argv:
+        i = argv.index('--ed1'); ed1_override = argv[i + 1]; argv = argv[:i] + argv[i + 2:]
+    if '--ed2' in argv:
+        i = argv.index('--ed2'); ed2_override = argv[i + 1]; argv = argv[:i] + argv[i + 2:]
+    if len(argv) != 3:
+        sys.exit("usage: edition_gate.py <type> <course> <slug> [--ed1 <path> --ed2 <path>]")
+    typ, course, slug = argv
     errs = []
     notes = []
-    a = check_additive(typ, course)
+    a = check_additive(typ, course, ed1_override)
     for e in a:
         (notes if e.startswith('(note)') else errs).append(e)
-    errs += check_parity(typ, course, slug)
+    errs += check_parity(typ, course, slug, ed1_override, ed2_override)
     for n in notes:
         print("  " + n)
     if errs:

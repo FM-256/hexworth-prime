@@ -23,12 +23,27 @@ BASE = os.path.join(os.path.dirname(__file__), '..', '..', '_app', '_games-lab',
 BASE = os.path.abspath(BASE)
 
 def main():
-    """Parse args, validate the MAP, tag Ed1 additively, write Ed1 + Ed2 to disk."""
-    if len(sys.argv) != 5:
-        sys.exit("usage: build_jeopardy_edition.py <course> <slug> <subtitle> <map.json>")
-    course, slug, subtitle, mapfile = sys.argv[1:5]
-    ed1_path = os.path.join(BASE, f'{course}.json')
-    ed2_path = os.path.join(BASE, f'{course}.{slug}.json')
+    """Parse args, validate the MAP, tag Ed1 additively, write Ed1 + Ed2 to disk.
+
+    Optional trailing `--out-dir <dir>` redirects BOTH outputs (tagged Ed1 + Ed2) to
+    <dir> instead of the live data dir -- used by generate_edition.mjs to STAGE an
+    edition for QC without touching live data. Ed1 is always READ from the live dir.
+    """
+    argv = sys.argv[1:]
+    out_dir = None
+    if '--out-dir' in argv:
+        i = argv.index('--out-dir')
+        out_dir = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
+    if len(argv) != 4:
+        sys.exit("usage: build_jeopardy_edition.py <course> <slug> <subtitle> <map.json> [--out-dir <dir>]")
+    course, slug, subtitle, mapfile = argv
+    ed1_path = os.path.join(BASE, f'{course}.json')               # always read live Ed1
+    dest_dir = out_dir or BASE                                    # write target (staging or live)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    ed1_out = os.path.join(dest_dir, f'{course}.json')
+    ed2_path = os.path.join(dest_dir, f'{course}.{slug}.json')
     ed1 = json.load(open(ed1_path))
     raw = json.load(open(mapfile))
 
@@ -72,7 +87,8 @@ def main():
         if meta.get('jeopardyFormatExample'): ed2['jeopardyFormatExample'] = meta['jeopardyFormatExample']
 
     # Write both files: Ed1 (now objective-tagged) and Ed2 (parallel edition).
-    for path, obj in ((ed1_path, ed1), (ed2_path, ed2)):
+    # ed1_out == ed1_path in live mode; points at the staging dir when --out-dir is set.
+    for path, obj in ((ed1_out, ed1), (ed2_path, ed2)):
         with open(path, 'w') as f:
             json.dump(obj, f, indent=2, ensure_ascii=False)
             f.write('\n')

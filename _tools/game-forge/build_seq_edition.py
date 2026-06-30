@@ -29,16 +29,31 @@ def seq_of(typ, doc):
     return doc.get('questions', doc.get('ladder', []))
 
 def main():
-    """Validate the MAP against Ed1's length, tag Ed1, write Ed1 + Ed2 to disk."""
-    if len(sys.argv) != 6:
-        sys.exit("usage: build_seq_edition.py <type> <course> <slug> <subtitle> <map.json>")
-    typ, course, slug, subtitle, mapfile = sys.argv[1:6]
+    """Validate the MAP against Ed1's length, tag Ed1, write Ed1 + Ed2 to disk.
+
+    Optional trailing `--out-dir <dir>` redirects BOTH outputs (tagged Ed1 + Ed2) to
+    <dir> for STAGING (generate_edition.mjs); live data is left untouched. Ed1 is always
+    READ from the live data dir.
+    """
+    argv = sys.argv[1:]
+    out_dir = None
+    if '--out-dir' in argv:
+        i = argv.index('--out-dir')
+        out_dir = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
+    if len(argv) != 5:
+        sys.exit("usage: build_seq_edition.py <type> <course> <slug> <subtitle> <map.json> [--out-dir <dir>]")
+    typ, course, slug, subtitle, mapfile = argv
     if typ not in SEQ_KEY:
         sys.exit(f"type must be one of {list(SEQ_KEY)}")
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..',
                                         '_app', '_games-lab', 'data', typ))
-    ed1_path = os.path.join(base, f'{course}.json')
-    ed2_path = os.path.join(base, f'{course}.{slug}.json')
+    ed1_path = os.path.join(base, f'{course}.json')               # always read live Ed1
+    dest_dir = out_dir or base                                    # write target (staging or live)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    ed1_out = os.path.join(dest_dir, f'{course}.json')
+    ed2_path = os.path.join(dest_dir, f'{course}.{slug}.json')
     ed1 = json.load(open(ed1_path))
     mp = json.load(open(mapfile))
 
@@ -62,8 +77,8 @@ def main():
         # structural fields the MAP omits (value/gradeTag/milestone) intact.
         item.update(mp[i])
 
-    # Write both files.
-    for path, obj in ((ed1_path, ed1), (ed2_path, ed2)):
+    # Write both files. ed1_out == ed1_path in live mode; staging dir when --out-dir set.
+    for path, obj in ((ed1_out, ed1), (ed2_path, ed2)):
         with open(path, 'w') as f:
             json.dump(obj, f, indent=2, ensure_ascii=False)
             f.write('\n')

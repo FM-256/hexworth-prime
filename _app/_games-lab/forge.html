@@ -113,6 +113,7 @@
             <div class="fg-step"><div class="n">02 / NORMALIZE</div><h4>Map to shared schema</h4><p>Both legacy dialects fold into one engine schema and write to a <code class="mono">data-extracted/</code> staging path &mdash; never overwriting live data without a diff.</p></div>
             <div class="fg-step"><div class="n">03 / AUDIT</div><h4>Deterministic lint</h4><p>Structural checks: empty fields, bad answer indices, duplicate or skewed questions, board shape, format consistency. No guessing.</p></div>
             <div class="fg-step future"><div class="n">04 / IMPROVE &middot; NEXT</div><h4>AI content rewrite</h4><p>On-demand Claude rewrite of weak distractors and clue phrasing. Requires an approved Anthropic API key + a callable function &mdash; staged, not yet live.</p></div>
+            <div class="fg-step"><div class="n">05 / EDITIONS</div><h4>Parallel "Practice Set B"</h4><p>Generate a second, memorization-resistant edition per game &mdash; same objectives, fresh scenarios. Authored + gated + Chris-QC'd, staged outside live, then promoted. Dev-time via <code class="mono">generate_edition.mjs</code>.</p></div>
         </div>
 
         <div class="fg-section-title">Converted &mdash; data-driven &amp; previewable <span class="count" id="convCount"></span></div>
@@ -128,6 +129,16 @@
         <div class="note">
             <h4>How conversion is run</h4>
             <p>This is the review surface. To (re)convert and audit, an operator runs <code>node _tools/game-forge/forge.mjs</code> then <code>node _tools/game-forge/lint.mjs</code>, reviews the <code>git diff</code> of <code>_games-lab/data/</code>, and ships. Triggering this from a browser button is the next phase and needs a callable Cloud Function (step 04).</p>
+        </div>
+
+        <div class="fg-section-title">Curated editions &mdash; parallel "Practice Set B" per game <span class="count" id="edCount"></span></div>
+        <table class="fg-table" id="edTable"><thead><tr>
+            <th>Game</th><th>Course</th><th>Editions</th><th>Action</th>
+        </tr></thead><tbody id="edBody"><tr><td colspan="4" class="empty">Loading editions&hellip;</td></tr></tbody></table>
+
+        <div class="note">
+            <h4>How a parallel edition is made</h4>
+            <p>A second edition keeps every game fresh + memorization-resistant without diluting the core set. Dev-time flow (no browser button, no Cloud Function): <code>node _tools/game-forge/generate_edition.mjs &lt;type&gt; &lt;course&gt;</code> authors a parallel MAP, builds + runs the deterministic gate, and <strong>stages</strong> it outside live data. After a Chris QC pass, <code>&hellip; promote &lt;type&gt; &lt;course&gt;</code> copies the gate-passed files to live and prints the <code>editions.json</code> fragment to paste. Nothing reaches students until it is in <code>editions.json</code> and deployed.</p>
         </div>
     </div>
 
@@ -261,6 +272,68 @@
         })
         .catch(function (err) {
             document.getElementById('statStrip').innerHTML = '<div class="empty">Could not load forge-manifest.json &mdash; run <code class="mono">node _tools/game-forge/forge.mjs</code> first. (' + esc(err.message) + ')</div>';
+        });
+
+    /* Open a specific edition (?ed=<slug>) in the engine inside the modal */
+    function previewEd(type, course, slug, title) {
+        var url = type + '.html?course=' + encodeURIComponent(course) + '&ed=' + encodeURIComponent(slug);
+        document.getElementById('modalTitle').textContent = 'Preview: ' + title + ' — ' + slug + ' (' + type + ')';
+        document.getElementById('modalBody').innerHTML = '<iframe src="' + url + '" title="edition preview"></iframe>';
+        var ot = document.getElementById('modalOpenTab');
+        ot.href = url; ot.style.display = '';
+        document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    /* Show the dev-time command to generate a parallel edition (no browser button —
+       generation runs in the Node tool; this surfaces the exact command + the gated flow) */
+    function genCmd(type, course) {
+        document.getElementById('modalOpenTab').style.display = 'none';
+        document.getElementById('modalTitle').textContent = 'Generate parallel edition: ' + type + '/' + course;
+        var c = 'node _tools/game-forge/generate_edition.mjs ' + type + ' ' + course;
+        document.getElementById('modalBody').innerHTML =
+            '<div class="lint-list">' +
+            '<p style="color:var(--dim);font-size:0.84rem;line-height:1.6;margin-bottom:14px;">Generation runs in the dev-time Node tool (staged outside live, deterministically gated, then Chris-QC&rsquo;d before promote). Run:</p>' +
+            '<pre class="mono" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:0.8rem;color:var(--accent);overflow:auto;white-space:pre-wrap;">' + esc(c) + '</pre>' +
+            '<ol style="color:var(--dim);font-size:0.82rem;line-height:1.8;margin:14px 0 0 18px;">' +
+            '<li>Authors the parallel MAP (prints an authoring spec if no API key &mdash; author under Claude, save, re-run with <code class="mono">--map</code>).</li>' +
+            '<li>Builds + runs the deterministic gate; <strong>stages</strong> the edition &mdash; live data untouched.</li>' +
+            '<li>Chris-QC the staged Ed2, then <code class="mono">&hellip; promote ' + esc(type) + ' ' + esc(course) + '</code> copies it live + prints the <code class="mono">editions.json</code> fragment.</li>' +
+            '</ol></div>';
+        document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    /* Render the curated-editions table from forge-editions.json */
+    function renderEditions(d) {
+        var games = (d && d.games) || [];
+        var withP = games.filter(function (g) { return g.hasParallel; }).length;
+        document.getElementById('edCount').textContent = withP + ' / ' + games.length + ' games have a parallel edition';
+        document.getElementById('edBody').innerHTML = games.map(function (g) {
+            var named = (g.editions || []).filter(function (e) { return !e.canonical; });
+            var pills, action;
+            if (g.hasParallel) {
+                pills = '<span class="pill pill-ok">Core +' + g.parallelCount + '</span>';
+                action = named.map(function (e) {
+                    return '<button class="btn btn-preview" onclick="previewEd(\'' + g.type + '\',\'' + g.course + '\',\'' + esc(e.id) + '\',\'' + esc(g.title) + '\')">Preview ' + esc(e.label || e.id) + ' &#9654;</button>';
+                }).join(' ');
+            } else {
+                pills = '<span class="pill pill-future">Core only</span>';
+                action = '<button class="btn" onclick="genCmd(\'' + g.type + '\',\'' + g.course + '\')">Generate &#9654;</button>';
+            }
+            return '<tr>' +
+                '<td><div class="game-name">' + esc(g.title) + '</div><span class="game-type">' + esc(g.type) + '</span></td>' +
+                '<td class="mono">' + esc(g.course) + '</td>' +
+                '<td>' + pills + '</td>' +
+                '<td>' + action + '</td>' +
+                '</tr>';
+        }).join('') || '<tr><td colspan="4" class="empty">No games found.</td></tr>';
+    }
+
+    /* Boot the editions table (separate manifest from forge-manifest.json) */
+    fetch('forge-editions.json', { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) throw new Error('forge-editions ' + r.status); return r.json(); })
+        .then(renderEditions)
+        .catch(function (err) {
+            document.getElementById('edBody').innerHTML = '<tr><td colspan="4" class="empty">Could not load forge-editions.json &mdash; run <code class="mono">node _tools/game-forge/generate_edition.mjs status</code>. (' + esc(err.message) + ')</td></tr>';
         });
     </script>
 </body>
