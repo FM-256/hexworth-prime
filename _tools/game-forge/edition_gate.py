@@ -77,11 +77,12 @@ def check_additive(typ, course):
     return errs
 
 def required_fields(typ):
+    """Return the list of required non-empty fields each Ed2 item must carry, per game type."""
     return {
         'jeopardy': ['clue', 'response', 'explain', 'objective'],
-        'kahoot':   ['question', 'options', 'answer', 'explain', 'objective'],
-        'wheel':    ['phrase', 'category', 'objective'],
-        'fifth':    ['q', 'options', 'answer', 'objective'],
+        'kahoot':   ['q', 'options', 'answer', 'explain', 'objective'],
+        'wheel':    ['phrase', 'category', 'hint', 'explain', 'objective'],
+        'fifth':    ['q', 'options', 'answer', 'explain', 'objective'],
     }[typ]
 
 def check_parity(typ, course, slug):
