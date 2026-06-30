@@ -172,6 +172,23 @@
             border-color: var(--card-accent, rgba(255,255,255,0.2));
             box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px var(--card-accent, transparent);
         }
+        /* Multi-edition card: no whole-card hover-lift; the chips are the links. */
+        .course-card--editions:hover { transform: none; }
+        .edition-row { margin-top: auto; padding-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+        .edition-row-label {
+            font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--text-dim, #8b949e); margin-bottom: 2px;
+        }
+        .edition-chip {
+            display: flex; flex-direction: column; gap: 2px;
+            text-decoration: none; color: inherit; cursor: pointer;
+            background: var(--card-badge-bg, rgba(136,136,136,0.08));
+            border: 1px solid var(--card-accent, rgba(255,255,255,0.15));
+            border-radius: 9px; padding: 9px 13px; transition: background 0.15s, transform 0.15s;
+        }
+        .edition-chip:hover { transform: translateX(2px); filter: brightness(1.15); }
+        .edition-label { font-size: 13.5px; font-weight: 700; color: var(--card-accent, #ddd); }
+        .edition-note { font-size: 11.5px; color: var(--text-dim, #8b949e); line-height: 1.35; }
         .card-badge {
             font-family: var(--mono);
             font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
@@ -514,7 +531,30 @@
 
             game.courses.forEach(function(course) {
                 var itemLabel = course.itemLabel || 'clues';
-                /* Trusted static array -- safe to use innerHTML. */
+                var editions  = (EDITIONS[game.type] && EDITIONS[game.type][course.id]) || null;
+
+                /* Multi-edition course: a card with one chip-link per edition. */
+                if (editions && editions.length > 1) {
+                    var card = document.createElement('div');
+                    card.className = 'course-card course-card--editions';
+                    card.style.setProperty('--card-accent',   course.accent);
+                    card.style.setProperty('--card-badge-bg', course.badgeBg);
+                    var chips = editions.map(function(ed) {
+                        var url = game.engine + '?course=' + course.id + (ed.canonical ? '' : '&ed=' + ed.id);
+                        var note = ed.note ? '<span class="edition-note">' + ed.note + '</span>' : '';
+                        return '<a class="edition-chip" target="_blank" rel="noopener" href="' + url + '">' +
+                               '<span class="edition-label">' + ed.label + '</span>' + note + '</a>';
+                    }).join('');
+                    card.innerHTML =
+                        '<span class="card-badge">' + course.badge + '</span>' +
+                        '<div class="card-title">' + course.title + '</div>' +
+                        '<div class="card-desc">'  + course.desc  + '</div>' +
+                        '<div class="edition-row"><div class="edition-row-label">Editions &bull; ' + course.items + ' ' + itemLabel + ' each</div>' + chips + '</div>';
+                    grid.appendChild(card);
+                    return;
+                }
+
+                /* Single-edition course: the whole card is one link (unchanged). */
                 var a = document.createElement('a');
                 a.href      = game.engine + '?course=' + course.id;
                 /* Open the game full-window in a new tab so it never stays
@@ -545,7 +585,14 @@
         });
     }
 
-    renderGames();
+    /* Per-course editions (data/editions.json); render once loaded. Falls back
+       to single-edition cards if the manifest is missing or fails to load. */
+    var EDITIONS = {};
+    fetch('data/editions.json', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : {}; })
+        .then(function (e) { EDITIONS = e || {}; })
+        .catch(function () { EDITIONS = {}; })
+        .then(function () { renderGames(); });
     </script>
 
 </body>
