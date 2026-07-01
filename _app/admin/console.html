@@ -4282,6 +4282,7 @@
                 <div style="display:flex;gap:8px;margin-bottom:12px;" id="reviewGamesTabs">
                     <button class="rg-tab" data-rgtab="play" onclick="switchReviewGamesTab('play')" style="font:600 0.8rem 'Inter',sans-serif;padding:7px 16px;border-radius:6px;border:1px solid rgba(45,212,191,0.4);background:rgba(45,212,191,0.12);color:#2dd4bf;cursor:pointer;">Play</button>
                     <button class="rg-tab" data-rgtab="forge" onclick="switchReviewGamesTab('forge')" style="font:600 0.8rem 'Inter',sans-serif;padding:7px 16px;border-radius:6px;border:1px solid var(--ac-border);background:transparent;color:var(--ac-text-muted);cursor:pointer;">Forge</button>
+                    <button class="rg-tab" data-rgtab="health" onclick="switchReviewGamesTab('health')" style="font:600 0.8rem 'Inter',sans-serif;padding:7px 16px;border-radius:6px;border:1px solid var(--ac-border);background:transparent;color:var(--ac-text-muted);cursor:pointer;">Health</button>
                 </div>
                 <iframe id="reviewGamesFrame" style="width:100%;border:none;border-radius:8px;background:var(--ac-card-bg);min-height:80vh;" title="Review Games Lab"></iframe>
             </div>
@@ -4291,15 +4292,18 @@
                  =================================================== -->
             <div class="ac-panel" data-panel="arcadefixes">
                 <div class="ac-panel-title">Arcade Fixes <span style="font-size:0.7rem;font-weight:600;color:#818cf8;border:1px solid rgba(129,140,248,0.4);background:rgba(129,140,248,0.1);border-radius:4px;padding:2px 8px;margin-left:8px;vertical-align:middle;">COCKPIT</span></div>
-                <p style="color:var(--ac-text-muted);font-size:0.85rem;margin-bottom:16px;">Whole-arcade quality and coverage from the last audit snapshot (<span id="afGenerated">&hellip;</span>) &mdash; <button onclick="loadArcadeFixes(true)" style="background:none;border:none;color:var(--ac-accent);cursor:pointer;font-size:0.85rem;padding:0;text-decoration:underline;">reload</button>. Deterministic checks over every live game file across all four engines. The snapshot is regenerated with <code style="background:rgba(129,140,248,0.1);padding:1px 6px;border-radius:4px;font-size:0.78rem;">node _tools/game-forge/arcade-health.mjs</code> then redeployed.</p>
-                <div id="afStats" class="ac-stats-grid" style="margin-bottom:22px;"><div class="ac-loading"><div class="ac-spinner"></div>Loading arcade health&hellip;</div></div>
+                <p style="color:var(--ac-text-muted);font-size:0.85rem;margin-bottom:16px;">Health of the arcade games in <a href="../games.html" target="_blank" rel="noopener" style="color:var(--ac-accent);">games.html</a> from the last audit (<span id="afxGen">&hellip;</span>) &mdash; <button onclick="afxLoad(true)" style="background:none;border:none;color:var(--ac-accent);cursor:pointer;font-size:0.85rem;padding:0;text-decoration:underline;">reload</button>. Functional/render checks load every game headless and watch for JS errors, failed assets, and blank renders. Content-quality is a separate assessment (pending). Regenerate with <code style="background:rgba(129,140,248,0.1);padding:1px 6px;border-radius:4px;font-size:0.78rem;">node _tools/arcade-fixes/arcade-audit.mjs</code> then redeploy.</p>
+                <div id="afxStats" class="ac-stats-grid" style="margin-bottom:22px;"><div class="ac-loading"><div class="ac-spinner"></div>Loading arcade health&hellip;</div></div>
                 <div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 8px;">
-                    <h3 style="margin:0;font-size:0.95rem;color:var(--ac-text);">Coverage &amp; quality matrix</h3>
-                    <span style="font-size:0.72rem;color:var(--ac-text-muted);">green = clean, amber = warnings, purple = info, dash = not built. Click a game for its findings.</span>
+                    <h3 style="margin:0;font-size:0.95rem;color:var(--ac-text);">Needs attention</h3>
+                    <span style="font-size:0.72rem;color:var(--ac-text-muted);">functional issues, broken first. Click a game for details.</span>
                 </div>
-                <div id="afMatrix" class="ac-table-wrap"></div>
-                <h3 style="margin:24px 0 8px;font-size:0.95rem;color:var(--ac-text);">Fix queue</h3>
-                <div id="afQueue" class="ac-table-wrap"></div>
+                <div id="afxQueue" class="ac-table-wrap"></div>
+                <div style="display:flex;align-items:baseline;gap:10px;margin:24px 0 8px;">
+                    <h3 style="margin:0;font-size:0.95rem;color:var(--ac-text);">All games</h3>
+                    <span style="font-size:0.72rem;color:var(--ac-text-muted);">grouped by house. Click a game for its health and a play link.</span>
+                </div>
+                <div id="afxList" class="ac-table-wrap"></div>
             </div>
 
         </main>
@@ -4433,7 +4437,7 @@
             if (panelName === 'tournaments') loadTournaments();
             if (panelName === 'coursetree') loadCourseTree();
             if (panelName === 'reviewgames') loadReviewGames();
-            if (panelName === 'arcadefixes') loadArcadeFixes();
+            if (panelName === 'arcadefixes') afxLoad();
         };
 
         // ── Toast ───────────────────────────────────────────────────
@@ -11258,7 +11262,7 @@
         // =============================================================
         var _reviewGamesLoaded = false;
         var _rgTab = 'play';
-        var _rgSrc = { play: '../_games-lab/index.html', forge: '../_games-lab/forge.html' };
+        var _rgSrc = { play: '../_games-lab/index.html', forge: '../_games-lab/forge.html', health: '../_games-lab/health.html' };
         function loadReviewGames() {
             if (_reviewGamesLoaded) return;
             _reviewGamesLoaded = true;
@@ -11280,141 +11284,102 @@
 
         // =============================================================
         //  ARCADE FIXES (Phase 0 cockpit — reads arcade-health.json)
+        //  Functional/render health of the arcade games in games.html.
         // =============================================================
-        var _arcadeFixesLoaded = false;
-        var _arcadeHealth = null;
-        /* Lazy-load the arcade-health snapshot and render the cockpit. `force` re-fetches (Refresh button). */
-        function loadArcadeFixes(force) {
-            if (_arcadeFixesLoaded && !force) return;
-            _arcadeFixesLoaded = true;
-            document.getElementById('afStats').innerHTML = '<div class="ac-loading"><div class="ac-spinner"></div>Loading arcade health&hellip;</div>';
-            fetch('../_games-lab/arcade-health.json', { cache: 'no-store' })
+        var _afxLoaded = false;
+        var _afxData = null;
+        /* Lazy-load the arcade health snapshot; `force` re-fetches (reload button). */
+        function afxLoad(force) {
+            if (_afxLoaded && !force) return;
+            _afxLoaded = true;
+            document.getElementById('afxStats').innerHTML = '<div class="ac-loading"><div class="ac-spinner"></div>Loading arcade health&hellip;</div>';
+            fetch('../arcade-health.json', { cache: 'no-store' })
                 .then(function (r) { if (!r.ok) throw new Error('arcade-health ' + r.status); return r.json(); })
-                .then(function (data) { _arcadeHealth = data; renderArcadeFixes(data); })
+                .then(function (data) { _afxData = data; afxRender(data); })
                 .catch(function (err) {
-                    _arcadeFixesLoaded = false; // allow retry after a failed load or a schema/render error
-                    document.getElementById('afStats').innerHTML =
-                        '<div class="ac-empty">Could not load arcade-health.json &mdash; run <code>node _tools/game-forge/arcade-health.mjs</code> and redeploy. (' + afEsc(err.message) + ')</div>';
+                    _afxLoaded = false; // allow retry after a failed load or a render error
+                    document.getElementById('afxStats').innerHTML = '<div class="ac-empty">Could not load arcade-health.json &mdash; run <code>node _tools/arcade-fixes/arcade-audit.mjs</code> and redeploy. (' + afxEsc(err.message) + ')</div>';
                 });
         }
-        window.loadArcadeFixes = loadArcadeFixes;
-        /* Restrict an id used inside an inline onclick JS-string to a safe charset (defense-in-depth). */
-        function afId(s) { return String(s == null ? '' : s).replace(/[^a-z0-9_-]/gi, ''); }
-        /* Minimal HTML escape for injected finding text. */
-        function afEsc(s) {
-            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-            });
-        }
-        /* Map a finding severity to a console color variable. */
-        function afColor(sev) {
-            return sev === 'error' ? 'var(--ac-danger)' : sev === 'warn' ? 'var(--ac-warning)' : 'var(--ac-accent)';
-        }
-        /* Worst severity across a findings array (error > warn > info > clean). */
-        function afWorst(findings) {
-            if (findings.some(function (f) { return f.severity === 'error'; })) return 'error';
-            if (findings.some(function (f) { return f.severity === 'warn'; })) return 'warn';
-            if (findings.some(function (f) { return f.severity === 'info'; })) return 'info';
-            return 'clean';
-        }
-        /* Build one stat card matching the console style (optional modifier class). */
-        function afStat(value, label, mod) {
-            return '<div class="ac-stat-card' + (mod ? ' ' + mod : '') + '"><div class="ac-stat-value">' + value + '</div><div class="ac-stat-label">' + label + '</div></div>';
-        }
-        /* Render the stat strip, coverage/quality matrix, and flat fix queue. */
-        function renderArcadeFixes(d) {
-            var engines = d.engines;
-            var s = d.summary;
-            document.getElementById('afGenerated').textContent = (d.generatedAt || '').replace('T', ' ').slice(0, 16) + ' UTC';
-            // Stat strip
-            document.getElementById('afStats').innerHTML =
-                afStat(s.courses, 'Courses') +
-                afStat(s.games, 'Games live') +
-                afStat(s.coverageComplete + ' / ' + s.courses, 'All 4 engines', s.coverageComplete === s.courses ? 'success' : '') +
-                afStat(s.findings.error, 'Errors', s.findings.error ? 'danger' : 'success') +
-                afStat(s.findings.warn, 'Warnings', s.findings.warn ? 'warning' : 'success') +
-                afStat(s.findings.info, 'Info', 'gold');
-            // Coverage/quality matrix: rows = courses, columns = engines
-            var head = '<tr><th>Course</th>' + engines.map(function (e) {
-                return '<th style="text-align:center;text-transform:capitalize;">' + e + '</th>';
-            }).join('') + '</tr>';
-            var rows = d.courses.map(function (c) {
-                var cells = engines.map(function (e) {
-                    var g = c.games[e];
-                    if (!g.exists) return '<td style="text-align:center;color:var(--ac-text-muted);opacity:0.4;">&mdash;</td>';
-                    var w = afWorst(g.findings);
-                    var dot = w === 'clean' ? 'var(--ac-success)' : afColor(w);
-                    var n = g.findings.length;
-                    return '<td style="text-align:center;cursor:pointer;" onclick="arcadeFixOpen(\'' + afId(c.course) + '\',\'' + afId(e) + '\')">' +
-                        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + dot + ';margin-right:6px;vertical-align:middle;"></span>' +
-                        '<span style="color:var(--ac-text-muted);font-size:0.8rem;">' + g.items + (n ? ' &middot; ' + n : '') + '</span></td>';
+        window.afxLoad = afxLoad;
+        /* HTML-escape injected text. */
+        function afxEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+        /* Functional status to a console color variable. */
+        function afxColor(status) { return status === 'broken' ? 'var(--ac-danger)' : status === 'degraded' ? 'var(--ac-warning)' : 'var(--ac-success)'; }
+        /* Build one stat card. */
+        function afxStat(v, l, mod) { return '<div class="ac-stat-card' + (mod ? ' ' + mod : '') + '"><div class="ac-stat-value">' + v + '</div><div class="ac-stat-label">' + l + '</div></div>'; }
+        /* Colored status dot. */
+        function afxDot(status) { return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + afxColor(status) + ';margin-right:6px;vertical-align:middle;"></span>'; }
+        /* Render the stat strip, the needs-attention queue, and the full game list. */
+        function afxRender(d) {
+            var games = d.games || [];
+            var s = d.summary || { total: games.length, ok: 0, degraded: 0, broken: 0 };
+            var pending = games.filter(function (g) { return g.health.contentQuality === 'pending'; }).length;
+            document.getElementById('afxGen').textContent = (d.generatedAt || '').replace('T', ' ').slice(0, 16) + ' UTC';
+            document.getElementById('afxStats').innerHTML =
+                afxStat(s.total, 'Games') +
+                afxStat(s.ok, 'Functional', s.ok === s.total ? 'success' : '') +
+                afxStat(s.degraded, 'Degraded', s.degraded ? 'warning' : '') +
+                afxStat(s.broken, 'Broken', s.broken ? 'danger' : 'success') +
+                afxStat(pending, 'Content QA pending', 'gold');
+            // Needs-attention queue: any game whose functional status is not ok, broken first.
+            var rank = { broken: 0, degraded: 1, ok: 2 };
+            var issues = games.map(function (g, i) { return { g: g, i: i }; })
+                .filter(function (x) { return x.g.health.status !== 'ok'; })
+                .sort(function (a, b) { return rank[a.g.health.status] - rank[b.g.health.status]; });
+            if (!issues.length) {
+                document.getElementById('afxQueue').innerHTML = '<div class="ac-empty">All ' + s.total + ' games load without JS errors or failed assets (functional smoke &mdash; not deep playability). Content-quality assessment is pending.</div>';
+            } else {
+                var qh = '<tr><th>Status</th><th>Game</th><th>House</th><th>Issue</th></tr>';
+                var qr = issues.map(function (x) {
+                    var h = x.g.health;
+                    var sum = h.jsErrors[0] || h.failedAssets[0] || (!h.rendered ? 'renders blank' : (h.consoleErrors[0] || '')) || '';
+                    return '<tr style="cursor:pointer;" onclick="afxOpen(' + x.i + ')"><td>' + afxDot(h.status) + '<span style="color:' + afxColor(h.status) + ';font-size:0.72rem;text-transform:uppercase;font-weight:700;">' + h.status + '</span></td><td>' + afxEsc(x.g.title) + '</td><td style="text-transform:capitalize;">' + afxEsc(x.g.house) + '</td><td style="color:var(--ac-text-muted);font-size:0.78rem;">' + afxEsc(sum.slice(0, 80)) + '</td></tr>';
                 }).join('');
-                return '<tr><td><strong>' + afEsc(c.title) + '</strong> <span style="color:var(--ac-text-muted);font-size:0.72rem;">' + afEsc(c.badge) + '</span></td>' + cells + '</tr>';
-            }).join('');
-            document.getElementById('afMatrix').innerHTML = '<table class="ac-table">' + head + rows + '</table>';
-            // Fix queue: flatten every finding, sort error > warn > info
-            var rank = { error: 0, warn: 1, info: 2 };
-            var queue = [];
-            d.courses.forEach(function (c) {
-                engines.forEach(function (e) {
-                    (c.games[e].findings || []).forEach(function (f) {
-                        queue.push({ course: c.course, title: c.title, type: e, f: f });
-                    });
-                });
-            });
-            queue.sort(function (a, b) { return rank[a.f.severity] - rank[b.f.severity]; });
-            if (!queue.length) {
-                document.getElementById('afQueue').innerHTML = '<div class="ac-empty">No findings &mdash; the arcade is clean.</div>';
-                return;
+                document.getElementById('afxQueue').innerHTML = '<table class="ac-table">' + qh + qr + '</table>';
             }
-            var qhead = '<tr><th>Sev</th><th>Course</th><th>Engine</th><th>Code</th><th>Finding</th><th>Where</th></tr>';
-            var qrows = queue.map(function (q) {
-                return '<tr style="cursor:pointer;" onclick="arcadeFixOpen(\'' + afId(q.course) + '\',\'' + afId(q.type) + '\')">' +
-                    '<td><span style="color:' + afColor(q.f.severity) + ';font-weight:700;font-size:0.72rem;text-transform:uppercase;">' + q.f.severity + '</span></td>' +
-                    '<td>' + afEsc(q.title) + '</td><td style="text-transform:capitalize;">' + q.type + '</td>' +
-                    '<td><code style="font-size:0.72rem;">' + afEsc(q.f.code) + '</code></td>' +
-                    '<td>' + afEsc(q.f.msg) + '</td>' +
-                    '<td style="color:var(--ac-text-muted);font-size:0.78rem;">' + afEsc(q.f.where) + '</td></tr>';
+            // Full inventory grouped by house.
+            var byHouse = {};
+            games.forEach(function (g, i) { (byHouse[g.house] = byHouse[g.house] || []).push({ g: g, i: i }); });
+            var houses = Object.keys(byHouse).sort();
+            var lh = '<tr><th>Game</th><th>Type</th><th>Category</th><th>Functional</th><th>Content</th></tr>';
+            var lr = houses.map(function (house) {
+                var hdr = '<tr><td colspan="5" style="background:rgba(255,255,255,0.03);text-transform:capitalize;font-weight:700;color:var(--ac-accent);font-size:0.78rem;">' + afxEsc(house) + ' &middot; ' + byHouse[house].length + '</td></tr>';
+                var rows = byHouse[house].map(function (x) {
+                    var h = x.g.health;
+                    return '<tr style="cursor:pointer;" onclick="afxOpen(' + x.i + ')"><td>' + afxEsc(x.g.title) + '</td><td style="color:var(--ac-text-muted);text-transform:capitalize;">' + afxEsc(x.g.type) + '</td><td style="color:var(--ac-text-muted);">' + afxEsc(x.g.category) + '</td><td>' + afxDot(h.status) + '<span style="font-size:0.78rem;color:var(--ac-text-muted);">' + (h.hasCanvas ? 'canvas' : (h.textLen + ' chars')) + '</span></td><td><span style="font-size:0.7rem;color:var(--ac-gold);border:1px solid rgba(212,160,23,0.4);border-radius:4px;padding:1px 6px;">pending</span></td></tr>';
+                }).join('');
+                return hdr + rows;
             }).join('');
-            document.getElementById('afQueue').innerHTML = '<table class="ac-table">' + qhead + qrows + '</table>';
+            document.getElementById('afxList').innerHTML = '<table class="ac-table">' + lh + lr + '</table>';
         }
-        /* Open a modal listing every finding for one game, with a Play link. */
-        function arcadeFixOpen(course, type) {
-            if (!_arcadeHealth) return;
-            var c = _arcadeHealth.courses.filter(function (x) { return x.course === course; })[0];
-            if (!c) return;
-            var g = c.games[type];
-            var findings = (g && g.findings) || [];
-            var body = findings.length
-                ? '<table class="ac-table"><tr><th>Sev</th><th>Code</th><th>Finding</th><th>Where</th></tr>' +
-                    findings.map(function (f) {
-                        return '<tr><td><span style="color:' + afColor(f.severity) + ';font-weight:700;font-size:0.72rem;text-transform:uppercase;">' + f.severity + '</span></td>' +
-                            '<td><code style="font-size:0.72rem;">' + afEsc(f.code) + '</code></td><td>' + afEsc(f.msg) + '</td>' +
-                            '<td style="color:var(--ac-text-muted);font-size:0.78rem;">' + afEsc(f.where) + '</td></tr>';
-                    }).join('') + '</table>'
-                : '<div class="ac-empty">' + (g && g.exists ? 'No findings for this game &mdash; it is clean.' : 'This game type is not built for this course yet.') + '</div>';
-            var playUrl = '../_games-lab/' + type + '.html?course=' + encodeURIComponent(course);
-            var overlay = document.createElement('div');
-            overlay.className = 'af-modal';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
-            overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
-            overlay.innerHTML = '<div style="background:var(--ac-card-bg);border:1px solid var(--ac-border);border-radius:10px;max-width:760px;width:100%;max-height:80vh;overflow:auto;padding:20px;">' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
-                '<div style="font-weight:700;color:var(--ac-text);">' + afEsc(c.title) + ' &middot; <span style="text-transform:capitalize;">' + afEsc(type) + '</span> ' +
-                '<span style="color:var(--ac-text-muted);font-weight:400;font-size:0.8rem;">' + (g && g.exists ? (g.items + ' items') : 'not built') + '</span></div>' +
-                '<button onclick="arcadeFixCloseModal(this)" style="background:none;border:none;color:var(--ac-text-muted);font-size:1.5rem;cursor:pointer;line-height:1;">&times;</button>' +
-                '</div>' + body +
-                (g && g.exists ? '<div style="margin-top:14px;"><a href="' + playUrl + '" target="_blank" rel="noopener" style="color:var(--ac-accent);font-size:0.82rem;text-decoration:none;">Play this game &rarr;</a></div>' : '') +
+        /* Open a modal with one game's functional health and an open-game link. */
+        function afxOpen(i) {
+            if (!_afxData) return;
+            var g = _afxData.games[i];
+            if (!g) return;
+            var h = g.health;
+            function block(label, arr) { return arr.length ? '<div style="margin-top:10px;"><div style="font-size:0.72rem;text-transform:uppercase;color:var(--ac-text-muted);margin-bottom:4px;">' + label + '</div>' + arr.map(function (x) { return '<div style="font-family:monospace;font-size:0.76rem;color:var(--ac-text);background:rgba(255,255,255,0.03);padding:4px 8px;border-radius:4px;margin-bottom:3px;">' + afxEsc(x) + '</div>'; }).join('') + '</div>' : ''; }
+            var details = block('JS errors', h.jsErrors) + block('Failed assets', h.failedAssets) + block('Console errors', h.consoleErrors);
+            if (!details) details = '<div class="ac-empty" style="margin-top:10px;">No functional issues &mdash; loads and renders cleanly (' + (h.hasCanvas ? 'live canvas' : h.textLen + ' chars') + ', ' + h.ms + 'ms).</div>';
+            var play = '../' + g.href;
+            var o = document.createElement('div');
+            o.className = 'afx-modal';
+            o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+            o.onclick = function (e) { if (e.target === o) o.remove(); };
+            o.innerHTML = '<div style="background:var(--ac-card-bg);border:1px solid var(--ac-border);border-radius:10px;max-width:760px;width:100%;max-height:80vh;overflow:auto;padding:20px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-weight:700;color:var(--ac-text);">' + afxEsc(g.title) + '</div><button onclick="afxCloseModal(this)" style="background:none;border:none;color:var(--ac-text-muted);font-size:1.5rem;cursor:pointer;line-height:1;">&times;</button></div>' +
+                '<div style="color:var(--ac-text-muted);font-size:0.8rem;text-transform:capitalize;">' + afxEsc(g.house) + ' &middot; ' + afxEsc(g.type) + ' &middot; ' + afxEsc(g.category) + ' &middot; ' + afxDot(h.status) + '<span style="color:' + afxColor(h.status) + ';font-weight:700;text-transform:uppercase;font-size:0.72rem;">' + h.status + '</span></div>' +
+                details +
+                '<div style="margin-top:12px;font-size:0.8rem;color:var(--ac-text-muted);">Content quality: <span style="color:var(--ac-gold);">pending assessment</span></div>' +
+                '<div style="margin-top:12px;"><a href="' + afxEsc(play) + '" target="_blank" rel="noopener" style="color:var(--ac-accent);font-size:0.82rem;text-decoration:none;">Open this game &rarr;</a></div>' +
                 '</div>';
-            document.body.appendChild(overlay);
+            document.body.appendChild(o);
         }
-        /* Close the finding modal from its × button. */
-        function arcadeFixCloseModal(btn) {
-            var m = btn.closest('.af-modal');
-            if (m) m.remove();
-        }
-        window.arcadeFixOpen = arcadeFixOpen;
-        window.arcadeFixCloseModal = arcadeFixCloseModal;
+        /* Close the arcade game modal from its × button. */
+        function afxCloseModal(btn) { var m = btn.closest('.afx-modal'); if (m) m.remove(); }
+        window.afxOpen = afxOpen;
+        window.afxCloseModal = afxCloseModal;
 
         // (Cohorts panel removed — classes now managed under Tenants)
 

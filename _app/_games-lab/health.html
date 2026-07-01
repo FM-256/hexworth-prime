@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review Games Health</title>
+<style>
+    :root {
+        --bg: #0f1117; --card: #161822; --accent: #a855f7; --text: #e2e8f0; --muted: #888;
+        --danger: #ef4444; --warning: #f59e0b; --gold: #d4a017; --success: #22c55e; --border: rgba(255,255,255,0.08);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 20px; background: var(--bg); color: var(--text); font: 14px/1.5 'Inter', system-ui, sans-serif; }
+    h1 { font-size: 1.05rem; margin: 0 0 4px; }
+    .intro { color: var(--muted); font-size: 0.85rem; margin: 0 0 16px; }
+    .intro code { background: rgba(168,85,247,0.12); padding: 1px 6px; border-radius: 4px; font-size: 0.78rem; }
+    .intro button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.85rem; padding: 0; text-decoration: underline; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 22px; }
+    .stat { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 12px 14px; }
+    .stat .v { font-size: 1.5rem; font-weight: 700; }
+    .stat .l { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .stat.success { border-left-color: var(--success); } .stat.success .v { color: var(--success); }
+    .stat.warning { border-left-color: var(--warning); } .stat.warning .v { color: var(--warning); }
+    .stat.danger { border-left-color: var(--danger); } .stat.danger .v { color: var(--danger); }
+    .stat.gold { border-left-color: var(--gold); } .stat.gold .v { color: var(--gold); }
+    h3 { font-size: 0.95rem; margin: 22px 0 8px; }
+    .hint { font-size: 0.72rem; color: var(--muted); font-weight: 400; }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    th { text-align: left; padding: 9px 12px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    code { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .empty { color: var(--muted); padding: 16px; text-align: center; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 50; }
+    .modal .box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; max-width: 760px; width: 100%; max-height: 80vh; overflow: auto; padding: 20px; }
+    .modal .x { background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; line-height: 1; }
+</style>
+</head>
+<body>
+    <h1>Review Games Health</h1>
+    <p class="intro">Whole review-games-lab quality and coverage from the last audit snapshot (<span id="gen">&hellip;</span>) &mdash; <button onclick="load(true)">reload</button>. Deterministic checks over every live game data file across the four shared engines. Regenerate with <code>node _tools/game-forge/reviewgames-health.mjs</code> then redeploy.</p>
+    <div id="stats" class="stats"><div class="empty">Loading&hellip;</div></div>
+    <h3>Coverage &amp; quality matrix <span class="hint">green = clean, amber = warnings, purple = info, dash = not built. Click a game for its findings.</span></h3>
+    <div id="matrix"></div>
+    <h3>Fix queue</h3>
+    <div id="queue"></div>
+
+<script>
+    var _data = null;
+    /* HTML-escape injected finding text. */
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    /* Restrict an id used in an inline onclick JS-string to a safe charset. */
+    function safeId(s) { return String(s == null ? '' : s).replace(/[^a-z0-9_-]/gi, ''); }
+    /* Map a finding severity to a color variable. */
+    function color(sev) { return sev === 'error' ? 'var(--danger)' : sev === 'warn' ? 'var(--warning)' : 'var(--accent)'; }
+    /* Worst severity across a findings array. */
+    function worst(f) { if (f.some(function (x) { return x.severity === 'error'; })) return 'error'; if (f.some(function (x) { return x.severity === 'warn'; })) return 'warn'; if (f.some(function (x) { return x.severity === 'info'; })) return 'info'; return 'clean'; }
+    /* Build one stat card. */
+    function stat(v, l, mod) { return '<div class="stat' + (mod ? ' ' + mod : '') + '"><div class="v">' + v + '</div><div class="l">' + l + '</div></div>'; }
+    /* Fetch the snapshot and render, or show an error the user can retry. */
+    function load(force) {
+        if (_data && !force) return render(_data);
+        document.getElementById('stats').innerHTML = '<div class="empty">Loading&hellip;</div>';
+        fetch('reviewgames-health.json', { cache: 'no-store' })
+            .then(function (r) { if (!r.ok) throw new Error('reviewgames-health ' + r.status); return r.json(); })
+            .then(function (d) { _data = d; render(d); })
+            .catch(function (err) { document.getElementById('stats').innerHTML = '<div class="empty">Could not load reviewgames-health.json &mdash; run <code>node _tools/game-forge/reviewgames-health.mjs</code> and redeploy. (' + esc(err.message) + ')</div>'; });
+    }
+    /* Render the stat strip, matrix, and fix queue. */
+    function render(d) {
+        var engines = d.engines, s = d.summary;
+        document.getElementById('gen').textContent = (d.generatedAt || '').replace('T', ' ').slice(0, 16) + ' UTC';
+        document.getElementById('stats').innerHTML =
+            stat(s.courses, 'Courses') + stat(s.games, 'Games live') +
+            stat(s.coverageComplete + ' / ' + s.courses, 'All 4 engines', s.coverageComplete === s.courses ? 'success' : '') +
+            stat(s.findings.error, 'Errors', s.findings.error ? 'danger' : 'success') +
+            stat(s.findings.warn, 'Warnings', s.findings.warn ? 'warning' : 'success') +
+            stat(s.findings.info, 'Info', 'gold');
+        var head = '<tr><th>Course</th>' + engines.map(function (e) { return '<th style="text-align:center;text-transform:capitalize;">' + e + '</th>'; }).join('') + '</tr>';
+        var rows = d.courses.map(function (c) {
+            var cells = engines.map(function (e) {
+                var g = c.games[e];
+                if (!g.exists) return '<td style="text-align:center;color:var(--muted);opacity:0.4;">&mdash;</td>';
+                var w = worst(g.findings), dot = w === 'clean' ? 'var(--success)' : color(w), n = g.findings.length;
+                return '<td style="text-align:center;cursor:pointer;" onclick="openGame(\'' + safeId(c.course) + '\',\'' + safeId(e) + '\')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + dot + ';margin-right:6px;vertical-align:middle;"></span><span style="color:var(--muted);font-size:0.8rem;">' + g.items + (n ? ' &middot; ' + n : '') + '</span></td>';
+            }).join('');
+            return '<tr><td><strong>' + esc(c.title) + '</strong> <span style="color:var(--muted);font-size:0.72rem;">' + esc(c.badge) + '</span></td>' + cells + '</tr>';
+        }).join('');
+        document.getElementById('matrix').innerHTML = '<table>' + head + rows + '</table>';
+        var rank = { error: 0, warn: 1, info: 2 }, q = [];
+        d.courses.forEach(function (c) { engines.forEach(function (e) { (c.games[e].findings || []).forEach(function (f) { q.push({ course: c.course, title: c.title, type: e, f: f }); }); }); });
+        q.sort(function (a, b) { return rank[a.f.severity] - rank[b.f.severity]; });
+        if (!q.length) { document.getElementById('queue').innerHTML = '<div class="empty">No findings &mdash; the review games are clean.</div>'; return; }
+        var qh = '<tr><th>Sev</th><th>Course</th><th>Engine</th><th>Code</th><th>Finding</th><th>Where</th></tr>';
+        var qr = q.map(function (x) {
+            return '<tr style="cursor:pointer;" onclick="openGame(\'' + safeId(x.course) + '\',\'' + safeId(x.type) + '\')"><td><span style="color:' + color(x.f.severity) + ';font-weight:700;font-size:0.72rem;text-transform:uppercase;">' + x.f.severity + '</span></td><td>' + esc(x.title) + '</td><td style="text-transform:capitalize;">' + x.type + '</td><td><code style="font-size:0.72rem;">' + esc(x.f.code) + '</code></td><td>' + esc(x.f.msg) + '</td><td style="color:var(--muted);font-size:0.78rem;">' + esc(x.f.where) + '</td></tr>';
+        }).join('');
+        document.getElementById('queue').innerHTML = '<table>' + qh + qr + '</table>';
+    }
+    /* Open a modal listing every finding for one game, with a Play link. */
+    function openGame(course, type) {
+        if (!_data) return;
+        var c = _data.courses.filter(function (x) { return x.course === course; })[0];
+        if (!c) return;
+        var g = c.games[type], f = (g && g.findings) || [];
+        var body = f.length
+            ? '<table><tr><th>Sev</th><th>Code</th><th>Finding</th><th>Where</th></tr>' + f.map(function (x) { return '<tr><td><span style="color:' + color(x.severity) + ';font-weight:700;font-size:0.72rem;text-transform:uppercase;">' + x.severity + '</span></td><td><code style="font-size:0.72rem;">' + esc(x.code) + '</code></td><td>' + esc(x.msg) + '</td><td style="color:var(--muted);font-size:0.78rem;">' + esc(x.where) + '</td></tr>'; }).join('') + '</table>'
+            : '<div class="empty">' + (g && g.exists ? 'No findings for this game &mdash; it is clean.' : 'This game type is not built for this course yet.') + '</div>';
+        var play = type + '.html?course=' + encodeURIComponent(course);
+        var o = document.createElement('div'); o.className = 'modal';
+        o.onclick = function (e) { if (e.target === o) o.remove(); };
+        o.innerHTML = '<div class="box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><div style="font-weight:700;">' + esc(c.title) + ' &middot; <span style="text-transform:capitalize;">' + esc(type) + '</span> <span style="color:var(--muted);font-weight:400;font-size:0.8rem;">' + (g && g.exists ? (g.items + ' items') : 'not built') + '</span></div><button class="x" onclick="this.closest(&quot;.modal&quot;).remove()">&times;</button></div>' + body + (g && g.exists ? '<div style="margin-top:14px;"><a href="' + play + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.82rem;text-decoration:none;">Play this game &rarr;</a></div>' : '') + '</div>';
+        document.body.appendChild(o);
+    }
+    load();
+</script>
+</body>
+</html>

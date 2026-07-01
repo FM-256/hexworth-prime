@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// arcade-health.mjs
+// reviewgames-health.mjs
 //
 // Whole-arcade quality + coverage snapshot for the admin console's "Arcade Fixes"
 // cockpit (Phase 0). Audits EVERY live canonical game file under
 // _app/_games-lab/data/<type>/*.json (all four engines) with deterministic
 // quality checks, computes per-course engine coverage, and writes a single
-// deployed snapshot at _app/_games-lab/arcade-health.json that the panel fetches.
+// deployed snapshot at _app/_games-lab/reviewgames-health.json that the panel fetches.
 //
 // This is the arcade-wide sibling of lint.mjs: lint.mjs audits the 13 legacy
 // clones being CONVERTED (staged data-extracted/); this audits the whole LIVE
@@ -13,8 +13,8 @@
 // so the vocabulary is consistent. (Consolidating the two into one shared
 // checks module is a Phase 1 follow-up.)
 //
-// Usage:  node _tools/game-forge/arcade-health.mjs
-// Output: _app/_games-lab/arcade-health.json  (git add -f is NOT needed; it lives under _app)
+// Usage:  node _tools/game-forge/reviewgames-health.mjs
+// Output: _app/_games-lab/reviewgames-health.json  (git add -f is NOT needed; it lives under _app)
 
 import fs from 'fs';
 import path from 'path';
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const GAMES_LAB = path.resolve(HERE, '../../_app/_games-lab');
 const DATA_DIR = path.join(GAMES_LAB, 'data');
-const OUT = path.join(GAMES_LAB, 'arcade-health.json');
+const OUT = path.join(GAMES_LAB, 'reviewgames-health.json');
 const ENGINES = ['jeopardy', 'kahoot', 'wheel', 'fifth'];
 
 // Emoji / pictograph detection (any char in the common emoji blocks).
@@ -233,7 +233,7 @@ for (const c of courses) {
 }
 
 const snapshot = {
-    generated: 'arcade-health.mjs',
+    generated: 'reviewgames-health.mjs',
     generatedAt: new Date().toISOString(),
     engines: ENGINES,
     summary: {
@@ -246,6 +246,6 @@ const snapshot = {
 };
 
 fs.writeFileSync(OUT, JSON.stringify(snapshot, null, 2) + '\n');
-console.log('arcade-health -> ' + path.relative(process.cwd(), OUT));
+console.log('reviewgames-health -> ' + path.relative(process.cwd(), OUT));
 console.log('  ' + courses.length + ' courses, ' + totalGames + ' games, coverage-complete ' + coverageComplete);
 console.log('  findings: ' + summary.error + ' error / ' + summary.warn + ' warn / ' + summary.info + ' info');
