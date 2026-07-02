@@ -1041,8 +1041,11 @@ exports.getHedExport = onRequest({ region: 'us-central1' }, async (req, res) => 
     // Optional API key check
     const requiredKey = process.env.HED_EXPORT_KEY;
     if (requiredKey) {
-        const provided = req.headers['x-api-key'] || req.query.key;
-        if (provided !== requiredKey) {
+        const provided = String(req.headers['x-api-key'] || req.query.key || '');
+        const a = Buffer.from(provided);
+        const b = Buffer.from(requiredKey);
+        // Length pre-check is required: timingSafeEqual throws on mismatched lengths.
+        if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
             res.status(403).json({ error: 'Invalid or missing API key' });
             return;
         }

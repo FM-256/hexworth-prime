@@ -48,7 +48,7 @@ Overall posture is good: ~130 deployed functions, all firebase-functions v2, Nod
 
 Findings, ranked:
 
-1. **`FLAG_SECRET` is per-instance** — `functions/index.js:27`: `crypto.randomBytes(32)` at module load. Each instance / cold start / deploy generates a different secret, so HMAC-signed flags minted on one instance can fail validation on another, and all in-flight flags invalidate on every functions deploy. Students mid-CTF are affected. Fix: move to Secret Manager (`defineSecret`) like the LiveKit/hex-ai keys.
+1. **`FLAG_SECRET` is per-instance, but the path is inert (demoted 2026-07-02 after code-trace)** — `functions/index.js:27`: `crypto.randomBytes(32)` at module load. Sole consumer is `generateGateProof` (`index.js:1914`), whose only caller is `completeGate` (`index.js:109`) verifying an *optional* legacy `proof` param for gates 1-5; gate pages call `completeGate` with an empty proof, and no server path ever returns a proof to a client, so no client can hold a valid one — the check is unreachable-in-practice legacy code, not a live student-facing bug. Note the code/comment mismatch: the comment (`index.js:1915-1918`) describes a gate-answer-derived proof computed by a client-side `AccessGuard.generateGateProof()`, but that function exists nowhere (searched `_app/` and `~/hexworth-shared/` 2026-07-02, both empty) and the implementation actually uses an HMAC keyed by the server-only random secret — abandoned mid-design scaffolding rather than mere dead code. If the proof flow is ever revived: move the secret to Secret Manager AND make the proof compare at `index.js:110` timing-safe. Low priority.
 2. **Deploy artifact bloat + tracked answer keys** — `functions/.gcloudignore` excludes only `.git`/`node_modules`, so ~118 one-off scripts, `.bak` files, `_backups/`, `_audit/` upload on every deploy. `functions/quiz_keys.json` (264 KB) and `functions/operator_keys.json` are git-tracked answer keys — decide whether that is acceptable for this (private) repo; they should at minimum be excluded from the deploy artifact.
 3. **App Check disabled platform-wide** — `ENFORCE_APP_CHECK = false` (`functions/index.js:31`). Callables accept any client bearing a valid Firebase ID token. Deliberate trade-off; revisit when convenient.
 4. **One naive API-key compare** — `functions/index.js:1045` (`getHedExport`) uses plain `!==`. The four `x-api-key` sites in `hex-ai-bridge.js` already use `crypto.timingSafeEqual` (lines 542, 914, 989, 1089) — verified per-site, do not generalize this finding. Low severity.
@@ -87,14 +87,14 @@ Debt, ranked:
 
 | # | Action | Where | Status |
 |---|---|---|---|
-| 1.1 | Cache-header fix: `regex ^/(.*/)?$` → no-store | `firebase.json` (this repo) | **Edited 2026-07-01; awaiting deploy authorization** |
+| 1.1 | Cache-header fix: `regex ^/(.*/)?$` → no-store | `firebase.json` (this repo) | **DEPLOYED 2026-07-02, live-verified (`/`, `/arena/`, `/join/` now no-store)** |
 | 1.2 | Add `www.hexworth.com` as custom domain, type "redirect to hexworth.com" | Firebase console → Hosting → Add custom domain; add the verification TXT + any records the wizard specifies at IONOS | Operator (console) |
 | 1.3 | `hexworth.tech` apex: **Option A (recommended)** Cloudflare Redirect Rule, 301 `hexworth.tech/*` → `https://hexworth.com/$1`; keep `.tech` as the infrastructure zone. **Option B (true mirror)** add `hexworth.tech` in Firebase Hosting (DNS-only/grey-cloud record), plus add origin to `ALLOWED_STREAM_ORIGINS` (`functions/hex-ai-bridge.js:320`) and de-hardcode `hexworth.com` URLs | Cloudflare dashboard (API token on file is expired) | Operator decision |
 | 1.4 | Confirm `hexworth.org` ownership at registrar; acquire or drop from the mental model | Registrar records | Operator |
 | 1.5 | Add fixed hostnames to runtime-monitor probes | `_tools/runtime-monitor/` | After 1.2/1.3 |
 
-### Phase 2 — Functions hardening (one session)
-`FLAG_SECRET` → Secret Manager; real `.gcloudignore`; answer-key JSON handling decision; `getHedExport` timing-safe compare; centralize `ADMIN_EMAILS`.
+### Phase 2 — Functions hardening
+Done 2026-07-02: deploy-bundle trim via `firebase.json` `functions.ignore` (the Firebase CLI honors `functions.ignore`, NOT `.gcloudignore` — bundle went 162 files / 2.7 MB → 56 files / 902 KB, answer-key JSONs and `_exam-keys/` excluded, all 11 runtime requires + `.env` verified surviving via firebase-tools' own minimatch semantics; `verify-quiz-keys.js` is intentionally swept by `verify-*.js` — it is a local-only tool per Critical Rule 9's workflow, never required at runtime); `getHedExport` timing-safe compare (`functions/index.js:1045`, length pre-check required because `timingSafeEqual` throws on mismatched lengths — edge cases tested 403-not-500). Remaining: centralize `ADMIN_EMAILS` (3 files); App Check revisit; `FLAG_SECRET` demoted to low priority (see finding 1).
 
 ### Phase 3 — Content-integrity marathons (recipes exist)
 Resume QC-57 (86 quizzes); reconcile HUB-001 drift; fix the 90 high-sev QUIZ defects; fix PROG-003 shared progress keys.
