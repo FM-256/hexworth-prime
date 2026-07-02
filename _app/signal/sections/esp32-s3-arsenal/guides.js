@@ -9,6 +9,8 @@ window.SignalGuides = {
     // SG-103: T-Display-S3 Setup & Your First USB Device
     // ========================================================================
     'sg-103': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'This build targets the <strong>LILYGO T-Display-S3</strong> (not a board any browser simulator offers) and ends by making it act as a <strong>USB HID device</strong> &mdash; USB gadget emulation isn&#39;t something Wokwi simulates. Read the setup and code here; flash it for real on the S3.' },
         intro: '<p>The ESP32-S3 changes everything. Unlike the standard ESP32, the S3 has <strong>native USB OTG</strong> &mdash; it can present itself as a keyboard, mouse, flash drive, or network adapter to any computer it plugs into. Combined with WiFi and Bluetooth 5, it is a complete security research platform in a device smaller than your thumb.</p>' +
                '<p>In this project you will set up the LILYGO T-Display-S3, configure the development environment, display text on the built-in 1.9" TFT screen, and make the board appear as a USB keyboard that types a message. This is the foundation for every project that follows.</p>' +
                '<p>The T-Display-S3 has a 170x320 ST7789 TFT, two programmable buttons, USB-C with native USB OTG, WiFi, Bluetooth 5 (BLE), and 16MB flash. All for about $18.</p>',
@@ -227,6 +229,8 @@ window.SignalGuides = {
     // SG-104: USB Keystroke Injection — Advanced Payloads
     // ========================================================================
     'sg-104': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'Keystroke injection is <strong>USB HID</strong> emulation &mdash; the board pretends to be a keyboard to the host. No browser simulator can present a USB HID device to your real OS, so this one needs the physical T-Display-S3. The code and payload logic on this page are the whole lesson; run it on hardware.' },
         intro: '<p>In SG-103 you made the ESP32-S3 type a simple message. Now you will build a full keystroke injection framework &mdash; a DuckyScript-compatible payload engine that reads scripts from the flash filesystem, displays a selection menu on the TFT, and executes multi-step command sequences on the target machine.</p>' +
                '<p>This is how professional USB security assessment tools work. Understanding the technique is essential for building detection systems that protect against it.</p>' +
                '<p>You will create three safe demonstration payloads: a system information collector, a text file creator, and a WiFi password extractor (displays saved WiFi passwords on Windows). All payloads are educational and reversible.</p>',
@@ -381,6 +385,8 @@ window.SignalGuides = {
     // SG-105: WiFi Recon Scanner with Display UI
     // ========================================================================
     'sg-105': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'This uses the T-Display-S3&#39;s onboard screen and real <strong>WiFi scanning</strong> of the APs around you. Wokwi can scan a simulated network but has no T-Display and no real RF environment, so the recon dashboard only means something on the actual board.' },
         intro: '<p>Turn the T-Display-S3 into a portable WiFi reconnaissance tool. The built-in WiFi radio scans all 2.4GHz channels, and the TFT display shows a real-time list of discovered networks with signal strength, channel, and encryption type &mdash; color-coded for quick assessment.</p>' +
                '<p>Unlike SG-06 (which used the ESP32 CYD), this version runs on the S3 with its smaller 170x320 display, requiring a tighter UI layout. You will build a scrollable list view, a detail view for individual networks, and a channel utilization histogram.</p>' +
                '<p>This is a passive reconnaissance tool &mdash; it only listens, it does not transmit or connect. Passive scanning is legal in all jurisdictions.</p>',
@@ -586,6 +592,8 @@ window.SignalGuides = {
     // SG-106: BLE Swiss Army — Scanner, Beacon, Detector
     // ========================================================================
     'sg-106': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'Bluetooth Low Energy is <strong>not implemented</strong> in Wokwi &mdash; there is no simulated BLE radio to scan. This scanner needs a real ESP32-S3 near real BLE devices. Study the GAP/advertising concepts and code here first.' },
         intro: '<p>Bluetooth Low Energy (BLE) is everywhere &mdash; fitness trackers, smart locks, AirTags, medical devices, building sensors, and car key fobs. The ESP32-S3 has a full BLE 5.0 radio that can scan for devices, parse their advertisements, and generate custom beacons.</p>' +
                '<p>In this project you build a BLE multi-tool: a device scanner that classifies what it finds, a beacon detector that identifies Apple FindMy/AirTag trackers, and a beacon generator for testing BLE security policies. The display shows a real-time device dashboard.</p>' +
                '<p>BLE advertisements are broadcast openly &mdash; any BLE radio within range can receive them. Passive BLE scanning is legal and non-intrusive.</p>',
@@ -768,6 +776,8 @@ window.SignalGuides = {
     // SG-107: USB Mass Storage Emulation
     // ========================================================================
     'sg-107': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'USB Mass Storage exfiltration relies on the board enumerating as a <strong>USB storage device</strong> to a host &mdash; USB gadget behavior no simulator reproduces. Needs the real T-Display-S3.' },
         intro: '<p>The ESP32-S3 can present itself as a USB flash drive. When plugged into a computer, the host sees a removable storage device and can read files from it. Combined with the HID keyboard from SG-104, this creates a powerful combination: the device types commands that reference files on its own "USB drive."</p>' +
                '<p>This project uses TinyUSB Mass Storage Class (MSC) to serve files from the ESP32-S3 SPIFFS flash or an external microSD card. You will build a file server, a payload delivery system, and understand how BadUSB attacks combine HID and mass storage for maximum impact.</p>' +
                '<p>The defense perspective: understanding how a single USB device can simultaneously be a keyboard AND a flash drive is essential for building USB security policies that actually work.</p>',
@@ -952,6 +962,8 @@ window.SignalGuides = {
     // SG-108: Network Adapter Impersonation (USB RNDIS/ECM)
     // ========================================================================
     'sg-108': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'Network interface impersonation manipulates the real <strong>WiFi/MAC layer</strong> (spoofing, raw frames). Wokwi&#39;s WiFi model is high-level and doesn&#39;t expose this, so the build requires the physical radio.' },
         intro: '<p>The ESP32-S3 can present as a USB network adapter to any computer it plugs into. The host operating system sees a new Ethernet interface, assigns it an IP via DHCP (served by the ESP32-S3), and begins routing traffic through it. This gives the device the ability to intercept, modify, or redirect network traffic.</p>' +
                '<p>This is how devices like the LAN Turtle and PoisonTap work. The host trusts USB network adapters implicitly &mdash; no driver installation is needed on modern operating systems.</p>' +
                '<p>This project is a conceptual reference using ESP-IDF APIs. The Arduino framework does not natively support USB RNDIS. For a working implementation, use ESP-IDF with the TinyUSB net driver example. In this guide you will understand how a device appears as a network adapter, serve DHCP, intercept DNS queries, and understand how to detect and defend against USB network impersonation.</p>',
@@ -1118,6 +1130,8 @@ window.SignalGuides = {
     // SG-109: WiFi Deauthentication Analysis & Detection
     // ========================================================================
     'sg-109': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'Detecting deauthentication frames means capturing real <strong>802.11 management frames</strong> in monitor mode &mdash; there is no simulated RF traffic in Wokwi to detect. Real S3 + real airspace only.' },
         intro: '<p>802.11 deauthentication frames are management frames that disconnect clients from an access point. Because legacy WiFi standards (pre-802.11w) do not authenticate management frames, any device can forge deauth frames and disconnect anyone from any network. Understanding this technique is essential for building wireless intrusion detection systems.</p>' +
                '<p>This project has two modes: an analysis mode that demonstrates how deauthentication works at the frame level, and a detection mode that monitors for deauth attacks in real time. The display shows a visual dashboard of wireless security status.</p>' +
                '<p>The emphasis is on detection and defense. Building effective wireless IDS requires understanding the technique you are detecting.</p>',
@@ -1289,6 +1303,8 @@ window.SignalGuides = {
     // SG-110: Marauder Firmware — WiFi Assessment Suite
     // ========================================================================
     'sg-110': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'This is a firmware deep-dive: flashing and exploring <strong>Marauder</strong> on the actual S3. Flashing vendor firmware and its radio features has nothing a simulator can stand in for. Read to understand the internals; flash on hardware.' },
         intro: '<p>ESP32 Marauder is an open-source WiFi and Bluetooth assessment firmware developed by justcallmekoko. It provides a menu-driven interface for WiFi scanning, Bluetooth scanning, packet capture, and network analysis &mdash; all running on an ESP32 with a display.</p>' +
                '<p>In this project you will flash the Marauder firmware onto your T-Display-S3, configure it for the ST7789 display, and learn what each tool does and how it is detected. This is a pre-built toolset &mdash; the learning is in understanding the capabilities and building detection for each one.</p>' +
                '<p>Marauder is a widely-used educational tool in cybersecurity training programs. Flashing it takes 10 minutes. Understanding it takes the rest of the course.</p>',
@@ -1462,6 +1478,8 @@ window.SignalGuides = {
     // SG-111: Custom Army Knife — Your Own Multi-Tool
     // ========================================================================
     'sg-111': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'The multi-tool combines the USB-HID, BLE, and WiFi-radio capabilities of the earlier builds &mdash; each of which needs real hardware &mdash; on the T-Display-S3. So does the combined tool. Use this page to plan the build; assemble it on the board.' },
         intro: '<p>This is the capstone. You will build your own multi-tool firmware from scratch, combining every technique from SG-103 through SG-109 into a single, menu-driven application. WiFi scanning, BLE scanning, USB HID injection, USB mass storage, network impersonation, and attack detection &mdash; all accessible from the TFT display.</p>' +
                '<p>Unlike Marauder (which is pre-built), this is YOUR code. You understand every line because you wrote it in the previous projects. You can customize it, extend it, and use it as a portfolio piece.</p>' +
                '<p>The menu system uses a modular architecture: each tool is a "module" that can be loaded and unloaded independently, managing its own resources (WiFi radio, BLE radio, USB stack).</p>',
@@ -1635,6 +1653,8 @@ window.SignalGuides = {
     // SG-112: Defense Lab — Detecting Every Attack You Built
     // ========================================================================
     'sg-112': {
+        // Wokwi wave 2: NO SIM — T-Display-S3 unsupported + offensive USB/BLE/RF features not in Wokwi.
+        simulator: { available: false, note: 'The defense lab detects and blocks real <strong>USB attack</strong> behavior at the host &mdash; it depends on actual USB device enumeration, which no browser simulator produces. Needs the physical setup.' },
         intro: '<p>The final project. You have spent SG-103 through SG-111 building offensive tools. Now you build the defense. Using a second ESP32 (standard DevKit or CYD from earlier projects), you will create a comprehensive threat detection dashboard that identifies every attack technique you learned.</p>' +
                '<p>The lesson: <strong>every attack has a signature, every signature has a detector.</strong> The tools you built are powerful because they are fast and automated. The detectors you build here are powerful because they understand the attack at the protocol level &mdash; because you wrote the attack code yourself.</p>' +
                '<p>This is the blue team capstone. Red builds the weapon. Blue builds the shield. The best security professionals can do both.</p>',

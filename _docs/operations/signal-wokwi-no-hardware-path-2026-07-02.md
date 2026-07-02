@@ -10,11 +10,14 @@ All ~112 Signal builds gate on owning physical boards — the hub's single bigge
 
 - **Schema** — optional per-guide field in `sections/<id>/guides.js`:
   ```js
+  // Simulable build:
   simulator: {
       platform: 'Wokwi',                                  // display name
       url: 'https://wokwi.com/projects/new/arduino-mega', // real, verified URL
       note: 'What the student should do with it (HTML ok, authored content)'
   }
+  // Genuinely-needs-hardware build (no template that could work):
+  simulator: { available: false, note: 'Why it needs the real board + what to learn here' }
   ```
 - **Render** — `SignalEngine.js` (before the Steps section): if `guide.simulator.url` exists, a `sp-sim-card` renders with the note and an "Open Wokwi" new-tab link. Guides without the field are untouched (verified: sg-02 renders no card).
 - **Pilot** — `sg-01` links the official Wokwi new-Mega template (URL fetch-verified working 2026-07-02); the note tells the student to paste the sketch from the steps and wire per the diagram.
@@ -30,9 +33,9 @@ All ~112 Signal builds gate on owning physical boards — the hub's single bigge
 | Wave | Scope | Simulator target | Effort shape |
 |---|---|---|---|
 | 1 | foundations sg-02..sg-05 (Mega) — DONE 2026-07-02 (parts coverage fetch-verified; DHT22/DS1307 substitutions and the sg-03 pyserial limitation stated honestly in the notes) | Mega template + build-specific note | done |
-| 2 | esp32-s3-arsenal (13) + pico-builds | Wokwi ESP32-S3 / Pico templates | medium |
+| 2 | esp32-s3-arsenal (10) + pico-builds (5) — DONE 2026-07-02 | pico: 5 sim (MicroPython Pico; Pico W for sg-117); esp32-s3: 10 honest NO-SIM (LILYGO T-Display-S3 not a Wokwi board + USB-HID/BLE/deauth not implemented) | done |
 | 3 | arcade-ops, firmware-ops, network-recon (Mega/ESP32 subsets) | template or pre-wired per build | large |
-| 4 | Non-simulable builds (SDR, drone, PCB, red-team hardware) | honest `simulator: null` + a "what you can still do without hardware" note variant | design decision |
+| 4 | Non-simulable builds (SDR, drone, PCB, red-team hardware) | honest no-sim card SHIPPED as the mechanism (`simulator: {available:false, note}` -> amber "Why This One Needs Real Hardware" card, engine 2026-07-02); remaining sections still to author | in progress |
 
 **Pre-wired vs template:** a template link works for every build today (student wires it themselves — which is itself pedagogy); a pre-wired Wokwi project (public saved project with `diagram.json` matching our wiring SVG) is better UX but requires creating/maintaining ~112 Wokwi projects under a Hexworth account. Recommendation: templates everywhere first (fast, zero external state), pre-wire only the top-traffic builds after.
 

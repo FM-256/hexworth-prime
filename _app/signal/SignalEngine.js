@@ -2216,6 +2216,15 @@ a { color: inherit; text-decoration: none; }
                 '<p class="sp-sim-text">' + (guide.simulator.note || 'This build runs in a free browser simulator &mdash; same code, same wiring, no kit required.') + '</p>' +
                 '<a class="sp-sim-btn" href="' + guide.simulator.url + '" target="_blank" rel="noopener">Open ' + _escHtml(guide.simulator.platform || 'simulator') + ' &#8599;</a>';
             wrap.appendChild(simBox);
+        } else if (guide.simulator && guide.simulator.available === false) {
+            // Honest no-sim path: this build genuinely needs the real hardware
+            // (offensive radio/USB features simulators can't represent). Say so,
+            // and tell the student what they CAN still get from the page.
+            var noSimBox = document.createElement('div');
+            noSimBox.className = 'sp-card sp-nosim-card';
+            noSimBox.innerHTML = '<div class="sp-card-label">Why This One Needs Real Hardware</div>' +
+                '<p class="sp-sim-text">' + (guide.simulator.note || 'This build depends on hardware behavior no browser simulator reproduces. Read the steps and code to learn the technique; run it for real when you have the board.') + '</p>';
+            wrap.appendChild(noSimBox);
         }
 
         // Steps (with optional sticky diagram layout)
@@ -2433,6 +2442,8 @@ a { color: inherit; text-decoration: none; }
     color: #22d3ee; font-size: 13px; font-weight: 600; text-decoration: none;
 }
 .sp-sim-btn:hover { background: rgba(34,211,238,0.22); }
+
+.sp-nosim-card { border-color: rgba(234,179,8,0.28); background: rgba(234,179,8,0.04); }
 
 /* Prerequisites */
 .sp-prereq-list { display: flex; flex-direction: column; gap: 6px; }

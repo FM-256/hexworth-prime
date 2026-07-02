@@ -10,6 +10,12 @@ window.SignalGuides = {
     // SG-113: Traffic Light Controller
     // ========================================================================
     'sg-113': {
+        // Wokwi wave 2: full sim — 3 LEDs on MicroPython Pico.
+        simulator: {
+            platform: 'Wokwi (MicroPython Pico)',
+            url: 'https://wokwi.com/projects/new/micropython-pi-pico',
+            note: 'No Pico? This state machine runs fully in Wokwi: add three <strong>LEDs</strong> (red/yellow/green) with resistors to the MicroPython Pico, paste the traffic-light code, and watch the states cycle in the simulator.'
+        },
         intro: '<p>The traffic light is the quintessential state machine &mdash; a system that cycles through a fixed set of states with defined transitions. In this build you will wire three LEDs (red, yellow, green) to a Raspberry Pi Pico and write MicroPython code that models a real-world traffic signal.</p>' +
                '<p>This is your entry point to Pico physical computing. You will learn how to set up Thonny IDE, flash MicroPython firmware, control GPIO output pins, and structure your code as a state machine &mdash; a pattern that shows up everywhere from embedded systems to network protocols.</p>' +
                '<p>Total cost is under $5 if you already have a Pico. All you need are three LEDs, three resistors, a breadboard, and jumper wires.</p>',
@@ -191,6 +197,12 @@ window.SignalGuides = {
     // SG-114: Reaction Time Game
     // ========================================================================
     'sg-114': {
+        // Wokwi wave 2: full sim — LEDs + tactile button.
+        simulator: {
+            platform: 'Wokwi (MicroPython Pico)',
+            url: 'https://wokwi.com/projects/new/micropython-pi-pico',
+            note: 'No kit? Add an <strong>LED</strong> and a <strong>push button</strong> to the MicroPython Pico in Wokwi and paste the game code &mdash; the reaction timing and button debouncing behave exactly like the real board.'
+        },
         intro: '<p>How fast are your reflexes? In this build you will wire a simple LED-and-buttons circuit and write a MicroPython reaction time game. The LED lights up after a random delay, and two players race to press their button first. The Pico measures the time difference in milliseconds and declares a winner.</p>' +
                '<p>You will learn digital input reading with pull-down resistors, random number generation, precise time measurement with <code>utime.ticks_ms()</code>, and basic game loop design. This is a great introduction to input handling and event-driven programming on a microcontroller.</p>' +
                '<p>Parts cost is under $5 &mdash; one LED, two buttons, and a few resistors.</p>',
@@ -331,6 +343,12 @@ window.SignalGuides = {
     // SG-115: PIR Motion Alarm
     // ========================================================================
     'sg-115': {
+        // Wokwi wave 2: full sim — PIR + HC-SR04 + buzzer all native Wokwi parts.
+        simulator: {
+            platform: 'Wokwi (MicroPython Pico)',
+            url: 'https://wokwi.com/projects/new/micropython-pi-pico',
+            note: 'No kit? Wokwi has native <strong>PIR motion</strong>, <strong>HC-SR04</strong>, and <strong>buzzer</strong> parts &mdash; add them to the MicroPython Pico, wire per the diagram, and click the PIR to trigger motion. (A slider/potentiometer stands in for any analog sensitivity control.)'
+        },
         intro: '<p>Motion detection is the backbone of physical security systems &mdash; from home alarms to corporate intrusion detection. In this build you will wire an HC-SR501 Passive Infrared (PIR) sensor to a Raspberry Pi Pico and build a motion-triggered alarm with visual and audio alerts.</p>' +
                '<p>This project introduces <strong>hardware interrupts</strong> &mdash; a critical concept where the processor responds to an external event immediately instead of constantly checking (polling) a pin. You will also build an arm/disarm state machine with configurable cooldown periods, mimicking real security panel behavior.</p>' +
                '<p>The HC-SR501 PIR sensor costs about $2 and detects infrared radiation changes caused by warm bodies moving through its field of view (up to 7 meters, 120-degree cone).</p>',
@@ -478,6 +496,12 @@ window.SignalGuides = {
     // SG-116: Temperature Data Logger
     // ========================================================================
     'sg-116': {
+        // Wokwi wave 2: full sim with one honest caveat (onboard temp reads fixed in sim).
+        simulator: {
+            platform: 'Wokwi (MicroPython Pico)',
+            url: 'https://wokwi.com/projects/new/micropython-pi-pico',
+            note: 'No kit? Add a <strong>DS18B20</strong> probe and a <strong>microSD (SPI)</strong> card &mdash; both native Wokwi parts &mdash; and the CSV logging runs for real. One caveat: the RP2040&#39;s <strong>onboard</strong> temperature sensor reads a fixed value in the simulator, so use the DS18B20 (which you can vary) as your live source.'
+        },
         intro: '<p>Data logging is a core skill in IoT and embedded systems. In this build you will read temperature from two sources &mdash; the Pico\'s built-in temperature sensor and an external DS18B20 waterproof probe &mdash; then log the data as CSV files to an SD card.</p>' +
                '<p>You will learn ADC (analog-to-digital conversion) for the internal sensor, the 1-Wire protocol for the DS18B20, SPI communication for the SD card, and CSV file formatting. The result is a standalone data logger that can run on battery power and record temperature data for hours or days.</p>' +
                '<p>Total parts cost is about $10 &mdash; a DS18B20 waterproof probe (~$3), an SPI MicroSD breakout (~$3), and a MicroSD card (~$4).</p>',
@@ -643,6 +667,12 @@ window.SignalGuides = {
     // SG-117: WiFi Weather Station
     // ========================================================================
     'sg-117': {
+        // Wokwi wave 2: full sim — needs the Pico W (WiFi) MicroPython target.
+        simulator: {
+            platform: 'Wokwi (MicroPython Pico W)',
+            url: 'https://wokwi.com/projects/new/micropython-pi-pico-w',
+            note: 'No kit? Use the <strong>Pico W</strong> MicroPython simulator (this link) &mdash; Wokwi simulates its WiFi: connect to SSID <code>Wokwi-GUEST</code> (no password) and the weather-station HTTP requests work. Add a DS18B20 or DHT22 for the reading.'
+        },
         intro: '<p>This is the capstone Pico build &mdash; a self-contained weather station that reads temperature, humidity, and barometric pressure from a BME280 sensor, displays readings on an OLED screen, and serves a live dashboard over WiFi that any device on your network can access.</p>' +
                '<p>You will learn I2C communication (shared bus for both the sensor and display), WiFi connectivity with the Pico W, socket programming for the HTTP server, and HTML template rendering on a microcontroller. The result is a fully functional IoT device that runs independently.</p>' +
                '<p>This project requires a <strong>Pico W</strong> (not the standard Pico) because it needs WiFi. The BME280 sensor reads temperature (&plusmn;1&#176;C), humidity (&plusmn;3%), and pressure (&plusmn;1 hPa). The SSD1306 OLED is a 0.96" 128x64 pixel display.</p>',
