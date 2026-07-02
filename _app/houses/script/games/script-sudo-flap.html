@@ -256,13 +256,54 @@
         }
 
         // ── Character Sprite ─────────────────────────────────────────────
+        // pxShade: lighten (pct>0) / darken (pct<0) a hex color toward white/black; returns rgb().
+        function pxShade(hex, pct) {
+            var s = ('' + hex).replace('#', '');
+            if (s.length === 3) s = s[0] + s[0] + s[1] + s[1] + s[2] + s[2];
+            var r = parseInt(s.substr(0, 2), 16), g = parseInt(s.substr(2, 2), 16), b = parseInt(s.substr(4, 2), 16);
+            if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+            var t = pct < 0 ? 0 : 255, p = Math.min(1, Math.abs(pct) / 100);
+            return 'rgb(' + Math.round((t - r) * p + r) + ',' + Math.round((t - g) * p + g) + ',' + Math.round((t - b) * p + b) + ')';
+        }
+        // CURSOR-1 pixel-art grid (11x13): a terminal-cursor creature with eyes + mouth.
+        //   O outline · H header · B body · W eye · P pupil/mouth
+        var CURSOR_ROWS = [
+            'OOOOOOOOOOO',
+            'OHHHHHHHHHO',
+            'OBBBBBBBBBO',
+            'OBWWBBBWWBO',
+            'OBWPBBBWPBO',
+            'OBBBBBBBBBO',
+            'OBBBBBBBBBO',
+            'OBBBPPPBBBO',
+            'OBBBBBBBBBO',
+            'OBBBBBBBBBO',
+            'OBBBBBBBBBO',
+            'OHHHHHHHHHO',
+            'OOOOOOOOOOO'
+        ];
+        var _cursorCache = {};
+        // getCursorSprite: bake the cursor grid to an offscreen canvas per base color.
+        function getCursorSprite(base) {
+            if (_cursorCache[base]) return _cursorCache[base];
+            var S = 4, cols = 11, rows = CURSOR_ROWS.length;
+            var cv = document.createElement('canvas');
+            cv.width = cols * S; cv.height = rows * S;
+            var c = cv.getContext('2d');
+            var pal = { O: pxShade(base, -60), H: pxShade(base, 58), B: base, L: pxShade(base, 32), D: pxShade(base, -28), W: '#ffffff', P: '#0a1400' };
+            for (var r = 0; r < rows; r++) { var line = CURSOR_ROWS[r]; for (var col = 0; col < cols; col++) { var ch = line.charAt(col); if (pal[ch]) { c.fillStyle = pal[ch]; c.fillRect(col * S, r * S, S, S); } } }
+            _cursorCache[base] = cv; return cv;
+        }
+        // Sprite: CURSOR-1 as a pixel character. Root mode swaps the palette to gold
+        // (preserving the gameplay cue) and keeps the aura; blink dims it.
         function drawCursorSprite(ctx, w, h, flapFrame) {
-            // Root mode: golden glow aura
-            if (isRoot) {
+            var root = isRoot;
+            var base = root ? '#fbbf24' : '#22c55e';
+
+            // Root mode: golden glow aura (unchanged gameplay cue)
+            if (root) {
                 var pulse = 1 + 0.15 * Math.sin(Date.now() / 150);
                 var auraSize = Math.max(w, h) * 0.8 * pulse;
-
-                // Outer glow ring
                 ctx.beginPath();
                 ctx.arc(0, 0, auraSize, 0, Math.PI * 2);
                 ctx.strokeStyle = '#fbbf24';
@@ -270,8 +311,6 @@
                 ctx.globalAlpha = 0.3 + 0.2 * Math.sin(Date.now() / 200);
                 ctx.stroke();
                 ctx.globalAlpha = 1;
-
-                // Radial glow
                 var grad = ctx.createRadialGradient(0, 0, 0, 0, 0, auraSize);
                 grad.addColorStop(0, 'rgba(251,191,36,0.25)');
                 grad.addColorStop(1, 'rgba(251,191,36,0)');
@@ -281,33 +320,21 @@
                 ctx.fill();
             }
 
-            // Main cursor block
+            // Pixel cursor body — dimmed on the blink-off phase
             var blink = Math.sin(Date.now() / 200) > -0.3;
-            if (isRoot) {
-                ctx.fillStyle = blink ? '#fbbf24' : '#92400e';
-                ctx.shadowColor = '#fbbf24';
-            } else {
-                ctx.fillStyle = blink ? '#22c55e' : '#166534';
-                ctx.shadowColor = '#22c55e';
-            }
+            ctx.save();
+            ctx.globalAlpha = blink ? 1 : 0.55;
+            ctx.shadowColor = base;
             ctx.shadowBlur = blink ? 10 : 4;
-            ctx.fillRect(-w/2, -h/2, w, h);
-            ctx.shadowBlur = 0;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(getCursorSprite(base), -w / 2, -h / 2, w, h);
+            ctx.restore();
 
-            // Prompt text
-            ctx.fillStyle = '#020a00';
-            ctx.font = 'bold 10px Courier New';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(isRoot ? '#_' : '$_', 0, 1);
-
-            // Flap effect
+            // Flap effect (unchanged)
             if (flapFrame > 0.3) {
-                ctx.strokeStyle = isRoot
-                    ? 'rgba(251,191,36,0.5)'
-                    : 'rgba(34,197,94,0.4)';
+                ctx.strokeStyle = root ? 'rgba(251,191,36,0.5)' : 'rgba(34,197,94,0.4)';
                 ctx.lineWidth = 2;
-                ctx.strokeRect(-w/2 - 4, -h/2 - 4, w + 8, h + 8);
+                ctx.strokeRect(-w / 2 - 4, -h / 2 - 4, w + 8, h + 8);
             }
         }
 

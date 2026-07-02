@@ -313,62 +313,69 @@
             return 'rgb(' + Math.round((t - r) * p + r) + ',' + Math.round((t - g) * p + g) + ',' + Math.round((t - b) * p + b) + ')';
         }
 
-        // Sprite: a network datagram — gradient body + header segment + payload
-        // lines + soft glow, tinted by the current protocol color.
+        // Hand-drawn pixel-art sprite for PACKET-7 (an authored pixel grid, no
+        // image asset). Each row is 14 cells; chars map to a palette derived from
+        // the current protocol color so the packet re-tints per protocol.
+        //   O outline · H header · B body · L light · D shadow · W eye · P pupil
+        var PACKET7_ROWS = [
+            '..OOOOOOOOOO..',
+            '.OHHHHHHHHHHO.',
+            'OBBBBBBBBBBBBO',
+            'OBLBBBBWWBWWBO',
+            'OBLBBBBWPBWPBO',
+            'OBBBBBBBBBBBBO',
+            'OBBBBBBBBBBBBO',
+            'OBDBBBBBBBBBBO',
+            '.OBDBBBBBBBBO.',
+            '..OBBBBBBBBO..',
+            '...OOOOOOOO...'
+        ];
+        var _packet7Cache = {};
+        // getPacket7Sprite: bake (and cache) the pixel grid to an offscreen canvas
+        // for a given protocol base color, so it is drawn once per color not per frame.
+        function getPacket7Sprite(baseColor) {
+            if (_packet7Cache[baseColor]) return _packet7Cache[baseColor];
+            var S = 4, cols = 14, rows = PACKET7_ROWS.length;
+            var cv = document.createElement('canvas');
+            cv.width = cols * S; cv.height = rows * S;
+            var c = cv.getContext('2d');
+            var pal = {
+                O: pktShade(baseColor, -62), H: pktShade(baseColor, 60), B: baseColor,
+                L: pktShade(baseColor, 34), D: pktShade(baseColor, -30),
+                W: '#ffffff', P: '#0b1020'
+            };
+            for (var r = 0; r < rows; r++) {
+                var line = PACKET7_ROWS[r];
+                for (var col = 0; col < cols; col++) {
+                    var ch = line.charAt(col);
+                    if (pal[ch]) { c.fillStyle = pal[ch]; c.fillRect(col * S, r * S, S, S); }
+                }
+            }
+            _packet7Cache[baseColor] = cv;
+            return cv;
+        }
+
+        // Sprite: PACKET-7 as a pixel-art character — an animated wing behind a
+        // crisp blitted pixel body, tinted by the current protocol color.
         function drawPacketSprite(ctx, w, h, flapFrame) {
             var baseColor = currentProtocol.color;
-            var x0 = -w / 2, y0 = -h / 2;
 
             ctx.save();
-            // soft glow in the protocol color
-            ctx.shadowColor = baseColor;
-            ctx.shadowBlur = 8;
-            // body: vertical gradient (lit top -> base -> shaded bottom)
-            var bodyGrad = ctx.createLinearGradient(0, y0, 0, y0 + h);
-            bodyGrad.addColorStop(0, pktShade(baseColor, 38));
-            bodyGrad.addColorStop(0.5, baseColor);
-            bodyGrad.addColorStop(1, pktShade(baseColor, -28));
-            ctx.fillStyle = bodyGrad;
-            ctx.fillRect(x0, y0, w, h);
-            ctx.shadowBlur = 0;
-
-            // header segment (the packet header strip)
-            ctx.fillStyle = pktShade(baseColor, 58);
-            ctx.fillRect(x0, y0, w, 5);
-            // payload lines
-            ctx.fillStyle = 'rgba(255,255,255,0.28)';
-            ctx.fillRect(x0 + 3, y0 + 9, w - 6, 1.5);
-            ctx.fillRect(x0 + 3, y0 + 13, w - 10, 1.5);
-
-            // border
-            ctx.strokeStyle = pktShade(baseColor, 65);
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(x0, y0, w, h);
-
-            // protocol label
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 8px Courier New';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(currentProtocol.id, 0, 1);
-            ctx.restore();
-
-            // Wings on flap
-            if (flapFrame > 0.3) {
-                ctx.fillStyle = baseColor;
-                ctx.globalAlpha = 0.6;
-                ctx.beginPath();
-                ctx.moveTo(-w / 2, 0);
-                ctx.lineTo(-w / 2 - 10, -7);
-                ctx.lineTo(-w / 2, -3);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(w / 2, 0);
-                ctx.lineTo(w / 2 + 10, -7);
-                ctx.lineTo(w / 2, -3);
-                ctx.fill();
-                ctx.globalAlpha = 1;
+            // animated wing behind the body (back edge = left), swaps on flap
+            ctx.fillStyle = pktShade(baseColor, 48);
+            if (flapFrame > 0.5) {
+                ctx.fillRect(-w / 2 - 4, 1, 8, 4);
+                ctx.fillRect(-w / 2 - 2, 5, 8, 4);
+            } else {
+                ctx.fillRect(-w / 2 - 4, -5, 8, 4);
+                ctx.fillRect(-w / 2 - 2, -9, 8, 4);
             }
+            // soft protocol glow, then blit the crisp pixel body (no smoothing)
+            ctx.shadowColor = baseColor;
+            ctx.shadowBlur = 7;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(getPacket7Sprite(baseColor), -w / 2, -h / 2, w, h);
+            ctx.restore();
 
             // Congestion static on bird
             if (congestionLevel > 50) {

@@ -453,37 +453,59 @@
         }
 
         // ── Character Sprite ─────────────────────────────────────────────
+        // pxShade: lighten (pct>0) / darken (pct<0) a hex color toward white/black; returns rgb().
+        function pxShade(hex, pct) {
+            var s = ('' + hex).replace('#', '');
+            if (s.length === 3) s = s[0] + s[0] + s[1] + s[1] + s[2] + s[2];
+            var r = parseInt(s.substr(0, 2), 16), g = parseInt(s.substr(2, 2), 16), b = parseInt(s.substr(4, 2), 16);
+            if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+            var t = pct < 0 ? 0 : 255, p = Math.min(1, Math.abs(pct) / 100);
+            return 'rgb(' + Math.round((t - r) * p + r) + ',' + Math.round((t - g) * p + g) + ',' + Math.round((t - b) * p + b) + ')';
+        }
+        // KEY-256 pixel-art grid (10x15): a key-golem with a face on the round bow, a
+        // shaft, and teeth. O outline · H header · B body · W eye · P pupil/mouth.
+        var KEY_ROWS = [
+            '...OOOO...',
+            '..OHHHHO..',
+            '.OBBBBBBO.',
+            '.OWWBBWWO.',
+            '.OWPBBWPO.',
+            '.OBBBBBBO.',
+            '.OBPPPPBO.',
+            '..OBBBBO..',
+            '...OBBO...',
+            '...OBBO...',
+            '...OBBO...',
+            '...OBBBO..',
+            '...OBBBO..',
+            '...OBBOO..',
+            '...OOOO...'
+        ];
+        var _keyCache = {};
+        // getKeySprite: bake the key grid to an offscreen canvas per base color.
+        function getKeySprite(base) {
+            if (_keyCache[base]) return _keyCache[base];
+            var S = 4, cols = 10, rows = KEY_ROWS.length;
+            var cv = document.createElement('canvas');
+            cv.width = cols * S; cv.height = rows * S;
+            var c = cv.getContext('2d');
+            var pal = { O: pxShade(base, -55), H: pxShade(base, 55), B: base, L: pxShade(base, 30), D: pxShade(base, -28), W: '#ffffff', P: '#3a1e00' };
+            for (var r = 0; r < rows; r++) { var line = KEY_ROWS[r]; for (var col = 0; col < cols; col++) { var ch = line.charAt(col); if (pal[ch]) { c.fillStyle = pal[ch]; c.fillRect(col * S, r * S, S, S); } } }
+            _keyCache[base] = cv; return cv;
+        }
+        // Sprite: KEY-256 as a pixel character. Keeps the fragment-carry glow (the
+        // gameplay cue for how many key fragments are held).
         function drawKeySprite(ctx, w, h, flapFrame) {
-            // Key shaft
-            ctx.fillStyle = '#fbbf24';
+            // Pixel key body
+            ctx.save();
             ctx.shadowColor = '#f59e0b';
             ctx.shadowBlur = flapFrame > 0.3 ? 16 : 6;
-            ctx.fillRect(-2, -4, 4, 16);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(getKeySprite('#fbbf24'), -w / 2, -h / 2, w, h);
+            ctx.restore();
 
-            // Key head (ring)
-            ctx.strokeStyle = '#fbbf24';
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            ctx.arc(0, -8, 6, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.fillStyle = '#f59e0b';
-            ctx.fill();
-
-            // Key teeth
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillRect(2, 8, 4, 2);
-            ctx.fillRect(2, 4, 3, 2);
-            ctx.fillRect(2, 0, 5, 2);
-
-            ctx.shadowBlur = 0;
-
-            // Inner ring detail
-            ctx.fillStyle = '#92400e';
-            ctx.beginPath();
-            ctx.arc(0, -8, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Glow when carrying fragments
+            // Fragment-carry glow — drawn OVER the body (a charged halo that brightens
+            // the key), matching the original z-order so the cue stays legible.
             if (cryptoState.keyFragments > 0) {
                 ctx.save();
                 ctx.globalAlpha = 0.15 + cryptoState.keyFragments * 0.1;
@@ -494,7 +516,7 @@
                 ctx.restore();
             }
 
-            // Flap sparkle
+            // Flap sparkle (unchanged)
             if (flapFrame > 0.3) {
                 ctx.fillStyle = 'rgba(251,191,36,0.4)';
                 ctx.beginPath();
