@@ -1,0 +1,85 @@
+#!/bin/bash
+# lab — Hexworth Linux Mastery scenario CLI.
+# Subcommands: list | start <id> [--level N] | reset | check | hint | status
+set -u
+HEXLAB=/opt/hexlab
+SCEN_DIR="$HEXLAB/scenarios"
+STATE_DIR="$HEXLAB/state"
+STATE_FILE="$STATE_DIR/current"
+WORKSPACE="$HOME/lab"
+
+# die MSG — print error and exit 1.
+die() { echo "lab: $*" >&2; exit 1; }
+
+# meta ID FIELD — read one field from a scenario's meta.json.
+meta() { jq -r "$2" "$SCEN_DIR/$1/meta.json"; }
+
+# current_state — echoes "id level" from the state file (or fails).
+current_state() {
+  [ -f "$STATE_FILE" ] || die "no active lab. Run: lab start <id>   (see: lab list)"
+  cat "$STATE_FILE"
+}
+
+# seed ID LEVEL — (re)builds the workspace for a scenario+level.
+# Reset contract: scenarios may write ONLY (1) inside $WORKSPACE, (2) under
+# /opt/hexlab/answers, (3) idempotent system changes (e.g. useradd || true).
+# The wipe is sudo because scenarios may seed root-owned files in $WORKSPACE.
+# Damage OUTSIDE that scope is not reset's job — relaunch the session.
+seed() {
+  local id="$1" level="$2"
+  cd "$HOME" 2>/dev/null || true   # avoid getcwd errors if cwd was inside the workspace
+  sudo rm -rf "$WORKSPACE"
+  mkdir -p "$WORKSPACE"
+  LEVEL="$level" WORKSPACE="$WORKSPACE" bash "$SCEN_DIR/$id/setup.sh" || die "setup failed for $id (level $level)"
+  echo "$id $level" > "$STATE_FILE"
+  rm -f "$STATE_DIR/hints_shown"
+}
+
+case "${1:-}" in
+  list)
+    # Enumerate scenario dirs with title + level count from meta.json.
+    printf "%-12s %-38s %s\n" "ID" "TITLE" "LEVELS"
+    for d in "$SCEN_DIR"/*/; do
+      id=$(basename "$d")
+      printf "%-12s %-38s %s\n" "$id" "$(meta "$id" .title)" "$(meta "$id" .levels)"
+    done
+    ;;
+  start)
+    id="${2:-}"; [ -n "$id" ] || die "usage: lab start <id> [--level N]"
+    [ -d "$SCEN_DIR/$id" ] || die "unknown lab '$id' (see: lab list)"
+    level=$(meta "$id" .default_level)
+    [ "${3:-}" = "--level" ] && level="${4:-$level}"
+    [ "$level" -le "$(meta "$id" .levels)" ] 2>/dev/null || die "level must be 1..$(meta "$id" .levels)"
+    seed "$id" "$level"
+    ;;
+  reset)
+    # Re-seed the SAME scenario+level from scratch (fast reset).
+    read -r id level < <(current_state)
+    seed "$id" "$level"
+    echo "Lab '$id' (level $level) reset to its start state."
+    echo "(Note: reset restores THIS lab's files. If you broke the system itself"
+    echo " with sudo, close the session and relaunch for a factory-fresh box.)"
+    ;;
+  check)
+    # Run the scenario's graders against real system state.
+    read -r id level < <(current_state)
+    LEVEL="$level" WORKSPACE="$WORKSPACE" bash "$SCEN_DIR/$id/check.sh"
+    ;;
+  hint)
+    # Reveal the next hint for the active scenario+level.
+    read -r id level < <(current_state)
+    shown=$(cat "$STATE_DIR/hints_shown" 2>/dev/null || echo 0)
+    total=$(meta "$id" ".hints[\"$level\"] | length")
+    if [ "$shown" -ge "$total" ]; then echo "No more hints for this lab."; exit 0; fi
+    meta "$id" ".hints[\"$level\"][$shown]"
+    echo $((shown + 1)) > "$STATE_DIR/hints_shown"
+    ;;
+  status)
+    read -r id level < <(current_state)
+    echo "Active lab: $id (level $level) — $(meta "$id" .title)"
+    echo "Workspace:  $WORKSPACE"
+    ;;
+  *)
+    echo "usage: lab list | start <id> [--level N] | reset | check | hint | status"
+    ;;
+esac
