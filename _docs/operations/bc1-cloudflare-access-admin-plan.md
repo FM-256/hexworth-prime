@@ -1,6 +1,13 @@
 # bc1 Admin Access via Cloudflare Access (Zscaler-proof)
 
-**Status:** PLAN — execute-ready (drafted 2026-07-01)
+**Status:** PARTIALLY IMPLEMENTED 2026-07-02 — bc1 side DONE, Cloudflare side pending operator.
+- DONE: Cockpit installed + active on bc1, socket OVERRIDDEN to listen ONLY on 127.0.0.1:9090 + 172.18.0.1:9090 (sandbox-net gateway; override at `/etc/systemd/system/cockpit.socket.d/listen-local-only.conf`) — NOT exposed on LAN. NOTE: the plan's `https://localhost:9090` ingress service was WRONG for a containerized cloudflared (container loopback ≠ host); implemented as `https://172.18.0.1:9090` instead.
+- DONE: tunnel is local-config (case b). `~/.cloudflared/config.yml` updated (backup at `config.yml.bak-2026-07-02`): `bc1.hexworth.tech` → Cockpit, `traefik.bc1.hexworth.tech` → `http://traefik:8080`, sandbox rule unchanged; cloudflared restarted, 4 tunnel connections registered, sandbox.hexworth.tech verified healthy after.
+- NOT DONE (operator, ~2 min in Cloudflare dashboard): Zero Trust → Access → Applications → Add self-hosted app "bc1 Admin", domains `bc1.hexworth.tech` + `*.bc1.hexworth.tech`, Allow policy = emails f.mora80@gmail.com + jorden@hexworth.com, session 24h. (No valid CF API token on file — the one in hexworth-shared is expired.)
+- NOT DONE (me, AFTER Access is live — cert.pem exists on bc1): `docker run --rm -v ~/.cloudflared:/etc/cloudflared cloudflare/cloudflared:latest tunnel --origincert /etc/cloudflared/cert.pem route dns 2809c48c-5898-4c24-90fe-7c967696b4cb bc1.hexworth.tech` (and same for traefik.bc1) — then verify end-to-end from a browser.
+
+*(original plan below)*
+**Original status:** PLAN — execute-ready (drafted 2026-07-01)
 **Goal:** manage **bc1** (the sandbox host) from a **browser over HTTPS**, from anywhere — including the **Keiser office**, where the Zscaler agent on the managed laptop blocks Tailscale/SSH. See `reference_sandbox_bc1_traefik_docker_api.md` (memory) for the Zscaler-blocks-Tailscale finding.
 
 **DECISIONS (operator, 2026-07-01):** management surface = **Cockpit**; primary hostname = **`bc1.hexworth.tech`**; **also gate the traefik `:8080` dashboard** (+ any sandbox admin UI) behind the **same Cloudflare Access application** (one identity policy for all bc1 admin surfaces). Requires a shell on bc1 for the install/tunnel steps → a TONIGHT/from-home task (Zscaler blocks bc1 SSH from the office); the Cloudflare dashboard steps are done in the operator's own Cloudflare account.
