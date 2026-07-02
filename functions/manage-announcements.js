@@ -39,7 +39,7 @@ const VALID_HOUSES = ['eye', 'code', 'key', 'shield', 'script', 'forge', 'cloud'
 const MAX_TITLE_LENGTH = 120;
 const MAX_BODY_LENGTH = 2000;
 
-const ADMIN_EMAILS = ['f.mora80@gmail.com'];
+const ADMIN_EMAILS = require('./admin-emails'); // single source of truth — NOTE: adds jorden@ (was drifted); reviewed decision 2026-07-02
 
 const CF_OPTIONS = { region: 'us-central1' };
 

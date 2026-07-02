@@ -65,7 +65,7 @@ function buildUpstreamHeaders(extra = {}) {
 }
 
 const TIMEOUT_MS = 30000;                              // hard cap; CF max is 540s but UX needs faster fail
-const ADMIN_EMAILS = ['f.mora80@gmail.com', 'jorden@hexworth.com'];
+const ADMIN_EMAILS = require('./admin-emails'); // single source of truth — see admin-emails.js
 
 // Window over which "recent" failed attempts count toward help-level
 // escalation. 30 minutes is the orchestrator-side semantic of "this

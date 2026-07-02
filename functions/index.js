@@ -23,7 +23,7 @@ initializeApp();
 const db = getFirestore();
 
 // ─── Configuration ───────────────────────────────────────────────
-const ADMIN_EMAILS = ['f.mora80@gmail.com', 'jorden@hexworth.com'];
+const ADMIN_EMAILS = require('./admin-emails'); // single source of truth — see admin-emails.js
 const FLAG_SECRET = crypto.randomBytes(32).toString('hex'); // per-deploy secret
 
 // App Check: Set to true after configuring reCAPTCHA v3 in Firebase Console
