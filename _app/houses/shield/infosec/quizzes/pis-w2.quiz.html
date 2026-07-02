@@ -7,8 +7,7 @@
     <script src="../../../../components/ModuleProgress.js"></script>
     <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
     <script src="../../../../components/FirebaseAuth.js"></script>
-    <!-- InlineQuizShuffler: defeats positional cheatability across PIS w1/w2/w3/w4 (Bridget 2026-05-09 finding). Client-graded only — DO NOT re-seed quiz_keys.json from this file's in-memory questions array; the Firestore key was seeded against pre-shuffle option order and must remain canonical. -->
-    <script src="../../../../components/InlineQuizShuffler.js"></script>
+    <!-- Option shuffle (anti-positional-memorization, Bridget 2026-05-09) now inline via permShuffleQuiz: q._perm maps shuffled->original; server grading (QC-57) submits ORIGINAL indices against the canonical Firestore key. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Week 2: Attacks + Cryptography | Principles of Information Security</title>
     <style>
@@ -209,6 +208,7 @@
             display: none;
         }
 
+        .feedback.checking{display:block;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.35);color:#cbd5e1}
         .feedback.correct {
             display: block;
             background: rgba(34, 197, 94, 0.08);
@@ -435,128 +435,22 @@
     </div>
 
     <script>
-        var questions = [
-            {
-                q: "An attacker calls a hospital's IT help desk, impersonates a physician, and convinces the technician to reset their password without verification. This is an example of:",
-                opts: ["Pretexting", "Phishing", "Vishing", "Tailgating"],
-                ans: 0,
-                exp: "Pretexting is fabricating a scenario (pretext) to manipulate a victim into providing access or information. Impersonating a physician to reset credentials is a classic pretexting attack."
-            },
-            {
-                q: "Which type of malware encrypts the victim's files and demands payment for the decryption key?",
-                opts: ["Ransomware", "Rootkit", "Spyware", "Worm"],
-                ans: 0,
-                exp: "Ransomware encrypts victim data and demands a ransom, typically in cryptocurrency, for the decryption key. It is one of the most financially damaging malware categories."
-            },
-            {
-                q: "A worm propagates across a hospital network, consuming bandwidth and crashing patient monitoring systems. Which characteristic distinguishes a worm from a virus?",
-                opts: [
-                    "Worms require user interaction to spread; viruses do not",
-                    "Worms encrypt data; viruses delete data",
-                    "Worms self-replicate across networks without requiring a host file; viruses attach to host files",
-                    "Worms target firmware; viruses target RAM"
-                ],
-                ans: 2,
-                exp: "Worms self-replicate and spread autonomously across networks without needing to attach to a host file. Viruses require a host file and typically require user action to trigger."
-            },
-            {
-                q: "Which symmetric encryption algorithm uses a 128, 192, or 256-bit key and is the current US federal standard?",
-                opts: ["DES", "3DES", "RC4", "AES"],
-                ans: 3,
-                exp: "AES (Advanced Encryption Standard) was adopted by NIST in 2001 as the federal standard. It supports 128, 192, and 256-bit key sizes and is used in TLS, disk encryption, and Wi-Fi security."
-            },
-            {
-                q: "What is the primary difference between symmetric and asymmetric encryption?",
-                opts: [
-                    "Symmetric uses two different keys; asymmetric uses one shared key",
-                    "Symmetric is slower; asymmetric is faster",
-                    "Symmetric uses one shared key for both encryption and decryption; asymmetric uses a public/private key pair",
-                    "Symmetric is used only for hashing; asymmetric is used for key exchange"
-                ],
-                ans: 2,
-                exp: "Symmetric encryption uses a single shared key for both encryption and decryption. Asymmetric uses a mathematically related public/private key pair -- what one key encrypts, only the other can decrypt."
-            },
-            {
-                q: "A threat actor intercepts encrypted traffic between a CDC field team and headquarters, silently reading and altering messages. This attack is known as:",
-                opts: ["Replay attack", "Credential stuffing", "SQL injection", "Man-in-the-middle (MitM) attack"],
-                ans: 3,
-                exp: "A Man-in-the-Middle attack positions the attacker between two communicating parties, allowing them to intercept, read, and modify traffic without the parties' knowledge."
-            },
-            {
-                q: "Which hashing algorithm produces a 256-bit digest and is widely used in TLS certificates and code signing?",
-                opts: ["MD5", "SHA-256", "SHA-1", "RIPEMD-128"],
-                ans: 1,
-                exp: "SHA-256 (part of the SHA-2 family) produces a 256-bit hash and is the current standard for TLS certificates and code signing. MD5 and SHA-1 are considered cryptographically broken."
-            },
-            {
-                q: "What property of a hash function ensures that two different inputs will not produce the same hash output?",
-                opts: ["Collision resistance", "Salting", "Pre-image resistance", "Avalanche effect"],
-                ans: 0,
-                exp: "Collision resistance means it is computationally infeasible to find two different inputs that produce the same hash. MD5 and SHA-1 fail this property and are therefore deprecated."
-            },
-            {
-                q: "An attacker gains network access by sending a crafted email with a malicious attachment to an employee. Which initial access technique is this?",
-                opts: ["Drive-by download", "Brute force", "Watering hole attack", "Spear phishing"],
-                ans: 3,
-                exp: "Spear phishing is a targeted phishing attack aimed at a specific individual or organization, often using personalized details to increase believability. It is the most common initial access vector."
-            },
-            {
-                q: "A rootkit is installed on a compromised server. What is the primary purpose of a rootkit?",
-                opts: [
-                    "To encrypt files for ransom",
-                    "To replicate itself across the network",
-                    "To conceal the attacker's presence and maintain privileged access",
-                    "To capture keystrokes and send them to the attacker"
-                ],
-                ans: 2,
-                exp: "A rootkit hides malware and attacker activity from the operating system and security tools, allowing the attacker to maintain persistent, privileged access while remaining undetected."
-            },
-            {
-                q: "Which attack technique involves submitting a large number of known plaintext-hash pairs to reverse a password hash?",
-                opts: ["Brute force attack", "Rainbow table attack", "Dictionary attack", "Pass-the-hash attack"],
-                ans: 1,
-                exp: "Rainbow table attacks use precomputed hash-to-plaintext mappings to rapidly reverse password hashes. Salting passwords defeats rainbow tables by making precomputation infeasible."
-            },
-            {
-                q: "What is the purpose of adding a cryptographic salt to a password before hashing?",
-                opts: [
-                    "To increase the key length of the hash",
-                    "To ensure the same password always produces the same hash",
-                    "To compress the hash output for faster storage",
-                    "To make each hash unique even when passwords are identical, defeating precomputed table attacks"
-                ],
-                ans: 3,
-                exp: "A salt is a random value appended to the password before hashing. It ensures that identical passwords produce different hashes, defeating rainbow table and precomputed dictionary attacks."
-            },
-            {
-                q: "A phishing email directs victims to a site that mimics the CDC's online reporting portal to steal credentials. Which social engineering principle does this exploit?",
-                opts: ["Scarcity", "Authority and familiarity", "Reciprocity", "Consensus"],
-                ans: 1,
-                exp: "Mimicking a trusted authority (CDC) exploits both authority (victims trust the source) and familiarity (the site looks legitimate). These are core Cialdini influence principles used in social engineering."
-            },
-            {
-                q: "Which type of attack replays a captured authentication token to gain unauthorized access without knowing the credentials?",
-                opts: ["Replay attack", "Pass-the-hash", "Credential stuffing", "Kerberoasting"],
-                ans: 0,
-                exp: "A replay attack captures a valid authentication token or session credential and retransmits it to impersonate the original user. Timestamps and nonces in protocols like TLS and Kerberos prevent this."
-            },
-            {
-                q: "DES (Data Encryption Standard) is considered insecure today primarily because:",
-                opts: [
-                    "It uses an asymmetric key algorithm",
-                    "Its 56-bit key is too short to resist modern brute-force attacks",
-                    "It relies on MD5 hashing internally",
-                    "It requires a public key infrastructure to operate"
-                ],
-                ans: 1,
-                exp: "DES uses a 56-bit key, which can be brute-forced in hours with modern hardware. It was officially deprecated and replaced by 3DES and then AES. Never use DES for any current application."
-            }
-        ];
+        var questions = [{"q":"An attacker calls a hospital's IT help desk, impersonates a physician, and convinces the technician to reset their password without verification. This is an example of:","opts":["Pretexting","Phishing","Vishing","Tailgating"],"exp":"Pretexting is fabricating a scenario (pretext) to manipulate a victim into providing access or information. Impersonating a physician to reset credentials is a classic pretexting attack."},{"q":"Which type of malware encrypts the victim's files and demands payment for the decryption key?","opts":["Ransomware","Rootkit","Spyware","Worm"],"exp":"Ransomware encrypts victim data and demands a ransom, typically in cryptocurrency, for the decryption key. It is one of the most financially damaging malware categories."},{"q":"A worm propagates across a hospital network, consuming bandwidth and crashing patient monitoring systems. Which characteristic distinguishes a worm from a virus?","opts":["Worms require user interaction to spread; viruses do not","Worms encrypt data; viruses delete data","Worms self-replicate across networks without requiring a host file; viruses attach to host files","Worms target firmware; viruses target RAM"],"exp":"Worms self-replicate and spread autonomously across networks without needing to attach to a host file. Viruses require a host file and typically require user action to trigger."},{"q":"Which symmetric encryption algorithm uses a 128, 192, or 256-bit key and is the current US federal standard?","opts":["DES","3DES","RC4","AES"],"exp":"AES (Advanced Encryption Standard) was adopted by NIST in 2001 as the federal standard. It supports 128, 192, and 256-bit key sizes and is used in TLS, disk encryption, and Wi-Fi security."},{"q":"What is the primary difference between symmetric and asymmetric encryption?","opts":["Symmetric uses two different keys; asymmetric uses one shared key","Symmetric is slower; asymmetric is faster","Symmetric uses one shared key for both encryption and decryption; asymmetric uses a public/private key pair","Symmetric is used only for hashing; asymmetric is used for key exchange"],"exp":"Symmetric encryption uses a single shared key for both encryption and decryption. Asymmetric uses a mathematically related public/private key pair -- what one key encrypts, only the other can decrypt."},{"q":"A threat actor intercepts encrypted traffic between a CDC field team and headquarters, silently reading and altering messages. This attack is known as:","opts":["Replay attack","Credential stuffing","SQL injection","Man-in-the-middle (MitM) attack"],"exp":"A Man-in-the-Middle attack positions the attacker between two communicating parties, allowing them to intercept, read, and modify traffic without the parties' knowledge."},{"q":"Which hashing algorithm produces a 256-bit digest and is widely used in TLS certificates and code signing?","opts":["MD5","SHA-256","SHA-1","RIPEMD-128"],"exp":"SHA-256 (part of the SHA-2 family) produces a 256-bit hash and is the current standard for TLS certificates and code signing. MD5 and SHA-1 are considered cryptographically broken."},{"q":"What property of a hash function ensures that two different inputs will not produce the same hash output?","opts":["Collision resistance","Salting","Pre-image resistance","Avalanche effect"],"exp":"Collision resistance means it is computationally infeasible to find two different inputs that produce the same hash. MD5 and SHA-1 fail this property and are therefore deprecated."},{"q":"An attacker gains network access by sending a crafted email with a malicious attachment to an employee. Which initial access technique is this?","opts":["Drive-by download","Brute force","Watering hole attack","Spear phishing"],"exp":"Spear phishing is a targeted phishing attack aimed at a specific individual or organization, often using personalized details to increase believability. It is the most common initial access vector."},{"q":"A rootkit is installed on a compromised server. What is the primary purpose of a rootkit?","opts":["To encrypt files for ransom","To replicate itself across the network","To conceal the attacker's presence and maintain privileged access","To capture keystrokes and send them to the attacker"],"exp":"A rootkit hides malware and attacker activity from the operating system and security tools, allowing the attacker to maintain persistent, privileged access while remaining undetected."},{"q":"Which attack technique involves submitting a large number of known plaintext-hash pairs to reverse a password hash?","opts":["Brute force attack","Rainbow table attack","Dictionary attack","Pass-the-hash attack"],"exp":"Rainbow table attacks use precomputed hash-to-plaintext mappings to rapidly reverse password hashes. Salting passwords defeats rainbow tables by making precomputation infeasible."},{"q":"What is the purpose of adding a cryptographic salt to a password before hashing?","opts":["To increase the key length of the hash","To ensure the same password always produces the same hash","To compress the hash output for faster storage","To make each hash unique even when passwords are identical, defeating precomputed table attacks"],"exp":"A salt is a random value appended to the password before hashing. It ensures that identical passwords produce different hashes, defeating rainbow table and precomputed dictionary attacks."},{"q":"A phishing email directs victims to a site that mimics the CDC's online reporting portal to steal credentials. Which social engineering principle does this exploit?","opts":["Scarcity","Authority and familiarity","Reciprocity","Consensus"],"exp":"Mimicking a trusted authority (CDC) exploits both authority (victims trust the source) and familiarity (the site looks legitimate). These are core Cialdini influence principles used in social engineering."},{"q":"Which type of attack replays a captured authentication token to gain unauthorized access without knowing the credentials?","opts":["Replay attack","Pass-the-hash","Credential stuffing","Kerberoasting"],"exp":"A replay attack captures a valid authentication token or session credential and retransmits it to impersonate the original user. Timestamps and nonces in protocols like TLS and Kerberos prevent this."},{"q":"DES (Data Encryption Standard) is considered insecure today primarily because:","opts":["It uses an asymmetric key algorithm","Its 56-bit key is too short to resist modern brute-force attacks","It relies on MD5 hashing internally","It requires a public key infrastructure to operate"],"exp":"DES uses a 56-bit key, which can be brute-forced in hours with modern hardware. It was officially deprecated and replaced by 3DES and then AES. Never use DES for any current application."}];
 
         // Defeat positional memorization across PIS quizzes (Bridget 2026-05-09).
         // Mutates questions[].opts and questions[].ans in-place; safe because
         // pis-w2 is client-graded (no Firestore quiz_keys lookup at score time).
-        InlineQuizShuffler.shuffleQuiz(questions);
+        // Family-5 permutation shuffle: shuffles opts WITHOUT needing q.ans (stripped).
+        // Records q._perm = shuffled position -> original index; server key stays canonical.
+        function permShuffleQuiz(qs) {
+            qs.forEach(function (q) {
+                var idx = q.opts.map(function (_, i) { return i; });
+                for (var i = idx.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = idx[i]; idx[i] = idx[j]; idx[j] = t; }
+                q.opts = idx.map(function (o) { return q.opts[o]; });
+                q._perm = idx;
+            });
+        }
+        permShuffleQuiz(questions);
 
         /* ── Quiz Engine State ──
            Aligned to Security+ SY0-701 domains 2.0 (Threats/Attacks) and 3.0 (Cryptography).
@@ -565,7 +459,7 @@
         var score = 0;
         var answered = false;
         var TOTAL = questions.length;
-        var userAnswers = [];  // index of option picked by user, per question
+        var userAnswers = []; var revealedAnswers = {}; // server-revealed correct index per question (Family-5)  // index of option picked by user, per question
 
         function loadQuestion() {
             var q = questions[current];
@@ -588,36 +482,42 @@
             answered = false;
         }
 
+        var QUIZ_ID = 'pis-w2-quiz';
+        // gradeOne: validate one answer server-side; capture the revealed correct index (revealToAll key) for review.
+        function gradeOne(qIndex, idx) {
+            var a = {}; a[qIndex] = idx;
+            return FirebaseAuth.callFunction('gradeQuiz', { quizId: QUIZ_ID, answers: a, partial: true })
+                .then(function (r) {
+                    var res = r && r.results && r.results[qIndex];
+                    if (res && typeof res.correctAnswer !== 'undefined') revealedAnswers[qIndex] = res.correctAnswer;
+                    return res ? !!res.correct : null;
+                })
+                .catch(function () { return null; });
+        }
         function selectAnswer(idx) {
             if (answered) return;
             answered = true;
-            userAnswers[current] = idx;  // remember pick for the Review Answers view
-
+            userAnswers[current] = idx;
             var q = questions[current];
             var opts = document.querySelectorAll('.option');
-
-            for (var i = 0; i < opts.length; i++) {
-                opts[i].classList.add('disabled');
-                if (i === q.ans) opts[i].classList.add('correct');
-                else if (i === idx) opts[i].classList.add('incorrect');
-            }
-
+            for (var i = 0; i < opts.length; i++) { opts[i].classList.add('disabled'); }
             var fb = document.getElementById('feedback');
-            if (idx === q.ans) {
-                score++;
-                fb.className = 'feedback correct';
-                fb.textContent = 'Correct! ' + q.exp;
-            } else {
-                fb.className = 'feedback incorrect';
-                fb.textContent = 'Incorrect. ' + q.exp;
-            }
-
-            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
-            document.getElementById('nextBtn').disabled = false;
-
-            if (current === TOTAL - 1) {
-                document.getElementById('nextBtn').textContent = 'See Results';
-            }
+            fb.className = 'feedback checking'; fb.textContent = 'Checking\u2026';
+            gradeOne(current, q._perm ? q._perm[idx] : idx).then(function (correct) {
+                var ca = revealedAnswers[current];
+                if (typeof ca !== 'undefined' && q._perm) ca = q._perm.indexOf(ca); // original -> shuffled
+                if (correct === null) { opts[idx].classList.add('incorrect'); fb.className = 'feedback incorrect'; fb.textContent = 'Could not verify answer! ' + q.exp; }
+                else {
+                    if (typeof ca !== 'undefined') opts[ca].classList.add('correct');
+                    if (!correct) opts[idx].classList.add('incorrect');
+                    if (correct) score++;
+                    fb.className = 'feedback ' + (correct ? 'correct' : 'incorrect');
+                    fb.textContent = (correct ? 'Correct! ' : 'Incorrect! ') + q.exp;
+                }
+                document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+                document.getElementById('nextBtn').disabled = false;
+                if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+            });
         }
 
         function nextQuestion() {
@@ -682,7 +582,7 @@
             for (var i = 0; i < questions.length; i++) {
                 var q = questions[i];
                 var picked = userAnswers[i];
-                var correct = q.ans;
+                var correct = q._perm ? q._perm.indexOf(revealedAnswers[i]) : revealedAnswers[i]; // Family-5: server reveal, mapped through this run's shuffle
                 var isRight = picked === correct;
 
                 html += '<div class="review-q">';
@@ -718,7 +618,7 @@
             // gets a fresh randomization on attempt 2. Restart button is gated to
             // the results card (resultsCard.display='block' only after showResults()),
             // so this never fires mid-quiz.
-            InlineQuizShuffler.shuffleQuiz(questions);
+            permShuffleQuiz(questions);
             current = 0;
             score = 0;
             answered = false;
