@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-07-02 8:32:27 AM
+                    Scanned: 2026-07-02 8:56:36 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 5199 |
 | Directories | 1262 |
 | Content Files | 5199 |
-| Scan Duration | 541ms |
+| Scan Duration | 505ms |
 
 ### Content by Type
 
@@ -43,8 +43,8 @@
 | Critical | 0 |
 | Suspect | 30 |
 | Warning | 958 |
-| Info | 694 |
-| **Total** | **12974** |
+| Info | 695 |
+| **Total** | **12982** |
 
 ### Sync Status
 
@@ -14201,7 +14201,7 @@
   File: `tenant/instructor.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (694)
+### INFO (695)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `_games-lab/jeopardy.html`
@@ -15492,6 +15492,9 @@
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
 **[SANDBOX-001]** Lab ID "cell-sigma" defined in LAB_INFO but not used on any page
+  File: `components/SandboxLauncher.js`
+
+**[SANDBOX-001]** Lab ID "linux-mastery" defined in LAB_INFO but not used on any page
   File: `components/SandboxLauncher.js`
 
 **[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
