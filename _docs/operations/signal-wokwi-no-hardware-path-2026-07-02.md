@@ -54,3 +54,12 @@ Two sections done; both turned out NO-SIM once the real hardware was read (a rem
 Engine gained a data-driven no-sim card label this wave.
 
 Still to author (per-build sim/no-sim, several marginal cases needing part fetch-checks): arcade-ops (5 — sg-26 Pong maybe sim, rest USB-HID/Pi no-sim), field-prep (2), iot-hacking (10 — mostly real-target/radio no-sim; sg-63/sg-70 any-Linux; sg-71 CoAP maybe sim), plus the radio/hw sections (sdr-radio, drone-security, pcb-design, red-team-hw, firmware-ops).
+
+## Wave 4 (2026-07-02) — arcade-ops, field-prep, iot-hacking (17 builds)
+
+Per-build judgment sections; coverage verified against Wokwi part-by-part.
+- **arcade-ops (5):** sg-26 Pong = SIM (ESP32 + ILI9341, note substitutes the integrated CYD board; same game code). sg-27 Game Boy emulator / sg-28 RetroPie (Pi GPU) / sg-29 USB-HID controller / sg-30 physical cabinet = no-sim.
+- **field-prep (2):** sg-31 bootable USB = no-sim but label 'No Board Needed — Any Computer + a USB Stick' (pure software). sg-32 USB flash-drive-from-scratch = no-sim (USB MSC gadget).
+- **iot-hacking (10):** sg-63 MQTT + sg-70 firmware-analysis = no-sim label 'No Special Hardware — Runs on Any Linux' (desktop tooling). The other 8 (BLE/Zigbee radios, rogue AP, smart-plug/IP-camera/home-automation real targets, CoAP inbound-unreachable, UART physical) = genuine-hardware no-sim. These are legitimate offensive-security TRAINING builds; the no-sim call is purely that Wokwi has no real radio/USB-host/target — every note routes the student to run the technique on real hardware.
+
+Headless-verified 6/6 sample (sim href, both no-sim label variants, steps intact, 0 errors). Rollout total after wave 4: 57 / ~102 builds covered.

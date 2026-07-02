@@ -9,6 +9,12 @@ window.SignalGuides = {
     // SG-26: ESP32 Pong: Your First Game Console
     // ========================================================================
     'sg-26': {
+        // Wokwi wave 4: SIM with substitution — CYD integrated board absent, but ESP32+ILI9341 both in Wokwi.
+        simulator: {
+            platform: 'Wokwi (ESP32 + ILI9341)',
+            url: 'https://wokwi.com/projects/new/esp32',
+            note: 'No CYD board? Wokwi has no integrated Cheap Yellow Display, but the game runs the same on a plain <strong>ESP32 + a standalone ILI9341</strong> TFT (add both parts to this ESP32 project, same Adafruit_ILI9341 / TFT_eSPI code). You wire the display yourself instead of it being built-in, and touch/buzzer differ, but the whole point &mdash; the game loop, rendering, collision, scoring &mdash; runs and is visible in the simulator.'
+        },
         intro: '<p>This is the project that turns a $12 microcontroller into a real game console. The ESP32 CYD (Cheap Yellow Display) packs a 2.8-inch TFT touchscreen, WiFi, Bluetooth, and a buzzer onto a single board &mdash; everything you need to build Pong from scratch.</p>' +
                '<p>You will write a complete game from the ground up: a game loop with frame timing, sprite rendering, collision detection, input handling, score tracking, and sound effects. These are the same fundamental concepts behind every video game ever made, from Pong in 1972 to modern engines today.</p>' +
                '<p>No soldering required. The CYD has everything onboard. Plug in USB-C, flash the code, and play. Optional tactile buttons give you physical controls if you prefer them over touch.</p>',
@@ -447,6 +453,8 @@ window.SignalGuides = {
     // SG-27: Handheld Game Boy: ESP32 Emulator
     // ========================================================================
     'sg-27': {
+        // Wokwi wave 4: NO SIM — Game Boy emulation on a specific handheld; ROM emulation at speed isn't a simulator target.
+        simulator: { available: false, note: 'Running a <strong>Game Boy emulator</strong> at playable speed on the ESP32 handheld depends on the real board&#39;s CPU/PSRAM and its specific display/controls &mdash; not something a browser simulator reproduces. Study the emulator port and display driver here, then flash it to the real hardware.' },
         intro: '<p>Emulation is one of the most impressive things a microcontroller can do &mdash; pretending to be a completely different CPU. In this project you will turn an ESP32 into a handheld Game Boy using Peanut-GB, an open-source Game Boy emulator small enough to run on embedded hardware.</p>' +
                '<p>You will wire an ILI9341 TFT display, six buttons (D-pad, A, B), an SD card reader for ROM storage, and a speaker for audio. Add a LiPo battery and you have a portable, self-contained retro gaming handheld that fits in your pocket.</p>' +
                '<p>This project teaches you about emulation architecture (fetch-decode-execute), SPI bus sharing (display and SD on the same bus), and real firmware development with PlatformIO. It is a significant step up from the Pong project &mdash; you are working with someone else\'s codebase and adapting it to your hardware.</p>',
@@ -895,6 +903,8 @@ window.SignalGuides = {
     // SG-28: RetroPie Emulation Station
     // ========================================================================
     'sg-28': {
+        // Wokwi wave 4: NO SIM — RetroPie is a full Raspberry Pi OS + GPU emulation stack.
+        simulator: { available: false, label: 'Why This One Needs Real Hardware', note: 'RetroPie is a full <strong>Raspberry Pi OS</strong> image doing GPU-accelerated console emulation &mdash; a microcontroller simulator doesn&#39;t apply, and the emulation wants the Pi&#39;s actual GPU. Flash the image to a real Pi (or a spare x86 box with a compatible EmulationStation build).' },
         intro: '<p>RetroPie turns a Raspberry Pi into a multi-system emulation powerhouse. Underneath the polished EmulationStation frontend sits RetroArch &mdash; a unified emulator framework that can run NES, SNES, Genesis, Game Boy, PlayStation, N64, and dozens more systems, all from a single SD card.</p>' +
                '<p>This is not just a "flash and play" project. You will learn how EmulationStation discovers systems and ROMs, how RetroArch cores work, how to configure per-system shaders and aspect ratios, and how to customize the frontend to your liking. These are real Linux administration skills: editing config files, managing services, and working with the file system over SSH.</p>' +
                '<p>No wiring, no soldering. Flash the image, plug in controllers, and configure. This is the foundation for the arcade cabinet build in SG-30.</p>',
@@ -1265,6 +1275,8 @@ window.SignalGuides = {
     // SG-29: USB Arcade Controller Build
     // ========================================================================
     'sg-29': {
+        // Wokwi wave 4: NO SIM — USB HID gamepad (host enumeration) not simulable.
+        simulator: { available: false, note: 'A USB arcade controller enumerates to your PC as a <strong>USB HID gamepad</strong> &mdash; presenting a USB device to a real host is not something Wokwi does. The button-matrix and HID-descriptor code here is the lesson; build it on the real board.' },
         intro: '<p>The Arduino Pro Micro is secretly one of the most powerful boards in the Arduino lineup &mdash; not because of its processor speed, but because the ATmega32U4 chip has native USB. It does not need a USB-to-serial converter like the Uno or Mega. It <em>is</em> the USB device. That means you can program it to appear as a keyboard, mouse, or &mdash; in our case &mdash; a game controller.</p>' +
                '<p>In this project you will build a custom USB arcade fight stick: a Sanwa-style joystick with 8 full-size arcade buttons, all connected to a Pro Micro that presents itself to any computer as a standard USB gamepad. No drivers, no configuration software. Plug it in and it works on Windows, Mac, Linux, and RetroPie.</p>' +
                '<p>This is the bridge between electronics and real hardware fabrication. You will wire microswitches, crimp spade connectors, drill a mounting panel, and produce a finished product you can use for competitive gaming.</p>',
@@ -1701,6 +1713,8 @@ window.SignalGuides = {
     // SG-30: Mini Arcade Cabinet
     // ========================================================================
     'sg-30': {
+        // Wokwi wave 4: NO SIM — physical cabinet assembly + USB HID.
+        simulator: { available: false, note: 'The mini cabinet is a <strong>physical build</strong> (enclosure, joystick, arcade buttons, NeoPixels) that also enumerates over USB HID &mdash; nothing a simulator stands in for. Use the wiring and code here to plan it; assemble it for real.' },
         intro: '<p>This is the capstone of the Arcade Ops track &mdash; a complete tabletop arcade cabinet with a 7-inch display, full-size joystick and buttons, stereo speakers, LED marquee, and hundreds of games running on RetroPie. Everything you learned in SG-26 through SG-29 comes together here.</p>' +
                '<p>The cabinet uses a bartop form factor: compact enough for a desk or shelf, but with full-size arcade controls. The zero-delay USB encoder handles all button inputs (no coding needed for the controls), the Pi runs RetroPie, and the display connects via HDMI.</p>' +
                '<p>This is the most physically involved build in The Signal &mdash; you will cut panels, mount hardware, run wires, and assemble a finished product.</p>',

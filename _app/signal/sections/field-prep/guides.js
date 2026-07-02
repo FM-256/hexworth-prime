@@ -9,6 +9,8 @@ window.SignalGuides = {
     // SG-31: Build a Bootable USB Drive
     // ========================================================================
     'sg-31': {
+        // Wokwi wave 4: N/A (pure software on any computer) — no board, no simulator needed.
+        simulator: { available: false, label: 'No Board Needed — Any Computer + a USB Stick', note: 'Building a bootable USB is a <strong>software task on your own computer</strong> (dd / Rufus / balenaEtcher writing an ISO to a USB stick) &mdash; there is no microcontroller and nothing to simulate. Any laptop and any spare USB drive is all the hardware you need.' },
         intro: '<p>Every IT professional needs to know how to create bootable USB drives. Whether you are installing an OS on a new machine, recovering a bricked workstation, running a live forensics toolkit, or deploying a Linux distro in the field, bootable media is your Swiss army knife.</p>' +
                '<p>This guide covers three methods: Rufus (Windows GUI, fast and simple), Ventoy (multi-boot USB with drag-and-drop ISOs), and <code>dd</code> (Linux command-line, raw and powerful). You will also learn the boot fundamentals that make it all work &mdash; BIOS vs UEFI, MBR vs GPT, and Secure Boot.</p>' +
                '<p>All you need is a USB flash drive (8GB minimum, 32GB+ recommended for multi-boot) and a computer. No special hardware.</p>' +
@@ -516,6 +518,8 @@ window.SignalGuides = {
     // SG-32: Build a USB Flash Drive from Scratch
     // ========================================================================
     'sg-32': {
+        // Wokwi wave 4: NO SIM — USB Mass Storage gadget emulation.
+        simulator: { available: false, note: 'Making a Pico/Arduino <strong>present itself as a USB flash drive</strong> is USB gadget (Mass Storage) emulation to a real host &mdash; not something a browser simulator can do. The MSC descriptor and filesystem code here is the takeaway; run it on the real board.' },
         intro: '<p>You have used USB flash drives your entire life. But what actually IS one? A USB controller chip, a NAND flash memory chip, a tiny PCB, a connector, and a handful of passive components. That is it. In this project, you build a working USB storage device from individual parts &mdash; no pre-made flash drive involved.</p>' +
                '<p>We use a Raspberry Pi Pico (RP2040 microcontroller) as the USB controller, a MicroSD card as the storage medium, and the TinyUSB library to implement the USB Mass Storage Class protocol. When you plug the finished device into any computer, it appears as a standard USB drive. You can format it, copy files to it, and eject it &mdash; just like any store-bought flash drive.</p>' +
                '<p>Along the way, you will learn how USB enumeration works, what device descriptors are, how SPI communication connects the controller to storage, and why a $4 microcontroller can replace a dedicated flash drive controller IC.</p>' +

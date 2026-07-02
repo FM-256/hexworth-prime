@@ -6,6 +6,8 @@
 window.SignalGuides = {
 
     'sg-63': {
+        // Wokwi wave 4: N/A (Linux software) — broker + sniffer run in software, no device needed.
+        simulator: { available: false, label: 'No Special Hardware — Runs on Any Linux', note: 'An MQTT broker (mosquitto) and a packet sniffer are <strong>pure software</strong> &mdash; run them on any Linux box or VM, publish/subscribe from a second terminal, and sniff the loopback/bridge traffic. No Raspberry Pi or IoT device required to learn the protocol.' },
         intro: '<p>MQTT (Message Queuing Telemetry Transport) is the most widely used protocol in IoT. Smart home devices, industrial sensors, building management systems, and medical devices all use MQTT to communicate. In this project you will set up an MQTT broker, publish and subscribe to topics, then sniff MQTT traffic with Wireshark to see why unencrypted MQTT is a security risk.</p>' +
                '<p>Most consumer IoT devices send MQTT messages in plaintext &mdash; sensor readings, commands, device status, and sometimes credentials. An attacker on the same network can read and inject MQTT messages without any authentication.</p>',
         wiring: '    Raspberry Pi running Mosquitto MQTT broker on port 1883',
@@ -139,6 +141,8 @@ window.SignalGuides = {
     },
 
     'sg-64': {
+        // Wokwi wave 4: NO SIM — real BLE radio.
+        simulator: { available: false, note: 'Scanning and enumerating <strong>BLE</strong> devices needs a real Bluetooth radio near real peripherals &mdash; Wokwi does not implement Bluetooth. Learn the GAP/GATT enumeration here; run it with a real adapter.' },
         intro: '<p>Bluetooth Low Energy (BLE) is everywhere &mdash; fitness trackers, smart locks, medical devices, beacons, and wireless sensors. With your Raspberry Pi\'s built-in Bluetooth, you can scan for BLE devices, enumerate their services and characteristics, and read/write data attributes. This is the foundation of BLE security testing.</p>',
         wiring: '    Raspberry Pi with built-in Bluetooth -> BLE devices in range',
         wiringNotes: '<p><strong>Range:</strong> BLE range is typically 10&ndash;30 meters indoors. Some devices (beacons) can reach 100m+ outdoors. Your Pi\'s built-in Bluetooth antenna is adequate for nearby devices.</p>',
@@ -263,7 +267,9 @@ window.SignalGuides = {
         ]
     },
 
-    'sg-65': { intro: '<p>Consumer IoT smart plugs (Tuya, Sonoff, TP-Link) connect to cloud servers for remote control. In this project you will intercept the cloud API traffic, extract the local encryption key, and flash custom open-source firmware (Tasmota) to take full local control &mdash; removing the cloud dependency entirely.</p>', wiring: '    Tuya smart plug + ESP32 DevKit + Raspberry Pi on same network', wiringNotes: '<p><strong>Device choice:</strong> Tuya-based devices are the easiest to flash because the tuya-convert tool can flash OTA (over the air) without opening the device. TP-Link Kasa devices require physical access to the serial port.</p>', wiringSvg: '<div class="svg-build-wrap">' +
+    'sg-65': {
+        // Wokwi wave 4: NO SIM — real target smart plug + firmware.
+        simulator: { available: false, note: 'Taking over a <strong>smart plug</strong> means reflashing and controlling a real mains device (ESP8266/ESP32 inside) with a relay &mdash; there is no simulated target. Study the flashing and MQTT-control technique; do it on a real plug (mains safety applies).' }, intro: '<p>Consumer IoT smart plugs (Tuya, Sonoff, TP-Link) connect to cloud servers for remote control. In this project you will intercept the cloud API traffic, extract the local encryption key, and flash custom open-source firmware (Tasmota) to take full local control &mdash; removing the cloud dependency entirely.</p>', wiring: '    Tuya smart plug + ESP32 DevKit + Raspberry Pi on same network', wiringNotes: '<p><strong>Device choice:</strong> Tuya-based devices are the easiest to flash because the tuya-convert tool can flash OTA (over the air) without opening the device. TP-Link Kasa devices require physical access to the serial port.</p>', wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
             '<defs>' +
             '<pattern id="sg65-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
@@ -379,7 +385,9 @@ window.SignalGuides = {
             }
         ] },
 
-    'sg-66': { intro: '<p>Zigbee is the wireless protocol used by smart home sensors, lights (Philips Hue), locks, and thermostats. With a CC2531 USB sniffer ($10), you can capture Zigbee traffic and analyze the network formation, key exchange, and data payloads. This reveals the Zigbee security model and its weaknesses.</p>', wiring: '    CC2531 USB Sniffer + Zigbee devices (smart bulbs, sensors)', wiringNotes: '<p><strong>CC2531:</strong> A Texas Instruments Zigbee radio that can be flashed with sniffer firmware. Purchase pre-flashed from AliExpress or flash yourself with a CC Debugger.</p>', wiringSvg: '<div class="svg-build-wrap">' +
+    'sg-66': {
+        // Wokwi wave 4: NO SIM — real Zigbee radio dongle.
+        simulator: { available: false, note: 'A <strong>CC2531 Zigbee sniffer</strong> captures real 802.15.4 radio traffic &mdash; there is no simulated Zigbee airspace in Wokwi. Learn the capture/decode workflow here; run it with the real dongle.' }, intro: '<p>Zigbee is the wireless protocol used by smart home sensors, lights (Philips Hue), locks, and thermostats. With a CC2531 USB sniffer ($10), you can capture Zigbee traffic and analyze the network formation, key exchange, and data payloads. This reveals the Zigbee security model and its weaknesses.</p>', wiring: '    CC2531 USB Sniffer + Zigbee devices (smart bulbs, sensors)', wiringNotes: '<p><strong>CC2531:</strong> A Texas Instruments Zigbee radio that can be flashed with sniffer firmware. Purchase pre-flashed from AliExpress or flash yourself with a CC Debugger.</p>', wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
             '<defs>' +
             '<pattern id="sg66-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
@@ -495,7 +503,9 @@ window.SignalGuides = {
             }
         ] },
 
-    'sg-67': { intro: '<p>Cheap IP cameras ($15&ndash;30) are notoriously insecure. Default credentials, unencrypted RTSP streams, exposed web interfaces, and firmware with hardcoded backdoors. In this project you will discover cameras on your network, access their streams, analyze their firmware, and properly secure them.</p>', wiring: '    Cheap IP camera + isolated network + Raspberry Pi', wiringNotes: '<p><strong>Isolation:</strong> Put the camera on an isolated VLAN or network segment. Many cheap cameras phone home to servers in China, stream to cloud services you did not consent to, and have UPnP enabled by default (exposing themselves to the internet).</p>', wiringSvg: '<div class="svg-build-wrap">' +
+    'sg-67': {
+        // Wokwi wave 4: NO SIM — real IP camera target.
+        simulator: { available: false, note: 'This lab probes a real <strong>IP camera&#39;s</strong> firmware and network services &mdash; you need an actual camera (or a known-vulnerable device) as the target. The methodology (recon, RTSP/HTTP probing, credential and firmware analysis) is the transferable part here.' }, intro: '<p>Cheap IP cameras ($15&ndash;30) are notoriously insecure. Default credentials, unencrypted RTSP streams, exposed web interfaces, and firmware with hardcoded backdoors. In this project you will discover cameras on your network, access their streams, analyze their firmware, and properly secure them.</p>', wiring: '    Cheap IP camera + isolated network + Raspberry Pi', wiringNotes: '<p><strong>Isolation:</strong> Put the camera on an isolated VLAN or network segment. Many cheap cameras phone home to servers in China, stream to cloud services you did not consent to, and have UPnP enabled by default (exposing themselves to the internet).</p>', wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
             '<defs>' +
             '<pattern id="sg67-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
@@ -608,7 +618,9 @@ window.SignalGuides = {
             }
         ] },
 
-    'sg-68': { intro: '<p>Build a rogue WiFi access point using an ESP32 that presents a captive portal to anyone who connects. When a victim joins the fake network, they see a login page that captures their credentials. This is an evil twin attack &mdash; one of the most common WiFi attacks in the real world.</p><p>This project teaches both offense (how the attack works) and defense (how to detect rogue APs). Only test on your own devices and networks.</p>', wiring: '    ESP32 DevKit -> creates a WiFi AP with captive portal', wiringNotes: '<p><strong>Authorization required.</strong> Only deploy on networks you own or have written permission to test. Deploying a rogue AP on a network without authorization is illegal.</p>', wiringSvg: '<div class="svg-build-wrap">' +
+    'sg-68': {
+        // Wokwi wave 4: NO SIM — real WiFi radio broadcasting to clients.
+        simulator: { available: false, note: 'A <strong>rogue access point</strong> broadcasts real 802.11 beacons and captures real clients &mdash; Wokwi&#39;s high-level WiFi model can&#39;t transmit to actual devices. Study the AP/captive-portal code here; run it on a real ESP32.' }, intro: '<p>Build a rogue WiFi access point using an ESP32 that presents a captive portal to anyone who connects. When a victim joins the fake network, they see a login page that captures their credentials. This is an evil twin attack &mdash; one of the most common WiFi attacks in the real world.</p><p>This project teaches both offense (how the attack works) and defense (how to detect rogue APs). Only test on your own devices and networks.</p>', wiring: '    ESP32 DevKit -> creates a WiFi AP with captive portal', wiringNotes: '<p><strong>Authorization required.</strong> Only deploy on networks you own or have written permission to test. Deploying a rogue AP on a network without authorization is illegal.</p>', wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
             '<defs>' +
             '<pattern id="sg68-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
@@ -726,7 +738,9 @@ window.SignalGuides = {
             }
         ] },
 
-    'sg-69': { intro: '<p>Audit the security of your own smart home by scanning every IoT device on your network. Check for default credentials, open ports, unencrypted communications, and cloud dependencies. Write a formal security audit report with findings and remediation recommendations.</p>', wiring: '    Raspberry Pi with scanning tools + your own smart home devices', wiringNotes: '<p><strong>Only audit devices you own.</strong> This is a security assessment of your personal network.</p>', wiringSvg: '<div class="svg-build-wrap">' +
+    'sg-69': {
+        // Wokwi wave 4: NO SIM — audits real smart-home devices.
+        simulator: { available: false, note: 'A home-automation security audit inspects <strong>real smart-home devices</strong> and their traffic &mdash; the findings only exist against actual hardware. The audit checklist and tooling here apply to whatever devices you own.' }, intro: '<p>Audit the security of your own smart home by scanning every IoT device on your network. Check for default credentials, open ports, unencrypted communications, and cloud dependencies. Write a formal security audit report with findings and remediation recommendations.</p>', wiring: '    Raspberry Pi with scanning tools + your own smart home devices', wiringNotes: '<p><strong>Only audit devices you own.</strong> This is a security assessment of your personal network.</p>', wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
             '<defs>' +
             '<pattern id="sg69-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
@@ -849,7 +863,9 @@ window.SignalGuides = {
             }
         ] },
 
-    'sg-70': { intro: '<p>IoT device firmware often contains hardcoded credentials, API keys, encryption keys, and debug backdoors. In this project you will download firmware from a manufacturer website, extract the filesystem with binwalk, and analyze the contents for security vulnerabilities.</p>', wiring: '    Linux workstation + firmware image file', wiringNotes: '<p><strong>Legal:</strong> Analyzing firmware you have legally obtained (downloaded from manufacturer, extracted from a device you own) is generally legal under reverse engineering exceptions. Always check your jurisdiction.</p>', wiringSvg: '<div class="svg-build-wrap">' +
+    'sg-70': {
+        // Wokwi wave 4: N/A (Linux software) — firmware analysis is desktop tooling.
+        simulator: { available: false, label: 'No Special Hardware — Runs on Any Linux', note: 'Firmware extraction and analysis is <strong>desktop tooling</strong> (binwalk, unsquashfs, strings, Ghidra) on a firmware image &mdash; run it on any Linux box or VM. You only need a firmware file to work through the whole build; no board required.' }, intro: '<p>IoT device firmware often contains hardcoded credentials, API keys, encryption keys, and debug backdoors. In this project you will download firmware from a manufacturer website, extract the filesystem with binwalk, and analyze the contents for security vulnerabilities.</p>', wiring: '    Linux workstation + firmware image file', wiringNotes: '<p><strong>Legal:</strong> Analyzing firmware you have legally obtained (downloaded from manufacturer, extracted from a device you own) is generally legal under reverse engineering exceptions. Always check your jurisdiction.</p>', wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
             '<defs>' +
             '<pattern id="sg70-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
@@ -974,7 +990,9 @@ window.SignalGuides = {
             }
         ] },
 
-    'sg-71': { intro: '<p>CoAP (Constrained Application Protocol) is the lightweight REST-like protocol for resource-constrained IoT devices. Unlike HTTP, CoAP uses UDP, supports multicast discovery, and is designed for devices with kilobytes of RAM. In this project you will implement a CoAP server on an ESP32 and interact with it from a client.</p>', wiring: '    ESP32 DevKit running CoAP server + computer with CoAP client', wiringNotes: '<p><strong>CoAP vs HTTP:</strong> CoAP uses UDP port 5683 (unencrypted) or 5684 (DTLS encrypted). Messages are binary, not text. It supports GET, PUT, POST, DELETE like HTTP but with 4-byte headers instead of hundreds of bytes.</p>', wiringSvg: '<div class="svg-build-wrap">' +
+    'sg-71': {
+        // Wokwi wave 4: NO SIM — CoAP server on ESP32 must be reachable inbound by a client (Wokwi doesn't expose inbound to the sim).
+        simulator: { available: false, note: 'This build runs a <strong>CoAP server on the ESP32</strong> and hits it from a client on your computer &mdash; but Wokwi&#39;s simulated ESP32 is not reachable inbound from an external CoAP client, so the core interaction can&#39;t be exercised in the simulator. Read/flash the server code here; test it against the board on your real network.' }, intro: '<p>CoAP (Constrained Application Protocol) is the lightweight REST-like protocol for resource-constrained IoT devices. Unlike HTTP, CoAP uses UDP, supports multicast discovery, and is designed for devices with kilobytes of RAM. In this project you will implement a CoAP server on an ESP32 and interact with it from a client.</p>', wiring: '    ESP32 DevKit running CoAP server + computer with CoAP client', wiringNotes: '<p><strong>CoAP vs HTTP:</strong> CoAP uses UDP port 5683 (unencrypted) or 5684 (DTLS encrypted). Messages are binary, not text. It supports GET, PUT, POST, DELETE like HTTP but with 4-byte headers instead of hundreds of bytes.</p>', wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
             '<defs>' +
             '<pattern id="sg71-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
@@ -1091,7 +1109,9 @@ window.SignalGuides = {
             }
         ] },
 
-    'sg-72': { intro: '<p>UART (Universal Asynchronous Receiver-Transmitter) is the serial interface found on almost every embedded device. IoT devices, routers, and embedded systems expose UART pads on their circuit boards for debugging and manufacturing. With a $3 USB-to-TTL adapter, you can connect to the UART console and often get a root shell &mdash; bypassing all software security.</p>', wiring: '    USB-to-TTL adapter -> UART pads on target device (TX, RX, GND)', wiringNotes: '<p><strong>Voltage:</strong> Most IoT devices use 3.3V logic. Your USB-to-TTL adapter must support 3.3V. Using a 5V adapter on a 3.3V device can damage it permanently. Check the adapter voltage setting before connecting.</p>', wiringSvg: '<div class="svg-build-wrap">' +
+    'sg-72': {
+        // Wokwi wave 4: NO SIM — real UART on a real target device.
+        simulator: { available: false, note: 'UART/serial hacking means wiring to the <strong>physical TX/RX/GND pads</strong> of a real target device and reading its console &mdash; the whole exercise is the real hardware interface. Learn the pinout-hunting and baud-detection method here; do it on a real board.' }, intro: '<p>UART (Universal Asynchronous Receiver-Transmitter) is the serial interface found on almost every embedded device. IoT devices, routers, and embedded systems expose UART pads on their circuit boards for debugging and manufacturing. With a $3 USB-to-TTL adapter, you can connect to the UART console and often get a root shell &mdash; bypassing all software security.</p>', wiring: '    USB-to-TTL adapter -> UART pads on target device (TX, RX, GND)', wiringNotes: '<p><strong>Voltage:</strong> Most IoT devices use 3.3V logic. Your USB-to-TTL adapter must support 3.3V. Using a 5V adapter on a 3.3V device can damage it permanently. Check the adapter voltage setting before connecting.</p>', wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
             '<defs>' +
             '<pattern id="sg72-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern>' +
