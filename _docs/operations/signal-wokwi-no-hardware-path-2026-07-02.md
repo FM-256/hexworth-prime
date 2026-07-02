@@ -29,7 +29,7 @@ All ~112 Signal builds gate on owning physical boards — the hub's single bigge
 
 | Wave | Scope | Simulator target | Effort shape |
 |---|---|---|---|
-| 1 | foundations sg-02..sg-05 (Mega) | Mega template + note per build; pre-wired projects where the wiring is non-trivial | small |
+| 1 | foundations sg-02..sg-05 (Mega) — DONE 2026-07-02 (parts coverage fetch-verified; DHT22/DS1307 substitutions and the sg-03 pyserial limitation stated honestly in the notes) | Mega template + build-specific note | done |
 | 2 | esp32-s3-arsenal (13) + pico-builds | Wokwi ESP32-S3 / Pico templates | medium |
 | 3 | arcade-ops, firmware-ops, network-recon (Mega/ESP32 subsets) | template or pre-wired per build | large |
 | 4 | Non-simulable builds (SDR, drone, PCB, red-team hardware) | honest `simulator: null` + a "what you can still do without hardware" note variant | design decision |

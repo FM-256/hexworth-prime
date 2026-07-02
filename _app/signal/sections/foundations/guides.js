@@ -561,6 +561,12 @@ window.SignalGuides = {
     // SG-02: Sensor I/O — Temperature, Light, Distance
     // ========================================================================
     'sg-02': {
+        // Wokwi wave 1: full sim; Wokwi ships DHT22 (not DHT11) — same DHT library.
+        simulator: {
+            platform: 'Wokwi',
+            url: 'https://wokwi.com/projects/new/arduino-mega',
+            note: 'No kit? This whole build runs in the free Wokwi simulator: add the <strong>DHT22</strong> part (Wokwi has no DHT11 &mdash; same DHT library, change the type constant to DHT22), the <strong>photoresistor (LDR)</strong>, and the <strong>HC-SR04</strong>, wire them per the diagram, and paste the sketch. The serial monitor works exactly like the real one.'
+        },
         intro: '<p>Sensors are how hardware interacts with the physical world. In cybersecurity, sensors drive everything from environmental monitoring in server rooms to intrusion detection on physical perimeters. Understanding sensor input is the foundation of any field tool you will build later.</p>' +
                '<p>This project introduces three common sensor types: the DHT11 digital temperature/humidity sensor, a photoresistor (analog light sensor), and the HC-SR04 ultrasonic distance sensor. You will read data from each, display it on the Serial Monitor, and combine them into a single multi-sensor sketch with threshold alerts.</p>' +
                '<p>All parts are included in the ELEGOO Mega kit.</p>',
@@ -1076,6 +1082,12 @@ window.SignalGuides = {
     // SG-03: Serial Bridge — Arduino Talks to Python
     // ========================================================================
     'sg-03': {
+        // Wokwi wave 1: PARTIAL sim — Arduino half only; the pyserial bridge needs a real COM port.
+        simulator: {
+            platform: 'Wokwi',
+            url: 'https://wokwi.com/projects/new/arduino-mega',
+            note: 'Partial no-kit path: the <strong>Arduino half</strong> (CSV output over serial) runs fully in Wokwi &mdash; paste the transmitter sketch and watch the CSV stream in the serial monitor. The <strong>Python half</strong> needs a real COM port for pyserial, so without hardware, save the simulator&#39;s serial output to a .txt file and point the parsing script at the file instead of the port (same CSV, same parsing logic).'
+        },
         intro: '<p>So far your Arduino has been talking to you through the Serial Monitor &mdash; a built-in IDE tool. But the real power of serial communication is connecting your microcontroller to a full computer, letting Python (or any language) process, store, analyze, and visualize sensor data in real time.</p>' +
                '<p>This is the bridge between embedded hardware and software. In cybersecurity, this exact pattern drives everything from log aggregation (sensors report to a central server) to hardware-in-the-loop testing (Python controls and monitors a device under test).</p>' +
                '<p>You will send structured data from the Arduino over USB serial, read it in Python with the <code>pyserial</code> library, parse it into usable values, and build a live terminal dashboard. By the end, you will have a pattern you can reuse for any hardware-to-software pipeline.</p>',
@@ -1523,6 +1535,12 @@ window.SignalGuides = {
     // SG-04: LCD Dashboard — Multi-Screen Sensor Display
     // ========================================================================
     'sg-04': {
+        // Wokwi wave 1: full sim; LCD1602 in i2c pins mode + DHT22 substitution.
+        simulator: {
+            platform: 'Wokwi',
+            url: 'https://wokwi.com/projects/new/arduino-mega',
+            note: 'No kit? Add Wokwi&#39;s <strong>LCD1602</strong> and set its <code>pins</code> attribute to <code>"i2c"</code> (2-wire SDA/SCL, address 0x27 &mdash; same LiquidCrystal_I2C library as the backpack), plus a <strong>DHT22</strong> (in place of the DHT11) and a <strong>push button</strong>. Wire per the diagram and paste the sketch.'
+        },
         intro: '<p>An LCD display turns your Arduino from a tethered dev board into a standalone device. Instead of requiring a laptop and Serial Monitor to see data, you can read sensor values directly on a 16x2 character LCD. This is how real field instruments, server room panels, and embedded monitoring tools present information.</p>' +
                '<p>The LCD 1602 gives you 2 lines of 16 characters each &mdash; not much real estate, but enough for critical readings. You will learn to drive the display, show live sensor data, create a multi-page interface with button navigation, and build an auto-refreshing dashboard.</p>' +
                '<p>This project supports both I2C (2-wire, easier) and parallel (6+ wire, more common in kits) LCD connections. The ELEGOO kit includes the LCD and a potentiometer for contrast adjustment.</p>',
@@ -2011,6 +2029,12 @@ window.SignalGuides = {
     // SG-05: Data Logger — SD Card + RTC Timestamps
     // ========================================================================
     'sg-05': {
+        // Wokwi wave 1: full sim with two stated substitutions (microSD native; DS1307 for DS3231).
+        simulator: {
+            platform: 'Wokwi',
+            url: 'https://wokwi.com/projects/new/arduino-mega',
+            note: 'No kit? Wokwi has a native <strong>microSD card</strong> part (SPI, same SD library) and a <strong>DS1307 RTC</strong> &mdash; it has no DS3231, but RTClib drives both: change <code>RTC_DS3231</code> to <code>RTC_DS1307</code> and the rest of the logger sketch runs unmodified. Add the <strong>DHT22</strong> for the sensor feed and you can watch real CSV lines land on the simulated card.'
+        },
         intro: '<p>Collecting data is useful. Collecting data <em>with timestamps and persistent storage</em> is powerful. A data logger records sensor readings to an SD card with accurate time stamps from a real-time clock (RTC), creating a permanent record that survives power cycles and can be analyzed offline.</p>' +
                '<p>This is the exact pattern behind security audit logs, environmental monitoring in data centers, and forensic evidence collection. In cybersecurity, tamper-evident logging and accurate timestamps are critical for incident response timelines. While this project does not implement tamper-proofing, it teaches the fundamental skill: capturing, timestamping, and persisting data reliably.</p>' +
                '<p>This project uses two new modules not included in the ELEGOO kit: an SD card module (~$3) and a DS3231 RTC module (~$5). Both are widely available and reusable across many future projects.</p>',
