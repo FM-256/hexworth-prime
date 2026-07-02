@@ -2222,7 +2222,7 @@ a { color: inherit; text-decoration: none; }
             // and tell the student what they CAN still get from the page.
             var noSimBox = document.createElement('div');
             noSimBox.className = 'sp-card sp-nosim-card';
-            noSimBox.innerHTML = '<div class="sp-card-label">Why This One Needs Real Hardware</div>' +
+            noSimBox.innerHTML = '<div class="sp-card-label">' + _escHtml(guide.simulator.label || 'Why This One Needs Real Hardware') + '</div>' +
                 '<p class="sp-sim-text">' + (guide.simulator.note || 'This build depends on hardware behavior no browser simulator reproduces. Read the steps and code to learn the technique; run it for real when you have the board.') + '</p>';
             wrap.appendChild(noSimBox);
         }

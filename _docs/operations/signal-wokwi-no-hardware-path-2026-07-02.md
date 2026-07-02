@@ -44,3 +44,13 @@ All ~112 Signal builds gate on owning physical boards — the hub's single bigge
 ## Related
 - Backlog: memory `project_marathon_backlog.md` item 1 (this), item 2 (zero-knowledge sweep — pairs naturally: sweep each build while authoring its simulator entry).
 - Engine: `_app/signal/SignalEngine.js` (search `sp-sim-card`); pilot data: `_app/signal/sections/foundations/guides.js` (`sg-01`).
+
+## Wave 3 (2026-07-02) — coverage is board-truth, not section-name
+
+Two sections done; both turned out NO-SIM once the real hardware was read (a reminder to verify parts, never guess from the section name):
+- **iot-sensor-mesh (5)** — builds run on the **BeagleConnect Zepto** (TI MSPM0 Cortex-M0+, Zephyr). Not a Wokwi board (`/projects/new/beagleconnect-zepto` 404s; absent from Wokwi's board list), and the lessons are its devicetree / mikroBUS Click / radio mesh / Greybus — none simulable. Honest no-sim, per-build reason.
+- **home-lab-builds (10)** — full **Linux server/network** builds on a Pi (Pi-hole, PXE, Samba, WireGuard, Jellyfin, Grafana, Docker Swarm, Nginx, backups). A microcontroller simulator doesn't apply, but these need **no special hardware** — any spare Linux box / laptop VM / cloud instance runs them. Card uses the accurate label **"No Hardware to Buy — Run It on Any Linux"** (engine now takes `simulator.label`), with per-build network caveats (Pi-hole=DNS, PXE=LAN, WireGuard=public endpoint, Swarm=3 VMs).
+
+Engine gained a data-driven no-sim card label this wave.
+
+Still to author (per-build sim/no-sim, several marginal cases needing part fetch-checks): arcade-ops (5 — sg-26 Pong maybe sim, rest USB-HID/Pi no-sim), field-prep (2), iot-hacking (10 — mostly real-target/radio no-sim; sg-63/sg-70 any-Linux; sg-71 CoAP maybe sim), plus the radio/hw sections (sdr-radio, drone-security, pcb-design, red-team-hw, firmware-ops).
