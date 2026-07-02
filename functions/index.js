@@ -1556,6 +1556,16 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     }
 
     const total = answerKey.length;
+
+    // QC-57 per-question grading: instant-feedback pages call gradeQuiz once per
+    // answer with { partial: true }. Partial calls must not write quiz_attempts
+    // (15 misleading near-zero "failed" docs per real attempt), must not count
+    // toward reviewAfterFails, and must not reveal the key beyond the submitted
+    // question. EXPLICIT opt-in only — no length-based inference: a timed exam's
+    // auto-submit can legitimately contain a single answer (ala-final/ala-midterm),
+    // and those full submissions MUST keep normal logging + reviewAfterFails.
+    const isPartial = request.data.partial === true;
+
     const types = keyData.types || []; // Optional per-question type array: 'mc', 'ms', 'order'
     let score = 0;
     const results = [];
@@ -1612,7 +1622,7 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     // user's prior failed attempts for this quiz via a single-field query (no composite
     // index required). Server-authoritative — the client cannot spoof the attempt count.
     let revealForReview = false;
-    if (!passed && keyData.reviewAfterFails) {
+    if (!isPartial && !passed && keyData.reviewAfterFails) {
         try {
             const priorSnap = await db.collection(`users/${request.auth.uid}/quiz_attempts`)
                 .where('quizId', '==', quizId).get();
@@ -1634,6 +1644,9 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     if (passed || keyData.revealToAll || revealForReview) {
         const explanations = Array.isArray(keyData.explanations) ? keyData.explanations : [];
         for (let i = 0; i < total; i++) {
+            // Partial (per-question) calls only reveal the question actually submitted —
+            // otherwise a revealToAll key would leak the full answer set on every click.
+            if (isPartial && !(String(i) in answers)) continue;
             let expected = answerKey[i];
             if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
                 if (expected.ms) expected = expected.ms;
@@ -1644,19 +1657,23 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
         }
     }
 
-    // Log the attempt to Firestore for analytics
-    const uid = request.auth.uid;
-    try {
-        await db.collection(`users/${uid}/quiz_attempts`).add({
-            quizId,
-            score,
-            total,
-            percentage,
-            passed,
-            timestamp: FieldValue.serverTimestamp()
-        });
-    } catch (e) {
-        console.warn('Quiz attempt log failed:', e.message);
+    // Log the attempt to Firestore for analytics — full submissions only.
+    // Per-question partial calls would write ~15 misleading near-zero "failed"
+    // records per real quiz attempt (the real final score never reaches the server).
+    if (!isPartial) {
+        const uid = request.auth.uid;
+        try {
+            await db.collection(`users/${uid}/quiz_attempts`).add({
+                quizId,
+                score,
+                total,
+                percentage,
+                passed,
+                timestamp: FieldValue.serverTimestamp()
+            });
+        } catch (e) {
+            console.warn('Quiz attempt log failed:', e.message);
+        }
     }
 
     return { score, total, percentage, passed, results, reviewAvailable: revealForReview };

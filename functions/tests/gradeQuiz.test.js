@@ -365,6 +365,38 @@ console.log('\nObject-Wrapped Answers (Firestore):');
     assertEq(r.score, 2, 'Wrapped Backward: MC-only key unchanged → works');
 })();
 
+// ── Partial-grading detection (QC-57 per-question calls) ───────
+// Mirrors index.js: const isPartial = request.data.partial === true;
+// EXPLICIT opt-in only — no length inference (a timed exam's auto-submit
+// can legitimately contain a single answer and must stay non-partial).
+
+function detectPartial(requestData) {
+    return requestData.partial === true;
+}
+
+(function testPartialExplicitTrue() {
+    assertEq(detectPartial({ quizId: 'x', answers: { '0': 1 }, partial: true }), true,
+        'Partial: explicit partial:true → partial');
+})();
+
+(function testPartialAbsent() {
+    assertEq(detectPartial({ quizId: 'x', answers: { '0': 1 } }), false,
+        'Partial: single-answer WITHOUT flag (timed-exam auto-submit) → NOT partial');
+})();
+
+(function testPartialFalsyVariants() {
+    assertEq(detectPartial({ partial: false }), false, 'Partial: partial:false → NOT partial');
+    assertEq(detectPartial({ partial: 'true' }), false, 'Partial: string "true" → NOT partial (strict ===)');
+    assertEq(detectPartial({ partial: 1 }), false, 'Partial: numeric 1 → NOT partial (strict ===)');
+})();
+
+(function testPartialFullSubmissionWithFlag() {
+    // A client sending partial:true on a full submission only skips its own
+    // attempt log + scopes its own reveal — grading itself is unaffected.
+    const r = gradeQuiz({ '0': 2, '1': 1 }, [2, 1]);
+    assertEq(r.score, 2, 'Partial: grading logic independent of partial flag');
+})();
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(50)}`);
