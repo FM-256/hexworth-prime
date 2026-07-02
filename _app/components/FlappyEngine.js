@@ -446,6 +446,69 @@ window.FlappyEngine = (function () {
     }
 
     // ── Drawing ─────────────────────────────────────────────────────────
+    // ── Visual helpers (color shading + pipe rendering) — geometry unchanged ──
+    // shadeColor: lighten (pct>0, toward white) or darken (pct<0, toward black) a
+    // hex color by a percentage; returns an 'rgb(...)' string. Falls back to the
+    // input on a bad hex. Used to derive per-clone pipe highlights/edges from the
+    // game's own theme color so every Flap clone shades consistently.
+    function shadeColor(hex, pct) {
+        var h = ('' + hex).replace('#', '');
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        var r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
+        if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+        var t = pct < 0 ? 0 : 255, p = Math.min(1, Math.abs(pct) / 100);
+        r = Math.round((t - r) * p + r);
+        g = Math.round((t - g) * p + g);
+        b = Math.round((t - b) * p + b);
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+    // hexToRgba: convert a hex color to an 'rgba(...)' string with alpha `a`
+    // (0..1). Falls back to the input on a bad hex. Used for the semi-transparent
+    // parallax skyline + ground highlight so they tint to the clone's accent color.
+    function hexToRgba(hex, a) {
+        var h = ('' + hex).replace('#', '');
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        var r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
+        if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    }
+    // One vertical pipe body section with cylindrical shading (base at edges, lit center).
+    // Never darkens below the base beyond a small clamp, so it reads well on dark themes.
+    function drawPipeSection(x, y, w, h, pc) {
+        if (h <= 0) return;
+        var grad = ctx.createLinearGradient(x, 0, x + w, 0);
+        grad.addColorStop(0, shadeColor(pc.color, -12));
+        grad.addColorStop(0.34, shadeColor(pc.color, 30));
+        grad.addColorStop(0.55, shadeColor(pc.color, 10));
+        grad.addColorStop(1, shadeColor(pc.color, -18));
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, w, h);
+        // bright vertical highlight stripe (left-of-center) for a glossy cylinder read
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = shadeColor(pc.color, 60);
+        ctx.fillRect(x + w * 0.26, y, Math.max(2, w * 0.07), h);
+        ctx.restore();
+    }
+    // One pipe cap (lip): wider block with a top shine + bottom inner shadow.
+    function drawPipeCap(x, capY, w, pc) {
+        var cx = x - 4, cw = w + 8;
+        var grad = ctx.createLinearGradient(cx, 0, cx + cw, 0);
+        grad.addColorStop(0, shadeColor(pc.borderColor, -8));
+        grad.addColorStop(0.3, shadeColor(pc.borderColor, 30));
+        grad.addColorStop(1, shadeColor(pc.borderColor, -14));
+        ctx.fillStyle = grad;
+        ctx.fillRect(cx, capY, cw, 20);
+        ctx.save();
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = shadeColor(pc.borderColor, 65);
+        ctx.fillRect(cx, capY, cw, 3);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(cx, capY + 17, cw, 3);
+        ctx.restore();
+    }
+
     function drawBackground() {
         const bg = config.background;
 
@@ -466,20 +529,31 @@ window.FlappyEngine = (function () {
             ctx.fillRect(px, py, sz, sz);
         }
 
-        // Parallax layer 2 — mid-ground shapes
-        ctx.globalAlpha = 0.07;
-        for (let i = 0; i < 8; i++) {
-            const px = ((i * 211 + bgLayers[1].offset * 0.5) % (W + 120)) - 60;
-            const py = H - GROUND_H - 40 - (i * 37) % 80;
-            ctx.fillRect(px, py, 60 + (i % 3) * 20, 40);
-        }
-
-        // Parallax layer 3 — near-ground elements
-        ctx.globalAlpha = 0.05;
-        for (let i = 0; i < 12; i++) {
-            const px = ((i * 173 + bgLayers[2].offset * 0.8) % (W + 80)) - 40;
-            const py = H - GROUND_H - 20 - (i * 23) % 30;
-            ctx.fillRect(px, py, 30, 20);
+        // Parallax layer 2 — city skyline silhouette + horizon glow.
+        // Drawn from theme.accentColor (NOT bottomColor — near the ground the sky
+        // gradient already equals bottomColor, so bottomColor buildings would be
+        // invisible on dark themes). Accent guarantees contrast on all 5 clones.
+        var horizon = H - GROUND_H;
+        var glow = ctx.createLinearGradient(0, horizon - 80, 0, horizon);
+        glow.addColorStop(0, 'rgba(0,0,0,0)');
+        glow.addColorStop(1, hexToRgba(config.theme.accentColor, 0.10));
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, horizon - 80, W, 80);
+        for (let i = 0; i < 10; i++) {
+            const bw = 30 + (i % 4) * 12;
+            const bh = 26 + (i * 53) % 66;
+            const px = ((i * 97 + bgLayers[1].offset * 0.5) % (W + 130)) - 65;
+            // building body
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = hexToRgba(config.theme.accentColor, 0.13);
+            ctx.fillRect(px, horizon - bh, bw, bh);
+            // lit windows (sparse, deterministic pattern)
+            ctx.fillStyle = hexToRgba(config.theme.accentColor, 0.5);
+            for (let wy = horizon - bh + 6; wy < horizon - 5; wy += 9) {
+                for (let wx = px + 4; wx < px + bw - 4; wx += 8) {
+                    if ((wx + wy + i) % 3 === 0) ctx.fillRect(wx, wy, 3, 4);
+                }
+            }
         }
         ctx.globalAlpha = 1;
     }
@@ -488,6 +562,14 @@ window.FlappyEngine = (function () {
         const bg = config.background;
         ctx.fillStyle = bg.groundColor;
         ctx.fillRect(0, H - GROUND_H, W, GROUND_H);
+
+        // Two-tone surface highlight band (accent-tinted) so the ground reads as a
+        // lit surface rather than a flat block.
+        var gg = ctx.createLinearGradient(0, H - GROUND_H, 0, H - GROUND_H + 12);
+        gg.addColorStop(0, hexToRgba(config.theme.accentColor, 0.18));
+        gg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gg;
+        ctx.fillRect(0, H - GROUND_H, W, 12);
 
         // Ground line
         ctx.strokeStyle = config.theme.accentColor;
@@ -521,34 +603,34 @@ window.FlappyEngine = (function () {
 
         var pc = config.pipes;
 
+        ctx.save();
         // Shadow
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fillRect(p.x + 4, 0, p.width, p.gapY - 2);
         ctx.fillRect(p.x + 4, p.gapY + p.gapSize + 2, p.width, H - GROUND_H - p.gapY - p.gapSize);
 
-        // Top pipe body
-        ctx.fillStyle = pc.color;
-        ctx.fillRect(p.x, 0, p.width, p.gapY);
-        // Top pipe cap
-        ctx.fillStyle = pc.borderColor;
-        ctx.fillRect(p.x - 4, p.gapY - 20, p.width + 8, 20);
+        // Top pipe: shaded cylindrical body + capped lip
+        drawPipeSection(p.x, 0, p.width, p.gapY, pc);
+        drawPipeCap(p.x, p.gapY - 20, p.width, pc);
 
-        // Bottom pipe body
-        ctx.fillStyle = pc.color;
-        ctx.fillRect(p.x, p.gapY + p.gapSize, p.width, H - GROUND_H - p.gapY - p.gapSize);
-        // Bottom pipe cap
-        ctx.fillStyle = pc.borderColor;
-        ctx.fillRect(p.x - 4, p.gapY + p.gapSize, p.width + 8, 20);
+        // Bottom pipe: shaded cylindrical body + capped lip
+        drawPipeSection(p.x, p.gapY + p.gapSize, p.width, H - GROUND_H - p.gapY - p.gapSize, pc);
+        drawPipeCap(p.x, p.gapY + p.gapSize, p.width, pc);
 
         // Pipe border lines
         ctx.strokeStyle = pc.borderColor;
         ctx.lineWidth = 2;
         ctx.strokeRect(p.x, 0, p.width, p.gapY);
         ctx.strokeRect(p.x, p.gapY + p.gapSize, p.width, H - GROUND_H - p.gapY - p.gapSize);
+        ctx.restore();
 
-        // Pipe decoration: custom draw function if provided
+        // Pipe decoration: custom hook — wrapped in save/restore so it always
+        // receives clean ctx state (globalAlpha=1, no shadow, string fillStyle)
+        // regardless of the gradient/highlight rendering above.
         if (config.pipes.drawDecoration) {
+            ctx.save();
             config.pipes.drawDecoration(ctx, p);
+            ctx.restore();
         }
 
         // Label text on pipe cap
@@ -773,30 +855,25 @@ window.FlappyEngine = (function () {
         // Split pipe renders 3 solid sections with 2 gaps
         var pc = config.pipes;
 
+        ctx.save();
         // Shadow
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fillRect(p.x + 4, 0, p.width, p.gapY - 2);
         ctx.fillRect(p.x + 4, p.gapY + p.gapSize + 2, p.width, p.gap2Y - p.gapY - p.gapSize - 2);
         ctx.fillRect(p.x + 4, p.gap2Y + p.gap2Size + 2, p.width, H - GROUND_H - p.gap2Y - p.gap2Size);
 
-        // Top section
-        ctx.fillStyle = pc.color;
-        ctx.fillRect(p.x, 0, p.width, p.gapY);
-        ctx.fillStyle = pc.borderColor;
-        ctx.fillRect(p.x - 4, p.gapY - 20, p.width + 8, 20);
+        // Top section: shaded body + cap (shared helpers keep this in sync with drawPipe)
+        drawPipeSection(p.x, 0, p.width, p.gapY, pc);
+        drawPipeCap(p.x, p.gapY - 20, p.width, pc);
 
-        // Middle section (between the two gaps)
-        ctx.fillStyle = pc.color;
-        ctx.fillRect(p.x, p.gapY + p.gapSize, p.width, p.gap2Y - p.gapY - p.gapSize);
-        ctx.fillStyle = pc.borderColor;
-        ctx.fillRect(p.x - 4, p.gapY + p.gapSize, p.width + 8, 20);
-        ctx.fillRect(p.x - 4, p.gap2Y - 20, p.width + 8, 20);
+        // Middle section (between the two gaps): body + a cap on each edge
+        drawPipeSection(p.x, p.gapY + p.gapSize, p.width, p.gap2Y - p.gapY - p.gapSize, pc);
+        drawPipeCap(p.x, p.gapY + p.gapSize, p.width, pc);
+        drawPipeCap(p.x, p.gap2Y - 20, p.width, pc);
 
-        // Bottom section
-        ctx.fillStyle = pc.color;
-        ctx.fillRect(p.x, p.gap2Y + p.gap2Size, p.width, H - GROUND_H - p.gap2Y - p.gap2Size);
-        ctx.fillStyle = pc.borderColor;
-        ctx.fillRect(p.x - 4, p.gap2Y + p.gap2Size, p.width + 8, 20);
+        // Bottom section: shaded body + cap
+        drawPipeSection(p.x, p.gap2Y + p.gap2Size, p.width, H - GROUND_H - p.gap2Y - p.gap2Size, pc);
+        drawPipeCap(p.x, p.gap2Y + p.gap2Size, p.width, pc);
 
         // Border strokes
         ctx.strokeStyle = pc.borderColor;
@@ -804,9 +881,13 @@ window.FlappyEngine = (function () {
         ctx.strokeRect(p.x, 0, p.width, p.gapY);
         ctx.strokeRect(p.x, p.gapY + p.gapSize, p.width, p.gap2Y - p.gapY - p.gapSize);
         ctx.strokeRect(p.x, p.gap2Y + p.gap2Size, p.width, H - GROUND_H - p.gap2Y - p.gap2Size);
+        ctx.restore();
 
+        // Decoration hook — wrapped so it always gets clean ctx state.
         if (config.pipes.drawDecoration) {
+            ctx.save();
             config.pipes.drawDecoration(ctx, p);
+            ctx.restore();
         }
     }
 

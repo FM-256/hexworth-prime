@@ -301,30 +301,57 @@
         }
 
         // ── Sprite: packet colored by current protocol ───────────────────
+        // Local color shader for the datagram sprite: lighten (pct>0) / darken
+        // (pct<0) a hex color toward white/black by percentage; returns an rgb()
+        // string. (FlappyEngine's shadeColor is private to the engine IIFE.)
+        function pktShade(hex, pct) {
+            var s = ('' + hex).replace('#', '');
+            if (s.length === 3) s = s[0] + s[0] + s[1] + s[1] + s[2] + s[2];
+            var r = parseInt(s.substr(0, 2), 16), g = parseInt(s.substr(2, 2), 16), b = parseInt(s.substr(4, 2), 16);
+            if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+            var t = pct < 0 ? 0 : 255, p = Math.min(1, Math.abs(pct) / 100);
+            return 'rgb(' + Math.round((t - r) * p + r) + ',' + Math.round((t - g) * p + g) + ',' + Math.round((t - b) * p + b) + ')';
+        }
+
+        // Sprite: a network datagram — gradient body + header segment + payload
+        // lines + soft glow, tinted by the current protocol color.
         function drawPacketSprite(ctx, w, h, flapFrame) {
             var baseColor = currentProtocol.color;
+            var x0 = -w / 2, y0 = -h / 2;
 
-            // Body tinted by protocol
-            ctx.fillStyle = baseColor;
-            ctx.globalAlpha = 0.9;
-            ctx.fillRect(-w / 2, -h / 2, w, h);
-            ctx.globalAlpha = 1;
+            ctx.save();
+            // soft glow in the protocol color
+            ctx.shadowColor = baseColor;
+            ctx.shadowBlur = 8;
+            // body: vertical gradient (lit top -> base -> shaded bottom)
+            var bodyGrad = ctx.createLinearGradient(0, y0, 0, y0 + h);
+            bodyGrad.addColorStop(0, pktShade(baseColor, 38));
+            bodyGrad.addColorStop(0.5, baseColor);
+            bodyGrad.addColorStop(1, pktShade(baseColor, -28));
+            ctx.fillStyle = bodyGrad;
+            ctx.fillRect(x0, y0, w, h);
+            ctx.shadowBlur = 0;
 
-            // Border
-            ctx.strokeStyle = '#ffffff';
+            // header segment (the packet header strip)
+            ctx.fillStyle = pktShade(baseColor, 58);
+            ctx.fillRect(x0, y0, w, 5);
+            // payload lines
+            ctx.fillStyle = 'rgba(255,255,255,0.28)';
+            ctx.fillRect(x0 + 3, y0 + 9, w - 6, 1.5);
+            ctx.fillRect(x0 + 3, y0 + 13, w - 10, 1.5);
+
+            // border
+            ctx.strokeStyle = pktShade(baseColor, 65);
             ctx.lineWidth = 1.5;
-            ctx.strokeRect(-w / 2, -h / 2, w, h);
+            ctx.strokeRect(x0, y0, w, h);
 
-            // Protocol label
+            // protocol label
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 8px Courier New';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(currentProtocol.id, 0, 0);
-
-            // Header bar
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
-            ctx.fillRect(-w / 2, -h / 2, w, 4);
+            ctx.fillText(currentProtocol.id, 0, 1);
+            ctx.restore();
 
             // Wings on flap
             if (flapFrame > 0.3) {
