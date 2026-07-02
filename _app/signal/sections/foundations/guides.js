@@ -9,6 +9,12 @@ window.SignalGuides = {
     // SG-01: Blink & Breadboard — Your First Circuit
     // ========================================================================
     'sg-01': {
+        // No-hardware path pilot: official Wokwi new-project template for the Mega.
+        simulator: {
+            platform: 'Wokwi',
+            url: 'https://wokwi.com/projects/new/arduino-mega',
+            note: 'No Mega kit yet? Open a free Arduino Mega simulator in your browser, paste the sketch from the steps below, and place the LED + resistor per the wiring diagram &mdash; Wokwi simulates the pins, the breadboard, and the serial monitor.'
+        },
         intro: '<p>Every hardware hacker starts here. Before you can sniff packets, flash firmware, or build field tools, you need to understand the fundamentals: how electricity flows through a circuit, how microcontrollers drive output pins, and how to build reliable connections on a breadboard.</p>' +
                '<p>In this project you will wire your first LED circuit from scratch, upload code to your Arduino Mega, and then expand to a multi-LED chase pattern. By the end, you will be comfortable with the Arduino IDE, digital output pins, resistor calculations, and breadboard layout &mdash; the foundation for every project that follows.</p>' +
                '<p>Everything you need is in the ELEGOO Mega kit. No soldering, no extra purchases. Just unbox and build.</p>',

@@ -2206,6 +2206,18 @@ a { color: inherit; text-decoration: none; }
             _initEnumAnim(enumBox);
         }
 
+        // No-hardware path: optional per-guide browser simulator (Wokwi).
+        // Data-driven: guides opt in via simulator:{platform,url,note} — see
+        // _docs/operations/signal-wokwi-no-hardware-path-2026-07-02.md
+        if (guide.simulator && guide.simulator.url) {
+            var simBox = document.createElement('div');
+            simBox.className = 'sp-card sp-sim-card';
+            simBox.innerHTML = '<div class="sp-card-label">No Hardware? Simulate It</div>' +
+                '<p class="sp-sim-text">' + (guide.simulator.note || 'This build runs in a free browser simulator &mdash; same code, same wiring, no kit required.') + '</p>' +
+                '<a class="sp-sim-btn" href="' + guide.simulator.url + '" target="_blank" rel="noopener">Open ' + _escHtml(guide.simulator.platform || 'simulator') + ' &#8599;</a>';
+            wrap.appendChild(simBox);
+        }
+
         // Steps (with optional sticky diagram layout)
         if (guide.steps && guide.steps.length) {
             var stepsContainer;
@@ -2411,6 +2423,16 @@ a { color: inherit; text-decoration: none; }
     font-size: 11px; font-weight: 700; color: ${color};
     text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px;
 }
+
+/* No-hardware simulator card */
+.sp-sim-card { border-color: rgba(34,211,238,0.25); background: rgba(34,211,238,0.04); }
+.sp-sim-text { font-size: 13px; line-height: 1.7; color: rgba(255,255,255,0.75); margin: 0 0 12px; }
+.sp-sim-btn {
+    display: inline-block; padding: 8px 18px; border-radius: 8px;
+    background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.4);
+    color: #22d3ee; font-size: 13px; font-weight: 600; text-decoration: none;
+}
+.sp-sim-btn:hover { background: rgba(34,211,238,0.22); }
 
 /* Prerequisites */
 .sp-prereq-list { display: flex; flex-direction: column; gap: 6px; }
