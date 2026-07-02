@@ -43,6 +43,7 @@
         .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
         .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
         .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; }
+        .feedback.checking { display: block; background: rgba(148,163,184,0.12); border: 1px solid rgba(148,163,184,0.35); color: #cbd5e1; }
         .feedback.correct { display: block; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
         .feedback.incorrect { display: block; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
         .quiz-nav { display: flex; justify-content: flex-end; }
@@ -103,7 +104,6 @@
                               "def",
                               "fn"
                     ],
-                    "ans": 2,
                     "exp": "The 'def' keyword defines a function in Python."
           },
           {
@@ -114,7 +114,6 @@
                               "None",
                               "False"
                     ],
-                    "ans": 2,
                     "exp": "Functions without an explicit return statement return None."
           },
           {
@@ -126,7 +125,6 @@
                               "15",
                               "Error"
                     ],
-                    "ans": 2,
                     "exp": "b defaults to 10, so add(5) = 5 + 10 = 15."
           },
           {
@@ -137,7 +135,6 @@
                               "A single list",
                               "Dictionary arguments"
                     ],
-                    "ans": 1,
                     "exp": "*args accepts any number of positional arguments as a tuple."
           },
           {
@@ -148,7 +145,6 @@
                               "An anonymous function",
                               "A loop"
                     ],
-                    "ans": 2,
                     "exp": "Lambda creates a small anonymous function."
           },
           {
@@ -159,7 +155,6 @@
                               "A loop",
                               "The stack limit"
                     ],
-                    "ans": 1,
                     "exp": "The base case is the condition that stops recursion."
           },
           {
@@ -171,7 +166,6 @@
                               "5 5",
                               "Error"
                     ],
-                    "ans": 1,
                     "exp": "foo() has local x=10. Global x remains 5."
           },
           {
@@ -182,7 +176,6 @@
                               "None",
                               "Error"
                     ],
-                    "ans": 1,
                     "exp": "By definition, 0! = 1. This is the base case."
           },
           {
@@ -193,7 +186,6 @@
                               "A list of values",
                               "Error arguments"
                     ],
-                    "ans": 1,
                     "exp": "**kwargs collects keyword arguments into a dictionary."
           },
           {
@@ -205,7 +197,6 @@
                               "None",
                               "Hi Bob"
                     ],
-                    "ans": 0,
                     "exp": "greet() prints 'Hi Bob' but returns None since no return statement."
           },
           {
@@ -216,7 +207,6 @@
                               "each()",
                               "transform()"
                     ],
-                    "ans": 1,
                     "exp": "map() applies a function to each item in an iterable."
           },
           {
@@ -227,7 +217,6 @@
                               "13",
                               "6"
                     ],
-                    "ans": 1,
                     "exp": "Fibonacci: 0,1,1,2,3,5,8. The 6th number is 8."
           },
           {
@@ -238,7 +227,6 @@
                               "A function name",
                               "A variable"
                     ],
-                    "ans": 1,
                     "exp": "Docstrings are triple-quoted strings placed at the start of a function."
           },
           {
@@ -249,7 +237,6 @@
                               "[0,1,2]",
                               "[-1]"
                     ],
-                    "ans": 1,
                     "exp": "filter keeps items where the function returns True: 1 and 2."
           },
           {
@@ -260,7 +247,6 @@
                               "It raises TypeError",
                               "It creates infinite recursion"
                     ],
-                    "ans": 1,
                     "exp": "Mutable default arguments are shared between calls -- a common Python gotcha."
           }
 ];
@@ -280,16 +266,27 @@
             document.getElementById('nextBtn').disabled = true;
             answered = false;
         }
+        var QUIZ_ID = 'sp-w3-functions-quiz';
+        // Validate ONE answer server-side via gradeQuiz; key never reaches the client (QC-57).
+        function gradeOne(qIndex, idx) {
+            var a = {}; a[qIndex] = idx;
+            return FirebaseAuth.callFunction('gradeQuiz', { quizId: QUIZ_ID, answers: a, partial: true })
+                .then(function (r) { return !!(r && r.results && r.results[qIndex] && r.results[qIndex].correct); })
+                .catch(function () { return null; });
+        }
         function selectAnswer(idx) {
             if (answered) return; answered = true;
             var q = questions[current], opts = document.querySelectorAll('.option');
-            for (var i = 0; i < opts.length; i++) { opts[i].classList.add('disabled'); if (i === q.ans) opts[i].classList.add('correct'); else if (i === idx) opts[i].classList.add('incorrect'); }
+            for (var i = 0; i < opts.length; i++) { opts[i].classList.add('disabled'); }
             var fb = document.getElementById('feedback');
-            if (idx === q.ans) { score++; fb.className = 'feedback correct'; fb.textContent = 'Correct! ' + q.exp; }
-            else { fb.className = 'feedback incorrect'; fb.textContent = 'Incorrect. ' + q.exp; }
-            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
-            document.getElementById('nextBtn').disabled = false;
-            if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+            fb.className = 'feedback checking'; fb.textContent = 'Checking\u2026';
+            gradeOne(current, idx).then(function (correct) {
+                if (correct === null) { opts[idx].classList.add('incorrect'); fb.className = 'feedback incorrect'; fb.textContent = 'Could not verify answer. ' + q.exp; }
+                else { opts[idx].classList.add(correct ? 'correct' : 'incorrect'); if (correct) { score++; } fb.className = 'feedback ' + (correct ? 'correct' : 'incorrect'); fb.textContent = (correct ? 'Correct! ' : 'Incorrect. ') + q.exp; }
+                document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+                document.getElementById('nextBtn').disabled = false;
+                if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+            });
         }
         function nextQuestion() { current++; if (current >= TOTAL) { showResults(); return; } loadQuestion(); }
         function showResults() {

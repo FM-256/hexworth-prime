@@ -43,6 +43,7 @@
         .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
         .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
         .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; }
+        .feedback.checking { display: block; background: rgba(148,163,184,0.12); border: 1px solid rgba(148,163,184,0.35); color: #cbd5e1; }
         .feedback.correct { display: block; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
         .feedback.incorrect { display: block; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
         .quiz-nav { display: flex; justify-content: flex-end; }
@@ -103,7 +104,6 @@
                               "List",
                               "Frozenset"
                     ],
-                    "ans": 2,
                     "exp": "Lists are ordered and mutable."
           },
           {
@@ -114,7 +114,6 @@
                               "Creates a new list",
                               "Raises error"
                     ],
-                    "ans": 1,
                     "exp": "append() modifies the list in place, adding 4 to the end."
           },
           {
@@ -125,7 +124,6 @@
                               "[0,2,4,6]",
                               "[1,2,3,4]"
                     ],
-                    "ans": 1,
                     "exp": "range(4) = 0,1,2,3. Squared: 0,1,4,9."
           },
           {
@@ -136,7 +134,6 @@
                               "dict[key]",
                               "dict->key"
                     ],
-                    "ans": 2,
                     "exp": "Dictionary values are accessed with bracket notation: dict[key]."
           },
           {
@@ -147,7 +144,6 @@
                               "{1,2,2,3,3,3}",
                               "(1,2,3)"
                     ],
-                    "ans": 0,
                     "exp": "Sets remove duplicates: {1, 2, 3}."
           },
           {
@@ -158,7 +154,6 @@
                               "Set",
                               "Tuple"
                     ],
-                    "ans": 3,
                     "exp": "Tuples are immutable -- they cannot be changed after creation."
           },
           {
@@ -169,7 +164,6 @@
                               "Raises KeyError",
                               "Sets key to default"
                     ],
-                    "ans": 1,
                     "exp": "get() returns the value for 'key' or 'default' if the key does not exist."
           },
           {
@@ -180,7 +174,6 @@
                               "{'a':0,'b':1,'c':2}",
                               "[0,1,2]"
                     ],
-                    "ans": 1,
                     "exp": "enumerate() returns index-value pairs."
           },
           {
@@ -191,7 +184,6 @@
                               "[3,1,4,1,5]",
                               "None"
                     ],
-                    "ans": 1,
                     "exp": "sorted() returns a new sorted list in ascending order."
           },
           {
@@ -202,7 +194,6 @@
                               "1",
                               "Error"
                     ],
-                    "ans": 1,
                     "exp": "len() on a dict returns the number of key-value pairs: 2."
           },
           {
@@ -213,7 +204,6 @@
                               "key in dict",
                               "dict.contains(key)"
                     ],
-                    "ans": 2,
                     "exp": "The 'in' operator checks for key membership in a dict."
           },
           {
@@ -224,7 +214,6 @@
                               "{0, 1, 4}",
                               "Error"
                     ],
-                    "ans": 0,
                     "exp": "Dict comprehension: keys 0,1,2 with squared values."
           },
           {
@@ -235,7 +224,6 @@
                               "[[1,3],[2,4]]",
                               "{1:3, 2:4}"
                     ],
-                    "ans": 1,
                     "exp": "zip() pairs up elements from both lists."
           },
           {
@@ -246,7 +234,6 @@
                               "A - B",
                               "A ^ B"
                     ],
-                    "ans": 2,
                     "exp": "A - B returns the difference: elements in A not in B."
           },
           {
@@ -257,7 +244,6 @@
                               "3",
                               "(2,)"
                     ],
-                    "ans": 1,
                     "exp": "Tuples support indexing: index 1 returns the second element, 2."
           }
 ];
@@ -277,16 +263,27 @@
             document.getElementById('nextBtn').disabled = true;
             answered = false;
         }
+        var QUIZ_ID = 'sp-w3-collections-quiz';
+        // Validate ONE answer server-side via gradeQuiz; key never reaches the client (QC-57).
+        function gradeOne(qIndex, idx) {
+            var a = {}; a[qIndex] = idx;
+            return FirebaseAuth.callFunction('gradeQuiz', { quizId: QUIZ_ID, answers: a, partial: true })
+                .then(function (r) { return !!(r && r.results && r.results[qIndex] && r.results[qIndex].correct); })
+                .catch(function () { return null; });
+        }
         function selectAnswer(idx) {
             if (answered) return; answered = true;
             var q = questions[current], opts = document.querySelectorAll('.option');
-            for (var i = 0; i < opts.length; i++) { opts[i].classList.add('disabled'); if (i === q.ans) opts[i].classList.add('correct'); else if (i === idx) opts[i].classList.add('incorrect'); }
+            for (var i = 0; i < opts.length; i++) { opts[i].classList.add('disabled'); }
             var fb = document.getElementById('feedback');
-            if (idx === q.ans) { score++; fb.className = 'feedback correct'; fb.textContent = 'Correct! ' + q.exp; }
-            else { fb.className = 'feedback incorrect'; fb.textContent = 'Incorrect. ' + q.exp; }
-            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
-            document.getElementById('nextBtn').disabled = false;
-            if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+            fb.className = 'feedback checking'; fb.textContent = 'Checking\u2026';
+            gradeOne(current, idx).then(function (correct) {
+                if (correct === null) { opts[idx].classList.add('incorrect'); fb.className = 'feedback incorrect'; fb.textContent = 'Could not verify answer. ' + q.exp; }
+                else { opts[idx].classList.add(correct ? 'correct' : 'incorrect'); if (correct) { score++; } fb.className = 'feedback ' + (correct ? 'correct' : 'incorrect'); fb.textContent = (correct ? 'Correct! ' : 'Incorrect. ') + q.exp; }
+                document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+                document.getElementById('nextBtn').disabled = false;
+                if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+            });
         }
         function nextQuestion() { current++; if (current >= TOTAL) { showResults(); return; } loadQuestion(); }
         function showResults() {
