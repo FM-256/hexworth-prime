@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-07-02 2:30:35 AM
+                    Scanned: 2026-07-02 2:36:30 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 5199 |
 | Directories | 1262 |
 | Content Files | 5199 |
-| Scan Duration | 484ms |
+| Scan Duration | 483ms |
 
 ### Content by Type
 
