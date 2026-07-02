@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-06-27 5:15:54 PM
+                    Scanned: 2026-07-02 12:29:24 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,27 +10,27 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5183 |
-| Directories | 1244 |
-| Content Files | 5183 |
-| Scan Duration | 528ms |
+| Files Scanned | 5199 |
+| Directories | 1262 |
+| Content Files | 5199 |
+| Scan Duration | 1923ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2330 |
-| html | 1550 |
+| presentation | 2337 |
+| html | 1556 |
 | lab | 587 |
 | quiz | 504 |
-| applet | 212 |
+| applet | 215 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 4280 |
-| Available | 4235 |
+| Total Modules | 4281 |
+| Available | 4236 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 29 |
-| Warning | 949 |
-| Info | 691 |
-| **Total** | **12980** |
+| Suspect | 30 |
+| Warning | 958 |
+| Info | 694 |
+| **Total** | **13035** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3616 |
+| Ready | 3626 |
 | Not Ready | 17 |
-| Unknown | 1550 |
+| Unknown | 1556 |
 
 
 ## FILE HIERARCHY
@@ -60,6 +60,30 @@
 
 ```
 📁 _app [root]
+├── 📁 _games-lab
+│   ├── 📁 data
+│   │   ├── 📁 fifth
+│   │   ├── 📁 jeopardy
+│   │   ├── 📁 kahoot
+│   │   └── 📁 wheel
+│   ├── 📁 data-extracted
+│   │   ├── 📁 fifth
+│   │   ├── 📁 jeopardy
+│   │   ├── 📁 kahoot
+│   │   └── 📁 wheel
+│   ├── 📁 data-improved
+│   │   ├── 📁 fifth
+│   │   ├── 📁 jeopardy
+│   │   ├── 📁 kahoot
+│   │   └── 📁 wheel
+│   ├── 📄 fifth.html
+│   ├── 📁 forge-lint
+│   ├── 📄 forge.html
+│   ├── 📄 health.html
+│   ├── 📍 index.html
+│   ├── 📄 jeopardy.html
+│   ├── 📄 kahoot.html
+│   └── 📄 wheel.html
 ├── 📁 _lib
 ├── 📄 about.html
 ├── 📄 accept-invite.html
@@ -3691,6 +3715,7 @@
 │   │   │   ├── 📁 activities
 │   │   │   │   └── 📄 website-down-hunt.html
 │   │   │   ├── 📄 ala-final.html
+│   │   │   ├── 📄 ala-post-test-review.html
 │   │   │   ├── 📄 ala-r1.html
 │   │   │   ├── 📄 ala-r2.html
 │   │   │   ├── 📄 ala-r3.html
@@ -3698,6 +3723,8 @@
 │   │   │   ├── 📄 ala-r5.html
 │   │   │   ├── 📁 exams
 │   │   │   │   ├── 📄 ala-final.exam.html
+│   │   │   │   ├── 📄 ala-jeopardy.review.html
+│   │   │   │   ├── 📄 ala-kahoot.review.html
 │   │   │   │   └── 📄 ala-midterm.exam.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
@@ -3751,11 +3778,12 @@
 │   │   │   │   ├── 📊 ala-w4-lecture.presentation.html
 │   │   │   │   ├── 📊 ala-w4-log-management.presentation.html
 │   │   │   │   └── 📊 ala-w4-performance.presentation.html
-│   │   │   └── 📁 quizzes [quizzes]
-│   │   │       ├── ❓ ala-w1.quiz.html
-│   │   │       ├── ❓ ala-w2.quiz.html
-│   │   │       ├── ❓ ala-w3.quiz.html
-│   │   │       └── ❓ ala-w4.quiz.html
+│   │   │   ├── 📁 quizzes [quizzes]
+│   │   │   │   ├── ❓ ala-w1.quiz.html
+│   │   │   │   ├── ❓ ala-w2.quiz.html
+│   │   │   │   ├── ❓ ala-w3.quiz.html
+│   │   │   │   └── ❓ ala-w4.quiz.html
+│   │   │   └── 📄 transmission.html
 │   │   ├── 📄 careers.html
 │   │   ├── 📁 handouts
 │   │   ├── 📍 index.html
@@ -5268,6 +5296,11 @@
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   └── 📁 shield-sp-blueteam-vuln-triage [labs]
 │   │   │   │       └── 📍 index.html
+│   │   │   ├── 📁 lessons
+│   │   │   │   ├── 📄 shield-sp-cryptography.lesson.html
+│   │   │   │   ├── 📄 shield-sp-malware.lesson.html
+│   │   │   │   ├── 📄 shield-sp-social-engineering.lesson.html
+│   │   │   │   └── 📄 shield-sp-threat-actors.lesson.html
 │   │   │   ├── 📁 quizzes [quizzes]
 │   │   │   │   ├── ❓ secplus-d1-change-management-quiz.quiz.html
 │   │   │   │   ├── ❓ secplus-d1-crypto-solutions-quiz.quiz.html
@@ -5285,7 +5318,8 @@
 │   │   │   │   ├── ❓ secplus-d5-risk-mgmt-quiz.quiz.html
 │   │   │   │   └── ❓ secplus-d5-vendor-risk-quiz.quiz.html
 │   │   │   └── 📁 reference
-│   │   │       └── 📄 sy0-701-acronyms.reference.html
+│   │   │       ├── 📄 sy0-701-acronyms.reference.html
+│   │   │       └── 📄 sy0-701-study-guide.html
 │   │   ├── 📁 speaker-notes
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 shield-aaa-flow.tool.html
@@ -8281,12 +8315,15 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | ala-final | presentation | ✓ | 0 |
+| ala-post-test-review | presentation | ✓ | 0 |
 | ala-r1 | presentation | ✓ | 0 |
 | ala-r2 | presentation | ✓ | 0 |
 | ala-r3 | presentation | ✓ | 0 |
 | ala-r4 | presentation | ✓ | 0 |
 | ala-r5 | presentation | ✓ | 0 |
 | ala-final | quiz | ✓ | 0 |
+| ala-jeopardy.review | presentation | ✓ | 0 |
+| ala-kahoot.review | presentation | ✓ | 0 |
 | ala-midterm | quiz | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | ala-w1-cli-operations.presentation | presentation | ✓ | 0 |
@@ -9348,6 +9385,10 @@
 | pbq-pki-diagnosis.lab | presentation | ✓ | 0 |
 | pbq-social-network-identification.lab | presentation | ✓ | 0 |
 | pbq-threat-actor-attribution.lab | presentation | ✓ | 0 |
+| shield-sp-cryptography.lesson | presentation | ✓ | 0 |
+| shield-sp-malware.lesson | presentation | ✓ | 0 |
+| shield-sp-social-engineering.lesson | presentation | ✓ | 0 |
+| shield-sp-threat-actors.lesson | presentation | ✓ | 0 |
 | shield-secplus-d1-change-management-quiz | quiz | ✓ | 0 |
 | shield-secplus-d1-crypto-solutions-quiz | quiz | ✓ | 0 |
 | shield-secplus-d1-design-principles-quiz | quiz | ✓ | 0 |
@@ -9363,6 +9404,7 @@
 | shield-secplus-d5-governance-quiz | quiz | ✓ | 0 |
 | shield-secplus-d5-risk-mgmt-quiz | quiz | ✓ | 0 |
 | shield-secplus-d5-vendor-risk-quiz | quiz | ✓ | 0 |
+| sy0-701-study-guide | applet | ✓ | 1 |
 | shield-aaa-flow.tool | presentation | ✓ | 0 |
 | shield-bia.tool | presentation | ✓ | 0 |
 | shield-crisc-risk.tool | presentation | ✓ | 0 |
@@ -9377,6 +9419,8 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| jeopardy | applet | ✓ | 1 |
+| kahoot | applet | ✓ | 1 |
 | about | applet | ✓ | 1 |
 | audit-tool | applet | ✓ | 1 |
 | console | presentation | ✓ | 0 |
@@ -10201,7 +10245,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (29) — heuristic, needs review
+### SUSPECT (30) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -10222,6 +10266,10 @@
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/ObservatoryConsent.js`
   Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `_games-lab/kahoot.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `admin/ai-chat-test.html`
@@ -10319,7 +10367,15 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (949)
+### WARNING (958)
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `_games-lab/jeopardy.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `_games-lab/kahoot.html`
+  Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `about.html`
@@ -12934,6 +12990,18 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/ala-post-test-review.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/exams/ala-jeopardy.review.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/matrix/adv-linux/exams/ala-kahoot.review.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/_source/pis-01.html`
   Fix: Add entry to content-registry.js
 
@@ -13015,6 +13083,22 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/infosec/_source/pis-21.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/security-plus/lessons/shield-sp-cryptography.lesson.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/security-plus/lessons/shield-sp-malware.lesson.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/security-plus/lessons/shield-sp-social-engineering.lesson.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/security-plus/lessons/shield-sp-threat-actors.lesson.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -14117,7 +14201,15 @@
   File: `tenant/instructor.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (691)
+### INFO (694)
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `_games-lab/jeopardy.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `_games-lab/kahoot.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `about.html`
@@ -14641,6 +14733,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/security-plus/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/security-plus/reference/sy0-701-study-guide.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -15391,7 +15487,7 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 3211 of 4280 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3211 of 4281 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
@@ -16746,10 +16842,12 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (880)
+### Unregistered Content (889)
 
 | Path | Type | House |
 |------|------|-------|
+| _games-lab/jeopardy.html | applet | - |
+| _games-lab/kahoot.html | applet | - |
 | about.html | applet | - |
 | admin/console.html | presentation | - |
 | arena/boxes/ow-01-mole-hunt/siem.html | applet | - |
@@ -17391,6 +17489,9 @@
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
 | houses/matrix/adv-linux/ala-final.html | presentation | matrix |
+| houses/matrix/adv-linux/ala-post-test-review.html | presentation | matrix |
+| houses/matrix/adv-linux/exams/ala-jeopardy.review.html | presentation | matrix |
+| houses/matrix/adv-linux/exams/ala-kahoot.review.html | presentation | matrix |
 | houses/shield/infosec/_source/pis-01.html | quiz | shield |
 | houses/shield/infosec/_source/pis-02.html | quiz | shield |
 | houses/shield/infosec/_source/pis-03.html | quiz | shield |
@@ -17412,6 +17513,10 @@
 | houses/shield/infosec/_source/pis-19.html | quiz | shield |
 | houses/shield/infosec/_source/pis-20.html | quiz | shield |
 | houses/shield/infosec/_source/pis-21.html | quiz | shield |
+| houses/shield/security-plus/lessons/shield-sp-cryptography.lesson.html | presentation | shield |
+| houses/shield/security-plus/lessons/shield-sp-malware.lesson.html | presentation | shield |
+| houses/shield/security-plus/lessons/shield-sp-social-engineering.lesson.html | presentation | shield |
+| houses/shield/security-plus/lessons/shield-sp-threat-actors.lesson.html | presentation | shield |
 | houses/web/backbone/bgp/bb-bgp-01.html | presentation | web |
 | houses/web/backbone/bgp/bb-bgp-02.html | presentation | web |
 | houses/web/backbone/bgp/bb-bgp-03.html | presentation | web |
