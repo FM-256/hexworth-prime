@@ -17,7 +17,7 @@ const SandboxLauncher = (function() {
     // ── Config ──────────────────────────────────────────────────
     const CONFIG = {
         apiBase: 'https://sandbox.hexworth.tech/api/sandbox',
-        devMode: true,              // Set false for production (requires Firebase auth)
+        devMode: false,             // lab-manager runs NODE_ENV=production (2026-07-02): Firebase auth required
         pollInterval: 10000,        // Status poll every 10s
         maxLifetimeMinutes: 120,
         idleTimeoutMinutes: 15,
@@ -32,6 +32,7 @@ const SandboxLauncher = (function() {
         'arctic': { name: 'Arctic Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
         'db-sql': { name: 'PostgreSQL Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
         'cell-sigma': { name: 'Cell-Σ Commissioning (ALA Final)', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
+        'linux-mastery': { name: 'Linux Mastery Workbench', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
     };
 
     // Active state
@@ -409,3 +410,7 @@ const SandboxLauncher = (function() {
     };
 
 })();
+
+// Explicit window attachment so the module is reachable from any script block
+// regardless of load order tooling (top-level const is global-lexical only).
+window.SandboxLauncher = SandboxLauncher;
