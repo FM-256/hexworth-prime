@@ -68,6 +68,7 @@
         .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
 
         .feedback { padding: 14px 18px; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; display: none; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .feedback.checking{display:block;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.35);color:#cbd5e1}
         .feedback.correct { display: block; background: rgba(0, 255, 65, 0.06); border: 1px solid rgba(0, 255, 65, 0.30); color: #88ffaa; }
         .feedback.incorrect { display: block; background: rgba(255, 51, 51, 0.06); border: 1px solid rgba(255, 51, 51, 0.30); color: #ff9999; }
 
@@ -175,179 +176,13 @@
            Answer key stored in Firestore quiz_keys/matrix-ala-w3-quiz */
         var QUIZ_ID = 'matrix-ala-w3-quiz';
 
-        var questions = [
-            {
-                q: 'In BIND\'s <code>named.conf</code>, what is the purpose of the <code>allow-query</code> directive inside a zone block?',
-                opts: [
-                    'It defines which servers are authoritative for the zone',
-                    'It restricts which IP addresses may send recursive queries through this server',
-                    'It controls which hosts may query this zone, independent of the global allow-query setting',
-                    'It specifies which IP addresses are allowed to perform zone transfers'
-                ],
-                ans: 2,
-                exp: 'allow-query in a zone block overrides the global allow-query setting for that specific zone. It controls which source IPs may query that zone\'s records. allow-transfer controls zone transfers; allow-recursion controls recursive queries.'
-            },
-            {
-                q: 'An operator creates a zone file for <code>sector7.matrix.net</code>. The SOA record\'s MNAME field should contain what value?',
-                opts: [
-                    'The IP address of the primary DNS server',
-                    'The secondary DNS server\'s hostname',
-                    'The email address of the zone administrator',
-                    'The FQDN of the primary authoritative nameserver for this zone'
-                ],
-                ans: 3,
-                exp: 'The MNAME field in the SOA record is the FQDN of the primary authoritative nameserver (primary master). The RNAME field is the admin email (with @ replaced by a dot). These are separate fields with distinct purposes.'
-            },
-            {
-                q: 'Which DNS record type maps a hostname to an IPv4 address?',
-                opts: [
-                    'A',
-                    'CNAME',
-                    'PTR',
-                    'AAAA'
-                ],
-                ans: 0,
-                exp: 'An A record maps a hostname to an IPv4 address. AAAA maps to IPv6. PTR maps an IP to a hostname (reverse lookup). CNAME creates a canonical name alias pointing to another hostname.'
-            },
-            {
-                q: 'After editing a BIND zone file, an operator runs <code>rndc reload sector7.matrix.net</code>. The command returns success but new records are not resolving. What should be checked first?',
-                opts: [
-                    'Whether the rndc.key matches the key in named.conf',
-                    'Whether the TTL value in the zone file is set to zero',
-                    'Whether the zone file\'s serial number was incremented before saving',
-                    'Whether BIND was installed with the correct compilation flags'
-                ],
-                ans: 2,
-                exp: 'BIND uses the SOA serial number to determine if a zone has changed. If the serial was not incremented, BIND (and secondary servers) may not reload the zone data even after rndc reload. The convention is to use the date format YYYYMMDDnn and increment nn for each daily change.'
-            },
-            {
-                q: 'An operator writes a Bash script that needs to exit immediately if any command fails. Which line should appear at the top of the script after the shebang?',
-                opts: [
-                    'trap EXIT "exit 1"',
-                    'set -e',
-                    'set -x',
-                    'export ERREXIT=1'
-                ],
-                ans: 1,
-                exp: 'set -e (errexit) causes the shell to exit immediately when any command exits with a non-zero status. set -x enables command tracing for debugging. Combined as set -euo pipefail, this also catches unset variables (-u) and pipeline failures (-o pipefail).'
-            },
-            {
-                q: 'A Bash script uses the variable <code>$TARGET_DIR</code> which is set externally. The script runs <code>rm -rf $TARGET_DIR/logs</code>. If <code>TARGET_DIR</code> is empty or unset, what is the result?',
-                opts: [
-                    'rm -rf /logs runs, potentially deleting system log files',
-                    'Bash automatically substitutes the current directory for empty variables',
-                    'The command is skipped because rm requires a non-empty path',
-                    'The command harmlessly fails with "variable not set" error'
-                ],
-                ans: 0,
-                exp: 'If TARGET_DIR is empty, the command becomes rm -rf /logs which deletes /logs on the server. If TARGET_DIR is completely unset and the script does not use set -u, it becomes rm -rf /logs. Always use set -u or ${TARGET_DIR:?error message} to guard against this. This is a critical real-world mistake.'
-            },
-            {
-                q: 'Which cron expression runs a script every day at 02:30 AM?',
-                opts: [
-                    '30 2 * * *',
-                    '2 30 * * *',
-                    '* * 2 30 *',
-                    '30 02 0 0 *'
-                ],
-                ans: 0,
-                exp: 'Cron format is: minute hour day-of-month month day-of-week. So 30 2 * * * means minute=30, hour=2, every day of the month, every month, every day of the week - which is 02:30 AM daily.'
-            },
-            {
-                q: 'An operator needs a scheduled task to run every 15 minutes but only when the system load is below 2.0. Which tool is best suited for this requirement?',
-                opts: [
-                    'at with a recursive self-scheduling mechanism',
-                    'anacron with the delay parameter set to 15',
-                    'cron cannot check system load; use systemd timers with ConditionCPULoad',
-                    'Standard cron with a load check wrapper script'
-                ],
-                ans: 3,
-                exp: 'Standard cron does not check load natively, but a wrapper script can use uptime or /proc/loadavg to check the load and exit early if too high. Alternatively, cron supports a load average check via the -l flag in some implementations. ConditionCPULoad is valid for systemd timers but the wrapper script approach is the most portable.'
-            },
-            {
-                q: 'Which <code>systemd timer</code> directive causes a timer to fire 5 minutes after the system boots, regardless of the wall-clock time?',
-                opts: [
-                    'OnBootSec=5min',
-                    'BootDelay=5m',
-                    'OnCalendar=*-*-* *:05:00',
-                    'OnActiveSec=300'
-                ],
-                ans: 0,
-                exp: 'OnBootSec= specifies a delay relative to when the machine was booted. OnCalendar= fires at specific wall-clock times. OnActiveSec= fires relative to when the timer unit was last activated. BootDelay= is not a valid systemd directive.'
-            },
-            {
-                q: 'An operator writes a Bash function to check if a service is running and restart it if not. Which construct correctly tests the exit code of <code>systemctl is-active</code>?',
-                opts: [
-                    'result=$(systemctl is-active $SERVICE); if result == "active"; then echo "running"; fi',
-                    'if [ systemctl is-active $SERVICE == "active" ]; then echo "running"; fi',
-                    'systemctl is-active $SERVICE; if $? = 0; then echo "running"; fi',
-                    'if systemctl is-active --quiet "$SERVICE"; then echo "running"; else systemctl start "$SERVICE"; fi'
-                ],
-                ans: 3,
-                exp: 'systemctl is-active --quiet exits with code 0 if the service is active, non-zero otherwise. Using it directly as an if condition is the cleanest approach. The other options have syntax errors: [ cmd == val ] is wrong syntax; if result == is not valid shell; $? = is assignment not comparison and requires [[ ]].'
-            },
-            {
-                q: 'An operator wants to rotate the application log at <code>/var/log/myapp/app.log</code> daily, keep 7 days of compressed archives, and send SIGHUP to the process after rotation. Which tool handles this?',
-                opts: [
-                    'journald with a retention policy in journald.conf',
-                    'logrotate with a configuration block in /etc/logrotate.d/',
-                    'cron with a gzip + mv script',
-                    'rsyslog with a RolloverSize directive'
-                ],
-                ans: 1,
-                exp: 'logrotate is the standard tool for log rotation. A config block in /etc/logrotate.d/ with daily, rotate 7, compress, delaycompress, and postrotate/endscript containing kill -HUP $(cat /var/run/myapp.pid) handles all requirements. journald manages its own journal; rsyslog does not have a rollover directive.'
-            },
-            {
-                q: 'Which <code>dig</code> command performs a reverse DNS lookup for the IP address <code>10.0.1.50</code>?',
-                opts: [
-                    'dig 50.1.0.10.in-addr.arpa',
-                    'dig -x 10.0.1.50',
-                    'dig --reverse 10.0.1.50',
-                    'dig PTR 10.0.1.50'
-                ],
-                ans: 1,
-                exp: 'dig -x performs a reverse lookup. It automatically constructs the in-addr.arpa query from the IP address. It is equivalent to dig PTR 50.1.0.10.in-addr.arpa (note the reversed octets) but -x is the shorthand that handles the reversal automatically.'
-            },
-            {
-                q: 'A BIND server returns REFUSED for queries from a new client. The zone exists and is correctly configured. What is the most likely cause?',
-                opts: [
-                    'The client IP is not included in the server\'s global allow-query ACL',
-                    'The zone file has a syntax error that prevents BIND from loading it',
-                    'BIND requires a license for more than 10 simultaneous clients',
-                    'The named service is running but not listening on port 53'
-                ],
-                ans: 0,
-                exp: 'BIND returns REFUSED when a query comes from an IP not permitted by the allow-query ACL. The default allow-query is "any" but if an operator has restricted it to a specific network (e.g., allow-query { 10.0.0.0/8; };), clients outside that range receive REFUSED.'
-            },
-            {
-                q: 'An operator writes a Bash script to back up all files modified in the last 24 hours to <code>/backup/daily/</code>. Which command correctly finds those files?',
-                opts: [
-                    'find /data -atime -24 -type f',
-                    'find /data -newer /backup/daily/ -type f',
-                    'ls -lt /data | grep "$(date +%Y-%m-%d)"',
-                    'find /data -mtime -1 -type f'
-                ],
-                ans: 3,
-                exp: 'find -mtime -1 finds files modified less than 1 day (24 hours) ago. The minus sign means "less than N days". -mtime +1 means more than 1 day. -atime measures access time, not modification time. The ls approach is fragile and not reliable for scripting.'
-            },
-            {
-                q: 'Which directive in <code>named.conf</code> specifies that this BIND server is authoritative for the zone and reads data from a local file?',
-                opts: [
-                    'authoritative yes; zonefile "/etc/bind/db.sector7.matrix.net";',
-                    'Both A and B are correct depending on the BIND version',
-                    'type primary; file "/etc/bind/db.sector7.matrix.net";',
-                    'type master; file "/etc/bind/db.sector7.matrix.net";'
-                ],
-                ans: 1,
-                exp: 'BIND 9.16+ introduced type primary as the new preferred term for what was historically called type master. Both are valid in BIND 9.x (master is still supported for backward compatibility). BIND 10+ dropped master entirely. On Ubuntu 22.04 (which ships BIND 9.18), both work but type primary is preferred.'
-            }
-        ];
+        var questions = [{"q":"In BIND's <code>named.conf</code>, what is the purpose of the <code>allow-query</code> directive inside a zone block?","opts":["It defines which servers are authoritative for the zone","It restricts which IP addresses may send recursive queries through this server","It controls which hosts may query this zone, independent of the global allow-query setting","It specifies which IP addresses are allowed to perform zone transfers"],"exp":"allow-query in a zone block overrides the global allow-query setting for that specific zone. It controls which source IPs may query that zone's records. allow-transfer controls zone transfers; allow-recursion controls recursive queries."},{"q":"An operator creates a zone file for <code>sector7.matrix.net</code>. The SOA record's MNAME field should contain what value?","opts":["The IP address of the primary DNS server","The secondary DNS server's hostname","The email address of the zone administrator","The FQDN of the primary authoritative nameserver for this zone"],"exp":"The MNAME field in the SOA record is the FQDN of the primary authoritative nameserver (primary master). The RNAME field is the admin email (with @ replaced by a dot). These are separate fields with distinct purposes."},{"q":"Which DNS record type maps a hostname to an IPv4 address?","opts":["A","CNAME","PTR","AAAA"],"exp":"An A record maps a hostname to an IPv4 address. AAAA maps to IPv6. PTR maps an IP to a hostname (reverse lookup). CNAME creates a canonical name alias pointing to another hostname."},{"q":"After editing a BIND zone file, an operator runs <code>rndc reload sector7.matrix.net</code>. The command returns success but new records are not resolving. What should be checked first?","opts":["Whether the rndc.key matches the key in named.conf","Whether the TTL value in the zone file is set to zero","Whether the zone file's serial number was incremented before saving","Whether BIND was installed with the correct compilation flags"],"exp":"BIND uses the SOA serial number to determine if a zone has changed. If the serial was not incremented, BIND (and secondary servers) may not reload the zone data even after rndc reload. The convention is to use the date format YYYYMMDDnn and increment nn for each daily change."},{"q":"An operator writes a Bash script that needs to exit immediately if any command fails. Which line should appear at the top of the script after the shebang?","opts":["trap EXIT \"exit 1\"","set -e","set -x","export ERREXIT=1"],"exp":"set -e (errexit) causes the shell to exit immediately when any command exits with a non-zero status. set -x enables command tracing for debugging. Combined as set -euo pipefail, this also catches unset variables (-u) and pipeline failures (-o pipefail)."},{"q":"A Bash script uses the variable <code>$TARGET_DIR</code> which is set externally. The script runs <code>rm -rf $TARGET_DIR/logs</code>. If <code>TARGET_DIR</code> is empty or unset, what is the result?","opts":["rm -rf /logs runs, potentially deleting system log files","Bash automatically substitutes the current directory for empty variables","The command is skipped because rm requires a non-empty path","The command harmlessly fails with \"variable not set\" error"],"exp":"If TARGET_DIR is empty, the command becomes rm -rf /logs which deletes /logs on the server. If TARGET_DIR is completely unset and the script does not use set -u, it becomes rm -rf /logs. Always use set -u or ${TARGET_DIR:?error message} to guard against this. This is a critical real-world mistake."},{"q":"Which cron expression runs a script every day at 02:30 AM?","opts":["30 2 * * *","2 30 * * *","* * 2 30 *","30 02 0 0 *"],"exp":"Cron format is: minute hour day-of-month month day-of-week. So 30 2 * * * means minute=30, hour=2, every day of the month, every month, every day of the week - which is 02:30 AM daily."},{"q":"An operator needs a scheduled task to run every 15 minutes but only when the system load is below 2.0. Which tool is best suited for this requirement?","opts":["at with a recursive self-scheduling mechanism","anacron with the delay parameter set to 15","cron cannot check system load; use systemd timers with ConditionCPULoad","Standard cron with a load check wrapper script"],"exp":"Standard cron does not check load natively, but a wrapper script can use uptime or /proc/loadavg to check the load and exit early if too high. Alternatively, cron supports a load average check via the -l flag in some implementations. ConditionCPULoad is valid for systemd timers but the wrapper script approach is the most portable."},{"q":"Which <code>systemd timer</code> directive causes a timer to fire 5 minutes after the system boots, regardless of the wall-clock time?","opts":["OnBootSec=5min","BootDelay=5m","OnCalendar=*-*-* *:05:00","OnActiveSec=300"],"exp":"OnBootSec= specifies a delay relative to when the machine was booted. OnCalendar= fires at specific wall-clock times. OnActiveSec= fires relative to when the timer unit was last activated. BootDelay= is not a valid systemd directive."},{"q":"An operator writes a Bash function to check if a service is running and restart it if not. Which construct correctly tests the exit code of <code>systemctl is-active</code>?","opts":["result=$(systemctl is-active $SERVICE); if result == \"active\"; then echo \"running\"; fi","if [ systemctl is-active $SERVICE == \"active\" ]; then echo \"running\"; fi","systemctl is-active $SERVICE; if $? = 0; then echo \"running\"; fi","if systemctl is-active --quiet \"$SERVICE\"; then echo \"running\"; else systemctl start \"$SERVICE\"; fi"],"exp":"systemctl is-active --quiet exits with code 0 if the service is active, non-zero otherwise. Using it directly as an if condition is the cleanest approach. The other options have syntax errors: [ cmd == val ] is wrong syntax; if result == is not valid shell; $? = is assignment not comparison and requires [[ ]]."},{"q":"An operator wants to rotate the application log at <code>/var/log/myapp/app.log</code> daily, keep 7 days of compressed archives, and send SIGHUP to the process after rotation. Which tool handles this?","opts":["journald with a retention policy in journald.conf","logrotate with a configuration block in /etc/logrotate.d/","cron with a gzip + mv script","rsyslog with a RolloverSize directive"],"exp":"logrotate is the standard tool for log rotation. A config block in /etc/logrotate.d/ with daily, rotate 7, compress, delaycompress, and postrotate/endscript containing kill -HUP $(cat /var/run/myapp.pid) handles all requirements. journald manages its own journal; rsyslog does not have a rollover directive."},{"q":"Which <code>dig</code> command performs a reverse DNS lookup for the IP address <code>10.0.1.50</code>?","opts":["dig 50.1.0.10.in-addr.arpa","dig -x 10.0.1.50","dig --reverse 10.0.1.50","dig PTR 10.0.1.50"],"exp":"dig -x performs a reverse lookup. It automatically constructs the in-addr.arpa query from the IP address. It is equivalent to dig PTR 50.1.0.10.in-addr.arpa (note the reversed octets) but -x is the shorthand that handles the reversal automatically."},{"q":"A BIND server returns REFUSED for queries from a new client. The zone exists and is correctly configured. What is the most likely cause?","opts":["The client IP is not included in the server's global allow-query ACL","The zone file has a syntax error that prevents BIND from loading it","BIND requires a license for more than 10 simultaneous clients","The named service is running but not listening on port 53"],"exp":"BIND returns REFUSED when a query comes from an IP not permitted by the allow-query ACL. The default allow-query is \"any\" but if an operator has restricted it to a specific network (e.g., allow-query { 10.0.0.0/8; };), clients outside that range receive REFUSED."},{"q":"An operator writes a Bash script to back up all files modified in the last 24 hours to <code>/backup/daily/</code>. Which command correctly finds those files?","opts":["find /data -atime -24 -type f","find /data -newer /backup/daily/ -type f","ls -lt /data | grep \"$(date +%Y-%m-%d)\"","find /data -mtime -1 -type f"],"exp":"find -mtime -1 finds files modified less than 1 day (24 hours) ago. The minus sign means \"less than N days\". -mtime +1 means more than 1 day. -atime measures access time, not modification time. The ls approach is fragile and not reliable for scripting."},{"q":"Which directive in <code>named.conf</code> specifies that this BIND server is authoritative for the zone and reads data from a local file?","opts":["authoritative yes; zonefile \"/etc/bind/db.sector7.matrix.net\";","Both A and B are correct depending on the BIND version","type primary; file \"/etc/bind/db.sector7.matrix.net\";","type master; file \"/etc/bind/db.sector7.matrix.net\";"],"exp":"BIND 9.16+ introduced type primary as the new preferred term for what was historically called type master. Both are valid in BIND 9.x (master is still supported for backward compatibility). BIND 10+ dropped master entirely. On Ubuntu 22.04 (which ships BIND 9.18), both work but type primary is preferred."}];
 
         var current = 0;
         var score = 0;
         var answered = false;
         var TOTAL = questions.length;
-        var userAnswers = [];
+        var userAnswers = []; var revealedAnswers = {}; // server-revealed correct index per question (Family-5)
 
         function loadQuestion() {
             var q = questions[current];
@@ -371,36 +206,40 @@
             answered = false;
         }
 
+        // gradeOne: validate one answer server-side; capture the revealed correct index (revealToAll key) for review.
+        function gradeOne(qIndex, idx) {
+            var a = {}; a[qIndex] = idx;
+            return FirebaseAuth.callFunction('gradeQuiz', { quizId: QUIZ_ID, answers: a, partial: true })
+                .then(function (r) {
+                    var res = r && r.results && r.results[qIndex];
+                    if (res && typeof res.correctAnswer !== 'undefined') revealedAnswers[qIndex] = res.correctAnswer;
+                    return res ? !!res.correct : null;
+                })
+                .catch(function () { return null; });
+        }
         function selectAnswer(idx) {
             if (answered) return;
             answered = true;
             userAnswers[current] = idx;
-
             var q = questions[current];
             var opts = document.querySelectorAll('.option');
-
-            for (var i = 0; i < opts.length; i++) {
-                opts[i].classList.add('disabled');
-                if (i === q.ans) opts[i].classList.add('correct');
-                else if (i === idx) opts[i].classList.add('incorrect');
-            }
-
+            for (var i = 0; i < opts.length; i++) { opts[i].classList.add('disabled'); }
             var fb = document.getElementById('feedback');
-            if (idx === q.ans) {
-                score++;
-                fb.className = 'feedback correct';
-                fb.textContent = 'Correct. ' + q.exp;
-            } else {
-                fb.className = 'feedback incorrect';
-                fb.textContent = 'Incorrect. ' + q.exp;
-            }
-
-            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
-            document.getElementById('nextBtn').disabled = false;
-
-            if (current === TOTAL - 1) {
-                document.getElementById('nextBtn').textContent = 'See Results';
-            }
+            fb.className = 'feedback checking'; fb.textContent = 'Checking\u2026';
+            gradeOne(current, idx).then(function (correct) {
+                var ca = revealedAnswers[current];
+                if (correct === null) { opts[idx].classList.add('incorrect'); fb.className = 'feedback incorrect'; fb.textContent = 'Could not verify answer. ' + q.exp; }
+                else {
+                    if (typeof ca !== 'undefined') opts[ca].classList.add('correct');
+                    if (!correct) opts[idx].classList.add('incorrect');
+                    if (correct) score++;
+                    fb.className = 'feedback ' + (correct ? 'correct' : 'incorrect');
+                    fb.textContent = (correct ? 'Correct. ' : 'Incorrect. ') + q.exp;
+                }
+                document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+                document.getElementById('nextBtn').disabled = false;
+                if (current === TOTAL - 1) document.getElementById('nextBtn').textContent = 'See Results';
+            });
         }
 
         function nextQuestion() {
@@ -449,7 +288,7 @@
             for (var i = 0; i < questions.length; i++) {
                 var q = questions[i];
                 var picked = userAnswers[i];
-                var correct = q.ans;
+                var correct = revealedAnswers[i]; // Family-5: from server reveal
                 var isRight = picked === correct;
 
                 html += '<div class="review-q">';
