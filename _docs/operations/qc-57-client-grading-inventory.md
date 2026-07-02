@@ -328,6 +328,11 @@ git history (commits for cr-midterm / Family A / Family B / cloud-essentials). T
 grader. Read one (`houses/cloud/openstack/quizzes/cloud-openstack-intro-quiz.quiz.html`) to design its converter
 before seeding. moduleIds e.g. `openstack-intro-quiz`.
 
+**WAVE 2 (python-for-it, 2026-07-02) — recipe amendments for waves 3-N (Nancy review findings):**
+- **(f) "Checking…" interim state is INVISIBLE with the stock block** — base `.feedback` CSS is `display:none`; only `.correct`/`.incorrect` show it. Fix shipped in Wave 2: add a `.feedback.checking { display:block; ... }` rule and set `fb.className = 'feedback checking'` for the interim state. Waves 3-N MUST include this (and Wave-1's 8 cb-w* files need the retrofit — backlogged). Verify via puppeteer computed-style with a slowed (setTimeout) gradeQuiz stub, not just textContent.
+- **(g) `quiz_attempts` flooding (server-side, ALL per-question waves):** every `gradeOne` call writes a `users/{uid}/quiz_attempts` doc with `total`=full key length but only 1 answer → 15 misleading near-zero "failed" records per real attempt. No consumer reads the collection today, but fix `gradeQuiz` (e.g. skip the attempt log when `answers` is partial, or a `logAttempt:false` param) in the next functions batch BEFORE converting the remaining ~80 quizzes.
+- **(h) deploy-order failure is SILENT:** pages-before-keys ⇒ every question shows "Could not verify answer.", quiz unpassable, NO console error or monitorable signal. Keys MUST be seeded + verify-quiz-keys PASSED in the same operator turn as the deploy authorization.
+
 **Gotchas:** (a) per-track UI bits (scoreLabel/submit text/TOPICS) — read first. (b) moduleId suffixes vary
 (`-exam`, `-quiz`, none). (c) Firestore seed is gated — per-wave auth, master only. (d) headless test ≠ QUIZ_ID
 reconcile — do BOTH. (e) if a convert breaks a file, `git checkout HEAD -- <file>` to restore the original + redo
