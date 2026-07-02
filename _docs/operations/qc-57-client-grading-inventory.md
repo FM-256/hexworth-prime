@@ -333,6 +333,14 @@ before seeding. moduleIds e.g. `openstack-intro-quiz`.
 - **(g) `quiz_attempts` flooding — FIXED IN CODE 2026-07-02 (commits dbec80aee + c3b175e07, functions deploy pending):** gradeQuiz now honors an EXPLICIT `partial: true` flag (skips attempt log + reviewAfterFails + scopes reveal to the submitted question). All 24 per-question pages (13 exams, 8 cb, 3 pfi) send it. **Waves 3-N MUST include `partial: true` in gradeOne** (`{ quizId: QUIZ_ID, answers: a, partial: true }`). NO length inference server-side — timed exams (ala-final/midterm) legitimately auto-submit few answers and must keep normal logging (Nancy catch).
 - **(h) deploy-order failure is SILENT:** pages-before-keys ⇒ every question shows "Could not verify answer.", quiz unpassable, NO console error or monitorable signal. Keys MUST be seeded + verify-quiz-keys PASSED in the same operator turn as the deploy authorization.
 
+**FAMILY-5 DISCOVERED (2026-07-02, do NOT blind-convert): review-screen tracks.** `divergent/cybersecurity-ethics`
+(cse-w1..w4, 10 Q) has a full post-quiz REVIEW screen that renders `q.ans` client-side (correct-answer highlighting
+per question, cse-w1 line ~303). Stripping `ans:` breaks the review. Also non-uniform inside the track: w1 uses
+own-line `ans: N,`; w2-w4 use a different format (unverified). PROPOSED pattern (needs Nancy + operator sign-off,
+and REQUIRES the gradeQuiz partial deploy + keys seeded with `revealToAll: true`): gradeOne already receives
+`r.results[qIndex].correctAnswer` on partial calls when the key is revealToAll — accumulate those into a client map
+during the quiz and drive the review screen from the map instead of `q.ans`. Checked 2026-07-02: **51 of the remaining quizzes have review screens** (csp, fl, bm, pis, cse at minimum) — Family-5 is the DOMINANT remaining pattern, so the revealToAll-accumulate design decision gates most of waves 3-N, not just cse.
+
 **Gotchas:** (a) per-track UI bits (scoreLabel/submit text/TOPICS) — read first. (b) moduleId suffixes vary
 (`-exam`, `-quiz`, none). (c) Firestore seed is gated — per-wave auth, master only. (d) headless test ≠ QUIZ_ID
 reconcile — do BOTH. (e) if a convert breaks a file, `git checkout HEAD -- <file>` to restore the original + redo
