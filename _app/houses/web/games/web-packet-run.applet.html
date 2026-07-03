@@ -358,6 +358,7 @@
                 <div id="deathCause" class="hidden" style="color: #06b6d4; font-size: 14px; margin-bottom: 8px;"></div>
                 <div id="finalLevel" style="color: #3b82f6; font-size: 18px; margin-bottom: 8px;"></div>
                 <div id="finalScore" style="color: #fbbf24; font-size: 32px; margin: 12px 0;">0</div>
+                <div id="resumeHint" style="color: #22d3ee; font-size: 15px; margin-bottom: 8px;"></div>
                 <p id="newHighScore" class="hidden" style="color: #fbbf24; font-size: 20px;">New High Score!</p>
                 <p id="xpAward" class="hidden" style="color: #22c55e; font-size: 18px;">+50 XP Earned!</p>
                 <button class="btn" onclick="restartGame()">Reconnect</button>
@@ -448,6 +449,8 @@
 
         // Level State
         let currentLevel = 0;
+        let checkpointLevel = 0;   // reached level to resume at after a full game-over
+        let checkpointScore = 0;   // score at the start of the checkpoint level (rewind target)
         let levelHops = 0;
         let totalHops = 0;
         let flagSpawned = false;
@@ -1626,6 +1629,10 @@
 
         function levelUp() {
             currentLevel++;
+            // Reaching a new level records it as the checkpoint; the score carried in
+            // becomes the rewind target if the player later games out and reconnects.
+            checkpointLevel = currentLevel;
+            checkpointScore = score;
             levelHops = 0;
             flagSpawned = false;
             flagMissed = 0;
@@ -2093,18 +2100,23 @@
             requestAnimationFrame(gameLoop);
         }
 
-        function startGame() {
+        function startGame(resumeLevel = 0, resumeScore = 0) {
+            // resumeLevel/resumeScore are passed by restartGame() to resume at the
+            // reached level (per-level checkpoint). A fresh start from the Start screen
+            // passes neither, so both default to 0 (Level 1, score 0). Default params
+            // (not `|| 0`) so an explicit resume value of 0 is never mistaken for "unset".
             initAudio();
             demoMode = false;
             document.getElementById('startScreen').classList.add('hidden');
 
-            gameFrame = 0; score = 0; lives = 3;
-            currentLevel = 0; levelHops = 0; totalHops = 0;
+            gameFrame = 0; score = resumeScore; lives = 3;
+            currentLevel = resumeLevel; levelHops = 0; totalHops = 0;
+            checkpointLevel = currentLevel; checkpointScore = resumeScore;
             flagSpawned = false; flagMissed = 0; flagObj = null;
             levelTransitionTimer = 0; respawnCountdown = false;
             shieldFadeTimer = 0; showMovesPanel = false; deathCause = '';
             document.getElementById('helpBtn').textContent = '?';
-            speed = LEVELS[0].speed;
+            speed = getCurrentLevel().speed;
             obstacles = []; powerups = []; particles = []; bubbles = []; playerGlowParticles = [];
             activePowerup = null; comboCount = 0; lastObstaclePassTime = 0; playerTrail = [];
             resetChaser();
@@ -2117,13 +2129,14 @@
             player.velocityY = 0; player.velocityX = 0;
             player.ducking = false;
 
-            document.getElementById('score').textContent = '0';
+            const startLvl = getCurrentLevel();
+            document.getElementById('score').textContent = String(resumeScore);
             document.getElementById('lives').textContent = '3';
             document.getElementById('powerupDisplay').textContent = '';
-            document.getElementById('levelName').textContent = LEVELS[0].name;
-            document.getElementById('levelName').style.color = LEVELS[0].accent;
+            document.getElementById('levelName').textContent = startLvl.name;
+            document.getElementById('levelName').style.color = startLvl.accent;
             document.getElementById('hopCount').textContent = '0';
-            document.getElementById('hopTarget').textContent = LEVELS[0].hopsToFlag;
+            document.getElementById('hopTarget').textContent = startLvl.hopsToFlag;
 
             const hs = localStorage.getItem('packetrun_highscore') || '0';
             document.getElementById('highScore').textContent = hs;
@@ -2137,8 +2150,10 @@
         }
 
         function restartGame() {
+            // Reconnect resumes at the reached level (per-level checkpoint), rewinding
+            // the score to that level's start, rather than restarting from Level 1.
             document.getElementById('gameOverScreen').classList.add('hidden');
-            startGame();
+            startGame(checkpointLevel, checkpointScore);
         }
 
         function gameOver() {
@@ -2165,6 +2180,10 @@
             document.getElementById('finalLevel').textContent = `Reached: ${lvl.name} (Depth ${currentLevel + 1})`;
             document.getElementById('finalLevel').style.color = lvl.accent;
             document.getElementById('finalScore').textContent = `Score: ${score}`;
+            // Tell the player Reconnect resumes here, not at Level 1.
+            document.getElementById('resumeHint').textContent = currentLevel > 0
+                ? `Reconnect resumes at ${lvl.name}`
+                : '';
 
             const hs = parseInt(localStorage.getItem('packetrun_highscore') || '0');
             if (score > hs) {

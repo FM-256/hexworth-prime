@@ -324,6 +324,8 @@
     let highScore = parseInt(localStorage.getItem('shellsprint_highscore') || '0');
     let lives = 3;
     let currentLevel = 0;
+    let checkpointLevel = 0;   // reached level to resume at after a full game-over
+    let checkpointHop = 0;     // hopCount at the checkpoint level's start (drives level + HUD)
     let gameSpeed = 3.5;
     let gameRunning = false;
     let demoMode = true;
@@ -1042,6 +1044,9 @@
             gameSpeed = LEVELS[currentLevel].speed;
             levelTransition = 120;
             levelTransitionText = LEVELS[currentLevel].name;
+            // Record this level as the checkpoint (hopCount drives level + HUD threshold).
+            checkpointLevel = currentLevel;
+            checkpointHop = hopCount;
             playLevelUp();
         }
     }
@@ -1103,6 +1108,7 @@
     }
     function gameOver() {
         gameRunning = false;
+        levelTransition = 0; // clear a decaying level-up banner so it can't bleed into the game-over screen
         chaser.active = false;
         playDeath();
         if (typeof GameTracker !== 'undefined') GameTracker.record('shell_sprint', { score: hopCount, result: 'failure' });
@@ -1292,7 +1298,9 @@
         ctx.fillText(`High Score: ${highScore}`, W/2, H/2 + 45);
         ctx.fillStyle = '#888';
         ctx.font = '14px monospace';
-        ctx.fillText('Click ./start.sh to Reboot', W/2, H/2 + 80);
+        ctx.fillText(checkpointLevel > 0
+            ? `Click ./start.sh to resume at ${LEVELS[checkpointLevel].name}`
+            : 'Click ./start.sh to Reboot', W/2, H/2 + 80);
         ctx.restore();
     }
 
@@ -1430,14 +1438,16 @@
     document.getElementById('startBtn').addEventListener('click', () => {
         if (gameRunning) return;
         demoMode = false; gameRunning = true;
-        lives = 3; hopCount = 0; currentLevel = 0;
-        gameSpeed = LEVELS[0].speed;
+        // Resume at the reached level (per-level checkpoint): reseed hopCount to that
+        // level's start so getLevelIndex()/HUD stay coherent. Fresh play / reload = L1.
+        lives = 3; hopCount = checkpointHop; currentLevel = checkpointLevel;
+        gameSpeed = LEVELS[currentLevel].speed;
         obstacles = []; particles = []; playerTrail = [];
         player.x = 100; player.y = GROUND_Y - 18;
         player.velocityY = 0; player.isJumping = false;
         player.isDucking = false; player.shielded = false;
         invincible = false; abilityActive = null;
-        flagObj = null; nextFlagAt = 20;
+        flagObj = null; nextFlagAt = hopCount + 20;
         shieldFadeTimer = 0; levelTransition = 0;
         chaserKilled = false;
         initChaser();

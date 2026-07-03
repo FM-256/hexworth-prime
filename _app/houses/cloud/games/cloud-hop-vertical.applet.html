@@ -384,6 +384,7 @@
                 <div id="deathReason" style="color: #ef4444; font-size: 13px; margin-bottom: 6px; font-style: italic;"></div>
                 <div id="finalLevel" style="color: #06b6d4; font-size: 18px; margin-bottom: 8px;"></div>
                 <div id="finalScore" style="color: #fbbf24; font-size: 32px; margin: 12px 0;">0</div>
+                <div id="resumeHint" style="color: #22d3ee; font-size: 15px; margin-bottom: 8px;"></div>
                 <p id="newHighScore" class="hidden" style="color: #fbbf24; font-size: 20px;">New High Score!</p>
                 <p id="xpAward" class="hidden" style="color: #22c55e; font-size: 18px;">+50 XP Earned!</p>
                 <button class="btn" onclick="restartGame()">Restart</button>
@@ -480,6 +481,8 @@
 
         // Level State
         let currentLevel = 0;
+        let checkpointLevel = 0;   // reached level to resume at after a full game-over
+        let checkpointScore = 0;   // score at the start of the checkpoint level (rewind target)
         let levelHops = 0;
         let totalHops = 0;
         let flagSpawned = false;
@@ -1887,6 +1890,10 @@
         // Level Up
         function levelUp() {
             currentLevel++;
+            // Reaching a new level records it as the checkpoint; the score carried in
+            // becomes the rewind target if the player later games out and restarts.
+            checkpointLevel = currentLevel;
+            checkpointScore = score;
             levelHops = 0;
             flagSpawned = false;
             flagMissed = 0;
@@ -2763,7 +2770,11 @@
         }
 
         // Start Game (triggers The Prime countdown)
-        function startGame() {
+        function startGame(resumeLevel = 0, resumeScore = 0) {
+            // resumeLevel/resumeScore are passed by restartGame() to resume at the
+            // reached level (per-level checkpoint). A fresh start from the Start screen
+            // passes neither, so both default to 0 (Level 1, score 0). Default params
+            // (not `|| 0`) so an explicit resume value of 0 is never mistaken for "unset".
             initAudio();
 
             // Stop demo and clear any stuck keys from demo AI
@@ -2778,9 +2789,11 @@
 
             // Reset game state
             gameFrame = 0;
-            score = 0;
+            score = resumeScore;
             lives = 3;
-            currentLevel = 0;
+            currentLevel = resumeLevel;
+            checkpointLevel = currentLevel;
+            checkpointScore = resumeScore;
             levelHops = 0;
             totalHops = 0;
             flagSpawned = false;
@@ -2790,7 +2803,7 @@
             shieldFadeTimer = 0;
             showMovesPanel = false;
             document.getElementById('helpBtn').textContent = '?';
-            speed = LEVELS[0].speed;
+            speed = getCurrentLevel().speed;
             platforms = [];
             obstacles = [];
             powerups = [];
@@ -2815,23 +2828,24 @@
             player.velocityY = 0;
             player.velocityX = 0;
 
-            document.getElementById('score').textContent = '0';
+            const startLvl = getCurrentLevel();
+            document.getElementById('score').textContent = String(resumeScore);
             document.getElementById('lives').textContent = '3';
             document.getElementById('powerupDisplay').textContent = '';
-            document.getElementById('levelName').textContent = LEVELS[0].name;
-            document.getElementById('levelName').style.color = LEVELS[0].accent;
+            document.getElementById('levelName').textContent = startLvl.name;
+            document.getElementById('levelName').style.color = startLvl.accent;
             document.getElementById('hopCount').textContent = '0';
-            document.getElementById('hopTarget').textContent = LEVELS[0].hopsToFlag;
+            document.getElementById('hopTarget').textContent = startLvl.hopsToFlag;
 
             // Load high score
             const highScore = localStorage.getItem('cloudhop_vertical_highscore') || '0';
             document.getElementById('highScore').textContent = highScore;
 
-            // Doodle Jump style: ground platform + staircase upward
+            // Doodle Jump style: ground platform + staircase upward, at the resumed level's width
             for (let i = 0; i < 8; i++) {
                 const provider = cloudProviders[i % 3];
-                const x = 60 + ((i * 113) % (canvas.width - LEVELS[0].platformWidth - 40));
-                platforms.push(new Platform(x, 520 - i * 70, LEVELS[0].platformWidth, provider));
+                const x = 60 + ((i * 113) % (canvas.width - startLvl.platformWidth - 40));
+                platforms.push(new Platform(x, 520 - i * 70, startLvl.platformWidth, provider));
             }
 
             // Begin The Prime countdown
@@ -2850,8 +2864,10 @@
 
         // Restart Game
         function restartGame() {
+            // Resume at the reached level (per-level checkpoint), rewinding the score to
+            // that level's start, rather than restarting from Level 1.
             document.getElementById('gameOverScreen').classList.add('hidden');
-            startGame();
+            startGame(checkpointLevel, checkpointScore);
         }
 
         // Game Over
@@ -2866,6 +2882,10 @@
             document.getElementById('finalLevel').textContent = `Reached: ${lvl.name} (Level ${currentLevel + 1})`;
             document.getElementById('finalLevel').style.color = lvl.accent;
             document.getElementById('finalScore').textContent = `Score: ${score}`;
+            // Tell the player Restart resumes here, not at Level 1.
+            document.getElementById('resumeHint').textContent = currentLevel > 0
+                ? `Restart resumes at ${lvl.name}`
+                : '';
 
             // Check high score
             const highScore = parseInt(localStorage.getItem('cloudhop_vertical_highscore') || '0');
