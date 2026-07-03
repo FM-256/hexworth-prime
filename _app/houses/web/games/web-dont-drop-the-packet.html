@@ -816,7 +816,7 @@
                 } else if (cmd.includes('debug spanning-tree') || cmd.includes('debug stp')) {
                     cmdDebugStp();
                 } else if (cmd.includes('spanning-tree') && (cmd.includes('portfast') || cmd.includes('guard') || cmd.includes('bpdu'))) {
-                    cmdFixStp();
+                    handleStpCommand(cmd);
                 } else if (cmd.includes('interface') && cmd.includes('shutdown')) {
                     cmdShutdown();
                 } else if (cmd.includes('interface') && cmd.includes('no shutdown')) {
@@ -870,8 +870,9 @@
                     '  show port-security       Show port security status',
                     '',
                     styled('CONFIGURATION COMMANDS:', 'system'),
-                    '  spanning-tree portfast   Configure STP portfast',
-                    '  spanning-tree guard root Configure root guard',
+                    '  no spanning-tree portfast trunk  Remove PortFast from a trunk (stops the loop)',
+                    '  spanning-tree guard root Enable root guard',
+                    '  spanning-tree bpduguard enable   Enable BPDU guard on edge ports',
                     '  interface gi0/X          Configure interface',
                     '  switchport mode trunk    Set trunk mode',
                     '  switchport access vlan X Set access VLAN',
@@ -1255,6 +1256,75 @@
                     styled('*STP: %SPANTREE-2-LOOPGUARD_BLOCK: Loop guard blocking port Gi0/3 on VLAN0010', 'error'),
                     '',
                     styled('Debug shows real-time STP convergence issues - multiple root bridges competing!', 'alert')
+                ]);
+            }
+
+            // Route spanning-tree commands by POLARITY, so only genuinely-corrective actions win.
+            // Correct remediation for a PortFast-on-trunk loop is: REMOVE portfast (no ...portfast)
+            // and/or ENABLE a guard (root/loop/bpdu guard). Enabling portfast is the CAUSE, and
+            // disabling a guard removes the protection -- neither should resolve the crisis.
+            function handleStpCommand(cmd) {
+                // Classify by the corrective COMMAND FORM, with the negation and the mode captured
+                // ADJACENT to the spanning-tree feature keyword. This is deliberately NOT a
+                // whole-line "is anything turned off?" boolean: a global search collides with
+                // unrelated tokens elsewhere on a combined line (`no shutdown`, `errdisable`/
+                // `err-disable recovery` -- the game's own vocabulary -- etc.). Scoping each test to
+                // `<feature> <mode>` / `no spanning-tree <feature>` adjacency makes foreign tokens
+                // anywhere else on the line structurally irrelevant to polarity.
+                const hasPortfast = cmd.includes('portfast');
+
+                // Corrective: remove PortFast from the trunk (either negation idiom, adjacent to portfast).
+                const removingPortfast =
+                    /\bno\s+spanning-tree\s+portfast\b/.test(cmd) ||               // no spanning-tree portfast [trunk]
+                    /\bspanning-tree\s+portfast\s+(trunk\s+)?disable\b/.test(cmd); // spanning-tree portfast [trunk] disable
+
+                // Corrective: enable a protective guard. The protective MODE sits adjacent to the
+                // feature keyword, and the matching `no spanning-tree <feature>` negation of that same
+                // feature is excluded. `guard none` / `bpduguard disable` fail the mode requirement.
+                const enablingGuard =
+                    (/\bspanning-tree\s+guard\s+(root|loop)\b/.test(cmd) && !/\bno\s+spanning-tree\s+guard\b/.test(cmd)) ||
+                    (/\bspanning-tree\s+bpduguard\s+enable\b/.test(cmd)  && !/\bno\s+spanning-tree\s+bpduguard\b/.test(cmd)) ||
+                    (/\bspanning-tree\s+loopguard\s+default\b/.test(cmd) && !/\bno\s+spanning-tree\s+loopguard\b/.test(cmd));
+
+                if (removingPortfast || enablingGuard) {
+                    cmdFixStp();
+                } else if (hasPortfast) {
+                    // Reaches here only when PortFast is NOT turned off -> it is being ENABLED, the loop's cause.
+                    cmdPortfastWrong();
+                } else if (cmd.includes('guard')) {
+                    // A guard-family command that is not an enabling form: `guard none`,
+                    // `no spanning-tree ... guard`, `bpduguard disable`, or an incomplete guard command.
+                    cmdStpGuardDisabled();
+                } else {
+                    // A spanning-tree/bpdu command unrelated to guards (e.g. bpdufilter): neutral miss.
+                    printLines([
+                        styled('That spanning-tree command does not address the loop.', 'warning'),
+                        styled('Remove PortFast from the trunk and enable a guard (loop / root / BPDU guard).', 'info')
+                    ]);
+                }
+            }
+
+            // Enabling PortFast on a trunk = the loop's cause, not the fix.
+            function cmdPortfastWrong() {
+                printLines([
+                    styled('That is the CAUSE of this loop, not the fix.', 'error'),
+                    styled('', ''),
+                    styled('PortFast skips STP listening/learning, so a trunk that should block', 'warning'),
+                    styled('forwards immediately -- creating the switching loop.', 'warning'),
+                    styled('', ''),
+                    styled('Remove it and enable a guard instead:', 'info'),
+                    styled('  no spanning-tree portfast trunk', 'success'),
+                    styled('  spanning-tree guard loop   (or: spanning-tree bpduguard enable)', 'success')
+                ]);
+            }
+
+            // Turning OFF a guard removes the protection that would stop the loop.
+            function cmdStpGuardDisabled() {
+                printLines([
+                    styled('Disabling STP guard protection will not stop the loop -- it removes', 'error'),
+                    styled('the very safeguard you need. Enable it instead:', 'warning'),
+                    styled('  spanning-tree guard loop', 'success'),
+                    styled('  spanning-tree bpduguard enable', 'success')
                 ]);
             }
 
