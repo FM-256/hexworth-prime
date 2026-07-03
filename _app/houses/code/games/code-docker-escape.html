@@ -912,7 +912,7 @@
                     'uname -r': '4.4.0-21-generic',
                     'uname -a': 'Linux container 4.4.0-21-generic #37-Ubuntu SMP Mon Apr 18 18:33:37 UTC 2016 x86_64 GNU/Linux',
                     'cat /proc/version': 'Linux version 4.4.0-21-generic (buildd@lgw01-21) (gcc version 5.3.1 20160413 (Ubuntu 5.3.1-14ubuntu2) ) #37-Ubuntu SMP Mon Apr 18 18:33:37 UTC 2016',
-                    'searchsploit kernel 4.4': 'Linux Kernel 4.4.0 < 4.4.0-116 - Local Privilege Escalation (CVE-2017-16995)\nLinux Kernel 4.4.x - Arbitrary File Read (CVE-2016-5195)\nDirty COW - Linux Privilege Escalation (CVE-2016-5195)',
+                    'searchsploit kernel 4.4': 'Linux Kernel 4.4.0 < 4.4.0-116 - Local Privilege Escalation (CVE-2017-16995)\nDirty COW - Linux Privilege Escalation (CVE-2016-5195)',
                     'searchsploit 4.4.0': 'Exploit: Linux Kernel 4.4.0-21 - CVE-2017-16995 (Privilege Escalation)\nPath: /usr/share/exploitdb/exploits/linux/local/45010.c',
                     'cat exploit.c': '/* CVE-2017-16995 eBPF privilege escalation exploit */\n#include <stdio.h>\n#include <stdlib.h>\n// ... exploit code ...\nint main() {\n    printf("[*] Exploiting kernel vulnerability...\\n");\n    // ... exploitation logic ...\n    return 0;\n}',
                     'gcc exploit.c -o exploit': '[SUCCESS] Exploit compiled successfully.',
@@ -1128,6 +1128,23 @@
         }
 
         // Execute command
+        // Collapse internal whitespace so a correct command typed with natural/extra spacing still
+        // matches (the terminal previously did exact dict-key equality and rejected e.g. `docker  run`).
+        function normalizeCmd(s) {
+            return String(s).trim().replace(/\s+/g, ' ');
+        }
+
+        // Build once per level: normalized command string -> its output. Cached on the level so the
+        // matched OUTPUT always comes from the correct entry (not a second raw-string dict lookup).
+        function getNormCommandMap(level) {
+            if (!level._normCommands) {
+                const m = new Map();
+                for (const key in level.commands) m.set(normalizeCmd(key), level.commands[key]);
+                level._normCommands = m;
+            }
+            return level._normCommands;
+        }
+
         function executeCommand(command) {
             const level = gameState.currentLevel;
             if (!level) return;
@@ -1141,9 +1158,12 @@
             // Display command
             addTerminalLine(`root@container:~# ${command}`, 'command');
 
-            // Check if command exists
-            if (level.commands[command]) {
-                const output = level.commands[command];
+            // Match by NORMALIZED command via strict Map.has: spacing variants of a real command
+            // work, but trailing garbage or a different command still falls through to "not found".
+            const normCommand = normalizeCmd(command);
+            const cmdMap = getNormCommandMap(level);
+            if (cmdMap.has(normCommand)) {
+                const output = cmdMap.get(normCommand);
                 output.split('\n').forEach(line => {
                     if (line.includes('[SUCCESS]') || line.includes('[ESCAPE SUCCESSFUL]')) {
                         addTerminalLine(line, 'output');
@@ -1156,9 +1176,10 @@
                     }
                 });
 
-                // Check win condition
-                const winConditions = Array.isArray(level.winCondition) ? level.winCondition : [level.winCondition];
-                if (winConditions.includes(command)) {
+                // Check win condition against the NORMALIZED forms (strict per-element === via
+                // Array.includes) so a spacing variant of the win command still completes the level.
+                const winConditions = (Array.isArray(level.winCondition) ? level.winCondition : [level.winCondition]).map(normalizeCmd);
+                if (winConditions.includes(normCommand)) {
                     setTimeout(() => {
                         showEscapedAnimation();
                         setTimeout(() => {
