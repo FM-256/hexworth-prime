@@ -253,6 +253,12 @@
             background: rgba(239, 68, 68, 0.1);
         }
 
+        /* Eliminated by bisect: ruled out of the candidate range, greyed and inert. */
+        .commit.eliminated {
+            opacity: 0.35;
+            filter: grayscale(0.8);
+        }
+
         .commit.revealed-breaking {
             border-color: #dc2626;
             background: rgba(220, 38, 38, 0.2);
@@ -763,6 +769,12 @@
         let markedGood = new Set();
         let markedBad = new Set();
         let inspectionCount = 0;
+        // Bisect candidate range for the first bad commit: narrows as the player marks
+        // good (bug absent -> first-bad is later) / bad (bug present -> first-bad is here
+        // or earlier). When searchLo === searchHi the first bad commit is identified.
+        let searchLo = 0;
+        let searchHi = 0;
+        let roundResolved = false; // guards against completeRound() double-firing (e.g. a double-click on the winning mark)
         let roundsCompletedSuccessfully = 0;
         let totalInspections = 0;
         let totalOptimalSteps = 0;
@@ -1096,6 +1108,10 @@
             markedGood.clear();
             markedBad.clear();
             inspectionCount = 0;
+            // Whole history is the initial candidate range for the first bad commit.
+            searchLo = 0;
+            searchHi = roundConfig.commitCount - 1;
+            roundResolved = false;
 
             document.getElementById('roundInfo').textContent = `Round ${currentRound + 1} / ${rounds.length}`;
             document.getElementById('scoreDisplay').textContent = totalScore;
@@ -1117,6 +1133,11 @@
                 commitDiv.className = 'commit';
                 commitDiv.id = `commit-${index}`;
 
+                // Commits outside the live candidate range have been eliminated by bisect.
+                const eliminated = index < searchLo || index > searchHi;
+                if (eliminated) {
+                    commitDiv.classList.add('eliminated');
+                }
                 if (inspectedCommits.has(index)) {
                     commitDiv.classList.add('inspected');
                 }
@@ -1136,15 +1157,15 @@
                     <div class="commit-message">${commit.message}</div>
                     <div class="commit-actions">
                         <button class="btn btn-inspect" onclick="inspectCommit(${index})"
-                            ${inspectedCommits.has(index) ? 'disabled' : ''}>
-                            ${inspectedCommits.has(index) ? 'Inspected' : 'Inspect Changes'}
+                            ${inspectedCommits.has(index) || eliminated ? 'disabled' : ''}>
+                            ${inspectedCommits.has(index) ? 'Tested' : 'Test (Inspect)'}
                         </button>
                         <button class="btn btn-good" onclick="markCommit(${index}, 'good')"
-                            ${markedGood.has(index) || markedBad.has(index) ? 'disabled' : ''}>
+                            ${markedGood.has(index) || markedBad.has(index) || eliminated || !inspectedCommits.has(index) ? 'disabled' : ''}>
                             Mark Good
                         </button>
                         <button class="btn btn-bad" onclick="markCommit(${index}, 'bad')"
-                            ${markedGood.has(index) || markedBad.has(index) ? 'disabled' : ''}>
+                            ${markedGood.has(index) || markedBad.has(index) || eliminated || !inspectedCommits.has(index) ? 'disabled' : ''}>
                             Mark Bad
                         </button>
                     </div>
@@ -1156,6 +1177,8 @@
 
         function inspectCommit(index) {
             if (inspectedCommits.has(index)) return;
+            // Eliminated commits are out of the search; don't leak their test result.
+            if (index < searchLo || index > searchHi) return;
 
             inspectedCommits.add(index);
             inspectionCount++;
@@ -1164,7 +1187,11 @@
             const commit = currentRoundData.commits[index];
             const diffContent = document.getElementById('diffContent');
 
-            let diffHTML = `<div class="diff-view">`;
+            // Running the test at this commit reveals whether the bug reproduces here.
+            // The bug is present at the breaking commit and every commit after it.
+            const isBad = index >= currentRoundData.config.breakingCommitIndex;
+            let diffHTML = `<div style="padding:10px 12px;margin-bottom:12px;border-radius:6px;font-weight:700;font-size:15px;${isBad ? 'background:#3b1414;color:#f87171;border:1px solid #7f1d1d' : 'background:#12331a;color:#4ade80;border:1px solid #14532d'}">Test result: BUG ${isBad ? 'PRESENT — this build is BAD' : 'ABSENT — this build is GOOD'}</div>`;
+            diffHTML += `<div class="diff-view">`;
             diffHTML += `<div class="diff-header">diff --git a/${commit.diff.file} b/${commit.diff.file}</div>`;
             diffHTML += `<div class="diff-header">--- a/${commit.diff.file}</div>`;
             diffHTML += `<div class="diff-header">+++ b/${commit.diff.file}</div>`;
@@ -1189,30 +1216,67 @@
         }
 
         function markCommit(index, type) {
-            const commit = currentRoundData.commits[index];
+            // Must test (inspect) a commit before you can mark it, and it must still be
+            // inside the live candidate range. Reject re-marking or marking after the
+            // round is resolved so a double-click can't double-narrow or double-score.
+            if (roundResolved) return;
+            if (markedGood.has(index) || markedBad.has(index)) return;
+            if (!inspectedCommits.has(index)) return;
+            if (index < searchLo || index > searchHi) return;
+
+            // Ground truth: the bug is present at the breaking commit and every commit
+            // after it. Marking against the test result is rejected (a bad bisect step).
+            const breakingIndex = currentRoundData.config.breakingCommitIndex;
+            const isActuallyBad = index >= breakingIndex;
 
             if (type === 'good') {
+                if (isActuallyBad) { showMarkError(index, 'Bug is PRESENT here — mark it Bad.'); return; }
                 markedGood.add(index);
+                searchLo = Math.max(searchLo, index + 1); // first bad commit is after a good one
             } else {
+                if (!isActuallyBad) { showMarkError(index, 'Bug is ABSENT here — mark it Good.'); return; }
                 markedBad.add(index);
-                // Check if this is the breaking commit
-                if (commit.isBreaking) {
-                    setTimeout(() => completeRound(true), 300);
-                } else {
-                    setTimeout(() => completeRound(false), 300);
-                }
+                searchHi = Math.min(searchHi, index);      // first bad commit is at or before a bad one
             }
 
             renderCommitLog();
             updateRemainingCommits();
+
+            // Range converged to a single commit: that is the first bad commit.
+            if (searchLo === searchHi) {
+                setTimeout(() => completeRound(true), 400);
+            }
+        }
+
+        // Transient inline correction when a mark contradicts the tested result.
+        function showMarkError(index, msg) {
+            const commitDiv = document.getElementById(`commit-${index}`);
+            if (!commitDiv) return;
+            let note = commitDiv.querySelector('.mark-error');
+            if (!note) {
+                note = document.createElement('div');
+                note.className = 'mark-error';
+                note.style.cssText = 'color:#f87171;font-size:12px;margin-top:6px;font-weight:600;';
+                commitDiv.appendChild(note);
+            }
+            note.textContent = msg;
+            clearTimeout(note._t);
+            note._t = setTimeout(() => { if (note.parentNode) note.remove(); }, 2500);
         }
 
         function updateRemainingCommits() {
-            const remaining = currentRoundData.commits.length - markedGood.size - markedBad.size;
+            // Remaining = size of the live candidate range (commits bisect hasn't ruled out).
+            const remaining = searchHi - searchLo + 1;
             document.getElementById('commitsRemaining').textContent = remaining;
         }
 
         function completeRound(success) {
+            // Idempotency guard: a round resolves exactly once. Without this a double-click
+            // on the winning mark would double-fire and double-credit score/rounds/inspections
+            // (which are submitted to the production leaderboard via GameTracker at game end).
+            if (roundResolved) return;
+            roundResolved = true;
+
             const resultDiv = document.getElementById('roundResult');
             const resultTitle = document.getElementById('resultTitle');
             const resultMessage = document.getElementById('resultMessage');
@@ -1249,6 +1313,9 @@
                     }
                 });
             } else {
+                // Currently unreachable: with truth-validated marking and win-on-convergence,
+                // completeRound is only ever called with success=true. Kept as a defensive
+                // fail branch in case a future caller introduces a losing condition.
                 resultDiv.classList.remove('result-success');
                 resultTitle.textContent = 'Wrong Commit!';
                 resultMessage.textContent = 'That wasn\'t the breaking commit. The game will continue, but you won\'t earn points for this round.';
@@ -1280,7 +1347,8 @@
 
             let avgEfficiency = 0;
             if (totalOptimalSteps > 0) {
-                avgEfficiency = Math.round((totalOptimalSteps / totalInspections) * 100);
+                // Cap at 100%: beating the worst-case log2 benchmark shouldn't read as >100%.
+                avgEfficiency = Math.min(100, Math.round((totalOptimalSteps / totalInspections) * 100));
             }
             document.getElementById('finalAverageEfficiency').textContent = avgEfficiency + '%';
 
