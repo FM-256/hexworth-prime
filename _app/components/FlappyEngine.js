@@ -77,6 +77,8 @@ window.FlappyEngine = (function () {
     let bossColor = '#ef4444';    // themed boss danger color
     let bossFlashTimer = 0;       // ms flash when the boss takes a hit
     let bossIntroTimer = 0;       // ms "WARNING: BOSS" banner countdown
+    let checkpointLevel = 0;      // level to resume at after death (per-level checkpoint)
+    let checkpointScore = 0;      // cumulative score at the start of the checkpoint level
 
     // Canvas dimensions
     const W = 400;
@@ -1015,8 +1017,18 @@ window.FlappyEngine = (function () {
             ctx.fillText('Best: ' + highScore, W / 2, H / 2);
         }
 
-        // Milestone fact
-        if (config.milestones && score > 0) {
+        // Level campaigns show the checkpoint zone (fixed 2-line block, no collision).
+        // Endless games show a wrapped milestone fact instead. These are mutually
+        // exclusive so the variable-height fact never overlaps the checkpoint line.
+        if (hasLevels) {
+            var cp = config.levels[checkpointLevel] || {};
+            ctx.fillStyle = config.theme.accentColor;
+            ctx.font = 'bold 13px Courier New';
+            ctx.fillText('Checkpoint · Level ' + (checkpointLevel + 1), W / 2, H / 2 + 36);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px Courier New';
+            ctx.fillText(cp.name || '', W / 2, H / 2 + 56);
+        } else if (config.milestones && score > 0) {
             const fact = getHighestMilestone(score);
             if (fact) {
                 ctx.fillStyle = config.theme.accentColor;
@@ -1032,7 +1044,7 @@ window.FlappyEngine = (function () {
         ctx.globalAlpha = 0.5 + pulse * 0.5;
         ctx.fillStyle = '#ffffff';
         ctx.font = '16px Courier New';
-        ctx.fillText('PRESS ANY KEY TO RETRY', W / 2, H / 2 + 100);
+        ctx.fillText(hasLevels ? ('PRESS ANY KEY TO RESUME LEVEL ' + (checkpointLevel + 1)) : 'PRESS ANY KEY TO RETRY', W / 2, H / 2 + 100);
         ctx.globalAlpha = 1;
     }
 
@@ -1180,8 +1192,31 @@ window.FlappyEngine = (function () {
         }
     }
 
-    // advanceLevel: from the interstitial, load the next zone (crash-safe reset of
-    // every per-run array) or roll into the victory screen after the final level.
+    // beginLevel: set up the current config.levels[levelIndex] fresh (crash-safe reset
+    // of every per-run array) and start playing it. Shared by advanceLevel (advancing
+    // to a new zone) and resumeAtCheckpoint (retry after death). Records this level as
+    // the death checkpoint so a subsequent death resumes here, not at level 1.
+    function beginLevel() {
+        applyLevel(levelIndex);
+        checkpointLevel = levelIndex;
+        levelPipeCount = 0;
+        bossActive = false; bossHealth = 0; bossMaxHealth = 0; bossGatesSpawned = 0;
+        bossIntroTimer = 0; bossFlashTimer = 0;
+        pipes = []; powerups = []; scorePopups = [];
+        pipeTimer = 40;
+        shakeOffset = { x: 0, y: 0 };
+        bird.x = W * 0.25; bird.y = H / 2 - 30; bird.vy = 0; bird.rotation = 0; bird.flapFrame = 0;
+        state = 'playing';
+        resumeAudio();
+        startBgPulse();
+        if (config.hooks && typeof config.hooks.onLevelStart === 'function') {
+            config.hooks.onLevelStart(levelIndex, config.levels[levelIndex]);
+        }
+    }
+
+    // advanceLevel: from the interstitial, load the next zone or roll into the victory
+    // screen after the final level. The cumulative score carried into the new zone
+    // becomes that zone's checkpoint score.
     function advanceLevel() {
         levelIndex++;
         if (levelIndex >= config.levels.length) {
@@ -1197,20 +1232,20 @@ window.FlappyEngine = (function () {
             }
             return;
         }
-        applyLevel(levelIndex);
-        levelPipeCount = 0;
-        bossActive = false; bossHealth = 0; bossMaxHealth = 0; bossGatesSpawned = 0;
-        bossIntroTimer = 0; bossFlashTimer = 0;
-        pipes = []; powerups = []; scorePopups = [];
-        pipeTimer = 40;
-        shakeOffset = { x: 0, y: 0 };
-        bird.y = H / 2 - 30; bird.vy = 0; bird.rotation = 0;
-        state = 'playing';
-        resumeAudio();
-        startBgPulse();
-        if (config.hooks && typeof config.hooks.onLevelStart === 'function') {
-            config.hooks.onLevelStart(levelIndex, config.levels[levelIndex]);
-        }
+        checkpointScore = score;
+        beginLevel();
+    }
+
+    // resumeAtCheckpoint: after death in a level campaign, restart the level the player
+    // died on (NOT level 1), rewinding the cumulative score to that level's start and
+    // clearing any active powerup/flash so the retry begins clean.
+    function resumeAtCheckpoint() {
+        levelIndex = checkpointLevel;
+        score = checkpointScore;
+        activePowerup = null;
+        scoreMultiplier = 1;
+        borderFlashTimer = 0;
+        beginLevel(); // applyLevel() inside also clears triggeredEvents + ambient event
     }
 
     // bossPipeStyle: menacing skin for boss attack-gates, derived from the boss color.
@@ -1669,6 +1704,9 @@ window.FlappyEngine = (function () {
         bossGatesSpawned = 0;
         bossIntroTimer = 0;
         bossFlashTimer = 0;
+        // A fresh campaign checkpoints at level 1, score 0.
+        checkpointLevel = 0;
+        checkpointScore = 0;
         if (hasLevels) applyLevel(0);
 
         bird.x = W * 0.25;
@@ -1739,9 +1777,15 @@ window.FlappyEngine = (function () {
             state = 'menu';
             loadHighScore();
         } else if (state === 'dead' && deathTimer > 0.8) {
-            // Return to menu after brief delay
-            state = 'menu';
-            loadHighScore();
+            if (hasLevels) {
+                // Level campaign: resume the level the player died on (checkpoint),
+                // not the whole campaign from level 1.
+                resumeAtCheckpoint();
+            } else {
+                // Endless mode: back to menu
+                state = 'menu';
+                loadHighScore();
+            }
         }
     }
 
