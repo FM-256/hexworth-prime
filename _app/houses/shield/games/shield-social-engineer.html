@@ -799,6 +799,65 @@
                 difficulty: 4,
                 vector: 'multi',
                 example: 'Stage 1: Spear phishing to gather info. Stage 2: Vishing call using info. Stage 3: Physical tailgating dressed as vendor. Stage 4: USB drop on target\'s desk.'
+            },
+            {
+                id: 'spoofed_login',
+                name: 'Spoofed Login Page',
+                cost: 350,
+                successRate: 65,
+                description: 'Typosquatted domain hosting a fake corporate login page',
+                difficulty: 2,
+                vector: 'web',
+                example: 'You follow an emailed "your session expired" link to https://sso-ourcompany-verify.com — a pixel-perfect copy of the company login page. It asks for your username and password.'
+            }
+        ];
+
+        // Legitimate communications pool. These are genuinely benign messages the DEFENSE phase
+        // presents (~30% of the time) so the player must classify from EVIDENCE, not a coin flip.
+        // Each is deliberately red-flag-free (recognized sender, no credential/access ask, no false
+        // urgency, no suspicious link) and pairs against a matching malicious vector for contrast.
+        const legitimateComms = [
+            {
+                id: 'legit_it_notice',
+                name: 'IT Maintenance Notice',
+                vector: 'email',
+                example: 'From: it-helpdesk@ourcompany.com\nSubject: Scheduled maintenance Saturday 10pm\n\nHi team, IT will apply routine security patches Saturday 10pm-midnight. No action needed on your part. Questions? Reach the Help Desk at ext. 4400.',
+                legitReason: 'Recognized internal sender on the real corporate domain, no links to click, no credentials requested, no false urgency, and an official internal callback — routine informational internal comms.'
+            },
+            {
+                id: 'legit_hr_benefits',
+                name: 'Benefits Enrollment Reminder',
+                vector: 'email',
+                example: 'From: hr@ourcompany.com\nSubject: Open enrollment closes Friday\n\nOpen enrollment ends Friday. Review your benefits on the HR portal from the bookmark on your intranet. HR is holding drop-in sessions all week if you have questions.',
+                legitReason: 'From the real internal HR domain, directs you to a bookmarked internal portal rather than an embedded link, requests no credentials or payment, and offers verifiable in-person help.'
+            },
+            {
+                id: 'legit_facilities_call',
+                name: 'Facilities Heads-Up',
+                vector: 'phone',
+                example: 'Caller: "Hi, this is Dana from Facilities. We\'re testing the 3rd-floor fire alarm at 2pm today. No action needed, just letting the floor know so nobody is startled."',
+                legitReason: 'The caller asks for no passwords, access, or personal data, gives verifiable context, and applies no pressure — a routine informational call.'
+            },
+            {
+                id: 'legit_appt_sms',
+                name: 'Appointment Reminder',
+                vector: 'sms',
+                example: 'MyDentalCare reminder: your cleaning is tomorrow at 3:00pm with Dr. Lee. Reply C to confirm or call 555-0143 to reschedule.',
+                legitReason: 'Expected message from a known provider, no shortened or suspicious link, no threat or countdown, and it offers an official number to verify.'
+            },
+            {
+                id: 'legit_colleague',
+                name: 'Recognized Colleague',
+                vector: 'physical',
+                example: 'A coworker from your own team, badge clearly visible on their lanyard, taps in at the door ahead of you and holds it open with a "Morning!"',
+                legitReason: 'A recognized, properly badged member of your own team using normal access — no unfamiliar face, no hands-full pretext, no expired or missing badge.'
+            },
+            {
+                id: 'legit_sso',
+                name: 'Corporate SSO Login',
+                vector: 'web',
+                example: 'You open your bookmarked https://sso.ourcompany.com to reach email. The address bar shows the correct domain with a valid certificate and the usual company branding.',
+                legitReason: 'The correct bookmarked corporate domain with a valid TLS certificate and expected branding — not a typosquatted lookalike and not reached by clicking an emailed link.'
             }
         ];
 
@@ -826,7 +885,7 @@
                 cost: 250,
                 effectiveness: 50,
                 description: 'Require second authentication factor',
-                counters: ['phishing_basic', 'phishing_spear', 'whaling', 'vishing']
+                counters: ['phishing_basic', 'phishing_spear', 'whaling', 'vishing', 'spoofed_login']
             },
             {
                 id: 'visitor_policy',
@@ -881,13 +940,18 @@
         // AI attack generator - creates realistic attacks based on difficulty
         const aiAttackGenerator = {
             generateAttack(round) {
+                // Decide legit vs malicious FIRST, then pick content that MATCHES the verdict, so the
+                // player classifies from the displayed evidence instead of guessing against random.
+                if (Math.random() > 0.7) { // ~30% legitimate communication
+                    const comm = legitimateComms[Math.floor(Math.random() * legitimateComms.length)];
+                    return { ...comm, isLegitimate: true, round: round };
+                }
                 const difficulty = Math.min(4, Math.floor(round / 3) + 1);
                 const availableAttacks = attackVectors.filter(a => a.difficulty <= difficulty);
                 const attack = availableAttacks[Math.floor(Math.random() * availableAttacks.length)];
-
                 return {
                     ...attack,
-                    isLegitimate: Math.random() > 0.7, // 30% chance of legitimate communication
+                    isLegitimate: false,
                     round: round
                 };
             }
@@ -1145,25 +1209,32 @@
 
                 let result, explanation, damage = 0;
 
+                // Equal reward for either correct classification -- the skill is reading the
+                // evidence correctly, not preferring one answer.
+                let scorePenalty = 0;
                 if (correct) {
                     if (isActuallyLegitimate) {
                         result = 'CORRECT - Legitimate Communication';
-                        explanation = 'You correctly identified this as a legitimate business communication. Good judgment!';
-                        this.score += 50;
+                        explanation = this.currentAttack.legitReason || 'You correctly identified this as a legitimate business communication.';
+                        this.score += 100;
                         this.securityBudget += 150;
                     } else {
                         result = 'ATTACK BLOCKED!';
                         explanation = `You correctly identified this ${this.currentAttack.name} as malicious and prevented the attack.`;
                         this.score += 100;
-                        this.securityBudget += 200;
+                        this.securityBudget += 150;
                         this.attacksBlocked++;
                         this.aiAttacksBlocked++;
                     }
                 } else {
+                    // Wrong calls cost SCORE (not just rating) so content-blind guessing can't
+                    // out-earn its mistakes and reach the 1000-point victory. Floor at 0.
+                    scorePenalty = Math.min(100, this.score);
+                    this.score -= scorePenalty;
                     if (isActuallyLegitimate) {
                         result = 'FALSE POSITIVE';
-                        explanation = 'You blocked a legitimate communication. This can hurt business operations and employee trust in security measures.';
-                        damage = 10;
+                        explanation = 'You blocked a legitimate communication. This hurts business operations and employee trust in security. ' + (this.currentAttack.legitReason || '');
+                        damage = 25;
                         this.securityRating -= damage;
                     } else {
                         result = 'ATTACK SUCCEEDED';
@@ -1184,11 +1255,11 @@
                             <p><strong>You treated it as:</strong> ${treatedAsLegitimate ? 'Legitimate' : 'Malicious'}</p>
                             ${correct ? `
                                 <p style="color: #22c55e; margin-top: 10px;">
-                                    <strong>+${isActuallyLegitimate ? 50 : 100} points | +$${isActuallyLegitimate ? 150 : 200} security budget</strong>
+                                    <strong>+100 points | +$150 security budget</strong>
                                 </p>
                             ` : `
                                 <p style="color: #ef4444; margin-top: 10px;">
-                                    <strong>-${damage} security rating</strong>
+                                    <strong>-${scorePenalty} points | -${damage} security rating</strong>
                                 </p>
                             `}
                         </div>
