@@ -835,10 +835,17 @@
             loadRound();
             startTimer();
 
-            // Add input event listeners for live preview
+            // Add input event listeners for live preview. Debounced so the next-run scan runs at
+            // most once per typing pause (never on every keystroke) — keeps rare/impossible-date
+            // expressions from re-scanning the full 1-year horizon on each character.
             const inputs = ['input-min', 'input-hour', 'input-dom', 'input-month', 'input-dow'];
+            let previewDebounce = null;
+            const debouncedPreview = () => {
+                clearTimeout(previewDebounce);
+                previewDebounce = setTimeout(updatePreview, 250);
+            };
             inputs.forEach(id => {
-                document.getElementById(id).addEventListener('input', updatePreview);
+                document.getElementById(id).addEventListener('input', debouncedPreview);
             });
         }
 
@@ -924,55 +931,137 @@
 
         // Update live preview
         function updatePreview() {
-            const min = document.getElementById('input-min').value.trim() || '*';
-            const hour = document.getElementById('input-hour').value.trim() || '*';
-            const dom = document.getElementById('input-dom').value.trim() || '*';
-            const month = document.getElementById('input-month').value.trim() || '*';
-            const dow = document.getElementById('input-dow').value.trim() || '*';
+            const min = document.getElementById('input-min').value.trim().replace(/\s+/g, '') || '*';
+            const hour = document.getElementById('input-hour').value.trim().replace(/\s+/g, '') || '*';
+            const dom = document.getElementById('input-dom').value.trim().replace(/\s+/g, '') || '*';
+            const month = document.getElementById('input-month').value.trim().replace(/\s+/g, '') || '*';
+            const dow = document.getElementById('input-dow').value.trim().replace(/\s+/g, '') || '*';
 
             const expression = `${min} ${hour} ${dom} ${month} ${dow}`;
-            const nextRuns = calculateNextRuns(expression, 5);
+            const result = calculateNextRuns(expression, 5);
 
             const previewList = document.getElementById('preview-times');
-            if (nextRuns.length > 0) {
-                previewList.innerHTML = nextRuns.map(time => `<li>${time}</li>`).join('');
+            if (result.status === 'ok') {
+                previewList.innerHTML = result.runs.map(time => `<li>${time}</li>`).join('');
+            } else if (result.status === 'none') {
+                // Valid syntax, but the day/month combination has no run in the next 12 months
+                // (e.g. Feb 29 in a non-leap year, or an impossible date like Apr 31).
+                previewList.innerHTML = '<li>No scheduled runs in the next 12 months (check the day/month combination)</li>';
             } else {
                 previewList.innerHTML = '<li>Invalid cron expression</li>';
             }
         }
 
-        // Calculate next run times (simplified simulation)
-        function calculateNextRuns(expression, count) {
-            try {
-                const parts = expression.split(' ');
-                if (parts.length !== 5) return [];
+        // --- Real cron engine: drives BOTH the live "Next 5 Runs" preview and build-mode grading ---
+        // LOAD-BEARING CONVENTION: every canonical build-round `answer` must use literal '*' for
+        // fields intended as UNRESTRICTED. The grading below keys off dom/dow '*'-vs-restricted
+        // status (Vixie day-rule); writing a spelled-out full range like '1-31' where '*' is meant
+        // would silently change the schedule semantics and reopen a grading false-positive.
 
-                const runs = [];
-                const now = new Date('2026-02-10T00:00:00'); // Reference date
-
-                // Simple simulation - just show example times based on pattern
-                for (let i = 0; i < count; i++) {
-                    const runTime = new Date(now);
-                    runTime.setHours(now.getHours() + i);
-
-                    const formatted = runTime.toLocaleString('en-US', {
-                        weekday: 'short',
-                        year: 'numeric',
-                        month: 'short',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: false
-                    });
-
-                    runs.push(formatted);
+        // Parse one cron field into a Set of matching integers. Supports '*', 'N', 'a-b', 'a,b,c',
+        // '*/n', 'a-b/n'. Tolerant of stray whitespace inside lists/ranges. Throws on invalid input.
+        function parseCronField(field, min, max) {
+            const result = new Set();
+            for (const rawTerm of String(field).trim().split(',')) {
+                let term = rawTerm.trim();
+                if (term === '') throw new Error('empty term');
+                let step = 1;
+                const slash = term.indexOf('/');
+                if (slash !== -1) {
+                    step = parseInt(term.slice(slash + 1).trim(), 10);
+                    term = term.slice(0, slash).trim();
+                    if (!Number.isInteger(step) || step < 1) throw new Error('bad step');
                 }
-
-                return runs;
-            } catch (e) {
-                return [];
+                let lo, hi;
+                if (term === '*') { lo = min; hi = max; }
+                else if (term.indexOf('-') !== -1) {
+                    const bounds = term.split('-');
+                    if (bounds.length !== 2) throw new Error('bad range');
+                    lo = parseInt(bounds[0].trim(), 10);
+                    hi = parseInt(bounds[1].trim(), 10);
+                } else {
+                    lo = hi = parseInt(term.trim(), 10);
+                }
+                if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < min || hi > max || lo > hi) {
+                    throw new Error('out of range');
+                }
+                for (let v = lo; v <= hi; v += step) result.add(v);
             }
+            if (result.size === 0) throw new Error('empty field');
+            return result;
+        }
+
+        // Only bare '*' is the Vixie "unrestricted/star" state that governs the dom/dow day rule.
+        function cronFieldIsStar(raw) {
+            return String(raw).trim() === '*';
+        }
+
+        // Parse a full 5-field expression -> { field value-sets + dom/dow star flags }. Throws on any bad field.
+        function parseCronExpression(expression) {
+            const parts = String(expression).trim().split(/\s+/);
+            if (parts.length !== 5) throw new Error('need 5 fields');
+            const dow = parseCronField(parts[4], 0, 7);
+            if (dow.has(7)) { dow.delete(7); dow.add(0); } // 0 and 7 both mean Sunday
+            return {
+                minute: parseCronField(parts[0], 0, 59),
+                hour: parseCronField(parts[1], 0, 23),
+                dom: parseCronField(parts[2], 1, 31),
+                month: parseCronField(parts[3], 1, 12),
+                dow: dow,
+                domStar: cronFieldIsStar(parts[2]),
+                dowStar: cronFieldIsStar(parts[4])
+            };
+        }
+
+        function formatRunTime(d) {
+            return d.toLocaleString('en-US', {
+                weekday: 'short', year: 'numeric', month: 'short', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            });
+        }
+
+        // Compute the next `count` real run datetimes from the fixed reference date.
+        // Returns { status: 'ok' (>=1 run) | 'none' (valid but no run in horizon) | 'invalid', runs: [] }.
+        function calculateNextRuns(expression, count) {
+            let spec;
+            try { spec = parseCronExpression(expression); }
+            catch (e) { return { status: 'invalid', runs: [] }; }
+
+            const runs = [];
+            const start = new Date('2026-02-10T00:00:00'); // fixed reference "now" (a Tuesday)
+            let t = new Date(start);
+            t.setSeconds(0, 0);
+            const MAX_ITERS = 366 * 24 * 60; // 1-year horizon of minutes
+            for (let i = 0; i < MAX_ITERS && runs.length < count; i++) {
+                const domMatch = spec.dom.has(t.getDate());
+                const dowMatch = spec.dow.has(t.getDay()); // getDay(): 0-6, Sun=0
+                let dayOk;
+                if (!spec.domStar && !spec.dowStar) dayOk = domMatch || dowMatch; // Vixie OR-rule
+                else if (!spec.domStar) dayOk = domMatch;
+                else if (!spec.dowStar) dayOk = dowMatch;
+                else dayOk = true;
+                if (dayOk && spec.minute.has(t.getMinutes()) && spec.hour.has(t.getHours()) &&
+                    spec.month.has(t.getMonth() + 1)) {
+                    runs.push(formatRunTime(t));
+                }
+                t = new Date(t.getTime() + 60000); // advance one minute
+            }
+            return { status: runs.length > 0 ? 'ok' : 'none', runs };
+        }
+
+        // Build-mode grading: two cron expressions are equivalent iff every field value-set matches
+        // AND the dom/dow star-status matches (the day-rule depends only on those flags). Accepts
+        // genuine equivalents (*/15 == 0,15,30,45; 00 == 0; dow 0 == 7) while rejecting a spelled-out
+        // full range that silently flips the OR-rule. Falls back to strict string compare if either
+        // side fails to parse (never crash, never silently mis-grade a canonical answer).
+        function cronEquivalent(a, b) {
+            let sa, sb;
+            try { sa = parseCronExpression(a); sb = parseCronExpression(b); }
+            catch (e) { return String(a).trim() === String(b).trim(); }
+            const setEq = (x, y) => x.size === y.size && [...x].every(v => y.has(v));
+            return setEq(sa.minute, sb.minute) && setEq(sa.hour, sb.hour) &&
+                   setEq(sa.month, sb.month) && setEq(sa.dom, sb.dom) && setEq(sa.dow, sb.dow) &&
+                   sa.domStar === sb.domStar && sa.dowStar === sb.dowStar;
         }
 
         // Submit answer
@@ -983,14 +1072,17 @@
 
             if (round.mode === 'build') {
                 // Build mode: get cron expression from inputs
-                const min = document.getElementById('input-min').value.trim() || '*';
-                const hour = document.getElementById('input-hour').value.trim() || '*';
-                const dom = document.getElementById('input-dom').value.trim() || '*';
-                const month = document.getElementById('input-month').value.trim() || '*';
-                const dow = document.getElementById('input-dow').value.trim() || '*';
+                const min = document.getElementById('input-min').value.trim().replace(/\s+/g, '') || '*';
+                const hour = document.getElementById('input-hour').value.trim().replace(/\s+/g, '') || '*';
+                const dom = document.getElementById('input-dom').value.trim().replace(/\s+/g, '') || '*';
+                const month = document.getElementById('input-month').value.trim().replace(/\s+/g, '') || '*';
+                const dow = document.getElementById('input-dow').value.trim().replace(/\s+/g, '') || '*';
 
                 userAnswer = `${min} ${hour} ${dom} ${month} ${dow}`;
-                isCorrect = userAnswer === round.answer;
+                // Grade by cron EQUIVALENCE, not exact string: accepts semantically-identical
+                // forms (*/15 == 0,15,30,45; 00 == 0) while still rejecting a spelled-out full
+                // range that would change the schedule (see cronEquivalent / the star-status rule).
+                isCorrect = cronEquivalent(userAnswer, round.answer);
             } else {
                 // Read mode: check selected option
                 if (!selectedOption) {
