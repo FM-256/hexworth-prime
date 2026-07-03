@@ -413,7 +413,7 @@
     <div class="game-container">
         <div class="header">
             <h1>MEMORY FORENSICS PUZZLE</h1>
-            <p class="subtitle">Match forensic artifacts to analyze memory corruption</p>
+            <p class="subtitle">Triage a memory image under pressure: quarantine the threats, keep the legitimate evidence</p>
         </div>
 
         <div class="main-layout">
@@ -499,17 +499,16 @@
                 <div class="info-panel">
                     <h3>Mission Brief</h3>
                     <p class="info-text">
-                        Memory blocks containing forensic artifacts are falling. Match 3+ related items vertically or horizontally to analyze them.
+                        Forensic artifacts are falling into memory. <strong>Quarantine threats</strong> by matching 3+ of the same threat artifact (vertical or horizontal). Every threat you catch heals system integrity.
                     </p>
                     <p class="info-text">
-                        <strong>Level 1:</strong> Processes<br>
-                        <strong>Level 2:</strong> Network<br>
-                        <strong>Level 3:</strong> Malware IOCs<br>
-                        <strong>Level 4+:</strong> Mixed Analysis
+                        Legitimate system artifacts must be <strong>kept</strong>. Matching benign evidence is a false positive that corrupts memory. At 0% integrity the investigation fails.
                     </p>
-                    <p class="info-text">
-                        Wrong matches cause memory corruption. System failure at 0% integrity.
-                    </p>
+                </div>
+
+                <div class="info-panel">
+                    <h3 id="intel-title">Threat Intel</h3>
+                    <div class="info-text" id="threat-intel"></div>
                 </div>
             </div>
         </div>
@@ -559,59 +558,75 @@
         const nextCanvas = document.getElementById('next-canvas');
         const nextCtx = nextCanvas.getContext('2d');
 
-        // Forensic artifact types by level
+        // Forensic artifacts by level. Each artifact carries a REAL threat verdict:
+        //   threat:true  = attacker tooling / malicious behavior / compromise artifact -> QUARANTINE it (match to score)
+        //   threat:false = legitimate system process or benign forensic evidence -> KEEP it (matching = false positive)
+        // Labels are deliberately unambiguous (no contextually-abused names like svchost/445/RDP,
+        // which the week-7 lab covers with proper path/parent nuance). Color identifies the TYPE for
+        // match-3 play only; it is NOT a threat tell -- the analyst must read the artifact and know it.
+        // Every level is an even 3-threat / 3-benign split so difficulty ramps via fall speed, not odds.
         const ARTIFACT_TYPES = {
-            1: { // Level 1: Process Analysis
-                name: 'Process',
-                types: ['svchost', 'explorer', 'cmd', 'lsass', 'chrome'],
-                colors: ['#ff4444', '#44ff44', '#4444ff', '#ffff44', '#ff44ff'],
-                education: {
-                    'svchost': 'svchost.exe hosts Windows services. Multiple instances are normal, but wrong paths indicate malware masquerading.',
-                    'explorer': 'explorer.exe is the Windows shell. Should only run from C:\\Windows and have one instance per user session.',
-                    'cmd': 'cmd.exe is the command prompt. Spawned by unusual parents (not explorer) may indicate compromise.',
-                    'lsass': 'lsass.exe handles credentials. Only one instance should exist from System32. Attacks often target this process.',
-                    'chrome': 'chrome.exe spawns multiple child processes. Parent should be explorer.exe for legitimate browser launches.'
-                }
+            1: { // Level 1: Process / tooling triage
+                name: 'Process Triage',
+                artifacts: [
+                    { t: 'explorer',  c: '#ff8800', threat: false, edu: 'explorer.exe is the Windows shell — a normal, expected process. Quarantining legitimate processes is a false positive that corrupts your analysis.' },
+                    { t: 'defender',  c: '#44aaff', threat: false, edu: 'MsMpEng.exe (Microsoft Defender) is a legitimate anti-malware process. Do not quarantine your own defenses.' },
+                    { t: 'prefetch',  c: '#aa88ff', threat: false, edu: 'Prefetch files are benign OS performance artifacts. They are evidence of execution, not malware.' },
+                    { t: 'mimikatz',  c: '#44ff88', threat: true,  edu: 'mimikatz is a credential-theft tool. Its footprint in memory is a strong compromise indicator (T1003) — quarantine it.' },
+                    { t: 'lsass.dmp', c: '#ffee44', threat: true,  edu: 'An lsass.exe memory dump is how attackers steal cached credentials. A dump artifact means active credential theft in progress.' },
+                    { t: 'cobalt',    c: '#ff55cc', threat: true,  edu: 'A Cobalt Strike beacon resident in memory is post-exploitation C2. Quarantine it immediately.' }
+                ]
             },
-            2: { // Level 2: Network Analysis
-                name: 'Network',
-                types: ['TCP:80', 'TCP:443', 'UDP:53', 'TCP:445', 'TCP:3389'],
-                colors: ['#00ffaa', '#ff8800', '#aa00ff', '#ffaa00', '#ff0088'],
-                education: {
-                    'TCP:80': 'HTTP traffic (port 80). Unencrypted web traffic. Suspicious if used by system processes for C2 communication.',
-                    'TCP:443': 'HTTPS traffic (port 443). Encrypted web traffic. Malware often uses this to blend with legitimate traffic.',
-                    'UDP:53': 'DNS queries (port 53). Excessive or unusual DNS patterns may indicate DNS tunneling or C2 beaconing.',
-                    'TCP:445': 'SMB file sharing (port 445). Commonly exploited for lateral movement (EternalBlue, ransomware spread).',
-                    'TCP:3389': 'RDP remote desktop (port 3389). Brute-force attacks and lateral movement often use this port.'
-                }
+            2: { // Level 2: Network behavior triage
+                name: 'Network Triage',
+                artifacts: [
+                    { t: 'web',       c: '#ff8800', threat: false, edu: 'Ordinary outbound web browsing to reputable hosts is benign traffic.' },
+                    { t: 'dns-ok',    c: '#44aaff', threat: false, edu: 'A standard DNS lookup to your resolver is expected. It is volume and entropy that flag tunneling — a normal lookup is clean.' },
+                    { t: 'update',    c: '#aa88ff', threat: false, edu: 'OS and software update traffic to vendor endpoints is legitimate maintenance activity.' },
+                    { t: 'C2-beacon', c: '#44ff88', threat: true,  edu: 'A periodic beacon to an unknown host is malware calling home (C2). Quarantine the connection.' },
+                    { t: 'exfil',     c: '#ffee44', threat: true,  edu: 'A large outbound transfer to an untrusted host is data exfiltration (T1041).' },
+                    { t: 'portscan',  c: '#ff55cc', threat: true,  edu: 'Internal port scanning is reconnaissance and lateral-movement prep — malicious behavior.' }
+                ]
             },
-            3: { // Level 3: Malware IOCs
-                name: 'IOC',
-                types: ['MD5', 'Mutex', 'C2-IP', 'RegKey', 'FileHash'],
-                colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'],
-                education: {
-                    'MD5': 'MD5 hash identifies files uniquely. Malware analysts maintain databases of known malicious hashes.',
-                    'Mutex': 'Mutex names prevent multiple malware instances. Unique mutex names are strong IOCs for specific malware families.',
-                    'C2-IP': 'Command & Control IP addresses. Blocking these prevents malware from receiving instructions or exfiltrating data.',
-                    'RegKey': 'Registry keys provide persistence. Malware uses Run keys, services, and scheduled tasks to survive reboots.',
-                    'FileHash': 'SHA-256 hashes are stronger than MD5. Used for file integrity verification and malware identification.'
-                }
+            3: { // Level 3: Malware IOC triage
+                name: 'Malware IOC Triage',
+                artifacts: [
+                    { t: 'eventlog',  c: '#ff8800', threat: false, edu: 'Windows Event Logs are a benign evidence source. You analyze them — you do not quarantine them.' },
+                    { t: 'amcache',   c: '#44aaff', threat: false, edu: 'AmCache records program execution history. It is a forensic artifact, not malware.' },
+                    { t: 'prefetch',  c: '#aa88ff', threat: false, edu: 'Prefetch is a benign execution artifact — evidence of what ran, not a threat.' },
+                    { t: 'ransom',    c: '#44ff88', threat: true,  edu: 'A ransom note dropped to disk is definitive evidence of ransomware detonation.' },
+                    { t: 'rootkit',   c: '#ffee44', threat: true,  edu: 'A rootkit hook hiding processes or files is malicious kernel tampering.' },
+                    { t: 'C2-config', c: '#ff55cc', threat: true,  edu: 'An embedded C2 configuration block (addresses, keys) is malware infrastructure inside the sample.' }
+                ]
             },
-            4: { // Level 4+: Mixed
-                name: 'Mixed',
-                types: ['svchost', 'TCP:443', 'Mutex', 'explorer', 'C2-IP', 'lsass', 'MD5'],
-                colors: ['#ff4444', '#ff8800', '#00ff00', '#44ff44', '#0000ff', '#ffff44', '#ff0000'],
-                education: {
-                    'svchost': 'Critical Windows service host. Verify path, parent process, and network connections when investigating.',
-                    'TCP:443': 'Encrypted HTTPS. Malware uses this to hide C2 traffic. Inspect certificates and connection patterns.',
-                    'Mutex': 'Named mutexes are fingerprints. Searching for mutex names can identify malware family and variants.',
-                    'explorer': 'Windows Explorer. Should not make unusual network connections or spawn suspicious child processes.',
-                    'C2-IP': 'Command server addresses. Network forensics: track connection times, data volumes, and beacon intervals.',
-                    'lsass': 'Credential manager. Mimikatz and credential dumpers target this. Monitor for unusual access attempts.',
-                    'MD5': 'Legacy hash function. Use SHA-256 for stronger guarantees, but MD5 still common in legacy systems.'
-                }
+            4: { // Level 4+: full-spectrum triage (mix of all three domains)
+                name: 'Full-Spectrum Triage',
+                artifacts: [
+                    { t: 'explorer',  c: '#ff8800', threat: false, edu: 'explorer.exe is the legitimate Windows shell — a false positive if quarantined.' },
+                    { t: 'dns-ok',    c: '#44aaff', threat: false, edu: 'A normal DNS lookup is benign network activity.' },
+                    { t: 'amcache',   c: '#aa88ff', threat: false, edu: 'AmCache is a benign execution-history forensic artifact.' },
+                    { t: 'mimikatz',  c: '#44ff88', threat: true,  edu: 'mimikatz credential theft in memory — quarantine it.' },
+                    { t: 'C2-beacon', c: '#ffee44', threat: true,  edu: 'A C2 beacon to an unknown host — malware calling home.' },
+                    { t: 'ransom',    c: '#ff55cc', threat: true,  edu: 'A ransom note — ransomware has detonated.' }
+                ]
             }
         };
+
+        // Flatten every level's artifacts into a global lookup (type -> {threat, edu, color}).
+        // Each type key has ONE consistent verdict across all levels, so a block placed while on a
+        // prior level still resolves its threat status correctly after a mid-board level-up.
+        const ARTIFACT_INDEX = {};
+        Object.values(ARTIFACT_TYPES).forEach(set => set.artifacts.forEach(a => { ARTIFACT_INDEX[a.t] = a; }));
+
+        // Is a given artifact type a real threat (to be quarantined) vs benign evidence?
+        function isThreatType(type) {
+            return !!(ARTIFACT_INDEX[type] && ARTIFACT_INDEX[type].threat);
+        }
+
+        // Triage balance: quarantining a threat heals integrity; a false-positive (clearing benign
+        // evidence) corrupts it. Cascade clears from gravity are physics, not a player call -> no penalty.
+        const THREAT_HEAL = 6;
+        const BENIGN_PENALTY = 8;
 
         // Game state
         let gameState = {
@@ -622,7 +637,9 @@
             matches: 0,
             combo: 0,
             bestCombo: 0,
+            threatsFound: 0,
             health: 100,
+            ended: false,
             grid: [],
             currentPiece: null,
             nextPiece: null,
@@ -650,17 +667,15 @@
             return ARTIFACT_TYPES[levelKey];
         }
 
-        // Create random piece (2-block horizontal)
+        // Create random piece (2-block horizontal) drawn from the current level's artifact set
         function createPiece() {
             const artifactSet = getArtifactSet();
-            const type = artifactSet.types[Math.floor(Math.random() * artifactSet.types.length)];
-            const typeIndex = artifactSet.types.indexOf(type);
-            const color = artifactSet.colors[typeIndex];
+            const artifact = artifactSet.artifacts[Math.floor(Math.random() * artifactSet.artifacts.length)];
 
             return {
                 blocks: [
-                    { type, color, offsetX: 0, offsetY: 0 },
-                    { type, color, offsetX: 1, offsetY: 0 }
+                    { type: artifact.t, color: artifact.c, offsetX: 0, offsetY: 0 },
+                    { type: artifact.t, color: artifact.c, offsetX: 1, offsetY: 0 }
                 ],
                 rotation: 0
             };
@@ -676,11 +691,19 @@
             ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
             ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
 
-            // Text
+            // Text — auto-shrink so long artifact names (mimikatz, lsass.dmp, C2-beacon) stay
+            // fully readable inside the block. Reading the name IS the triage skill, so it must
+            // never truncate.
             ctx.fillStyle = '#000';
-            ctx.font = `bold ${size * 0.25}px Courier New`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
+            let fontSize = size * 0.28;
+            const maxTextWidth = size - 6;
+            while (fontSize > 5) {
+                ctx.font = `bold ${fontSize}px Courier New`;
+                if (ctx.measureText(type).width <= maxTextWidth) break;
+                fontSize -= 0.5;
+            }
             ctx.fillText(type, x + size / 2, y + size / 2);
 
             // Hex border effect
@@ -812,8 +835,9 @@
             spawnPiece();
         }
 
-        // Check for matches
-        function checkMatches() {
+        // Check for matches. isCascade=true means this fire came from a gravity settle (a chain),
+        // not the player's direct placement -> benign clears in it are not penalized.
+        function checkMatches(isCascade = false) {
             const matches = [];
 
             // Check horizontal matches
@@ -861,41 +885,62 @@
             }
 
             if (matches.length > 0) {
-                processMatches(matches);
+                processMatches(matches, isCascade);
             } else {
                 gameState.combo = 0;
                 updateStats();
             }
         }
 
-        // Process matches
-        function processMatches(matches) {
-            gameState.combo++;
-            gameState.bestCombo = Math.max(gameState.bestCombo, gameState.combo);
+        // Process matches. Triage rules:
+        //   THREAT run  -> quarantined: +score, +integrity, builds combo (correct call).
+        //   BENIGN run on the player's OWN placement -> false positive: -integrity, breaks combo.
+        //   BENIGN run from a gravity CASCADE -> physics, not a player call: cleared, no score/penalty.
+        function processMatches(matches, isCascade) {
+            let anyBenignDirect = false;
 
             matches.forEach(match => {
-                const basePoints = match.blocks.length * 10;
-                const comboBonus = gameState.combo * 5;
-                const points = basePoints + comboBonus;
-                gameState.score += points;
-                gameState.matches++;
+                const isThreat = isThreatType(match.type);
+                const cells = match.blocks.length;
+
+                if (isThreat) {
+                    gameState.combo++;
+                    gameState.bestCombo = Math.max(gameState.bestCombo, gameState.combo);
+                    gameState.score += cells * 10 + gameState.combo * 5;
+                    gameState.threatsFound++;
+                    gameState.health = Math.min(100, gameState.health + THREAT_HEAL);
+                } else if (!isCascade) {
+                    gameState.health = Math.max(0, gameState.health - BENIGN_PENALTY);
+                    anyBenignDirect = true;
+                }
+
+                gameState.matches++; // total artifacts cleared (UI stat + analytics) -- meaning unchanged
 
                 // Remove matched blocks
                 match.blocks.forEach(({ x, y }) => {
                     gameState.grid[y][x] = null;
                 });
 
-                // Show education popup
-                showEducationPopup(match.type);
+                // Explain the verdict (why it was a threat, or why clearing it was a false positive)
+                showEducationPopup(match.type, isThreat);
             });
 
-            // Apply gravity
-            setTimeout(() => {
-                applyGravity();
-                checkMatches(); // Chain reactions
-            }, 300);
+            // Any benign run in a DIRECT batch breaks the streak, regardless of other matches present.
+            if (anyBenignDirect) gameState.combo = 0;
 
             updateStats();
+
+            // Integrity exhausted by false positives = analysis failure.
+            if (gameState.health <= 0) {
+                gameOver();
+                return;
+            }
+
+            // Apply gravity, then re-check for chain reactions (cascades count as physics, not calls).
+            setTimeout(() => {
+                applyGravity();
+                checkMatches(true);
+            }, 300);
         }
 
         // Apply gravity to floating blocks
@@ -915,21 +960,21 @@
             }
         }
 
-        // Show education popup
-        function showEducationPopup(type) {
-            const artifactSet = getArtifactSet();
-            const education = artifactSet.education[type];
+        // Show education popup explaining WHY the cleared artifact was a threat or a false positive
+        function showEducationPopup(type, isThreat) {
+            const artifact = ARTIFACT_INDEX[type];
+            if (!artifact) return;
 
-            if (education) {
-                const popup = document.getElementById('education-popup');
-                document.getElementById('edu-title').textContent = `Analyzed: ${type}`;
-                document.getElementById('edu-text').textContent = education;
-                popup.classList.add('visible');
+            const popup = document.getElementById('education-popup');
+            document.getElementById('edu-title').textContent = (isThreat ? 'Threat quarantined: ' : 'False positive: ') + type;
+            document.getElementById('edu-text').textContent = artifact.edu;
+            popup.classList.add('visible');
 
-                setTimeout(() => {
-                    popup.classList.remove('visible');
-                }, 5000);
-            }
+            // Track the hide timer so a rapid next popup doesn't get cut short by a stale timeout.
+            clearTimeout(popup._hideTimer);
+            popup._hideTimer = setTimeout(() => {
+                popup.classList.remove('visible');
+            }, 5000);
         }
 
         // Spawn new piece
@@ -965,6 +1010,23 @@
             requestAnimationFrame(gameLoop);
         }
 
+        // Render the current level's Threat Intel legend: each artifact tagged THREAT (quarantine)
+        // or CLEAN (keep). Makes the game learn-then-apply instead of blind guessing. All strings
+        // are hardcoded artifact constants (no user input) so innerHTML is safe here.
+        function updateThreatIntel() {
+            const set = getArtifactSet();
+            const titleEl = document.getElementById('intel-title');
+            if (titleEl) titleEl.textContent = 'Threat Intel — ' + set.name;
+            const el = document.getElementById('threat-intel');
+            if (!el) return;
+            el.innerHTML = set.artifacts.map(a =>
+                `<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;">`
+                + `<span style="color:${a.c};font-weight:bold;">${a.t}</span>`
+                + `<span style="color:${a.threat ? '#ff5566' : '#00cc66'};font-weight:bold;">${a.threat ? 'THREAT' : 'CLEAN'}</span>`
+                + `</div>`
+            ).join('');
+        }
+
         // Update stats display
         function updateStats() {
             document.getElementById('score').textContent = gameState.score;
@@ -975,11 +1037,13 @@
             const healthBar = document.getElementById('health-bar');
             healthBar.style.width = gameState.health + '%';
 
-            // Level up every 10 matches
-            const newLevel = Math.floor(gameState.matches / 10) + 1;
+            // Level up per THREATS QUARANTINED (correct triage), not raw clears. Heal on promotion
+            // and refresh the Threat Intel legend for the new artifact set.
+            const newLevel = Math.floor(gameState.threatsFound / 8) + 1;
             if (newLevel > gameState.level) {
                 gameState.level = newLevel;
                 gameState.health = Math.min(100, gameState.health + 20);
+                updateThreatIntel();
             }
         }
 
@@ -993,12 +1057,15 @@
             gameState.matches = 0;
             gameState.combo = 0;
             gameState.bestCombo = 0;
+            gameState.threatsFound = 0;
             gameState.health = 100;
+            gameState.ended = false;
             gameState.lastFallTime = 0;
 
             gameState.nextPiece = createPiece();
             spawnPiece();
             updateStats();
+            updateThreatIntel();
 
             document.getElementById('start-btn').style.display = 'none';
             document.getElementById('pause-btn').style.display = 'inline-block';
@@ -1018,6 +1085,10 @@
 
         // Game over
         function gameOver() {
+            // Idempotency: two callers now (integrity hitting 0 in processMatches, and a spawn
+            // collision in spawnPiece) must not double-award XP or double-record the game.
+            if (gameState.ended) return;
+            gameState.ended = true;
             gameState.running = false;
 
             // High score persistence
@@ -1114,6 +1185,7 @@
         initGrid();
         drawGrid();
         drawNextPiece();
+        updateThreatIntel();
     </script>
 <script src="../../../components/GameTracker.js"></script>
     <script src="../../../components/GameScoreboard.js"></script>
