@@ -323,12 +323,17 @@
     function sndSudo()      { playSound(1000, 0.1, 'sine', 0.1); setTimeout(() => playSound(1200, 0.2, 'sine', 0.08), 80); }
     function sndRootShell() { playSound(660, 0.15, 'sine', 0.1); setTimeout(() => playSound(880, 0.2, 'sine', 0.1), 100); }
     function sndTrap()      { playSound(120, 0.3, 'sawtooth', 0.12); setTimeout(() => playSound(80, 0.4, 'square', 0.1), 80); }
+    function sndRockFall()  { playSound(300, 0.15, 'sawtooth', 0.05); setTimeout(() => playSound(160, 0.2, 'sawtooth', 0.06), 60); }
+    function sndRockLand()  { playSound(90, 0.18, 'square', 0.12); setTimeout(() => playSound(60, 0.22, 'square', 0.1), 60); }
 
     // ===== GAME STATE =====
     let grid = [];
     let player = { col: 10, row: 0, x: 0, y: 0, dir: 0, frame: 0, moving: false, invincible: 0, respawnTimer: 0 };
     let enemies = [];
     let particles = [];
+    let rocks = [];                    // { col, row, state:'stable'|'wobbling'|'falling', timer, py, supported }
+    const wobbleSet = new Set();       // "r,c" of rocks currently wobbling — drawTile adds a shake
+    const fallingCellSet = new Set();  // "r,c" occupied by a falling rock — drawTile skips it, drawRocks renders it at py
     let score = 0;
     let lives = 3;
     let level = 0;
@@ -468,6 +473,29 @@
         }
     }
 
+    // A rock is supported if the cell directly below it is the floor (off-board) or anything
+    // that is not open tunnel (dirt / rock / collectible / trap). Only an EMPTY cell below drops it.
+    function rockSupported(r, c) {
+        return (r + 1 >= ROWS) || grid[r + 1][c] !== EMPTY;
+    }
+
+    // Build the rock-entity list from the grid AFTER all carving (generateGrid + spawnEnemies).
+    // Each rock's initial support is read from the REAL post-carve board, so a rock left unsupported
+    // by enemy spawn-carving (line ~448) starts wasSupported=false and never rains down at level
+    // start — only a supported->unsupported TRANSITION during play drops a rock.
+    function initRocks() {
+        rocks = [];
+        wobbleSet.clear();
+        fallingCellSet.clear();
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                if (grid[r][c] === ROCK) {
+                    rocks.push({ col: c, row: r, state: 'stable', timer: 0, py: r * TILE + HUD_H, supported: rockSupported(r, c) });
+                }
+            }
+        }
+    }
+
     // ===== GAME INIT =====
     function startGame() {
         score = 0;
@@ -491,7 +519,8 @@
         player.respawnTimer = 0;
         pumpTarget = null;
         particles = [];
-        spawnEnemies(def);
+        spawnEnemies(def);   // ORDER-CRITICAL: carves spawn cells (line ~448), mutating the grid...
+        initRocks();         // ...so initRocks() MUST run AFTER it to read the final board (else rocks rain at frame 1)
         levelTimer = 0;
         flashMsg = def.name;
         flashTimer = 120;
@@ -795,6 +824,94 @@
         }
     }
 
+    // ===== DROPPING ROCKS (Dig Dug crush mechanic) =====
+    // Dig the dirt out from under a rock and it wobbles, then falls, crushing enemies (and you) in
+    // its column before shattering. The drop TRIGGER is a per-frame supported->unsupported TRANSITION
+    // scan, so EVERY grid-clearing action (player dig, trap, collect, enemy-dig, fall-chain) feeds it
+    // with no per-callsite wiring and no future-producer blind spot. A falling rock keeps its grid
+    // ROCK marker at its CURRENT cell (moved down one cell at a time), so wall-refusal (line 579 /
+    // 729-746), rock-on-rock stacking, and "you can't walk into a mid-air rock" all reuse the existing
+    // grid logic for free — crush happens only when the rock advances INTO an already-occupied cell.
+    const WOBBLE_FRAMES = 45;    // ~0.75s telegraph before a dislodged rock actually drops
+    const ROCK_FALL_SPEED = 8;   // px/frame -> one TILE (32px) per ~4 frames
+
+    function updateRocks() {
+        // Iterate BACKWARD so an in-loop shatter splice never skips the next rock (same convention
+        // as updateParticles, 524-530).
+        for (let i = rocks.length - 1; i >= 0; i--) {
+            const rock = rocks[i];
+
+            if (rock.state === 'stable') {
+                const sup = rockSupported(rock.row, rock.col);
+                // Fire ONLY on the supported->unsupported edge. The state==='stable' term is itself the
+                // guard that a wobbling/falling rock is never re-triggered (no timer reset, no state flip).
+                if (rock.supported && !sup) {
+                    rock.state = 'wobbling';
+                    rock.timer = WOBBLE_FRAMES;
+                }
+                rock.supported = sup;
+                continue;
+            }
+
+            if (rock.state === 'wobbling') {
+                rock.timer--;
+                if (rock.timer <= 0) {
+                    rock.state = 'falling';
+                    rock.py = rock.row * TILE + HUD_H;  // begin the pixel fall from the current cell
+                    sndRockFall();
+                }
+                continue;
+            }
+
+            // state === 'falling'
+            rock.py += ROCK_FALL_SPEED;
+            const nextCellY = (rock.row + 1) * TILE + HUD_H;
+            if (rock.py >= nextCellY) {
+                const nr = rock.row + 1;
+                // Land if the next cell is the floor or anything solid (dirt / rock / collectible / trap).
+                if (nr >= ROWS || grid[nr][rock.col] !== EMPTY) {
+                    grid[rock.row][rock.col] = EMPTY;  // rock shatters -> opens a tunnel, NEVER a new wall (no soft-lock)
+                    spawnParticles(rock.col * TILE + TILE / 2, rock.row * TILE + HUD_H + TILE / 2, '#8a6a3a', 14);
+                    sndRockLand();
+                    rocks.splice(i, 1);
+                    continue;
+                }
+                // Advance one cell: vacate old, occupy new (keeps the falling rock a real wall for
+                // movement + rock-on-rock landing).
+                grid[rock.row][rock.col] = EMPTY;
+                rock.row = nr;
+                grid[rock.row][rock.col] = ROCK;
+                rock.py = rock.row * TILE + HUD_H;
+                // CRUSH is evaluated ONCE here, on cell-advance (not per dwell frame), so score/death
+                // never repeat across the ~4 frames the rock sits in a cell. Enemies (alive-guarded):
+                for (const enemy of enemies) {
+                    if (enemy.alive && enemy.col === rock.col && enemy.row === rock.row) {
+                        enemy.alive = false;
+                        score += 250;
+                        flashMsg = 'CRUSHED +250';
+                        flashTimer = 50;
+                        spawnParticles(enemy.x + TILE / 2, enemy.y + TILE / 2, '#ff4444', 15);
+                        sndKill();
+                    }
+                }
+                // Player: guarded by invincible/respawnTimer, which self-guards after the first hit
+                // (respawnTimer goes positive in playerDeath), same convention as the enemy check at 791.
+                if (player.col === rock.col && player.row === rock.row && player.invincible <= 0 && player.respawnTimer <= 0) {
+                    playerDeath();
+                }
+            }
+        }
+
+        // Rebuild render sets from each rock's CURRENT cell EVERY frame (positions moved above), so
+        // drawTile suppresses/shakes the right cells and never a stale one.
+        wobbleSet.clear();
+        fallingCellSet.clear();
+        for (const rock of rocks) {
+            if (rock.state === 'wobbling') wobbleSet.add(rock.row + ',' + rock.col);
+            else if (rock.state === 'falling') fallingCellSet.add(rock.row + ',' + rock.col);
+        }
+    }
+
     function playerDeath() {
         lives--;
         sndDeath();
@@ -832,6 +949,39 @@
     }
 
     // ===== DRAWING =====
+    // Shared rock sprite so static, wobbling and falling rocks all render identically.
+    function drawRockShape(x, y, layer) {
+        ctx.fillStyle = layer.rockColor;
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+        // Rock cross-hatch
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.beginPath();
+        ctx.moveTo(x + 4, y + 4);
+        ctx.lineTo(x + TILE - 4, y + TILE - 4);
+        ctx.moveTo(x + TILE - 4, y + 4);
+        ctx.lineTo(x + 4, y + TILE - 4);
+        ctx.stroke();
+    }
+
+    // Falling rocks live at a pixel py between grid cells; draw them over the tunnel/player.
+    function drawRocks() {
+        for (const rock of rocks) {
+            if (rock.state !== 'falling') continue;
+            const x = rock.col * TILE, y = rock.py;
+            drawRockShape(x, y, getLayerForRow(rock.row));
+            // A falling rock travels through dark dug tunnels where the base sprite is near-invisible;
+            // add a Forge-orange warning rim + top highlight so the crush hazard reads clearly and stays fair.
+            ctx.strokeStyle = '#f97316';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x + 1.5, y + 1.5, TILE - 3, TILE - 3);
+            ctx.fillStyle = 'rgba(249,115,22,0.4)';
+            ctx.fillRect(x + 5, y + 4, TILE - 10, 3);
+        }
+    }
+
     function drawTile(c, r, type) {
         const x = c * TILE;
         const y = r * TILE + HUD_H;
@@ -859,21 +1009,14 @@
                 ctx.fillRect(x + ((seed * 3) % 16) + 2, y + ((seed * 11) % 14) + 2, 1, 1);
                 break;
 
-            case ROCK:
-                ctx.fillStyle = layer.rockColor;
-                ctx.fillRect(x, y, TILE, TILE);
-                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
-                // Rock cross-hatch
-                ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-                ctx.beginPath();
-                ctx.moveTo(x + 4, y + 4);
-                ctx.lineTo(x + TILE - 4, y + TILE - 4);
-                ctx.moveTo(x + TILE - 4, y + 4);
-                ctx.lineTo(x + 4, y + TILE - 4);
-                ctx.stroke();
+            case ROCK: {
+                // A falling rock is rendered by drawRocks() at its pixel py — skip the static sprite here.
+                if (fallingCellSet.has(r + ',' + c)) break;
+                // Wobble telegraph: shake horizontally while dislodged and about to drop.
+                const rockDx = wobbleSet.has(r + ',' + c) ? Math.sin(levelTimer * 0.8) * 2 : 0;
+                drawRockShape(x + rockDx, y, layer);
                 break;
+            }
 
             case ARTIFACT:
                 // Visible item on empty/dark background
@@ -1403,6 +1546,7 @@
             movePlayer();
             handlePump();
             updateEnemies();
+            updateRocks();      // after enemies move, so a rock crushes them in their final cell
             updateParticles();
         }
 
@@ -1442,6 +1586,9 @@
 
         // Draw player
         drawPlayer();
+
+        // Draw falling rocks on top (they crush what's beneath them)
+        drawRocks();
 
         // Draw particles
         drawParticles();
