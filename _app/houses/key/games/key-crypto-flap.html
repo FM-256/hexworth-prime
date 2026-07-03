@@ -378,12 +378,28 @@
                 logEntry('[FAIL] Cipher expired. Answer was: ' + cryptoState.cipherAnswer, '#ef4444');
             }
 
-            // Close after brief delay
-            setTimeout(function() {
+            // Close after brief delay — tracked (cipherCloseTimer) so dismissCipher()
+            // can cancel it if a level-complete/victory transition lands during this
+            // ~1.2s result-message decay window.
+            cryptoState.cipherCloseTimer = setTimeout(function() {
                 document.getElementById('cipherOverlay').classList.remove('active');
             }, 1200);
 
             return correct;
+        }
+
+        // dismissCipher: immediately tear down the cipher challenge. Used when the game
+        // leaves the 'playing' state (level complete / victory / game over) so the modal
+        // never lingers over an interstitial or the victory panel. UNCONDITIONAL on
+        // purpose: a just-resolved cipher sets cipherActive=false but stays visible for
+        // a ~1.2s result-message decay (cipherCloseTimer), so we must force-remove the
+        // overlay regardless of the flag. clearInterval/clearTimeout on undefined no-op.
+        function dismissCipher() {
+            cryptoState.cipherActive = false;
+            clearInterval(cryptoState.cipherInterval);
+            clearTimeout(cryptoState.cipherTimer);
+            clearTimeout(cryptoState.cipherCloseTimer);
+            document.getElementById('cipherOverlay').classList.remove('active');
         }
 
         // Cipher input handler
@@ -741,12 +757,7 @@
             );
 
             // Close cipher if open
-            if (cryptoState.cipherActive) {
-                cryptoState.cipherActive = false;
-                clearInterval(cryptoState.cipherInterval);
-                clearTimeout(cryptoState.cipherTimer);
-                document.getElementById('cipherOverlay').classList.remove('active');
-            }
+            dismissCipher();
         }
 
         // ── Game Hooks ───────────────────────────────────────────────────
@@ -912,7 +923,11 @@
             hooks: {
                 onPipeSpawn: hookOnPipeSpawn,
                 onCollision: hookOnCollision,
-                onScoreChange: hookOnScoreChange
+                onScoreChange: hookOnScoreChange,
+                // Tear down a lingering cipher modal when a zone is cleared or the
+                // campaign is won, so it never overlaps the interstitial/victory screen.
+                onLevelComplete: dismissCipher,
+                onVictory: dismissCipher
             },
 
             onScore: function(score) {
