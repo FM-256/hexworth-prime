@@ -60,6 +60,24 @@ window.FlappyEngine = (function () {
     let windParticles = [];      // visual particles for wind event
     let shakeOffset = { x: 0, y: 0 }; // screen shake for turbulence
 
+    // ── Level / Boss State ──────────────────────────────────────────────
+    // All inert unless config.levels[] is provided (hasLevels). A game with no
+    // levels array behaves exactly as the original endless engine.
+    let hasLevels = false;        // config.levels[] present + non-empty
+    let baseLevelCfg = null;      // snapshot of base config sections for per-level merge
+    let levelIndex = 0;           // current level (0-based)
+    let levelPipeCount = 0;       // normal pipes cleared this level (pre-boss)
+    let levelCompleteTimer = 0;   // seconds held on the LEVEL COMPLETE interstitial
+    let victoryTimer = 0;         // seconds held on the VICTORY screen
+    let bossActive = false;       // in the boss phase of the current level
+    let bossHealth = 0;           // remaining boss hits (attack-gates left to clear)
+    let bossMaxHealth = 0;        // boss hits at full health
+    let bossGatesSpawned = 0;     // attack-gates spawned this boss (cap = bossMaxHealth)
+    let bossName = '';            // themed boss name for the HUD banner
+    let bossColor = '#ef4444';    // themed boss danger color
+    let bossFlashTimer = 0;       // ms flash when the boss takes a hit
+    let bossIntroTimer = 0;       // ms "WARNING: BOSS" banner countdown
+
     // Canvas dimensions
     const W = 400;
     const H = 600;
@@ -246,6 +264,9 @@ window.FlappyEngine = (function () {
     }
 
     function spawnPipe() {
+        // During a boss phase, spawns become tight moving attack-gates instead.
+        if (bossActive) { spawnBossGate(); return; }
+
         var effectiveGapSize = baseGapSize;
         // Widen powerup: increase gap
         if (activePowerup && activePowerup.id === 'widen') {
@@ -601,7 +622,8 @@ window.FlappyEngine = (function () {
             return;
         }
 
-        var pc = config.pipes;
+        // Boss attack-gates get a menacing skin derived from the boss color.
+        var pc = p.isBoss ? bossPipeStyle() : config.pipes;
 
         ctx.save();
         // Shadow
@@ -626,10 +648,11 @@ window.FlappyEngine = (function () {
 
         // Pipe decoration: custom hook — wrapped in save/restore so it always
         // receives clean ctx state (globalAlpha=1, no shadow, string fillStyle)
-        // regardless of the gradient/highlight rendering above.
-        if (config.pipes.drawDecoration) {
+        // regardless of the gradient/highlight rendering above. Skipped for boss
+        // gates (bossPipeStyle exposes no decoration).
+        if (pc.drawDecoration) {
             ctx.save();
-            config.pipes.drawDecoration(ctx, p);
+            pc.drawDecoration(ctx, p);
             ctx.restore();
         }
 
@@ -1075,6 +1098,243 @@ window.FlappyEngine = (function () {
         }
     }
 
+    // ── Level System + Boss Phase ──────────────────────────────────────
+    // applyLevel: merge level idx's overrides onto the snapshotted base config
+    // with field-level fallback (a missing field -> base value), so a sparse level
+    // definition can never produce an undefined read. Sets the zone's ambient
+    // hazard + refreshes speed/gap. No-op unless hasLevels.
+    function applyLevel(idx) {
+        if (!hasLevels || !baseLevelCfg) return;
+        var L = config.levels[idx] || {};
+        config.background = Object.assign({}, baseLevelCfg.background, L.background || {});
+        config.pipes = Object.assign({}, baseLevelCfg.pipes, L.pipes || {});
+        config.obstacles = Object.assign({}, baseLevelCfg.obstacles, L.obstacles || {});
+        // Level games use one ambient zone hazard (L.event); the score-keyed events
+        // map is disabled so the two hazard systems never stack.
+        config.events = (L.events !== undefined) ? L.events : null;
+        config.theme.accentColor = L.accentColor || baseLevelCfg.accentColor;
+        basePipeSpeed = config.pipes.speed || 2.5;
+        baseGapSize = config.pipes.gapSize || 150;
+        if (L.event && L.event.type) {
+            activeEvent = Object.assign({ direction: 'right', strength: 0.5, opacity: 0.3, intensity: 1.5 }, L.event);
+            if (activeEvent.type === 'wind') windParticles = [];
+        } else {
+            activeEvent = null;
+        }
+        triggeredEvents = {};
+    }
+
+    // enterBossPhase: the normal-pipe quota is met -> the level's boss appears.
+    // Stops normal spawns; subsequent spawns become tight moving attack-gates.
+    function enterBossPhase() {
+        if (bossActive) return;
+        bossActive = true;
+        var L = config.levels[levelIndex] || {};
+        var boss = L.boss || {};
+        bossMaxHealth = Math.max(1, boss.health || 3);
+        bossHealth = bossMaxHealth;
+        bossGatesSpawned = 0;
+        bossName = boss.name || 'BOSS';
+        bossColor = boss.color || '#ef4444';
+        bossIntroTimer = 1600;
+        bossFlashTimer = 0;
+        pipeTimer = -30; // a beat before the first attack-gate
+    }
+
+    // spawnBossGate: one tight, moving boss attack-gate (flagged isBoss). Capped at
+    // bossMaxHealth gates so clearing them all lands boss health on exactly 0.
+    function spawnBossGate() {
+        if (bossGatesSpawned >= bossMaxHealth) return;
+        bossGatesSpawned++;
+        var gap = Math.max(baseGapSize - 42, 96); // tighter than a normal gap
+        var minY = 90;
+        var maxY = H - GROUND_H - gap - 90;
+        var gapY = minY + Math.random() * Math.max(10, maxY - minY);
+        var pipe = {
+            x: W + 10, gapY: gapY, gapSize: gap, originalGapSize: gap, originalGapY: gapY,
+            width: 58, scored: false, wasOverlapping: false, type: 'moving', isBoss: true,
+            spawnX: W + 10, phase: Math.random() * Math.PI * 2, label: ''
+        };
+        // Deliberately NOT calling config.hooks.onPipeSpawn — boss gates must stay
+        // pure (a game's onPipeSpawn could tag them as encrypted/firewall/etc.).
+        pipes.push(pipe);
+    }
+
+    // enterLevelComplete: boss defeated -> clean the arena and hold the interstitial.
+    function enterLevelComplete() {
+        // Idempotent: if two boss gates score on the same frame, bossHealth can go
+        // 1 -> 0 -> -1 and call this twice; ignore the second call.
+        if (state !== 'playing') return;
+        bossActive = false;
+        state = 'levelComplete';
+        levelCompleteTimer = 0;
+        // NOTE: do NOT clear pipes/powerups here — this runs mid-iteration of the
+        // pipe loop in update(), so reassigning those arrays would crash the loop.
+        // The interstitial overlay hides them and advanceLevel() clears them safely.
+        activeEvent = null;
+        shakeOffset = { x: 0, y: 0 };
+        stopBgPulse();
+        playScore();
+        if (config.hooks && typeof config.hooks.onLevelComplete === 'function') {
+            config.hooks.onLevelComplete(levelIndex, config.levels[levelIndex]);
+        }
+    }
+
+    // advanceLevel: from the interstitial, load the next zone (crash-safe reset of
+    // every per-run array) or roll into the victory screen after the final level.
+    function advanceLevel() {
+        levelIndex++;
+        if (levelIndex >= config.levels.length) {
+            state = 'victory';
+            victoryTimer = 0;
+            saveHighScore();
+            stopBgPulse();
+            if (typeof GameTracker !== 'undefined' && config.trackerKey) {
+                try { GameTracker.record(config.trackerKey, { score: score, result: 'success' }); } catch (e) {}
+            }
+            if (config.hooks && typeof config.hooks.onVictory === 'function') {
+                config.hooks.onVictory(score);
+            }
+            return;
+        }
+        applyLevel(levelIndex);
+        levelPipeCount = 0;
+        bossActive = false; bossHealth = 0; bossMaxHealth = 0; bossGatesSpawned = 0;
+        bossIntroTimer = 0; bossFlashTimer = 0;
+        pipes = []; powerups = []; scorePopups = [];
+        pipeTimer = 40;
+        shakeOffset = { x: 0, y: 0 };
+        bird.y = H / 2 - 30; bird.vy = 0; bird.rotation = 0;
+        state = 'playing';
+        resumeAudio();
+        startBgPulse();
+        if (config.hooks && typeof config.hooks.onLevelStart === 'function') {
+            config.hooks.onLevelStart(levelIndex, config.levels[levelIndex]);
+        }
+    }
+
+    // bossPipeStyle: menacing skin for boss attack-gates, derived from the boss color.
+    function bossPipeStyle() {
+        return { color: shadeColor(bossColor, -32), borderColor: bossColor, labels: null, drawDecoration: null };
+    }
+
+    // drawLevelHUD: zone name + progress bar (normal phase) or boss name + health
+    // pips + danger vignette (boss phase). Only when hasLevels and in play.
+    function drawLevelHUD() {
+        if (!hasLevels) return;
+        var L = config.levels[levelIndex] || {};
+        ctx.save();
+        ctx.textAlign = 'center';
+        if (!bossActive) {
+            ctx.fillStyle = config.theme.accentColor;
+            ctx.font = 'bold 11px Courier New';
+            ctx.globalAlpha = 0.9;
+            ctx.fillText('LEVEL ' + (levelIndex + 1) + ' · ' + (L.name || ''), W / 2, 80);
+            var target = L.target || 12;
+            var ratio = Math.max(0, Math.min(1, levelPipeCount / target));
+            var barW = 120, barH = 5, barX = W / 2 - barW / 2, barY = 86;
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.fillRect(barX, barY, barW, barH);
+            ctx.fillStyle = config.theme.accentColor;
+            ctx.fillRect(barX, barY, barW * ratio, barH);
+            ctx.globalAlpha = 0.6; ctx.lineWidth = 1;
+            ctx.strokeStyle = config.theme.accentColor;
+            ctx.strokeRect(barX, barY, barW, barH);
+        } else {
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = bossColor;
+            ctx.font = 'bold 13px Courier New';
+            ctx.shadowColor = bossColor; ctx.shadowBlur = 8;
+            ctx.fillText('☠ ' + bossName, W / 2, 80);
+            ctx.shadowBlur = 0;
+            var pipW = 14, pgap = 4, total = bossMaxHealth;
+            var rowW = total * pipW + (total - 1) * pgap;
+            var sx = W / 2 - rowW / 2, sy = 88;
+            for (var i = 0; i < total; i++) {
+                ctx.fillStyle = (i < bossHealth) ? bossColor : 'rgba(255,255,255,0.15)';
+                ctx.fillRect(sx + i * (pipW + pgap), sy, pipW, 6);
+            }
+        }
+        ctx.restore();
+
+        if (bossActive) {
+            ctx.save();
+            ctx.globalAlpha = 0.12 + 0.06 * Math.sin(Date.now() / 200);
+            ctx.strokeStyle = bossColor; ctx.lineWidth = 6;
+            ctx.strokeRect(3, 3, W - 6, H - 6);
+            ctx.restore();
+            if (bossIntroTimer > 0) {
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, bossIntroTimer / 1600) * (0.55 + 0.45 * Math.sin(Date.now() / 80));
+                ctx.fillStyle = bossColor;
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 26px Courier New';
+                ctx.fillText('WARNING', W / 2, H / 2 - 18);
+                ctx.font = 'bold 15px Courier New';
+                ctx.fillText(bossName + ' APPROACHES', W / 2, H / 2 + 10);
+                ctx.restore();
+            }
+        }
+    }
+
+    // drawLevelCompleteScreen: the between-zones interstitial.
+    function drawLevelCompleteScreen() {
+        ctx.fillStyle = 'rgba(0,0,0,0.62)';
+        ctx.fillRect(0, 0, W, H);
+        var L = config.levels[levelIndex] || {};
+        var next = config.levels[levelIndex + 1];
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#22c55e';
+        ctx.font = 'bold 24px Courier New';
+        ctx.shadowColor = '#22c55e'; ctx.shadowBlur = 12;
+        ctx.fillText('LEVEL ' + (levelIndex + 1) + ' CLEARED', W / 2, H / 2 - 74);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffffff'; ctx.font = '15px Courier New';
+        ctx.fillText(L.name || '', W / 2, H / 2 - 44);
+        if (L.subtitle) {
+            ctx.fillStyle = '#94a3b8'; ctx.font = '12px Courier New';
+            ctx.fillText(L.subtitle, W / 2, H / 2 - 24);
+        }
+        if (next) {
+            ctx.fillStyle = config.theme.accentColor; ctx.font = 'bold 14px Courier New';
+            ctx.fillText('NEXT: ' + (next.name || ''), W / 2, H / 2 + 22);
+            if (next.subtitle) {
+                ctx.fillStyle = '#94a3b8'; ctx.font = '11px Courier New';
+                ctx.fillText(next.subtitle, W / 2, H / 2 + 42);
+            }
+        }
+        var pulse = 0.5 + 0.5 * Math.sin(Date.now() / 400);
+        ctx.globalAlpha = 0.5 + pulse * 0.5;
+        ctx.fillStyle = '#ffffff'; ctx.font = '15px Courier New';
+        ctx.fillText('PRESS ANY KEY TO CONTINUE', W / 2, H / 2 + 92);
+        ctx.restore();
+    }
+
+    // drawVictoryScreen: every zone cleared.
+    function drawVictoryScreen() {
+        ctx.fillStyle = 'rgba(0,0,0,0.72)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 28px Courier New';
+        ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 16;
+        ctx.fillText('ALL ZONES', W / 2, H / 2 - 72);
+        ctx.fillText('CLEARED', W / 2, H / 2 - 38);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffffff'; ctx.font = '18px Courier New';
+        ctx.fillText('Final Score: ' + score, W / 2, H / 2 + 4);
+        ctx.fillStyle = config.theme.accentColor; ctx.font = '13px Courier New';
+        ctx.fillText('You cleared all ' + config.levels.length + ' levels', W / 2, H / 2 + 34);
+        var pulse = 0.5 + 0.5 * Math.sin(Date.now() / 400);
+        ctx.globalAlpha = 0.5 + pulse * 0.5;
+        ctx.fillStyle = '#ffffff'; ctx.font = '15px Courier New';
+        ctx.fillText('PRESS ANY KEY TO RETURN', W / 2, H / 2 + 92);
+        ctx.restore();
+    }
+
     // ── Game Loop ───────────────────────────────────────────────────────
     function update(dt) {
         if (state === 'playing') {
@@ -1175,6 +1435,23 @@ window.FlappyEngine = (function () {
                     if (config.onScore) config.onScore(score);
                     checkMilestones();
                     checkProgressiveEvents();
+
+                    // Level / boss progression (inert without config.levels)
+                    if (hasLevels) {
+                        if (pipes[i].isBoss) {
+                            // A boss attack-gate cleared = one hit on the boss
+                            bossHealth--;
+                            bossFlashTimer = 300;
+                            borderFlashTimer = 240;
+                            borderFlashColor = bossColor;
+                            if (bossHealth <= 0) enterLevelComplete();
+                        } else if (!bossActive) {
+                            // Normal-phase progress -> boss appears once the quota is met
+                            levelPipeCount++;
+                            var lvlCfg = config.levels[levelIndex] || {};
+                            if (levelPipeCount >= (lvlCfg.target || 12)) enterBossPhase();
+                        }
+                    }
                 }
 
                 // Remove off-screen pipes
@@ -1183,10 +1460,11 @@ window.FlappyEngine = (function () {
                 }
             }
 
-            // Pipe spawning
+            // Pipe spawning — re-check state: a level-complete earlier this frame
+            // (enterLevelComplete runs mid-loop) must not spawn one more pipe.
             pipeTimer += dt * 60 * (currentSpeed / basePipeSpeed);
             var spacing = config.pipes.spacing || 100;
-            if (pipeTimer >= spacing) {
+            if (state === 'playing' && pipeTimer >= spacing) {
                 pipeTimer = 0;
                 spawnPipe();
             }
@@ -1215,6 +1493,10 @@ window.FlappyEngine = (function () {
             if (borderFlashTimer > 0) {
                 borderFlashTimer -= dt * 1000;
             }
+
+            // Boss intro banner + hit-flash decay
+            if (bossIntroTimer > 0) bossIntroTimer -= dt * 1000;
+            if (bossFlashTimer > 0) bossFlashTimer -= dt * 1000;
 
             // Wind particles update
             if (activeEvent && activeEvent.type === 'wind') {
@@ -1252,8 +1534,9 @@ window.FlappyEngine = (function () {
                 if (scorePopups[k].alpha <= 0) scorePopups.splice(k, 1);
             }
 
-            // Collision
-            if (checkCollision()) {
+            // Collision — guarded so a level-complete on this same frame (state just
+            // flipped to 'levelComplete') cannot also register a death.
+            if (state === 'playing' && checkCollision()) {
                 die();
             }
         } else if (state === 'dead') {
@@ -1267,6 +1550,17 @@ window.FlappyEngine = (function () {
             }
             // Keep scrolling ground slowly
             groundOffset += 0.5;
+        } else if (state === 'levelComplete') {
+            // Hold the interstitial; keep the world drifting gently behind it
+            levelCompleteTimer += dt;
+            groundOffset += 0.4;
+            bgLayers[0].offset += 0.1;
+            bgLayers[1].offset += 0.2;
+            bgLayers[2].offset += 0.3;
+        } else if (state === 'victory') {
+            // Hold the victory screen
+            victoryTimer += dt;
+            groundOffset += 0.3;
         } else {
             // Menu — animate bird bobbing and ground scrolling
             bird.y = H / 2 - 20 + Math.sin(Date.now() / 300) * 10;
@@ -1310,6 +1604,10 @@ window.FlappyEngine = (function () {
             drawScore();
             drawActivePowerupIndicator();
         }
+        // Level/boss HUD (zone name + progress or boss health) — inert without levels
+        if (state === 'playing') {
+            drawLevelHUD();
+        }
 
         // Border flash effect
         drawBorderFlash();
@@ -1318,6 +1616,10 @@ window.FlappyEngine = (function () {
             drawMenuScreen();
         } else if (state === 'dead') {
             drawDeadScreen();
+        } else if (state === 'levelComplete') {
+            drawLevelCompleteScreen();
+        } else if (state === 'victory') {
+            drawVictoryScreen();
         }
 
         ctx.restore();
@@ -1355,6 +1657,19 @@ window.FlappyEngine = (function () {
         triggeredEvents = {};
         windParticles = [];
         shakeOffset = { x: 0, y: 0 };
+
+        // Reset level/boss state; load zone 1 (no-op for endless games)
+        levelIndex = 0;
+        levelPipeCount = 0;
+        levelCompleteTimer = 0;
+        victoryTimer = 0;
+        bossActive = false;
+        bossHealth = 0;
+        bossMaxHealth = 0;
+        bossGatesSpawned = 0;
+        bossIntroTimer = 0;
+        bossFlashTimer = 0;
+        if (hasLevels) applyLevel(0);
 
         bird.x = W * 0.25;
         bird.y = H / 2 - 30;
@@ -1416,6 +1731,13 @@ window.FlappyEngine = (function () {
             flap();
         } else if (state === 'playing') {
             flap();
+        } else if (state === 'levelComplete' && levelCompleteTimer > 0.5) {
+            // Advance to the next zone (or victory after the final level)
+            advanceLevel();
+        } else if (state === 'victory' && victoryTimer > 0.6) {
+            // Return to menu after the victory screen
+            state = 'menu';
+            loadHighScore();
         } else if (state === 'dead' && deathTimer > 0.8) {
             // Return to menu after brief delay
             state = 'menu';
@@ -1464,6 +1786,20 @@ window.FlappyEngine = (function () {
         // Hooks: empty by default
         if (!config.hooks) {
             config.hooks = {};
+        }
+
+        // ── Level system: snapshot base config sections for per-level merges ──
+        // Inert unless config.levels[] is provided. The snapshot is what every
+        // level's overrides merge onto, so base values survive as fallbacks.
+        hasLevels = Array.isArray(config.levels) && config.levels.length > 0;
+        if (hasLevels) {
+            baseLevelCfg = {
+                background: Object.assign({}, config.background || {}),
+                pipes: Object.assign({}, config.pipes || {}),
+                obstacles: Object.assign({}, config.obstacles || {}),
+                events: config.events,
+                accentColor: (config.theme && config.theme.accentColor) || '#06b6d4'
+            };
         }
 
         // Find or create canvas
@@ -1518,6 +1854,21 @@ window.FlappyEngine = (function () {
             getScore: function () { return score; },
             getHighScore: function () { return highScore; },
             getState: function () { return state; },
+            // getLevelInfo: snapshot of the current level/boss for external sidebars;
+            // returns null for endless (no config.levels) games.
+            getLevelInfo: function () {
+                if (!hasLevels) return null;
+                var L = config.levels[levelIndex] || {};
+                return {
+                    index: levelIndex,
+                    total: config.levels.length,
+                    name: L.name || '',
+                    subtitle: L.subtitle || '',
+                    progress: bossActive ? 1 : Math.min(1, levelPipeCount / (L.target || 12)),
+                    boss: bossActive ? { name: bossName, health: bossHealth, max: bossMaxHealth } : null,
+                    state: state
+                };
+            },
             getPowerup: function () {
                 if (!activePowerup) return null;
                 return {
