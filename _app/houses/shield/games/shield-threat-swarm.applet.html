@@ -122,10 +122,10 @@
             </div>
             <div class="lore-section">
                 <h2>SWARM INTEL</h2>
-                <p>Threats attack in formations. Destroy them before they dive-bomb. Watch for elites that split or track your position. Capture disabled threats for bonus intel.</p>
+                <p>Threats attack in formations. Destroy them before they dive-bomb. Watch for elites that split or track your position. Capture disabled threats for bonus intel. Not everything on the wire is hostile: hold your fire on ALLY (legit) traffic - shooting it is friendly fire.</p>
             </div>
             <div class="lore-section">
-                <h2>KNOWN THREATS</h2>
+                <h2>KNOWN CONTACTS</h2>
                 <div class="enemy-legend">
                     <div class="enemy-legend-item">
                         <div class="enemy-icon" style="color: #ef4444;">▸</div>
@@ -145,14 +145,14 @@
                         <div class="enemy-icon" style="color: #22c55e;">∿</div>
                         <div class="enemy-info">
                             <div class="enemy-name">WORM</div>
-                            <div class="enemy-desc">Segmented threat</div>
+                            <div class="enemy-desc">Self-replicates - splits on kill</div>
                         </div>
                     </div>
                     <div class="enemy-legend-item">
                         <div class="enemy-icon" style="color: #3b82f6;">◎</div>
                         <div class="enemy-info">
                             <div class="enemy-name">ROOTKIT</div>
-                            <div class="enemy-desc">Splits when destroyed</div>
+                            <div class="enemy-desc">Cloaked - hides in the swarm</div>
                         </div>
                     </div>
                     <div class="enemy-legend-item">
@@ -169,6 +169,13 @@
                             <div class="enemy-desc">Tracks your position</div>
                         </div>
                     </div>
+                    <div class="enemy-legend-item">
+                        <div class="enemy-icon" style="color: #22d3ee;">&#8853;</div>
+                        <div class="enemy-info">
+                            <div class="enemy-name">ALLY</div>
+                            <div class="enemy-desc">Legit traffic - do NOT shoot</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="lore-section">
@@ -177,6 +184,7 @@
                 <p id="loreScore">THREATS NEUTRALIZED: 0</p>
                 <p id="loreCaptured">INTEL CAPTURED: 0</p>
                 <p id="loreAllies">WINGMEN: 0</p>
+                <p id="loreSpared">LEGIT SPARED: 0</p>
             </div>
             <div class="lore-section lore-keys">
                 <h2>CONTROLS</h2>
@@ -247,6 +255,10 @@ let divers = [];
 let capturedAllies = [];
 let shootCooldown = 0;
 let exhaustParticles = [];
+// Friendly (legit) traffic the player must NOT shoot — the threat-discrimination decision.
+let friendlies = [];
+let friendlySpawnTimer = 300;
+let friendliesSpared = 0, friendlyFireCount = 0, friendlyFireFlash = 0;
 
 // Weapons
 const weapons = [
@@ -261,8 +273,8 @@ const weapons = [
 const ETYPES = {
     scout:   { color: '#ef4444', points: 50,  hp: 1, w: 28, h: 24, label: 'SCOUT', canDive: true },
     trojan:  { color: '#f59e0b', points: 80,  hp: 1, w: 32, h: 24, label: 'TROJAN', canDive: true },
-    worm:    { color: '#22c55e', points: 100, hp: 2, w: 30, h: 26, label: 'WORM', canDive: true },
-    rootkit: { color: '#3b82f6', points: 150, hp: 2, w: 34, h: 28, label: 'RKIT', canDive: false, splits: true },
+    worm:    { color: '#22c55e', points: 100, hp: 2, w: 30, h: 26, label: 'WORM', canDive: true, splits: true },
+    rootkit: { color: '#3b82f6', points: 150, hp: 2, w: 34, h: 28, label: 'RKIT', canDive: false },
     botnet:  { color: '#ec4899', points: 200, hp: 3, w: 36, h: 28, label: 'BOT', canDive: true },
     apt:     { color: '#f43f5e', points: 300, hp: 5, w: 40, h: 32, label: 'APT', canDive: true, tracks: true }
 };
@@ -294,6 +306,8 @@ for (let i = 0; i < 150; i++) {
 function spawnStage() {
     enemies = [];
     divers = [];
+    friendlies = [];              // clear any in-flight legit traffic on stage transition
+    friendlySpawnTimer = 300;
     const types = ['scout'];
     if (stage >= 2) types.push('trojan');
     if (stage >= 3) types.push('worm');
@@ -343,6 +357,9 @@ function startGame() {
     divers = [];
     capturedAllies = [];
     exhaustParticles = [];
+    friendlies = [];
+    friendlySpawnTimer = 300;
+    friendliesSpared = 0; friendlyFireCount = 0; friendlyFireFlash = 0;
     diveTimer = 0;
     shootCooldown = 0;
     player.hitRecently = 0;
@@ -362,6 +379,52 @@ function spawnParticles(x, y, color, count = 8) {
             size: Math.random() * 4 + 2
         });
     }
+}
+
+// Legit network traffic labels — clearly-benign infrastructure the SOC must NOT fire on.
+const LEGIT_TRAFFIC = ['PATCH', 'BACKUP', 'DNS', 'CDN', 'VPN', 'NTP'];
+
+// Spawn one friendly (legit) contact that descends across the field. Player must hold fire.
+function spawnFriendly() {
+    friendlies.push({
+        x: 40 + Math.random() * (W - 80), y: -30,
+        w: 32, h: 26, vy: 1.1 + Math.random() * 0.4,
+        label: LEGIT_TRAFFIC[Math.floor(Math.random() * LEGIT_TRAFFIC.length)],
+        color: '#22d3ee', alive: true, flash: 0
+    });
+}
+
+// Draw a friendly: a rounded cyan capsule with a '+' ally mark — visually distinct from the
+// angular hostile silhouettes so the player can identify (and spare) it.
+function drawFriendly(f) {
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
+    const color = f.flash > 0 ? '#ffffff' : f.color;
+    ctx.shadowBlur = 10; ctx.shadowColor = color;
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.fillStyle = 'rgba(34,211,238,0.15)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, f.w / 2, f.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 6); ctx.lineTo(cx, cy + 6);
+    ctx.moveTo(cx - 6, cy); ctx.lineTo(cx + 6, cy);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = color; ctx.font = 'bold 9px "Courier New", monospace'; ctx.textAlign = 'center';
+    ctx.fillText(f.label, cx, f.y - 4);
+}
+
+// Flash a red FRIENDLY FIRE banner briefly after the player shoots a legit contact.
+function drawFriendlyFireBanner() {
+    if (friendlyFireFlash <= 0 || demoMode) return;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, friendlyFireFlash / 20);
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 22px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.shadowBlur = 12; ctx.shadowColor = '#ef4444';
+    ctx.fillText('FRIENDLY FIRE  -150', W / 2, 120);
+    ctx.restore();
 }
 
 let movesPanelOpen = false;
@@ -390,7 +453,7 @@ function demoAI() {
         else if (player.x > target.x + target.w) player.x -= player.speed * 0.6;
     }
     if (Math.random() < 0.07) {
-        playerBullets.push({ x: player.x, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7', trail: [] });
+        playerBullets.push({ x: player.x, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7', trail: [], owner: 'demo' });
         sfxShoot();
     }
 }
@@ -398,23 +461,26 @@ function demoAI() {
 function fireWeapon() {
     if (shootCooldown > 0) return;
     sfxShoot();
+    // owner:'player' shots are the only ones that carry FRIENDLY-FIRE risk (see the friendly
+    // collision in update()). Wingman auto-fire is owner:'wing' and passes through friendlies,
+    // since the player does not aim those.
     if (stage >= 7) {
         // Triple spread
-        playerBullets.push({ x: player.x - 8, y: player.y - 16, vy: -10, vx: -1.5, w: 3, h: 10, color: '#c084fc', trail: [] });
-        playerBullets.push({ x: player.x, y: player.y - 16, vy: -10, vx: 0, w: 3, h: 12, color: '#a855f7', trail: [] });
-        playerBullets.push({ x: player.x + 8, y: player.y - 16, vy: -10, vx: 1.5, w: 3, h: 10, color: '#c084fc', trail: [] });
+        playerBullets.push({ x: player.x - 8, y: player.y - 16, vy: -10, vx: -1.5, w: 3, h: 10, color: '#c084fc', trail: [], owner: 'player' });
+        playerBullets.push({ x: player.x, y: player.y - 16, vy: -10, vx: 0, w: 3, h: 12, color: '#a855f7', trail: [], owner: 'player' });
+        playerBullets.push({ x: player.x + 8, y: player.y - 16, vy: -10, vx: 1.5, w: 3, h: 10, color: '#c084fc', trail: [], owner: 'player' });
         shootCooldown = 10;
     } else if (stage >= 3) {
-        playerBullets.push({ x: player.x - 8, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7', trail: [] });
-        playerBullets.push({ x: player.x + 8, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7', trail: [] });
+        playerBullets.push({ x: player.x - 8, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7', trail: [], owner: 'player' });
+        playerBullets.push({ x: player.x + 8, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7', trail: [], owner: 'player' });
         shootCooldown = 8;
     } else {
-        playerBullets.push({ x: player.x, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7', trail: [] });
+        playerBullets.push({ x: player.x, y: player.y - 16, vy: -10, w: 3, h: 12, color: '#a855f7', trail: [], owner: 'player' });
         shootCooldown = 7;
     }
-    // Wingmen fire too
+    // Wingmen fire too (auto-aimed, not the player's shot -> no friendly-fire risk)
     capturedAllies.forEach(a => {
-        playerBullets.push({ x: a.x, y: a.y - 12, vy: -10, w: 2, h: 8, color: a.color, trail: [] });
+        playerBullets.push({ x: a.x, y: a.y - 12, vy: -10, w: 2, h: 8, color: a.color, trail: [], owner: 'wing' });
     });
 }
 
@@ -576,16 +642,19 @@ function update() {
                     score += e.points * bonus;
                     spawnParticles(e.x + e.w/2, e.y + e.h/2, e.color, 12);
                     sfxHit();
-                    // Rootkit splits
-                    if (e.splits) {
+                    // Worm self-replicates: splits into segments on kill. Stage-gated to stage 5
+                    // (where the splitter historically appeared) so the difficulty curve is
+                    // unchanged. Children are non-diving (canDive:false) so they cannot re-enter
+                    // the dive pool after cycling back to formation.
+                    if (e.splits && stage >= 5) {
                         for (let i = 0; i < 2; i++) {
                             const child = {
                                 ...e, x: e.x + (i * 30 - 15), y: e.y,
                                 w: 20, h: 16, hp: 1, maxHp: 1, points: 50,
-                                splits: false, alive: true, flash: 0,
+                                splits: false, canDive: false, alive: true, flash: 0,
                                 state: 'diving', divePhase: 0,
                                 diveAngle: Math.random() * Math.PI, diveCurve: i === 0 ? -1 : 1,
-                                label: 'BIT', color: '#60a5fa', glowPhase: 0, diveTrail: []
+                                label: 'FORK', color: '#22c55e', glowPhase: 0, diveTrail: []
                             };
                             enemies.push(child);
                         }
@@ -594,6 +663,43 @@ function update() {
             }
         });
     });
+
+    // Friendly (legit) traffic: descends among the threats. Shooting one is FRIENDLY FIRE
+    // (score penalty); letting it pass the bottom line unshot = correct restraint (bonus).
+    // Only spawns/scores during real play (never in demo/attract mode).
+    if (!demoMode && gameRunning && !gameOver) {
+        friendlySpawnTimer--;
+        if (friendlySpawnTimer <= 0) {
+            spawnFriendly();
+            friendlySpawnTimer = 280 + Math.floor(Math.random() * 260); // ~4.7-9s at 60fps
+        }
+    }
+    if (friendlyFireFlash > 0) friendlyFireFlash--;
+    for (let i = friendlies.length - 1; i >= 0; i--) {
+        const f = friendlies[i];
+        f.y += f.vy;
+        if (f.flash > 0) f.flash--;
+        // Only PLAYER-fired bullets carry friendly-fire risk; wingman/demo shots pass through.
+        let shot = false;
+        for (const b of playerBullets) {
+            if (b.owner !== 'player') continue;
+            if (b.x > f.x && b.x < f.x + f.w && b.y > f.y && b.y < f.y + f.h) { b.y = -100; shot = true; break; }
+        }
+        if (shot) {
+            score = Math.max(0, score - 150);
+            friendlyFireCount++;
+            friendlyFireFlash = 45;
+            spawnParticles(f.x + f.w / 2, f.y + f.h / 2, '#ef4444', 12);
+            sfxDeath();
+            friendlies.splice(i, 1);
+            continue;
+        }
+        if (f.y > H + 20) {
+            score += 25; // spared legit traffic — correct restraint
+            friendliesSpared++;
+            friendlies.splice(i, 1);
+        }
+    }
 
     // Tractor beam capture
     if (player.tractorActive && stage >= 1) {
@@ -701,6 +807,7 @@ function update() {
     document.getElementById('loreScore').textContent = `THREATS NEUTRALIZED: ${score}`;
     document.getElementById('loreCaptured').textContent = `INTEL CAPTURED: ${captured}`;
     document.getElementById('loreAllies').textContent = `WINGMEN: ${capturedAllies.length}`;
+    document.getElementById('loreSpared').textContent = `LEGIT SPARED: ${friendliesSpared}`;
 }
 
 function drawStars() {
@@ -1266,9 +1373,11 @@ function draw() {
     drawStars();
     drawBullets();
     enemies.forEach(drawEnemy);
+    friendlies.forEach(drawFriendly);
     drawWingmen();
     drawPlayer();
     drawParticles();
+    drawFriendlyFireBanner();
     drawOverlays();
 }
 
