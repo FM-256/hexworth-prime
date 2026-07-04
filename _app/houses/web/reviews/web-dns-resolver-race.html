@@ -902,9 +902,18 @@
                 } else if (question.type === 'multiple') {
                     networkDiagram.style.display = 'none';
 
+                    // Tag each option with correctness BEFORE shuffling, then Fisher-Yates shuffle
+                    // the array itself. Grading below reads correctness by IDENTITY (the shuffled
+                    // object), never by index, so "always click the first option" no longer wins.
+                    this.currentOptions = question.options.map((text, i) => ({ text, correct: i === question.correct }));
+                    for (let i = this.currentOptions.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [this.currentOptions[i], this.currentOptions[j]] = [this.currentOptions[j], this.currentOptions[i]];
+                    }
+
                     html += '<div class="options">';
-                    question.options.forEach((option, index) => {
-                        html += `<div class="option" onclick="game.selectOption(${index})">${option}</div>`;
+                    this.currentOptions.forEach((option, index) => {
+                        html += `<div class="option" onclick="game.selectOption(${index})">${option.text}</div>`;
                     });
                     html += '</div>';
 
@@ -933,6 +942,9 @@
                     this.matchedPairs = [];
                     this.selectedLeft = null;
                     this.selectedRight = null;
+                    // Reset per-round: any mismatch flips this true and taints the final grade,
+                    // even if the player eventually finds every correct pairing (see submitMatch()).
+                    this.wrongMatchOccurred = false;
                 }
             },
 
@@ -998,12 +1010,16 @@
                 options.forEach(opt => opt.classList.remove('selected'));
                 options[index].classList.add('selected');
 
-                const isCorrect = index === this.currentQuestion.correct;
+                // Grade by identity (this.currentOptions[index].correct), not by index into the
+                // original unshuffled question.options/question.correct. The render step above
+                // shuffled positions, so position no longer tells you which one is right.
+                const isCorrect = this.currentOptions[index].correct;
                 this.handleAnswer(isCorrect);
 
                 options[index].classList.add(isCorrect ? 'correct' : 'incorrect');
                 if (!isCorrect) {
-                    options[this.currentQuestion.correct].classList.add('correct');
+                    const correctIndex = this.currentOptions.findIndex(o => o.correct);
+                    options[correctIndex].classList.add('correct');
                 }
             },
 
@@ -1052,6 +1068,11 @@
                             document.getElementById('matchSubmitBtn').disabled = false;
                         }
                     } else {
+                        // A wrong pairing still bounces back so the player can keep practicing/retrying
+                        // in the same round (UX unchanged), but it now permanently taints this round's
+                        // grade, see submitMatch(). This is what makes the match step failable: brute-
+                        // forcing every left/right combo until it lands right no longer scores clean.
+                        this.wrongMatchOccurred = true;
                         setTimeout(() => {
                             document.querySelectorAll('.match-item.selected').forEach(el => el.classList.remove('selected'));
                             this.selectedLeft = null;
@@ -1063,7 +1084,11 @@
 
             submitMatch() {
                 if (this.answered) return;
-                const isCorrect = this.matchedPairs.length === this.currentQuestion.pairs.length;
+                // Failable: every pair must be matched AND none of them were ever mismatched along
+                // the way. A player who knows the mappings cold never sets wrongMatchOccurred, so a
+                // knowledgeable run still grades correct; a guesser who bounces off a wrong pair even
+                // once (then finds the rest) is now graded incorrect for the round.
+                const isCorrect = this.matchedPairs.length === this.currentQuestion.pairs.length && !this.wrongMatchOccurred;
                 this.handleAnswer(isCorrect);
             },
 
