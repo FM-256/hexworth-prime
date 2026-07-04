@@ -271,13 +271,16 @@
         /* Top HUD strip (drawn on canvas, but stage-name in DOM for large text) */
         #stageAnnounce {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            padding: 0 44px;
             text-align: center;
-            pointer-events: none;
-            z-index: 20;
-            transition: opacity 0.5s;
+            background: rgba(5, 10, 20, 0.94);
+            z-index: 40;
         }
 
         #stageAnnounce .stage-num {
@@ -292,6 +295,20 @@
             font-weight: bold;
             text-shadow: 0 0 20px #06b6d4;
             letter-spacing: 2px;
+        }
+
+        #stageAnnounce .stage-desc {
+            color: #cbd5e1;
+            font-size: 14px;
+            line-height: 1.65;
+            max-width: 560px;
+        }
+
+        #stageAnnounce .stage-prompt {
+            color: #22c55e;
+            font-size: 13px;
+            letter-spacing: 2px;
+            margin-top: 6px;
         }
 
         #muteBtn {
@@ -387,6 +404,8 @@
             <div id="stageAnnounce" class="hidden">
                 <div class="stage-num" id="stageNum">STAGE 1</div>
                 <div class="stage-name" id="stageName">PERIMETER FIREWALL</div>
+                <div class="stage-desc" id="stageDesc"></div>
+                <div class="stage-prompt" id="stagePrompt">PRESS SPACE TO BREACH ZONE</div>
             </div>
 
             <!-- Title screen -->
@@ -446,6 +465,12 @@
 
     // Stage management
     const STAGE_NAMES = ['PERIMETER FIREWALL', 'DMZ', 'INTERNAL NETWORK'];
+    // Real defense-in-depth architecture taught at each zone briefing (the 3 zones ARE the layers).
+    const STAGE_DESCS = [
+        'DEFENSE IN DEPTH, LAYER 1. The outer boundary of the network. A perimeter firewall filters traffic arriving from the internet, permitting only what policy allows.',
+        'DEFENSE IN DEPTH, LAYER 2. An isolated buffer subnet for public-facing services like web and mail. Firewall rules wall it off from the trusted internal network, so a breach here is contained, not a straight shot to the core.',
+        'DEFENSE IN DEPTH, LAYER 3. The protected core: trusted systems and data, shielded behind the outer layers. The last line that must hold.'
+    ];
     let currentStage = 0;    // 0-based index
     let stageState   = 'playing'; // 'playing' | 'boss' | 'cleared' | 'announcing'
     let stageTimer   = 0;
@@ -458,7 +483,7 @@
     let bossBarVisible = false;
 
     // Stage announce
-    let announceTimer = 0;
+    let announceReady = false; // gates the player-advanced zone briefing (true ~400ms after it opens)
 
     // ── Input state ───────────────────────────────────────────────
     const keys = {
@@ -2919,7 +2944,6 @@
         worldX       = 0;
         scrollPaused = false;
         stageState   = 'announcing';
-        announceTimer = 150; // ~2.5s at 60fps
 
         // Load platforms
         platforms = STAGE_PLATFORMS[stageIdx].map(p => ({...p}));
@@ -2956,12 +2980,20 @@
         const el = document.getElementById('stageAnnounce');
         document.getElementById('stageNum').textContent  = `STAGE ${idx + 1}`;
         document.getElementById('stageName').textContent = STAGE_NAMES[idx];
+        document.getElementById('stageDesc').textContent = STAGE_DESCS[idx];
         el.classList.remove('hidden');
-        el.style.opacity = '1';
-        setTimeout(() => {
-            el.style.opacity = '0';
-            setTimeout(() => el.classList.add('hidden'), 500);
-        }, 2000);
+        // Player-advanced briefing (no auto-fade timer the reading can't outrun). A ~400ms ready-gate
+        // stops the same SPACE that ended the previous zone / started the game from skipping this one;
+        // the overlay is dismissed only by advanceAnnounce() on a deliberate press.
+        announceReady = false;
+        setTimeout(() => { announceReady = true; }, 400);
+    }
+
+    // Dismiss the zone briefing and begin the zone. Called on a deliberate SPACE/Z press once ready.
+    function advanceAnnounce() {
+        document.getElementById('stageAnnounce').classList.add('hidden');
+        stageState = 'playing';
+        announceReady = false;
     }
 
     function spawnBoss() {
@@ -2993,9 +3025,9 @@
 
         // Stage announce phase: hold player in place
         if (stageState === 'announcing') {
-            announceTimer--;
-            if (announceTimer <= 0) stageState = 'playing';
-            player.update(); // allow idle animation
+            // Hold here until the player reads the zone briefing and advances it (advanceAnnounce);
+            // no auto-timer, so a real defense-in-depth concept is never flashed past unread.
+            player.update(); // idle animation only
             return;
         }
 
@@ -3305,6 +3337,14 @@
 
     // ── Keyboard input ────────────────────────────────────────────
     document.addEventListener('keydown', (e) => {
+        // During a zone briefing, swallow gameplay input; only a deliberate SPACE/Z press advances it.
+        // announceReady (~400ms gate) blocks the same press that ended the previous zone / started the
+        // game from skipping this one; !e.repeat blocks a held shoot key's auto-repeat from skipping it.
+        if (stageState === 'announcing') {
+            if (announceReady && !e.repeat && (e.code === 'Space' || e.code === 'KeyZ')) advanceAnnounce();
+            if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault();
+            return;
+        }
         if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) {
             e.preventDefault();
         }
