@@ -176,30 +176,21 @@
             <div class="lore-title">PACKET INVADERS</div>
             <div class="lore-section">
                 <h2>MISSION BRIEF</h2>
-                <p>Hostile packet formations are flooding the network. You are the last firewall standing between the swarm and the core infrastructure.</p>
+                <p>Mixed traffic is inbound: some packets are attacks, some are normal business. Read each packet's tag against the policy below before you fire. Block malicious traffic. Hold fire on legitimate traffic - shooting it is a false positive.</p>
             </div>
             <div class="lore-section">
-                <h2>THREAT DATABASE</h2>
-                <div class="enemy-legend">
-                    <div class="enemy-legend-color" style="background-color: #ef4444;"></div>
-                    <div class="enemy-legend-label">SYN - Fast attack darts</div>
-                    <div class="enemy-legend-color" style="background-color: #f59e0b;"></div>
-                    <div class="enemy-legend-label">ICMP - Ping probes</div>
-                    <div class="enemy-legend-color" style="background-color: #8b5cf6;"></div>
-                    <div class="enemy-legend-label">DNS - Poison crystals</div>
-                    <div class="enemy-legend-color" style="background-color: #10b981;"></div>
-                    <div class="enemy-legend-label">UDP - Flood missiles</div>
-                    <div class="enemy-legend-color" style="background-color: #ec4899;"></div>
-                    <div class="enemy-legend-label">0DAY - Viral payload</div>
-                    <div class="enemy-legend-color" style="background-color: #f43f5e;"></div>
-                    <div class="enemy-legend-label">APT - Command ship</div>
-                </div>
+                <h2>TRAFFIC POLICY</h2>
+                <p id="policyText" style="font-size:10px;color:#94a3b8;margin-bottom:8px;">Loading policy...</p>
+                <div class="enemy-legend" id="policyLegend"></div>
             </div>
             <div class="lore-section">
                 <h2>NETWORK STATUS</h2>
                 <div class="lore-stats">
                     <p>WAVE: <span id="loreWave">STANDBY</span></p>
-                    <p>BLOCKED: <span id="loreScore">0</span></p>
+                    <p>SCORE: <span id="loreScore">0</span></p>
+                    <p>CORRECT BLOCKS: <span id="loreBlocks">0</span></p>
+                    <p>FALSE POSITIVES: <span id="loreFp">0</span></p>
+                    <p>BREACHES: <span id="loreBreach">0</span></p>
                     <p>MAX COMBO: <span id="loreCombo">0</span></p>
                 </div>
             </div>
@@ -257,6 +248,11 @@ function sfxExplode() { playSound(80, 0.3, 'sawtooth', 0.15); }
 function sfxSpecial() { playSound(440, 0.1); playSound(660, 0.1); playSound(880, 0.15); }
 function sfxWave() { playSound(523, 0.2, 'sine', 0.12); setTimeout(() => playSound(659, 0.2, 'sine', 0.12), 150); setTimeout(() => playSound(784, 0.3, 'sine', 0.12), 300); }
 function sfxDeath() { playSound(300, 0.15, 'sawtooth', 0.15); setTimeout(() => playSound(200, 0.15, 'sawtooth', 0.15), 100); setTimeout(() => playSound(100, 0.3, 'sawtooth', 0.15), 200); }
+// Distinct "wrong call" buzzer for a false positive (shot a legitimate packet) - deliberately dissonant
+// so it reads as an error, not a kill.
+function sfxWrong() { playSound(180, 0.12, 'square', 0.12); setTimeout(() => playSound(140, 0.18, 'square', 0.12), 90); }
+// Soft chime for a legitimate packet correctly delivered to the base (no penalty).
+function sfxDeliver() { playSound(660, 0.08, 'sine', 0.08); }
 function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
 
 // Game state
@@ -264,6 +260,11 @@ let gameRunning = false, demoMode = true, gameOver = false;
 let score = 0, lives = 3, wave = 1, combo = 0, maxCombo = 0;
 let specialCharge = 0, specialReady = false;
 const SPECIAL_COST = 15;
+// Discrimination-mechanic tracking: correct blocks, false positives (shot a legit packet), and
+// breaches (a malicious packet reached the base unblocked). Reported in GameTracker + game-over screen.
+let correctBlocks = 0, fpCount = 0, breachCount = 0;
+// Floating teaching callouts shown on a correct block, a false positive, or a breach.
+let toasts = [];
 
 // Player (firewall)
 const player = { x: W / 2, y: H - 50, w: 48, h: 32, speed: 5 };
@@ -286,15 +287,150 @@ const weapons = [
     { name: 'EMP BLAST', desc: 'Screen-clearing electromagnetic pulse. The nuclear option.', wave: 10, icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' }
 ];
 
-// Enemy types
-const ENEMY_TYPES = {
-    syn: { color: '#ef4444', points: 10, hp: 1, label: 'SYN', shootRate: 0.002, shape: 'dart' },
-    icmp: { color: '#f59e0b', points: 20, hp: 1, label: 'ICMP', shootRate: 0.003, shape: 'ping' },
-    dns: { color: '#8b5cf6', points: 30, hp: 2, label: 'DNS', shootRate: 0.004, shape: 'hex' },
-    udp: { color: '#10b981', points: 40, hp: 2, label: 'UDP', shootRate: 0.003, shape: 'arrow' },
-    zeroday: { color: '#ec4899', points: 100, hp: 4, label: '0DAY', shootRate: 0.006, shape: 'viral' },
-    apt: { color: '#f43f5e', points: 150, hp: 6, label: 'APT', shootRate: 0.005, shape: 'ship' }
+// Packet types - the discrimination catalog. Each entry is EITHER malicious (evil:true, must be
+// blocked) OR legitimate (evil:false, must be allowed through / never shot). Every discriminating
+// fact is a protocol, port, flag/state, or payload signature that is fully readable from the on-sprite
+// `label` tag plus the always-visible policy legend and the post-action teaching toast - nothing is
+// decided by an invisible field like source IP or subnet (an earlier pass at this catalog leaned on
+// "known-bad IP" / "admin subnet" and got flagged for smuggling in signals the player can't see).
+// Legitimate types never shoot back (shootRate 0) - real traffic doesn't attack the firewall; only
+// malicious types fire, so incoming danger correlates with, but never substitutes for, reading the label.
+const PACKET_TYPES = {
+    // ── MALICIOUS - block on sight ──────────────────────────────────────────
+    synflood: { evil: true, color: '#ef4444', points: 10, hp: 1, label: 'SYNFLD', shootRate: 0.003, shape: 'dart',
+        teach: 'SYN flood: floods half-open handshakes to exhaust the connection table.' },
+    synfin: { evil: true, color: '#f97316', points: 15, hp: 1, label: 'SYNFIN', shootRate: 0.002, shape: 'dart',
+        teach: 'SYN+FIN set together is a contradictory, crafted flag combo. Never legitimate.' },
+    scan: { evil: true, color: '#eab308', points: 20, hp: 1, label: 'SCAN', shootRate: 0.003, shape: 'ping',
+        teach: 'Port scan: sequential probing across ports maps open services before an attack.' },
+    rdp: { evil: true, color: '#dc2626', points: 30, hp: 2, label: 'RDP', shootRate: 0.004, shape: 'hex',
+        teach: 'Inbound RDP (3389): unsolicited remote-desktop connections are a top ransomware entry vector.' },
+    telnet: { evil: true, color: '#b91c1c', points: 30, hp: 2, label: 'TELNET', shootRate: 0.004, shape: 'hex',
+        teach: 'Inbound Telnet (23): unencrypted remote admin access. Blocked by policy.' },
+    dnsamp: { evil: true, color: '#8b5cf6', points: 60, hp: 3, label: 'DNSANY', shootRate: 0.005, shape: 'viral',
+        teach: 'DNS amplification: a spoofed ANY-type query triggers an oversized reply aimed at a victim.' },
+    sqli: { evil: true, color: '#ec4899', points: 80, hp: 3, label: 'SQLI', shootRate: 0.005, shape: 'ship',
+        teach: 'SQL injection signature: payload attempts to manipulate a backend database query.' },
+    // ── LEGITIMATE - allow through, never shoot ─────────────────────────────
+    http: { evil: false, color: '#10b981', points: 0, hp: 1, label: 'HTTP', shootRate: 0, shape: 'arrow',
+        teach: 'HTTP GET: a normal, unencrypted web request. Allowed by policy.' },
+    https: { evil: false, color: '#22c55e', points: 0, hp: 1, label: 'HTTPS', shootRate: 0, shape: 'arrow',
+        teach: 'HTTPS established: return traffic on a connection you already allowed out.' },
+    'dns-a': { evil: false, color: '#06b6d4', points: 0, hp: 1, label: 'DNS-A', shootRate: 0, shape: 'ping',
+        teach: 'DNS A-record reply: a normal name-resolution response.' },
+    ssh: { evil: false, color: '#14b8a6', points: 0, hp: 1, label: 'SSH', shootRate: 0, shape: 'hex',
+        teach: 'SSH established: an already-authenticated session. Stateful firewalls allow established traffic.' },
+    ntp: { evil: false, color: '#84cc16', points: 0, hp: 1, label: 'NTP', shootRate: 0, shape: 'ping',
+        teach: 'NTP: routine time-sync traffic.' }
 };
+
+// Per-wave policy tier: which types are unlocked, and the plain-language rule shown in the legend.
+// A row is ALWAYS homogeneous - every column in a row shares one type (see spawnWave) - which makes
+// "the front row's verdict is uniform across the whole screen" a provable invariant: a bullet aimed
+// into any column hits whichever alive enemy has the largest y (closest to the base) in that column,
+// and rows descend in lockstep (every alive enemy's y is bumped together on each edge-bounce), so a
+// row's members reach the bottom threshold together. Consequence: there is always an unforced correct
+// choice - engage every column while the front row is malicious, hold fire everywhere while the front
+// row is legitimate (it self-clears by reaching the base) - never a forced false positive.
+function getWaveTier(wave) {
+    if (wave >= 5) return {
+        evilIds: ['synflood', 'synfin', 'scan', 'rdp', 'telnet', 'dnsamp', 'sqli'],
+        legitIds: ['http', 'https', 'dns-a', 'ssh', 'ntp'],
+        policy: 'BLOCK: SYN floods, malformed flags, port scans, inbound RDP/Telnet, DNS amplification, SQLi signatures. ALLOW: HTTP, HTTPS, DNS replies, established SSH, NTP.'
+    };
+    if (wave >= 3) return {
+        evilIds: ['synflood', 'synfin', 'scan', 'rdp', 'telnet'],
+        legitIds: ['http', 'https', 'dns-a'],
+        policy: 'BLOCK: SYN floods, malformed flags, port scans, inbound RDP (3389)/Telnet (23). ALLOW: HTTP, HTTPS, DNS replies.'
+    };
+    return {
+        evilIds: ['synflood', 'synfin'],
+        legitIds: ['http', 'https'],
+        policy: 'BLOCK: SYN floods, malformed SYN+FIN packets. ALLOW: HTTP, HTTPS.'
+    };
+}
+
+// Builds the ordered type-per-row sequence for a wave. Deliberately interleaves evil/legit so even
+// wave 1 (which has 2+ rows) presents a mix immediately - no wave is ever all-one-verdict, so the
+// discrimination decision starts on the very first interaction, not just once more types unlock.
+function buildRowSequence(wave) {
+    const tier = getWaveTier(wave);
+    const seq = [];
+    const max = Math.max(tier.evilIds.length, tier.legitIds.length);
+    for (let i = 0; i < max; i++) {
+        if (tier.legitIds[i]) seq.push(tier.legitIds[i]);
+        if (tier.evilIds[i]) seq.push(tier.evilIds[i]);
+    }
+    return seq;
+}
+
+// Renders the always-visible policy legend in the lore panel: the plain-language rule for this wave's
+// tier, plus every unlocked type's swatch/tag/verdict. This is the reference table a player cross-checks
+// against the short on-sprite tag; built with safe DOM methods (createElement/textContent), not
+// innerHTML, even though the data here is our own static table.
+function renderPolicyLegend(wave) {
+    const legend = document.getElementById('policyLegend');
+    const policyEl = document.getElementById('policyText');
+    if (!legend || !policyEl) return;
+    const tier = getWaveTier(wave);
+    policyEl.textContent = tier.policy;
+    legend.innerHTML = '';
+    const ids = [...tier.evilIds, ...tier.legitIds];
+    ids.forEach(id => {
+        const pt = PACKET_TYPES[id];
+        const swatch = document.createElement('div');
+        swatch.className = 'enemy-legend-color';
+        swatch.style.backgroundColor = pt.color;
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'enemy-legend-label';
+        const tag = document.createElement('span');
+        tag.textContent = pt.label + ' ';
+        tag.style.color = '#e2e8f0';
+        tag.style.fontWeight = 'bold';
+        const verdict = document.createElement('span');
+        verdict.textContent = pt.evil ? '[BLOCK]' : '[ALLOW]';
+        verdict.style.color = pt.evil ? '#f87171' : '#4ade80';
+        verdict.style.fontSize = '9px';
+        labelDiv.appendChild(tag);
+        labelDiv.appendChild(verdict);
+        legend.appendChild(swatch);
+        legend.appendChild(labelDiv);
+    });
+}
+
+// Pushes a floating teaching callout. kind: 'block' (correct) | 'fp' (false positive) | 'breach'.
+// Capped at 3 concurrent toasts so a fast wave can't paper the screen.
+function showToast(kind, label, teach) {
+    const prefix = kind === 'block' ? 'BLOCKED' : kind === 'fp' ? 'FALSE POSITIVE' : 'BREACH';
+    const color = kind === 'block' ? '#4ade80' : kind === 'fp' ? '#fbbf24' : '#f87171';
+    toasts.push({ text: `${prefix}: ${label} - ${teach}`, color, life: 150, maxLife: 150 });
+    if (toasts.length > 3) toasts.shift();
+}
+// Ages out toasts; called once per frame from update().
+function updateToasts() {
+    toasts.forEach(t => t.life--);
+    toasts = toasts.filter(t => t.life > 0);
+}
+// Draws active toasts as fading banners below the UI bar; called once per frame from draw().
+function drawToasts() {
+    toasts.forEach((t, i) => {
+        const alpha = Math.min(1, t.life / 30);
+        const y = 46 + i * 22;
+        ctx.font = '13px Courier New';
+        ctx.textAlign = 'center';
+        const metrics = ctx.measureText(t.text);
+        const pad = 10;
+        ctx.fillStyle = `rgba(2,6,23,${alpha * 0.85})`;
+        ctx.fillRect(W / 2 - metrics.width / 2 - pad, y - 14, metrics.width + pad * 2, 20);
+        ctx.strokeStyle = t.color;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(W / 2 - metrics.width / 2 - pad, y - 14, metrics.width + pad * 2, 20);
+        ctx.fillStyle = t.color;
+        ctx.fillText(t.text, W / 2, y);
+        ctx.globalAlpha = 1;
+    });
+}
 
 // Input
 const keys = {};
@@ -332,30 +468,26 @@ function createBarriers() {
     });
 }
 
-// Spawn wave
+// Spawn wave. Row r gets exactly one type, shared by every column c (homogeneous-per-row is the
+// invariant the discrimination mechanic depends on - see the comment above getWaveTier). The sequence
+// is built fresh each wave from the current policy tier and cycled across however many rows exist.
 function spawnWave() {
     enemies = [];
     const rows = Math.min(3 + Math.floor(wave / 2), 6);
     const cols = Math.min(6 + Math.floor(wave / 3), 11);
-    const types = ['syn'];
-    if (wave >= 2) types.push('icmp');
-    if (wave >= 4) types.push('dns');
-    if (wave >= 6) types.push('udp');
-    if (wave >= 8) types.push('zeroday');
-    if (wave >= 10) types.push('apt');
+    const sequence = buildRowSequence(wave);
 
     for (let r = 0; r < rows; r++) {
-        const typeIdx = Math.min(r, types.length - 1);
-        const type = types[types.length - 1 - typeIdx];
-        const et = ENEMY_TYPES[type];
+        const typeId = sequence[r % sequence.length];
+        const pt = PACKET_TYPES[typeId];
         for (let c = 0; c < cols; c++) {
             enemies.push({
                 x: 100 + c * 68, y: 80 + r * 50,
                 w: 36, h: 28,
-                type, color: et.color, points: et.points,
-                hp: et.hp, maxHp: et.hp,
-                label: et.label, shootRate: et.shootRate,
-                shape: et.shape,
+                type: typeId, evil: pt.evil, color: pt.color, points: pt.points,
+                hp: pt.hp, maxHp: pt.hp,
+                label: pt.label, teach: pt.teach, shootRate: pt.shootRate,
+                shape: pt.shape,
                 alive: true, flash: 0,
                 wobble: Math.random() * Math.PI * 2
             });
@@ -364,6 +496,7 @@ function spawnWave() {
     enemyDir = 1;
     enemySpeed = 0.3 + wave * 0.08;
     enemyDropDist = 0;
+    renderPolicyLegend(wave);
 }
 
 let enemyDir = 1, enemySpeed = 0.5, enemyDropDist = 0;
@@ -384,6 +517,10 @@ function startGame() {
     maxCombo = 0;
     specialCharge = 0;
     specialReady = false;
+    correctBlocks = 0;
+    fpCount = 0;
+    breachCount = 0;
+    toasts = [];
     player.x = W / 2;
     playerBullets = [];
     enemyBullets = [];
@@ -402,7 +539,7 @@ function handleGameOver() {
     gameOver = true;
     // GameTracker
     if (typeof GameTracker !== 'undefined') {
-        GameTracker.record('packetinvaders', { score: score, result: wave >= 10 ? 'success' : 'failure', waves: wave, maxCombo: maxCombo });
+        GameTracker.record('packetinvaders', { score: score, result: wave >= 10 ? 'success' : 'failure', waves: wave, maxCombo: maxCombo, correctBlocks: correctBlocks, falsePositives: fpCount, breaches: breachCount });
     }
     // High score persistence
     const best = parseInt(localStorage.getItem('game_packetinvaders_best') || '0');
@@ -471,24 +608,29 @@ function toggleMovesPanel() {
     }
 }
 
-// Demo AI
+// Demo AI - the public idle/attract screen shown to every visitor before they press start. Steers
+// toward the nearest MALICIOUS enemy only, and - critically - the autofire is gated on actually being
+// aligned with a malicious target (not just steering toward one), so the idle screen never generates
+// false-positive penalty noise on a page visitors haven't even started playing.
 function demoAI() {
-    const nearestEnemy = enemies.filter(e => e.alive).sort((a, b) => {
+    const nearestEvil = enemies.filter(e => e.alive && e.evil).sort((a, b) => {
         const da = Math.abs(a.x - player.x);
         const db = Math.abs(b.x - player.x);
         return da - db;
     })[0];
-    if (nearestEnemy) {
-        if (player.x < nearestEnemy.x - 10) player.x += player.speed * 0.7;
-        else if (player.x > nearestEnemy.x + 10) player.x -= player.speed * 0.7;
+    if (nearestEvil) {
+        if (player.x < nearestEvil.x - 10) player.x += player.speed * 0.7;
+        else if (player.x > nearestEvil.x + 10) player.x -= player.speed * 0.7;
     }
     // Dodge enemy bullets
     const dangerBullet = enemyBullets.find(b => b.y > H - 150 && Math.abs(b.x - player.x) < 40);
     if (dangerBullet) {
         player.x += dangerBullet.x > player.x ? -player.speed : player.speed;
     }
-    // Auto fire
-    if (Math.random() < 0.08) {
+    // Auto fire - ONLY when aligned with a live malicious target. No aligned evil target = hold fire,
+    // exactly the discipline the real mechanic asks of a player.
+    const alignedEvil = enemies.find(e => e.alive && e.evil && Math.abs(e.x + e.w / 2 - player.x) < 18);
+    if (alignedEvil && Math.random() < 0.35) {
         playerBullets.push({ x: player.x, y: player.y - 16, vy: -8, w: 4, h: 12, color: '#3b82f6', damage: 1 });
         sfxShoot();
     }
@@ -523,18 +665,23 @@ function fireWeapon() {
     }
 }
 
-// Special attack
+// Special attack - reframed as signature-based auto-block (an IPS/EMP that recognizes known-malicious
+// signatures at machine speed), so it ONLY ever touches e.evil enemies. Legitimate traffic passes
+// through untouched even when caught in the blast radius/laser path - this keeps the core spacebar
+// fire the one decision that actually discriminates, rather than turning the special into a
+// false-positive machine that punishes players for using it.
 function fireSpecial() {
     if (specialCharge < SPECIAL_COST) return;
     specialCharge = 0;
     specialReady = false;
     sfxSpecial();
     if (wave >= 10) {
-        // EMP: kill all on screen
+        // EMP: signature-block every malicious packet on screen; legitimate traffic is unaffected.
         enemies.forEach(e => {
-            if (e.alive) {
+            if (e.alive && e.evil) {
                 e.alive = false;
                 score += e.points;
+                correctBlocks++;
                 spawnParticles(e.x + e.w/2, e.y + e.h/2, e.color, 12);
                 spawnExplosion(e.x + e.w/2, e.y + e.h/2, e.color);
             }
@@ -543,17 +690,18 @@ function fireSpecial() {
         // Screen flash
         particles.push({ x: W/2, y: H/2, vx: 0, vy: 0, life: 15, maxLife: 15, color: '#3b82f6', size: W, type: 'flash' });
     } else {
-        // Piercing laser
+        // Piercing laser: only damages malicious packets in its path.
         const lx = player.x;
         for (let y = player.y; y > 0; y -= 20) {
             spawnParticles(lx, y, '#3b82f6', 3);
         }
         enemies.forEach(e => {
-            if (e.alive && Math.abs(e.x + e.w/2 - lx) < 30) {
+            if (e.alive && e.evil && Math.abs(e.x + e.w/2 - lx) < 30) {
                 e.hp -= 3;
                 if (e.hp <= 0) {
                     e.alive = false;
                     score += e.points;
+                    correctBlocks++;
                     spawnParticles(e.x + e.w/2, e.y + e.h/2, e.color, 10);
                     spawnExplosion(e.x + e.w/2, e.y + e.h/2, e.color);
                 } else {
@@ -663,7 +811,10 @@ function update() {
     enemyBullets.forEach(b => { b.y += b.vy; });
     enemyBullets = enemyBullets.filter(b => b.y < H + 10);
 
-    // Collisions: player bullets vs enemies
+    // Collisions: player bullets vs enemies - THE discrimination act. Shooting a malicious packet is a
+    // correct block (score, combo, special charge). Shooting a legitimate packet is a false positive:
+    // dropped good traffic, scored as a penalty, combo reset, NO special charge - the special stays a
+    // reward for correct filtering, not a grind currency you build by spraying bullets at everything.
     playerBullets.forEach(b => {
         enemies.forEach(e => {
             if (!e.alive) return;
@@ -673,17 +824,31 @@ function update() {
                 e.flash = 6;
                 if (e.hp <= 0) {
                     e.alive = false;
-                    score += e.points * (1 + Math.floor(combo / 10));
-                    combo++;
-                    if (combo > maxCombo) maxCombo = combo;
-                    specialCharge = Math.min(specialCharge + 1, SPECIAL_COST);
-                    if (specialCharge >= SPECIAL_COST) specialReady = true;
-                    spawnParticles(e.x + e.w/2, e.y + e.h/2, e.color, 8);
-                    spawnExplosion(e.x + e.w/2, e.y + e.h/2, e.color);
-                    sfxHit();
-                    // Random powerup drop
-                    if (Math.random() < 0.05) {
-                        powerups.push({ x: e.x + e.w/2, y: e.y, type: 'life', vy: 1.5, size: 12 });
+                    if (e.evil) {
+                        // Correct block.
+                        score += e.points * (1 + Math.floor(combo / 10));
+                        combo++;
+                        if (combo > maxCombo) maxCombo = combo;
+                        correctBlocks++;
+                        specialCharge = Math.min(specialCharge + 1, SPECIAL_COST);
+                        if (specialCharge >= SPECIAL_COST) specialReady = true;
+                        spawnParticles(e.x + e.w/2, e.y + e.h/2, e.color, 8);
+                        spawnExplosion(e.x + e.w/2, e.y + e.h/2, e.color);
+                        sfxHit();
+                        showToast('block', e.label, e.teach);
+                        // Random powerup drop
+                        if (Math.random() < 0.05) {
+                            powerups.push({ x: e.x + e.w/2, y: e.y, type: 'life', vy: 1.5, size: 12 });
+                        }
+                    } else {
+                        // False positive: dropped legitimate traffic. Score penalty, combo reset, no
+                        // special charge. No life lost - BREACH (below) is the life-cost failure mode.
+                        score = Math.max(0, score - 40);
+                        combo = 0;
+                        fpCount++;
+                        spawnParticles(e.x + e.w/2, e.y + e.h/2, '#fbbf24', 8);
+                        sfxWrong();
+                        showToast('fp', e.label, e.teach);
                     }
                 } else {
                     sfxShoot();
@@ -732,10 +897,32 @@ function update() {
         });
     }
 
-    // Collisions: enemies reaching bottom
+    // Collisions: enemies reaching the base. A malicious packet reaching the base unblocked is a
+    // BREACH (life lost) - this replaces the original "any single landing = instant game over," which
+    // made every landing terminal regardless of what it was. A legitimate packet reaching the base is
+    // the CORRECT outcome (delivered, no penalty) - it was supposed to get through. Each resolved
+    // enemy is retired (alive=false) the same tick it crosses the threshold, so it can't re-trigger
+    // BREACH/DELIVERED again on the next frame while it lingers past the line.
     enemies.forEach(e => {
-        if (e.alive && e.y + e.h > H - 60 && !demoMode) {
-            handleGameOver();
+        if (!e.alive || e.y + e.h <= H - 60) return;
+        if (demoMode) {
+            // Idle screen: resolve silently, no score/life effects.
+            e.alive = false;
+            return;
+        }
+        e.alive = false;
+        if (e.evil) {
+            breachCount++;
+            lives--;
+            combo = 0;
+            sfxDeath();
+            spawnParticles(player.x, player.y, '#f87171', 12);
+            spawnExplosion(e.x + e.w/2, e.y + e.h/2, e.color);
+            showToast('breach', e.label, e.teach);
+            if (lives <= 0) handleGameOver();
+        } else {
+            score += 5;
+            sfxDeliver();
         }
     });
 
@@ -779,6 +966,9 @@ function update() {
     });
     explosions = explosions.filter(e => e.radius < e.maxRadius);
 
+    // Teaching toasts (block / false-positive / breach callouts)
+    updateToasts();
+
     // Wave complete
     if (enemies.filter(e => e.alive).length === 0 && !demoMode) {
         wave++;
@@ -793,6 +983,9 @@ function update() {
     document.getElementById('loreWave').textContent = wave;
     document.getElementById('loreScore').textContent = score;
     document.getElementById('loreCombo').textContent = maxCombo;
+    document.getElementById('loreBlocks').textContent = correctBlocks;
+    document.getElementById('loreFp').textContent = fpCount;
+    document.getElementById('loreBreach').textContent = breachCount;
 }
 
 // Drawing
@@ -1123,7 +1316,8 @@ function drawBullets() {
         ctx.fillStyle = b.color;
 
         switch(b.type) {
-            case 'syn':
+            case 'synflood':
+            case 'synfin':
                 // Small triangle
                 ctx.beginPath();
                 ctx.moveTo(b.x, b.y + b.h);
@@ -1132,13 +1326,14 @@ function drawBullets() {
                 ctx.closePath();
                 ctx.fill();
                 break;
-            case 'icmp':
+            case 'scan':
                 // Circle
                 ctx.beginPath();
                 ctx.arc(b.x, b.y + b.h/2, 3, 0, Math.PI * 2);
                 ctx.fill();
                 break;
-            case 'dns':
+            case 'rdp':
+            case 'telnet':
                 // Diamond
                 ctx.beginPath();
                 ctx.moveTo(b.x, b.y);
@@ -1148,17 +1343,7 @@ function drawBullets() {
                 ctx.closePath();
                 ctx.fill();
                 break;
-            case 'udp':
-                // Arrow
-                ctx.beginPath();
-                ctx.moveTo(b.x, b.y + b.h);
-                ctx.lineTo(b.x - 2, b.y + 2);
-                ctx.lineTo(b.x, b.y);
-                ctx.lineTo(b.x + 2, b.y + 2);
-                ctx.closePath();
-                ctx.fill();
-                break;
-            case 'zeroday':
+            case 'dnsamp':
                 // Irregular blob
                 ctx.beginPath();
                 ctx.arc(b.x, b.y + b.h/2, 4, 0, Math.PI * 2);
@@ -1170,7 +1355,7 @@ function drawBullets() {
                 ctx.arc(b.x + 2, b.y + 2, 2, 0, Math.PI * 2);
                 ctx.fill();
                 break;
-            case 'apt':
+            case 'sqli':
                 // Large energy ball
                 const gradient = ctx.createRadialGradient(b.x, b.y + b.h/2, 0, b.x, b.y + b.h/2, 5);
                 gradient.addColorStop(0, '#ffffff');
@@ -1375,16 +1560,18 @@ function drawOverlays() {
         ctx.font = '22px Courier New';
         ctx.fillText(`Final Score: ${score}`, W/2, H/2 - 10);
         ctx.fillText(`Waves Survived: ${wave}`, W/2, H/2 + 25);
-        ctx.fillText(`Max Combo: ${maxCombo}`, W/2, H/2 + 55);
+        ctx.font = '16px Courier New';
+        ctx.fillText(`Correct Blocks: ${correctBlocks}  |  False Positives: ${fpCount}  |  Breaches: ${breachCount}`, W/2, H/2 + 52);
+        ctx.fillText(`Max Combo: ${maxCombo}`, W/2, H/2 + 76);
         const bestScore = localStorage.getItem('game_packetinvaders_best') || '0';
         ctx.fillStyle = '#f59e0b';
         ctx.font = '18px Courier New';
-        ctx.fillText(`Best: ${bestScore}`, W/2, H/2 + 85);
+        ctx.fillText(`Best: ${bestScore}`, W/2, H/2 + 104);
 
         ctx.fillStyle = '#94a3b8';
         ctx.font = '16px Courier New';
         const blink = Math.sin(Date.now() * 0.004) > 0;
-        if (blink) ctx.fillText('[ PRESS SPACE TO RECONNECT ]', W/2, H/2 + 110);
+        if (blink) ctx.fillText('[ PRESS SPACE TO RECONNECT ]', W/2, H/2 + 128);
     }
 }
 
@@ -1403,6 +1590,7 @@ function draw() {
     drawParticles();
     drawPowerups();
     if (gameRunning || demoMode) drawSpecialMeter();
+    if (!demoMode) drawToasts();
     drawOverlays();
 }
 
@@ -1412,6 +1600,38 @@ function gameLoop() {
     draw();
     requestAnimationFrame(gameLoop);
 }
+
+// Test API for the Node/puppeteer self-verification harness
+// (_tools/arcade-fixes/packet-invaders-check.js). Exposes real internal state via getState() (a live
+// read of the closures, not a stale snapshot) and drives the actual game functions directly - same
+// pattern as _tools/arcade-fixes/firewall-builder-check.js driving loadLevel/addRule/testFirewall.
+// Never referenced by normal gameplay; harmless if unused.
+window.__PI = {
+    start: startGame,
+    fire: fireWeapon,
+    special: fireSpecial,
+    setX: (x) => { player.x = x; },
+    // Test-only: fast-forwards one enemy's y so BREACH/DELIVERED resolution can be exercised
+    // deterministically. The lockstep formation travels edge-to-edge before each 16px drop, so a real
+    // playthrough to the base threshold takes many real-time minutes - this teleports position only;
+    // the resolution branch that runs afterward (update()'s base-reaching check) is the unmodified
+    // real code path.
+    forceEnemyY: (idx, y) => { if (enemies[idx]) enemies[idx].y = y; },
+    getState: () => ({
+        score, lives, wave, combo, maxCombo, gameRunning, gameOver, demoMode,
+        correctBlocks, fpCount, breachCount,
+        playerX: player.x,
+        enemies: enemies.map(e => ({ x: e.x, y: e.y, w: e.w, h: e.h, type: e.type, evil: e.evil, alive: e.alive, label: e.label }))
+    }),
+    // Measures every packet-type label at the exact font used on-sprite, so a harness can assert
+    // legibility (fits within the enemy box) without a manual screenshot compare.
+    measureLabels: () => {
+        ctx.font = '8px Courier New';
+        const out = {};
+        Object.keys(PACKET_TYPES).forEach(id => { out[id] = { label: PACKET_TYPES[id].label, width: ctx.measureText(PACKET_TYPES[id].label).width }; });
+        return out;
+    }
+};
 
 // Init demo
 createBarriers();
