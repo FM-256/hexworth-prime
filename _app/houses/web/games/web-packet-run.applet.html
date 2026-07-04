@@ -274,20 +274,20 @@
             <p style="color: #3b82f6; font-size: 13px; text-align: center; margin-bottom: 6px;">Deep Sea Data Transit</p>
 
             <div class="lore-text">
-                You are <em>DATA-PKT</em>, a bioluminescent data packet racing through the undersea fiber optic network. A massive cable disruption has fragmented the internet backbone. Navigate the ocean floor from <em>SHORE</em> through the <em>CONTINENTAL SHELF</em> into the <em>DEEP SEA</em>, past the <em>TRENCH</em>, and into the <em>ABYSS</em>. Firewalls block your path. Anglerfish sniff your headers. A relentless <em>PACKET FLOOD</em> wall surges from behind — stay ahead or be overwhelmed. Deliver your payload before the connection times out.
+                You are <em>DATA-PKT</em>, a bioluminescent data packet racing through the undersea fiber optic network. A massive cable disruption has fragmented the internet backbone. Navigate the ocean floor from <em>SHORE</em> through the <em>CONTINENTAL SHELF</em> into the <em>DEEP SEA</em>, past the <em>TRENCH</em>, and into the <em>ABYSS</em>. Every gate is a real firewall rule: it only lets YOUR packet's protocol, port, or destination through ONE lane. Jump for the top lane, stay grounded for the bottom lane. Guess wrong and the rule drops you. A relentless <em>PACKET FLOOD</em> wall surges from behind. Stay ahead or be overwhelmed. Deliver your payload before the connection times out.
             </div>
 
             <div class="section-label">Controls</div>
             <div class="moves-list">
                 <div class="move-row">
                     <span class="move-icon">^</span>
-                    <span class="move-name">Jump</span>
+                    <span class="move-name">Top lane (jump)</span>
                     <span class="move-keys">SPACE / UP</span>
                 </div>
                 <div class="move-row">
                     <span class="move-icon">v</span>
-                    <span class="move-name">Duck</span>
-                    <span class="move-keys">DOWN (hold)</span>
+                    <span class="move-name">Bottom lane (stay grounded)</span>
+                    <span class="move-keys">DOWN (hold) / none</span>
                 </div>
                 <div class="move-row">
                     <span class="move-icon">&larr;&rarr;</span>
@@ -296,41 +296,34 @@
                 </div>
             </div>
 
-            <div class="section-label">Protocols</div>
+            <div class="section-label">Firewall Gates</div>
+            <div class="lore-text" style="border-left-color:#fbbf24;">
+                Your packet's protocol/port/destination shows at the top of the screen and holds for several gates in a row. Each gate labels its TOP and BOTTOM lane with a real rule (port, protocol, ACL allow-list, or destination subnet); only one lane matches YOUR packet. A reference table of well-known ports stays on screen the whole run.
+            </div>
+
+            <div class="section-label">Protocols (movement)</div>
             <div class="moves-list">
                 <div class="move-row">
                     <span class="move-icon" style="color: #fbbf24;">&#9851;</span>
                     <span class="move-name">TCP Handshake</span>
                     <span class="move-keys">AIR+JUMP</span>
-                    <span class="move-level">L1</span>
+                    <span class="move-level">Double jump</span>
                 </div>
                 <div class="move-row">
                     <span class="move-icon" style="color: #3b82f6;">&raquo;</span>
                     <span class="move-name">UDP Burst</span>
                     <span class="move-keys">RIGHT+DOWN</span>
-                    <span class="move-level">L2</span>
-                </div>
-                <div class="move-row">
-                    <span class="move-icon" style="color: #22c55e;">&#9632;</span>
-                    <span class="move-name">TLS Shield</span>
-                    <span class="move-keys">AUTO</span>
-                    <span class="move-level">L3</span>
+                    <span class="move-level">Speed dash</span>
                 </div>
                 <div class="move-row">
                     <span class="move-icon" style="color: #a855f7;">&#9737;</span>
                     <span class="move-name">DNS Resolve</span>
-                    <span class="move-keys">HOLD DOWN</span>
-                    <span class="move-level">L4</span>
-                </div>
-                <div class="move-row">
-                    <span class="move-icon" style="color: #ef4444;">&#8634;</span>
-                    <span class="move-name">BGP Reroute</span>
-                    <span class="move-keys">DOWN+JUMP</span>
-                    <span class="move-level">L5</span>
+                    <span class="move-keys">HOLD DOWN (air)</span>
+                    <span class="move-level">Slow-mo to read a gate</span>
                 </div>
             </div>
 
-            <p style="color: #64748b; font-size: 10px; text-align: center; margin-top: 6px;">Touch: Tap=Jump, Swipe=Move</p>
+            <p style="color: #64748b; font-size: 10px; text-align: center; margin-top: 6px;">Touch: Tap=Jump, Hold=Duck, Swipe=Move</p>
             <div style="text-align: center;">
                 <button class="btn" style="margin-top: 10px; padding: 10px 24px; font-size: 16px;" onclick="startGame()">TRANSMIT</button>
             </div>
@@ -351,7 +344,11 @@
                 </div>
             </div>
 
+            <div id="packetId" style="position:absolute;top:38px;left:10px;right:10px;text-align:center;color:#fbbf24;font-size:13px;text-shadow:1px 1px 3px rgba(0,0,0,0.9);pointer-events:none;"></div>
+
             <canvas id="gameCanvas" width="900" height="500"></canvas>
+
+            <div id="portLegend" style="position:absolute;top:58px;left:10px;right:10px;text-align:center;color:#64748b;font-size:9px;letter-spacing:0.3px;text-shadow:1px 1px 2px rgba(0,0,0,0.9);pointer-events:none;">21 FTP &middot; 22 SSH &middot; 23 TELNET &middot; 25 SMTP &middot; 53 DNS &middot; 80 HTTP &middot; 443 HTTPS &middot; 3389 RDP</div>
 
             <div id="gameOverScreen" class="hidden">
                 <h2 id="gameOverTitle">CONNECTION LOST</h2>
@@ -417,26 +414,325 @@
         let shieldFadeTimer = 0;
         const SHIELD_FADE_DURATION = 120;
 
-        // Protocol Abilities (unlock per level)
+        // Protocol Abilities - pure movement utilities (double jump / dash / slow-mo).
+        // TLS Shield (absorb-hit) and BGP Reroute (invincibility burst) were retired: they existed
+        // only to mitigate the reflex-dodge obstacles below, and would have let a player buy their
+        // way past a wrong firewall-gate call with zero networking knowledge. A gate loss is now
+        // always a real life lost - see gateFail().
         const ABILITIES = [
             { id: 'tcp',  name: 'TCP Handshake', desc: 'Double Jump',    icon: '\u267B', color: '#fbbf24', unlocksAt: 0 },
             { id: 'udp',  name: 'UDP Burst',     desc: 'Speed Dash',     icon: '\u00BB', color: '#3b82f6', unlocksAt: 1 },
-            { id: 'tls',  name: 'TLS Shield',    desc: 'Absorb Hit',     icon: '\u25A0', color: '#22c55e', unlocksAt: 2 },
-            { id: 'dns',  name: 'DNS Resolve',   desc: 'Slow Motion',    icon: '\u25C9', color: '#a855f7', unlocksAt: 3 },
-            { id: 'bgp',  name: 'BGP Reroute',   desc: 'Phase Through',  icon: '\u21BA', color: '#ef4444', unlocksAt: 4 },
+            { id: 'dns',  name: 'DNS Resolve',   desc: 'Slow Motion',    icon: '\u25C9', color: '#a855f7', unlocksAt: 2 },
         ];
 
-        // Ability State
+        // Ability State (TLS Shield / BGP Reroute removed along with their entries above)
         let tcpReady = true;
         let udpReady = true;
-        let tlsShield = false;
-        let tlsCooldown = 0;
-        const TLS_COOLDOWN_HOPS = 10;
         let dnsActive = false;
-        let bgpReady = true;
         let jumpWasPressed = false;
         let dashWasPressed = false;
         let abilityEffects = [];
+
+        // ============================================
+        // PACKET / FIREWALL GATE SYSTEM
+        // ============================================
+        // The player's packet has a real identity (protocol/port, and from DEEP SEA on, a
+        // destination IP) that persists across a short SEGMENT of gates (not one-shot per gate --
+        // this is a sustained-application/fluency drill, not a single multiple-choice question).
+        // Each gate is a firewall rule with two lanes (top = jump/airborne, bottom = grounded/duck);
+        // exactly one lane is correct for the CURRENT packet. Facts are real: well-known ports,
+        // ACL allow-lists, and destination-subnet containment via actual bitmask math.
+
+        // Seedable PRNG (mulberry32) for the pedagogically-relevant randomness only: packet identity,
+        // gate rule generation, and gate spawn cadence. A fixed seed reproduces a byte-identical gate
+        // sequence run-to-run, which the self-verify harness relies on for deterministic, reproducible
+        // assertions (see __PR.seedRNG). Cosmetic randomness elsewhere in the file (particle drift,
+        // bubble spawn, coral wobble, demo-mode jitter) intentionally still uses Math.random directly
+        // and is untouched -- it has no bearing on gate correctness, so reseeding it would only add
+        // risk without benefit.
+        let __rngState = (Date.now() ^ 0x9e3779b9) >>> 0;
+        function seedRNG(seed) { __rngState = (seed >>> 0) || 1; }
+        function rng() {
+            __rngState |= 0; __rngState = (__rngState + 0x6D2B79F5) | 0;
+            let t = Math.imul(__rngState ^ (__rngState >>> 15), 1 | __rngState);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }
+
+        const PORT_TABLE = { 21: 'FTP', 22: 'SSH', 23: 'TELNET', 25: 'SMTP', 53: 'DNS', 80: 'HTTP', 443: 'HTTPS', 3389: 'RDP' };
+        const KNOWN_PORTS = Object.keys(PORT_TABLE).map(Number);
+
+        function shuffleArr(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(rng() * (i + 1));
+                const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+            }
+            return arr;
+        }
+
+        function pickWrongPort(correctPort) {
+            const others = KNOWN_PORTS.filter(p => p !== correctPort);
+            return others[Math.floor(rng() * others.length)];
+        }
+
+        // Real containment check (bitmask, not a string-prefix trick) -- used both by the game and
+        // independently reimplemented in the self-verify harness to cross-check the generator.
+        function ipToInt(ip) {
+            const p = ip.split('.').map(Number);
+            return ((p[0] * 16777216) + (p[1] * 65536) + (p[2] * 256) + p[3]) >>> 0;
+        }
+        function isInCIDR(ip, cidr) {
+            const parts = cidr.split('/');
+            const base = parts[0], bits = Number(parts[1]);
+            const mask = bits === 0 ? 0 : (0xFFFFFFFF << (32 - bits)) >>> 0;
+            return ((ipToInt(ip) & mask) >>> 0) === ((ipToInt(base) & mask) >>> 0);
+        }
+
+        function rndOctet() { return Math.floor(rng() * 254) + 1; }
+
+        // Builds a destination-subnet lane pair for a FIXED destination IP. The wrong CIDR's first
+        // octet is deliberately shifted (+50 mod 255, never 0) so it is PROVABLY disjoint from the
+        // destination at any /8, /16, or /24 prefix -- constructed to be unambiguous, not merely
+        // checked after the fact (avoids two candidates both containing, or both excluding, the IP).
+        function makeRouteLanes(destIP) {
+            const prefixLens = [8, 16, 24];
+            const prefix = prefixLens[Math.floor(rng() * prefixLens.length)];
+            const o = destIP.split('.').map(Number);
+            // Zero every octet AT OR BEYOND the prefix boundary (octet i is host-bits whenever
+            // i >= prefix/8), producing the canonical network ID for octet-aligned /8, /16, /24
+            // prefixes. The previous `prefix < 24`/`prefix < 16` guards never fired AT exactly 24
+            // or 16, so a /24 network displayed the raw destination address (host octet retained)
+            // and a /16 kept its /24-boundary octet - teaching a real CIDR misconception (that
+            // subnet notation keeps host digits) on a cert-prep game. Fixed: for /24 only octet 3
+            // zeroes; for /16, octets 2-3; for /8, octets 1-3.
+            const trunc = (arr) => {
+                const out = arr.slice();
+                for (let i = 0; i < 4; i++) {
+                    if (i >= prefix / 8) out[i] = 0;
+                }
+                return out;
+            };
+            const correctCIDR = trunc(o).join('.') + '/' + prefix;
+            const wrongFirst = ((o[0] + 50) % 255) || 1;
+            const wrongCIDR = trunc([wrongFirst, o[1], o[2], o[3]]).join('.') + '/' + prefix;
+            return { prefix, correctCIDR, wrongCIDR };
+        }
+
+        // Two ACL allow-lists (like real "permit tcp any any eq <port>" sets), guaranteed disjoint,
+        // exactly one containing the packet's own port.
+        function generateAclPair(packetPort) {
+            const others = shuffleArr(KNOWN_PORTS.filter(p => p !== packetPort));
+            const correctList = [packetPort, others[0], others[1]].sort((a, b) => a - b);
+            const wrongList = [others[2], others[3], others[4]].sort((a, b) => a - b);
+            return { correctList, wrongList };
+        }
+
+        function pickPacketIdentity() {
+            const port = KNOWN_PORTS[Math.floor(rng() * KNOWN_PORTS.length)];
+            const protocol = PORT_TABLE[port];
+            const destIP = `${rndOctet()}.${rndOctet()}.${rndOctet()}.${rndOctet()}`;
+            return { protocol, port, destIP };
+        }
+
+        // Which rule types are in play at a given depth level -- route (CIDR) rules unlock from
+        // DEEP SEA (index 2) on, matching the existing per-level unlock idiom used by ABILITIES.
+        function ruleTypesForLevel(lvlIndex) {
+            return lvlIndex >= 2 ? ['port-match', 'proto-match', 'acl', 'route'] : ['port-match', 'proto-match', 'acl'];
+        }
+
+        // Builds one gate's rule + lane labels for the CURRENT packet identity. Returns raw facts
+        // (topPort/bottomPort, topProto/bottomProto, topAllowed/bottomAllowed, topCIDR/bottomCIDR)
+        // alongside the pre-derived correctLane, so an independent verifier can recompute correctness
+        // from the raw facts alone rather than trusting this function's own opinion.
+        function buildGateRule(packet, lvlIndex) {
+            const types = ruleTypesForLevel(lvlIndex);
+            const ruleType = types[Math.floor(rng() * types.length)];
+            const correctLane = rng() < 0.5 ? 'top' : 'bottom';
+            let topLabel, bottomLabel;
+            const meta = { ruleType };
+
+            if (ruleType === 'port-match') {
+                const wrongPort = pickWrongPort(packet.port);
+                topLabel = correctLane === 'top' ? String(packet.port) : String(wrongPort);
+                bottomLabel = correctLane === 'top' ? String(wrongPort) : String(packet.port);
+                meta.topPort = Number(topLabel); meta.bottomPort = Number(bottomLabel);
+            } else if (ruleType === 'proto-match') {
+                const wrongProto = PORT_TABLE[pickWrongPort(packet.port)];
+                topLabel = correctLane === 'top' ? packet.protocol : wrongProto;
+                bottomLabel = correctLane === 'top' ? wrongProto : packet.protocol;
+                meta.topProto = topLabel; meta.bottomProto = bottomLabel;
+            } else if (ruleType === 'acl') {
+                const acl = generateAclPair(packet.port);
+                const correctText = 'ALLOW ' + acl.correctList.join(',');
+                const wrongText = 'ALLOW ' + acl.wrongList.join(',');
+                topLabel = correctLane === 'top' ? correctText : wrongText;
+                bottomLabel = correctLane === 'top' ? wrongText : correctText;
+                meta.topAllowed = correctLane === 'top' ? acl.correctList : acl.wrongList;
+                meta.bottomAllowed = correctLane === 'top' ? acl.wrongList : acl.correctList;
+            } else { // route
+                const r = makeRouteLanes(packet.destIP);
+                topLabel = correctLane === 'top' ? r.correctCIDR : r.wrongCIDR;
+                bottomLabel = correctLane === 'top' ? r.wrongCIDR : r.correctCIDR;
+                meta.topCIDR = topLabel; meta.bottomCIDR = bottomLabel; meta.destIP = packet.destIP;
+            }
+            return Object.assign({ correctLane, topLabel, bottomLabel }, meta);
+        }
+
+        // Gate travel speed is capped INDEPENDENTLY of the level speed/spawnRate ramp (which was
+        // tuned for reflex-dodge feel, not read+recall+decide time). This guarantees a minimum
+        // think-time window even at deep/HADAL depths -- the world/chaser can keep feeling faster
+        // without the decision itself becoming unreadable.
+        const GATE_SPEED_CAP = 7;
+        const GATE_MIN_SPAWN_FRAMES = 95;
+        const GATE_MAX_SPAWN_FRAMES = 135;
+
+        let gates = [];
+        let gateSpawnTimer = 0;
+        let currentPacket = null;
+        let gatesUntilReroll = 0;
+        const SEGMENT_MIN_GATES = 4;
+        const SEGMENT_MAX_GATES = 6;
+
+        function rollNewPacket() {
+            currentPacket = pickPacketIdentity();
+            gatesUntilReroll = SEGMENT_MIN_GATES + Math.floor(rng() * (SEGMENT_MAX_GATES - SEGMENT_MIN_GATES + 1));
+            updatePacketIdHUD();
+        }
+
+        function updatePacketIdHUD() {
+            const el = document.getElementById('packetId');
+            if (!el) return;
+            if (!currentPacket) { el.textContent = ''; return; }
+            el.textContent = 'TRANSMITTING: ' + currentPacket.protocol + '/' + currentPacket.port + ' -> ' + currentPacket.destIP;
+        }
+
+        // Unconditional life loss for a wrong firewall-lane call. Deliberately does NOT check
+        // shieldActive/ability state (see the retired-abilities comment on ABILITIES above) --
+        // a networking mistake is never something a power-up should let you buy your way past.
+        function gateFail(gate) {
+            let reasonText;
+            if (gate.ruleType === 'route') {
+                const correctCIDR = gate.correctLane === 'top' ? gate.topLabel : gate.bottomLabel;
+                reasonText = `BLOCKED: dest ${gate.destIP} needed subnet ${correctCIDR}`;
+            } else if (gate.ruleType === 'acl') {
+                reasonText = `BLOCKED: port ${currentPacket ? currentPacket.port : '?'} not on that lane's allow-list`;
+            } else {
+                reasonText = `BLOCKED: wrong lane for ${currentPacket ? currentPacket.protocol + '/' + currentPacket.port : 'packet'}`;
+            }
+            deathCause = reasonText;
+            playSound('fall');
+            for (let i = 0; i < 10; i++) particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#ef4444'));
+            loseLife();
+        }
+
+        function gatePass(gate) {
+            comboCount++;
+            lastObstaclePassTime = gameFrame;
+            levelHops++; totalHops++;
+            score += 8 * (currentLevel + 1);
+            document.getElementById('hopCount').textContent = levelHops;
+            document.getElementById('score').textContent = score;
+            playSound('hop');
+            spawnAbilityEffect(player.x + player.width / 2, player.y - 10, 'OK', '#22c55e');
+
+            if (totalHops % 20 === 0) {
+                lives++;
+                document.getElementById('lives').textContent = lives;
+                playSound('powerup');
+                for (let i = 0; i < 10; i++) particles.push(new Particle(player.x + player.width / 2, player.y, '#22c55e'));
+            }
+
+            gatesUntilReroll--;
+            if (gatesUntilReroll <= 0) rollNewPacket();
+
+            const lvl = getCurrentLevel();
+            if (!flagSpawned && levelHops >= lvl.hopsToFlag + flagMissed) {
+                flagSpawned = true;
+            }
+        }
+
+        // Stable per-gate identity, independent of array position. `gates` is filtered every frame
+        // (off-screen entries removed), so an ARRAY INDEX captured by an external caller (the test
+        // harness) can silently start pointing at a different gate once an earlier entry scrolls
+        // off and everything shifts down. A monotonically-increasing id never shifts, so the test
+        // API below keys on id, not position.
+        let __gateIdCounter = 0;
+
+        class Gate {
+            constructor(x, rule) {
+                this.id = ++__gateIdCounter;
+                this.x = x;
+                this.width = 34;
+                this.rule = rule;
+                this.resolved = false;
+            }
+            update() {
+                this.x -= Math.min(speed, GATE_SPEED_CAP);
+                if (!this.resolved && this.x + this.width < player.x) {
+                    this.resolved = true;
+                    if (demoMode || countdownActive) return;
+                    // Lane is decided by player.isJumping, NOT player.onGround. onGround has a real
+                    // physics quirk: the instant a grounded player starts ducking, groundContact drops
+                    // from GROUND_Y-height to GROUND_Y-14 (see the ground-collision block below), so
+                    // player.y (still at the standing height) briefly reads as "above" the new lower
+                    // ground line -- onGround flips false for a few frames purely from ENGAGING a duck,
+                    // with no jump involved. That would misclassify a legitimate bottom-lane duck as
+                    // top for that window. isJumping is set true ONLY by an actual jump trigger and
+                    // false ONLY on landing (never touched by ducking), so it has no such false
+                    // negative: airborne (jumped, including mid-air DNS Resolve slow-mo) is ALWAYS
+                    // top; grounded OR ducking (even mid-duck-transition) is ALWAYS bottom.
+                    const lane = player.isJumping ? 'top' : 'bottom';
+                    this.resolvedLane = lane;
+                    if (lane === this.rule.correctLane) {
+                        this.outcome = 'pass';
+                        gatePass(this);
+                    } else {
+                        this.outcome = 'fail';
+                        gateFail(this.rule);
+                    }
+                }
+            }
+            draw() {
+                ctx.save();
+                // Vertical scan-gate beam -- visual only, NO physical collision (either lane is
+                // always physically walkable; correctness is decided entirely by the rule check in
+                // update(), never by which path the sprite can geometrically fit through).
+                const beamGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                beamGrad.addColorStop(0, 'rgba(59,130,246,0.05)');
+                beamGrad.addColorStop(0.5, 'rgba(59,130,246,0.3)');
+                beamGrad.addColorStop(1, 'rgba(59,130,246,0.05)');
+                ctx.fillStyle = beamGrad;
+                ctx.fillRect(this.x, 0, 4, canvas.height);
+
+                // Both placards use IDENTICAL neutral styling -- the correct lane is never color-
+                // hinted or otherwise visually marked. The only way to tell them apart is reading
+                // the rule text and matching it against the packet identity in the HUD.
+                const placardW = 108, placardH = 26;
+                ctx.font = 'bold 8px Courier New'; ctx.textAlign = 'center';
+
+                // Top lane placard (well above jump apex, ~y=70-96)
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+                ctx.fillRect(this.x - placardW / 2, 68, placardW, placardH);
+                ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 1;
+                ctx.strokeRect(this.x - placardW / 2, 68, placardW, placardH);
+                ctx.fillStyle = '#93c5fd';
+                ctx.fillText('TOP LANE', this.x, 80);
+                ctx.fillStyle = '#e2e8f0'; ctx.font = '8px Courier New';
+                ctx.fillText(this.rule.topLabel, this.x, 91);
+
+                // Bottom lane placard (just above the ground line)
+                ctx.font = 'bold 8px Courier New';
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+                ctx.fillRect(this.x - placardW / 2, GROUND_Y - 40, placardW, placardH);
+                ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 1;
+                ctx.strokeRect(this.x - placardW / 2, GROUND_Y - 40, placardW, placardH);
+                ctx.fillStyle = '#93c5fd';
+                ctx.fillText('BOT LANE', this.x, GROUND_Y - 28);
+                ctx.fillStyle = '#e2e8f0'; ctx.font = '8px Courier New';
+                ctx.fillText(this.rule.bottomLabel, this.x, GROUND_Y - 17);
+                ctx.restore();
+            }
+        }
 
         // Level Definitions
         const LEVELS = [
@@ -501,7 +797,7 @@
         let bubbles = [];
         let playerGlowParticles = [];
 
-        // Chaser — Packet Flood Wall
+        // Chaser: Packet Flood Wall
         let chaser = {
             x: -200,
             speed: 0.3,
@@ -707,10 +1003,9 @@
 
             ctx.font = '11px Courier New';
             const basics = [
-                { keys: 'SPACE / UP', action: 'Jump', icon: '^' },
-                { keys: 'DOWN (hold)', action: 'Duck', icon: 'v' },
+                { keys: 'SPACE / UP', action: 'Top lane (jump)', icon: '^' },
+                { keys: 'DOWN (hold) / none', action: 'Bottom lane (stay grounded)', icon: 'v' },
                 { keys: 'LEFT / RIGHT', action: 'Move', icon: '\u2194' },
-                { keys: 'LAND ON TOP', action: 'Stomp (+pts)', icon: '\u2193' },
             ];
             let rowY = py + 76;
             basics.forEach(b => {
@@ -730,7 +1025,7 @@
             ctx.fillText('NETWORK PROTOCOLS', px + 15, rowY);
             rowY += 22;
 
-            const controls = ['AIR + JUMP', 'RIGHT + DOWN', 'AUTO (1 hit/land)', 'HOLD DOWN (air)', 'DOWN + JUMP (air)'];
+            const controls = ['AIR + JUMP', 'RIGHT + DOWN', 'HOLD DOWN (air)'];
 
             ABILITIES.forEach((ab, i) => {
                 const unlocked = currentLevel >= ab.unlocksAt;
@@ -812,16 +1107,6 @@
                         document.getElementById('hopCount').textContent = levelHops;
                         document.getElementById('score').textContent = score;
                         playSound('hop');
-
-                        // TLS Shield cooldown recharge
-                        if (currentLevel >= 2 && !tlsShield) {
-                            tlsCooldown++;
-                            if (tlsCooldown >= TLS_COOLDOWN_HOPS) {
-                                tlsShield = true;
-                                tlsCooldown = 0;
-                                spawnAbilityEffect(player.x + player.width / 2, player.y - 10, '\u25A0', '#22c55e');
-                            }
-                        }
 
                         // Extra life every 20 passed obstacles
                         if (totalHops % 20 === 0) {
@@ -938,9 +1223,9 @@
                         break;
 
                     case 'pineapple':
-                        // WiFi Pineapple — rogue AP on ocean floor
+                        // WiFi Pineapple: rogue AP on ocean floor
                         const px = this.x, py2 = this.y;
-                        // Pineapple body — textured oval
+                        // Pineapple body: textured oval
                         ctx.fillStyle = '#d97706';
                         ctx.beginPath();
                         ctx.ellipse(px + 14, py2 + 20, 12, 16, 0, 0, Math.PI * 2);
@@ -984,10 +1269,10 @@
                         break;
 
                     case 'wireshark':
-                        // Wireshark — swims overhead, must duck to avoid
+                        // Wireshark: swims overhead, must duck to avoid
                         const sharkBob = Math.sin(this.floatPhase) * 2;
                         const sx2 = this.x, sy2 = this.y + sharkBob;
-                        // Body — sleek torpedo shape
+                        // Body: sleek torpedo shape
                         ctx.fillStyle = '#475569';
                         ctx.beginPath();
                         ctx.moveTo(sx2, sy2 + 9);
@@ -1014,7 +1299,7 @@
                         ctx.lineTo(sx2 + 46, sy2 + 12);
                         ctx.closePath();
                         ctx.fill();
-                        // Belly — lighter
+                        // Belly: lighter
                         ctx.fillStyle = '#64748b';
                         ctx.beginPath();
                         ctx.moveTo(sx2 + 10, sy2 + 12);
@@ -1024,14 +1309,14 @@
                         ctx.lineTo(sx2 + 10, sy2 + 15);
                         ctx.closePath();
                         ctx.fill();
-                        // Eye — glowing red
+                        // Eye: glowing red
                         ctx.fillStyle = '#ef4444';
                         ctx.fillRect(sx2 + 8, sy2 + 7, 3, 3);
                         // Teeth
                         ctx.fillStyle = '#e2e8f0';
                         ctx.fillRect(sx2 + 2, sy2 + 8, 2, 2);
                         ctx.fillRect(sx2 + 5, sy2 + 9, 2, 2);
-                        // Sniffing indicator — packet capture lines
+                        // Sniffing indicator: packet capture lines
                         ctx.strokeStyle = `rgba(59, 130, 246, ${0.4 + Math.sin(this.age * 0.15) * 0.3})`;
                         ctx.lineWidth = 1;
                         ctx.setLineDash([3, 3]);
@@ -1203,7 +1488,7 @@
         }
 
         // ============================================
-        // CHASER — PACKET FLOOD WALL
+        // CHASER: PACKET FLOOD WALL
         // ============================================
         function resetChaser() {
             chaser.x = -200;
@@ -1265,7 +1550,7 @@
 
             // Collision: if chaser reaches player
             if (chaser.active && player.x - chaser.x < 10 && !shieldActive) {
-                // Instant death — packet flood overwhelmed
+                // Instant death: packet flood overwhelmed
                 deathCause = 'PACKET FLOOD OVERWHELMED!';
                 lives = 0;
                 document.getElementById('lives').textContent = '0';
@@ -1285,7 +1570,7 @@
             const wallX = chaser.x;
             const wallW = 60;
 
-            // Gradient wall core — full height
+            // Gradient wall core: full height
             const wallGrad = ctx.createLinearGradient(wallX - wallW, 0, wallX + 20, 0);
             wallGrad.addColorStop(0, 'rgba(6, 182, 212, 0.9)');
             wallGrad.addColorStop(0.4, 'rgba(59, 130, 246, 0.7)');
@@ -1453,7 +1738,7 @@
         function drawPlayer() {
             ctx.save();
 
-            // Motion trail — 3 ghost copies at fading alphas
+            // Motion trail: 3 ghost copies at fading alphas
             if (gameRunning) {
                 playerTrail.push({ x: player.x, y: player.y });
                 if (playerTrail.length > TRAIL_LENGTH) playerTrail.shift();
@@ -1799,7 +2084,7 @@
                     player.onGround = false;
                     if (!demoMode) playSound('jump');
                 }
-                // TCP Handshake — double jump (L1+)
+                // TCP Handshake: double jump (L1+)
                 else if (jumpJustPressed && !player.onGround && tcpReady && currentLevel >= 0 && !demoMode) {
                     player.velocityY = jumpStrength * 0.75;
                     tcpReady = false;
@@ -1807,7 +2092,7 @@
                     spawnAbilityEffect(player.x + player.width / 2, player.y + player.height, '\u267B', '#fbbf24');
                 }
 
-                // UDP Burst — speed dash (L2+)
+                // UDP Burst: speed dash (L2+)
                 if (dashJustPressed && !player.onGround && udpReady && currentLevel >= 1 && !demoMode) {
                     player.velocityX = 10;
                     player.velocityY *= 0.3;
@@ -1816,22 +2101,16 @@
                     spawnAbilityEffect(player.x, player.y + player.height / 2, '\u00BB', '#3b82f6');
                 }
 
-                // DNS Resolve — slow motion while holding DOWN in air (L4+)
-                if (keys.down && !player.onGround && !dashPressed && currentLevel >= 3 && !demoMode) {
+                // DNS Resolve: slow motion while holding DOWN in air (L3+, matches ABILITIES.unlocksAt; holding DOWN mid-air stays airborne, so lane-classification below always reads it as the TOP lane)
+                if (keys.down && !player.onGround && !dashPressed && currentLevel >= 2 && !demoMode) {
                     dnsActive = true;
                 } else {
                     dnsActive = false;
                 }
 
-                // BGP Reroute — phase through next obstacle (L5+, DOWN+JUMP in air)
-                if (keys.down && jumpJustPressed && !player.onGround && bgpReady && currentLevel >= 4 && !demoMode) {
-                    // Brief invincibility burst
-                    shieldActive = true;
-                    bgpReady = false;
-                    playSound('tls');
-                    spawnAbilityEffect(player.x + player.width / 2, player.y, '\u21BA', '#ef4444');
-                    setTimeout(() => { if (!countdownActive && !respawnCountdown) shieldActive = false; }, 1500);
-                }
+                // (BGP Reroute on-demand invincibility burst retired -- see ABILITIES comment
+                // above; a firewall-gate miss is now unconditionally a lost life via gateFail(),
+                // defined in the PACKET / FIREWALL GATE SYSTEM section below.)
             } else {
                 jumpWasPressed = keys.up || keys.space;
                 dashWasPressed = false;
@@ -1857,10 +2136,9 @@
                 player.onGround = true;
                 player.isJumping = false;
 
-                // Recharge abilities on landing (TLS uses cooldown, not landing)
+                // Recharge movement abilities on landing
                 tcpReady = true;
                 udpReady = true;
-                bgpReady = true;
                 dnsActive = false;
             } else {
                 player.onGround = false;
@@ -1870,28 +2148,32 @@
             abilityEffects.forEach(e => { e.life--; e.y -= 1.5; });
             abilityEffects = abilityEffects.filter(e => e.life > 0);
 
-            // Update obstacles
+            // Update obstacles -- Obstacle spawning is retired (see Gate spawn scheduling below);
+            // this array is intentionally always empty in real play. The Obstacle class, its art,
+            // and its collision-handling code are preserved in the file per the platform's
+            // never-destroy convention, simply never populated.
             obstacles.forEach(o => o.update());
             obstacles = obstacles.filter(o => o.x + o.width > -60);
 
-            // Spawn obstacles
+            // Update + spawn firewall Gates -- the sole lethal mechanic in real play.
+            gates.forEach(g => g.update());
+            gates = gates.filter(g => g.x + g.width > -60);
+
             if (!demoMode && !countdownActive && gameRunning) {
-                obstacleSpawnTimer++;
-                const lvl = getCurrentLevel();
-                if (obstacleSpawnTimer > lvl.spawnRate && gameFrame > 120) {
-                    const type = lvl.obstacleTypes[Math.floor(Math.random() * lvl.obstacleTypes.length)];
-                    let y = GROUND_Y - 50;
-                    if (type === 'angler') y = GROUND_Y - 60 - Math.random() * 80;
-                    if (type === 'mitm') y = player.y;
-                    if (type === 'sinkhole') y = GROUND_Y;
-                    if (type === 'ddos') y = GROUND_Y - 80 - Math.random() * 60;
-                    if (type === 'wireshark') y = GROUND_Y - 38;
-                    if (type === 'pineapple') y = GROUND_Y - 36;
-                    if (type === 'cablecut') y = GROUND_Y - 50;
-                    obstacles.push(new Obstacle(canvas.width + 30, y, type));
-                    obstacleSpawnTimer = 0;
+                if (!currentPacket) rollNewPacket();
+                gateSpawnTimer++;
+                if (gateSpawnTimer > GATE_MIN_SPAWN_FRAMES && gameFrame > 120) {
+                    // Randomize within [MIN, MAX] so gates aren't perfectly metronomic, but never
+                    // below MIN_SPAWN_FRAMES -- combined with the GATE_SPEED_CAP travel rate, this
+                    // keeps read+decide time above the ~1.6s floor at every depth level.
+                    const threshold = GATE_MIN_SPAWN_FRAMES + Math.floor(rng() * (GATE_MAX_SPAWN_FRAMES - GATE_MIN_SPAWN_FRAMES));
+                    if (gateSpawnTimer > threshold) {
+                        gates.push(new Gate(canvas.width + 30, buildGateRule(currentPacket, currentLevel)));
+                        gateSpawnTimer = 0;
+                    }
                 }
             } else if (demoMode) {
+                // Attract-mode preview: decorative coral obstacles only, no real gate/rule pressure.
                 obstacleSpawnTimer++;
                 if (obstacleSpawnTimer > 150) {
                     obstacles.push(new Obstacle(canvas.width + 30, GROUND_Y - 50, 'coral'));
@@ -1955,19 +2237,14 @@
                         spawnAbilityEffect(obstacle.x + obstacle.width / 2, obstacle.y, '+' + pts, '#fbbf24');
                         for (let i = 0; i < 8; i++) particles.push(new Particle(obstacle.x + obstacle.width / 2, obstacle.y, '#fbbf24'));
                     } else if (!shieldActive) {
-                        // TLS Shield — absorb one hit (L3+)
-                        if (tlsShield && currentLevel >= 2) {
-                            tlsShield = false;
-                            tlsCooldown = 0;
-                            killsToRemove.push(obstacle);
-                            playSound('tls');
-                            spawnAbilityEffect(player.x + player.width / 2, player.y, '\u25A0', '#22c55e');
-                            for (let i = 0; i < 8; i++) particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#22c55e'));
-                        } else {
-                            playSound('fall');
-                            loseLife();
-                            for (let i = 0; i < 10; i++) particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#ef4444'));
-                        }
+                        // This legacy reflex-obstacle collision path is now inert in normal play --
+                        // Obstacle spawning is retired (see spawn scheduling in update()); the sole
+                        // lethal mechanic is now the firewall Gate system (gateFail() below), which
+                        // never checks shieldActive/ability state, so a wrong lane always costs a
+                        // life. Kept here only so the Obstacle class + its art remain in the file.
+                        playSound('fall');
+                        loseLife();
+                        for (let i = 0; i < 10; i++) particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#ef4444'));
                     }
                 });
                 killsToRemove.forEach(o => { const idx = obstacles.indexOf(o); if (idx !== -1) obstacles.splice(idx, 1); });
@@ -1994,7 +2271,7 @@
             particles.forEach(p => p.update());
             particles = particles.filter(p => p.life > 0);
 
-            // Chaser — Packet Flood Wall
+            // Chaser: Packet Flood Wall
             updateChaser();
         }
 
@@ -2004,7 +2281,7 @@
         function draw() {
             drawBackground();
 
-            // Chaser wall — render after background, before obstacles
+            // Chaser wall: render after background, before obstacles
             drawChaser();
 
             // Flag
@@ -2032,6 +2309,7 @@
             }
 
             obstacles.forEach(o => o.draw());
+            gates.forEach(g => g.draw());
             particles.forEach(p => p.draw());
             drawPlayer();
 
@@ -2064,11 +2342,11 @@
                 ctx.font = 'bold 11px Courier New';
                 ABILITIES.forEach(ab => {
                     if (currentLevel >= ab.unlocksAt) {
-                        const ready = ab.id === 'tcp' ? tcpReady : ab.id === 'udp' ? udpReady : ab.id === 'tls' ? tlsShield : ab.id === 'dns' ? true : ab.id === 'bgp' ? bgpReady : false;
+                        const ready = ab.id === 'tcp' ? tcpReady : ab.id === 'udp' ? udpReady : ab.id === 'dns' ? true : false;
                         ctx.globalAlpha = ready ? 1 : 0.3;
                         ctx.fillStyle = ab.color;
                         ctx.fillText(ab.icon, hudX, hudY);
-                        const label = (ab.id === 'tls' && !tlsShield && currentLevel >= 2) ? `${tlsCooldown}/${TLS_COOLDOWN_HOPS}` : ab.desc;
+                        const label = ab.desc;
                         ctx.fillStyle = '#fff'; ctx.globalAlpha = ready ? 0.7 : 0.2;
                         ctx.fillText(label, hudX + 14, hudY);
                         hudX += ctx.measureText(ab.icon + ' ' + label).width + 20;
@@ -2120,10 +2398,14 @@
             obstacles = []; powerups = []; particles = []; bubbles = []; playerGlowParticles = [];
             activePowerup = null; comboCount = 0; lastObstaclePassTime = 0; playerTrail = [];
             resetChaser();
-            tcpReady = true; udpReady = true; tlsShield = false; tlsCooldown = 0; bgpReady = true;
+            tcpReady = true; udpReady = true;
             dnsActive = false; jumpWasPressed = false; dashWasPressed = false;
             abilityEffects = [];
             obstacleSpawnTimer = 0;
+
+            // Firewall Gate system reset -- fresh packet identity + spawn timer for the new run.
+            gates = []; gateSpawnTimer = 0; currentPacket = null; gatesUntilReroll = 0;
+            rollNewPacket();
 
             player.x = 100; player.y = GROUND_Y - player.height;
             player.velocityY = 0; player.velocityX = 0;
@@ -2248,12 +2530,12 @@
         });
 
         // ============================================
-        // INIT — Demo mode
+        // INIT: Demo mode
         // ============================================
         function startDemo() {
             demoMode = true; gameRunning = true;
             speed = LEVELS[0].speed;
-            obstacles = []; particles = []; bubbles = [];
+            obstacles = []; gates = []; particles = []; bubbles = [];
             player.x = 100; player.y = GROUND_Y - player.height;
             player.velocityY = 0; player.velocityX = 0;
             playerTrail = [];
@@ -2261,6 +2543,59 @@
 
         const savedHighScore = localStorage.getItem('packetrun_highscore') || '0';
         document.getElementById('highScore').textContent = savedHighScore;
+
+        // Test API for the Node/puppeteer self-verification harness
+        // (_tools/arcade-fixes/packet-run-check.js). Exposes real internal state via getState() (a
+        // live read of the closures, not a stale snapshot) and drives the actual game functions
+        // directly -- same pattern as _tools/arcade-fixes/packet-invaders-check.js's window.__PI.
+        // Never referenced by normal gameplay; harmless if unused.
+        window.__PR = {
+            start: startGame,
+            setKeys: (partial) => { Object.assign(keys, partial); },
+            // Test-only: fast-forwards one gate's x so resolution can be exercised deterministically
+            // without waiting for real-time travel. Position-only teleport; the resolution branch
+            // that runs afterward (Gate.update()'s crossing check) is the unmodified real code path.
+            // Keyed by STABLE gate id, not array index -- `gates` is filtered every frame as
+            // off-screen entries scroll away, so an index captured earlier by an async caller can
+            // silently point at a different gate by the time it's used. id never shifts.
+            forceGateX: (id, x) => { const g = gates.find(g => g.id === id); if (g) g.x = x; },
+            // Test-only: deterministically injects a gate with a caller-specified rule (bypassing
+            // the RNG in buildGateRule) so the harness can assert both "correct lane survives" and
+            // "wrong lane fails" without needing to hunt for a naturally-generated matching rule.
+            // Returns the new gate's stable id (not its array index).
+            spawnGate: (rule) => { const g = new Gate(canvas.width + 30, rule); gates.push(g); return g.id; },
+            buildGateRule: () => buildGateRule(currentPacket, currentLevel),
+            isInCIDR: isInCIDR,
+            // Test-only: forces the depth level (position/config only) so the harness can sample
+            // route/CIDR gates -- which only unlock from DEEP SEA (index 2) on -- without needing
+            // real playtime to reach that depth. All real per-level behavior (rule-type pool,
+            // speed, gate cadence) still runs unmodified off the forced value.
+            setLevel: (n) => { currentLevel = n; },
+            // Test-only: freezes the Packet Flood Wall chaser (a real, separate, already-working
+            // endless-runner pressure mechanic, unrelated to firewall-gate correctness) so gate-
+            // focused assertions aren't confounded by an unrelated cause of death during longer
+            // controlled test runs. Never used in normal play.
+            pauseChaser: () => { chaser.active = false; chaser.startDelay = 999999; chaser.x = -500; },
+            // Test-only: seeds the mulberry32 PRNG that drives packet identity, gate rule
+            // generation, and gate spawn cadence, so a fixed seed reproduces a byte-identical gate
+            // sequence run-to-run -- required for deterministic self-verification.
+            seedRNG: seedRNG,
+            // Test-only: instantly resets the player to a clean grounded baseline (position/velocity
+            // only, same category as forceGateX). Lets a bulk-trial harness avoid waiting out a real
+            // ~600ms jump arc between independent trials; the resolution branch that runs afterward
+            // (Gate.update()'s crossing check) is the unmodified real code path.
+            // isJumping must be reset here too, not just onGround/velocityY/ducking - Gate.update()
+            // now keys lane classification off isJumping (see its doc comment), so a stale
+            // isJumping=true left over from a PREVIOUS trial's jump would misclassify this trial's
+            // gate as top even after a clean position/onGround reset.
+            landPlayer: () => { player.y = GROUND_Y - player.height; player.velocityY = 0; player.onGround = true; player.ducking = false; player.isJumping = false; },
+            getState: () => ({
+                score, lives, gameRunning, gameOver: !gameRunning, currentLevel, levelName: getCurrentLevel().name,
+                demoMode, countdownActive, playerOnGround: player.onGround, playerX: player.x, playerY: player.y, deathCause,
+                currentPacket: currentPacket ? Object.assign({}, currentPacket) : null,
+                gates: gates.map(g => ({ id: g.id, x: g.x, width: g.width, rule: g.rule, resolved: g.resolved, resolvedLane: g.resolvedLane, outcome: g.outcome }))
+            })
+        };
 
         startDemo();
         gameLoop();
