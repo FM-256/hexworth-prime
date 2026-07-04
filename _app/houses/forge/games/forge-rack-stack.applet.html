@@ -111,11 +111,11 @@
             <div class="lore-title">RACK STACK</div>
             <div class="lore-section">
                 <h2>WORK ORDER</h2>
-                <p>The new data center is empty. Rack servers, switches, storage, and power supplies into the cabinet before the client deadline.</p>
+                <p>The new data center is empty. Rack servers, switches, storage, and power gear into the cabinet before the client deadline -- but only correct rack layouts pass the safety audit.</p>
             </div>
             <div class="lore-section">
                 <h2>COMPONENTS</h2>
-                <p>Each piece must fit perfectly. Complete rows to ship the rack. Combos mean bonus efficiency ratings.</p>
+                <p>Real racking rules apply. Heaviest gear (UPS Battery) at the BOTTOM for a low center of gravity. Switches and patch panels near the TOP for clean cabling. Fill every gap with a Blanking Panel or the aisle airflow leaks. A row only ships (and scores) if it's a rack-VALID arrangement -- get it wrong and it's flagged, not scored.</p>
             </div>
             <div class="lore-section">
                 <h2>STATUS</h2>
@@ -191,28 +191,34 @@ function sfxDrop() { playSound(200, 0.1, 'sawtooth'); }
 function sfxClear() { playSound(523, 0.1, 'sine'); setTimeout(() => playSound(659, 0.1, 'sine'), 80); setTimeout(() => playSound(784, 0.15, 'sine'), 160); }
 function sfxTetris() { playSound(523, 0.1, 'sine'); setTimeout(() => playSound(659, 0.08, 'sine'), 60); setTimeout(() => playSound(784, 0.08, 'sine'), 120); setTimeout(() => playSound(1047, 0.2, 'sine'), 180); }
 function sfxDeath() { playSound(300, 0.2, 'sawtooth', 0.15); setTimeout(() => playSound(200, 0.3, 'sawtooth', 0.15), 150); }
+function sfxAudit() { playSound(150, 0.15, 'square', 0.1); } // short low buzz: a row cleared but failed the rack-validity audit
 function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
 
-// Piece definitions - hardware themed
+// Piece definitions - real rack components. Each carries a `category` and a `weight`
+// used by validateRow()/lockPiece() to enforce actual data-center racking rules:
+// heaviest gear at the bottom (low center of gravity), power below compute, network
+// gear (switches/patch panels) near the top for cable management, and blanking panels
+// (weight 0) as the universal, weightless airflow-gap filler. Shapes are UNCHANGED from
+// the original 7 tetrominoes -- only the real-world meaning + metadata is new.
 const PIECES = [
-    { name: '1U Server', type: 'server', shape: [[1,1,1,1]], color: '#3b82f6', darkColor: '#1e40af' },
-    { name: 'L-Bracket', type: 'lbracket', shape: [[1,0],[1,0],[1,1]], color: '#f97316', darkColor: '#c2410c' },
-    { name: 'J-Bracket', type: 'jbracket', shape: [[0,1],[0,1],[1,1]], color: '#8b5cf6', darkColor: '#6d28d9' },
-    { name: 'Power Supply', type: 'psu', shape: [[1,1],[1,1]], color: '#f59e0b', darkColor: '#d97706' },
-    { name: 'Switch', type: 'switch', shape: [[0,1,1],[1,1,0]], color: '#22c55e', darkColor: '#15803d' },
-    { name: 'Router', type: 'router', shape: [[1,1,0],[0,1,1]], color: '#ef4444', darkColor: '#b91c1c' },
-    { name: 'NAS Unit', type: 'nas', shape: [[0,1,0],[1,1,1]], color: '#06b6d4', darkColor: '#0e7490' }
+    { name: '1U Server', type: 'server', shape: [[1,1,1,1]], color: '#3b82f6', darkColor: '#1e40af', category: 'compute', weight: 2 },
+    { name: 'PDU', type: 'lbracket', shape: [[1,0],[1,0],[1,1]], color: '#f97316', darkColor: '#c2410c', category: 'power', weight: 2 },
+    { name: 'Patch Panel', type: 'jbracket', shape: [[0,1],[0,1],[1,1]], color: '#8b5cf6', darkColor: '#6d28d9', category: 'network', weight: 1 },
+    { name: 'UPS Battery', type: 'psu', shape: [[1,1],[1,1]], color: '#f59e0b', darkColor: '#d97706', category: 'power', weight: 3 },
+    { name: 'Network Switch', type: 'switch', shape: [[0,1,1],[1,1,0]], color: '#22c55e', darkColor: '#15803d', category: 'network', weight: 1 },
+    { name: 'Blanking Panel', type: 'blank', shape: [[1,1,0],[0,1,1]], color: '#94a3b8', darkColor: '#475569', category: 'blank', weight: 0 },
+    { name: 'NAS Unit', type: 'nas', shape: [[0,1,0],[1,1,1]], color: '#06b6d4', darkColor: '#0e7490', category: 'compute', weight: 2 }
 ];
 
 // Component info for ? panel
 const COMPONENT_INFO = [
-    { name: '1U SERVER', desc: 'Standard rack-mount server. 4 units wide. The backbone of any data center.', icon: '████' },
-    { name: 'L-BRACKET', desc: 'Mounting bracket (left). Supports cable management.', icon: '█\n█\n██' },
-    { name: 'J-BRACKET', desc: 'Mounting bracket (right). Mirror config.', icon: ' █\n █\n██' },
-    { name: 'POWER SUPPLY', desc: '2x2 redundant PSU block. Keeps everything running.', icon: '██\n██' },
-    { name: 'NETWORK SWITCH', desc: 'Layer 2/3 switch. Routes traffic between racks.', icon: ' ██\n██' },
-    { name: 'ROUTER', desc: 'Edge router. Connects the rack to the world.', icon: '██\n ██' },
-    { name: 'NAS UNIT', desc: 'Network Attached Storage. T-shaped for airflow.', icon: ' █\n███' },
+    { name: '1U SERVER', desc: 'Standard rack-mount compute node. 4 units wide. The backbone of any data center.', icon: '████' },
+    { name: 'PDU', desc: 'Power Distribution Unit. Feeds power to rack-mounted gear -- keep it low, near the UPS.', icon: '█\n█\n██' },
+    { name: 'PATCH PANEL', desc: 'Cable termination point. Belongs near the top of the rack for clean, short cable runs to switches.', icon: ' █\n █\n██' },
+    { name: 'UPS BATTERY', desc: 'Uninterruptible power supply. The heaviest unit in the rack -- always mount it at the bottom for a low center of gravity.', icon: '██\n██' },
+    { name: 'NETWORK SWITCH', desc: 'Layer 2/3 switch. Belongs near the top of the rack, close to the patch panel, for clean cable management.', icon: ' ██\n██' },
+    { name: 'BLANKING PANEL', desc: 'Covers unused rack space. Required to preserve front-to-back airflow -- an open gap breaks hot/cold aisle containment.', icon: '▓▓▓▓' },
+    { name: 'NAS UNIT', desc: 'Network Attached Storage. Front-loading drive bays need clear airflow.', icon: ' █\n███' },
 ];
 
 let board = [];
@@ -233,20 +239,9 @@ function createBoard() {
     }
 }
 
-function randomPiece() {
-    const p = PIECES[Math.floor(Math.random() * PIECES.length)];
-    return {
-        shape: p.shape.map(r => [...r]),
-        color: p.color,
-        darkColor: p.darkColor,
-        type: p.type,
-        name: p.name,
-        x: Math.floor(COLS / 2) - Math.floor(p.shape[0].length / 2),
-        y: 0
-    };
-}
-
-// 7-bag randomizer
+// 7-bag randomizer -- the ONLY supplier of real gameplay pieces (an old unused
+// randomPiece() duplicate of this same shape was removed here since it had zero call
+// sites and would have silently lacked category/weight going forward).
 let bag = [];
 function nextFromBag() {
     if (bag.length === 0) {
@@ -264,6 +259,8 @@ function nextFromBag() {
         darkColor: p.darkColor,
         type: p.type,
         name: p.name,
+        category: p.category,
+        weight: p.weight,
         x: Math.floor(COLS / 2) - Math.floor(p.shape[0].length / 2),
         y: 0
     };
@@ -284,8 +281,12 @@ function spawnPiece() {
             gameRunning = false;
             gameOver = true;
             if (typeof GameTracker !== 'undefined') GameTracker.record('rackstack', { score: score, result: 'failure' });
-            const prevHigh = parseInt(localStorage.getItem('rackstack_highscore') || '0');
-            if (score > prevHigh) localStorage.setItem('rackstack_highscore', score.toString());
+            // Key renamed (v1 -> v2, superseded not migrated) since the scoring formula
+            // changed dramatically with the racking-validity gate -- old scores earned
+            // under the unconstrained pre-rack-rules formula are not comparable and should
+            // not stand as an unbeatable ceiling under the new, much stricter formula.
+            const prevHigh = parseInt(localStorage.getItem('rackstack_highscore_v2') || '0');
+            if (score > prevHigh) localStorage.setItem('rackstack_highscore_v2', score.toString());
             // Achievement + XP on reaching level 5+
             if (level >= 5) {
                 if (window.AchievementManager) AchievementManager.unlock('game_rackstack');
@@ -350,7 +351,43 @@ function tryRotate() {
     currentPiece.shape = old; // revert
 }
 
+// validateRow: the real racking rule, column-local. For every non-blank cell in row r,
+// EITHER r is the floor row OR the cell directly below (board[r+1][c]) is a real,
+// non-empty component that is the SAME WEIGHT OR HEAVIER. This teaches heavy-at-bottom
+// (a UPS Battery, weight 3, cannot rest validly on a Network Switch, weight 1 -- breaks
+// the low-center-of-gravity rule) and "no equipment over an open gap" (an empty cell
+// below a real component means no rail support -- also reads as an airflow gap breaking
+// front-to-back hot/cold aisle containment). Blanking Panels (weight 0) are EXEMPT
+// everywhere -- they carry no rack load, they just cover unused space.
+// Checked against the board AS IT CURRENTLY STANDS, before any row is removed -- see
+// checkLines() below for the ordering guarantee (all validity computed in one
+// synchronous pass before any splice).
+function validateRow(r) {
+    if (r === ROWS - 1) return true; // floor row: always structurally valid
+    for (let c = 0; c < COLS; c++) {
+        const cell = board[r][c];
+        if (!cell || cell.weight === 0) continue; // empty or blanking panel: exempt
+        const below = board[r + 1][c];
+        if (!below) return false; // unsupported -- no rail support / airflow gap
+        if (below.weight < cell.weight) return false; // heavier item resting on lighter item
+    }
+    return true;
+}
+
 function lockPiece() {
+    // Snapshot the stack's current top (topmost occupied row) BEFORE this piece writes
+    // into the board -- used by the cable-management bonus below, which rewards network
+    // gear landing near the top of what's been built SO FAR, not an absolute board row.
+    let preStackTop = ROWS;
+    outer: for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) if (board[r][c]) { preStackTop = r; break outer; }
+    }
+
+    // PASS 1: write every cell of the piece into the board. The lock-time violation check
+    // (PASS 2) runs AFTER this loop fully completes -- not interleaved with it -- so a
+    // multi-cell piece resting partly on its OWN just-placed cells (e.g. the PDU/Patch
+    // Panel L/J shapes, where an upper cell is legitimately supported by a lower cell of
+    // the SAME piece) is checked against a fully-committed board, never a half-written one.
     for (let r = 0; r < currentPiece.shape.length; r++) {
         for (let c = 0; c < currentPiece.shape[r].length; c++) {
             if (!currentPiece.shape[r][c]) continue;
@@ -360,11 +397,75 @@ function lockPiece() {
                 board[by][bx] = {
                     color: currentPiece.color,
                     darkColor: currentPiece.darkColor,
-                    type: currentPiece.type
+                    type: currentPiece.type,
+                    category: currentPiece.category,
+                    weight: currentPiece.weight
                 };
             }
         }
     }
+
+    // PASS 2: immediate per-lock feedback. Real components (weight>0) resting on an empty
+    // cell (no rail support) or on something lighter than themselves (breaks heavy-at-
+    // bottom) trigger an instant, small warning the moment the mistake is made -- not only
+    // if/when the row eventually fills. This is a SEPARATE, faster signal layer from the
+    // row-clear scoring gate in checkLines(): lock-time = "you just made a placement
+    // mistake" tutor nudge (deliberately small, -15); row-clear = the actual scoring/
+    // progress consequence (-40/row, larger, because that's the row that failed to ship).
+    // Penalty is a flat -15 PER PIECE, not per violating cell, so a 4-cell piece with
+    // several bad cells isn't penalized 4x harder than a 2-cell piece with one bad cell --
+    // it's one "this placement was wrong" nudge regardless of piece size.
+    let lockViolation = false, violationMsg = null;
+    if (currentPiece.weight > 0) {
+        for (let r = 0; r < currentPiece.shape.length && !lockViolation; r++) {
+            for (let c = 0; c < currentPiece.shape[r].length; c++) {
+                if (!currentPiece.shape[r][c]) continue;
+                const by = currentPiece.y + r, bx = currentPiece.x + c;
+                if (by < 0 || by >= ROWS || bx < 0 || bx >= COLS) continue;
+                if (by === ROWS - 1) continue; // floor row always supports
+                const below = board[by + 1][bx];
+                if (!below) { lockViolation = true; violationMsg = 'UNSUPPORTED GEAR'; break; }
+                if (below.weight < currentPiece.weight) { lockViolation = true; violationMsg = 'TOPPLE RISK'; break; }
+            }
+        }
+    }
+    if (lockViolation) {
+        score = Math.max(0, score - 15);
+        // combo: -1 renders red via the existing floater color dispatch in drawOverlays()
+        // (its color switch falls through to red for any combo value other than 0/1/2).
+        comboFloaters.push({
+            text: violationMsg,
+            x: (currentPiece.x + currentPiece.shape[0].length / 2) * CELL,
+            y: currentPiece.y * CELL,
+            life: 30,
+            combo: -1
+        });
+    }
+
+    // Cable-management bonus: a network component (switch/patch panel) landing near the
+    // TOP of the CURRENT stack -- relative to what's been built so far (preStackTop),
+    // not an absolute board row -- earns a small bonus for a good cable-run placement.
+    // This is achievable and meaningful at any point in the game, early or late.
+    if (currentPiece.category === 'network') {
+        let topOffset = 0;
+        for (let r = 0; r < currentPiece.shape.length; r++) {
+            if (currentPiece.shape[r].some(v => v)) { topOffset = r; break; }
+        }
+        const pieceTopRow = currentPiece.y + topOffset;
+        const zoneTop = preStackTop === ROWS ? 0 : preStackTop;
+        const zoneLimit = zoneTop + Math.ceil((ROWS - zoneTop) * 0.34);
+        if (pieceTopRow <= zoneLimit) {
+            score += 15;
+            comboFloaters.push({
+                text: 'CABLE-MANAGED +15',
+                x: (currentPiece.x + currentPiece.shape[0].length / 2) * CELL,
+                y: currentPiece.y * CELL - 10,
+                life: 30,
+                combo: 1
+            });
+        }
+    }
+
     lockFlash = 8;
     sfxDrop();
     checkLines();
@@ -372,19 +473,39 @@ function lockPiece() {
 }
 
 function checkLines() {
-    clearRows = [];
+    const full = [];
     for (let r = 0; r < ROWS; r++) {
-        if (board[r].every(cell => cell !== 0)) {
-            clearRows.push(r);
-        }
+        if (board[r].every(cell => cell !== 0)) full.push(r);
     }
-    if (clearRows.length > 0) {
-        clearAnimation = 20;
+    if (full.length === 0) { combo = -1; clearRows = []; return; }
+
+    // Validity for EVERY completed row is computed against the SAME unmutated board, in
+    // this one synchronous pass, BEFORE any row is spliced out (that only happens later,
+    // in removeClearedRows(), after the clear-animation delay counts down in update()).
+    // No row's r+1 lookup is ever made against a board that's already had an earlier row
+    // in this same batch removed.
+    const pairs = full.map(r => ({ r, valid: validateRow(r) }));
+    const validRows = pairs.filter(p => p.valid).map(p => p.r);
+    const invalidRows = pairs.filter(p => !p.valid).map(p => p.r);
+
+    // ALL full rows clear this tick regardless of validity -- this guarantees the board
+    // can never permanently lock up from an early mistake (an invalid row still gets
+    // removed, it just ships zero credit). Only SCORE and "rows shipped" (which drives
+    // level/dropInterval) are gated on validity.
+    clearRows = full;
+    clearAnimation = 20;
+
+    if (validRows.length > 0) {
         combo++;
+        // Classic single/double/triple/tetris table is indexed by validRows.length (rows
+        // that actually count), NOT by full.length (rows physically removed this tick). A
+        // 4-row batch with 3 valid + 1 invalid rows scores as a TRIPLE, not a tetris and
+        // not zero -- mixed-validity batches were confirmed to occur under real play
+        // patterns in pre-implementation simulation; this is the stated resolution rule.
         const basePoints = [0, 100, 300, 500, 800];
-        const pts = (basePoints[clearRows.length] || 800) * level * (1 + combo * 0.5);
+        const pts = (basePoints[validRows.length] || 800) * level * (1 + combo * 0.5);
         score += Math.floor(pts);
-        lines += clearRows.length;
+        lines += validRows.length;
         level = Math.floor(lines / 10) + 1;
         dropInterval = Math.max(2, 48 - (level - 1) * 4);
 
@@ -399,9 +520,25 @@ function checkLines() {
             });
         }
 
-        if (clearRows.length === 4) sfxTetris(); else sfxClear();
+        if (validRows.length === 4) sfxTetris(); else sfxClear();
     } else {
         combo = -1;
+    }
+
+    if (invalidRows.length > 0) {
+        // Invalid rows still physically clear (see above) but ship ZERO score/line credit
+        // and cost a flat rack-audit penalty per row -- a distinct visual + audio cue from
+        // a valid clear so the failure reads as a failure, not a smaller win.
+        score = Math.max(0, score - 40 * invalidRows.length);
+        // combo: -1 renders red via the existing floater color dispatch in drawOverlays().
+        comboFloaters.push({
+            text: invalidRows.length > 1 ? `RACK AUDIT FAIL x${invalidRows.length}` : 'RACK AUDIT FAIL',
+            x: COLS * CELL / 2,
+            y: ROWS * CELL / 2 + 30,
+            life: 40,
+            combo: -1
+        });
+        sfxAudit();
     }
 }
 
@@ -421,13 +558,16 @@ function getGhostY() {
 }
 
 function hardDrop() {
+    // NOTE: no distance-based score bonus here (there was: `score += dropped * 2`). That
+    // channel was validity-blind -- it rewarded raw drop distance regardless of whether
+    // the placement was rack-valid, which would have let mindless play bank meaningful
+    // score with zero racking knowledge. Removed so 100% of scoring flows through the
+    // racking-validity gate in checkLines()/lockPiece(). Players still have every reason
+    // to hard-drop for speed and control; they just get no unrelated reward for it.
     if (!currentPiece) return;
-    let dropped = 0;
     while (!collides(currentPiece, currentPiece.x, currentPiece.y + 1)) {
         currentPiece.y++;
-        dropped++;
     }
-    score += dropped * 2;
     lockPiece();
 }
 
@@ -441,7 +581,9 @@ function holdCurrentPiece() {
             color: currentPiece.color,
             darkColor: currentPiece.darkColor,
             type: currentPiece.type,
-            name: currentPiece.name
+            name: currentPiece.name,
+            category: currentPiece.category,
+            weight: currentPiece.weight
         };
         currentPiece = temp;
         currentPiece.x = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
@@ -452,7 +594,9 @@ function holdCurrentPiece() {
             color: currentPiece.color,
             darkColor: currentPiece.darkColor,
             type: currentPiece.type,
-            name: currentPiece.name
+            name: currentPiece.name,
+            category: currentPiece.category,
+            weight: currentPiece.weight
         };
         spawnPiece();
     }
@@ -588,7 +732,8 @@ function update() {
         if (currentPiece) {
             if (!collides(currentPiece, currentPiece.x, currentPiece.y + 1)) {
                 currentPiece.y++;
-                if (softDrop) score += 1;
+                // No per-tick score bonus for holding soft drop (there was: `+= 1`) -- same
+                // validity-blind-channel reasoning as hardDrop() above.
                 lockDelay = 0;
             } else {
                 lockDelay++;
@@ -766,44 +911,41 @@ function drawSwitchCell(ctx, x, y, size, color, darkColor) {
     ctx.fillRect(x + 4, y + 4, size - 8, 2);
 }
 
-function drawRouterCell(ctx, x, y, size, color, darkColor) {
-    // Gradient background
+function drawBlankCell(ctx, x, y, size, color, darkColor) {
+    // A blanking panel is a PASSIVE filler -- no ports, no LEDs, no antenna, no power.
+    // Its only job is covering unused rack space so airflow is forced through active
+    // equipment instead of leaking out the front of the cabinet. Visual is deliberately
+    // plain: brushed-metal texture + corner mounting screws, nothing that implies power
+    // or data (this piece used to be drawn as a 'Router' -- name AND visual both changed
+    // so a student never sees an active-looking piece labeled as a passive one).
     const grad = ctx.createLinearGradient(x, y + size, x, y);
     grad.addColorStop(0, darkColor);
     grad.addColorStop(1, color);
     ctx.fillStyle = grad;
     ctx.fillRect(x, y, size, size);
 
-    // Chrome edge
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.fillRect(x + 1, y + 1, size - 2, 2);
-
-    // Antenna stub (top cells only - we'll draw it always for simplicity)
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(x + size/2 - 1, y + 2, 2, 6);
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.fillRect(x + size/2 - 0.5, y + 2, 1, 6);
-
-    // Status LED
-    const blink = Math.sin(Date.now() * 0.01) > 0;
-    ctx.fillStyle = blink ? '#ff0000' : '#660000';
-    ctx.beginPath();
-    ctx.arc(x + 5, y + size/2, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // WAN/LAN labels (tiny text)
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '6px monospace';
-    ctx.fillText('WAN', x + size - 18, y + size - 5);
-
-    // Circuit traces
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    // Subtle brushed-metal horizontal lines (texture only, no functional ports)
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(x + 5, y + 10);
-    ctx.lineTo(x + 15, y + 10);
-    ctx.lineTo(x + 15, y + size - 10);
-    ctx.stroke();
+    for (let i = 0; i < 4; i++) {
+        const ly = y + 6 + i * 6;
+        ctx.beginPath();
+        ctx.moveTo(x + 3, ly);
+        ctx.lineTo(x + size - 3, ly);
+        ctx.stroke();
+    }
+
+    // Corner mounting screws (4) -- a real blanking panel is just screwed into the rails
+    const corners = [[x + 5, y + 5], [x + size - 5, y + 5], [x + 5, y + size - 5], [x + size - 5, y + size - 5]];
+    corners.forEach(([sx, sy]) => {
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(220,220,220,0.35)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+    });
 }
 
 function drawNASCell(ctx, x, y, size, color, darkColor) {
@@ -873,8 +1015,8 @@ function drawCell(context, x, y, size, color, darkColor, type) {
         case 'switch':
             drawSwitchCell(context, x, y, size, color, darkColor);
             break;
-        case 'router':
-            drawRouterCell(context, x, y, size, color, darkColor);
+        case 'blank':
+            drawBlankCell(context, x, y, size, color, darkColor);
             break;
         case 'nas':
             drawNASCell(context, x, y, size, color, darkColor);
@@ -1214,6 +1356,57 @@ function gameLoop() {
     draw();
     requestAnimationFrame(gameLoop);
 }
+
+// Test-only hooks for the automated QC harness (_tools/arcade-fixes/rack-stack-check.js).
+// Not reachable through any in-game UI control. Exposes READ access to real game state
+// plus two narrow, clearly-scoped write paths:
+//   - forcePiece(): swaps which piece is currently falling (like a "debug next piece"
+//     dev cheat -- no different in kind from picking a piece from the bag), so the
+//     harness can drive an exact sequence through the REAL tryRotate()/hardDrop()/
+//     lockPiece()/checkLines()/validateRow() path, not a bypass of it.
+//   - setCell(): a direct board write used ONLY to construct known valid/invalid row
+//     scenarios so checkLines()/validateRow() (the real production scoring functions)
+//     can be asserted deterministically without waiting on real gravity to build an
+//     exact row by chance.
+// Neither path touches score/XP/achievement state directly -- those still only change
+// via the real scoring functions, so this adds no new attack surface on top of what the
+// file's existing (pre-existing, unrelated to this change) client-side-only XP gating
+// already has.
+window.__rackTest = {
+    getState: () => ({ score, level, lines, combo, gameRunning, gameOver, demoMode, dropInterval }),
+    getBoardMeta: () => board.map(row => row.map(c => c ? { type: c.type, category: c.category, weight: c.weight } : 0)),
+    getPieceDefs: () => PIECES.map(p => ({ name: p.name, type: p.type, category: p.category, weight: p.weight })),
+    setCell: (r, c, typeName) => {
+        if (typeName === null || typeName === 0) { board[r][c] = 0; return true; }
+        const def = PIECES.find(p => p.type === typeName);
+        if (!def) return false;
+        board[r][c] = { color: def.color, darkColor: def.darkColor, type: def.type, category: def.category, weight: def.weight };
+        return true;
+    },
+    validateRow: (r) => validateRow(r),
+    runCheckLines: () => { const before = { score, lines, level }; checkLines(); return { before, after: { score, lines, level } }; },
+    forcePiece: (typeName, targetX, rotations) => {
+        const def = PIECES.find(p => p.type === typeName);
+        if (!def) return false;
+        let shape = def.shape.map(row => [...row]);
+        // Apply the REAL rotatePiece() (the same matrix-rotate tryRotate() uses in normal
+        // play) -- no wall-kick logic here, matching a harness-side scratch simulation that
+        // also rotates via plain matrix transpose, so a chosen (rotation, column) candidate
+        // lands exactly where the harness predicted it would.
+        for (let i = 0; i < (rotations || 0); i++) shape = rotatePiece({ shape });
+        currentPiece = {
+            shape,
+            color: def.color, darkColor: def.darkColor,
+            type: def.type, name: def.name, category: def.category, weight: def.weight,
+            x: targetX !== undefined ? targetX : Math.floor(COLS / 2) - Math.floor(shape[0].length / 2),
+            y: 0
+        };
+        return true;
+    },
+    startGame: () => startGame(),
+    hardDrop: () => hardDrop(),
+    tryRotate: () => tryRotate()
+};
 
 // Init demo
 createBoard();
