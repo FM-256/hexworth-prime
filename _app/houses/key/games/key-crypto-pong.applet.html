@@ -96,6 +96,21 @@
             display: flex; justify-content: space-between;
             font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;
         }
+        #cipherBanner {
+            position: absolute; top: 42px; left: 10px; right: 10px;
+            text-align: center; font-size: 13px; color: #fbbf24;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;
+            letter-spacing: 0.5px;
+        }
+        #cipherBanner .banner-name { color: #fb923c; font-weight: bold; }
+        #cipherBanner .banner-cipher { color: #22c55e; font-weight: bold; }
+        .lane-label {
+            position: absolute; font-size: 11px; color: #e5e7eb;
+            background: rgba(15,10,26,0.75); border: 1px solid #92400e;
+            padding: 2px 7px; pointer-events: none; white-space: nowrap;
+        }
+        .lane-label.win { border-color: #22c55e; color: #22c55e; }
+        .lane-label.lose { border-color: #ef4444; color: #ef4444; opacity: 0.6; }
         #controls { text-align: center; margin-top: 15px; color: #f59e0b; font-size: 13px; }
         #muteBtn {
             position: absolute; top: 10px; right: 10px;
@@ -124,11 +139,11 @@
             <div class="lore-title">CRYPTO PONG</div>
             <div class="lore-section">
                 <h2>CIPHER BRIEF</h2>
-                <p>The ball carries encrypted data. Your paddle (ENCRYPT) must deflect it past the enemy's paddle (DECRYPT). Each rally adds another layer of encryption.</p>
+                <p>Every serve shows a real ciphertext, its cipher name, and its key. Your paddle has three bands: TOP, MID, BOTTOM. Decode the ciphertext, then position your paddle so the band showing the correct plaintext is what meets the ball.</p>
             </div>
             <div class="lore-section">
                 <h2>CRYPTO MECHANICS</h2>
-                <p>The ball transforms between plaintext and ciphertext as it bounces. Hit the ball at the paddle edge for spin. Powerups alter the encryption algorithm, changing ball behavior.</p>
+                <p>Correct band = the ball returns. Wrong band, or a miss, and the ball passes straight through untouched. The cipher escalates each round: Caesar, then Atbash, then XOR, then Vigenere.</p>
             </div>
             <div class="lore-section legend-section">
                 <h2 style="margin-bottom: 8px;">LEGEND</h2>
@@ -151,7 +166,7 @@
                     <span class="stat-label">ROUND:</span>
                     <span class="stat-value" id="loreRound">1</span>
                     <span class="stat-label">CIPHER:</span>
-                    <span class="stat-value" id="loreCipher">AES-128</span>
+                    <span class="stat-value" id="loreCipher">CAESAR</span>
                     <span class="stat-label">RALLY:</span>
                     <span class="stat-value" id="loreRally">0</span>
                 </div>
@@ -167,13 +182,15 @@
         <div id="gameContainer">
             <canvas id="gameCanvas" width="900" height="550"></canvas>
             <div id="ui">
-                <span id="p1Score" style="color:#f59e0b;">ENCRYPT: 0</span>
+                <span id="p1Score" style="color:#f59e0b;">DECODE: 0</span>
                 <span id="roundDisplay">ROUND 1</span>
-                <span id="p2Score" style="color:#ef4444;">DECRYPT: 0</span>
+                <span id="p2Score" style="color:#ef4444;">ENEMY: 0</span>
             </div>
+            <div id="cipherBanner"></div>
+            <div id="laneLabels"></div>
         </div>
     </div>
-    <div id="controls">↑ ↓ MOVE PADDLE | SHIFT CIPHER BOOST | ? CIPHERS</div>
+    <div id="controls">↑ ↓ MOVE PADDLE (TOP/MID/BOTTOM BAND) | SHIFT CIPHER BOOST | ? CIPHERS</div>
     <div id="movesPanel">
         <h1>CIPHER SUITE</h1>
         <div id="movesList"></div>
@@ -207,19 +224,25 @@ function sfxRound() { playSound(523, 0.12, 'sine', 0.12); setTimeout(() => playS
 function sfxBoost() { playSound(880, 0.08); setTimeout(() => playSound(1100, 0.1), 50); }
 function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
 
+// Real cipher progression. Each entry's decode is a genuinely computed transform,
+// verified against known vectors (Caesar HELLO+3=KHOOR, Atbash HELLO=SVOOL,
+// XOR round-trips, Vigenere HELLO/KEY=RIJVS) before this file shipped.
 const CIPHERS = [
-    { name: 'AES-128', desc: 'Standard symmetric encryption. Normal ball speed and behavior.', round: 1 },
-    { name: 'AES-256', desc: 'Stronger encryption. Ball is slightly faster.', round: 3 },
-    { name: 'RSA-2048', desc: 'Asymmetric. Ball grows and shrinks as it travels.', round: 5 },
-    { name: 'ChaCha20', desc: 'Stream cipher. Ball moves in chaotic curves.', round: 7 },
-    { name: 'QUANTUM', desc: 'Post-quantum. Ball can split into two temporarily.', round: 10 }
+    { name: 'CAESAR', desc: 'Shift cipher: every letter moved N positions in the alphabet. Decode by shifting back N.', round: 1 },
+    { name: 'ATBASH', desc: 'Mirror cipher: A<->Z, B<->Y, and so on. Self-inverse, no key needed.', round: 3 },
+    { name: 'XOR', desc: 'Byte cipher: each character XORed with a single key byte. The same key decodes it.', round: 5 },
+    { name: 'VIGENERE', desc: 'Polyalphabetic cipher: the shift repeats per letter of a keyword.', round: 7 }
 ];
 
 // Game state
 let gameRunning = false, demoMode = true, gameOver = false;
 let p1Score = 0, p2Score = 0, round = 1, rally = 0, maxRally = 0;
+// Unambiguous decode-gate ground truth (distinct from `rally`, which increments on EITHER
+// paddle's hit and so can't tell a correct player decode apart from the AI's own return).
+let correctCatchCount = 0, wrongPassCount = 0;
 let boostCharge = 0, boostActive = 0;
-let serveTimer = 0;
+let postScorePause = 0;   // frames of frozen ball after a point, before the next serve is armed
+let serveReadTimer = 0;   // frames the ball sits still at serve so the player can decode + position
 let particles = [];
 let midlineFlash = 0; // For ball crossing sparkle
 let rallyPulse = 0; // For rally counter animation
@@ -231,19 +254,104 @@ const p2 = { x: W - 30 - PADDLE_W, y: H/2 - PADDLE_H/2, w: PADDLE_W, h: PADDLE_H
 
 // Ball
 const ball = { x: W/2, y: H/2, vx: 4, vy: 2, radius: 8, serving: true, lastSide: 0 };
+let prevBallX = ball.x;     // last frame's x, used for a swept collision check so a fast ball can't tunnel through the paddle
+let approachResolved = false; // true once this approach toward the player has already been scored/passed (prevents re-triggering across dwell frames)
 let ballTrail = [];
+let decodeFeedback = null; // transient {text, color, life} shown at the paddle on hit/miss
 
-// Cipher text on ball
-let cipherText = 'HELLO';
-const PLAINTEXT = ['HELLO', 'WORLD', 'KEY', 'DATA', 'HASH', 'SALT', 'NONCE', 'IV', 'MAC', 'SIG'];
-const CIPHERTEXT = ['0xA3F1', '0xD9C2', '0x7B4E', '0x2F8A', '0xE5D1', '0xBC6F', '0x94A8', '0x5C3D', '0x8E17', '0xF06B'];
+// ---- Real cipher functions (verified against known vectors) ----
+function mod26(n) { return ((n % 26) + 26) % 26; }
+function caesarEncrypt(t, shift) { return t.replace(/[A-Z]/g, c => String.fromCharCode(65 + mod26(c.charCodeAt(0) - 65 + shift))); }
+function atbash(t) { return t.replace(/[A-Z]/g, c => String.fromCharCode(65 + (25 - (c.charCodeAt(0) - 65)))); }
+function xorEncryptHex(t, key) { return t.split('').map(c => (c.charCodeAt(0) ^ key).toString(16).padStart(2, '0').toUpperCase()).join(' '); }
+function vigenereEncrypt(t, key) {
+    let i = 0;
+    return t.replace(/[A-Z]/g, c => {
+        const s = key.charCodeAt(i % key.length) - 65;
+        i++;
+        return String.fromCharCode(65 + mod26(c.charCodeAt(0) - 65 + s));
+    });
+}
+
+// Length-bucketed real-word bank so distractors are always genuine words of the same
+// length as the secret (a player can't shortcut by picking "the only real word").
+const WORD_BANK = {
+    3: ['KEY', 'IVY', 'BIT', 'RAM', 'LOG', 'DNS', 'RSA', 'VPN'],
+    4: ['HASH', 'SALT', 'GATE', 'LOCK', 'VOID', 'WIRE', 'DATA', 'BYTE', 'CODE', 'ECHO', 'RUNE', 'NODE'],
+    5: ['HELLO', 'WORLD', 'NONCE', 'TOKEN', 'ARRAY', 'STACK', 'QUEUE', 'BLOCK', 'FRAME', 'GRAPH'],
+    6: ['CIPHER', 'PACKET', 'SOCKET', 'KERNEL', 'BINARY', 'ENGINE', 'MEMORY', 'CRYPTO', 'SIGNAL', 'ROUTER']
+};
+const VIG_KEYS = ['KEY', 'DOG', 'CAT', 'SUN', 'RED', 'LOG', 'ICE', 'FOX', 'OWL', 'BEE'];
+
+// Unbiased Fisher-Yates shuffle (NOT the well-known-biased sort(()=>Math.random()-0.5) pattern).
+function shuffleArr(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
 
 function getCurrentCipher() {
-    if (round >= 10) return 'QUANTUM';
-    if (round >= 7) return 'ChaCha20';
-    if (round >= 5) return 'RSA-2048';
-    if (round >= 3) return 'AES-256';
-    return 'AES-128';
+    if (round >= 7) return 'VIGENERE';
+    if (round >= 5) return 'XOR';
+    if (round >= 3) return 'ATBASH';
+    return 'CAESAR';
+}
+
+let challenge = null; // { cipherName, keyDisplay, ciphertext, secret, lanes: [top, mid, bottom], correctLane }
+
+// Build one rally's real, computed decode challenge: pick a secret word + two same-length
+// distractors, encrypt the secret with the round's cipher and a freshly randomized key,
+// then shuffle which paddle band (top/mid/bottom) shows the correct plaintext.
+function genChallenge() {
+    const cipherName = getCurrentCipher();
+    const lens = Object.keys(WORD_BANK);
+    const len = lens[Math.floor(Math.random() * lens.length)];
+    const bucket = WORD_BANK[len];
+    const pickIdx = shuffleArr(bucket.map((_, i) => i)).slice(0, 3);
+    const words = pickIdx.map(i => bucket[i]);
+    const secret = words[0]; // words[1], words[2] are same-length distractors
+
+    let ciphertext, keyDisplay;
+    if (cipherName === 'CAESAR') {
+        const shift = 1 + Math.floor(Math.random() * 25);
+        ciphertext = caesarEncrypt(secret, shift);
+        keyDisplay = 'SHIFT ' + shift;
+    } else if (cipherName === 'ATBASH') {
+        ciphertext = atbash(secret);
+        keyDisplay = '(mirror, no key)';
+    } else if (cipherName === 'XOR') {
+        const key = 1 + Math.floor(Math.random() * 254);
+        ciphertext = xorEncryptHex(secret, key);
+        keyDisplay = 'KEY 0x' + key.toString(16).toUpperCase();
+    } else {
+        const vk = VIG_KEYS[Math.floor(Math.random() * VIG_KEYS.length)];
+        ciphertext = vigenereEncrypt(secret, vk);
+        keyDisplay = 'KEY ' + vk;
+    }
+
+    const lanes = shuffleArr(words);
+    const correctLane = lanes.indexOf(secret);
+    return { cipherName, keyDisplay, ciphertext, secret, lanes, correctLane };
+}
+
+// Push the challenge readout into the HTML banner and per-band lane labels.
+function renderChallengeUI() {
+    if (!challenge) return;
+    document.getElementById('cipherBanner').innerHTML =
+        '<span class="banner-name">' + challenge.cipherName + '</span> &middot; ' + challenge.keyDisplay +
+        ' &middot; CIPHERTEXT: <span class="banner-cipher">' + challenge.ciphertext + '</span>';
+    const laneNames = ['TOP', 'MID', 'BOTTOM'];
+    let html = '';
+    for (let i = 0; i < 3; i++) {
+        const bandY = p1.y + p1.h * ((i + 0.5) / 3);
+        const cls = decodeFeedback && decodeFeedback.lane === i ? (decodeFeedback.correct ? 'win' : 'lose') : '';
+        html += '<div class="lane-label ' + cls + '" style="left:' + (p1.x + p1.w + 10) + 'px; top:' + (bandY - 8) + 'px;">' +
+            laneNames[i] + ': ' + challenge.lanes[i] + '</div>';
+    }
+    document.getElementById('laneLabels').innerHTML = html;
 }
 
 const keys = {};
@@ -257,19 +365,40 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('keyup', e => { keys[e.key] = false; });
 
-function serve(dir) {
+// Read-window length per cipher: harder ciphers get more time to decode before the
+// ball launches. This decouples decode difficulty from ball travel speed entirely,
+// so later rounds stay humanly solvable even as the ball itself gets faster.
+const READ_DELAY = { CAESAR: 50, ATBASH: 45, XOR: 75, VIGENERE: 110 };
+
+// Arm a new rally: park the ball at center, generate a fresh real decode challenge,
+// and hold for a read window (player can freely move the paddle during the hold).
+function armServe(dir) {
+    pendingServeDir = dir;
     ball.x = W / 2;
     ball.y = H / 2;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.serving = true;
+    ball.lastSide = 0;
+    rally = 0;
+    ballTrail = [];
+    decodeFeedback = null;
+    challenge = genChallenge();
+    renderChallengeUI();
+    serveReadTimer = READ_DELAY[challenge.cipherName] || 50;
+}
+
+// Fired when the read window expires: actually launches the ball at play speed.
+function launchServe() {
     const speed = 4 + round * 0.5;
-    ball.vx = dir * speed;
+    ball.vx = pendingServeDir * speed;
     ball.vy = (Math.random() - 0.5) * 4;
     ball.serving = false;
-    ball.lastSide = 0;
-    serveTimer = 0;
-    rally = 0;
-    cipherText = PLAINTEXT[Math.floor(Math.random() * PLAINTEXT.length)];
-    ballTrail = [];
+    approachResolved = false;
+    prevBallX = ball.x;
 }
+
+let pendingServeDir = 1;
 
 function startGame() {
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -281,12 +410,14 @@ function startGame() {
     round = 1;
     rally = 0;
     maxRally = 0;
+    correctCatchCount = 0;
+    wrongPassCount = 0;
     boostCharge = 0;
     boostActive = 0;
     particles = [];
     p1.y = H/2 - PADDLE_H/2;
     p2.y = H/2 - PADDLE_H/2;
-    serve(1);
+    armServe(1);
     sfxRound();
 }
 function resetGame() { startGame(); }
@@ -345,9 +476,10 @@ function demoP1AI() {
 }
 
 function update() {
-    if (serveTimer > 0) {
-        serveTimer--;
-        if (serveTimer === 0) serve(Math.random() < 0.5 ? 1 : -1);
+    // Inter-point pause: ball frozen/invisible, no input, until the next serve is armed.
+    if (postScorePause > 0) {
+        postScorePause--;
+        if (postScorePause === 0) armServe(Math.random() < 0.5 ? 1 : -1);
         return;
     }
 
@@ -355,7 +487,7 @@ function update() {
 
     if (!gameRunning && !demoMode) return;
 
-    // Player 1 controls
+    // Player 1 controls (allowed during the read window too, so the player can pre-position)
     if (!demoMode) {
         if (keys['ArrowUp'] || keys['w']) p1.y -= p1.speed;
         if (keys['ArrowDown'] || keys['s']) p1.y += p1.speed;
@@ -373,9 +505,19 @@ function update() {
     // Boost effects
     if (boostActive > 0) {
         boostActive--;
-        p1.h = 100; // Bigger paddle
+        p1.h = 100; // Bigger paddle (bigger target, same three bands)
     } else {
         p1.h = PADDLE_H;
+    }
+    renderChallengeUI(); // lane label y-positions track p1.h/p1.y every frame
+
+    // Read window: ball sits still at center showing the challenge until it expires.
+    if (ball.serving) {
+        if (serveReadTimer > 0) {
+            serveReadTimer--;
+            if (serveReadTimer === 0) launchServe();
+        }
+        return;
     }
 
     // Ball trail
@@ -385,12 +527,12 @@ function update() {
     // Ball movement
     let vx = ball.vx, vy = ball.vy;
 
-    // ChaCha20 effect: chaotic curve
+    // High-round hazard: chaotic curve (purely a difficulty/visual effect, not a crypto claim)
     if (round >= 7) {
         vy += Math.sin(Date.now() * 0.01) * 0.3;
     }
 
-    // RSA effect: ball size changes
+    // High-round hazard: ball size pulses
     if (round >= 5) {
         ball.radius = 8 + Math.sin(ball.x / W * Math.PI) * 4;
     } else {
@@ -401,9 +543,29 @@ function update() {
     const currentSide = ball.x < W/2 ? -1 : 1;
     if (ball.lastSide !== 0 && currentSide !== ball.lastSide) {
         midlineFlash = 15; // Flash for 15 frames
+        // Sparkle particles at the midline. This spawn used to live in draw() gated on
+        // `midlineFlash === 15`, which only fired exactly once because update()/draw() always ran
+        // in lockstep. Once the test harness's pause() could stop update() while draw() kept
+        // running every real animation frame, that exact-equality check would stay true forever
+        // (nothing left to decrement it) and leak 8 new particles per real frame, unboundedly.
+        // Spawning here, at the actual state transition, fires exactly once regardless of pause state.
+        for (let i = 0; i < 8; i++) {
+            particles.push({
+                x: W/2,
+                y: ball.y + (Math.random() - 0.5) * 40,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 15,
+                maxLife: 15,
+                color: '#fbbf24',
+                size: 3,
+                gravity: 0
+            });
+        }
     }
     ball.lastSide = currentSide;
 
+    prevBallX = ball.x;
     ball.x += vx;
     ball.y += vy;
 
@@ -414,23 +576,45 @@ function update() {
         sfxWall();
     }
 
-    // Paddle collision P1
-    if (ball.vx < 0 && ball.x - ball.radius < p1.x + p1.w && ball.x > p1.x &&
-        ball.y > p1.y && ball.y < p1.y + p1.h) {
-        ball.vx = Math.abs(ball.vx) * 1.08;
-        // Angle based on hit position
+    // Paddle collision P1 (decode-gated). Swept check (prevBallX vs ball.x) catches a fast
+    // ball that steps clean through the paddle's 12px x-band in one frame; approachResolved
+    // guarantees this only ever resolves once per approach, so a multi-frame dwell inside the
+    // band can't fire the branch repeatedly. Wrong-band or a physical miss does NOT bounce the
+    // ball -- it is left to continue and cross the existing x<-20 boundary below, which is
+    // already a single-shot scoring event, so there is no separate "wrong lane scores" branch
+    // that could double-count.
+    const p1Front = p1.x + p1.w;
+    const enteringNow = ball.vx < 0 && ball.x <= p1Front && prevBallX > p1Front;
+    const stillWithin = ball.vx < 0 && ball.x > p1.x && ball.x <= p1Front;
+    if (!approachResolved && (enteringNow || stillWithin)) {
+        approachResolved = true;
+        const touchingPaddleY = ball.y > p1.y && ball.y < p1.y + p1.h;
         const hitPos = (ball.y - p1.y) / p1.h - 0.5;
-        ball.vy = hitPos * 8;
-        rally++;
-        rallyPulse = 15; // Pulse animation
-        if (rally > maxRally) maxRally = rally;
-        boostCharge = Math.min(100, boostCharge + 10);
-        cipherText = CIPHERTEXT[Math.floor(Math.random() * CIPHERTEXT.length)];
-        sfxPaddle();
-        spawnParticles(p1.x + p1.w, ball.y, '#f59e0b', 8);
+        const lane = hitPos < -1/6 ? 0 : (hitPos > 1/6 ? 2 : 1);
+        if (touchingPaddleY && lane === challenge.correctLane) {
+            // Correct decode: real Pong return.
+            ball.vx = Math.abs(ball.vx) * 1.08;
+            ball.vy = hitPos * 8;
+            rally++;
+            rallyPulse = 15;
+            if (rally > maxRally) maxRally = rally;
+            boostCharge = Math.min(100, boostCharge + 10);
+            decodeFeedback = { lane, correct: true, life: 30 };
+            correctCatchCount++;
+            sfxPaddle();
+            spawnParticles(p1.x + p1.w, ball.y, '#22c55e', 10);
+        } else {
+            // Wrong band, or the paddle simply wasn't there: the ball passes straight through.
+            wrongPassCount++;
+            if (touchingPaddleY) {
+                decodeFeedback = { lane, correct: false, life: 30 };
+                spawnParticles(ball.x, ball.y, '#ef4444', 10);
+            }
+        }
+        renderChallengeUI();
     }
 
-    // Paddle collision P2
+    // Paddle collision P2 (AI, plain reflect -- keeps Pong feel on the enemy side)
     if (ball.vx > 0 && ball.x + ball.radius > p2.x && ball.x < p2.x + p2.w &&
         ball.y > p2.y && ball.y < p2.y + p2.h) {
         ball.vx = -Math.abs(ball.vx) * 1.08;
@@ -438,9 +622,9 @@ function update() {
         ball.vy = hitPos * 8;
         rally++;
         rallyPulse = 15;
-        cipherText = PLAINTEXT[Math.floor(Math.random() * PLAINTEXT.length)];
         sfxPaddle();
         spawnParticles(p2.x, ball.y, '#ef4444', 8);
+        approachResolved = false; // ball is heading back toward the player: a fresh approach on the same challenge
     }
 
     // Cap speed
@@ -448,29 +632,27 @@ function update() {
     if (Math.abs(ball.vx) > maxSpeed) ball.vx = Math.sign(ball.vx) * maxSpeed;
     if (Math.abs(ball.vy) > maxSpeed) ball.vy = Math.sign(ball.vy) * maxSpeed;
 
-    // Score
+    // Score (single-shot: ball position only crosses each boundary once before being re-served)
     if (ball.x < -20) {
-        // P2 scores
         p2Score++;
         sfxScore();
         spawnParticles(0, ball.y, '#ef4444', 15);
         if (!demoMode) checkRound();
-        serveTimer = 60;
+        postScorePause = 60;
     }
     if (ball.x > W + 20) {
-        // P1 scores
         p1Score++;
         sfxPoint();
         spawnParticles(W, ball.y, '#f59e0b', 15);
         if (!demoMode) checkRound();
-        serveTimer = 60;
+        postScorePause = 60;
     }
 
     // Demo reset
     if (demoMode && (p1Score >= 3 || p2Score >= 3)) {
         p1Score = 0;
         p2Score = 0;
-        serve(1);
+        armServe(1);
     }
 
     // Particles with gravity
@@ -485,10 +667,11 @@ function update() {
     // Decay effects
     if (midlineFlash > 0) midlineFlash--;
     if (rallyPulse > 0) rallyPulse--;
+    if (decodeFeedback) { decodeFeedback.life--; if (decodeFeedback.life <= 0) decodeFeedback = null; }
 
     // UI
-    document.getElementById('p1Score').textContent = `ENCRYPT: ${p1Score}`;
-    document.getElementById('p2Score').textContent = `DECRYPT: ${p2Score}`;
+    document.getElementById('p1Score').textContent = `DECODE: ${p1Score}`;
+    document.getElementById('p2Score').textContent = `ENEMY: ${p2Score}`;
     document.getElementById('roundDisplay').textContent = `ROUND ${round}`;
     document.getElementById('loreRound').textContent = round;
     document.getElementById('loreCipher').textContent = getCurrentCipher();
@@ -608,23 +791,8 @@ function draw() {
         ctx.lineTo(W/2, H);
         ctx.stroke();
         ctx.shadowBlur = 0;
-
-        // Add sparkle particles at midline
-        if (midlineFlash === 15) {
-            for (let i = 0; i < 8; i++) {
-                particles.push({
-                    x: W/2,
-                    y: ball.y + (Math.random() - 0.5) * 40,
-                    vx: (Math.random() - 0.5) * 8,
-                    vy: (Math.random() - 0.5) * 8,
-                    life: 15,
-                    maxLife: 15,
-                    color: '#fbbf24',
-                    size: 3,
-                    gravity: 0
-                });
-            }
-        }
+        // (Sparkle particles for this flash are spawned once in update(), at the actual midline-
+        // crossing transition -- see the comment there. draw() only renders, it doesn't spawn.)
     }
 
     // Encryption field indicators
@@ -666,7 +834,7 @@ function draw() {
     });
 
     // Ball with highlight and corona
-    if (serveTimer <= 0) {
+    if (!ball.serving) {
         const isEncrypted = ball.x < W / 2;
         const ballColor = isEncrypted ? '#f59e0b' : '#ef4444';
 
@@ -700,16 +868,7 @@ function draw() {
         ctx.beginPath();
         ctx.arc(ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, highlightSize, 0, Math.PI * 2);
         ctx.fill();
-
-        // Text on ball with glow
-        ctx.shadowColor = ballColor;
-        ctx.shadowBlur = 5;
-        ctx.fillStyle = '#0f0a1a';
-        ctx.font = `bold ${Math.max(7, ball.radius - 1)}px Courier New`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(cipherText.substring(0, 5), ball.x, ball.y);
-        ctx.shadowBlur = 0;
+        ctx.textBaseline = 'alphabetic';
     }
 
     // Paddles with curved edges and gradients
@@ -736,6 +895,14 @@ function draw() {
     ctx.closePath();
     ctx.fill();
     ctx.shadowBlur = 0;
+
+    // Band divider lines: mark the top/mid/bottom thirds that the decode challenge maps to
+    ctx.strokeStyle = 'rgba(15,10,26,0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y + p1.h / 3); ctx.lineTo(p1.x + p1.w, p1.y + p1.h / 3);
+    ctx.moveTo(p1.x, p1.y + p1.h * 2 / 3); ctx.lineTo(p1.x + p1.w, p1.y + p1.h * 2 / 3);
+    ctx.stroke();
 
     // Lock icon on P1
     drawLock(p1.x + p1.w/2, p1.y + p1.h/2, 12, true);
@@ -915,13 +1082,59 @@ function draw() {
     }
 }
 
+let testPaused = false; // when true, the rAF loop still draws but skips update() so a harness can single-step deterministically
 function gameLoop() {
-    update();
+    if (!testPaused) update();
     draw();
     requestAnimationFrame(gameLoop);
 }
 
-serve(1);
+// ---- Test hooks (window.__test) ----
+// Exposed so an automated harness can drive the game deterministically and verify the
+// real-cipher decode gate without guessing at internal state. Independent decode/verify
+// logic belongs in the harness itself -- these hooks only expose ground-truth state.
+window.__test = {
+    // Pause/resume the normal rAF-driven update() so step() can be called without double-ticking.
+    pause() { testPaused = true; },
+    resume() { testPaused = false; },
+    // Advance the simulation exactly n update() ticks (bypasses input/AI randomness only where those systems already roll their own dice).
+    step(n = 1) { for (let i = 0; i < n; i++) update(); draw(); },
+    start() { startGame(); },
+    setP1Y(y) { p1.y = Math.max(0, Math.min(H - p1.h, y)); },
+    setBall(props) { Object.assign(ball, props); },
+    // Atomic reset + inject: clears postScorePause/serveReadTimer/approachResolved (so a leftover
+    // pause from a PRIOR trial can't silently swallow this trial's paddle collision) and places the
+    // ball mid-approach. Use this, not setBall alone, when driving repeated isolated approach trials.
+    // Also guarantees the game is in a live, playable state: a batch of isolated approach trials
+    // will legitimately lose points (that's what a "does reflex win" stress test is FOR), and once
+    // p2Score naturally reaches 5, the real checkRound() sets gameRunning=false/gameOver=true --
+    // exactly as it should for a real player. Without resetting that here, update()'s top-level
+    // `if (!gameRunning && !demoMode) return;` guard would make every later trial in the same batch
+    // silently no-op (ball frozen at whatever resetForApproach last injected), which looks identical
+    // to "the gate always fails" unless you notice score is pinned at a loss. This was found the
+    // hard way via a blind-bot success rate that quietly decayed to 0 over ~300 trials.
+    resetForApproach(props) { postScorePause = 0; serveReadTimer = 0; approachResolved = false; gameRunning = true; gameOver = false; p1Score = 0; p2Score = 0; ball.serving = false; Object.assign(ball, props); },
+    forceRound(r) { round = r; },
+    forceChallenge() { challenge = genChallenge(); renderChallengeUI(); return this.state().challenge; },
+    state() {
+        return {
+            p1Score, p2Score, round, rally, gameOver, gameRunning, demoMode, approachResolved,
+            postScorePause, serveReadTimer, correctCatchCount, wrongPassCount,
+            ball: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, serving: ball.serving },
+            paddle: { x: p1.x, y: p1.y, w: p1.w, h: p1.h },
+            challenge: challenge ? {
+                cipherName: challenge.cipherName,
+                keyDisplay: challenge.keyDisplay,
+                ciphertext: challenge.ciphertext,
+                secret: challenge.secret,
+                lanes: challenge.lanes.slice(),
+                correctLane: challenge.correctLane
+            } : null
+        };
+    }
+};
+
+armServe(1);
 gameLoop();
 </script>
 <script src="../../../components/GameTracker.js"></script>
