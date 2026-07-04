@@ -271,6 +271,20 @@
         }
         #sellBtn:hover { background: rgba(239,68,68,0.2); border-color: #ef4444; }
         #sellBtn.active { border-color: #ef4444; background: rgba(239,68,68,0.25); color: #ffffff; }
+        /* Re-aim (reconfigure) button — teal, matching the redundant/re-aim status color */
+        #reconfigBtn {
+            background: rgba(56,189,248,0.1);
+            border: 1px solid rgba(56,189,248,0.4);
+            color: #38bdf8;
+            padding: 6px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            transition: all 0.2s;
+            margin-top: 4px;
+        }
+        #reconfigBtn:hover { background: rgba(56,189,248,0.2); border-color: #38bdf8; }
+        #reconfigBtn.active { border-color: #38bdf8; background: rgba(56,189,248,0.25); color: #ffffff; }
         #nextWaveBtn {
             background: linear-gradient(135deg, #1e40af, #0891b2);
             border: 2px solid #06b6d4;
@@ -406,6 +420,7 @@
                 <div class="tbtn-stats">Rng:110 | Rate:V.Fast | Dmg:5 | Wave 9+</div>
             </button>
             <button id="sellBtn" onclick="toggleSellMode()">[ SELL TOWER (50% refund) ]</button>
+            <button id="reconfigBtn" onclick="toggleReconfigureMode()">[ RE-AIM SUBNET (R) — 25c ]</button>
             <button id="nextWaveBtn" onclick="startNextWave()" disabled>START WAVE 1</button>
         </div>
     </div>
@@ -578,7 +593,7 @@ const WAVE_DATA = [
     {
         num: 4,
         name: "Subnet Breach",
-        brief: { title: "WAVE 4: Subnet Breach", threat: "Threats: 192.168.5.64/26", safe: "Safe: .0/26 and .128/26 (same /24 block!)", hint: "Tip: You need a /26 FIREWALL — 256-host /24 is too broad and would block safe traffic." },
+        brief: { title: "WAVE 4: Subnet Breach", threat: "Threats: 192.168.5.64/26", safe: "Safe: .0/26 and .128/26 (same /24 block!)", hint: "Tip: You need a /26 FIREWALL (64 addresses) — a /24 is too broad (256 addresses) and would sweep up the safe .0/26 and .128/26 blocks too." },
         threatCidr: 26,
         threatNets: [{ net: '192.168.5.64',  cidr: 26 }],
         safeNets:   [{ net: '192.168.5.0',   cidr: 26 }, { net: '192.168.5.128', cidr: 26 }],
@@ -621,7 +636,7 @@ const WAVE_DATA = [
         threatCidr: 28,
         threatNets: [{ net: '10.0.5.16', cidr: 28 }, { net: '10.0.5.64', cidr: 28 }, { net: '10.0.5.96', cidr: 28 }],
         safeNets:   [{ net: '10.0.5.0',  cidr: 28 }, { net: '10.0.5.48', cidr: 28 }, { net: '10.0.5.80', cidr: 28 }],
-        count: 40,
+        count: 32,
         speed: 1.4,
         hp: 4,
         damage: 3,
@@ -634,7 +649,7 @@ const WAVE_DATA = [
         threatCidr: 28,
         threatNets: [{ net: '192.168.100.32', cidr: 28 }],
         safeNets:   [{ net: '192.168.100.0',  cidr: 28 }, { net: '192.168.100.16', cidr: 28 }, { net: '192.168.100.48', cidr: 28 }, { net: '192.168.100.64', cidr: 28 }],
-        count: 42,
+        count: 34,
         speed: 1.5,
         hp: 4,
         damage: 3,
@@ -643,7 +658,7 @@ const WAVE_DATA = [
     {
         num: 9,
         name: "Surgical Response",
-        brief: { title: "WAVE 9: Surgical Response", threat: "Threats: TWO /30 ranges (4 hosts each!)", safe: "Rest of /24 is legitimate — only WAF /30 is precise enough", hint: "Tip: WAF /30 covers exactly 4 addresses. Two threats = two WAFs = 1000c." },
+        brief: { title: "WAVE 9: Surgical Response", threat: "Threats: TWO /30 ranges (4 addresses each!)", safe: "Rest of /24 is legitimate — only WAF /30 is precise enough", hint: "Tip: WAF /30 covers exactly 4 addresses. Two threats = two WAFs = 1000c." },
         threatCidr: 30,
         threatNets: [{ net: '192.168.100.200', cidr: 30 }, { net: '192.168.100.208', cidr: 30 }],
         safeNets:   [{ net: '192.168.100.0',   cidr: 24 }],
@@ -656,7 +671,7 @@ const WAVE_DATA = [
     {
         num: 10,
         name: "Full Breach",
-        brief: { title: "WAVE 10: FULL BREACH", threat: "ALL CIDR sizes, multiple vectors — APT BOSS INBOUND!", safe: "Broad legitimate traffic across all ranges", hint: "Tip: Deploy ALL tower types. The APT boss has 30 HP and deals massive damage." },
+        brief: { title: "WAVE 10: FULL BREACH", threat: "ALL CIDR sizes, multiple vectors — APT BOSS INBOUND!", safe: "Broad legitimate traffic across all ranges", hint: "Tip: The APT boss (30 HP) travels in 10.0.0.0/24 — only /24 SCANNERS aimed there can hit it, so STACK several Scanners on that lane to concentrate fire. Cover the /26, /28 and /30 vectors too." },
         threatCidr: 26,
         threatNets: [
             { net: '10.0.0.0',           cidr: 24 },
@@ -668,11 +683,11 @@ const WAVE_DATA = [
             { net: '172.16.2.0',  cidr: 24 },
             { net: '192.168.1.0', cidr: 24 }
         ],
-        count: 48,
+        count: 40,
         bossPacket: true,
         speed: 1.7,
         hp: 6,
-        damage: 4,
+        damage: 3,
         spawnInterval: 38
     }
 ];
@@ -757,6 +772,9 @@ let selectedTowerType = null;  // key from TOWER_TYPES
 let pendingSpotIndex  = null;  // which spot was clicked
 let pendingSubnetOpts = [];    // array of {network, label, isCorrect}
 let sellMode          = false;
+let reconfigureMode   = false;  // re-aim an existing tower's subnet (STATE_PREP only), mutually exclusive with sell/place
+let pendingReconfigure = false; // true while the subnet chooser is re-aiming an existing tower vs placing a new one
+const RECONFIG_BASE   = 25;     // flat base fee to re-aim a tower; a WRONG re-aim adds 0.5*cfg.cost (same surcharge as placement)
 let hoveredSpot       = -1;
 let hoveredTower      = -1;
 
@@ -787,41 +805,39 @@ let rafId    = null;
 // SUBNET OPTION GENERATION
 // Given a wave's threat net info, generate 4 choices for a CIDR
 // ============================================================
-function generateSubnetOptions(cidr, threatNets) {
-    // Determine the "correct" network: first threat network that matches this CIDR
-    const relevantThreats = threatNets.filter(n => n.cidr === cidr);
-    let correctNetNum;
-    if (relevantThreats.length > 0) {
-        correctNetNum = getNetworkAddr(ipToNum(relevantThreats[0].net), cidr);
-    } else {
-        // Fallback: pick first threat net and compute /cidr network for it
-        correctNetNum = getNetworkAddr(ipToNum(threatNets[0].net), cidr);
-    }
+// alreadyCovered = Set of networkAddr numbers already filtered by correct towers of THIS prefix.
+// Block-aware: the "correct" (green) answer is the next STILL-UNCOVERED threat block of this prefix,
+// so a multi-block wave steers each new tower to a different block (coverage, not double-cover). If
+// every block of this prefix is already covered, the correct answer falls back to the first block
+// (the tower will be flagged REDUNDANT in confirmSubnet — real backup DPS, no penalty). Distractors
+// are neighboring networks that are NEVER real threat blocks, so no threat block is ever crowded out
+// of being selectable (the pre-fix generator could not surface the 2nd/3rd block at all).
+function generateSubnetOptions(cidr, threatNets, alreadyCovered) {
+    const coveredSet = new Set(alreadyCovered || []);
+    // All real threat-block networks of this tower's prefix.
+    const threatBlocks = threatNets.filter(n => n.cidr === cidr).map(n => getNetworkAddr(ipToNum(n.net), cidr));
+    // Off-type fallback: no threat block at this prefix -> compute the /cidr network of the first threat.
+    const allCorrect = threatBlocks.length > 0 ? threatBlocks : [getNetworkAddr(ipToNum(threatNets[0].net), cidr)];
+    const uncovered = allCorrect.filter(n => !coveredSet.has(n));
+    const correctNetNum = uncovered.length > 0 ? uncovered[0] : allCorrect[0];
 
     const correctIp = numToIp(correctNetNum);
     const blockSize = 1 << (32 - cidr);
+    const threatSet = new Set(allCorrect); // never offer a real threat block as a distractor
 
-    // Generate 3 distractors in the same /16 or /8 block
     const distractors = new Set();
-    const baseNum = correctNetNum;
-
-    // Neighboring networks in the same /24 or /16 parent
-    for (let offset of [-3,-2,-1,1,2,3,4]) {
-        const candidate = ((baseNum + offset * blockSize) >>> 0);
-        const candidateIp = numToIp(candidate);
-        if (candidateIp !== correctIp && distractors.size < 3) {
-            distractors.add(candidateIp);
-        }
+    for (let offset of [-3,-2,-1,1,2,3,4,-4,5,-5,6,-6]) {
+        if (distractors.size >= 3) break;
+        const candidate = ((correctNetNum + offset * blockSize) >>> 0);
+        if (candidate === correctNetNum || threatSet.has(candidate)) continue;
+        distractors.add(numToIp(candidate));
     }
-
-    // If we still need more, generate from adjacent /8
+    // If still short (tight address space), step further out, still skipping real threat blocks.
     let extra = 1;
-    while (distractors.size < 3) {
-        const candidate = ((baseNum + extra * blockSize * 4) >>> 0);
-        const candidateIp = numToIp(candidate);
-        if (candidateIp !== correctIp) distractors.add(candidateIp);
+    while (distractors.size < 3 && extra <= 40) {
+        const candidate = ((correctNetNum + extra * blockSize * 4) >>> 0);
+        if (candidate !== correctNetNum && !threatSet.has(candidate)) distractors.add(numToIp(candidate));
         extra++;
-        if (extra > 20) break;
     }
 
     const opts = [
@@ -837,6 +853,15 @@ function generateSubnetOptions(cidr, threatNets) {
         [opts[i], opts[j]] = [opts[j], opts[i]];
     }
     return opts;
+}
+
+// Networks already filtered by CORRECT towers of a given prefix (optionally excluding one spot, for
+// reconfigure). Used to steer the block-aware MCQ and to detect a REDUNDANT (already-covered) choice.
+function coveredNetworks(cidr, excludeSpotIndex) {
+    return new Set(
+        towers.filter(t => !t.misconfigured && t.cidr === cidr && t.spotIndex !== excludeSpotIndex)
+              .map(t => t.networkAddr)
+    );
 }
 
 // ============================================================
@@ -995,6 +1020,13 @@ function updateUI() {
 
     const sellBtn = document.getElementById('sellBtn');
     sellBtn.classList.toggle('active', sellMode);
+    const reconfigBtn = document.getElementById('reconfigBtn');
+    if (reconfigBtn) {
+        reconfigBtn.classList.toggle('active', reconfigureMode);
+        // Re-aim only makes sense during prep with at least one tower down.
+        reconfigBtn.disabled = gameState === STATE_WAVE || towers.length === 0;
+        reconfigBtn.style.opacity = reconfigBtn.disabled ? '0.4' : '';
+    }
 }
 
 function updateWaveBriefing() {
@@ -1034,6 +1066,7 @@ function selectTowerType(key) {
     if (gameState === STATE_WAVE) return;
     if (credits < TOWER_TYPES[key].cost) return;
     sellMode = false;
+    reconfigureMode = false; // choosing a tower type leaves reconfigure mode
     if (selectedTowerType === key) {
         selectedTowerType = null;
         pendingSpotIndex = null;
@@ -1065,6 +1098,21 @@ function handleSpotClick(spotIndex) {
         return;
     }
 
+    // Reconfigure an existing tower: re-open its subnet quiz aimed at the still-open blocks.
+    if (reconfigureMode) {
+        const tw = towers.find(t => t.spotIndex === spotIndex);
+        if (!tw) return; // must click an occupied spot
+        const rcfg = TOWER_TYPES[tw.type];
+        pendingSpotIndex   = spotIndex;
+        pendingReconfigure = true;
+        const rWaveIdx = Math.min(currentWave, WAVE_DATA.length - 1);
+        const rWaveData = WAVE_DATA[rWaveIdx > 0 ? rWaveIdx : 0];
+        // Exclude THIS tower from coverage so it can re-aim to its own block without self-flagging redundant.
+        pendingSubnetOpts = generateSubnetOptions(rcfg.cidr, rWaveData.threatNets, coveredNetworks(rcfg.cidr, spotIndex));
+        showSubnetChooser(rcfg, pendingSubnetOpts);
+        return;
+    }
+
     if (!selectedTowerType) return;
 
     // Check spot not already occupied
@@ -1074,12 +1122,14 @@ function handleSpotClick(spotIndex) {
     const cfg = TOWER_TYPES[selectedTowerType];
     if (credits < cfg.cost) return;
 
-    pendingSpotIndex = spotIndex;
+    pendingSpotIndex   = spotIndex;
+    pendingReconfigure = false;
 
-    // Generate subnet options based on current wave's threat info
+    // Generate subnet options based on the upcoming wave's threat info, steering to the next block
+    // this prefix does NOT already cover (coveredNetworks) so multiple towers spread across blocks.
     const waveIdx = Math.min(currentWave, WAVE_DATA.length - 1);
     const waveData = WAVE_DATA[waveIdx > 0 ? waveIdx : 0];
-    pendingSubnetOpts = generateSubnetOptions(cfg.cidr, waveData.threatNets);
+    pendingSubnetOpts = generateSubnetOptions(cfg.cidr, waveData.threatNets, coveredNetworks(cfg.cidr, spotIndex));
 
     showSubnetChooser(cfg, pendingSubnetOpts);
 }
@@ -1116,10 +1166,13 @@ function hideSubnetChooser() {
 function confirmSubnet(optIndex) {
     if (pendingSpotIndex === null) return;
     const opt = pendingSubnetOpts[optIndex];
-    const cfg = TOWER_TYPES[selectedTowerType];
+    // In reconfigure mode selectedTowerType is null, so the config comes from the clicked tower's type.
+    const existing = pendingReconfigure ? towers.find(t => t.spotIndex === pendingSpotIndex) : null;
+    if (pendingReconfigure && !existing) { hideSubnetChooser(); pendingReconfigure = false; return; }
+    const cfg  = pendingReconfigure ? TOWER_TYPES[existing.type] : TOWER_TYPES[selectedTowerType];
     const spot = TOWER_SPOTS[pendingSpotIndex];
 
-    // Visual feedback
+    // Visual feedback on the option buttons
     const btns = document.querySelectorAll('.subnet-opt');
     btns.forEach((b, i) => {
         b.classList.toggle('correct', pendingSubnetOpts[i].isCorrect);
@@ -1127,45 +1180,64 @@ function confirmSubnet(optIndex) {
         b.disabled = true;
     });
 
-    let cost = cfg.cost;
-    let penaltyText = '';
+    // A correct answer whose block is ALREADY covered by another correct tower of this prefix is
+    // REDUNDANT: valid backup DPS on a real threat block (fires normally), no false-positive risk,
+    // so no wrong-answer penalty — but flagged so the player knows it is not covering a NEW block.
+    const covered   = coveredNetworks(cfg.cidr, pendingSpotIndex);
+    const redundant = opt.isCorrect && covered.has(opt.network);
 
+    // Cost model. Placement: correct/redundant = cfg.cost, misconfigured = 1.5x (a 0.5*cfg.cost
+    // surcharge deterrent). Reconfigure: cheap flat base (re-aiming durable capital is the recurring
+    // skill), a WRONG re-aim adds the SAME 0.5*cfg.cost surcharge; a redundant re-aim = base only.
+    let cost;
     if (!opt.isCorrect) {
-        // Misconfiguration penalty: 50% extra cost
-        cost = Math.floor(cfg.cost * 1.5);
-        penaltyText = ' [MISCONFIGURED +50%]';
+        cost = pendingReconfigure ? (RECONFIG_BASE + Math.floor(cfg.cost * 0.5)) : Math.floor(cfg.cost * 1.5);
         sfxWrong();
         spawnFloatingText(spot.x, spot.y - 30, 'MISCONFIGURED!', '#f59e0b');
-    } else {
+    } else if (redundant) {
+        cost = pendingReconfigure ? RECONFIG_BASE : cfg.cost;
         sfxPlace();
-        spawnFloatingText(spot.x, spot.y - 30, 'SUBNET OK', '#22c55e');
+        spawnFloatingText(spot.x, spot.y - 30, 'REDUNDANT (backup)', '#38bdf8');
+    } else {
+        cost = pendingReconfigure ? RECONFIG_BASE : cfg.cost;
+        sfxPlace();
+        spawnFloatingText(spot.x, spot.y - 30, pendingReconfigure ? 'RE-AIMED' : 'SUBNET OK', '#22c55e');
     }
 
-    // Deduct credits
+    // Deduct credits (clamped so credits never go negative, matching placement's original guard)
     credits -= Math.min(cost, credits);
 
-    // Place tower
-    towers.push({
-        spotIndex: pendingSpotIndex,
-        type: selectedTowerType,
-        networkAddr: opt.network,
-        cidr: cfg.cidr,
-        range: cfg.range,
-        fireRate: cfg.fireRate,
-        damage: cfg.damage,
-        color: cfg.color,
-        glowColor: cfg.glowColor,
-        fireCooldown: 0,
-        misconfigured: !opt.isCorrect,
-        pulsePhase: Math.random() * Math.PI * 2,
-        name: cfg.name
-    });
+    if (pendingReconfigure) {
+        // Re-aim the existing tower in place; keep its cooldown/pulse, update targeting + flags.
+        existing.networkAddr   = opt.network;
+        existing.misconfigured = !opt.isCorrect;
+        existing.redundant     = redundant;
+    } else {
+        // Place a new tower.
+        towers.push({
+            spotIndex: pendingSpotIndex,
+            type: selectedTowerType,
+            networkAddr: opt.network,
+            cidr: cfg.cidr,
+            range: cfg.range,
+            fireRate: cfg.fireRate,
+            damage: cfg.damage,
+            color: cfg.color,
+            glowColor: cfg.glowColor,
+            fireCooldown: 0,
+            misconfigured: !opt.isCorrect,
+            redundant: redundant,
+            pulsePhase: Math.random() * Math.PI * 2,
+            name: cfg.name
+        });
+    }
 
     // Brief delay then close chooser
     setTimeout(() => {
         hideSubnetChooser();
-        selectedTowerType = null;
-        pendingSpotIndex = null;
+        selectedTowerType  = null;
+        pendingSpotIndex   = null;
+        pendingReconfigure = false;
         updateUI();
     }, 600);
 
@@ -1173,8 +1245,9 @@ function confirmSubnet(optIndex) {
 }
 
 function cancelPlacement() {
-    selectedTowerType = null;
-    pendingSpotIndex  = null;
+    selectedTowerType  = null;
+    pendingSpotIndex   = null;
+    pendingReconfigure = false;
     hideSubnetChooser();
     updateUI();
 }
@@ -1182,7 +1255,18 @@ function cancelPlacement() {
 function toggleSellMode() {
     ensureAudio();
     sellMode = !sellMode;
-    if (sellMode) selectedTowerType = null;
+    if (sellMode) { selectedTowerType = null; reconfigureMode = false; }
+    updateUI();
+}
+
+// Reconfigure mode: click an existing tower to re-open its subnet quiz and re-aim it at a different
+// block (STATE_PREP only). Re-aiming each wave — moving durable towers to follow the shifting threat
+// blocks — is the recurring skill; it is cheap when correct (flat base fee) and penalized when wrong.
+function toggleReconfigureMode() {
+    ensureAudio();
+    if (gameState === STATE_WAVE) return; // towers are fixed once a wave is live
+    reconfigureMode = !reconfigureMode;
+    if (reconfigureMode) { selectedTowerType = null; sellMode = false; hideSubnetChooser(); }
     updateUI();
 }
 
@@ -1211,6 +1295,8 @@ function startNextWave() {
     gameState   = STATE_WAVE;
     selectedTowerType = null;
     sellMode = false;
+    reconfigureMode    = false;  // towers lock in for the wave
+    pendingReconfigure = false;
     hideSubnetChooser();
     updateUI();
     updateNextWaveBtn();
@@ -1415,9 +1501,12 @@ function updateTowers() {
                     }
                 }
             } else {
-                // Correctly configured: targets any threat packet in range
-                // Works across all waves — the subnet quiz proved competence at placement
-                if (p.isThreat) {
+                // Correctly configured: fires ONLY at threat packets INSIDE its configured /cidr
+                // subnet. This is the skill — the player must aim each tower's network at the threat
+                // block in its lane; a tower filtering the wrong block sits silent while that block
+                // leaks. A REDUNDANT tower (misconfigured:false, real already-covered block) also
+                // matches here, giving valid backup DPS on its block.
+                if (p.isThreat && isInSubnet(p.ipNum, tower.networkAddr, tower.cidr)) {
                     if (dist < bestDist) {
                         bestDist   = dist;
                         bestTarget = p;
@@ -1696,8 +1785,8 @@ function drawTowers() {
         ctx.arc(spot.x, spot.y, 20, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Tower body
-        ctx.fillStyle   = tower.misconfigured ? '#2d1a00' : '#0d1829';
+        // Tower body (orange-tinted = misconfigured, teal-tinted = redundant/backup, dark = correct)
+        ctx.fillStyle   = tower.misconfigured ? '#2d1a00' : (tower.redundant ? '#0a2230' : '#0d1829');
         ctx.beginPath();
         ctx.arc(spot.x, spot.y, 18, 0, Math.PI * 2);
         ctx.fill();
@@ -1710,8 +1799,8 @@ function drawTowers() {
         ctx.arc(spot.x, spot.y, 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // CIDR label
-        ctx.fillStyle   = tower.misconfigured ? '#f59e0b' : '#ffffff';
+        // CIDR label (orange = misconfigured, cyan = redundant, white = correct)
+        ctx.fillStyle   = tower.misconfigured ? '#f59e0b' : (tower.redundant ? '#38bdf8' : '#ffffff');
         ctx.font        = 'bold 9px Courier New';
         ctx.textAlign   = 'center';
         ctx.textBaseline = 'middle';
@@ -1722,11 +1811,16 @@ function drawTowers() {
         ctx.font        = 'bold 7px Courier New';
         ctx.fillText(tower.name.slice(0, 4), spot.x, spot.y - 28);
 
-        // Misconfigured warning triangle
+        // Status marker: orange "!" = misconfigured (wrong subnet — misses its lane, may false-positive);
+        // cyan "=" = redundant (correct but already-covered block — backup DPS; re-aim to open a gap).
         if (tower.misconfigured) {
             ctx.fillStyle = '#f59e0b';
             ctx.font = 'bold 10px monospace';
             ctx.fillText('!', spot.x + 14, spot.y - 14);
+        } else if (tower.redundant) {
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText('=', spot.x + 14, spot.y - 14);
         }
     }
     ctx.shadowBlur = 0;
@@ -2330,6 +2424,7 @@ document.addEventListener('keydown', e => {
         }
     }
     if (e.code === 'KeyS') { toggleSellMode(); }
+    if (e.code === 'KeyR') { toggleReconfigureMode(); }
     if (e.code === 'KeyM') { toggleMute(); }
     if (e.code === 'KeyF') { gameSpeed = gameSpeed === 1 ? 2 : 1; }
     if (e.code === 'Escape') { cancelPlacement(); }
