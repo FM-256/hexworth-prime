@@ -807,9 +807,11 @@
                     gitBlame();
                 } else if (cmd.startsWith('git push') && cmd.includes('force')) {
                     gitPushForce();
+                } else if (cmd === 'git push' || cmd === 'git push origin main') {
+                    pushHotfix();
 
                 // Kubernetes commands
-                } else if (cmd === 'kubectl rollback' || cmd === 'kubectl rollout undo') {
+                } else if (cmd === 'kubectl rollout undo' || cmd.startsWith('kubectl rollout undo deployment')) {
                     kubectlRollback();
                 } else if (cmd === 'kubectl get pods') {
                     kubectlGetPods();
@@ -896,10 +898,10 @@
                 printBlank();
                 print("GIT COMMANDS:", "line-git");
                 print("  git log, git diff, git revert HEAD, git reset --hard HEAD~1", "line-normal");
-                print("  git blame, git stash", "line-normal");
+                print("  git blame, git stash, git push (deploy a reverted + rebuilt fix)", "line-normal");
                 printBlank();
                 print("KUBERNETES/DOCKER:", "line-kubernetes");
-                print("  kubectl rollback, kubectl get pods, kubectl logs", "line-normal");
+                print("  kubectl rollout undo, kubectl get pods, kubectl logs", "line-normal");
                 print("  docker ps, docker build", "line-normal");
                 printBlank();
                 print("TESTING & BUILD:", "line-info");
@@ -928,13 +930,19 @@
                 const hints = [];
 
                 if (!state.pipelineStopped && !state.rolledBack) {
-                    hints.push("The deploy is still rolling out. Stop it with 'pipeline cancel' or rollback with 'kubectl rollback'.");
+                    hints.push("The deploy is still rolling out. Stop it with 'pipeline cancel' or rollback with 'kubectl rollout undo'.");
                 }
                 if (!state.logsChecked && !state.usedGitDiff) {
                     hints.push("You should investigate what went wrong. Try 'git diff' or 'tail -f /var/log/app.log'.");
                 }
                 if (!state.gitReverted && state.rolledBack) {
                     hints.push("You rolled back the deploy, but the bad code is still in git. Try 'git revert HEAD'.");
+                }
+                if (state.gitReverted && !state.buildCompleted) {
+                    hints.push("The fix is reverted but not built. Try 'npm run build' or 'docker build', then 'git push' to ship it.");
+                }
+                if (state.gitReverted && state.buildCompleted && !state.hotfixPushed && !state.rolledBack) {
+                    hints.push("The fix is built. Ship it with 'git push' to deploy the hotfix.");
                 }
                 if (!state.ceoNotified && state.timeRemaining < 100) {
                     hints.push("The CEO is about to go on stage. Warn them with 'notify ceo'!");
@@ -1092,6 +1100,40 @@
                 printBlank();
                 state.timeRemaining = Math.max(0, state.timeRemaining - 15);
                 print("[-15 seconds] Panic costs you precious time.", "line-error");
+                printBlank();
+            }
+
+            // Push the hotfix: deploys the reverted + rebuilt code to production.
+            // This is the alternate win path (vs. rolling back the deployment). It requires
+            // the bad commit to have been reverted (gitReverted) and the fix rebuilt
+            // (buildCompleted) before it will actually ship anything.
+            function pushHotfix() {
+                if (!state.gitReverted) {
+                    print("Nothing to push. The bad commit is still HEAD - try 'git revert HEAD' first.", "line-warning");
+                    printBlank();
+                    return;
+                }
+
+                if (!state.buildCompleted) {
+                    print("Pushing the reverted code, but it was never rebuilt.", "line-warning");
+                    print("Run 'npm run build' or 'docker build' before pushing.", "line-warning");
+                    printBlank();
+                    return;
+                }
+
+                state.hotfixPushed = true;
+                state.deployed = true;
+
+                print("Enumerating objects: 12, done.", "line-git");
+                print("Writing objects: 100% (12/12), done.", "line-git");
+                print("To github.com:company/api.git", "line-git");
+                print("   a3f8c2b..c8f3a1d  main -> main", "line-git");
+                printBlank();
+                print("[JENKINS] Build #4288 triggered by push to main", "line-pipeline");
+                print("[JENKINS] Build #4288 PASSED", "line-pipeline");
+                print("[KUBERNETES] Rolling update in progress... 12/12 pods healthy", "line-kubernetes");
+                printBlank();
+                print("HOTFIX DEPLOYED. The reverted code is now live in production.", "line-success");
                 printBlank();
             }
 
@@ -1475,7 +1517,7 @@
                 print("If only life had an undo button...", "line-dim");
                 printBlank();
                 print("Git does though! Try 'git revert HEAD' to undo your commit.", "line-info");
-                print("Or 'kubectl rollback' to rollback the deployment.", "line-info");
+                print("Or 'kubectl rollout undo' to rollback the deployment.", "line-info");
                 printBlank();
             }
 
