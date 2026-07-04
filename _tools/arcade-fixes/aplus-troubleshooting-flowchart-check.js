@@ -335,6 +335,100 @@ const srv = http.createServer((q, s) => {
     retryRun.modalClosed && retryRun.nodeId === 'A0' && retryRun.strikesRestored && retryRun.sameFault && retryRun.modeReset, retryRun);
 
   // ════════════════════════════════════════════════════════════════════
+  // SCENARIO 6: ANTI-POSITIONAL-GAMING SHUFFLE AUDIT -- a follow-up audit
+  // found that every node's correct branch and every fault's correct fix
+  // was array-index 0 and rendered first, every time, with no shuffle: a
+  // student could win the whole lab by always clicking the first card,
+  // with zero reasoning. That is disguised multiple choice. This scenario
+  // proves (a) the shuffle() helper itself actually randomizes, as pure
+  // math, independent of any DOM/render timing, and (b) the REAL rendered
+  // card order for both branch options and fix options is not fixed at
+  // index 0 -- it varies across repeated renders of the same node/fault.
+  // ════════════════════════════════════════════════════════════════════
+  console.log('\n=== Scenario 6: anti-positional-gaming shuffle audit ===');
+  await load();
+
+  // (a) Pure statistical proof that shuffle() randomizes: shuffle a known
+  // reference array many times and confirm the tracked element does NOT
+  // land in the same slot every single time. With 4 elements and 40
+  // trials, the odds of a real Fisher-Yates producing the same index all
+  // 40 times are astronomically small (~1 in 4^39); this is not a
+  // meaningful flake risk.
+  const shuffleStats = await pg.evaluate(() => {
+    const indices = [];
+    for (let t = 0; t < 40; t++) {
+      const shuffled = window.shuffle(['ref-A', 'ref-B', 'ref-C', 'ref-D']);
+      indices.push(shuffled.indexOf('ref-A'));
+    }
+    return { distinctIndices: Array.from(new Set(indices)), sample: indices.slice(0, 10) };
+  });
+  ok('shuffle() is exposed on window and actually randomizes (tracked element lands at more than one index across 40 trials)',
+    shuffleStats.distinctIndices.length > 1, shuffleStats);
+
+  // (b) Real rendered DOM order for BRANCH options: call the real renderNode()
+  // repeatedly for fault 0's root node (a pure render function -- no state
+  // mutation) and record the on-screen index of the correct (non-dead)
+  // option's card each time.
+  const branchPositions = await pg.evaluate(() => {
+    const f = window.FAULTS[0];
+    const node = f.nodes[f.rootNodeId];
+    const correctId = node.options.filter(o => !o.dead)[0].id;
+    const positions = [];
+    for (let t = 0; t < 15; t++) {
+      window.renderNode();
+      const ids = Array.from(document.querySelectorAll('#branch-options .action-card')).map(el => el.id);
+      positions.push(ids.indexOf('branch-' + correctId));
+    }
+    return { positions, distinct: Array.from(new Set(positions)) };
+  });
+  ok('rendered BRANCH option order varies across repeated renders of the same node (correct branch is not fixed at index 0)',
+    branchPositions.distinct.length > 1 && branchPositions.distinct.some(p => p !== 0), branchPositions);
+
+  // (c) Real rendered DOM order for FIX options: legitimately reach the root
+  // cause on fault 0 once, then call the real renderCorrective() repeatedly
+  // (also a pure render function) and record the on-screen index of the
+  // correct fix's card each time.
+  const fixPositions = await pg.evaluate(() => {
+    const f = window.FAULTS[0];
+    let reached = false;
+    for (let guard = 0; guard < 10 && !reached; guard++) {
+      const node = f.nodes[window.currentNodeId];
+      const correctOpt = node.options.filter(o => !o.dead)[0];
+      window.chooseBranch(correctOpt.id);
+      reached = window.rootCauseReached;
+    }
+    const correctFixId = f.fixes.filter(x => x.correct)[0].id;
+    const positions = [];
+    for (let t = 0; t < 15; t++) {
+      window.renderCorrective();
+      const ids = Array.from(document.querySelectorAll('#fix-options .action-card')).map(el => el.id);
+      positions.push(ids.indexOf('fix-' + correctFixId));
+    }
+    return { reached, positions, distinct: Array.from(new Set(positions)) };
+  });
+  ok('reached root cause before auditing fix-option render order', fixPositions.reached, fixPositions);
+  ok('rendered FIX option order varies across repeated renders of the corrective panel (correct fix is not fixed at index 0)',
+    fixPositions.distinct.length > 1 && fixPositions.distinct.some(p => p !== 0), fixPositions);
+
+  // (d) Grading-by-id sanity check: even with rendering shuffled, navigating
+  // and fixing by id must still work end-to-end (re-verify on a fresh load,
+  // separate from the Scenario 3 full run, specifically after having just
+  // hammered renderNode()/renderCorrective() above). A fresh load is required
+  // here because (b)/(c) above left currentNodeId/mode past node A0.
+  await load();
+  const postShuffleNav = await pg.evaluate(() => {
+    const f = window.FAULTS[0];
+    const node = f.nodes[f.rootNodeId];
+    const correctOpt = node.options.filter(o => !o.dead)[0];
+    // Click the actual rendered card (not a raw function call) to prove the
+    // shuffled DOM element for the correct id is wired to the correct handler.
+    document.getElementById('branch-' + correctOpt.id).click();
+    return { nodeIdAfter: window.currentNodeId, expectedNext: correctOpt.leadsTo };
+  });
+  ok('clicking the (shuffled-position) rendered card for the correct branch id still advances the tree correctly',
+    postShuffleNav.nodeIdAfter === postShuffleNav.expectedNext, postShuffleNav);
+
+  // ════════════════════════════════════════════════════════════════════
   // STYLE + INTEGRITY CHECKS on the rendered page
   // ════════════════════════════════════════════════════════════════════
   console.log('\n=== Style + platform integrity checks ===');
