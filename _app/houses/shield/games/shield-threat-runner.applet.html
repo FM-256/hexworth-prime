@@ -226,6 +226,17 @@
                     <div class="ability-item"><span class="lvl-tag">L5</span><span class="ab-name">IR Nuke (Clear All)</span></div>
                 </div>
             </div>
+            <hr class="lore-divider">
+            <div class="lore-section">
+                <h3>// INCIDENT RESPONSE (NIST)</h3>
+                <p style="font-size:11px; color:#8fa4bd; margin:0 0 8px; line-height:1.5;">Core phases of the NIST IR lifecycle. The DETECT/CONTAIN/ERADICATE/RECOVER levels are these phases in order; RECON and APT STORM are game bookends, not IR phases.</p>
+                <div class="ability-list">
+                    <div class="ability-item"><span class="lvl-tag">1</span><span class="ab-name">Detect: spot the incident and scope it</span></div>
+                    <div class="ability-item"><span class="lvl-tag">2</span><span class="ab-name">Contain: limit spread, isolate systems</span></div>
+                    <div class="ability-item"><span class="lvl-tag">3</span><span class="ab-name">Eradicate: remove the threat and root cause</span></div>
+                    <div class="ability-item"><span class="lvl-tag">4</span><span class="ab-name">Recover: restore systems to normal ops</span></div>
+                </div>
+            </div>
             <button id="startBtn">START SHIFT</button>
             <div class="nav-links">
                 <a class="nav-house" href="../index.html">Shield House</a>
@@ -246,12 +257,15 @@
 
     // ===== LEVELS =====
     const LEVELS = [
-        { name: 'RECON',      threshold: 0,   speed: 3.5, skyColor: '#0a0a1a', neonColor: '#ef4444', obstacles: ['ransomware','phishing'] },
-        { name: 'DETECT',     threshold: 20,  speed: 4.5, skyColor: '#0a0a2a', neonColor: '#f97316', obstacles: ['ransomware','phishing','zeroday'] },
-        { name: 'CONTAIN',    threshold: 50,  speed: 6,   skyColor: '#1a0a2a', neonColor: '#eab308', obstacles: ['ransomware','phishing','zeroday','ddos'] },
-        { name: 'ERADICATE',  threshold: 90,  speed: 8,   skyColor: '#2a0a1a', neonColor: '#a855f7', obstacles: ['phishing','zeroday','ddos','insider','apt'] },
-        { name: 'RECOVER',    threshold: 140, speed: 10,  skyColor: '#2a0a0a', neonColor: '#ec4899', obstacles: ['zeroday','ddos','insider','apt','supply_chain','cryptojack'] },
-        { name: 'APT STORM',  threshold: 200, speed: 12,  skyColor: '#1a0000', neonColor: '#ff0044', obstacles: ['zeroday','ddos','insider','apt','supply_chain','cryptojack'] }
+        // meaning: rendered at full-stop pauses (game-over + respawn freeze) to teach the phase. The 4 middle
+        // levels are the NIST SP 800-61 IR lifecycle; RECON/APT STORM are game bookends (attacker recon / APT
+        // archetype), deliberately NOT labeled as NIST phases. All 6 strings Karl-verified against NIST/MITRE.
+        { name: 'RECON',      threshold: 0,   speed: 3.5, skyColor: '#0a0a1a', neonColor: '#ef4444', obstacles: ['ransomware','phishing'], meaning: 'Reconnaissance: attackers probe and map the target before striking.' },
+        { name: 'DETECT',     threshold: 20,  speed: 4.5, skyColor: '#0a0a2a', neonColor: '#f97316', obstacles: ['ransomware','phishing','zeroday'], meaning: 'Detection & Analysis: spot the incident and determine its scope.' },
+        { name: 'CONTAIN',    threshold: 50,  speed: 6,   skyColor: '#1a0a2a', neonColor: '#eab308', obstacles: ['ransomware','phishing','zeroday','ddos'], meaning: 'Containment: limit the spread and isolate affected systems.' },
+        { name: 'ERADICATE',  threshold: 90,  speed: 8,   skyColor: '#2a0a1a', neonColor: '#a855f7', obstacles: ['phishing','zeroday','ddos','insider','apt'], meaning: 'Eradication: remove the threat and its root cause.' },
+        { name: 'RECOVER',    threshold: 140, speed: 10,  skyColor: '#2a0a0a', neonColor: '#ec4899', obstacles: ['zeroday','ddos','insider','apt','supply_chain','cryptojack'], meaning: 'Recovery: restore systems and return to normal operations.' },
+        { name: 'APT STORM',  threshold: 200, speed: 12,  skyColor: '#1a0000', neonColor: '#ff0044', obstacles: ['zeroday','ddos','insider','apt','supply_chain','cryptojack'], meaning: 'Advanced Persistent Threat: a stealthy, well-resourced adversary that digs in for the long haul.' }
     ];
 
     const ABILITIES = [
@@ -1557,6 +1571,21 @@
             ctx.fillText(labels[countdownPhase], W/2, H/2 - 20);
             ctx.restore();
         }
+        // On a death-respawn only (respawnCountdown gates out the launch SCANNING/ALERTING countdown), teach the
+        // phase the player is in during the frozen countdown. Sits below the H/2-20 countdown word; levelTransition
+        // is cleared in loseLife() so the old banner (H/2+40) can't overlap. No glow (crisp small text).
+        if (respawnCountdown && countdownPhase >= 1 && countdownPhase <= 2) {
+            const rLvl = LEVELS[currentLevel];
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.fillStyle = rLvl.neonColor;
+            ctx.font = 'bold 15px monospace';
+            ctx.fillText(rLvl.name, W/2, H/2 + 34);
+            ctx.fillStyle = '#d8d8d8';
+            ctx.font = '13px monospace';
+            ctx.fillText(rLvl.meaning, W/2, H/2 + 58);
+            ctx.restore();
+        }
     }
 
     // ===== LIVES =====
@@ -1565,6 +1594,7 @@
         if (lives <= 0) { gameOver(); return; }
         playDeath();
         obstacles = [];
+        levelTransition = 0; // clear a decaying level-up banner (H/2+40) so it can't overlap the respawn-freeze phase caption
         respawnCountdown = true;
         invincible = true;
         player.velocityY = 0;
@@ -1737,11 +1767,20 @@
         ctx.fillText(`Threats Neutralized: ${hopCount}`, W/2, H/2);
         ctx.fillStyle = '#ef4444';
         ctx.fillText(`High Score: ${highScore}`, W/2, H/2 + 30);
+        // Teach the phase the run ended in (shadowBlur already 0 here, so these render crisp — no glow clip).
+        // Two lines (name / meaning) to stay one-line-each within the 900px canvas; feeds off LEVELS[currentLevel].meaning.
+        const goLvl = LEVELS[currentLevel];
+        ctx.fillStyle = goLvl.neonColor;
+        ctx.font = 'bold 15px monospace';
+        ctx.fillText(`You reached: ${goLvl.name}`, W/2, H/2 + 62);
+        ctx.fillStyle = '#d8d8d8';
+        ctx.font = '13px monospace';
+        ctx.fillText(goLvl.meaning, W/2, H/2 + 86);
         ctx.fillStyle = '#888';
         ctx.font = '14px monospace';
         ctx.fillText(checkpointLevel > 0
             ? `Click START SHIFT to resume at ${LEVELS[checkpointLevel].name}`
-            : 'Click START SHIFT to Restart', W/2, H/2 + 70);
+            : 'Click START SHIFT to Restart', W/2, H/2 + 118);
         ctx.restore();
     }
 
