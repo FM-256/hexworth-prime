@@ -377,6 +377,10 @@
                 </div>
             </div>
 
+            <div id="scenarioBar" style="position: absolute; top: 34px; left: 0; right: 0; text-align: center; color: #fbbf24; font-size: 12px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none;">
+                <span id="scenarioObjective">Deploy: public EC2 web server</span> &middot; <span id="scenarioProgress">0/5</span> provisioned
+            </div>
+
             <canvas id="gameCanvas" width="800" height="600"></canvas>
 
             <div id="gameOverScreen" class="hidden">
@@ -485,6 +489,10 @@
         let checkpointScore = 0;   // score at the start of the checkpoint level (rewind target)
         let levelHops = 0;
         let totalHops = 0;
+        // Dependency-order landing outcome counters (QA/test observability only, no gameplay effect)
+        let seqBuildableCount = 0;
+        let seqBlockedCount = 0;
+        let seqDuplicateCount = 0;
         let flagSpawned = false;
         let flagMissed = 0; // extra hops needed after missing flag
         let levelTransitionTimer = 0;
@@ -520,6 +528,187 @@
             'Azure': '#0078D4',
             'GCP': '#4285F4'
         };
+
+        // ============================================================
+        // CLOUD DEPLOYMENT-ORDER SCENARIOS
+        //
+        // Each scenario is a real dependency graph of cloud resources.
+        // A step's "prereqs" are resources that must already exist before
+        // that step can be created. These are hard API-level blocks
+        // (the create-call for the step genuinely fails without them),
+        // not just best-practice ordering. Steps with no dependency
+        // between each other (siblings) are legitimately buildable in
+        // any order, so the engine never invents a false single "correct
+        // order" between them. See evaluateStep() below, which checks
+        // the LIVE provisioned set at the moment of landing rather than
+        // a position baked in at spawn time.
+        // ============================================================
+        const SCENARIOS = [
+            {
+                id: 'ec2-web',
+                objective: 'Deploy: public EC2 web server',
+                steps: [
+                    { id: 'vpc',        label: 'VPC',               short: 'VPC',    prereqs: [] },
+                    { id: 'subnet',     label: 'Subnet',            short: 'SUBNET', prereqs: ['vpc'] },
+                    // CreateInternetGateway takes no VpcId (it's created standalone); the VPC
+                    // dependency is real but belongs to the ATTACH call, not creation.
+                    { id: 'igw',        label: 'Internet Gateway',  short: 'IGW',    prereqs: [] },
+                    { id: 'igwattach',  label: 'Attach IGW to VPC', short: 'ATTIGW', prereqs: ['vpc', 'igw'] },
+                    { id: 'sg',         label: 'Security Group',    short: 'SG',     prereqs: ['vpc'] },
+                    { id: 'ec2',        label: 'EC2 Instance',      short: 'EC2',    prereqs: ['subnet', 'sg'] },
+                ]
+            },
+            {
+                id: 'iam-role',
+                objective: 'Deploy: EC2 with an IAM instance profile attached',
+                steps: [
+                    { id: 'policy',     label: 'IAM Policy',                     short: 'POLICY', prereqs: [] },
+                    { id: 'role',       label: 'IAM Role',                       short: 'ROLE',   prereqs: [] },
+                    { id: 'attach',     label: 'Attach Policy to Role',          short: 'ATTACH', prereqs: ['policy', 'role'] },
+                    // CreateInstanceProfile takes only name/path/tags, no role param. The role
+                    // is attached afterward via AddRoleToInstanceProfile, which is where the
+                    // real hard dependency on an existing role lives.
+                    { id: 'iprof',      label: 'Instance Profile',               short: 'IPROF',  prereqs: [] },
+                    { id: 'iprofattach',label: 'Add Role to Instance Profile',   short: 'ADDROL', prereqs: ['role', 'iprof'] },
+                    { id: 'ec2c',       label: 'EC2 Instance',                   short: 'EC2',    prereqs: [] },
+                    { id: 'assocprof',  label: 'Associate Profile to Instance',  short: 'ASSOC',  prereqs: ['ec2c', 'iprofattach'] },
+                ]
+            },
+            {
+                id: 'alb-tier',
+                objective: 'Deploy: load-balanced web tier',
+                steps: [
+                    { id: 'vpc2',     label: 'VPC',               short: 'VPC',    prereqs: [] },
+                    { id: 'subnets',  label: 'Subnets (2 AZs)',   short: 'SUBNTS', prereqs: ['vpc2'] },
+                    { id: 'sg2',      label: 'Security Group',    short: 'SG',     prereqs: ['vpc2'] },
+                    { id: 'tg',       label: 'Target Group',      short: 'TGROUP', prereqs: ['vpc2'] },
+                    { id: 'ec2b',     label: 'EC2 Instance',      short: 'EC2',    prereqs: ['subnets', 'sg2'] },
+                    // CreateLoadBalancer lists SecurityGroups as Required:No (AWS auto-assigns
+                    // the VPC's default SG if none is given). Subnets (2 AZs) is the real hard
+                    // requirement here, not the security group.
+                    { id: 'alb',      label: 'App Load Balancer', short: 'ALB',    prereqs: ['subnets'] },
+                    { id: 'regtgt',   label: 'Register Targets',  short: 'REG',    prereqs: ['tg', 'ec2b'] },
+                    { id: 'listener', label: 'Listener',          short: 'LSNR',   prereqs: ['alb', 'tg'] },
+                ]
+            },
+            {
+                id: 'azure-vm',
+                objective: 'Deploy: Azure virtual machine',
+                steps: [
+                    { id: 'rg',      label: 'Resource Group',         short: 'RG',     prereqs: [] },
+                    { id: 'vnet',    label: 'Virtual Network',        short: 'VNET',   prereqs: ['rg'] },
+                    { id: 'nsg',     label: 'Network Security Group', short: 'NSG',    prereqs: ['rg'] },
+                    { id: 'subnet3', label: 'Subnet',                 short: 'SUBNET', prereqs: ['vnet'] },
+                    // An NSG is optional on a NIC (can be applied at the subnet level, or not
+                    // at all). The real hard requirement is the ipConfiguration bound to a
+                    // subnet, not the NSG.
+                    { id: 'nic',     label: 'Network Interface',      short: 'NIC',    prereqs: ['subnet3'] },
+                    { id: 'vm',      label: 'Virtual Machine',        short: 'VM',     prereqs: ['nic'] },
+                ]
+            }
+        ];
+
+        // Scenario run state (reset each new game / each time a scenario completes)
+        let currentScenarioIdx = 0;
+        let provisioned = new Set();      // stepIds successfully deployed in the current scenario run
+        let sinceBuildableSpawn = 0;      // forces a reachable legit next-step within a couple of spawns
+
+        // A step is:
+        //   'buildable': not yet provisioned AND every prereq IS provisioned -> correct, any such step is valid
+        //   'duplicate': already provisioned -> soft-wrong (wasteful, not unsafe)
+        //   'blocked':   a prereq is missing -> hard-wrong (out of order)
+        // Evaluated LIVE against the actual provisioned set at landing time, never pre-baked to a
+        // platform at spawn time, so no ability (double jump / dash / platform-snap) can bypass it.
+        function evaluateStep(stepId) {
+            const scenario = SCENARIOS[currentScenarioIdx];
+            const step = scenario.steps.find(s => s.id === stepId);
+            if (!step) return 'blocked';
+            if (provisioned.has(stepId)) return 'duplicate';
+            const met = step.prereqs.every(p => provisioned.has(p));
+            return met ? 'buildable' : 'blocked';
+        }
+
+        function currentBuildableSteps() {
+            const scenario = SCENARIOS[currentScenarioIdx];
+            return scenario.steps.filter(s => !provisioned.has(s.id) && s.prereqs.every(p => provisioned.has(p)));
+        }
+
+        function buildBlockedReason(stepId) {
+            const scenario = SCENARIOS[currentScenarioIdx];
+            const step = scenario.steps.find(s => s.id === stepId);
+            if (!step) return 'That resource is not part of this deployment.';
+            const missing = step.prereqs.filter(p => !provisioned.has(p)).map(p => {
+                const s = scenario.steps.find(x => x.id === p);
+                return s ? s.label : p;
+            });
+            if (missing.length === 0) return step.label + ' is already deployed.';
+            return step.label + ' needs ' + missing.join(' + ') + ' first. Not deployed yet.';
+        }
+
+        // Pick which dependency step (if any) a newly spawned platform should represent.
+        // Weighted toward a real next-step so progress is always physically reachable soon,
+        // but frequently seeds blocked/duplicate distractors so random jumping fails.
+        function assignSequenceStep(plat) {
+            if (demoMode) return; // demo attract-mode platforms stay decorative
+            // Flashing platforms (whole platform incl. label periodically invisible, L3+) are
+            // excluded from carrying a dependency step: landing on them is gated by blink-timing
+            // luck, not cloud-order knowledge, which would silently reintroduce a "not really
+            // knowledge" failure mode. They stay decorative/neutral (always a safe bounce).
+            if (plat.type === 'flashing') return;
+            const scenario = SCENARIOS[currentScenarioIdx];
+            const buildable = currentBuildableSteps();
+            let step = null;
+            // Base rate deliberately kept LOW (not >=50%) so passively landing wherever gravity
+            // takes you does not, by itself, approximate the correct answer most of the time.
+            // The force-within-4-spawns floor still guarantees a legitimate option is never far
+            // off (winnable for a player who reads labels), without making blind/random play
+            // land on "buildable" about as often as deliberate choice would.
+            const forceBuildable = sinceBuildableSpawn >= 4 || Math.random() < 0.32;
+            if (forceBuildable && buildable.length > 0) {
+                step = buildable[Math.floor(Math.random() * buildable.length)];
+                sinceBuildableSpawn = 0;
+            } else {
+                sinceBuildableSpawn++;
+                const blockedPool = scenario.steps.filter(s => !provisioned.has(s.id) && !s.prereqs.every(p => provisioned.has(p)));
+                const duplicatePool = scenario.steps.filter(s => provisioned.has(s.id));
+                if (duplicatePool.length > 0 && Math.random() < 0.25) {
+                    step = duplicatePool[Math.floor(Math.random() * duplicatePool.length)];
+                } else if (blockedPool.length > 0) {
+                    step = blockedPool[Math.floor(Math.random() * blockedPool.length)];
+                } else if (buildable.length > 0) {
+                    step = buildable[Math.floor(Math.random() * buildable.length)];
+                    sinceBuildableSpawn = 0;
+                }
+            }
+            if (!step) return;
+            plat.stepId = step.id;
+            plat.stepShort = step.short;
+            plat.stepLabel = step.label;
+        }
+
+        // Scenario complete -> bonus, rotate to next scenario, reset provisioned set
+        function maybeAdvanceScenario() {
+            const scenario = SCENARIOS[currentScenarioIdx];
+            const allDone = scenario.steps.every(s => provisioned.has(s.id));
+            if (allDone) {
+                score += 100;
+                document.getElementById('score').textContent = score;
+                spawnAbilityEffect(player.x + player.width / 2, player.y - 10, 'DEPLOYED', '#22c55e');
+                playSound('milestone');
+                currentScenarioIdx = (currentScenarioIdx + 1) % SCENARIOS.length;
+                provisioned = new Set();
+                sinceBuildableSpawn = 0;
+                updateScenarioHUD();
+            }
+        }
+
+        function updateScenarioHUD() {
+            const scenario = SCENARIOS[currentScenarioIdx];
+            const el = document.getElementById('scenarioObjective');
+            const prog = document.getElementById('scenarioProgress');
+            if (el) el.textContent = scenario.objective;
+            if (prog) prog.textContent = provisioned.size + '/' + scenario.steps.length;
+        }
 
         // Player Object
         const player = {
@@ -1302,6 +1491,14 @@
                     ctx.font = 'bold 8px Courier New';
                     ctx.textAlign = 'center';
                     ctx.fillText('DEPLOY', this.x + this.width / 2, this.y + 9);
+                } else if (this.stepShort) {
+                    // Dependency-step platform: show the short step code. Anti-tell: no
+                    // color/styling difference between buildable/blocked/duplicate here;
+                    // the player must reason from real cloud-order knowledge, not a hint).
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = (this.width < 80 ? 'bold 8px' : 'bold 10px') + ' Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.stepShort, this.x + this.width / 2, this.y + 9);
                 } else {
                     ctx.fillStyle = this.color;
                     ctx.font = 'bold 10px Courier New';
@@ -1851,7 +2048,29 @@
 
             const plat = new Platform(px, highest - gap, width, provider, false, platType);
             plat.initType(currentLevel);
+            assignSequenceStep(plat);
             platforms.push(plat);
+
+            // Fork: a second platform at a similar height, also within physical reach of the
+            // same takeoff point, so the player faces an actual left-or-right DECISION between
+            // two independently-labeled steps rather than being forced down one predetermined
+            // path. This is what makes the dependency-order mechanic a real choice instead of
+            // a fixed sequence the player just rides through.
+            if (!demoMode && plat.stepId && Math.random() < 0.7) {
+                const forkSide = (px + width / 2 < screenMid) ? 1 : -1; // put the fork on the roomier side
+                const forkOffset = 90 + Math.floor(Math.random() * 70);
+                let forkX = px + forkOffset * forkSide;
+                forkX = Math.max(baseX - maxReach, Math.min(baseX + maxReach, forkX));
+                forkX = Math.max(10, Math.min(canvas.width - width - 10, forkX));
+                if (Math.abs(forkX - px) > width * 0.8) {
+                    const forkY = highest - gap + (Math.random() * 20 - 10); // near-identical height, slight variance
+                    const forkProvider = cloudProviders[Math.floor(Math.random() * cloudProviders.length)];
+                    const fork = new Platform(forkX, forkY, width, forkProvider, false, 'normal');
+                    fork.initType(currentLevel);
+                    assignSequenceStep(fork);
+                    if (fork.stepId) platforms.push(fork);
+                }
+            }
         }
 
         // Spawn Flag Platform (checkpoint to next level, vertical mode only)
@@ -1875,6 +2094,7 @@
             const entry = new Platform(entryX, entryY, width, provider, false, 'teleporter');
             entry.teleportPairId = pairId;
             entry.initType(currentLevel);
+            assignSequenceStep(entry);
             platforms.push(entry);
 
             // Exit platform: 120-180px above, offset horizontally
@@ -1884,6 +2104,10 @@
             const exit = new Platform(exitX, entryY - exitGap, width, provider, false, 'teleporter');
             exit.teleportPairId = pairId;
             exit.initType(currentLevel);
+            // Exit shares the same step as entry: landing on entry already provisions it,
+            // so the exit pad naturally reads as 'duplicate' if touched afterward (soft-wrong,
+            // not a trap) rather than an unrelated blocked step.
+            if (entry.stepId) { exit.stepId = entry.stepId; exit.stepShort = entry.stepShort; exit.stepLabel = entry.stepLabel; }
             platforms.push(exit);
         }
 
@@ -1957,6 +2181,10 @@
             // Platform-anchored types (firewall, cost, ratelimit, expired_cert)
             const platform = platforms[Math.floor(Math.random() * platforms.length)];
             if (platform.isFlag) return;
+            // expired_cert renders directly over the step label (same y-offset), which would
+            // look like a correctness signal that isn't real. Other hazard types float clear of the
+            // label and stay fair game (orthogonal dodge-skill, doesn't affect the landing verdict).
+            if (type === 'expired_cert' && platform.stepId) return;
 
             if (type === 'expired_cert') {
                 // Sits directly on the platform
@@ -2249,88 +2477,149 @@
 
             // Check platform collisions
             player.onPlatform = false;
+            let landedThisFrame = false; // first collision resolved per frame wins; prevents
+                                          // double-provision / stacked blocked+buildable results
+                                          // when adjacent stepId platforms sit close together
             platforms.forEach(platform => {
+                if (landedThisFrame) return;
                 // Skip invisible flashing platforms
                 if (platform.type === 'flashing' && !platform.flashVisible) return;
                 if (!platform.crumbling && player.velocityY > 0) {
                     if (checkCollision(player, platform)) {
-                        player.y = platform.y - player.height;
+                        landedThisFrame = true;
 
-                        // Bounce force scales with level
-                        const bounce = getCurrentLevel().bounceForce;
+                        // Live dependency-order check: evaluated against the ACTUAL provisioned
+                        // set at this instant, never pre-baked to the platform at spawn time, so
+                        // no ability (double jump / dash / platform-snap) can bypass the check.
+                        // Whatever platform the player ends up landing on is judged for real.
+                        const seq = (platform.stepId && !demoMode && !countdownActive)
+                            ? evaluateStep(platform.stepId) : null;
 
-                        // Teleporter: warp to paired platform
-                        if (platform.type === 'teleporter' && platform.teleportPairId >= 0) {
-                            const pair = platforms.find(p => p !== platform && p.type === 'teleporter' && p.teleportPairId === platform.teleportPairId);
-                            if (pair && pair.y < platform.y) {
-                                player.x = pair.x + pair.width / 2 - player.width / 2;
-                                player.y = pair.y - player.height;
-                                player.velocityY = jumpStrength * (bounce + 0.2);
-                                for (let i = 0; i < 12; i++) {
-                                    particles.push(new Particle(player.x + player.width / 2, player.y + player.height, '#e879f9'));
+                        if (seq === 'blocked') {
+                            seqBlockedCount++;
+                            // Out of order: touched down, but no upward bounce at all. Same
+                            // non-ascending physics as 'duplicate' below so a uniform-random
+                            // jumper cannot net altitude from either wrong outcome, only from
+                            // a genuinely buildable step. Player is dropped just BELOW the
+                            // platform (not left sitting on top of it) so the same platform's
+                            // hitbox cannot re-trigger a collision on the next several frames
+                            // while gravity is still pulling it clear (falling-through visual,
+                            // matches "it crumbles, you fall").
+                            player.y = platform.y + platform.height + 4;
+                            player.velocityY = 3;
+                            player.onPlatform = false;
+                            platform.startCrumble();
+                            playSound('crumble');
+                            spawnAbilityEffect(player.x + player.width / 2, player.y, platform.stepShort + ' BLOCKED', '#ef4444');
+                            loseLife(buildBlockedReason(platform.stepId));
+                        } else if (seq === 'duplicate') {
+                            seqDuplicateCount++;
+                            // Already deployed: wasteful, not unsafe. No life lost, but still
+                            // no upward bounce (must not let random landings climb via a "safe"
+                            // repeat pick). Small score penalty for the wasted move. Same
+                            // drop-clear-of-the-platform fix as the blocked branch above.
+                            player.y = platform.y + platform.height + 4;
+                            player.velocityY = 3;
+                            player.onPlatform = false;
+                            score = Math.max(0, score - 5);
+                            document.getElementById('score').textContent = score;
+                            playSound('land');
+                            spawnAbilityEffect(player.x + player.width / 2, player.y, platform.stepShort + ' DUPLICATE', '#f97316');
+                        } else {
+                            // Buildable step, or a neutral (no stepId) platform. Original
+                            // full landing/bounce logic.
+                            player.y = platform.y - player.height;
+
+                            // Bounce force scales with level
+                            const bounce = getCurrentLevel().bounceForce;
+
+                            // Teleporter: warp to paired platform
+                            if (platform.type === 'teleporter' && platform.teleportPairId >= 0) {
+                                const pair = platforms.find(p => p !== platform && p.type === 'teleporter' && p.teleportPairId === platform.teleportPairId);
+                                if (pair && pair.y < platform.y) {
+                                    player.x = pair.x + pair.width / 2 - player.width / 2;
+                                    player.y = pair.y - player.height;
+                                    player.velocityY = jumpStrength * (bounce + 0.2);
+                                    for (let i = 0; i < 12; i++) {
+                                        particles.push(new Particle(player.x + player.width / 2, player.y + player.height, '#e879f9'));
+                                    }
+                                    spawnAbilityEffect(player.x + player.width / 2, player.y + player.height, 'WARP', '#e879f9');
+                                    playSound('route53');
+                                } else {
+                                    player.velocityY = jumpStrength * bounce;
                                 }
-                                spawnAbilityEffect(player.x + player.width / 2, player.y + player.height, 'WARP', '#e879f9');
-                                playSound('route53');
                             } else {
                                 player.velocityY = jumpStrength * bounce;
                             }
-                        } else {
-                            player.velocityY = jumpStrength * bounce;
-                        }
 
-                        // Moving platforms impart horizontal momentum
-                        if (platform.moveSpeedX && platform.moveDir) {
-                            player.velocityX += platform.moveSpeedX * platform.moveDir * 0.5;
-                        }
+                            // Moving platforms impart horizontal momentum
+                            if (platform.moveSpeedX && platform.moveDir) {
+                                player.velocityX += platform.moveSpeedX * platform.moveDir * 0.5;
+                            }
 
-                        player.isJumping = true;
-                        if (!demoMode) playSound('jump');
-                        player.onPlatform = true;
+                            player.isJumping = true;
+                            if (!demoMode) playSound('jump');
+                            player.onPlatform = true;
 
-                        // Recharge abilities on landing
-                        lambdaReady = true;
-                        cloudfrontReady = true;
-                        route53Ready = true;
-                        wafHitShield = true;
-                        glacierActive = false;
+                            // Recharge abilities on landing
+                            lambdaReady = true;
+                            cloudfrontReady = true;
+                            route53Ready = true;
+                            wafHitShield = true;
+                            glacierActive = false;
 
-                        if (!platform.touched) {
-                            platform.touched = true;
+                            if (!platform.touched) {
+                                platform.touched = true;
 
-                            if (!demoMode && !countdownActive) {
-                                comboCount++;
-                                levelHops++;
-                                totalHops++;
-                                document.getElementById('hopCount').textContent = levelHops;
+                                if (!demoMode && !countdownActive) {
+                                    comboCount++;
+                                    levelHops++;
+                                    totalHops++;
+                                    document.getElementById('hopCount').textContent = levelHops;
 
-                                // Extra life every 20 hops
-                                if (totalHops % 20 === 0) {
-                                    lives++;
-                                    document.getElementById('lives').textContent = lives;
-                                    playSound('powerup');
-                                    for (let i = 0; i < 10; i++) {
-                                        particles.push(new Particle(player.x + player.width / 2, player.y, '#22c55e'));
+                                    // Extra life every 20 hops
+                                    if (totalHops % 20 === 0) {
+                                        lives++;
+                                        document.getElementById('lives').textContent = lives;
+                                        playSound('powerup');
+                                        for (let i = 0; i < 10; i++) {
+                                            particles.push(new Particle(player.x + player.width / 2, player.y, '#22c55e'));
+                                        }
+                                    }
+
+                                    // Correct dependency step: provision it, score, check scenario completion
+                                    if (seq === 'buildable') {
+                                        seqBuildableCount++;
+                                        provisioned.add(platform.stepId);
+                                        score += 25;
+                                        document.getElementById('score').textContent = score;
+                                        spawnAbilityEffect(player.x + player.width / 2, player.y, platform.stepShort + ' OK', '#22c55e');
+                                        updateScenarioHUD();
+                                        maybeAdvanceScenario();
+                                    }
+
+                                    // Flag platform = level up!
+                                    if (platform.isFlag) {
+                                        playSound('flag');
+                                        levelUp();
+                                    } else {
+                                        playSound('combo');
+                                    }
+
+                                    // Crumble chance from level definition. Skipped for
+                                    // stepId platforms (their crumble/fail state is driven
+                                    // entirely by the dependency check above, not RNG, so a
+                                    // correct landing can never be undone by an unrelated roll)
+                                    const lvl = getCurrentLevel();
+                                    if (!platform.isFlag && !platform.stepId && Math.random() < lvl.crumbleChance) {
+                                        platform.startCrumble();
                                     }
                                 }
-
-                                // Flag platform = level up!
-                                if (platform.isFlag) {
-                                    playSound('flag');
-                                    levelUp();
-                                } else {
-                                    playSound('combo');
-                                }
-
-                                // Crumble chance from level definition
-                                const lvl = getCurrentLevel();
-                                if (!platform.isFlag && Math.random() < lvl.crumbleChance) {
-                                    platform.startCrumble();
-                                }
                             }
-                        }
 
-                        if (activePowerup === 'autoscale') {
-                            platform.crumbling = false;
+                            if (activePowerup === 'autoscale') {
+                                platform.crumbling = false;
+                            }
                         }
                     }
                 }
@@ -2822,6 +3111,12 @@
             nextTeleportPairId = 0;
             lastPlatformSides = [];
 
+            // Reset the cloud dependency-scenario run (fresh random starting scenario
+            // each game so the sequence isn't positionally memorized across sessions)
+            currentScenarioIdx = Math.floor(Math.random() * SCENARIOS.length);
+            provisioned = new Set();
+            sinceBuildableSpawn = 0;
+
             // Vertical mode player start position
             player.x = 200;
             player.y = 450;
@@ -2836,6 +3131,7 @@
             document.getElementById('levelName').style.color = startLvl.accent;
             document.getElementById('hopCount').textContent = '0';
             document.getElementById('hopTarget').textContent = startLvl.hopsToFlag;
+            updateScenarioHUD();
 
             // Load high score
             const highScore = localStorage.getItem('cloudhop_vertical_highscore') || '0';
@@ -3012,6 +3308,65 @@
         // Start demo and game loop
         startDemo();
         gameLoop();
+
+        // ============================================================
+        // TEST HOOKS (window.__cloudHop), for _tools/arcade-fixes/cloud-hop-check.js
+        // Exposes deterministic frame-stepping (no reliance on real-time rAF ticking) and
+        // ground-truth step status so a puppeteer harness can script a knowledge-bot vs a
+        // random-jump-bot and assert only real cloud-order knowledge sustains height.
+        // ============================================================
+        window.__cloudHop = {
+            start: () => { startGame(); },
+            skipCountdown: () => {
+                countdownActive = false;
+                countdownPhase = 0;
+                shieldActive = false;
+                shieldFadeTimer = 0;
+                respawnCountdown = false;
+            },
+            step: (n) => {
+                const frames = n || 1;
+                for (let i = 0; i < frames; i++) { update(); }
+                draw();
+            },
+            setKeys: (k) => { Object.assign(keys, k || {}); },
+            clearKeys: () => { keys.left = false; keys.right = false; keys.up = false; keys.down = false; keys.space = false; },
+            // TEST-ONLY aim helper: directly sets horizontal position (clamped on-canvas).
+            // Used by the harness's knowledge-bot to isolate "did the DECISION matter" from
+            // "did the bot's keyboard-steering precisely execute the decision" -- the actual
+            // dependency-order gameplay logic (evaluateStep, collision branch) is completely
+            // untouched by this; it only removes input-precision noise from the test bot.
+            setPlayerX: (x) => { player.x = Math.max(0, Math.min(canvas.width - player.width, x)); },
+            // TEST-ONLY deterministic placement: positions the player centered on the given
+            // platform (px,py,pw) with a small guaranteed overlap and a small positive
+            // velocityY, so the very next step() call's collision check (which requires
+            // velocityY > 0) registers a real landing against exactly that platform through
+            // the REAL evaluateStep()/collision-branch code -- no simulated flight, so a
+            // large-N aggregate comparison isn't confounded by scripted-bot piloting noise.
+            forceLandOn: (px, py, pw) => {
+                player.x = Math.max(0, Math.min(canvas.width - player.width, px + pw / 2 - player.width / 2));
+                player.y = py - player.height + 2;
+                player.velocityY = 1;
+                player.velocityX = 0;
+            },
+
+            getState: () => ({
+                score: score, lives: lives, gameRunning: gameRunning, currentLevel: currentLevel,
+                totalHops: totalHops, levelHops: levelHops,
+                seqBuildableCount: seqBuildableCount, seqBlockedCount: seqBlockedCount, seqDuplicateCount: seqDuplicateCount,
+                onPlatform: player.onPlatform,
+                playerX: player.x, playerY: player.y, playerVX: player.velocityX, playerVY: player.velocityY,
+                scenario: SCENARIOS[currentScenarioIdx].id,
+                objective: SCENARIOS[currentScenarioIdx].objective,
+                provisioned: Array.from(provisioned),
+                platforms: platforms.map(p => ({
+                    x: p.x, y: p.y, width: p.width, type: p.type,
+                    stepId: p.stepId || null, stepShort: p.stepShort || null,
+                    touched: !!p.touched, crumbling: !!p.crumbling,
+                    status: p.stepId ? evaluateStep(p.stepId) : null
+                }))
+            })
+        };
 
     </script>
 <script src="../../../components/GameTracker.js"></script>
