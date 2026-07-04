@@ -28,6 +28,12 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP = path.resolve(HERE, '../../_app');
 const GAMES_HTML = path.join(APP, 'games.html');
 const OUT = path.join(APP, 'arcade-health.json');
+// scores.json is THE reconciled/live 95-game audit table. NEVER join scores-calibration.json /
+// scores-visual.json / pilot-flap-rescore.json (siblings in this dir with divergent numbers).
+const SCORES_FILE = path.join(HERE, 'scores.json');
+const LEDGER_FILE = path.join(HERE, 'fixes-ledger.json');
+const CONTENT_ONLY = process.argv.includes('--content-only'); // re-merge scores+ledger into an existing snapshot, skip the headless run
+const LEDGER_WARN_SCORE = 70; // a game scoring >= this but absent from the ledger is a likely unledgered fix — logged for visibility
 const CONCURRENCY = 4;
 const PAGE_TIMEOUT = 20000;
 const LIMIT = (() => { const i = process.argv.indexOf('--limit'); return i > -1 ? parseInt(process.argv[i + 1], 10) : Infinity; })();
@@ -124,8 +130,76 @@ async function auditGame(browser, port, game) {
     return rec;
 }
 
+/** Load scores.json (the live audit) as href -> {combined, axisA, axisB, axisC}.
+ *  Fails SAFE: returns {} + warns if the file is missing or is not the ~95-game table
+ *  (so a wrong/partial file cannot silently regress displayed scores). */
+function loadScores() {
+    try {
+        const raw = JSON.parse(fs.readFileSync(SCORES_FILE, 'utf8'));
+        const list = Array.isArray(raw) ? raw : (raw.worstFirst || raw.games || raw.scores || []);
+        if (list.length < 90) { console.warn('  WARN scores.json has ' + list.length + ' entries (<90) — not the full live table? Skipping content-score merge.'); return {}; }
+        const map = {};
+        for (const s of list) {
+            if (!s || !s.href) continue;
+            const pct = (a) => (a && typeof a.pct === 'number') ? a.pct : (typeof a === 'number' ? a : null);
+            map[s.href] = { combined: (typeof s.combined === 'number' ? s.combined : null), axisA: pct(s.axisA), axisB: pct(s.axisB), axisC: pct(s.axisC) };
+        }
+        return map;
+    } catch (e) { console.warn('  WARN could not read scores.json (' + e.message + ') — content scores skipped.'); return {}; }
+}
+
+/** Load fixes-ledger.json as href -> fix record. */
+function loadLedger() {
+    try {
+        const d = JSON.parse(fs.readFileSync(LEDGER_FILE, 'utf8'));
+        const map = {};
+        for (const f of (d.fixes || [])) { if (f && f.href) map[f.href] = f; }
+        return map;
+    } catch (e) { console.warn('  WARN could not read fixes-ledger.json (' + e.message + ') — fixes skipped.'); return {}; }
+}
+
+/** Merge content-quality (scores + ledger) into each game's health record, in place.
+ *  status: 'fixed' if in the ledger, else 'assessed' if scored, else 'pending'.
+ *  Emits visibility warnings for a stale ledger href and for a high-scoring unledgered game. */
+function mergeContent(games) {
+    const scores = loadScores();
+    const ledger = loadLedger();
+    const catalog = new Set(games.map((g) => g.href));
+    for (const href of Object.keys(ledger)) { if (!catalog.has(href)) console.warn('  WARN ledger href not in games.html catalog (stale ledger entry?): ' + href); }
+    const counts = { contentFixed: 0, contentAssessed: 0, contentPending: 0 };
+    for (const g of games) {
+        const sc = scores[g.href] || null;
+        const fx = ledger[g.href] || null;
+        const status = fx ? 'fixed' : (sc ? 'assessed' : 'pending');
+        g.health.contentQuality = {
+            status,
+            combined: sc ? sc.combined : null,
+            axisA: sc ? sc.axisA : null, axisB: sc ? sc.axisB : null, axisC: sc ? sc.axisC : null,
+            fix: fx ? { commit: fx.commit, date: fx.date, summary: fx.summary, gate: fx.gate } : null,
+        };
+        counts['content' + status[0].toUpperCase() + status.slice(1)]++;
+        if (!fx && sc && typeof sc.combined === 'number' && sc.combined >= LEDGER_WARN_SCORE) console.warn('  NOTE ' + g.href + ' scores ' + sc.combined + ' (>=' + LEDGER_WARN_SCORE + ') but is not in the fixes ledger — unledgered fix?');
+    }
+    return counts;
+}
+
+/** Atomic write: tmp file + rename, so a partial write never corrupts the snapshot. */
+function atomicWrite(file, text) { const tmp = file + '.tmp'; fs.writeFileSync(tmp, text); fs.renameSync(tmp, file); }
+
+/** --content-only path: re-merge scores+ledger into the existing snapshot, no headless run. */
+function contentOnly() {
+    if (!fs.existsSync(OUT)) { console.error('--content-only needs an existing arcade-health.json; run a full audit first.'); process.exit(1); }
+    const snap = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+    const cc = mergeContent(snap.games || []);
+    snap.contentGeneratedAt = new Date().toISOString();
+    snap.summary = Object.assign(snap.summary || {}, cc);
+    atomicWrite(OUT, JSON.stringify(snap, null, 2) + '\n');
+    console.log('content-only merge -> ' + path.relative(process.cwd(), OUT) + '  (' + cc.contentFixed + ' fixed / ' + cc.contentAssessed + ' assessed / ' + cc.contentPending + ' pending)');
+}
+
 /** Run the audit pool over all games with bounded concurrency. */
 async function run() {
+    if (CONTENT_ONLY) { contentOnly(); return; }
     let catalog = parseCatalog();
     if (Number.isFinite(LIMIT)) catalog = catalog.slice(0, LIMIT);
     const srv = await startServer();
@@ -150,16 +224,21 @@ async function run() {
     const clean = results.filter((g) => g && g.health);
     const summary = { total: clean.length, ok: 0, degraded: 0, broken: 0 };
     clean.forEach((g) => { summary[g.health.status]++; });
+    // Merge the content-quality dimension (audit scores + shipped-fix ledger) over the functional pass.
+    const cc = mergeContent(clean);
+    Object.assign(summary, cc);
     const snapshot = {
         generated: 'arcade-audit.mjs',
         generatedAt: new Date().toISOString(),
-        note: 'Functional/render health of the arcade games in games.html. contentQuality is pending a separate AI/Chris pass.',
+        contentGeneratedAt: new Date().toISOString(),
+        note: 'Functional/render health + content-quality of the arcade games in games.html. Functional = headless load test; contentQuality = scores.json audit joined with fixes-ledger.json (shipped, gated fixes).',
         summary,
         games: clean,
     };
-    fs.writeFileSync(OUT, JSON.stringify(snapshot, null, 2) + '\n');
+    atomicWrite(OUT, JSON.stringify(snapshot, null, 2) + '\n');
     console.log('\narcade-health -> ' + path.relative(process.cwd(), OUT));
     console.log('  ' + summary.total + ' games: ' + summary.ok + ' ok / ' + summary.degraded + ' degraded / ' + summary.broken + ' broken');
+    console.log('  content: ' + cc.contentFixed + ' fixed / ' + cc.contentAssessed + ' assessed / ' + cc.contentPending + ' pending');
 }
 
 run().catch((e) => { console.error(e); process.exit(1); });

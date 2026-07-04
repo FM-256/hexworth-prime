@@ -4292,7 +4292,7 @@
                  =================================================== -->
             <div class="ac-panel" data-panel="arcadefixes">
                 <div class="ac-panel-title">Arcade Fixes <span style="font-size:0.7rem;font-weight:600;color:#818cf8;border:1px solid rgba(129,140,248,0.4);background:rgba(129,140,248,0.1);border-radius:4px;padding:2px 8px;margin-left:8px;vertical-align:middle;">COCKPIT</span></div>
-                <p style="color:var(--ac-text-muted);font-size:0.85rem;margin-bottom:16px;">Health of the arcade games in <a href="../games.html" target="_blank" rel="noopener" style="color:var(--ac-accent);">games.html</a> from the last audit (<span id="afxGen">&hellip;</span>) &mdash; <button onclick="afxLoad(true)" style="background:none;border:none;color:var(--ac-accent);cursor:pointer;font-size:0.85rem;padding:0;text-decoration:underline;">reload</button>. Functional/render checks load every game headless and watch for JS errors, failed assets, and blank renders. Content-quality is a separate assessment (pending). Regenerate with <code style="background:rgba(129,140,248,0.1);padding:1px 6px;border-radius:4px;font-size:0.78rem;">node _tools/arcade-fixes/arcade-audit.mjs</code> then redeploy.</p>
+                <p style="color:var(--ac-text-muted);font-size:0.85rem;margin-bottom:16px;">Health of the arcade games in <a href="../games.html" target="_blank" rel="noopener" style="color:var(--ac-accent);">games.html</a> from the last audit (<span id="afxGen">&hellip;</span>) &mdash; <button onclick="afxLoad(true)" style="background:none;border:none;color:var(--ac-accent);cursor:pointer;font-size:0.85rem;padding:0;text-decoration:underline;">reload</button>. Functional/render checks load every game headless and watch for JS errors, failed assets, and blank renders. Content shows each game's last audit score joined with the shipped-fix ledger: <span style="color:var(--ac-success);">fixed</span> (a gated fix shipped), <span style="color:var(--ac-accent);">assessed</span> (audited, not yet fixed), <span style="color:var(--ac-gold);">pending</span> (not audited). A fixed game keeps its last-audit score until re-audited. Full regen: <code style="background:rgba(129,140,248,0.1);padding:1px 6px;border-radius:4px;font-size:0.78rem;">node _tools/arcade-fixes/arcade-audit.mjs</code> then redeploy. Each shipped fix auto-refreshes the content dimension via <code style="background:rgba(129,140,248,0.1);padding:1px 6px;border-radius:4px;font-size:0.78rem;">_tools/arcade-fixes/record-fix.sh</code>.</p>
                 <div id="afxStats" class="ac-stats-grid" style="margin-bottom:22px;"><div class="ac-loading"><div class="ac-spinner"></div>Loading arcade health&hellip;</div></div>
                 <div style="display:flex;align-items:baseline;gap:10px;margin:6px 0 8px;">
                     <h3 style="margin:0;font-size:0.95rem;color:var(--ac-text);">Needs attention</h3>
@@ -11310,18 +11310,41 @@
         function afxStat(v, l, mod) { return '<div class="ac-stat-card' + (mod ? ' ' + mod : '') + '"><div class="ac-stat-value">' + v + '</div><div class="ac-stat-label">' + l + '</div></div>'; }
         /* Colored status dot. */
         function afxDot(status) { return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + afxColor(status) + ';margin-right:6px;vertical-align:middle;"></span>'; }
+        /* The ONLY reader of health.contentQuality. Normalizes the new object shape, the legacy
+           string shape, and missing/null fields into a safe object so no render site can leak
+           'null'/'[object Object]'. Kept permanent (guards a half-deploy or a hand-edited snapshot). */
+        function afxCQ(g) {
+            var c = (g && g.health) ? g.health.contentQuality : null;
+            if (!c || typeof c === 'string') {
+                var st = (c === 'fixed' || c === 'assessed') ? c : 'pending';
+                return { status: st, combined: null, axisA: null, axisB: null, axisC: null, fix: null };
+            }
+            var num = function (v) { return (typeof v === 'number') ? v : null; };
+            return {
+                status: (c.status === 'fixed' || c.status === 'assessed') ? c.status : 'pending',
+                combined: num(c.combined), axisA: num(c.axisA), axisB: num(c.axisB), axisC: num(c.axisC),
+                fix: (c.fix && typeof c.fix === 'object') ? c.fix : null
+            };
+        }
+        /* Content-status to a console color: fixed = success, assessed = accent, pending = gold. */
+        function afxCQColor(st) { return st === 'fixed' ? 'var(--ac-success)' : st === 'assessed' ? 'var(--ac-accent)' : 'var(--ac-gold)'; }
+        /* Small content-quality badge: status + last-audit combined score when known. */
+        function afxCQBadge(cq) { var col = afxCQColor(cq.status); return '<span style="font-size:0.7rem;color:' + col + ';border:1px solid ' + col + ';border-radius:4px;padding:1px 6px;white-space:nowrap;">' + cq.status + (cq.combined != null ? ' &middot; ' + cq.combined : '') + '</span>'; }
         /* Render the stat strip, the needs-attention queue, and the full game list. */
         function afxRender(d) {
             var games = d.games || [];
             var s = d.summary || { total: games.length, ok: 0, degraded: 0, broken: 0 };
-            var pending = games.filter(function (g) { return g.health.contentQuality === 'pending'; }).length;
+            var cq = games.map(afxCQ);
+            var cFixed = cq.filter(function (x) { return x.status === 'fixed'; }).length;
+            var cPending = cq.filter(function (x) { return x.status === 'pending'; }).length;
             document.getElementById('afxGen').textContent = (d.generatedAt || '').replace('T', ' ').slice(0, 16) + ' UTC';
             document.getElementById('afxStats').innerHTML =
                 afxStat(s.total, 'Games') +
                 afxStat(s.ok, 'Functional', s.ok === s.total ? 'success' : '') +
                 afxStat(s.degraded, 'Degraded', s.degraded ? 'warning' : '') +
                 afxStat(s.broken, 'Broken', s.broken ? 'danger' : 'success') +
-                afxStat(pending, 'Content QA pending', 'gold');
+                afxStat(cFixed, 'Content fixed', cFixed ? 'success' : '') +
+                afxStat(cPending, 'Content pending', cPending ? 'gold' : 'success');
             // Needs-attention queue: any game whose functional status is not ok, broken first.
             var rank = { broken: 0, degraded: 1, ok: 2 };
             var issues = games.map(function (g, i) { return { g: g, i: i }; })
@@ -11347,7 +11370,9 @@
                 var hdr = '<tr><td colspan="5" style="background:rgba(255,255,255,0.03);text-transform:capitalize;font-weight:700;color:var(--ac-accent);font-size:0.78rem;">' + afxEsc(house) + ' &middot; ' + byHouse[house].length + '</td></tr>';
                 var rows = byHouse[house].map(function (x) {
                     var h = x.g.health;
-                    return '<tr style="cursor:pointer;" onclick="afxOpen(' + x.i + ')"><td>' + afxEsc(x.g.title) + '</td><td style="color:var(--ac-text-muted);text-transform:capitalize;">' + afxEsc(x.g.type) + '</td><td style="color:var(--ac-text-muted);">' + afxEsc(x.g.category) + '</td><td>' + afxDot(h.status) + '<span style="font-size:0.78rem;color:var(--ac-text-muted);">' + (h.hasCanvas ? 'canvas' : (h.textLen + ' chars')) + '</span></td><td><span style="font-size:0.7rem;color:var(--ac-gold);border:1px solid rgba(212,160,23,0.4);border-radius:4px;padding:1px 6px;">pending</span></td></tr>';
+                    var cq = afxCQ(x.g);
+                    var fixTag = (cq.fix && cq.fix.commit) ? ' <span style="font-size:0.66rem;color:var(--ac-text-muted);font-family:monospace;">' + afxEsc(cq.fix.commit) + '</span>' : '';
+                    return '<tr style="cursor:pointer;" onclick="afxOpen(' + x.i + ')"><td>' + afxEsc(x.g.title) + '</td><td style="color:var(--ac-text-muted);text-transform:capitalize;">' + afxEsc(x.g.type) + '</td><td style="color:var(--ac-text-muted);">' + afxEsc(x.g.category) + '</td><td>' + afxDot(h.status) + '<span style="font-size:0.78rem;color:var(--ac-text-muted);">' + (h.hasCanvas ? 'canvas' : (h.textLen + ' chars')) + '</span></td><td>' + afxCQBadge(cq) + fixTag + '</td></tr>';
                 }).join('');
                 return hdr + rows;
             }).join('');
@@ -11362,6 +11387,11 @@
             function block(label, arr) { return arr.length ? '<div style="margin-top:10px;"><div style="font-size:0.72rem;text-transform:uppercase;color:var(--ac-text-muted);margin-bottom:4px;">' + label + '</div>' + arr.map(function (x) { return '<div style="font-family:monospace;font-size:0.76rem;color:var(--ac-text);background:rgba(255,255,255,0.03);padding:4px 8px;border-radius:4px;margin-bottom:3px;">' + afxEsc(x) + '</div>'; }).join('') + '</div>' : ''; }
             var details = block('JS errors', h.jsErrors) + block('Failed assets', h.failedAssets) + block('Console errors', h.consoleErrors);
             if (!details) details = '<div class="ac-empty" style="margin-top:10px;">No functional issues &mdash; loads and renders cleanly (' + (h.hasCanvas ? 'live canvas' : h.textLen + ' chars') + ', ' + h.ms + 'ms).</div>';
+            var cq = afxCQ(g);
+            var axisTxt = (cq.axisA != null || cq.axisB != null || cq.axisC != null)
+                ? ' <span style="color:var(--ac-text-muted);">(A ' + (cq.axisA == null ? '-' : cq.axisA) + ' / B ' + (cq.axisB == null ? '-' : cq.axisB) + ' / C ' + (cq.axisC == null ? '-' : cq.axisC) + ')</span>' : '';
+            var cqLine = '<div style="margin-top:12px;font-size:0.8rem;color:var(--ac-text-muted);">Content: <span style="color:' + afxCQColor(cq.status) + ';font-weight:700;text-transform:uppercase;">' + cq.status + '</span>' + (cq.combined != null ? ' &middot; last audit ' + cq.combined + '/100' : '') + axisTxt + '</div>';
+            var fixBlock = cq.fix ? '<div style="margin-top:4px;font-size:0.78rem;color:var(--ac-text-muted);">Fix: ' + afxEsc(cq.fix.summary || '') + (cq.fix.commit ? ' <span style="font-family:monospace;color:var(--ac-text);">' + afxEsc(cq.fix.commit) + '</span>' : '') + (cq.fix.date ? ' &middot; ' + afxEsc(cq.fix.date) : '') + (cq.fix.gate ? ' &middot; ' + afxEsc(cq.fix.gate) : '') + '</div>' : '';
             var play = '../' + g.href;
             var o = document.createElement('div');
             o.className = 'afx-modal';
@@ -11371,7 +11401,7 @@
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-weight:700;color:var(--ac-text);">' + afxEsc(g.title) + '</div><button onclick="afxCloseModal(this)" style="background:none;border:none;color:var(--ac-text-muted);font-size:1.5rem;cursor:pointer;line-height:1;">&times;</button></div>' +
                 '<div style="color:var(--ac-text-muted);font-size:0.8rem;text-transform:capitalize;">' + afxEsc(g.house) + ' &middot; ' + afxEsc(g.type) + ' &middot; ' + afxEsc(g.category) + ' &middot; ' + afxDot(h.status) + '<span style="color:' + afxColor(h.status) + ';font-weight:700;text-transform:uppercase;font-size:0.72rem;">' + h.status + '</span></div>' +
                 details +
-                '<div style="margin-top:12px;font-size:0.8rem;color:var(--ac-text-muted);">Content quality: <span style="color:var(--ac-gold);">pending assessment</span></div>' +
+                cqLine + fixBlock +
                 '<div style="margin-top:12px;"><a href="' + afxEsc(play) + '" target="_blank" rel="noopener" style="color:var(--ac-accent);font-size:0.82rem;text-decoration:none;">Open this game &rarr;</a></div>' +
                 '</div>';
             document.body.appendChild(o);

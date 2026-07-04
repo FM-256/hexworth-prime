@@ -190,6 +190,19 @@ const TARGETS = [
             { type: 'selector-count', selector: '.filter-btn', min: 9,
               note: 'Filter bar has all 9 category buttons (All + 8 categories)' }
         ]
+    },
+    {
+        // Added 2026-07-04: the admin console is one ~7,000-line IIFE — a single broken template
+        // literal takes down every panel (Tenants, Review Games, Arcade Fixes, all of it). This
+        // target's implicit no-page-errors check catches an IIFE parse/eval break during the
+        // console.html load (it fires before the auth guard redirects an unauthed load to
+        // dashboard.html; Firebase/auth noise is already in IGNORED_ERROR_PATTERNS). For DEEP
+        // cockpit render coverage (content badges, modal, null-safety) run the dedicated
+        // browser check: node _tools/arcade-fixes/cockpit-render-check.js.
+        name: 'Admin Console (IIFE parse guard)',
+        url: '/admin/console.html',
+        seedLocalStorage: { hexworth_house: 'web' },
+        assertions: []  // implicit no-page-errors only; unauthed console redirects to dashboard
     }
 ];
 
