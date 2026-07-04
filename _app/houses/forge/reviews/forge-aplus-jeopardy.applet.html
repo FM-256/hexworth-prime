@@ -322,6 +322,72 @@
     filter: brightness(1.1);
   }
 
+  /* Solo Play mode toggle */
+  .mode-toggle {
+    text-align: center;
+    margin-bottom: 15px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .mode-toggle label {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .mode-toggle input {
+    margin-right: 8px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    vertical-align: middle;
+  }
+
+  /* Solo typed-answer entry inside the clue modal */
+  .modal-solo {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .solo-input {
+    flex: 1;
+    min-width: 220px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    font-size: 1rem;
+    font-family: inherit;
+  }
+
+  .solo-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .modal-result {
+    padding: 14px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-weight: 800;
+    font-size: 1.2rem;
+  }
+
+  .modal-result.right {
+    background: rgba(46, 213, 115, 0.15);
+    border: 1px solid var(--ok);
+    color: var(--ok);
+  }
+
+  .modal-result.wrong {
+    background: rgba(255, 71, 87, 0.15);
+    border: 1px solid var(--bad);
+    color: var(--bad);
+  }
+
   footer {
     text-align: center;
     padding: 30px;
@@ -389,7 +455,14 @@
 <div class="container">
   <h1><img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> CompTIA A+ Jeopardy</h1>
 
-  <div class="scoreboard">
+  <div class="mode-toggle">
+    <label>
+      <input type="checkbox" id="soloModeToggle" onchange="toggleSoloMode()">
+      Solo Play — type your own answer, auto-graded (off = facilitated group play)
+    </label>
+  </div>
+
+  <div class="scoreboard" id="groupScoreboard">
     <div class="team-score">
       <h2>Team 1</h2>
       <div class="score" id="team1Score">0</div>
@@ -416,6 +489,13 @@
     </div>
   </div>
 
+  <div class="scoreboard" id="soloScoreboard" style="display:none">
+    <div class="team-score">
+      <h3>Solo Score</h3>
+      <div class="score" id="soloScoreValue">0</div>
+    </div>
+  </div>
+
   <div class="board" id="board"></div>
 
   <button class="complete-btn" id="jeopardyCompleteBtn" onclick="markComplete()">✓ Mark Complete</button>
@@ -428,6 +508,13 @@
     <div class="modal-points" id="modalPoints">$100</div>
     <div class="modal-category" id="modalCategory">Category</div>
     <div class="modal-question" id="modalQuestion">Question goes here?</div>
+    <div class="modal-solo" id="modalSolo" style="display:none">
+      <input type="text" id="soloInput" class="solo-input" autocomplete="off"
+             placeholder='Type your answer (e.g., "What is ...?" — the prefix is optional)'
+             onkeydown="if (event.key === 'Enter') { event.preventDefault(); submitSoloAnswer(); }">
+      <button class="modal-btn reveal" id="soloSubmitBtn" onclick="submitSoloAnswer()">Submit Answer</button>
+    </div>
+    <div class="modal-result" id="modalResult" style="display:none"></div>
     <div class="modal-answer" id="modalAnswer">
       <h4>✓ Correct Answer</h4>
       <p id="modalAnswerText">Answer goes here</p>
@@ -450,68 +537,105 @@ const categories = [
   {
     name: "Windows Editions",
     questions: [
-      { points: 100, question: "This Windows 10 edition is recommended for business use and includes domain connectivity.", answer: "What is Windows 10 Pro?" },
-      { points: 200, question: "This Windows 8.1 edition cannot use BitLocker drive encryption.", answer: "What is Windows 8.1 Core?" },
-      { points: 300, question: "This feature is NOT available in any Windows Home edition.", answer: "What is EFS (Encrypting File System)?" },
-      { points: 400, question: "BitLocker encryption keys are stored in this hardware component.", answer: "What is TPM (Trusted Platform Module)?" },
-      { points: 500, question: "This group exists in Windows 7+ only for backward compatibility with legacy applications.", answer: "What is the Power Users Group?" }
+      { points: 100, question: "This Windows 10 edition is recommended for business use and includes domain connectivity.", answer: "What is Windows 10 Pro?", accepts: ["windows 10 pro", "win 10 pro"] },
+      { points: 200, question: "This Windows 8.1 edition cannot use BitLocker drive encryption.", answer: "What is Windows 8.1 Core?", accepts: ["windows 8.1 core", "windows 8.1 core edition", "8.1 core"] },
+      { points: 300, question: "This feature is NOT available in any Windows Home edition.", answer: "What is EFS (Encrypting File System)?", accepts: ["efs", "encrypting file system"] },
+      { points: 400, question: "BitLocker encryption keys are stored in this hardware component.", answer: "What is TPM (Trusted Platform Module)?", accepts: ["tpm", "trusted platform module"] },
+      { points: 500, question: "This group exists in Windows 7+ only for backward compatibility with legacy applications.", answer: "What is the Power Users Group?", accepts: ["power users group", "power users"] }
     ]
   },
   {
     name: "Command Line",
     questions: [
-      { points: 100, question: "This command is used to change directories in the command prompt.", answer: "What is cd?" },
-      { points: 200, question: "This command verifies and restores corrupted Windows system files.", answer: "What is sfc /scannow?" },
-      { points: 300, question: "This command locates and repairs disk errors.", answer: "What is chkdsk /r?" },
-      { points: 400, question: "This command completely wipes a hard drive including the partitioning system.", answer: "What is diskpart?" },
-      { points: 500, question: "This switch with the dir command displays all files in subdirectories.", answer: "What is /s?" }
+      { points: 100, question: "This command is used to change directories in the command prompt.", answer: "What is cd?", accepts: ["cd", "change directory", "change directories"] },
+      { points: 200, question: "This command verifies and restores corrupted Windows system files.", answer: "What is sfc /scannow?", accepts: ["sfc scannow", "sfc /scannow", "sfc"] },
+      { points: 300, question: "This command locates and repairs disk errors.", answer: "What is chkdsk /r?", accepts: ["chkdsk /r", "chkdsk r"] },
+      { points: 400, question: "This CLI disk-partitioning utility's clean command removes a disk's partition and volume information, while clean all overwrites every sector to fully wipe it.", answer: "What is diskpart?", accepts: ["diskpart"] },
+      { points: 500, question: "This switch with the dir command displays all files in subdirectories.", answer: "What is /s?", accepts: ["/s", "dir /s"] }
     ]
   },
   {
     name: "Security",
     questions: [
-      { points: 100, question: "This should be disabled to prevent potentially harmful programs from automatically running from removable media.", answer: "What is AutoRun?" },
-      { points: 200, question: "This policy is the best defense against brute force attacks on local passwords.", answer: "What is Account Lockout Threshold?" },
-      { points: 300, question: "This authentication method uses user ID, password, and a unique PIN sent via text.", answer: "What is Multi-Factor Authentication (MFA)?" },
-      { points: 400, question: "Resetting a local user password causes loss of access to files encrypted with this.", answer: "What is EFS?" },
-      { points: 500, question: "This wireless security feature allows only specific device addresses to connect to the network.", answer: "What is MAC Filtering?" }
+      { points: 100, question: "This should be disabled to prevent potentially harmful programs from automatically running from removable media.", answer: "What is AutoRun?", accepts: ["autorun", "auto run"] },
+      { points: 200, question: "This policy is the best defense against brute force attacks on local passwords.", answer: "What is Account Lockout Threshold?", accepts: ["account lockout threshold", "account lockout policy", "lockout threshold"] },
+      { points: 300, question: "This authentication approach requires two or more independent factors from different categories - something you know, something you have, or something you are - rather than relying on a single credential like a password alone.", answer: "What is Multi-Factor Authentication (MFA)?", accepts: ["mfa", "multifactor authentication", "multi-factor authentication", "multi factor authentication"] },
+      { points: 400, question: "Resetting a local user password causes loss of access to files encrypted with this.", answer: "What is EFS?", accepts: ["efs", "encrypting file system"] },
+      { points: 500, question: "This wireless security feature allows only specific device addresses to connect to the network.", answer: "What is MAC Filtering?", accepts: ["mac filtering", "mac address filtering"] }
     ]
   },
   {
     name: "Troubleshooting",
     questions: [
-      { points: 100, question: "Open this tool and end the process to fix an application that's not responding.", answer: "What is Task Manager?" },
-      { points: 200, question: "This is the first troubleshooting step after Startup Repair fails on a boot issue.", answer: "What is Safe Mode?" },
-      { points: 300, question: "If an app works in Safe Mode but not normal mode, this is causing the issue.", answer: "What is the operating system or a driver?" },
-      { points: 400, question: "When a mobile device performs slowly after an hour, do this first.", answer: "What is close or disable all unused running apps?" },
-      { points: 500, question: "This Windows feature runs before the OS starts to scan when malware prevents access even in Safe Mode.", answer: "What is Windows Defender Offline Scan?" }
+      { points: 100, question: "Open this tool and end the process to fix an application that's not responding.", answer: "What is Task Manager?", accepts: ["task manager"] },
+      { points: 200, question: "This is the first troubleshooting step after Startup Repair fails on a boot issue.", answer: "What is Safe Mode?", accepts: ["safe mode"] },
+      { points: 300, question: "If an app works in Safe Mode but not normal mode, this is causing the issue.", answer: "What is the operating system or a driver?", accepts: ["operating system", "the operating system", "os", "a driver", "driver", "a bad driver"] },
+      { points: 400, question: "When a mobile device performs slowly after an hour, do this first.", answer: "What is close or disable all unused running apps?", accepts: ["close all unused running apps", "close unused apps", "disable unused apps", "close background apps", "close running apps", "force close unused apps"] },
+      { points: 500, question: "This Windows feature runs before the OS starts to scan when malware prevents access even in Safe Mode.", answer: "What is Windows Defender Offline Scan?", accepts: ["windows defender offline scan", "defender offline scan", "windows defender offline"] }
     ]
   },
   {
     name: "File Systems",
     questions: [
-      { points: 100, question: "This partitioning scheme is limited to approximately 2 TB volumes.", answer: "What is MBR (Master Boot Record)?" },
-      { points: 200, question: "This file system is recommended for internal Windows boot drives.", answer: "What is NTFS?" },
-      { points: 300, question: "This modern partitioning standard supports drives larger than 2 TB.", answer: "What is GPT (GUID Partition Table)?" },
-      { points: 400, question: "Windows automatically performs this maintenance task once a week.", answer: "What is defragmentation (or TRIM for SSDs)?" },
-      { points: 500, question: "A partition that has been formatted with a file system and assigned a drive letter is called this.", answer: "What is a volume?" }
+      { points: 100, question: "This partitioning scheme is limited to approximately 2 TB volumes.", answer: "What is MBR (Master Boot Record)?", accepts: ["mbr", "master boot record"] },
+      { points: 200, question: "This file system is recommended for internal Windows boot drives.", answer: "What is NTFS?", accepts: ["ntfs"] },
+      { points: 300, question: "This modern partitioning standard supports drives larger than 2 TB.", answer: "What is GPT (GUID Partition Table)?", accepts: ["gpt", "guid partition table"] },
+      { points: 400, question: "Windows automatically performs this maintenance task once a week.", answer: "What is defragmentation (or TRIM for SSDs)?", accepts: ["defragmentation", "defrag", "trim", "disk defragmenter"] },
+      { points: 500, question: "A partition that has been formatted with a file system and assigned a drive letter is called this.", answer: "What is a volume?", accepts: ["volume", "a volume"] }
     ]
   },
   {
     name: "Mobile & Network",
     questions: [
-      { points: 100, question: "This short-range wireless technology is used for mobile payments at retail checkout.", answer: "What is NFC (Near Field Communication)?" },
-      { points: 200, question: "This mobile feature allows other devices to connect to the Internet through cellular data.", answer: "What is a hotspot?" },
-      { points: 300, question: "Touching wrong icons on a mobile device is often caused by this accessory interfering.", answer: "What is a screen protector?" },
-      { points: 400, question: "Before performing a factory reset, always do this first.", answer: "What is back up all user data?" },
-      { points: 500, question: "This AAA service is a Cisco-based upgrade to RADIUS for enhanced network security.", answer: "What is TACACS+?" }
+      { points: 100, question: "This short-range wireless technology is used for mobile payments at retail checkout.", answer: "What is NFC (Near Field Communication)?", accepts: ["nfc", "near field communication"] },
+      { points: 200, question: "This mobile feature allows other devices to connect to the Internet through cellular data.", answer: "What is a hotspot?", accepts: ["hotspot", "mobile hotspot", "personal hotspot", "wifi hotspot"] },
+      { points: 300, question: "Touching wrong icons on a mobile device is often caused by this accessory interfering.", answer: "What is a screen protector?", accepts: ["screen protector", "a screen protector", "tempered glass screen protector"] },
+      { points: 400, question: "Before performing a factory reset, always do this first.", answer: "What is back up all user data?", accepts: ["back up all user data", "backup all data", "back up your data", "backup user data", "back up data"] },
+      { points: 500, question: "This Cisco AAA protocol separates authentication, authorization, and accounting and encrypts the entire payload, unlike RADIUS.", answer: "What is TACACS+?", accepts: ["tacacs+", "tacacs plus"] }
     ]
   }
 ];
 
+// Expose for the test harness (_tools/arcade-fixes/jeopardy-grade-check.js) — read-only
+// reference, no UI effect. The full clue data is already visible in page source; this
+// just lets the harness drive/inspect the same grading logic the page uses.
+window.categories = categories;
+
 let revealed = {};
 let scores = { 1: 0, 2: 0, 3: 0 };
 let currentQuestion = null;
+let soloMode = false;          // Solo Play toggle state (persisted in localStorage)
+let soloScore = 0;             // Solo player's running $ total
+let clueLocked = false;        // true once the currently-open clue has been graded once
+                                // (either via typed submit or the self-grade fallback buttons)
+                                // — prevents double-scoring the same clue.
+
+// Normalize a typed or canonical answer for comparison: lowercase, drop an optional
+// leading "What/Who is/are/was/were " prefix, strip ?.!, punctuation, collapse
+// whitespace, then drop a leading article (a/an/the). Applied identically to both
+// the player's typed text and every accepted-answer candidate, so "TPM", "a TPM",
+// "What is TPM?" and "tpm" all normalize to the same string and compare equal.
+function normalizeAnswer(s) {
+  if (!s) return '';
+  let t = String(s).toLowerCase();
+  t = t.replace(/^\s*(what|who)\s+(is|are|was|were)\s+/, '');
+  t = t.replace(/[?.!,]/g, '');
+  t = t.replace(/\s+/g, ' ').trim();
+  t = t.replace(/^(a|an|the)\s+/, '');
+  return t.trim();
+}
+
+// Grade a typed answer against a clue's accepted-answer set. The clue's own canonical
+// "What is X?" answer is ALWAYS an accepted candidate (so no clue is ungradeable even
+// if its `accepts` shorthand list is incomplete); `accepts` adds realistic shorthand
+// variants a solo player would actually type instead of the full Jeopardy phrasing.
+function isAnswerCorrect(catIdx, qIdx, typed) {
+  const q = categories[catIdx].questions[qIdx];
+  const norm = normalizeAnswer(typed);
+  if (!norm) return false; // empty/blank input is never correct
+  const candidates = [q.answer].concat(q.accepts || []);
+  return candidates.some(v => normalizeAnswer(v) === norm);
+}
 
 function initBoard() {
   const board = document.getElementById('board');
@@ -552,6 +676,7 @@ function openQuestion(catIdx, qIdx) {
   const cat = categories[catIdx];
   const q = cat.questions[qIdx];
   currentQuestion = { catIdx, qIdx, points: q.points };
+  clueLocked = false; // fresh clue: neither the typed path nor the fallback buttons have graded yet
 
   document.getElementById('modalPoints').textContent = '$' + q.points;
   document.getElementById('modalCategory').textContent = cat.name;
@@ -563,7 +688,21 @@ function openQuestion(catIdx, qIdx) {
   document.getElementById('correctBtn').style.display = 'none';
   document.getElementById('wrongBtn').style.display = 'none';
 
+  // Reset the solo typed-answer panel. Only shown when Solo Play is on; the
+  // reveal/correct/wrong buttons above remain available in solo mode too as an
+  // explicit self-grade fallback (see revealAnswer()/submitSoloAnswer() for how
+  // the two paths lock each other out so a clue can't be scored twice).
+  const soloInput = document.getElementById('soloInput');
+  soloInput.value = '';
+  const resultEl = document.getElementById('modalResult');
+  resultEl.style.display = 'none';
+  resultEl.className = 'modal-result';
+  document.getElementById('modalSolo').style.display = soloMode ? 'flex' : 'none';
+
   document.getElementById('modal').classList.add('active');
+  if (soloMode) {
+    setTimeout(() => soloInput.focus(), 50);
+  }
 }
 
 function revealAnswer() {
@@ -571,12 +710,23 @@ function revealAnswer() {
   document.getElementById('revealBtn').style.display = 'none';
   document.getElementById('correctBtn').style.display = 'inline-block';
   document.getElementById('wrongBtn').style.display = 'inline-block';
+  // Choosing "Show Answer" commits to the self-grade fallback path for this clue —
+  // hide the typed-answer entry so the two grading paths can't both fire (no
+  // double-scoring one clue via type-then-also-self-grade).
+  document.getElementById('modalSolo').style.display = 'none';
 }
 
 function markCorrect() {
-  if (currentQuestion) {
+  if (currentQuestion && !clueLocked) {
+    clueLocked = true;
     const key = `${currentQuestion.catIdx}-${currentQuestion.qIdx}`;
     revealed[key] = true;
+    // Self-grade fallback only affects score in Solo Play (facilitated group
+    // play keeps its original behavior: team scores are adjusted manually).
+    if (soloMode) {
+      soloScore += currentQuestion.points;
+      updateSoloScoreDisplay();
+    }
     saveState();
     initBoard();
   }
@@ -584,13 +734,71 @@ function markCorrect() {
 }
 
 function markWrong() {
-  if (currentQuestion) {
+  if (currentQuestion && !clueLocked) {
+    clueLocked = true;
     const key = `${currentQuestion.catIdx}-${currentQuestion.qIdx}`;
     revealed[key] = true;
+    if (soloMode) {
+      soloScore -= currentQuestion.points;
+      updateSoloScoreDisplay();
+    }
     saveState();
     initBoard();
   }
   closeModal();
+}
+
+// Grade the player's typed answer against the current clue, show CORRECT/INCORRECT
+// + the real answer, and award/deduct the clue's dollar value from Solo Score.
+function submitSoloAnswer() {
+  if (!currentQuestion || clueLocked) return;
+  clueLocked = true;
+  const { catIdx, qIdx, points } = currentQuestion;
+  const q = categories[catIdx].questions[qIdx];
+  const typed = document.getElementById('soloInput').value;
+  const correct = isAnswerCorrect(catIdx, qIdx, typed);
+
+  document.getElementById('modalAnswerText').textContent = q.answer;
+  document.getElementById('modalAnswer').classList.add('visible');
+
+  const resultEl = document.getElementById('modalResult');
+  resultEl.textContent = (correct ? 'CORRECT! +$' : 'INCORRECT. -$') + points;
+  resultEl.className = 'modal-result ' + (correct ? 'right' : 'wrong');
+  resultEl.style.display = 'block';
+
+  soloScore += correct ? points : -points;
+  updateSoloScoreDisplay();
+
+  const key = `${catIdx}-${qIdx}`;
+  revealed[key] = true;
+  saveState();
+  initBoard();
+
+  // Grading is final for this clue: hide both the typed-entry panel and the
+  // reveal button so the self-grade fallback can't also fire for the same clue.
+  document.getElementById('modalSolo').style.display = 'none';
+  document.getElementById('revealBtn').style.display = 'none';
+  document.getElementById('correctBtn').style.display = 'none';
+  document.getElementById('wrongBtn').style.display = 'none';
+}
+
+function updateSoloScoreDisplay() {
+  const el = document.getElementById('soloScoreValue');
+  if (el) el.textContent = soloScore;
+}
+
+// Flip between facilitated group play (original honor-click board) and Solo Play
+// (typed, auto-graded answers). Persisted so the choice survives a page reload.
+function toggleSoloMode() {
+  soloMode = document.getElementById('soloModeToggle').checked;
+  localStorage.setItem('hexworth_jeopardy_mode', soloMode ? 'solo' : 'group');
+  applyModeUI();
+}
+
+// Swap which scoreboard is visible based on the current mode.
+function applyModeUI() {
+  document.getElementById('groupScoreboard').style.display = soloMode ? 'none' : 'flex';
+  document.getElementById('soloScoreboard').style.display = soloMode ? 'flex' : 'none';
 }
 
 function closeModal() {
@@ -607,30 +815,41 @@ function adjustScore(team, amount) {
 function saveState() {
   localStorage.setItem('hexworth_jeopardy_revealed', JSON.stringify(revealed));
   localStorage.setItem('hexworth_jeopardy_scores', JSON.stringify(scores));
+  localStorage.setItem('hexworth_jeopardy_solo_score', String(soloScore));
 }
 
 function loadState() {
   try {
     const r = localStorage.getItem('hexworth_jeopardy_revealed');
     const s = localStorage.getItem('hexworth_jeopardy_scores');
+    const ss = localStorage.getItem('hexworth_jeopardy_solo_score');
+    const m = localStorage.getItem('hexworth_jeopardy_mode');
     if (r) revealed = JSON.parse(r);
     if (s) scores = JSON.parse(s);
+    if (ss !== null) soloScore = parseInt(ss, 10) || 0;
+    soloMode = m === 'solo';
   } catch (e) {}
 
   document.getElementById('team1Score').textContent = scores[1];
   document.getElementById('team2Score').textContent = scores[2];
   document.getElementById('team3Score').textContent = scores[3];
+  document.getElementById('soloModeToggle').checked = soloMode;
+  updateSoloScoreDisplay();
+  applyModeUI();
 }
 
 function resetGame() {
   if (confirm('Reset the game? All scores and revealed questions will be cleared.')) {
     revealed = {};
     scores = { 1: 0, 2: 0, 3: 0 };
+    soloScore = 0;
     localStorage.removeItem('hexworth_jeopardy_revealed');
     localStorage.removeItem('hexworth_jeopardy_scores');
+    localStorage.removeItem('hexworth_jeopardy_solo_score');
     document.getElementById('team1Score').textContent = 0;
     document.getElementById('team2Score').textContent = 0;
     document.getElementById('team3Score').textContent = 0;
+    updateSoloScoreDisplay();
     initBoard();
   }
 }
@@ -686,9 +905,13 @@ function checkCompletionStatus() {
   }
 }
 
-// Keyboard shortcuts
+// Keyboard shortcuts. Guarded against the solo-answer text input: without this,
+// typing a space in a multi-word answer (e.g. "power users group") would get
+// hijacked by the Space-to-reveal shortcut below.
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeModal();
+  const inTextField = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+  if (e.key === 'Escape') { closeModal(); return; }
+  if (inTextField) return; // let normal typing (including Space) through
   if (e.key === ' ' && document.getElementById('modal').classList.contains('active')) {
     e.preventDefault();
     if (document.getElementById('revealBtn').style.display !== 'none') {
