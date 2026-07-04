@@ -92,17 +92,28 @@
             <div class="lore-title">LOG CENTIPEDE</div>
             <div class="lore-section">
                 <h2>SIEM Alert</h2>
-                <p>A massive log centipede is crawling through your SIEM dashboard. Each segment is a suspicious log entry. Shoot segments to split the chain and clear them all before they reach your analyst station.</p>
+                <p>A log chain is crawling through your SIEM dashboard. Each segment carries a real event code. READ it before you fire: some codes are IOCs, some are routine traffic. Shoot malicious codes. Hold fire on benign ones. Every wrong call costs you.</p>
+            </div>
+            <div class="lore-section">
+                <h2>IOC codes: shoot</h2>
+                <p style="color:#ef4444;">4625 PSEN BEAC LSAS EXFL BADP ADMN TUNL PSEX</p>
+            </div>
+            <div class="lore-section">
+                <h2>Benign codes: hold fire</h2>
+                <p style="color:#3b82f6;">4624 HLTH DNSA NTP PTCH BKUP HTTP CERT KRBT</p>
             </div>
             <div class="lore-section">
                 <h2>Threat Intel</h2>
-                <p>The centipede zig-zags through mushroom fields (log sources), dropping a row and reversing on contact. Spiders (APTs) lurk in your zone eating mushrooms. Fleas (false positives) drop from above leaving new mushrooms. Scorpions (rootkits) poison mushrooms, causing centipedes to dive straight down.</p>
+                <p>The chain zig-zags through mushroom fields (log sources), dropping a row and reversing on contact. Spiders (APTs) lurk in your zone eating mushrooms. Fleas (false positives) drop from above leaving new mushrooms. Scorpions (rootkits) poison mushrooms, causing segments to dive straight down. Anything you never engage resolves itself at the bottom: a malicious code that reaches bottom is a breach, a benign one just passes.</p>
             </div>
             <div class="lore-section">
                 <h2>SOC Status</h2>
                 <div class="lore-stat"><span>WAVE</span><span class="lore-stat-val" id="loreWave">1</span></div>
                 <div class="lore-stat"><span>ALERTS</span><span class="lore-stat-val" id="loreScore">0</span></div>
                 <div class="lore-stat"><span>PROCESSED</span><span class="lore-stat-val" id="loreLogs">0</span></div>
+                <div class="lore-stat"><span>DETECTED</span><span class="lore-stat-val" id="loreDetections" style="color:#22c55e;">0</span></div>
+                <div class="lore-stat"><span>FALSE POS</span><span class="lore-stat-val" id="loreFP" style="color:#f59e0b;">0</span></div>
+                <div class="lore-stat"><span>BREACHES</span><span class="lore-stat-val" id="loreBreaches" style="color:#ef4444;">0</span></div>
             </div>
             <div class="lore-section lore-keys">
                 <h2>Controls</h2>
@@ -175,7 +186,8 @@ function sfxWave() { playSound(523, 0.12, 'sine', 0.1); setTimeout(() => playSou
 function sfxPurge() { playSound(440, 0.08); setTimeout(() => playSound(660, 0.08), 50); setTimeout(() => playSound(880, 0.15), 100); }
 function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
 
-// Log types
+// Log types: severity color/glow ONLY. This is visual noise, it does NOT indicate
+// malicious vs benign. The player must read the event code (below), not the color.
 const LOG_TYPES = [
     { label: 'WARN', color: '#f59e0b', glow: 'rgba(245,158,11,0.3)' },
     { label: 'ERR',  color: '#ef4444', glow: 'rgba(239,68,68,0.3)' },
@@ -185,9 +197,44 @@ const LOG_TYPES = [
     { label: 'SYS',  color: '#22c55e', glow: 'rgba(34,197,94,0.3)' }
 ];
 
+// Detection targets. Each segment carries ONE of these as its real identity (event.code
+// is what renders on the segment). Codes are capped at 4 characters, matching the
+// existing WARN/CRIT/AUTH label precedent already proven readable at 8px on a 20px tile.
+const MALICIOUS_EVENTS = [
+    { code: '4625', teach: 'Event ID 4625 flooding in, a failed-auth burst (brute force).' },
+    { code: 'PSEN', teach: 'Base64-encoded PowerShell (-enc), obfuscated execution.' },
+    { code: 'BEAC', teach: 'Fixed-interval outbound callback, classic C2 beacon.' },
+    { code: 'LSAS', teach: 'Process reading LSASS memory, credential dumping (Mimikatz).' },
+    { code: 'EXFL', teach: 'Large transfer to an unrecognized host, data exfiltration.' },
+    { code: 'BADP', teach: 'Source IP matches a known-bad / blocklisted range.' },
+    { code: 'ADMN', teach: 'Domain-admin created outside change control, priv escalation.' },
+    { code: 'TUNL', teach: 'Oversized DNS TXT queries, DNS tunneling covert channel.' },
+    { code: 'PSEX', teach: 'PsExec-style remote service creation, lateral movement.' }
+];
+const BENIGN_EVENTS = [
+    { code: '4624', teach: 'Event ID 4624, an ordinary successful logon.' },
+    { code: 'HLTH', teach: 'Scheduled health-check heartbeat between known hosts.' },
+    { code: 'DNSA', teach: 'Routine DNS A-record lookup for a normal domain.' },
+    { code: 'NTP',  teach: 'NTP time-sync request, routine clock discipline.' },
+    { code: 'PTCH', teach: 'Scheduled patch/update installation.' },
+    { code: 'BKUP', teach: 'Nightly backup job to the approved backup host.' },
+    { code: 'HTTP', teach: 'Normal outbound web request to a known-good domain.' },
+    { code: 'CERT', teach: 'TLS certificate renewal, routine PKI maintenance.' },
+    { code: 'KRBT', teach: 'Kerberos TGT renewal, normal domain authentication.' }
+];
+const MALICIOUS_RATE = 0.4; // fraction of segments that are real IOCs
+
+// Assigns one event identity to a new segment. malicious ~40% of the time.
+function pickEvent() {
+    const malicious = Math.random() < MALICIOUS_RATE;
+    const pool = malicious ? MALICIOUS_EVENTS : BENIGN_EVENTS;
+    const base = pool[Math.floor(Math.random() * pool.length)];
+    return { code: base.code, teach: base.teach, malicious };
+}
+
 const QUERIES = [
-    { name: 'SELECT *', desc: 'Single shot query. One bullet on screen at a time.', wave: 1 },
-    { name: 'LOG PURGE', desc: 'SHIFT: Clears all threats in your analyst zone.', wave: 1 },
+    { name: 'SELECT *', desc: 'Single shot query. One bullet on screen at a time. Fire on malicious codes only.', wave: 1 },
+    { name: 'LOG PURGE', desc: 'SHIFT: Clears everything in your analyst zone at once. Indiscriminate: benign codes caught in it still count as false positives.', wave: 1 },
     { name: 'GROUP BY', desc: 'Unlocked at wave 5: shot splits mushroom neighbors.', wave: 5 },
     { name: 'DROP TABLE', desc: 'Wave 8+: rare screen-clear power-up drops.', wave: 8 }
 ];
@@ -198,6 +245,10 @@ const QUERIES = [
 let gameRunning = false, demoMode = true, gameOver = false;
 let score = 0, lives = 3, wave = 1, logsProcessed = 0;
 let purgeCharge = 0, waveTransition = 0, movesPanelOpen = false, gameTick = 0;
+// Detection-discrimination stats: did the player correctly tell IOC from routine traffic?
+let detections = 0, falsePositives = 0, breaches = 0, safePasses = 0, breachMeter = 0;
+const BREACH_LIMIT = 3; // unresolved malicious breaches absorbed before a life is lost
+let callouts = []; // transient teaching banners: {title, teach, color, life, maxLife}
 
 // ============================================================
 // MUSHROOM GRID
@@ -266,7 +317,8 @@ function createCentipede(length, startRow, dir) {
         segments.push({
             gx, gy: startRow, prevGx: gx, prevGy: startRow,
             isHead: i === 0,
-            type: LOG_TYPES[Math.floor(Math.random() * LOG_TYPES.length)],
+            type: LOG_TYPES[Math.floor(Math.random() * LOG_TYPES.length)], // color = noise
+            event: pickEvent(), // real identity: what the player must read and judge
             dir, diving: false
         });
     }
@@ -334,11 +386,99 @@ function moveHead(head) {
 }
 
 function spawnWave() {
+    // Fresh breach budget each wave -- missed detections don't carry a lifetime debt
+    // forward; a bad wave costs at most one life for THAT wave, then the SOC gets a
+    // clean slate. Without this, a global lifetime threshold cannot scale across an
+    // arbitrary number of waves (later waves spawn far more segments than early ones).
+    breachMeter = 0;
     const length = Math.min(12 + wave * 2, 30);
     centipedes.push(createCentipede(length, 0, 1));
     if (wave >= 3) centipedes.push(createCentipede(Math.floor(length / 3), 1, -1));
     if (wave >= 5) centipedes.push(createCentipede(Math.floor(length / 4), 2, 1));
     if (wave >= 8) centipedes.push(createCentipede(6, 3, -1));
+}
+
+// Removes segment [si] of centipedes[ci]. If it isn't the tail-most segment, the
+// remainder is split into a NEW centipede entry (identical to the original bullet-hit
+// behavior) so the rest of the chain doesn't silently re-link across the gap on the
+// next moveCentipedes() pass (which follows the array by index, not by identity).
+// Shared by the bullet-hit path, purge, and zone resolution so all three stay consistent.
+function removeSegmentAt(ci, si) {
+    const segs = centipedes[ci].segments;
+    const s = segs[si];
+    if (si < segs.length - 1) {
+        const tail = segs.splice(si + 1);
+        if (tail.length > 0) { tail[0].isHead = true; tail[0].dir *= -1; centipedes.push({ segments: tail }); }
+    }
+    segs.splice(si, 1);
+    if (segs.length > 0) segs[0].isHead = true;
+    return s;
+}
+
+// Pushes a short-lived teaching banner. Capped at 3 concurrent so the screen never walls up.
+function addCallout(title, teach, color) {
+    callouts.push({ title, teach, color, life: 150, maxLife: 150 });
+    if (callouts.length > 3) callouts.shift();
+}
+
+// A player bullet (or purge) resolved segment `s`, worth `baseScore` if correct.
+// This is the single source of truth for detection-discrimination scoring: correct
+// (malicious) kill scores and charges purge; wrong (benign) kill is a false positive
+// that costs score. `discount` scales purge's blunt, indiscriminate hits down vs. a
+// precise manual shot.
+function judgeShot(s, baseScore, discount) {
+    if (s.event.malicious) {
+        score += Math.round(baseScore * discount);
+        detections++; logsProcessed++;
+        purgeCharge = Math.min(100, purgeCharge + 5);
+        spawnParticles(s.gx * TILE + TILE / 2, s.gy * TILE + TILE / 2, '#22c55e', 10);
+        addCallout('DETECTED ' + s.event.code, s.event.teach, '#22c55e');
+    } else {
+        score = Math.max(0, score - Math.round(40 * discount));
+        falsePositives++; logsProcessed++;
+        spawnParticles(s.gx * TILE + TILE / 2, s.gy * TILE + TILE / 2, '#f59e0b', 10);
+        addCallout('FALSE POSITIVE ' + s.event.code, s.event.teach, '#f59e0b');
+    }
+}
+
+// Segments that reach the field's deepest row (ROWS-1) without being engaged resolve
+// themselves here. This does NOT touch moveHead's bounce state machine at all, it is
+// a pure position scan that runs after movement each tick, catching segments only at
+// the exact row moveHead's own "gy >= ROWS-1" branch already turns them around at. A
+// malicious segment resolving here is a missed detection (breach); a benign one is a
+// correct non-engagement (safe pass). Loops with re-scan since removeSegmentAt can
+// shift indices/split the array; segment counts are small so this is cheap.
+function resolveZone() {
+    let again = true;
+    while (again) {
+        again = false;
+        for (let ci = 0; ci < centipedes.length; ci++) {
+            const segs = centipedes[ci].segments;
+            for (let si = 0; si < segs.length; si++) {
+                const s = segs[si];
+                if (s.gx < 0 || s.gx >= COLS || s.gy < ROWS - 1) continue;
+                removeSegmentAt(ci, si);
+                if (s.event.malicious) {
+                    breaches++; logsProcessed++;
+                    score = Math.max(0, score - 25);
+                    spawnParticles(s.gx * TILE + TILE / 2, s.gy * TILE + TILE / 2, '#ef4444', 10);
+                    addCallout('BREACH ' + s.event.code, s.event.teach, '#ef4444');
+                    if (!demoMode) {
+                        breachMeter++;
+                        if (breachMeter >= BREACH_LIMIT) { breachMeter = 0; playerDeath(); }
+                    }
+                } else {
+                    safePasses++; logsProcessed++;
+                    score += 5;
+                    spawnParticles(s.gx * TILE + TILE / 2, s.gy * TILE + TILE / 2, '#3b82f6', 6);
+                    addCallout('PASSED ' + s.event.code, s.event.teach, '#3b82f6');
+                }
+                again = true; break;
+            }
+            if (again) break;
+        }
+    }
+    centipedes = centipedes.filter(c => c.segments.length > 0);
 }
 
 // ============================================================
@@ -367,7 +507,9 @@ function startGame() {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     demoMode = false; gameRunning = true; gameOver = false;
     score = 0; lives = 3; wave = 1; logsProcessed = 0;
-    purgeCharge = 0; gameTick = 0;
+    purgeCharge = 0; gameTick = 0; waveTransition = 0;
+    detections = 0; falsePositives = 0; breaches = 0; safePasses = 0; breachMeter = 0;
+    callouts = [];
     resetPlayer();
     bullet = null;
     centipedes = []; spiders = []; fleas = []; scorpions = []; particles = [];
@@ -406,12 +548,14 @@ function toggleMovesPanel() {
 function activatePurge() {
     if (purgeCharge < 100) return;
     purgeCharge = 0; sfxPurge();
+    // Iterating tail-first (reverse) here removes only from the end of the array so no
+    // split/re-link is needed within a single centipede, the same safe pattern this
+    // block already used before discrimination scoring was added.
     for (const centi of centipedes) {
         for (let i = centi.segments.length - 1; i >= 0; i--) {
             const s = centi.segments[i];
             if (s.gy >= PLAYER_ZONE) {
-                spawnParticles(s.gx * TILE + TILE / 2, s.gy * TILE + TILE / 2, s.type.color, 6);
-                score += 10; logsProcessed++;
+                judgeShot(s, 50, 0.5); // blunt/indiscriminate: half credit, half FP penalty
                 centi.segments.splice(i, 1);
             }
         }
@@ -473,11 +617,13 @@ function update() {
 
     // Centipede movement (grid-timed)
     const moveInterval = Math.max(2, 7 - Math.floor(wave / 2));
-    if (gameTick % moveInterval === 0) moveCentipedes();
+    if (gameTick % moveInterval === 0) { moveCentipedes(); resolveZone(); }
 
     // --- COLLISIONS ---
 
-    // Bullet vs Centipede
+    // Bullet vs Centipede: the core detection-discrimination act. Hitting the segment
+    // is easy (classic Centipede aim); getting CREDIT for it depends on whether the
+    // player read the code right before firing.
     if (bullet) {
         const bC = Math.floor(bullet.x / TILE), bR = Math.floor(bullet.y / TILE);
         let hit = false;
@@ -486,16 +632,10 @@ function update() {
             for (let i = 0; i < segs.length; i++) {
                 const s = segs[i];
                 if (s.gx === bC && s.gy === bR && s.gx >= 0 && s.gx < COLS) {
-                    spawnParticles(s.gx * TILE + TILE / 2, s.gy * TILE + TILE / 2, s.type.color, 10);
-                    score += s.isHead ? 100 : 50; logsProcessed++;
-                    purgeCharge = Math.min(100, purgeCharge + 5); sfxHit();
+                    sfxHit();
                     if (s.gy >= 0 && s.gy < ROWS && !hasMushroom(s.gy, s.gx)) setMushroom(s.gy, s.gx);
-                    if (i < segs.length - 1) {
-                        const tail = segs.splice(i + 1);
-                        if (tail.length > 0) { tail[0].isHead = true; tail[0].dir *= -1; centipedes.push({ segments: tail }); }
-                    }
-                    segs.splice(i, 1);
-                    if (segs.length > 0) segs[0].isHead = true;
+                    removeSegmentAt(ci, i);
+                    judgeShot(s, s.isHead ? 100 : 50, 1);
                     bullet = null; hit = true; break;
                 }
             }
@@ -618,6 +758,10 @@ function update() {
     particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--; });
     particles = particles.filter(p => p.life > 0);
 
+    // Teaching callouts decay
+    callouts.forEach(c => c.life--);
+    callouts = callouts.filter(c => c.life > 0);
+
     // UI
     document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
     document.getElementById('waveDisplay').textContent = `WAVE ${wave}`;
@@ -625,6 +769,9 @@ function update() {
     document.getElementById('loreWave').textContent = wave;
     document.getElementById('loreScore').textContent = score;
     document.getElementById('loreLogs').textContent = logsProcessed;
+    document.getElementById('loreDetections').textContent = detections;
+    document.getElementById('loreFP').textContent = falsePositives;
+    document.getElementById('loreBreaches').textContent = breaches;
 }
 
 function playerDeath() {
@@ -771,11 +918,12 @@ function draw() {
                 ctx.lineWidth = 1;
             }
 
-            // Label
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            // Label: the real event code, NOT the severity color's label. This is what
+            // the player must actually read to decide malicious vs benign.
+            ctx.fillStyle = 'rgba(0,0,0,0.75)';
             ctx.font = 'bold 8px Courier New';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(s.type.label, cx, cy);
+            ctx.fillText(s.event.code, cx, cy);
         });
     }
 
@@ -897,6 +1045,22 @@ function draw() {
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
     });
     ctx.globalAlpha = 1;
+
+    // --- Teaching callouts (detection reasoning, stacked top-center) ---
+    callouts.forEach((c, idx) => {
+        const a = c.life > 40 ? 1 : c.life / 40;
+        const cy2 = 34 + idx * 34;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = 'rgba(10,10,20,0.75)';
+        ctx.fillRect(W / 2 - 220, cy2 - 15, 440, 30);
+        ctx.strokeStyle = c.color; ctx.lineWidth = 1;
+        ctx.strokeRect(W / 2 - 220, cy2 - 15, 440, 30);
+        ctx.fillStyle = c.color; ctx.font = 'bold 12px Courier New'; ctx.textAlign = 'center';
+        ctx.fillText(c.title, W / 2, cy2 - 4);
+        ctx.fillStyle = '#e5e5e5'; ctx.font = '10px Courier New';
+        ctx.fillText(c.teach, W / 2, cy2 + 9);
+        ctx.globalAlpha = 1;
+    });
 
     // --- OVERLAYS ---
     if (demoMode) {
