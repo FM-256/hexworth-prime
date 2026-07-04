@@ -164,7 +164,7 @@
             image-rendering: pixelated;
             image-rendering: crisp-edges;
         }
-        #muteBtn, #helpBtn {
+        #muteBtn, #helpBtn, #chmodBtn {
             position: absolute;
             top: 10px;
             background: linear-gradient(135deg, rgba(5, 15, 10, 0.9), rgba(10, 10, 10, 0.9));
@@ -180,6 +180,14 @@
         }
         #muteBtn { right: 10px; }
         #helpBtn { right: 70px; }
+        /* Contextual chmod control: only shown (via JS) while a perm_denied fault is on screen.
+           Bottom-center, thumb-reachable on mobile; distinct amber so it reads as an action, not a toggle. */
+        #chmodBtn {
+            top: auto; bottom: 14px; left: 50%; transform: translateX(-50%);
+            display: none; font-size: 14px; padding: 8px 16px;
+            border-color: rgba(255, 204, 0, 0.7); color: #ffcc00;
+        }
+        #chmodBtn:hover { background: linear-gradient(135deg, #ffcc00, #cc9900); color: #0a0a0a; box-shadow: 0 0 15px rgba(255, 204, 0, 0.4); }
         #muteBtn:hover, #helpBtn:hover {
             background: linear-gradient(135deg, #10b981, #059669);
             color: #0a0a0a;
@@ -268,6 +276,7 @@
                     <span><em>SPACE / UP</em> - Jump</span>
                     <span><em>DOWN</em> - Duck</span>
                     <span><em>SHIFT</em> - Activate Command</span>
+                    <span><em>C</em> - chmod +rx a permission wall (EACCES)</span>
                 </div>
             </div>
             <hr class="lore-divider">
@@ -291,6 +300,7 @@
             <canvas id="gameCanvas" width="900" height="450"></canvas>
             <button id="muteBtn">SND</button>
             <button id="helpBtn">?</button>
+            <button id="chmodBtn">chmod +rx</button>
         </div>
     </div>
 
@@ -304,9 +314,9 @@
         { name: '/home',    threshold: 0,   speed: 3.5, color: '#0a1a0a', promptColor: '#00ff41', obstacles: ['perm_denied','segfault'] },
         { name: '/var',     threshold: 20,  speed: 4.5, color: '#0a0a1a', promptColor: '#00ccff', obstacles: ['perm_denied','segfault','fork_bomb'] },
         { name: '/etc',     threshold: 50,  speed: 6,   color: '#1a0a1a', promptColor: '#cc66ff', obstacles: ['perm_denied','segfault','fork_bomb','zombie'] },
-        { name: '/usr',     threshold: 90,  speed: 8,   color: '#1a1a0a', promptColor: '#ffcc00', obstacles: ['segfault','fork_bomb','zombie','rm_rf','buffer_overflow'] },
-        { name: '/root',    threshold: 140, speed: 10,  color: '#1a0a0a', promptColor: '#ff4444', obstacles: ['fork_bomb','zombie','rm_rf','buffer_overflow','race_condition','kernel_panic'] },
-        { name: '/dev/null',threshold: 200, speed: 12,  color: '#050505', promptColor: '#ff0066', obstacles: ['fork_bomb','zombie','rm_rf','buffer_overflow','race_condition','kernel_panic'] }
+        { name: '/usr',     threshold: 90,  speed: 8,   color: '#1a1a0a', promptColor: '#ffcc00', obstacles: ['segfault','fork_bomb','zombie','rm_rf','buffer_overflow','perm_denied'] },
+        { name: '/root',    threshold: 140, speed: 10,  color: '#1a0a0a', promptColor: '#ff4444', obstacles: ['fork_bomb','zombie','rm_rf','buffer_overflow','race_condition','kernel_panic','perm_denied'] },
+        { name: '/dev/null',threshold: 200, speed: 12,  color: '#050505', promptColor: '#ff0066', obstacles: ['fork_bomb','zombie','rm_rf','buffer_overflow','race_condition','kernel_panic','perm_denied'] }
     ];
 
     const ABILITIES = [
@@ -321,6 +331,8 @@
     const GROUND_Y = 380;
     let gameFrame = 0;
     let hopCount = 0;
+    let cleanFixes = 0;        // display-only: perm faults cleared with chmod (does NOT feed level progression)
+    let chmodFlash = null;     // transient "chmod +rx" confirm text {x,y,t}
     let highScore = parseInt(localStorage.getItem('shellsprint_highscore') || '0');
     let lives = 3;
     let currentLevel = 0;
@@ -856,14 +868,16 @@
             ctx.save();
             switch(this.type) {
                 case 'perm_denied':
-                    ctx.fillStyle = '#ff0000';
+                    // A read-only file (r--, no +x/+w) -> the kernel returns EACCES (errno 13,
+                    // "Permission denied"). The real remediation is chmod (press C). NOT an HTTP 403.
+                    ctx.fillStyle = '#ff2222';
                     ctx.fillRect(this.x, this.y, this.w, this.h);
                     ctx.fillStyle = '#fff';
                     ctx.font = 'bold 10px monospace';
                     ctx.textAlign = 'center';
-                    ctx.fillText('403', this.x + this.w/2, this.y + 14);
+                    ctx.fillText('r--', this.x + this.w/2, this.y + 14);
                     ctx.font = '7px monospace';
-                    ctx.fillText('DENIED', this.x + this.w/2, this.y + 24);
+                    ctx.fillText('EACCES', this.x + this.w/2, this.y + 24);
                     break;
                 case 'segfault':
                     ctx.fillStyle = '#ff6600';
@@ -1151,6 +1165,33 @@
         }
     }
 
+    // ===== chmod (fix a permission fault) =====
+    // The correct sysadmin response to a perm_denied (EACCES) barrier: chmod +rx.
+    // Optional-optimal — the barrier is still fully dodge-able by jumping; chmod is the
+    // clean, safe clear. Targets the nearest perm_denied ahead within the same 140px
+    // lookahead window demoAI uses. No cooldown: it can only ever affect a perm_denied in
+    // range, so there is nothing to spam. Credits hopCount IDENTICALLY to a normal pass
+    // (no extra progression) so correct play never scores worse — nor faster-ramps — than dodging.
+    function chmodClear() {
+        // countdownActive is the module-level gate activateAbility() uses; worldFrozen is a
+        // gameLoop-local render flag (not in scope here) and countdownActive already covers it.
+        if (!gameRunning || countdownActive) return;
+        const idx = obstacles.findIndex(o => o.type === 'perm_denied' && o.x > player.x - 10 && o.x < player.x + 140);
+        if (idx === -1) return;  // no permission fault in range -> no-op, no penalty
+        const target = obstacles[idx];
+        if (!target.passed) {
+            target.passed = true;
+            hopCount++;
+            checkLevelUp();
+            if (hopCount % 30 === 0 && lives < 5) { lives++; playCheckpoint(); }
+        }
+        obstacles.splice(idx, 1);
+        cleanFixes++;
+        chmodFlash = { x: target.x, y: target.y - 8, t: 40 };
+        burstParticles(target.x + target.w/2, target.y + target.h/2, '#00ff41', 12);
+        playAbility();
+    }
+
     // ===== MOVES PANEL =====
     function drawMovesPanel() {
         if (!showMovesPanel) return;
@@ -1169,7 +1210,7 @@
         ctx.font = '12px monospace';
         ctx.fillStyle = '#888';
         ctx.fillText('Basic Controls', W/2, 90);
-        ['SPACE/UP - Jump', 'DOWN - Duck', 'SHIFT - Use Command'].forEach((c, i) => {
+        ['SPACE/UP - Jump', 'DOWN - Duck', 'SHIFT - Use Command', 'C - chmod (clear a perm fault)'].forEach((c, i) => {
             ctx.fillStyle = '#ccc';
             ctx.fillText(c, W/2, 110 + i * 18);
         });
@@ -1222,6 +1263,30 @@
         ctx.fillStyle = '#666';
         ctx.font = '11px monospace';
         ctx.fillText(`HI: ${highScore}`, W - 15, 42);
+        if (cleanFixes > 0) {
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillText(`chmod: ${cleanFixes}`, W - 15, 58);
+        }
+
+        // Floating "chmod +rx" confirm where a permission fault was cleared.
+        if (chmodFlash) {
+            chmodFlash.t--;
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, chmodFlash.t / 20);
+            ctx.fillStyle = '#00ff41';
+            ctx.font = 'bold 11px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('chmod +rx', chmodFlash.x, chmodFlash.y - (40 - chmodFlash.t) * 0.4);
+            ctx.restore();
+            if (chmodFlash.t <= 0) chmodFlash = null;
+        }
+
+        // Show the contextual chmod button only during live play while a perm_denied is on screen.
+        const cbtn = document.getElementById('chmodBtn');
+        if (cbtn) {
+            const permOnScreen = gameRunning && obstacles.some(o => o.type === 'perm_denied' && o.x + o.w > 0 && o.x < W);
+            cbtn.style.display = permOnScreen ? 'block' : 'none';
+        }
 
         ctx.textAlign = 'center';
         ctx.fillStyle = LEVELS[currentLevel].promptColor;
@@ -1418,6 +1483,7 @@
         }
         if (e.code === 'ArrowDown') { e.preventDefault(); if (!player.isJumping) player.isDucking = true; }
         if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') { e.preventDefault(); activateAbility(); }
+        if (e.code === 'KeyC') { e.preventDefault(); chmodClear(); }  // chmod: fix a permission fault
     });
     document.addEventListener('keyup', (e) => { if (e.code === 'ArrowDown') player.isDucking = false; });
 
@@ -1450,6 +1516,7 @@
         flagObj = null; nextFlagAt = hopCount + 20;
         shieldFadeTimer = 0; levelTransition = 0;
         chaserKilled = false;
+        cleanFixes = 0; chmodFlash = null;
         initChaser();
         initBgTexts();
         startCountdown(); getAudio();
@@ -1463,6 +1530,8 @@
         showMovesPanel = !showMovesPanel;
         document.getElementById('helpBtn').textContent = showMovesPanel ? 'X' : '?';
     });
+    // Mobile/desktop tap parity for chmod (keyboard is 'C'); visibility is driven each frame in drawHUD.
+    document.getElementById('chmodBtn').addEventListener('click', () => { chmodClear(); });
 
     // ===== XP =====
     function awardXP() {
