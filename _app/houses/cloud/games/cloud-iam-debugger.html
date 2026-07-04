@@ -585,542 +585,505 @@
     let startTime = Date.now();
     let roundStartTime = Date.now();
 
-    // Game Data
+    // Game Data — each round's `policy` is the BROKEN starting policy the player edits directly.
+    // `intendedFixPolicy` is a fully-corrected reference policy (never shown to the player) used
+    // only by the automated verification harness (_tools/arcade-fixes/iam-debugger-check.js) to
+    // prove a real, testable fix exists for every round. Test cases carry a structured `context`
+    // object (not narrative text) so the real evaluatePolicy() engine below can grade them; the
+    // "Context" column in the UI is auto-labeled from that object so nothing is hidden from the
+    // player, it's just structured instead of embedded in a string.
     const rounds = [
       {
         title: "Round 1: Wildcard Abuse",
-        description: "This policy should only allow read access to the 'company-data' S3 bucket. However, there's a security issue with the Resource specification.",
+        description: "This policy should only allow read access to the 'company-data' S3 bucket. However, there's a security issue with the Resource specification. Edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": ["s3:GetObject", "s3:ListBucket"],
-              "Resource": "*"
-            }
+            { "Effect": "Allow", "Action": ["s3:GetObject", "s3:ListBucket"], "Resource": "*" }
           ]
         },
         problemKeys: ["Resource"],
         testCases: [
-          { principal: "User:alice", action: "s3:GetObject", resource: "company-data/file.txt", result: "Allow", expected: "Allow", match: true },
-          { principal: "User:alice", action: "s3:GetObject", resource: "confidential-hr/salaries.csv", result: "Allow", expected: "Deny", match: false },
-          { principal: "User:alice", action: "s3:DeleteObject", resource: "company-data/file.txt", result: "Deny", expected: "Deny", match: true }
+          { principal: "User:alice", action: "s3:GetObject", resource: "company-data/file.txt", expected: "Allow" },
+          { principal: "User:alice", action: "s3:GetObject", resource: "confidential-hr/salaries.csv", expected: "Deny" },
+          { principal: "User:alice", action: "s3:DeleteObject", resource: "company-data/file.txt", expected: "Deny" }
         ],
-        fixes: [
-          {
-            label: "Option A: Add bucket prefix",
-            code: '"Resource": "arn:aws:s3:::company-*"',
-            correct: false
-          },
-          {
-            label: "Option B: Specify exact bucket",
-            code: '"Resource": [\n  "arn:aws:s3:::company-data",\n  "arn:aws:s3:::company-data/*"\n]',
-            correct: true
-          },
-          {
-            label: "Option C: Use account-level restriction",
-            code: '"Resource": "*",\n"Condition": {"StringEquals": {"aws:username": "alice"}}',
-            correct: false
-          }
-        ],
-        explanation: "The wildcard '*' in the Resource field grants access to ALL S3 buckets in the account, violating the principle of least privilege. The correct fix specifies the exact bucket ARN and includes both the bucket itself and its contents (bucket/* for objects).",
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Action": ["s3:GetObject", "s3:ListBucket"], "Resource": ["arn:aws:s3:::company-data", "arn:aws:s3:::company-data/*"] }
+          ]
+        },
+        explanation: "The wildcard '*' in the Resource field grants access to ALL S3 buckets in the account, violating the principle of least privilege. The fix specifies the exact bucket ARN and includes both the bucket itself and its contents (bucket/* for objects).",
         vulnerability: "Overly Permissive Resource",
         correctScore: 100
       },
       {
         title: "Round 2: Missing Explicit Deny",
-        description: "This user should NOT have access to production resources, but the restriction policy isn't working as expected.",
+        description: "This user should NOT have access to production resources, but the restriction policy isn't working as expected. Edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": "ec2:*",
-              "Resource": "*"
-            },
-            {
-              "Effect": "Allow",
-              "Action": "ec2:DescribeInstances",
-              "Resource": "*",
-              "Condition": {
-                "StringNotEquals": {
-                  "ec2:ResourceTag/Environment": "production"
-                }
-              }
-            }
+            { "Effect": "Allow", "Action": "ec2:*", "Resource": "*" },
+            { "Effect": "Allow", "Action": "ec2:DescribeInstances", "Resource": "*", "Condition": { "StringNotEquals": { "ec2:ResourceTag/Environment": "production" } } }
           ]
         },
         problemKeys: ["Effect"],
         testCases: [
-          { principal: "User:developer", action: "ec2:StartInstances", resource: "dev-instance-001", result: "Allow", expected: "Allow", match: true },
-          { principal: "User:developer", action: "ec2:StopInstances", resource: "prod-instance-001", result: "Allow", expected: "Deny", match: false },
-          { principal: "User:developer", action: "ec2:TerminateInstances", resource: "prod-instance-001", result: "Allow", expected: "Deny", match: false }
+          { principal: "User:developer", action: "ec2:StartInstances", resource: "dev-instance-001", context: { "ec2:ResourceTag/Environment": "dev" }, expected: "Allow" },
+          { principal: "User:developer", action: "ec2:StopInstances", resource: "prod-instance-001", context: { "ec2:ResourceTag/Environment": "production" }, expected: "Deny" },
+          { principal: "User:developer", action: "ec2:TerminateInstances", resource: "prod-instance-001", context: { "ec2:ResourceTag/Environment": "production" }, expected: "Deny" }
         ],
-        fixes: [
-          {
-            label: "Option A: Remove the first statement",
-            code: '// Delete the first statement entirely',
-            correct: false
-          },
-          {
-            label: "Option B: Add explicit deny for production",
-            code: '{\n  "Effect": "Deny",\n  "Action": "ec2:*",\n  "Resource": "*",\n  "Condition": {\n    "StringEquals": {\n      "ec2:ResourceTag/Environment": "production"\n    }\n  }\n}',
-            correct: true
-          },
-          {
-            label: "Option C: Change first statement to conditional",
-            code: '"Condition": {\n  "StringNotEquals": {"ec2:ResourceTag/Environment": "production"}\n}',
-            correct: false
-          }
-        ],
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Action": "ec2:*", "Resource": "*" },
+            { "Effect": "Allow", "Action": "ec2:DescribeInstances", "Resource": "*", "Condition": { "StringNotEquals": { "ec2:ResourceTag/Environment": "production" } } },
+            { "Effect": "Deny", "Action": "ec2:*", "Resource": "*", "Condition": { "StringEquals": { "ec2:ResourceTag/Environment": "production" } } }
+          ]
+        },
         explanation: "In IAM, Allow statements always win unless there's an explicit Deny. The second statement attempts to restrict but only applies to DescribeInstances. An explicit Deny statement is needed to block ALL ec2:* actions on production resources, as Deny always overrides Allow.",
         vulnerability: "Ineffective Access Control",
         correctScore: 100
       },
       {
         title: "Round 3: Action Wildcard Overreach",
-        description: "This policy should only allow reading and listing objects in S3, but grants far more permissions than necessary.",
+        description: "This policy should only allow reading and listing objects in S3, but grants far more permissions than necessary. Edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": "s3:*",
-              "Resource": [
-                "arn:aws:s3:::reports-bucket",
-                "arn:aws:s3:::reports-bucket/*"
-              ]
-            }
+            { "Effect": "Allow", "Action": "s3:*", "Resource": ["arn:aws:s3:::reports-bucket", "arn:aws:s3:::reports-bucket/*"] }
           ]
         },
         problemKeys: ["Action"],
         testCases: [
-          { principal: "User:analyst", action: "s3:GetObject", resource: "reports-bucket/report.pdf", result: "Allow", expected: "Allow", match: true },
-          { principal: "User:analyst", action: "s3:ListBucket", resource: "reports-bucket", result: "Allow", expected: "Allow", match: true },
-          { principal: "User:analyst", action: "s3:DeleteObject", resource: "reports-bucket/report.pdf", result: "Allow", expected: "Deny", match: false },
-          { principal: "User:analyst", action: "s3:PutBucketPolicy", resource: "reports-bucket", result: "Allow", expected: "Deny", match: false }
+          { principal: "User:analyst", action: "s3:GetObject", resource: "reports-bucket/report.pdf", expected: "Allow" },
+          { principal: "User:analyst", action: "s3:ListBucket", resource: "reports-bucket", expected: "Allow" },
+          { principal: "User:analyst", action: "s3:DeleteObject", resource: "reports-bucket/report.pdf", expected: "Deny" },
+          { principal: "User:analyst", action: "s3:PutBucketPolicy", resource: "reports-bucket", expected: "Deny" }
         ],
-        fixes: [
-          {
-            label: "Option A: Restrict to Get* and List*",
-            code: '"Action": ["s3:Get*", "s3:List*"]',
-            correct: false
-          },
-          {
-            label: "Option B: Specify exact actions needed",
-            code: '"Action": [\n  "s3:GetObject",\n  "s3:ListBucket"\n]',
-            correct: true
-          },
-          {
-            label: "Option C: Add deny for dangerous actions",
-            code: '// Add separate Deny statement for Delete* and Put*',
-            correct: false
-          }
-        ],
-        explanation: "The wildcard 's3:*' grants ALL S3 permissions including destructive actions like DeleteObject, DeleteBucket, and PutBucketPolicy. Following least privilege, you should specify ONLY the exact actions needed. While Get* and List* are better than *, they still grant more than the stated requirement.",
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Action": ["s3:GetObject", "s3:ListBucket"], "Resource": ["arn:aws:s3:::reports-bucket", "arn:aws:s3:::reports-bucket/*"] }
+          ]
+        },
+        explanation: "The wildcard 's3:*' grants ALL S3 permissions including destructive actions like DeleteObject, DeleteBucket, and PutBucketPolicy. Following least privilege, specify ONLY the exact actions needed.",
         vulnerability: "Excessive Action Permissions",
         correctScore: 100
       },
       {
         title: "Round 4: Overly Permissive Principal",
-        description: "This Lambda function should only be invokable by a specific application role, but anyone can currently invoke it.",
+        description: "This Lambda function should only be invokable by a specific application role, but anyone can currently invoke it. Edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Principal": "*",
-              "Action": "lambda:InvokeFunction",
-              "Resource": "arn:aws:lambda:us-east-1:123456789012:function:ProcessPayment"
-            }
+            { "Effect": "Allow", "Principal": "*", "Action": "lambda:InvokeFunction", "Resource": "arn:aws:lambda:us-east-1:123456789012:function:ProcessPayment" }
           ]
         },
         problemKeys: ["Principal"],
         testCases: [
-          { principal: "Role:PaymentProcessor", action: "lambda:InvokeFunction", resource: "ProcessPayment", result: "Allow", expected: "Allow", match: true },
-          { principal: "Anonymous", action: "lambda:InvokeFunction", resource: "ProcessPayment", result: "Allow", expected: "Deny", match: false },
-          { principal: "User:random-user", action: "lambda:InvokeFunction", resource: "ProcessPayment", result: "Allow", expected: "Deny", match: false }
+          { principal: "Role:PaymentProcessor", principalId: { type: "role", name: "PaymentProcessor" }, action: "lambda:InvokeFunction", resource: "function:ProcessPayment", expected: "Allow" },
+          { principal: "Anonymous", principalId: { anonymous: true }, action: "lambda:InvokeFunction", resource: "function:ProcessPayment", expected: "Deny" },
+          { principal: "User:random-user", principalId: { type: "user", name: "random-user" }, action: "lambda:InvokeFunction", resource: "function:ProcessPayment", expected: "Deny" }
         ],
-        fixes: [
-          {
-            label: "Option A: Restrict to account",
-            code: '"Principal": {\n  "AWS": "arn:aws:iam::123456789012:root"\n}',
-            correct: false
-          },
-          {
-            label: "Option B: Restrict to specific role",
-            code: '"Principal": {\n  "AWS": "arn:aws:iam::123456789012:role/PaymentProcessor"\n}',
-            correct: true
-          },
-          {
-            label: "Option C: Add condition for IP",
-            code: '"Principal": "*",\n"Condition": {\n  "IpAddress": {"aws:SourceIp": "10.0.0.0/8"}\n}',
-            correct: false
-          }
-        ],
-        explanation: "The Principal field with '*' allows ANYONE (including anonymous users from the internet) to invoke this function. For sensitive operations like payment processing, you must specify the exact role or service that should have access. While account-level restriction is better, it still allows any identity in the account.",
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Principal": { "AWS": "arn:aws:iam::123456789012:role/PaymentProcessor" }, "Action": "lambda:InvokeFunction", "Resource": "arn:aws:lambda:us-east-1:123456789012:function:ProcessPayment" }
+          ]
+        },
+        explanation: "The Principal field with '*' allows ANYONE (including anonymous users from the internet) to invoke this function. For sensitive operations like payment processing, specify the exact role that should have access.",
         vulnerability: "Public Function Exposure",
         correctScore: 100
       },
       {
         title: "Round 5: Missing IP Restriction",
-        description: "This policy should only allow access from the office network (203.0.113.0/24), but currently allows access from anywhere.",
+        description: "This policy should only allow access from the office network (203.0.113.0/24), but currently allows access from anywhere. Edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": "s3:*",
-              "Resource": [
-                "arn:aws:s3:::internal-docs",
-                "arn:aws:s3:::internal-docs/*"
-              ]
-            }
+            { "Effect": "Allow", "Action": "s3:*", "Resource": ["arn:aws:s3:::internal-docs", "arn:aws:s3:::internal-docs/*"] }
           ]
         },
         problemKeys: ["Condition"],
         testCases: [
-          { principal: "User:employee", action: "s3:GetObject", resource: "internal-docs/policy.pdf", result: "Allow (from 203.0.113.50)", expected: "Allow", match: true },
-          { principal: "User:employee", action: "s3:GetObject", resource: "internal-docs/policy.pdf", result: "Allow (from 198.51.100.25)", expected: "Deny", match: false },
-          { principal: "User:employee", action: "s3:PutObject", resource: "internal-docs/new.pdf", result: "Allow (from any IP)", expected: "Allow (office only)", match: false }
+          { principal: "User:employee", action: "s3:GetObject", resource: "internal-docs/policy.pdf", context: { "aws:SourceIp": "203.0.113.50" }, expected: "Allow" },
+          { principal: "User:employee", action: "s3:GetObject", resource: "internal-docs/policy.pdf", context: { "aws:SourceIp": "198.51.100.25" }, expected: "Deny" },
+          { principal: "User:employee", action: "s3:PutObject", resource: "internal-docs/new.pdf", context: { "aws:SourceIp": "198.51.100.25" }, expected: "Deny" }
         ],
-        fixes: [
-          {
-            label: "Option A: Add IP address condition",
-            code: '"Condition": {\n  "IpAddress": {\n    "aws:SourceIp": "203.0.113.0/24"\n  }\n}',
-            correct: true
-          },
-          {
-            label: "Option B: Add VPC endpoint condition",
-            code: '"Condition": {\n  "StringEquals": {\n    "aws:sourceVpce": "vpce-1234567"\n  }\n}',
-            correct: false
-          },
-          {
-            label: "Option C: Add MFA condition",
-            code: '"Condition": {\n  "Bool": {"aws:MultiFactorAuthPresent": "true"}\n}',
-            correct: false
-          }
-        ],
-        explanation: "Without a Condition block restricting the source IP, this policy allows access from any network location. For internal documents, adding an IP address condition ensures access is only granted from the office network (203.0.113.0/24). VPC endpoint restrictions work for AWS services, but not for user access. MFA adds security but doesn't restrict location.",
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Action": "s3:*", "Resource": ["arn:aws:s3:::internal-docs", "arn:aws:s3:::internal-docs/*"], "Condition": { "IpAddress": { "aws:SourceIp": "203.0.113.0/24" } } }
+          ]
+        },
+        explanation: "Without a Condition block restricting the source IP, this policy allows access from any network location. Adding an IpAddress condition ensures access is only granted from the office network (203.0.113.0/24), and since the statement covers s3:*, the restriction automatically applies to every action including PutObject.",
         vulnerability: "Missing Network Restriction",
         correctScore: 100
       },
       {
         title: "Round 6: Privilege Escalation Path",
-        description: "This developer role seems reasonable, but contains a critical privilege escalation vulnerability.",
+        description: "This developer role seems reasonable, but contains a critical privilege escalation vulnerability. Edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": [
-                "iam:CreatePolicy",
-                "iam:CreatePolicyVersion",
-                "iam:AttachUserPolicy",
-                "iam:AttachRolePolicy"
-              ],
-              "Resource": "*"
-            }
+            { "Effect": "Allow", "Action": ["iam:CreatePolicy", "iam:CreatePolicyVersion", "iam:AttachUserPolicy", "iam:AttachRolePolicy"], "Resource": "*" }
           ]
         },
         problemKeys: ["Action", "Resource"],
         testCases: [
-          { principal: "User:developer", action: "iam:CreatePolicy", resource: "policy/ReadOnlyAccess", result: "Allow", expected: "Allow", match: true },
-          { principal: "User:developer", action: "iam:AttachUserPolicy", resource: "AdminAccess to developer", result: "Allow", expected: "Deny", match: false },
-          { principal: "User:developer", action: "iam:CreatePolicy", resource: "policy/FullAdminAccess", result: "Allow", expected: "Deny", match: false }
+          { principal: "User:developer", action: "iam:CreatePolicy", resource: "policy/developer-readonly", expected: "Allow" },
+          { principal: "User:developer", action: "iam:AttachUserPolicy", resource: "policy/AdminAccess", expected: "Deny" },
+          { principal: "User:developer", action: "iam:CreatePolicy", resource: "policy/FullAdminAccess", expected: "Deny" }
         ],
-        fixes: [
-          {
-            label: "Option A: Remove AttachUserPolicy only",
-            code: '"Action": [\n  "iam:CreatePolicy",\n  "iam:CreatePolicyVersion",\n  "iam:AttachRolePolicy"\n]',
-            correct: false
-          },
-          {
-            label: "Option B: Add deny for attach with condition",
-            code: '// Add: Deny iam:Attach*Policy where\n// policy ARN is arn:aws:iam::aws:policy/*\n// (AWS managed policies)',
-            correct: false
-          },
-          {
-            label: "Option C: Restrict resource to specific policies",
-            code: '"Action": [\n  "iam:CreatePolicy",\n  "iam:CreatePolicyVersion"\n],\n"Resource": "arn:aws:iam::123456789012:policy/developer-*"',
-            correct: true
-          }
-        ],
-        explanation: "This is a classic privilege escalation vulnerability. A user with iam:CreatePolicy AND iam:AttachUserPolicy can create a policy with full admin rights and attach it to themselves. The correct fix removes the attach permissions and restricts policy creation to a specific naming pattern. Simply removing AttachUserPolicy still leaves AttachRolePolicy exploitable.",
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Action": ["iam:CreatePolicy", "iam:CreatePolicyVersion"], "Resource": "arn:aws:iam::123456789012:policy/developer-*" }
+          ]
+        },
+        explanation: "This is a classic privilege escalation vulnerability. A user with iam:CreatePolicy AND iam:AttachUserPolicy can create a policy with full admin rights and attach it to themselves. The fix removes the attach permissions entirely and restricts policy creation to a specific naming pattern — simply removing AttachUserPolicy still leaves AttachRolePolicy exploitable.",
         vulnerability: "Privilege Escalation",
         correctScore: 100
       },
       {
         title: "Round 7: Cross-Account Trust Exploit",
-        description: "This role's trust policy should only allow a specific partner account to assume it, but it's far too permissive.",
+        description: "This role's trust policy should only allow a specific partner account to assume it, but it's far too permissive. Edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": "*"
-              },
-              "Action": "sts:AssumeRole"
-            }
+            { "Effect": "Allow", "Principal": { "AWS": "*" }, "Action": "sts:AssumeRole" }
           ]
         },
         problemKeys: ["Principal"],
         testCases: [
-          { principal: "Account:555555555555 (Partner)", action: "sts:AssumeRole", resource: "DataAccessRole", result: "Allow", expected: "Allow", match: true },
-          { principal: "Account:999999999999 (Unknown)", action: "sts:AssumeRole", resource: "DataAccessRole", result: "Allow", expected: "Deny", match: false },
-          { principal: "Anonymous", action: "sts:AssumeRole", resource: "DataAccessRole", result: "Allow", expected: "Deny", match: false }
+          { principal: "Account:555555555555 (Partner)", principalId: { type: "root", account: "555555555555" }, action: "sts:AssumeRole", resource: "DataAccessRole", expected: "Allow" },
+          { principal: "Account:999999999999 (Unknown)", principalId: { type: "root", account: "999999999999" }, action: "sts:AssumeRole", resource: "DataAccessRole", expected: "Deny" },
+          { principal: "Anonymous", principalId: { anonymous: true }, action: "sts:AssumeRole", resource: "DataAccessRole", expected: "Deny" }
         ],
-        fixes: [
-          {
-            label: "Option A: Restrict to partner account",
-            code: '"Principal": {\n  "AWS": "arn:aws:iam::555555555555:root"\n}',
-            correct: true
-          },
-          {
-            label: "Option B: Add external ID condition",
-            code: '"Principal": {"AWS": "*"},\n"Condition": {\n  "StringEquals": {"sts:ExternalId": "secret123"}\n}',
-            correct: false
-          },
-          {
-            label: "Option C: Restrict to specific user",
-            code: '"Principal": {\n  "AWS": "arn:aws:iam::555555555555:user/partner-app"\n}',
-            correct: false
-          }
-        ],
-        explanation: "In a role trust policy, 'AWS: *' allows ANY AWS account to assume the role, creating a massive security hole. You must specify the exact account ID. While ExternalId adds security, it doesn't fix the fundamental issue. Restricting to a specific user is too narrow—the partner account root allows their admins to delegate appropriately.",
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Principal": { "AWS": "arn:aws:iam::555555555555:root" }, "Action": "sts:AssumeRole" }
+          ]
+        },
+        explanation: "In a role trust policy, 'AWS: *' allows ANY AWS account to assume the role, creating a massive security hole. You must specify the exact account ID. Trust policies intentionally omit a Resource field — the 'resource' being granted is the role itself.",
         vulnerability: "Cross-Account Exposure",
         correctScore: 100
       },
       {
         title: "Round 8: Missing Encryption Requirement",
-        description: "This S3 bucket policy should enforce server-side encryption on all uploads, but it doesn't.",
+        description: "This S3 bucket policy should enforce server-side encryption on all uploads, but it doesn't. Edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Principal": "*",
-              "Action": "s3:PutObject",
-              "Resource": "arn:aws:s3:::secure-uploads/*"
-            }
+            { "Effect": "Allow", "Principal": "*", "Action": "s3:PutObject", "Resource": "arn:aws:s3:::secure-uploads/*" }
           ]
         },
         problemKeys: ["Condition"],
         testCases: [
-          { principal: "User:uploader", action: "s3:PutObject", resource: "secure-uploads/file.txt (encrypted)", result: "Allow", expected: "Allow", match: true },
-          { principal: "User:uploader", action: "s3:PutObject", resource: "secure-uploads/file.txt (not encrypted)", result: "Allow", expected: "Deny", match: false },
-          { principal: "User:uploader", action: "s3:GetObject", resource: "secure-uploads/file.txt", result: "Deny", expected: "Deny", match: true }
+          { principal: "User:uploader", action: "s3:PutObject", resource: "secure-uploads/file.txt", context: { "s3:x-amz-server-side-encryption": "AES256" }, expected: "Allow" },
+          { principal: "User:uploader", action: "s3:PutObject", resource: "secure-uploads/file.txt", context: {}, expected: "Deny" },
+          { principal: "User:uploader", action: "s3:GetObject", resource: "secure-uploads/file.txt", context: {}, expected: "Deny" }
         ],
-        fixes: [
-          {
-            label: "Option A: Add encryption condition to Allow",
-            code: '"Condition": {\n  "StringEquals": {\n    "s3:x-amz-server-side-encryption": "AES256"\n  }\n}',
-            correct: false
-          },
-          {
-            label: "Option B: Add Deny statement for non-encrypted",
-            code: '{\n  "Effect": "Deny",\n  "Principal": "*",\n  "Action": "s3:PutObject",\n  "Resource": "arn:aws:s3:::secure-uploads/*",\n  "Condition": {\n    "StringNotEquals": {\n      "s3:x-amz-server-side-encryption": "AES256"\n    }\n  }\n}',
-            correct: true
-          },
-          {
-            label: "Option C: Change to bucket encryption setting",
-            code: '// Use S3 bucket default encryption instead',
-            correct: false
-          }
-        ],
-        explanation: "To ENFORCE encryption, you need a Deny statement that blocks uploads WITHOUT encryption. Just adding a condition to the Allow statement would require encryption for this policy, but other policies could still allow unencrypted uploads. An explicit Deny overrides all Allows. Bucket default encryption is good practice but doesn't prevent unencrypted uploads via policy.",
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Principal": "*", "Action": "s3:PutObject", "Resource": "arn:aws:s3:::secure-uploads/*" },
+            { "Effect": "Deny", "Principal": "*", "Action": "s3:PutObject", "Resource": "arn:aws:s3:::secure-uploads/*", "Condition": { "StringNotEquals": { "s3:x-amz-server-side-encryption": "AES256" } } }
+          ]
+        },
+        explanation: "To ENFORCE encryption, add a Deny statement that blocks uploads WITHOUT encryption (a missing encryption header is treated as 'not AES256'). Best practice uses an explicit Deny rather than only conditioning the Allow, since a Deny wins even if another policy elsewhere grants broader access — this game grades by tested behavior, so an equivalently-conditioned Allow that produces the same Allow/Deny outcomes here also passes.",
         vulnerability: "Missing Encryption Enforcement",
         correctScore: 100
       },
       {
         title: "Round 9: Missing MFA Requirement",
-        description: "This policy allows sensitive administrative actions but should require MFA (Multi-Factor Authentication).",
+        description: "This policy allows sensitive administrative actions but should require MFA (Multi-Factor Authentication). Edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": [
-                "iam:DeleteUser",
-                "iam:DeleteRole",
-                "iam:DetachUserPolicy",
-                "iam:DetachRolePolicy"
-              ],
-              "Resource": "*"
-            }
+            { "Effect": "Allow", "Action": ["iam:DeleteUser", "iam:DeleteRole", "iam:DetachUserPolicy", "iam:DetachRolePolicy"], "Resource": "*" }
           ]
         },
         problemKeys: ["Condition"],
         testCases: [
-          { principal: "User:admin (with MFA)", action: "iam:DeleteUser", resource: "User:old-account", result: "Allow", expected: "Allow", match: true },
-          { principal: "User:admin (without MFA)", action: "iam:DeleteUser", resource: "User:old-account", result: "Allow", expected: "Deny", match: false },
-          { principal: "User:admin (without MFA)", action: "iam:DetachUserPolicy", resource: "AdminAccess from User:victim", result: "Allow", expected: "Deny", match: false }
+          { principal: "User:admin", action: "iam:DeleteUser", resource: "User:old-account", context: { "aws:MultiFactorAuthPresent": "true" }, expected: "Allow" },
+          { principal: "User:admin", action: "iam:DeleteUser", resource: "User:old-account", context: { "aws:MultiFactorAuthPresent": "false" }, expected: "Deny" },
+          { principal: "User:admin", action: "iam:DetachUserPolicy", resource: "policy/AdminAccess", context: { "aws:MultiFactorAuthPresent": "false" }, expected: "Deny" }
         ],
-        fixes: [
-          {
-            label: "Option A: Add MFA condition",
-            code: '"Condition": {\n  "Bool": {\n    "aws:MultiFactorAuthPresent": "true"\n  }\n}',
-            correct: true
-          },
-          {
-            label: "Option B: Add MFA age condition",
-            code: '"Condition": {\n  "NumericLessThan": {\n    "aws:MultiFactorAuthAge": "3600"\n  }\n}',
-            correct: false
-          },
-          {
-            label: "Option C: Require both MFA and IP",
-            code: '"Condition": {\n  "Bool": {"aws:MultiFactorAuthPresent": "true"},\n  "IpAddress": {"aws:SourceIp": "203.0.113.0/24"}\n}',
-            correct: false
-          }
-        ],
-        explanation: "Destructive IAM actions like DeleteUser and DetachUserPolicy should absolutely require MFA to prevent account compromise from leading to total control loss. The 'aws:MultiFactorAuthPresent' condition ensures the user has authenticated with MFA. While MFA age is useful (ensure recent auth), it's secondary. Requiring both MFA and IP is overly restrictive for legitimate admin access.",
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Action": ["iam:DeleteUser", "iam:DeleteRole", "iam:DetachUserPolicy", "iam:DetachRolePolicy"], "Resource": "*", "Condition": { "Bool": { "aws:MultiFactorAuthPresent": "true" } } }
+          ]
+        },
+        explanation: "Destructive IAM actions like DeleteUser and DetachUserPolicy should require MFA to prevent account compromise from leading to total control loss. The 'aws:MultiFactorAuthPresent' Bool condition ensures the caller authenticated with MFA before the action is allowed.",
         vulnerability: "Missing MFA Protection",
         correctScore: 100
       },
       {
         title: "Round 10: Full Audit Challenge",
-        description: "This policy has THREE distinct security issues. You must identify and fix: (1) wildcard resource, (2) missing MFA condition for sensitive ops, and (3) overly broad actions. All three must be corrected!",
+        description: "This policy has THREE distinct security issues. You must fix: (1) wildcard resource, (2) missing MFA condition on write operations, and (3) overly broad actions. All three must be corrected — edit the policy JSON below so every test passes.",
         policy: {
           "Version": "2012-10-17",
           "Statement": [
-            {
-              "Effect": "Allow",
-              "Action": "dynamodb:*",
-              "Resource": "*"
-            }
+            { "Effect": "Allow", "Action": "dynamodb:*", "Resource": "*" }
           ]
         },
         problemKeys: ["Action", "Resource", "Condition"],
         testCases: [
-          { principal: "User:app", action: "dynamodb:GetItem", resource: "app-data-table", result: "Allow", expected: "Allow", match: true },
-          { principal: "User:app", action: "dynamodb:Query", resource: "app-data-table", result: "Allow", expected: "Allow", match: true },
-          { principal: "User:app", action: "dynamodb:DeleteTable", resource: "production-critical-table", result: "Allow", expected: "Deny", match: false },
-          { principal: "User:app (no MFA)", action: "dynamodb:DeleteItem", resource: "app-data-table", result: "Allow", expected: "Deny", match: false },
-          { principal: "User:app", action: "dynamodb:Scan", resource: "other-team-table", result: "Allow", expected: "Deny", match: false }
+          { principal: "User:app", action: "dynamodb:GetItem", resource: "table/app-data-table", expected: "Allow" },
+          { principal: "User:app", action: "dynamodb:Query", resource: "table/app-data-table", expected: "Allow" },
+          { principal: "User:app", action: "dynamodb:DeleteTable", resource: "table/production-critical-table", expected: "Deny" },
+          { principal: "User:app", action: "dynamodb:UpdateItem", resource: "table/app-data-table", context: { "aws:MultiFactorAuthPresent": "false" }, expected: "Deny" },
+          { principal: "User:app", action: "dynamodb:Scan", resource: "table/other-team-table", expected: "Deny" },
+          { principal: "User:app", action: "dynamodb:PutItem", resource: "table/app-data-table", context: { "aws:MultiFactorAuthPresent": "true" }, expected: "Allow" }
         ],
-        fixes: [
-          {
-            label: "Option A: Fix actions only",
-            code: '"Action": [\n  "dynamodb:GetItem",\n  "dynamodb:Query",\n  "dynamodb:PutItem",\n  "dynamodb:UpdateItem"\n]',
-            correct: false
-          },
-          {
-            label: "Option B: Fix resource only",
-            code: '"Resource": "arn:aws:dynamodb:us-east-1:123456789012:table/app-data-table"',
-            correct: false
-          },
-          {
-            label: "Option C: Fix all three issues",
-            code: '"Action": [\n  "dynamodb:GetItem",\n  "dynamodb:Query",\n  "dynamodb:PutItem",\n  "dynamodb:UpdateItem"\n],\n"Resource": "arn:aws:dynamodb:*:*:table/app-data-table",\n"Condition": {\n  "Bool": {"aws:MultiFactorAuthPresent": "true"}\n}',
-            correct: true
-          }
-        ],
-        explanation: "This final challenge tested three core IAM security principles: (1) Least privilege for actions - dynamodb:* includes dangerous operations like DeleteTable. (2) Specific resources - wildcard grants access to all tables. (3) MFA for write operations - PutItem and UpdateItem modify data and should require MFA. Fixing only one or two issues leaves critical vulnerabilities.",
+        intendedFixPolicy: {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Action": ["dynamodb:GetItem", "dynamodb:Query"], "Resource": "arn:aws:dynamodb:*:*:table/app-data-table" },
+            { "Effect": "Allow", "Action": ["dynamodb:PutItem", "dynamodb:UpdateItem"], "Resource": "arn:aws:dynamodb:*:*:table/app-data-table", "Condition": { "Bool": { "aws:MultiFactorAuthPresent": "true" } } }
+          ]
+        },
+        explanation: "This final challenge tested three core IAM security principles: (1) Least privilege for actions - dynamodb:* includes dangerous operations like DeleteTable. (2) Specific resources - a wildcard grants access to every table. (3) MFA for write operations - PutItem and UpdateItem modify data and should require MFA, while read-only GetItem/Query do not need to be gated behind it. Splitting reads and MFA-gated writes into separate statements avoids accidentally blocking legitimate reads.",
         vulnerability: "Multiple Security Issues",
         correctScore: 150
       }
     ];
 
-    // Syntax highlight JSON
-    function highlightJSON(obj, problemKeys = []) {
-      let json = JSON.stringify(obj, null, 2);
+    // ===== IAM Policy Evaluation Engine =====
+    // Models enough of real AWS policy evaluation to grade a player-edited JSON policy against a
+    // round's test cases: explicit Deny beats Allow, Allow beats implicit (default) Deny; Action /
+    // Resource / Principal support strings, arrays, and '*'/'?' globs; Condition supports the
+    // operators used in this game's scenarios. This is a teaching simplification, not the full AWS
+    // policy language (e.g. NotAction/NotResource, Deny-without-Condition-vs-IfExists nuances, SCPs
+    // and resource-based-policy composition across multiple documents are out of scope).
 
-      // Identify problem areas
-      problemKeys.forEach(key => {
-        const regex = new RegExp(`("${key}"\\s*:\\s*)([^,\\n}]+)`, 'g');
-        json = json.replace(regex, (match, keyPart, valuePart) => {
-          return `${keyPart}<span class="problem-highlight">${valuePart}</span>`;
-        });
-      });
-
-      // Syntax highlighting
-      json = json.replace(/"([^"]+)"(\s*:)/g, '<span class="json-key">"$1"</span>$2');
-      json = json.replace(/:\s*"([^"]*)"/g, ': <span class="json-string">"$1"</span>');
-      json = json.replace(/:\s*(\d+)/g, ': <span class="json-number">$1</span>');
-      json = json.replace(/:\s*(true|false)/g, ': <span class="json-boolean">$1</span>');
-      json = json.replace(/([{}\[\],])/g, '<span class="json-bracket">$1</span>');
-
-      return json;
+    // globToRegex: converts an IAM-style glob ('*' = any run of characters, '?' = one character)
+    // into a RegExp that must match the whole string.
+    function globToRegex(glob) {
+      const escaped = String(glob).replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+      return new RegExp('^' + escaped + '$');
     }
 
-    // Render test results table
-    function renderTestResults(testCases) {
-      return `
+    // actionMatches: true if `action` matches any pattern in the statement's Action field
+    // (which may be a single string or an array of strings).
+    function actionMatches(patterns, action) {
+      if (patterns === undefined) return false;
+      const list = Array.isArray(patterns) ? patterns : [patterns];
+      return list.some(p => globToRegex(p).test(action));
+    }
+
+    // resourceTail: strips the "arn:aws:<service>:<region>:<account>:" prefix off an ARN, leaving
+    // the service-specific resource identifier (e.g. "company-data/*", "function:ProcessPayment",
+    // "policy/developer-*", "table/app-data-table"). Works across the colon-joined (Lambda, IAM)
+    // and slash-joined (S3, DynamoDB) resource-id conventions because it only splits the first five
+    // ARN fields and rejoins everything after with ':', not attempting to re-parse the tail.
+    function resourceTail(arn) {
+      const parts = String(arn).split(':');
+      if (parts[0] !== 'arn' || parts.length < 6) return arn; // not an ARN (e.g. "*") — use as-is
+      return parts.slice(5).join(':');
+    }
+
+    // resourceMatches: true if `resource` matches any pattern in the statement's Resource field.
+    // A statement with NO Resource field (e.g. an IAM trust policy) matches any resource, since
+    // trust policies grant access to the role itself rather than naming a resource.
+    function resourceMatches(patterns, resource) {
+      if (patterns === undefined) return true;
+      const list = Array.isArray(patterns) ? patterns : [patterns];
+      return list.some(p => globToRegex(resourceTail(p)).test(resource));
+    }
+
+    // principalAllows: true if the statement's Principal field permits `testPrincipal`.
+    // - No Principal field (identity-based policy) => always true; principal restriction is N/A.
+    // - Principal "*" or {"AWS":"*"} => matches everyone, including anonymous.
+    // - Otherwise checks root-account, role, and user ARNs against the structured testPrincipal
+    //   descriptor ({anonymous:true} | {type:'role'|'user'|'root', name, account}).
+    function principalAllows(principalField, testPrincipal) {
+      if (principalField === undefined) return true;
+      const tp = testPrincipal || {};
+      const raw = (typeof principalField === 'string') ? principalField : principalField.AWS;
+      const vals = raw === undefined ? [] : (Array.isArray(raw) ? raw : [raw]);
+      if (vals.includes('*')) return true;
+      if (tp.anonymous) return false;
+      return vals.some(v => {
+        const rootMatch = /^arn:aws:iam::(\d+):root$/.exec(v);
+        if (rootMatch) return tp.type === 'root' && rootMatch[1] === tp.account;
+        if (v.includes(':role/')) return tp.type === 'role' && v.split('/').pop() === tp.name;
+        if (v.includes(':user/')) return tp.type === 'user' && v.split('/').pop() === tp.name;
+        return false;
+      });
+    }
+
+    // ipToInt / ipInCidr: minimal IPv4 CIDR matcher for the aws:SourceIp condition key.
+    function ipToInt(ip) {
+      return ip.split('.').reduce((acc, octet) => (acc << 8) + Number(octet), 0) >>> 0;
+    }
+    function ipInCidr(ip, cidr) {
+      const [range, bitsStr] = cidr.split('/');
+      const bits = bitsStr === undefined ? 32 : parseInt(bitsStr, 10);
+      const mask = bits === 0 ? 0 : (~0 << (32 - bits));
+      return (ipToInt(ip) & mask) === (ipToInt(range) & mask);
+    }
+
+    // conditionSatisfied: evaluates a statement's Condition block against a test case's context
+    // object. Documented simplification: for StringNotEquals, a MISSING context key counts as
+    // satisfied (this mirrors the real, AWS-documented "deny uploads without SSE" pattern, where
+    // the encryption header is treated as absent/mismatched); for StringEquals and Bool, a missing
+    // key counts as NOT satisfied (a condition can't be proven true from a value that isn't there).
+    function conditionSatisfied(condition, context) {
+      if (!condition) return true;
+      const ctx = context || {};
+      return Object.keys(condition).every(operator => {
+        const kvs = condition[operator];
+        return Object.keys(kvs).every(key => {
+          const required = kvs[key];
+          const reqList = Array.isArray(required) ? required : [required];
+          const actual = ctx[key];
+          switch (operator) {
+            case 'StringEquals':
+              return actual !== undefined && reqList.includes(String(actual));
+            case 'StringNotEquals':
+              return actual === undefined ? true : !reqList.includes(String(actual));
+            case 'Bool':
+              return actual !== undefined && reqList.includes(String(actual));
+            case 'IpAddress':
+              return actual !== undefined && reqList.some(cidr => ipInCidr(actual, cidr));
+            case 'NotIpAddress':
+              return actual === undefined ? true : !reqList.some(cidr => ipInCidr(actual, cidr));
+            default:
+              return true; // unmodeled operator: don't block on it (documented limitation)
+          }
+        });
+      });
+    }
+
+    // evaluatePolicy: the core grader. Iterates every statement in the (player-edited) policy;
+    // an explicit matching Deny wins immediately, a matching Allow sets the result to Allow, and
+    // anything left unmatched falls through to the IAM default of implicit Deny.
+    function evaluatePolicy(policy, testCase) {
+      const rawStatements = policy && policy.Statement;
+      const statements = Array.isArray(rawStatements) ? rawStatements : (rawStatements ? [rawStatements] : []);
+      let allowed = false;
+      for (const s of statements) {
+        if (!s || typeof s !== 'object') continue;
+        if (!actionMatches(s.Action, testCase.action)) continue;
+        if (!resourceMatches(s.Resource, testCase.resource)) continue;
+        if (!principalAllows(s.Principal, testCase.principalId)) continue;
+        if (!conditionSatisfied(s.Condition, testCase.context)) continue;
+        if (s.Effect === 'Deny') return 'Deny';
+        if (s.Effect === 'Allow') allowed = true;
+      }
+      return allowed ? 'Allow' : 'Deny'; // implicit deny by default
+    }
+
+    // contextLabel: renders a test case's structured `context` object as a short human-readable
+    // caption, so the player can see WHY a request is denied without the game hiding information
+    // behind opaque data. Falls back to a generic key:value join for any key not explicitly named.
+    const CONTEXT_LABELS = {
+      'aws:SourceIp': v => `Source IP: ${v}`,
+      'aws:MultiFactorAuthPresent': v => `MFA present: ${v}`,
+      's3:x-amz-server-side-encryption': v => `Encryption: ${v}`,
+      'ec2:ResourceTag/Environment': v => `Tag Environment: ${v}`
+    };
+    function contextLabel(context) {
+      if (!context || Object.keys(context).length === 0) return '—';
+      return Object.keys(context).map(k => (CONTEXT_LABELS[k] ? CONTEXT_LABELS[k](context[k]) : `${k}: ${context[k]}`)).join(', ');
+    }
+
+    // escapeHtml: minimal HTML-escape for values interpolated into innerHTML (policy JSON is
+    // player-controlled text, so it must never be inserted unescaped).
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Render the test results table against a candidate policy object (or `null` if the player's
+    // JSON doesn't currently parse). Returns { html, allPass } — allPass drives round completion.
+    function renderTestResults(testCases, policyOrNull) {
+      let allPass = policyOrNull !== null;
+      const rows = testCases.map(test => {
+        const liveResult = policyOrNull ? evaluatePolicy(policyOrNull, test) : null;
+        const match = liveResult === test.expected;
+        if (!match) allPass = false;
+        const resultText = liveResult === null ? '—' : liveResult;
+        const resultClass = liveResult === 'Allow' ? 'result-allow' : (liveResult === 'Deny' ? 'result-deny' : '');
+        return `
+              <tr>
+                <td>${escapeHtml(test.principal)}</td>
+                <td><code>${escapeHtml(test.action)}</code></td>
+                <td>${escapeHtml(test.resource)}</td>
+                <td>${escapeHtml(contextLabel(test.context))}</td>
+                <td class="${resultClass}">${resultText}</td>
+                <td class="${test.expected === 'Allow' ? 'result-allow' : 'result-deny'}">${test.expected}</td>
+                <td class="match-icon ${liveResult === null ? '' : (match ? 'match-success' : 'match-fail')}">${liveResult === null ? '' : (match ? '✓' : '✗')}</td>
+              </tr>`;
+      }).join('');
+      const html = `
         <table class="test-table">
           <thead>
             <tr>
               <th scope="col">Principal</th>
               <th scope="col">Action</th>
               <th scope="col">Resource</th>
-              <th scope="col">Result</th>
+              <th scope="col">Context</th>
+              <th scope="col">Live Result</th>
               <th scope="col">Expected</th>
               <th scope="col">Match</th>
             </tr>
           </thead>
-          <tbody>
-            ${testCases.map(test => `
-              <tr>
-                <td>${test.principal}</td>
-                <td><code>${test.action}</code></td>
-                <td>${test.resource}</td>
-                <td class="${test.result.includes('Allow') ? 'result-allow' : 'result-deny'}">${test.result}</td>
-                <td class="${test.expected === 'Allow' ? 'result-allow' : 'result-deny'}">${test.expected}</td>
-                <td class="match-icon ${test.match ? 'match-success' : 'match-fail'}">${test.match ? '✓' : '✗'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
+          <tbody>${rows}</tbody>
         </table>
       `;
+      return { html, allPass };
     }
 
-    // Render round
+    // Track whether the current round has already been won, so re-running tests after a pass
+    // (e.g. curiosity-clicking Run Tests again) can't double-award score.
+    let roundPassed = false;
+
+    // Render round: builds the editable policy textarea (pre-filled with the BROKEN policy) plus
+    // the live test table, evaluated once immediately against the broken policy so the player sees
+    // real failing tests before making any edit.
     function renderRound() {
       const round = rounds[currentRound];
       roundAttempts = 0;
+      roundPassed = false;
       roundStartTime = Date.now();
+
+      const initial = renderTestResults(round.testCases, round.policy);
 
       const html = `
         <div class="game-area">
           <div class="round-info">
-            <div class="round-title">${round.title}</div>
-            <div class="round-description">${round.description}</div>
+            <div class="round-title">${escapeHtml(round.title)}</div>
+            <div class="round-description">${escapeHtml(round.description)}</div>
           </div>
 
           <div class="policy-section">
             <div class="section-title">
-              <span><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> Current Policy (JSON)
+              <span><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> Edit the Policy (JSON)
             </div>
-            <div class="policy-viewer">
-              <pre>${highlightJSON(round.policy, round.problemKeys)}</pre>
+            <div class="policy-viewer" style="padding:0;">
+              <textarea id="policyEditor" spellcheck="false" style="width:100%;min-height:220px;background:transparent;border:none;color:#d1d5db;font-family:'Courier New',monospace;font-size:13px;line-height:1.6;padding:20px;resize:vertical;outline:none;">${escapeHtml(JSON.stringify(round.policy, null, 2))}</textarea>
             </div>
+            <div id="jsonError" style="display:none;color:#ef4444;font-size:13px;margin-top:8px;"></div>
           </div>
 
           <div class="policy-section">
             <div class="section-title">
               <span><img src="/assets/images/icons/icon-flask.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> Access Test Results
             </div>
-            <div class="test-results">
-              ${renderTestResults(round.testCases)}
-            </div>
-          </div>
-
-          <div class="policy-section">
-            <div class="section-title">
-              <span><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> Select the Correct Fix
-            </div>
-            <div class="fix-options" id="fixOptions">
-              ${round.fixes.map((fix, index) => `
-                <div class="fix-option" data-index="${index}">
-                  <div class="fix-label">${fix.label}</div>
-                  <div class="fix-code"><pre>${fix.code}</pre></div>
-                </div>
-              `).join('')}
+            <div class="test-results" id="testResults">
+              ${initial.html}
             </div>
           </div>
 
           <div class="button-group">
-            <button class="btn btn-primary" id="submitBtn" disabled>Submit Fix</button>
+            <button class="btn btn-secondary" id="resetBtn" type="button">Reset Policy</button>
+            <button class="btn btn-primary" id="runBtn" type="button">Run Tests</button>
           </div>
 
           <div id="explanationArea"></div>
@@ -1131,95 +1094,89 @@
       document.getElementById('roundDisplay').textContent = `${currentRound + 1}/10`;
       document.getElementById('attemptsDisplay').textContent = roundAttempts;
 
-      // Add click handlers to fix options
-      document.querySelectorAll('.fix-option').forEach(option => {
-        option.addEventListener('click', () => selectFix(option));
+      document.getElementById('runBtn').addEventListener('click', runTests);
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        document.getElementById('policyEditor').value = JSON.stringify(round.policy, null, 2);
+        document.getElementById('jsonError').style.display = 'none';
+        document.getElementById('explanationArea').innerHTML = '';
       });
-
-      document.getElementById('submitBtn').addEventListener('click', submitFix);
     }
 
-    // Select fix option
-    let selectedFixIndex = -1;
-    function selectFix(option) {
-      // Remove previous selection
-      document.querySelectorAll('.fix-option').forEach(opt => {
-        opt.classList.remove('selected');
-      });
-
-      // Select new option
-      option.classList.add('selected');
-      selectedFixIndex = parseInt(option.getAttribute('data-index'));
-      document.getElementById('submitBtn').disabled = false;
-    }
-
-    // Submit fix
-    function submitFix() {
-      if (selectedFixIndex === -1) return;
+    // runTests: parses the player's edited JSON, re-evaluates every test case against it, and
+    // updates the table + explanation area. A round is won only when ALL test cases pass at once
+    // (fixing one case can't be allowed to silently break another).
+    function runTests() {
+      const round = rounds[currentRound];
+      const editor = document.getElementById('policyEditor');
+      const errorBox = document.getElementById('jsonError');
+      let policy;
+      try {
+        policy = JSON.parse(editor.value);
+      } catch (e) {
+        errorBox.textContent = 'Invalid JSON: ' + e.message;
+        errorBox.style.display = 'block';
+        document.getElementById('testResults').innerHTML = renderTestResults(round.testCases, null).html;
+        return;
+      }
+      if (typeof policy !== 'object' || policy === null || Array.isArray(policy)) {
+        errorBox.textContent = 'Policy must be a JSON object with a "Statement" array.';
+        errorBox.style.display = 'block';
+        document.getElementById('testResults').innerHTML = renderTestResults(round.testCases, null).html;
+        return;
+      }
+      errorBox.style.display = 'none';
 
       roundAttempts++;
       document.getElementById('attemptsDisplay').textContent = roundAttempts;
 
-      const round = rounds[currentRound];
-      const selectedFix = round.fixes[selectedFixIndex];
-      const fixOption = document.querySelector(`.fix-option[data-index="${selectedFixIndex}"]`);
+      const { html, allPass } = renderTestResults(round.testCases, policy);
+      document.getElementById('testResults').innerHTML = html;
 
-      if (selectedFix.correct) {
-        // Correct answer
-        fixOption.classList.remove('selected');
-        fixOption.classList.add('correct');
+      if (allPass) {
+        if (!roundPassed) {
+          roundPassed = true;
 
-        // Calculate score
-        const timeBonus = Math.max(0, 50 - Math.floor((Date.now() - roundStartTime) / 1000));
-        const attemptPenalty = (roundAttempts - 1) * 20;
-        const roundScore = Math.max(0, round.correctScore + timeBonus - attemptPenalty);
-        totalScore += roundScore;
+          // Score: base value + a time bonus for solving quickly. No attempt penalty — iterating
+          // on a real JSON edit is the intended play pattern, not a mistake to punish.
+          const timeBonus = Math.max(0, 50 - Math.floor((Date.now() - roundStartTime) / 1000));
+          const roundScore = round.correctScore + timeBonus;
+          totalScore += roundScore;
+          document.getElementById('scoreDisplay').textContent = totalScore;
 
-        document.getElementById('scoreDisplay').textContent = totalScore;
+          document.getElementById('explanationArea').innerHTML = `
+            <div class="explanation">
+              <div class="explanation-title">All tests passing! +${roundScore} points</div>
+              <div class="explanation-text">${escapeHtml(round.explanation)}</div>
+              <span class="vulnerability-tag">${escapeHtml(round.vulnerability)}</span>
+            </div>
+          `;
 
-        // Show explanation
-        const explanationHTML = `
-          <div class="explanation">
-            <div class="explanation-title">✓ Correct! +${roundScore} points</div>
-            <div class="explanation-text">${round.explanation}</div>
-            <span class="vulnerability-tag">${round.vulnerability}</span>
-          </div>
-        `;
-        document.getElementById('explanationArea').innerHTML = explanationHTML;
-
-        // Disable all options
-        document.querySelectorAll('.fix-option').forEach(opt => {
-          opt.style.pointerEvents = 'none';
-        });
-
-        // Change button to Next
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.textContent = currentRound < 9 ? 'Next Round →' : 'View Results';
-        submitBtn.disabled = false;
-        submitBtn.onclick = () => {
-          if (currentRound < 9) {
-            currentRound++;
-            renderRound();
-          } else {
-            showCompletion();
-          }
-        };
-
+          editor.readOnly = true;
+          document.getElementById('resetBtn').disabled = true;
+          const runBtn = document.getElementById('runBtn');
+          runBtn.textContent = currentRound < 9 ? 'Next Round →' : 'View Results';
+          runBtn.removeEventListener('click', runTests);
+          runBtn.onclick = () => {
+            if (currentRound < 9) {
+              currentRound++;
+              renderRound();
+            } else {
+              showCompletion();
+            }
+          };
+        }
       } else {
-        // Incorrect answer
-        fixOption.classList.remove('selected');
-        fixOption.classList.add('incorrect');
-        selectedFixIndex = -1;
-        document.getElementById('submitBtn').disabled = true;
-
-        // Show hint
-        const hintHTML = `
+        // Build a hint: after the first failed run, name the fields the round's canonical fix
+        // touches, without revealing the fix itself.
+        const hintExtra = roundAttempts >= 2
+          ? ` Focus on this policy's <strong>${round.problemKeys.map(escapeHtml).join(', ')}</strong> field(s).`
+          : '';
+        document.getElementById('explanationArea').innerHTML = `
           <div class="explanation" style="border-color: #ef4444; background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);">
-            <div class="explanation-title" style="color: #ef4444;">✗ Incorrect</div>
-            <div class="explanation-text">That fix doesn't address the core security issue. Look closely at the test results that are failing and consider what policy element could fix them.</div>
+            <div class="explanation-title" style="color: #ef4444;">Tests still failing</div>
+            <div class="explanation-text">Some rows above don't match Expected yet. Edit the policy JSON and run the tests again.${hintExtra}</div>
           </div>
         `;
-        document.getElementById('explanationArea').innerHTML = hintHTML;
       }
     }
 
