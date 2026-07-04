@@ -624,13 +624,19 @@
     </div>
 
     <script>
-        // Scenario definitions
+        // Scenario definitions.
+        // Each edge's `label` must be a key in EDGE_SEMANTICS (defined below) — the player
+        // SELECTS edges to traverse, and every hop is validated against real AD edge rules,
+        // not just graph adjacency. Some edges are deliberately non-traversable decoys that
+        // teach a specific rule when the player tries them and gets rejected.
+        // `spn: true` marks an account that has a registered Service Principal Name — the
+        // real prerequisite for standard Kerberoasting (MITRE ATT&CK T1558.003).
         const scenarios = [
             {
                 name: "Group Nesting",
                 description: "Simple group membership chain to Domain Admins",
                 optimalSteps: 3,
-                hint: "Follow the group membership chain from your user to Domain Admins.",
+                hint: "Select MemberOf edges to walk the nested-group chain from your user to Domain Admins.",
                 nodes: [
                     { id: 'user1', type: 'user', name: 'jdoe', x: 100, y: 150 },
                     { id: 'groupA', type: 'group', name: 'IT Support', x: 300, y: 150 },
@@ -647,26 +653,28 @@
             },
             {
                 name: "Kerberoasting",
-                description: "Kerberoast service account with DA privileges",
+                description: "Kerberoast a service account that is nested into Domain Admins",
                 optimalSteps: 2,
-                hint: "You have GenericAll on a service account. Request its TGS ticket and crack it.",
+                hint: "Kerberoasting's real prerequisite is a registered SPN, not an ACL right. One service account here has no SPN — it cannot be Kerberoasted directly.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'attacker', x: 150, y: 150 },
-                    { id: 'svc', type: 'user', name: 'svc_sql', x: 400, y: 150 },
+                    { id: 'user1', type: 'user', name: 'attacker', x: 130, y: 150 },
+                    { id: 'svc_app', type: 'user', name: 'svc_app (no SPN)', x: 380, y: 260, spn: false },
+                    { id: 'svc_sql', type: 'user', name: 'svc_sql', x: 380, y: 60, spn: true },
                     { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 150 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'svc', label: 'GenericAll', technique: 'Kerberoast Attack' },
-                    { from: 'svc', to: 'da', label: 'MemberOf', technique: 'Use Compromised Account' }
+                    { from: 'user1', to: 'svc_app', label: 'Kerberoast', technique: 'Attempt Kerberoast (no SPN registered)' },
+                    { from: 'user1', to: 'svc_sql', label: 'Kerberoast', technique: 'Request TGS for registered SPN, crack offline' },
+                    { from: 'svc_sql', to: 'da', label: 'MemberOf', technique: 'Cracked Account Nested in DA' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "Local Admin Session",
-                description: "Dump credentials from workstation with DA session",
+                description: "Dump credentials from workstation with a DA session",
                 optimalSteps: 2,
-                hint: "You're admin on a workstation where a Domain Admin has an active session.",
+                hint: "You're admin on a workstation where a Domain Admin has an active session. HasSession runs Computer -> User; abuse it from the computer you control.",
                 nodes: [
                     { id: 'user1', type: 'user', name: 'helpdesk', x: 150, y: 100 },
                     { id: 'ws1', type: 'computer', name: 'WS-001', x: 400, y: 200 },
@@ -674,44 +682,45 @@
                 ],
                 edges: [
                     { from: 'user1', to: 'ws1', label: 'AdminTo', technique: 'Local Admin Access' },
-                    { from: 'da', to: 'ws1', label: 'HasSession', technique: 'Credential Dumping' },
-                    { from: 'ws1', to: 'da', label: 'Extract Creds', technique: 'Token Impersonation' }
+                    { from: 'ws1', to: 'da', label: 'HasSession', technique: 'Credential Dumping / Token Impersonation' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "ACL Abuse",
-                description: "WriteDACL on OU containing privileged group",
+                description: "WriteDacl on an OU whose inheritable ACEs reach a privileged group",
                 optimalSteps: 3,
-                hint: "Modify ACLs on the OU to grant yourself permissions on the privileged group.",
+                hint: "WriteDacl on the OU lets you grant yourself full control of the OU. An inheritable ACE then propagates to the OU's child objects. Contains itself is structural only — it grants no rights.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'contractor', x: 100, y: 150 },
-                    { id: 'ou', type: 'gpo', name: 'Admin OU', x: 300, y: 150 },
-                    { id: 'group', type: 'group', name: 'Backup Operators', x: 500, y: 150 },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 700, y: 150 }
+                    { id: 'user1', type: 'user', name: 'contractor', x: 90, y: 150 },
+                    { id: 'ou', type: 'gpo', name: 'Admin OU', x: 320, y: 150 },
+                    { id: 'protected', type: 'user', name: 'svc_protected', x: 320, y: 280 },
+                    { id: 'group', type: 'group', name: 'Backup Operators', x: 550, y: 150 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 760, y: 150 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'ou', label: 'WriteDACL', technique: 'Modify ACL' },
-                    { from: 'ou', to: 'group', label: 'Contains', technique: 'Add Self to Group' },
-                    { from: 'group', to: 'da', label: 'Backup Rights', technique: 'Backup Domain Database' }
+                    { from: 'user1', to: 'ou', label: 'WriteDacl', technique: 'Grant Self GenericAll on OU (Add-DomainObjectAcl)' },
+                    { from: 'ou', to: 'protected', label: 'Contains', technique: 'Attempt to ride Contains directly (structural only)' },
+                    { from: 'ou', to: 'group', label: 'GenericAll', technique: 'Inheritable ACE Propagates to Child Object' },
+                    { from: 'group', to: 'da', label: 'SeBackupPrivilege', technique: 'Backup Operators: ntdsutil/diskshadow Copy of NTDS.dit, Offline Extraction' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "GPO Abuse",
-                description: "Edit GPO linked to Domain Controllers",
+                description: "Edit a GPO linked to the Domain Controllers OU",
                 optimalSteps: 2,
-                hint: "You can modify a GPO that applies to Domain Controllers. Add a malicious task.",
+                hint: "You have GenericAll on a GPO. It is linked (GPLink) to the DC OU, so an edited policy runs as SYSTEM on every DC.",
                 nodes: [
                     { id: 'user1', type: 'user', name: 'it_admin', x: 150, y: 150 },
                     { id: 'gpo', type: 'gpo', name: 'DC Policy', x: 400, y: 150 },
                     { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 150 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'gpo', label: 'WriteGPO', technique: 'GPO Modification' },
-                    { from: 'gpo', to: 'da', label: 'Applies To DC', technique: 'Code Execution on DC' }
+                    { from: 'user1', to: 'gpo', label: 'GenericAll', technique: 'Edit GPO Policy (SharpGPOAbuse)' },
+                    { from: 'gpo', to: 'da', label: 'GPLink', technique: 'GPO Linked to DC OU -> Code Execution as SYSTEM' }
                 ],
                 start: 'user1',
                 target: 'da'
@@ -720,7 +729,7 @@
                 name: "Unconstrained Delegation",
                 description: "Server with unconstrained delegation - capture DC TGT",
                 optimalSteps: 3,
-                hint: "Coerce DC authentication to the delegation server to capture TGT tickets.",
+                hint: "Coerce the DC to authenticate to the delegation server, capture its TGT, then DCSync (needs BOTH Replicating Directory Changes rights).",
                 nodes: [
                     { id: 'user1', type: 'user', name: 'developer', x: 100, y: 100 },
                     { id: 'server', type: 'computer', name: 'APP-SRV', x: 350, y: 200 },
@@ -729,49 +738,51 @@
                 ],
                 edges: [
                     { from: 'user1', to: 'server', label: 'AdminTo', technique: 'Access Delegation Server' },
-                    { from: 'server', to: 'dc', label: 'Unconstrained Deleg', technique: 'Coerce Auth + Capture TGT' },
-                    { from: 'dc', to: 'da', label: 'DCSync', technique: 'Replicate Credentials' }
+                    { from: 'server', to: 'dc', label: 'Unconstrained', technique: 'Coerce Auth (PetitPotam) + Capture TGT from LSASS' },
+                    { from: 'dc', to: 'da', label: 'DCSync', technique: 'Replicate Directory Changes + Replicate Directory Changes All' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "Password Spray",
-                description: "Found password in description field - reused by help desk",
-                optimalSteps: 3,
-                hint: "Check user descriptions for passwords. Help desk might reuse weak passwords.",
+                description: "Found password in description field - reused by help desk, who resets a real DA user's password",
+                optimalSteps: 4,
+                hint: "ForceChangePassword only works against a user object — you cannot ForceChangePassword the Domain Admins group. Reset an actual DA user first, then authenticate as them.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'attacker', x: 100, y: 150 },
-                    { id: 'intern', type: 'user', name: 'intern01', x: 300, y: 250 },
-                    { id: 'helpdesk', type: 'user', name: 'helpdesk_admin', x: 500, y: 150 },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 700, y: 150 }
+                    { id: 'user1', type: 'user', name: 'attacker', x: 80, y: 150 },
+                    { id: 'intern', type: 'user', name: 'intern01', x: 260, y: 250 },
+                    { id: 'helpdesk', type: 'user', name: 'helpdesk_admin', x: 440, y: 150 },
+                    { id: 'da_user', type: 'user', name: 'dave (DA)', x: 620, y: 250 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 780, y: 150 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'intern', label: 'Read Attrs', technique: 'Found Password in Description' },
-                    { from: 'intern', to: 'helpdesk', label: 'Same Password', technique: 'Password Spray Success' },
-                    { from: 'helpdesk', to: 'da', label: 'ForceChangePassword', technique: 'Reset DA Password' }
+                    { from: 'user1', to: 'intern', label: 'GenericAll', technique: 'Found Password in Description Attribute' },
+                    { from: 'intern', to: 'helpdesk', label: 'ForceChangePassword', technique: 'Password Reuse -> Reset Help Desk Password' },
+                    { from: 'helpdesk', to: 'da', label: 'ForceChangePassword', technique: 'Attempt to Reset the DA Group Directly (invalid target)' },
+                    { from: 'helpdesk', to: 'da_user', label: 'ForceChangePassword', technique: 'Reset a Real DA User\'s Password' },
+                    { from: 'da_user', to: 'da', label: 'MemberOf', technique: 'Authenticate as Compromised Domain Admin' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "Full Chain",
-                description: "Multi-hop attack combining multiple techniques",
+                description: "Multi-hop attack combining targeted Kerberoasting, local admin pivot, session extraction, and ACL abuse",
                 optimalSteps: 4,
-                hint: "Kerberoast → local admin → session extraction → ACL abuse → DA",
+                hint: "svc_backup has no SPN, so it can't be Kerberoasted directly — but GenericAll lets you write an SPN onto it (targeted Kerberoasting), making it kerberoastable.",
                 nodes: [
                     { id: 'user1', type: 'user', name: 'attacker', x: 50, y: 150 },
-                    { id: 'svc', type: 'user', name: 'svc_backup', x: 220, y: 250 },
+                    { id: 'svc', type: 'user', name: 'svc_backup (no SPN)', x: 220, y: 260, spn: false },
                     { id: 'server', type: 'computer', name: 'FILE-SRV', x: 390, y: 150 },
-                    { id: 'it_admin', type: 'user', name: 'it_admin', x: 560, y: 250 },
+                    { id: 'it_admin', type: 'user', name: 'it_admin', x: 560, y: 260 },
                     { id: 'da', type: 'domain', name: 'Domain Admins', x: 730, y: 150 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'svc', label: 'GenericAll', technique: 'Kerberoasting' },
+                    { from: 'user1', to: 'svc', label: 'GenericAll', technique: 'Write SPN onto svc_backup (Targeted Kerberoast) -> Crack TGS' },
                     { from: 'svc', to: 'server', label: 'AdminTo', technique: 'Local Admin Access' },
-                    { from: 'it_admin', to: 'server', label: 'HasSession', technique: 'Dump IT Admin Creds' },
-                    { from: 'server', to: 'it_admin', label: 'Extract', technique: 'Credential Theft' },
-                    { from: 'it_admin', to: 'da', label: 'WriteDACL', technique: 'Add Self to DA Group' }
+                    { from: 'server', to: 'it_admin', label: 'HasSession', technique: 'Credential Dumping (Mimikatz) / Token Impersonation' },
+                    { from: 'it_admin', to: 'da', label: 'WriteDacl', technique: 'Grant Self AddMember Rights -> Add Self to Domain Admins' }
                 ],
                 start: 'user1',
                 target: 'da'
@@ -801,13 +812,62 @@
             'AdminTo': '#3b82f6',
             'HasSession': '#a855f7',
             'GenericAll': '#ef4444',
-            'WriteDACL': '#f97316',
+            'WriteDacl': '#f97316',
             'ForceChangePassword': '#ec4899',
-            'WriteGPO': '#8b5cf6',
+            'GPLink': '#8b5cf6',
             'DCSync': '#ef4444',
-            'Extract': '#06b6d4',
+            'Kerberoast': '#f59e0b',
+            'Unconstrained': '#dc2626',
+            'SeBackupPrivilege': '#0ea5e9',
+            'Contains': '#555',
             'default': '#666'
         };
+
+        // ── Edge semantics engine ──────────────────────────────────────
+        // Real BloodHound/AD edge rules the player's hop must satisfy. This is the fix for
+        // the audited mislabel: GenericAll is NOT the Kerberoast prerequisite. Per MITRE
+        // ATT&CK T1558.003, the prerequisite is that the TARGET ACCOUNT has a Service
+        // Principal Name (SPN) — any authenticated user can request its TGS and crack it
+        // offline. GenericAll/GenericWrite instead enables TARGETED Kerberoasting: with
+        // write control over an account you can SET an SPN it lacks, making it kerberoastable
+        // (BloodHound GenericWrite edge abuse notes: "you can write to the
+        // 'servicePrincipalNames' attribute and perform a targeted kerberoasting attack").
+        const EDGE_SEMANTICS = {
+            MemberOf: { traversable: true, targetType: ['group', 'domain'], notes: 'Group membership — MemberOf terminates at a group object (this game abstracts the final DA-group membership as the "domain" win-node).' },
+            AdminTo: { traversable: true, targetType: ['computer'], notes: 'Local admin rights on a computer object.' },
+            HasSession: { traversable: true, notes: 'Real direction: Computer -> User. Abuse requires admin on the source computer plus a non-network logon session from the target user (credential dumping / token impersonation).' },
+            GenericAll: { traversable: true, notes: 'Full control of the target object — includes writing servicePrincipalNames (targeted Kerberoast setup), resetting passwords, or adding group members.' },
+            WriteDacl: { traversable: true, notes: 'Grants the ability to modify the target\'s ACL — e.g. add a GenericAll ACE for yourself. On an OU, an inheritable ACE propagates to contained child objects (standard AD ACE-inheritance model).' },
+            ForceChangePassword: { traversable: true, targetType: ['user'], notes: 'Only valid against a user principal — you cannot ForceChangePassword a group.' },
+            Kerberoast: { traversable: true, requiresSPN: true, notes: 'Prerequisite is the TARGET having a registered Service Principal Name (SPN) — per MITRE ATT&CK T1558.003, any authenticated user with a TGT can request that SPN\'s TGS and crack it offline. No ACL edge is required.' },
+            DCSync: { traversable: true, notes: 'Requires BOTH Replicating Directory Changes (GetChanges) AND Replicating Directory Changes All (GetChangesAll) — either alone is insufficient.' },
+            SeBackupPrivilege: { traversable: true, targetType: ['domain'], notes: 'Backup Operators can locally back up/restore the DC\'s AD database (ntds.dit) offline and extract credentials — a distinct technique from DCSync.' },
+            Unconstrained: { traversable: true, notes: 'Source computer is trusted for unconstrained delegation — coercing the target to authenticate to it allows capturing the target\'s TGT from LSASS.' },
+            GPLink: { traversable: true, notes: 'GPO is linked to the target OU/domain. Editing the GPO\'s policy (e.g. SharpGPOAbuse) executes as SYSTEM on every computer in scope when policy refreshes.' },
+            Contains: { traversable: false, notes: 'Contains is structural containment only (OU/container -> child object). It grants no rights by itself and cannot be traversed as a privilege.' }
+        };
+
+        // Node type 'domain' is this game's abstracted "full domain compromise" win-state
+        // (reached via DA-group membership, DCSync, NTDS.dit extraction, etc.) rather than a
+        // literal single AD object. IMPORTANT: this is NOT a blanket exemption from
+        // targetType checks — each edge type's targetType array explicitly lists 'domain'
+        // only where that abstraction is real (e.g. MemberOf, SeBackupPrivilege). Edges whose
+        // real-world semantics genuinely cannot target a group/domain object — e.g.
+        // ForceChangePassword, which only works on a user principal — are NOT exempted, so
+        // "reset the Domain Admins group's password" is correctly rejected as invalid.
+        function edgeVerdict(edge, scenario) {
+            const sem = EDGE_SEMANTICS[edge.label];
+            if (!sem) return { ok: false, reason: `Unrecognized edge type "${edge.label}".` };
+            if (!sem.traversable) return { ok: false, reason: `${edge.label} cannot be traversed as a privilege. ${sem.notes}` };
+            const toNode = scenario.nodes.find(n => n.id === edge.to);
+            if (sem.targetType && !sem.targetType.includes(toNode.type)) {
+                return { ok: false, reason: `${edge.label} cannot target a "${toNode.type}" object. ${sem.notes}` };
+            }
+            if (sem.requiresSPN && !toNode.spn) {
+                return { ok: false, reason: `${toNode.name} has no registered SPN — it cannot be Kerberoasted directly. ${sem.notes}` };
+            }
+            return { ok: true };
+        }
 
         // Initialize game
         function init() {
@@ -903,8 +963,11 @@
                 nodeEl.classList.add('compromised');
             }
 
-            // Add click handler
-            nodeEl.addEventListener('click', () => attemptCompromise(node.id, scenario));
+            // Node click no longer directly "compromises" — the player must select an EDGE
+            // (see drawEdge's hit-line below) so each hop is validated against real edge
+            // semantics. Click still surfaces available outgoing edges, useful on touch
+            // devices where hover doesn't fire.
+            nodeEl.addEventListener('click', () => highlightAvailablePaths(node.id, scenario));
 
             // Add hover effect to show available paths
             nodeEl.addEventListener('mouseenter', () => highlightAvailablePaths(node.id, scenario));
@@ -920,6 +983,7 @@
             if (!fromNode || !toNode) return;
 
             const svg = document.getElementById('graphSvg');
+            const edgeId = `edge-${edge.from}__${edge.to}`;
 
             // Calculate positions (center of nodes + node width/2)
             const x1 = fromNode.x + 60;
@@ -927,8 +991,9 @@
             const x2 = toNode.x + 60;
             const y2 = toNode.y + 30;
 
-            // Create arrow
+            // Visible colored line (the actual edge)
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('id', edgeId);
             line.setAttribute('x1', x1);
             line.setAttribute('y1', y1);
             line.setAttribute('x2', x2);
@@ -938,19 +1003,43 @@
             line.setAttribute('marker-end', 'url(#arrowhead)');
             line.setAttribute('data-from', edge.from);
             line.setAttribute('data-to', edge.to);
+            line.setAttribute('data-label', edge.label);
+            line.setAttribute('class', 'edge-line');
+
+            // Wide, invisible "hit line" on top of the visible line — this is what the
+            // player actually clicks to SELECT the edge to traverse. Needs pointer-events
+            // re-enabled since the parent <svg> has pointer-events:none for layout reasons.
+            const hit = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            hit.setAttribute('id', `${edgeId}-hit`);
+            hit.setAttribute('x1', x1);
+            hit.setAttribute('y1', y1);
+            hit.setAttribute('x2', x2);
+            hit.setAttribute('y2', y2);
+            hit.setAttribute('stroke', 'transparent');
+            hit.setAttribute('stroke-width', '16');
+            hit.setAttribute('data-from', edge.from);
+            hit.setAttribute('data-to', edge.to);
+            hit.setAttribute('class', 'edge-hit');
+            hit.style.pointerEvents = 'stroke';
+            hit.style.cursor = 'pointer';
+            hit.addEventListener('click', () => attemptTraverse(scenario, edge));
 
             // Create label background
             const midX = (x1 + x2) / 2;
             const midY = (y1 + y2) / 2;
 
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('id', `${edgeId}-label`);
             text.setAttribute('x', midX);
             text.setAttribute('y', midY - 5);
             text.setAttribute('fill', edgeColors[edge.label] || edgeColors.default);
             text.setAttribute('font-size', '11');
             text.setAttribute('text-anchor', 'middle');
             text.setAttribute('class', 'edge-label');
+            text.style.pointerEvents = 'auto';
+            text.style.cursor = 'pointer';
             text.textContent = edge.label;
+            text.addEventListener('click', () => attemptTraverse(scenario, edge));
 
             // Add arrowhead marker if not exists
             if (!svg.querySelector('#arrowhead')) {
@@ -971,49 +1060,72 @@
             }
 
             svg.appendChild(line);
+            svg.appendChild(hit);
             svg.appendChild(text);
         }
 
-        function attemptCompromise(nodeId, scenario) {
-            // Can't compromise already compromised nodes
-            if (compromisedNodes.has(nodeId)) return;
+        // Player selects an edge to traverse. Validates: (1) the edge's source is already
+        // compromised, (2) the target isn't already compromised, (3) the edge type's real AD
+        // semantics actually permit this hop (edgeVerdict — SPN requirement, target-type
+        // constraint, non-traversable decoys like Contains). Invalid hops are REJECTED with
+        // the real reason and never mutate game state (no push to attackPath, no undo case).
+        function attemptTraverse(scenario, edge) {
+            const line = document.getElementById(`edge-${edge.from}__${edge.to}`);
 
-            // Check if there's a valid path from any compromised node
-            const validEdge = scenario.edges.find(edge =>
-                compromisedNodes.has(edge.from) && edge.to === nodeId
-            );
-
-            if (validEdge) {
-                // Valid compromise!
-                compromisedNodes.add(nodeId);
-                attackPath.push({
-                    nodeId: nodeId,
-                    technique: validEdge.technique,
-                    label: validEdge.label
-                });
-
-                // Update visual
-                document.getElementById(`node-${nodeId}`).classList.add('compromised');
-
-                // Add to log
-                addLogEntry(nodeId, validEdge, scenario);
-
-                // Update steps
-                document.getElementById('currentSteps').textContent = attackPath.length;
-                document.getElementById('undoBtn').disabled = false;
-
-                // Check if target reached
-                if (nodeId === scenario.target) {
-                    setTimeout(() => handleWin(scenario), 500);
-                }
-            } else {
-                // Invalid move - shake animation
-                const nodeEl = document.getElementById(`node-${nodeId}`);
-                nodeEl.style.animation = 'none';
-                setTimeout(() => {
-                    nodeEl.style.animation = 'shake 0.5s';
-                }, 10);
+            if (!compromisedNodes.has(edge.from)) {
+                const fromNode = scenario.nodes.find(n => n.id === edge.from);
+                rejectEdge(line, `You do not control ${fromNode ? fromNode.name : edge.from} yet — compromise it first.`, edge, scenario);
+                return;
             }
+            if (compromisedNodes.has(edge.to)) {
+                rejectEdge(line, 'Already compromised.', edge, scenario);
+                return;
+            }
+
+            const verdict = edgeVerdict(edge, scenario);
+            if (!verdict.ok) {
+                rejectEdge(line, verdict.reason, edge, scenario);
+                return;
+            }
+
+            // Valid hop! Compromise the target node.
+            const nodeId = edge.to;
+            compromisedNodes.add(nodeId);
+            attackPath.push({
+                nodeId: nodeId,
+                technique: edge.technique,
+                label: edge.label
+            });
+
+            // Update visual
+            document.getElementById(`node-${nodeId}`).classList.add('compromised');
+            if (line) {
+                line.style.animation = 'none';
+                setTimeout(() => { line.style.animation = 'edgeConfirm 0.6s'; }, 10);
+            }
+
+            // Add to log
+            addLogEntry(nodeId, edge, scenario);
+
+            // Update steps
+            document.getElementById('currentSteps').textContent = attackPath.length;
+            document.getElementById('undoBtn').disabled = false;
+
+            // Check if target reached
+            if (nodeId === scenario.target) {
+                setTimeout(() => handleWin(scenario), 500);
+            }
+        }
+
+        // Rejected hop: flash the edge red and log the REAL reason it doesn't work. This is
+        // the teaching moment — e.g. "GenericAll" over an OU's Contains edge, or Kerberoast
+        // on a non-SPN account. Never touches compromisedNodes/attackPath.
+        function rejectEdge(lineEl, reason, edge, scenario) {
+            if (lineEl) {
+                lineEl.style.animation = 'none';
+                setTimeout(() => { lineEl.style.animation = 'edgeReject 0.5s'; }, 10);
+            }
+            addRejectionLogEntry(edge, reason, scenario);
         }
 
         function addLogEntry(nodeId, edge, scenario) {
@@ -1025,7 +1137,25 @@
             entry.innerHTML = `
                 <span class="step">Step ${attackPath.length}:</span>
                 Compromised <strong>${node.name}</strong> via
+                <span class="technique">${edge.label}</span> —
                 <span class="technique">${edge.technique}</span>
+            `;
+
+            logContainer.insertBefore(entry, logContainer.firstChild);
+        }
+
+        // Rejection entries are visually distinct (red left border, class="log-rejected")
+        // and are NOT part of attackPath — undo never has to special-case them.
+        function addRejectionLogEntry(edge, reason, scenario) {
+            const toNode = scenario.nodes.find(n => n.id === edge.to);
+            const logContainer = document.getElementById('logEntries');
+
+            const entry = document.createElement('div');
+            entry.className = 'log-entry log-rejected';
+            entry.innerHTML = `
+                <span class="step">REJECTED:</span>
+                <span class="technique">${edge.label}</span> -> <strong>${toNode ? toNode.name : edge.to}</strong><br>
+                <span class="reject-reason">${reason}</span>
             `;
 
             logContainer.insertBefore(entry, logContainer.firstChild);
@@ -1147,7 +1277,9 @@
         }
 
         function findOptimalPath(scenario) {
-            // Simple BFS to find shortest path
+            // BFS restricted to edges that PASS edgeVerdict — decoys (no-SPN Kerberoast,
+            // Contains, wrong targetType, etc.) are structurally invalid regardless of game
+            // progress, so the shortest path never routes through them.
             const queue = [[scenario.start]];
             const visited = new Set([scenario.start]);
 
@@ -1165,13 +1297,13 @@
 
                         return {
                             node: node.name,
-                            technique: edge ? edge.technique : 'Starting Position'
+                            technique: edge ? `${edge.label}: ${edge.technique}` : 'Starting Position'
                         };
                     });
                 }
 
                 scenario.edges.forEach(edge => {
-                    if (edge.from === current && !visited.has(edge.to)) {
+                    if (edge.from === current && !visited.has(edge.to) && edgeVerdict(edge, scenario).ok) {
                         visited.add(edge.to);
                         queue.push([...path, edge.to]);
                     }
@@ -1244,7 +1376,7 @@
             }
         }
 
-        // CSS animation for shake
+        // CSS animation for shake + edge selection feedback + rejection log styling
         const style = document.createElement('style');
         style.textContent = `
             @keyframes shake {
@@ -1252,8 +1384,66 @@
                 25% { transform: translateX(-10px); }
                 75% { transform: translateX(10px); }
             }
+            @keyframes edgeReject {
+                0%, 100% { stroke: inherit; opacity: 1; }
+                50% { stroke: #ef4444; opacity: 0.4; }
+            }
+            @keyframes edgeConfirm {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.3; stroke-width: 5; }
+            }
+            .log-entry.log-rejected {
+                border-left-color: #ef4444;
+                background: linear-gradient(160deg, #3a2222 0%, #302020 100%);
+            }
+            .log-entry.log-rejected .step { color: #ef4444; }
+            .log-entry .reject-reason {
+                display: block;
+                margin-top: 4px;
+                font-size: 0.9em;
+                color: #ccc;
+            }
+            .edge-hit:hover {
+                cursor: pointer;
+            }
         `;
         document.head.appendChild(style);
+
+        // ── Test/automation hook ────────────────────────────────────────
+        // Exposes the same validated attemptTraverse() path a real click uses, so a headless
+        // harness can drive real hops (and real rejections) without simulating SVG pixel
+        // coordinates. No parallel/bypass validation logic — traverse() looks up the actual
+        // edge object and calls attemptTraverse just like a DOM click would.
+        window.ADGame = {
+            scenarioCount: scenarios.length,
+            loadScenario(i) {
+                currentScenario = i;
+                document.getElementById('scenarioSelector').value = i;
+                loadScenario(i);
+            },
+            traverse(fromId, toId) {
+                const scenario = scenarios[currentScenario];
+                const edge = scenario.edges.find(e => e.from === fromId && e.to === toId);
+                if (!edge) return { ok: false, reason: `No such edge ${fromId} -> ${toId} in this scenario.` };
+                attemptTraverse(scenario, edge);
+                return { ok: true };
+            },
+            state() {
+                const scenario = scenarios[currentScenario];
+                return {
+                    scenarioIndex: currentScenario,
+                    compromised: Array.from(compromisedNodes),
+                    steps: attackPath.length,
+                    won: compromisedNodes.has(scenario.target)
+                };
+            },
+            edgesOf(i) {
+                return scenarios[i].edges.map(e => ({ from: e.from, to: e.to, label: e.label }));
+            },
+            optimalPath(i) {
+                return findOptimalPath(scenarios[i]);
+            }
+        };
 
         // Initialize on load
         init();
