@@ -259,6 +259,26 @@
             filter: grayscale(0.8);
         }
 
+        /* The one commit bisect has checked out this step: the only commit whose
+           Inspect/Mark buttons are enabled. The player cannot free-pick any other
+           commit, even one still inside the live candidate range. */
+        .commit.current-target {
+            border-color: #fbbf24;
+            box-shadow: 0 0 20px rgba(251,191,36,0.25);
+        }
+
+        .current-badge {
+            display: inline-block;
+            background: rgba(251,191,36,0.15);
+            color: #fbbf24;
+            border: 1px solid #fbbf24;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
         .commit.revealed-breaking {
             border-color: #dc2626;
             background: rgba(220, 38, 38, 0.2);
@@ -649,7 +669,8 @@
                 <h2>Your Mission</h2>
                 <p>
                     Complete 8 debugging rounds. Each round presents a git history with one breaking commit.
-                    Inspect commits, mark them as good or bad, and find the bug as efficiently as possible.
+                    Git checks out the midpoint commit for you — test it, mark it good or bad, and watch the
+                    candidate range collapse until only the breaking commit remains.
                 </p>
                 <p>
                     <strong>Scoring:</strong> You start with 200 points per round. Each inspection beyond the optimal
@@ -682,6 +703,10 @@
                         <span class="stat-value" id="commitsRemaining">16</span>
                     </div>
                     <div class="bisect-stat">
+                        <span class="stat-label">Checked Out:</span>
+                        <span class="stat-value" id="testingHash">--</span>
+                    </div>
+                    <div class="bisect-stat">
                         <span class="stat-label">Inspections:</span>
                         <span class="stat-value" id="inspectionCount">0</span>
                     </div>
@@ -690,6 +715,11 @@
                         <span class="stat-value" id="optimalSteps">4</span>
                     </div>
                 </div>
+                <p style="margin-top:12px;color:#999;font-size:14px;">
+                    Only the checked-out commit (highlighted below) can be tested and marked.
+                    Mark <strong style="color:#10b981;">Good</strong> if the bug is absent — the first bad commit is newer.
+                    Mark <strong style="color:#ef4444;">Bad</strong> if the bug is present — this commit or an older one introduced it.
+                </p>
             </div>
 
             <div class="commit-log" id="commitLog"></div>
@@ -774,6 +804,10 @@
         // or earlier). When searchLo === searchHi the first bad commit is identified.
         let searchLo = 0;
         let searchHi = 0;
+        // The one commit real `git bisect` has checked out this step: the midpoint of
+        // [searchLo, searchHi]. Only this commit can be inspected/marked -- the player
+        // cannot free-pick any other commit, so the bisection itself cannot be skipped.
+        let currentMidpoint = 0;
         let roundResolved = false; // guards against completeRound() double-firing (e.g. a double-click on the winning mark)
         let roundsCompletedSuccessfully = 0;
         let totalInspections = 0;
@@ -793,7 +827,7 @@
                         { type: 'context', line: '  render() {' },
                         { type: 'context', line: '    return (' },
                         { type: 'deletion', line: '-      <button onClick={this.submitLogin}>Login</button>' },
-                        { type: 'addition', line: '+      <button onClick={this.submitLogin}>Login</button>' },
+                        { type: 'addition', line: '+      <button onClick={this.submitLogin()}>Login</button>' },
                         { type: 'context', line: '    );' },
                         { type: 'context', line: '  }' },
                     ]
@@ -1111,6 +1145,7 @@
             // Whole history is the initial candidate range for the first bad commit.
             searchLo = 0;
             searchHi = roundConfig.commitCount - 1;
+            currentMidpoint = computeMidpoint();
             roundResolved = false;
 
             document.getElementById('roundInfo').textContent = `Round ${currentRound + 1} / ${rounds.length}`;
@@ -1124,6 +1159,12 @@
             renderCommitLog();
         }
 
+        // The one commit real `git bisect` would check out next: the midpoint of the
+        // current candidate range for the first bad commit.
+        function computeMidpoint() {
+            return Math.floor((searchLo + searchHi) / 2);
+        }
+
         function renderCommitLog() {
             const logContainer = document.getElementById('commitLog');
             logContainer.innerHTML = '';
@@ -1135,8 +1176,16 @@
 
                 // Commits outside the live candidate range have been eliminated by bisect.
                 const eliminated = index < searchLo || index > searchHi;
+                // Real git bisect checks out exactly one commit per step: the midpoint of
+                // the current range. Only that commit can be tested or marked -- the
+                // player cannot free-pick which commit to inspect, even one still inside
+                // the live range. This is what forces actual binary search.
+                const isCurrent = !eliminated && index === currentMidpoint && !roundResolved;
                 if (eliminated) {
                     commitDiv.classList.add('eliminated');
+                }
+                if (isCurrent) {
+                    commitDiv.classList.add('current-target');
                 }
                 if (inspectedCommits.has(index)) {
                     commitDiv.classList.add('inspected');
@@ -1148,24 +1197,29 @@
                     commitDiv.classList.add('marked-bad');
                 }
 
+                const canInspect = isCurrent && !inspectedCommits.has(index);
+                const canMark = isCurrent && inspectedCommits.has(index)
+                    && !markedGood.has(index) && !markedBad.has(index);
+
                 commitDiv.innerHTML = `
                     <div class="commit-header">
                         <span class="commit-hash">${commit.hash}</span>
                         <span class="commit-author">${commit.author}</span>
                         <span class="commit-date">${commit.date}</span>
+                        ${isCurrent ? '<span class="current-badge">CHECKED OUT</span>' : ''}
                     </div>
                     <div class="commit-message">${commit.message}</div>
                     <div class="commit-actions">
                         <button class="btn btn-inspect" onclick="inspectCommit(${index})"
-                            ${inspectedCommits.has(index) || eliminated ? 'disabled' : ''}>
+                            ${canInspect ? '' : 'disabled'}>
                             ${inspectedCommits.has(index) ? 'Tested' : 'Test (Inspect)'}
                         </button>
                         <button class="btn btn-good" onclick="markCommit(${index}, 'good')"
-                            ${markedGood.has(index) || markedBad.has(index) || eliminated || !inspectedCommits.has(index) ? 'disabled' : ''}>
+                            ${canMark ? '' : 'disabled'}>
                             Mark Good
                         </button>
                         <button class="btn btn-bad" onclick="markCommit(${index}, 'bad')"
-                            ${markedGood.has(index) || markedBad.has(index) || eliminated || !inspectedCommits.has(index) ? 'disabled' : ''}>
+                            ${canMark ? '' : 'disabled'}>
                             Mark Bad
                         </button>
                     </div>
@@ -1173,11 +1227,22 @@
 
                 logContainer.appendChild(commitDiv);
             });
+
+            // Surface which commit is currently checked out in the status panel too.
+            const testingHashEl = document.getElementById('testingHash');
+            if (testingHashEl) {
+                testingHashEl.textContent = (!roundResolved && currentRoundData.commits[currentMidpoint])
+                    ? currentRoundData.commits[currentMidpoint].hash
+                    : '--';
+            }
         }
 
         function inspectCommit(index) {
             if (inspectedCommits.has(index)) return;
-            // Eliminated commits are out of the search; don't leak their test result.
+            // Only the current bisect midpoint can be tested -- the one commit git would
+            // actually have checked out this step. Free-picking any other commit, even
+            // one still inside the live range, is not real bisection and is blocked.
+            if (index !== currentMidpoint) return;
             if (index < searchLo || index > searchHi) return;
 
             inspectedCommits.add(index);
@@ -1216,10 +1281,12 @@
         }
 
         function markCommit(index, type) {
-            // Must test (inspect) a commit before you can mark it, and it must still be
-            // inside the live candidate range. Reject re-marking or marking after the
-            // round is resolved so a double-click can't double-narrow or double-score.
+            // Must test (inspect) a commit before you can mark it, and it must be the
+            // current bisect midpoint -- the one commit real git bisect would have
+            // checked out this step. Reject re-marking or marking after the round is
+            // resolved so a double-click can't double-narrow or double-score.
             if (roundResolved) return;
+            if (index !== currentMidpoint) return;
             if (markedGood.has(index) || markedBad.has(index)) return;
             if (!inspectedCommits.has(index)) return;
             if (index < searchLo || index > searchHi) return;
@@ -1239,12 +1306,17 @@
                 searchHi = Math.min(searchHi, index);      // first bad commit is at or before a bad one
             }
 
-            renderCommitLog();
             updateRemainingCommits();
 
             // Range converged to a single commit: that is the first bad commit.
             if (searchLo === searchHi) {
+                renderCommitLog();
                 setTimeout(() => completeRound(true), 400);
+            } else {
+                // Not converged: git bisect checks out the new midpoint of the narrowed
+                // range next. That becomes the only commit the player can act on.
+                currentMidpoint = computeMidpoint();
+                renderCommitLog();
             }
         }
 
