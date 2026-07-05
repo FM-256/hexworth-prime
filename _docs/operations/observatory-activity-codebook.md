@@ -8,6 +8,20 @@ before computing any time-on-page or session-count metric.
 Study: *Gamification in Cybersecurity Training and CERBI Score Analysis* (PI Frank Mora,
 National University). Collection is consent-gated; see "Consent gating" below.
 
+## Coverage (which pages emit telemetry)
+
+As of 2026-07-05, `ObservatoryTelemetry.js` is on **all 1042 content pages** across the 16
+Observatory course roots (up from A+ Core 1's original 62). Scope decision by the PI: track
+everything, including course-root and category/domain **hub/landing `index.html` pages** (they
+emit only `page_view`/`device`, never `content_complete`) as an intentional superset to
+guarantee no real content is missed. A+ Core 1's tracked set therefore expanded 62 -> 67 (its
+5 hub pages). Excluded, by design: meta-refresh redirect stubs (navigation, not content),
+`instructor/` materials, underscore/dev dirs (`_source`/`_archive`/`_backup`/`_compare`),
+and `.bak` copies. The single tag self-loads its auth dependency, and a cost gate keeps
+non-signed-in visitors from loading anything. Injector + reconcile tool:
+`_tools/observatory/inject-telemetry.js` (idempotent: a page carries the tag iff it is
+content and not a redirect stub).
+
 ## Collection: `observatory_activity`
 
 Append-only. Clients cannot write it directly (`firestore.rules`: `create/update/delete:

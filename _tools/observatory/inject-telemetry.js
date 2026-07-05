@@ -47,36 +47,58 @@ function isContentPage(file) {
     return true;
 }
 
+// A meta-refresh redirect stub is navigation, not content: it bounces to another page
+// before anything runs, so tracking it is pointless. Exclude it (and strip a tag if a prior
+// over-inclusive run added one).
+function isRedirectStub(html) {
+    return /http-equiv\s*=\s*["']?refresh/i.test(html);
+}
+
 const summary = [];
-let totInject = 0, totAlready = 0, totNoBody = 0, totSkipIndex = 0;
+let totInject = 0, totStrip = 0, totAlready = 0, totNoBody = 0, totSkip = 0;
 
 for (const r of roots) {
     const root = path.isAbsolute(r) ? r : path.join(APP, r);
     const files = []; walk(root, files);
-    let inject = 0, already = 0, nobody = 0, skipped = 0;
+    let inject = 0, strip = 0, already = 0, nobody = 0, skipped = 0;
     const noBodyList = [];
     for (const f of files) {
-        if (!isContentPage(f)) { skipped++; continue; }
         let html = fs.readFileSync(f, 'utf8');
-        if (html.includes('ObservatoryTelemetry.js')) { already++; continue; }
-        // Insert before the LAST </body> (case-insensitive), so it is the final script.
-        const m = html.match(/<\/body>/gi);
-        if (!m) { nobody++; noBodyList.push(path.relative(APP, f)); continue; }
-        const idx = html.toLowerCase().lastIndexOf('</body>');
-        html = html.slice(0, idx) + TAG + '\n' + html.slice(idx);
-        if (!DRY) fs.writeFileSync(f, html);
-        inject++;
+        const has = html.includes('/components/ObservatoryTelemetry.js');
+        // Reconcile to the desired state: a page should carry the tag iff it is trackable
+        // student content and not a redirect stub.
+        const should = isContentPage(f) && !isRedirectStub(html);
+        if (should && !has) {
+            // Insert before the LAST </body> (case-insensitive), so it is the final script.
+            const m = html.match(/<\/body>/gi);
+            if (!m) { nobody++; noBodyList.push(path.relative(APP, f)); continue; }
+            const idx = html.toLowerCase().lastIndexOf('</body>');
+            html = html.slice(0, idx) + TAG + '\n' + html.slice(idx);
+            if (!DRY) fs.writeFileSync(f, html);
+            inject++;
+        } else if (!should && has) {
+            // A prior over-inclusive run tagged a non-content page; strip it.
+            html = html.split(TAG + '\n').join('').split(TAG).join('');
+            if (!DRY) fs.writeFileSync(f, html);
+            strip++;
+        } else if (should && has) {
+            already++;
+        } else {
+            skipped++;
+        }
     }
-    summary.push({ root: r, htmlFiles: files.length, contentPages: files.length - skipped, inject, already, nobody, noBodyList });
-    totInject += inject; totAlready += already; totNoBody += nobody; totSkipIndex += skipped;
+    summary.push({ root: r, htmlFiles: files.length, inject, strip, already, nobody, skipped, noBodyList });
+    totInject += inject; totStrip += strip; totAlready += already; totNoBody += nobody; totSkip += skipped;
 }
 
-console.log((DRY ? '[DRY RUN] ' : '[APPLIED] ') + 'Observatory telemetry injection\n');
+console.log((DRY ? '[DRY RUN] ' : '[APPLIED] ') + 'Observatory telemetry injection (reconcile)\n');
 for (const s of summary) {
     console.log('  ' + s.root);
-    console.log('    html files: ' + s.htmlFiles + '  content pages: ' + s.contentPages
-        + '  -> inject: ' + s.inject + '  already: ' + s.already + '  no-</body>: ' + s.nobody);
+    console.log('    html: ' + s.htmlFiles + '  -> inject: ' + s.inject + '  strip: ' + s.strip
+        + '  already: ' + s.already + '  skip(non-content/redirect): ' + s.skipped + '  no-</body>: ' + s.nobody);
     if (s.noBodyList.length) s.noBodyList.slice(0, 8).forEach(p => console.log('      NO BODY: ' + p));
 }
-console.log('\n  TOTAL inject: ' + totInject + '  already: ' + totAlready + '  no-body(skipped): ' + totNoBody + '  index/copies skipped: ' + totSkipIndex);
+console.log('\n  TOTAL inject: ' + totInject + '  strip: ' + totStrip + '  already: ' + totAlready
+    + '  skip: ' + totSkip + '  no-body: ' + totNoBody);
+console.log('  net tracked pages (inject + already): ' + (totInject + totAlready));
 if (DRY) console.log('  (dry run - no files written)');
