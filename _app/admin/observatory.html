@@ -117,6 +117,13 @@
             <div id="coursePop"></div>
         </div>
 
+        <!-- Course progress (content completions) -->
+        <div class="section">
+            <h2>Course progress</h2>
+            <div class="hint">Content completions per student, from content_complete events via their own scoped query (never diluted by other event types). A completion means content was finished. Quiz completions count only on a PASS, so zero completions can still mean attempted but unfinished. This is a completion signal, not an engagement measure.</div>
+            <div id="courseProgress"></div>
+        </div>
+
         <!-- Dwell + per-class -->
         <div class="section">
             <h2>Engagement summary</h2>
@@ -135,6 +142,7 @@
         let _db = null, _fs = null;
         let _enroll = [];      // enrollment docs
         let _events = [];      // activity docs (capped)
+        let _completions = []; // content_complete docs (own scoped query)
         let _withdrawals = 0;  // tombstone count
         let _classes = {};     // id -> label
         let _rosterSort = { k: 'enrolledAt', dir: -1 };
@@ -153,7 +161,7 @@
         // Load all dashboard data: enrollment roster, recent activity, withdrawals,
         // and the admin class list. Reads are admin-gated by the Firestore rules.
         async function loadData() {
-            const { collection, getDocs, query, orderBy, limit } = _fs;
+            const { collection, getDocs, query, orderBy, limit, where } = _fs;
 
             // Roster.
             const eSnap = await getDocs(collection(_db, 'observatory_enrollment'));
@@ -162,6 +170,16 @@
             // Recent activity (capped, newest first).
             const aSnap = await getDocs(query(collection(_db, 'observatory_activity'), orderBy('at', 'desc'), limit(EVENT_CAP)));
             _events = []; aSnap.forEach(d => _events.push(d.data()));
+
+            // Course completions: a separate, type-scoped query so this view is never
+            // diluted by higher-frequency event types that later batches will add to
+            // observatory_activity. Equality filter + limit needs only a single-field
+            // index (auto); completions are sparse, so client-side sort is sufficient.
+            try {
+                const cSnap = await getDocs(query(collection(_db, 'observatory_activity'),
+                    where('type', '==', 'content_complete'), limit(EVENT_CAP)));
+                _completions = []; cSnap.forEach(d => _completions.push(d.data()));
+            } catch (e) { _completions = []; }
 
             // Withdrawals (count only).
             try {
@@ -337,14 +355,51 @@
                  <h2 style="font-size:0.9rem">Enrollment by class</h2>${classRows || '<div class="empty">No enrollments.</div>'}`;
         }
 
+        // Course completions per student, from the type-scoped _completions set.
+        // Groups by student into distinct modules completed + last completion,
+        // honoring the active class filter (by the event's server-authoritative
+        // classId) so it stays consistent with the other sections.
+        function renderCourseProgress() {
+            const cls = $('classFilter').value;
+            const comps = cls ? _completions.filter(c => c.classId === cls) : _completions;
+            // Roster lookup for a friendly name + class label.
+            const who = {};
+            _enroll.forEach(r => { who[r.uid || r.id] = { name: r.displayName || r.id, cls: r.className || r.classId || '' }; });
+            // Group by student: a Set of distinct moduleIds plus the latest completion.
+            const byUid = {};
+            comps.forEach(c => {
+                const u = c.uid; if (!u) return;
+                if (!byUid[u]) byUid[u] = { mods: new Set(), last: null };
+                if (c.moduleId) byUid[u].mods.add(c.moduleId);
+                const d = eventDate(c);
+                if (d && (!byUid[u].last || d > byUid[u].last)) byUid[u].last = d;
+            });
+            const rows = Object.keys(byUid).map(u => {
+                const info = who[u] || { name: u, cls: '' };
+                const mods = Array.from(byUid[u].mods).sort();
+                return { name: info.name, cls: info.cls, count: mods.length, mods: mods.join(', '), last: byUid[u].last };
+            }).sort((a, b) => b.count - a.count);
+            if (!rows.length) { $('courseProgress').innerHTML = '<div class="empty">No content completions recorded yet.</div>'; return; }
+            const body = rows.map(r =>
+                `<tr><td>${esc(r.name)}</td><td>${esc(r.cls)}</td>
+                 <td style="text-align:center;font-weight:700">${r.count}</td>
+                 <td style="font-size:0.72rem;color:var(--muted)">${esc(r.mods)}</td>
+                 <td>${r.last ? esc(fmtDate(r.last)) : 'n/a'}</td></tr>`).join('');
+            $('courseProgress').innerHTML =
+                `<table id="progTable" style="width:100%;border-collapse:collapse">
+                    <thead><tr><th>Student</th><th>Class</th><th>Completions</th><th>Modules</th><th>Last completion</th></tr></thead>
+                    <tbody>${body}</tbody>
+                 </table>`;
+        }
+
         // Render everything from the current data + filter.
         function renderAll() {
-            renderCards(); renderRoster(); renderHeat(); renderCoursePop(); renderDwell();
+            renderCards(); renderRoster(); renderHeat(); renderCoursePop(); renderCourseProgress(); renderDwell();
         }
 
         // ── Helpers ──
         function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-        function fmtDate(d) { try { return d.toLocaleString(); } catch (e) { return '—'; } }
+        function fmtDate(d) { try { return d.toLocaleString(); } catch (e) { return 'n/a'; } }
         function fmtDur(sec) {
             sec = Math.round(sec || 0);
             if (sec < 60) return sec + 's';
