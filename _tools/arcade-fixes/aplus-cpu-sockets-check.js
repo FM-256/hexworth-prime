@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-// aplus-cpu-sockets-check.js -- regression gate for the CompTIA A+ Core 1 "CPU Socket
+// aplus-cpu-sockets-check.js: regression gate for the CompTIA A+ Core 1 "CPU Socket
 // Identification Lab" after its rebuild from a 4-option pick-the-answer quiz (checkAnswer(i),
-// correct option always at index 0, no shuffle -- "always click first" scored 6/6) into a real
+// correct option always at index 0, no shuffle: "always click first" scored 6/6) into a real
 // "CPU Socket Compatibility Workbench" (CompTIA A+ 220-1101 objective 3.4).
 //
 // The rebuild's whole point: for each of 8 real build orders the student is given ONE real part
 // (a CPU or a bare motherboard socket, alternating direction) plus a bin of 4 candidate parts, and
 // must SORT every candidate as Compatible (install) or Incompatible (reject) by reading real specs
-// (vendor, package type PGA/LGA/BGA, pin count, generation) -- not click one of 4 labeled buttons.
+// (vendor, package type PGA/LGA/BGA, pin count, generation), not click one of 4 labeled buttons.
 // Correctness is computed by evaluateCompatibilityCore()/checkCompatible() comparing real spec
 // fields (cpu.socket, cpu.package, cpu.isBga, socket.vendor/package), never a stored ".correct"
 // flag on any candidate.
 //
-// This loads the real lab HTML headless (no build step -- same file served to students), stubs
+// This loads the real lab HTML headless (no build step, same file served to students), stubs
 // AccessGuard/AchievementManager/ModuleProgress/HexAIButton the same way aplus-dns-config-check.js
 // and aplus-protocol-analysis-check.js do, and drives the REAL window.__cpuBench test hook, which
 // forwards every call into the SAME functions the on-page buttons call (decideCandidate,
@@ -28,10 +28,10 @@
 //      ModuleProgress.complete fires EXACTLY ONCE with the exact preserved signature
 //      ('forge', 'forge-cpu-sockets', {returnUrl: '../index.html'}).
 //   3. WRONG playthrough on a fresh load: sort every candidate as the OPPOSITE of what
-//      checkCompatible() says on order 0 -- testBuild() must grade passed=false, solved stays 0,
+//      checkCompatible() says on order 0: testBuild() must grade passed=false, solved stays 0,
 //      and ModuleProgress.complete must never fire.
 //   4. NOT-FIXED-POSITION check: across all 8 orders, read the RENDERED candidate order via
-//      getRenderedCandidates() and find the index of the one genuinely compatible candidate --
+//      getRenderedCandidates() and find the index of the one genuinely compatible candidate:
 //      assert these indices are not all the same/first (proves the shuffle + varied authored
 //      indices actually move the correct choice around, not a disguised fixed-index MC quiz).
 //   5. DIRECT-CALL BYPASS: decideCandidate()/resetOrder()/testBuild() on a LOCKED (solved) order,
@@ -116,7 +116,7 @@ async function newStubbedPage(browser) {
   ok('8 work orders present', hookInfo.orderCount === 8, hookInfo.orderCount);
 
   // Structural + "exactly one correct candidate per order" check, computed via the lab's OWN
-  // checkCompatible() function -- never a hardcoded A+ fact in this test.
+  // checkCompatible() function, never a hardcoded A+ fact in this test.
   const contentCheck = await pg0.evaluate(() => {
     const issues = [];
     for (let i = 0; i < window.__cpuBench.orderCount; i++) {
@@ -153,7 +153,7 @@ async function newStubbedPage(browser) {
   await pg0.close();
 
   // ════════════════════════════════════════════════════════════════════
-  // SCENARIO A: CORRECT PLAYTHROUGH -- all 8 orders sorted exactly per the
+  // SCENARIO A: CORRECT PLAYTHROUGH: all 8 orders sorted exactly per the
   // lab's own checkCompatible(), reaches genuine completion.
   // ════════════════════════════════════════════════════════════════════
   console.log('\n=== Scenario A: full correct playthrough (8 orders) completes exactly once ===');
@@ -196,7 +196,7 @@ async function newStubbedPage(browser) {
   await pgC.close();
 
   // ════════════════════════════════════════════════════════════════════
-  // SCENARIO B: WRONG PLAYTHROUGH on a fresh load -- every candidate on
+  // SCENARIO B: WRONG PLAYTHROUGH on a fresh load: every candidate on
   // order 0 sorted as the OPPOSITE of what checkCompatible() says.
   // ════════════════════════════════════════════════════════════════════
   console.log('\n=== Scenario B: wrong sort grades wrong and never completes ===');
@@ -232,7 +232,7 @@ async function newStubbedPage(browser) {
   ok('0 non-firebase pageErrors during wrong playthrough', errsW.length === 0, errsW.slice(0, 4));
 
   // ════════════════════════════════════════════════════════════════════
-  // SCENARIO C: SCENARIO-ACCURATE FEEDBACK -- rendered wrong-path text for
+  // SCENARIO C: SCENARIO-ACCURATE FEEDBACK: rendered wrong-path text for
   // several distinct pairs (vendor / package / generation / BGA mismatches)
   // must be pair-specific, not one fixed string reused everywhere.
   // ════════════════════════════════════════════════════════════════════
@@ -292,7 +292,7 @@ async function newStubbedPage(browser) {
     !/(LGA1700|AM4(?!_)|AM5) socket, which supports/i.test(explanationProbe.bgaReport), explanationProbe.bgaReport.slice(0, 400));
 
   // ════════════════════════════════════════════════════════════════════
-  // SCENARIO D: DIRECT-CALL BYPASS -- every advance/submit/complete handler
+  // SCENARIO D: DIRECT-CALL BYPASS: every advance/submit/complete handler
   // is called directly, out of order, and must be a no-op.
   // ════════════════════════════════════════════════════════════════════
   console.log('\n=== Scenario D: direct-call bypass cannot skip a required step ===');
