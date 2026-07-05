@@ -85,6 +85,23 @@
             <button id="exportEvents">Export events (CSV)</button>
         </div>
 
+        <!-- Class management -->
+        <div class="section">
+            <h2>Classes</h2>
+            <div class="hint">Add, rename, or remove the classes participants can select at consent time (and switch to afterward). Removing a class only removes the option going forward; it does not delete or change anyone's existing enrollment.</div>
+            <table id="classTable">
+                <thead><tr><th>ID</th><th>Label</th><th></th></tr></thead>
+                <tbody id="classBody"></tbody>
+            </table>
+            <div class="empty" id="classEmpty" style="display:none">No classes defined yet: participants currently see the built-in defaults (CIS2350C, COP1034C, Other).</div>
+            <div class="controls" style="margin-top:14px">
+                <input type="text" id="newClassId" placeholder="class id, e.g. cis2350c-fall26" style="flex:1;min-width:200px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:#070a18;color:var(--ink);font-size:0.85rem">
+                <input type="text" id="newClassLabel" placeholder="Display label, e.g. CIS2350C, Fall 2026" style="flex:2;min-width:240px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:#070a18;color:var(--ink);font-size:0.85rem">
+                <button class="primary" id="addClassBtn">Add class</button>
+            </div>
+            <div id="classErr" style="color:#fca5a5;font-size:0.78rem;margin-top:8px;min-height:16px"></div>
+        </div>
+
         <!-- Roster -->
         <div class="section">
             <h2>Roster</h2>
@@ -117,42 +134,6 @@
             <div id="coursePop"></div>
         </div>
 
-        <!-- Course progress (content completions) -->
-        <div class="section">
-            <h2>Course progress</h2>
-            <div class="hint">Content completions per student, from content_complete events via their own scoped query (never diluted by other event types). A completion means content was finished. Quiz completions count only on a PASS, so zero completions can still mean attempted but unfinished. This is a completion signal, not an engagement measure.</div>
-            <div style="margin-bottom:10px"><button id="exportCompletions">Export completions (CSV)</button></div>
-            <div id="courseProgress"></div>
-        </div>
-
-        <!-- Engagement (Phase 2: page_view + session_end) -->
-        <div class="section">
-            <h2>Engagement</h2>
-            <div class="hint">Time on page, active-time ratio, and scroll depth, from page_view and session_end events, each via its own scoped query. The per-course breakdown groups session_end by the path on the session event itself, not by the completions data above.</div>
-            <div id="engagement"></div>
-        </div>
-
-        <!-- Client errors (Phase 2: client_error) -->
-        <div class="section">
-            <h2>Errors (live QA)</h2>
-            <div class="hint">JS errors students actually hit, grouped by message with a sample source. From its own scoped query, so it is never diluted by higher-volume event types.</div>
-            <div id="struggle"></div>
-        </div>
-
-        <!-- Device breakdown (Phase 2: device) -->
-        <div class="section">
-            <h2>Device breakdown</h2>
-            <div class="hint">Viewport, platform, and connection mix of the consented cohort, plus reduced-motion preference, from device events via their own scoped query.</div>
-            <div id="deviceBreakdown"></div>
-        </div>
-
-        <!-- Live activity feed (most recent events, all types) -->
-        <div class="section">
-            <h2>Live activity</h2>
-            <div class="hint">The most recent events across the cohort, newest first, honoring the class filter. A quick pulse of what is happening now.</div>
-            <div id="liveFeed"></div>
-        </div>
-
         <!-- Dwell + per-class -->
         <div class="section">
             <h2>Engagement summary</h2>
@@ -171,13 +152,9 @@
         let _db = null, _fs = null;
         let _enroll = [];      // enrollment docs
         let _events = [];      // activity docs (capped)
-        let _completions = []; // content_complete docs (own scoped query)
-        let _pageViews = [];    // page_view docs (own scoped query, Phase 2)
-        let _sessionEnds = [];  // session_end docs (own scoped query, Phase 2)
-        let _clientErrors = []; // client_error docs (own scoped query, Phase 2)
-        let _devices = [];      // device docs (own scoped query, Phase 2)
         let _withdrawals = 0;  // tombstone count
-        let _classes = {};     // id -> label
+        let _classes = {};     // id -> label (filter dropdown; includes enrollment-only fallbacks)
+        let _classDocs = [];   // [{id, label}] raw observatory_classes docs (class editor, add/rename/remove target)
         let _rosterSort = { k: 'enrolledAt', dir: -1 };
         const EVENT_CAP = 5000;
 
@@ -194,7 +171,7 @@
         // Load all dashboard data: enrollment roster, recent activity, withdrawals,
         // and the admin class list. Reads are admin-gated by the Firestore rules.
         async function loadData() {
-            const { collection, getDocs, query, orderBy, limit, where } = _fs;
+            const { collection, getDocs, query, orderBy, limit } = _fs;
 
             // Roster.
             const eSnap = await getDocs(collection(_db, 'observatory_enrollment'));
@@ -204,61 +181,28 @@
             const aSnap = await getDocs(query(collection(_db, 'observatory_activity'), orderBy('at', 'desc'), limit(EVENT_CAP)));
             _events = []; aSnap.forEach(d => _events.push(d.data()));
 
-            // Course completions: a separate, type-scoped query so this view is never
-            // diluted by higher-frequency event types that later batches will add to
-            // observatory_activity. Equality filter + limit needs only a single-field
-            // index (auto); completions are sparse, so client-side sort is sufficient.
-            try {
-                const cSnap = await getDocs(query(collection(_db, 'observatory_activity'),
-                    where('type', '==', 'content_complete'), limit(EVENT_CAP)));
-                _completions = []; cSnap.forEach(d => _completions.push(d.data()));
-            } catch (e) { _completions = []; }
-
-            // Phase 2 behavioral event types. Each gets its own type-scoped query, for the
-            // same reason as _completions above: the shared _events cap must never dilute
-            // a specific view. Same equality-filter-plus-limit shape, so no new index needed.
-
-            // Page views: course slug (may be null) per view.
-            try {
-                const pvSnap = await getDocs(query(collection(_db, 'observatory_activity'),
-                    where('type', '==', 'page_view'), limit(EVENT_CAP)));
-                _pageViews = []; pvSnap.forEach(d => _pageViews.push(d.data()));
-            } catch (e) { _pageViews = []; }
-
-            // Session end: durationSec, activeSec, maxScrollPct per session.
-            try {
-                const seSnap = await getDocs(query(collection(_db, 'observatory_activity'),
-                    where('type', '==', 'session_end'), limit(EVENT_CAP)));
-                _sessionEnds = []; seSnap.forEach(d => _sessionEnds.push(d.data()));
-            } catch (e) { _sessionEnds = []; }
-
-
-            // Client errors: message plus source, a live QA feed.
-            try {
-                const ceSnap = await getDocs(query(collection(_db, 'observatory_activity'),
-                    where('type', '==', 'client_error'), limit(EVENT_CAP)));
-                _clientErrors = []; ceSnap.forEach(d => _clientErrors.push(d.data()));
-            } catch (e) { _clientErrors = []; }
-
-            // Device info: viewport, platform, connection, reducedMotion.
-            try {
-                const dvSnap = await getDocs(query(collection(_db, 'observatory_activity'),
-                    where('type', '==', 'device'), limit(EVENT_CAP)));
-                _devices = []; dvSnap.forEach(d => _devices.push(d.data()));
-            } catch (e) { _devices = []; }
-
             // Withdrawals (count only).
             try {
                 const wSnap = await getDocs(collection(_db, 'observatory_withdrawals'));
                 _withdrawals = wSnap.size;
             } catch (e) { _withdrawals = 0; }
 
-            // Class labels for the filter.
-            _classes = {};
+            // Class docs (admin-editable list) + derived label map for the filter.
+            await loadClassDocs();
+        }
+
+        // Load the raw observatory_classes docs (the class editor's data), then
+        // rebuild the id -> label map used by the filter dropdown (falling back
+        // to any classId seen only in enrollment, same as before this existed).
+        async function loadClassDocs() {
+            const { collection, getDocs } = _fs;
+            _classDocs = [];
             try {
                 const cSnap = await getDocs(collection(_db, 'observatory_classes'));
-                cSnap.forEach(d => { _classes[d.id] = (d.data().label || d.id); });
+                cSnap.forEach(d => { _classDocs.push({ id: d.id, label: (d.data().label || d.id) }); });
             } catch (e) { /* fall back to ids from enrollment */ }
+            _classes = {};
+            _classDocs.forEach(c => { _classes[c.id] = c.label; });
             _enroll.forEach(r => { if (r.classId && !_classes[r.classId]) _classes[r.classId] = r.className || r.classId; });
         }
 
@@ -294,13 +238,6 @@
             if (!cls) return _enroll;
             return _enroll.filter(r => r.classId === cls);
         }
-        // Generic class filter for any type-scoped activity array (Phase 2 views).
-        // Same rule as filteredEvents: empty selection means all classes.
-        function filteredByClass(arr) {
-            const cls = $('classFilter').value;
-            if (!cls) return arr;
-            return arr.filter(ev => ev.classId === cls);
-        }
 
         // ── Rendering ──
 
@@ -327,6 +264,99 @@
                 .concat(Object.keys(_classes).sort().map(id => `<option value="${id}">${esc(_classes[id])}</option>`));
             sel.innerHTML = opts.join('');
             sel.value = cur;
+        }
+
+        // Class editor: one row per observatory_classes doc, sorted by id, with an
+        // editable label + Save/Remove. This is the list the operator uses to seed
+        // their real classes (observatory_classes is unseeded by default, so the
+        // consent dropdown and this list both show only the built-in fallbacks
+        // until classes are added here).
+        function renderClassAdmin() {
+            const rows = _classDocs.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+            $('classEmpty').style.display = rows.length ? 'none' : 'block';
+            $('classBody').innerHTML = rows.map(c =>
+                `<tr><td>${esc(c.id)}</td>
+                 <td><input type="text" class="classLabelInput" data-id="${esc(c.id)}" value="${esc(c.label)}"
+                     style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:#070a18;color:var(--ink);font-size:0.82rem"></td>
+                 <td style="white-space:nowrap">
+                     <button class="saveClassBtn" data-id="${esc(c.id)}">Save</button>
+                     <button class="removeClassBtn" data-id="${esc(c.id)}">Remove</button>
+                 </td></tr>`).join('');
+            $('classBody').querySelectorAll('.saveClassBtn').forEach(btn =>
+                btn.addEventListener('click', () => saveClassLabel(btn.getAttribute('data-id'))));
+            $('classBody').querySelectorAll('.removeClassBtn').forEach(btn =>
+                btn.addEventListener('click', () => removeClass(btn.getAttribute('data-id'))));
+        }
+
+        // Slug rule for class ids: lowercase letters, numbers, and single dashes
+        // between segments (matches the platform's other id-style conventions).
+        const CLASS_ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+        // Re-read observatory_classes from Firestore and refresh both UIs that
+        // depend on it (the editor list and the roster's class filter).
+        async function refreshClasses() {
+            await loadClassDocs();
+            renderClassAdmin();
+            renderClassFilter();
+        }
+
+        // Add a brand-new class doc from the "Add class" form fields.
+        async function addClass() {
+            const err = $('classErr');
+            err.textContent = '';
+            const id = $('newClassId').value.trim().toLowerCase();
+            const label = $('newClassLabel').value.trim();
+            if (!CLASS_ID_RE.test(id)) {
+                err.textContent = 'Class id must be lowercase letters, numbers, and dashes only (e.g. cis2350c-fall26).';
+                return;
+            }
+            if (!label) { err.textContent = 'Label is required.'; return; }
+            if (_classDocs.some(c => c.id === id)) {
+                err.textContent = 'A class with that id already exists. Edit it in the list below instead.';
+                return;
+            }
+            try {
+                const { doc, setDoc } = _fs;
+                await setDoc(doc(_db, 'observatory_classes', id), { label: label });
+                $('newClassId').value = ''; $('newClassLabel').value = '';
+                await refreshClasses();
+            } catch (e) {
+                err.textContent = 'Add failed: ' + (e && e.message ? e.message : e);
+            }
+        }
+
+        // Rename an existing class (label only; the id/document key is fixed once created).
+        async function saveClassLabel(id) {
+            const err = $('classErr');
+            err.textContent = '';
+            const input = $('classBody').querySelector('.classLabelInput[data-id="' + CSS.escape(id) + '"]');
+            const label = input ? input.value.trim() : '';
+            if (!label) { err.textContent = 'Label cannot be empty.'; return; }
+            try {
+                const { doc, setDoc } = _fs;
+                await setDoc(doc(_db, 'observatory_classes', id), { label: label });
+                await refreshClasses();
+            } catch (e) {
+                err.textContent = 'Save failed: ' + (e && e.message ? e.message : e);
+            }
+        }
+
+        // Remove a class option. This only deletes the observatory_classes/{id}
+        // doc (the pick-list entry); it never touches observatory_enrollment, so
+        // participants already assigned to this class keep their classId/className
+        // exactly as-is; the id simply stops appearing as a choice going forward.
+        async function removeClass(id) {
+            const label = (_classDocs.find(c => c.id === id) || {}).label || id;
+            const ok = window.confirm('Remove class "' + label + '" (' + id + ')?\n\nThis only removes it from the selection list. Participants already enrolled in this class keep their current assignment.');
+            if (!ok) return;
+            $('classErr').textContent = '';
+            try {
+                const { doc, deleteDoc } = _fs;
+                await deleteDoc(doc(_db, 'observatory_classes', id));
+                await refreshClasses();
+            } catch (e) {
+                $('classErr').textContent = 'Remove failed: ' + (e && e.message ? e.message : e);
+            }
         }
 
         // Roster table — sortable, reflects the active class filter.
@@ -428,219 +458,14 @@
                  <h2 style="font-size:0.9rem">Enrollment by class</h2>${classRows || '<div class="empty">No enrollments.</div>'}`;
         }
 
-        // Course completions per student, from the type-scoped _completions set.
-        // Groups by student into distinct modules completed + last completion,
-        // honoring the active class filter (by the event's server-authoritative
-        // classId) so it stays consistent with the other sections.
-        function renderCourseProgress() {
-            const cls = $('classFilter').value;
-            const comps = cls ? _completions.filter(c => c.classId === cls) : _completions;
-            // Roster lookup for a friendly name + class label.
-            const who = {};
-            _enroll.forEach(r => { who[r.uid || r.id] = { name: r.displayName || r.id, cls: r.className || r.classId || '' }; });
-            // Group by student: a Set of distinct moduleIds plus the latest completion.
-            const byUid = {};
-            comps.forEach(c => {
-                const u = c.uid; if (!u) return;
-                if (!byUid[u]) byUid[u] = { mods: new Set(), last: null };
-                if (c.moduleId) byUid[u].mods.add(c.moduleId);
-                const d = eventDate(c);
-                if (d && (!byUid[u].last || d > byUid[u].last)) byUid[u].last = d;
-            });
-            const rows = Object.keys(byUid).map(u => {
-                const info = who[u] || { name: u, cls: '' };
-                const mods = Array.from(byUid[u].mods).sort();
-                return { name: info.name, cls: info.cls, count: mods.length, mods: mods.join(', '), last: byUid[u].last };
-            }).sort((a, b) => b.count - a.count);
-            if (!rows.length) { $('courseProgress').innerHTML = '<div class="empty">No content completions recorded yet.</div>'; return; }
-            const body = rows.map(r =>
-                `<tr><td>${esc(r.name)}</td><td>${esc(r.cls)}</td>
-                 <td style="text-align:center;font-weight:700">${r.count}</td>
-                 <td style="font-size:0.72rem;color:var(--muted)">${esc(r.mods)}</td>
-                 <td>${r.last ? esc(fmtDate(r.last)) : 'n/a'}</td></tr>`).join('');
-            $('courseProgress').innerHTML =
-                `<table id="progTable" style="width:100%;border-collapse:collapse">
-                    <thead><tr><th>Student</th><th>Class</th><th>Completions</th><th>Modules</th><th>Last completion</th></tr></thead>
-                    <tbody>${body}</tbody>
-                 </table>`;
-        }
-
-        // Behavioral engagement (Phase 2): page views plus session dwell, active-time
-        // ratio, and scroll depth, from page_view and session_end, each its own
-        // type-scoped query. Per-course rollup groups session_end by a course slug
-        // parsed from the event's own path, never from the diluted shared _events set.
-        function renderEngagement() {
-            const pageViews = filteredByClass(_pageViews);
-            // Collapse session_end snapshots to one per sessionId, keeping the largest
-            // durationSec. A tab-switch sends interim snapshots plus a final one for the
-            // same page load, so counting raw docs would inflate sessions and skew times.
-            const bySession = {};
-            filteredByClass(_sessionEnds).forEach(ev => {
-                const k = ev.sessionId || (ev.uid + '|' + ev.path);
-                const prev = bySession[k];
-                const prevDur = prev && Number.isFinite(prev.durationSec) ? prev.durationSec : -1;
-                if (!prev || (Number.isFinite(ev.durationSec) && ev.durationSec > prevDur)) bySession[k] = ev;
-            });
-            const sessions = Object.keys(bySession).map(k => bySession[k]);
-            if (!pageViews.length && !sessions.length) {
-                $('engagement').innerHTML = '<div class="empty">No engagement events recorded yet.</div>';
-                return;
-            }
-            // Distinct students active across either event type.
-            const uids = new Set();
-            pageViews.forEach(ev => { if (ev.uid) uids.add(ev.uid); });
-            sessions.forEach(ev => { if (ev.uid) uids.add(ev.uid); });
-
-            // Session-based averages: time on page, active-time ratio, max scroll depth.
-            const durSessions = sessions.filter(ev => Number.isFinite(ev.durationSec));
-            const avgDur = durSessions.length ? durSessions.reduce((s, ev) => s + ev.durationSec, 0) / durSessions.length : 0;
-            const ratioSessions = sessions.filter(ev => Number.isFinite(ev.activeSec) && Number.isFinite(ev.durationSec) && ev.durationSec > 0);
-            const avgRatio = ratioSessions.length
-                ? (ratioSessions.reduce((s, ev) => s + (ev.activeSec / ev.durationSec), 0) / ratioSessions.length) * 100
-                : 0;
-            const scrollSessions = sessions.filter(ev => Number.isFinite(ev.maxScrollPct));
-            const avgScroll = scrollSessions.length ? scrollSessions.reduce((s, ev) => s + ev.maxScrollPct, 0) / scrollSessions.length : 0;
-
-            const stats = `<div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:14px">
-                <div><div style="font-size:1.4rem;font-weight:800;color:var(--indigo)">${pageViews.length}</div>
-                     <div style="color:var(--muted);font-size:0.74rem">Page views</div></div>
-                <div><div style="font-size:1.4rem;font-weight:800;color:var(--indigo)">${uids.size}</div>
-                     <div style="color:var(--muted);font-size:0.74rem">Distinct students active</div></div>
-                <div><div style="font-size:1.4rem;font-weight:800;color:var(--indigo)">${fmtDur(avgDur)}</div>
-                     <div style="color:var(--muted);font-size:0.74rem">Avg. time on page</div></div>
-                <div><div style="font-size:1.4rem;font-weight:800;color:var(--indigo)">${avgRatio.toFixed(0)}%</div>
-                     <div style="color:var(--muted);font-size:0.74rem">Avg. active-time ratio</div></div>
-                <div><div style="font-size:1.4rem;font-weight:800;color:var(--indigo)">${avgScroll.toFixed(0)}%</div>
-                     <div style="color:var(--muted);font-size:0.74rem">Avg. max scroll depth</div></div>
-             </div>`;
-
-            // Per-course avg time, parsed from session_end's own path, e.g. applets/<house>/<course>.
-            const byCourse = {};
-            durSessions.forEach(ev => {
-                const m = /applets\/([^/]+\/[^/]+)/.exec(ev.path || '');
-                const course = m ? m[1] : '(other)';
-                if (!byCourse[course]) byCourse[course] = { total: 0, count: 0 };
-                byCourse[course].total += ev.durationSec;
-                byCourse[course].count++;
-            });
-            const rows = Object.keys(byCourse).map(c => [c, byCourse[c].total / byCourse[c].count]).sort((a, b) => b[1] - a[1]);
-            const max = rows.length ? rows[0][1] : 1;
-            const barsHtml = rows.length
-                ? rows.map(([c, avgSec]) =>
-                    `<div class="bar-row"><div class="lbl" title="${esc(c)}">${esc(c)}</div>
-                     <div class="track"><div class="fill" style="width:${(100 * avgSec / max).toFixed(1)}%"></div></div>
-                     <div class="val">${fmtDur(avgSec)}</div></div>`).join('')
-                : '<div class="empty">No per-course session data yet.</div>';
-
-            $('engagement').innerHTML = stats + barsHtml;
-        }
-
-        // Client errors students actually hit, grouped by message with a sample source.
-        // Doubles as a live QA feed. From its own type-scoped query.
-        function renderStruggle() {
-            const errors = filteredByClass(_clientErrors);
-            if (!errors.length) {
-                $('struggle').innerHTML = '<div class="empty">No client errors recorded yet.</div>';
-                return;
-            }
-            // Client errors grouped by message, with a sample source for triage.
-            const byMessage = {};
-            errors.forEach(ev => {
-                const m = ev.message || '(unknown error)';
-                if (!byMessage[m]) byMessage[m] = { count: 0, source: ev.source || '' };
-                byMessage[m].count++;
-            });
-            const errRows = Object.keys(byMessage).map(m => [m, byMessage[m].count, byMessage[m].source]).sort((a, b) => b[1] - a[1]);
-            $('struggle').innerHTML =
-                `<table style="width:100%;border-collapse:collapse">
-                     <thead><tr><th>Message</th><th>Count</th><th>Sample source</th></tr></thead>
-                     <tbody>${errRows.map(([m, c, src]) =>
-                        `<tr><td>${esc(m)}</td><td style="text-align:center;font-weight:700">${c}</td>
-                         <td style="font-size:0.72rem;color:var(--muted)">${esc(src)}</td></tr>`).join('')}</tbody>
-                   </table>`;
-        }
-
-        // Device breakdown (Phase 2): viewport, platform, connection mix, plus a
-        // reduced-motion count, from the device event type's own scoped query.
-        function renderDeviceBreakdown() {
-            const devices = filteredByClass(_devices);
-            if (!devices.length) {
-                $('deviceBreakdown').innerHTML = '<div class="empty">No device events recorded yet.</div>';
-                return;
-            }
-            // Small local helper: turn a group-by-key count map into a bar list.
-            function barsFor(counts) {
-                const rows = Object.keys(counts).map(k => [k, counts[k]]).sort((a, b) => b[1] - a[1]);
-                if (!rows.length) return '<div class="empty">No data.</div>';
-                const max = rows[0][1];
-                return rows.map(([k, v]) =>
-                    `<div class="bar-row"><div class="lbl" title="${esc(k)}">${esc(k)}</div>
-                     <div class="track"><div class="fill" style="width:${(100 * v / max).toFixed(1)}%"></div></div>
-                     <div class="val">${v}</div></div>`).join('');
-            }
-            const viewportCounts = {}, platformCounts = {}, connCounts = {};
-            let reducedMotionCount = 0;
-            devices.forEach(ev => {
-                const vp = ev.viewport || '(unknown)';
-                viewportCounts[vp] = (viewportCounts[vp] || 0) + 1;
-                const pl = ev.platform || '(unknown)';
-                platformCounts[pl] = (platformCounts[pl] || 0) + 1;
-                const cn = ev.connection || '(unknown)';
-                connCounts[cn] = (connCounts[cn] || 0) + 1;
-                if (ev.reducedMotion === true) reducedMotionCount++;
-            });
-            $('deviceBreakdown').innerHTML =
-                `<div style="margin-bottom:14px">
-                    <div style="font-size:1.4rem;font-weight:800;color:var(--indigo)">${reducedMotionCount}</div>
-                    <div style="color:var(--muted);font-size:0.74rem">Devices with reduced motion enabled</div>
-                 </div>
-                 <h3 style="font-size:0.9rem;color:var(--indigo);margin:0 0 8px">Viewport size</h3>${barsFor(viewportCounts)}
-                 <h3 style="font-size:0.9rem;color:var(--indigo);margin:18px 0 8px">Platform</h3>${barsFor(platformCounts)}
-                 <h3 style="font-size:0.9rem;color:var(--indigo);margin:18px 0 8px">Connection type</h3>${barsFor(connCounts)}`;
-        }
-
-        // Live activity feed: the most recent events across all types (from the shared
-        // recent-activity query, newest first), honoring the class filter. A quick pulse of
-        // what the cohort is doing right now. Reads the already-loaded _events, so it adds
-        // no query; the per-type analytic views above use their own scoped queries.
-        function renderLiveFeed() {
-            const evs = filteredEvents().slice(0, 40);
-            if (!evs.length) { $('liveFeed').innerHTML = '<div class="empty">No recent activity.</div>'; return; }
-            // Friendly student name from the roster, falling back to a short uid.
-            const who = {};
-            _enroll.forEach(r => { const k = r.uid || r.id; who[k] = r.displayName || (r.id ? r.id.slice(0, 6) : '?'); });
-            // A short, type-appropriate detail string for each event.
-            const detail = ev => {
-                if (ev.type === 'content_complete') return esc((ev.moduleId || '') + (ev.score != null ? ' (' + ev.score + ')' : ''));
-                if (ev.type === 'course_click') return esc(ev.name || ev.target || '');
-                if (ev.type === 'page_view') return esc(ev.course || ev.path || '');
-                if (ev.type === 'session_end') return Number.isFinite(ev.durationSec) ? fmtDur(ev.durationSec) : '';
-                if (ev.type === 'client_error') return esc(ev.message || '');
-                if (ev.type === 'house_dwell') return Number.isFinite(ev.seconds) ? fmtDur(ev.seconds) : '';
-                return esc(ev.path || '');
-            };
-            $('liveFeed').innerHTML =
-                `<table style="width:100%;border-collapse:collapse">
-                    <thead><tr><th>Time</th><th>Student</th><th>Event</th><th>Detail</th></tr></thead>
-                    <tbody>${evs.map(ev => {
-                        const d = eventDate(ev);
-                        return `<tr><td style="white-space:nowrap;font-size:0.72rem;color:var(--muted)">${d ? esc(fmtDate(d)) : 'n/a'}</td>
-                            <td>${esc(who[ev.uid] || (ev.uid ? ev.uid.slice(0, 6) : '?'))}</td>
-                            <td><span style="font-family:monospace;font-size:0.72rem">${esc(ev.type)}</span></td>
-                            <td style="font-size:0.72rem;color:var(--muted)">${detail(ev)}</td></tr>`;
-                    }).join('')}</tbody>
-                 </table>`;
-        }
-
         // Render everything from the current data + filter.
         function renderAll() {
-            renderCards(); renderRoster(); renderHeat(); renderCoursePop(); renderCourseProgress(); renderDwell();
-            renderEngagement(); renderStruggle(); renderDeviceBreakdown(); renderLiveFeed();
+            renderCards(); renderRoster(); renderHeat(); renderCoursePop(); renderDwell();
         }
 
         // ── Helpers ──
         function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-        function fmtDate(d) { try { return d.toLocaleString(); } catch (e) { return 'n/a'; } }
+        function fmtDate(d) { try { return d.toLocaleString(); } catch (e) { return '—'; } }
         function fmtDur(sec) {
             sec = Math.round(sec || 0);
             if (sec < 60) return sec + 's';
@@ -678,15 +503,6 @@
             }));
             downloadCsv('observatory-events.csv', ['uid', 'classId', 'type', 'at', 'path', 'name', 'target', 'seconds'], rows);
         }
-        // Export the type-scoped content_complete set (not the diluted _events set).
-        function exportCompletions() {
-            const rows = _completions.map(c => ({
-                uid: c.uid || '', classId: c.classId || '', moduleId: c.moduleId || '',
-                score: Number.isFinite(c.score) ? c.score : '', path: c.path || '',
-                date: (eventDate(c) ? eventDate(c).toISOString() : '')
-            }));
-            downloadCsv('observatory-completions.csv', ['uid', 'classId', 'moduleId', 'score', 'path', 'date'], rows);
-        }
 
         // ── Boot ──
         async function boot() {
@@ -694,6 +510,7 @@
                 if (!(await connect())) { $('status').textContent = 'Could not connect to the database.'; return; }
                 await loadData();
                 renderClassFilter();
+                renderClassAdmin();
                 renderAll();
                 $('status').textContent = _events.length >= EVENT_CAP
                     ? `Showing the most recent ${EVENT_CAP} activity events (cap reached — older events not included in charts).`
@@ -709,7 +526,7 @@
         $('refreshBtn').addEventListener('click', boot);
         $('exportRoster').addEventListener('click', exportRoster);
         $('exportEvents').addEventListener('click', exportEvents);
-        $('exportCompletions').addEventListener('click', exportCompletions);
+        $('addClassBtn').addEventListener('click', addClass);
         document.querySelectorAll('#rosterTable th').forEach(th => th.addEventListener('click', () => {
             const k = th.getAttribute('data-k');
             _rosterSort = { k, dir: (_rosterSort.k === k ? -_rosterSort.dir : 1) };

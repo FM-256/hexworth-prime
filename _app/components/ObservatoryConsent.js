@@ -27,11 +27,7 @@ const ObservatoryConsent = (function () {
     'use strict';
 
     // Bump when the consent wording changes so re-consent can be required later.
-    // v2 adds the explicit "Data Collected" enumeration ahead of the Phase 2
-    // behavioral telemetry; participants re-consent on this version bump before any
-    // Phase 2 event is collected for them (the ingestion function gates deep events
-    // on this exact version).
-    const FORM_VERSION = 'cerbi-v2-2026-07-05';
+    const FORM_VERSION = 'cerbi-v1-2026-06-21';
 
     // Fallback class list used when the Firestore `observatory_classes`
     // collection is empty/unavailable. Replaced by admin-editable data later.
@@ -54,11 +50,10 @@ const ObservatoryConsent = (function () {
     // Consent text — verbatim from the approved Research Participation Consent Form.
     const CONSENT_SECTIONS = [
         { h: 'Purpose', p: 'This study examines how gamified cybersecurity training influences user behavior, awareness, and decision making. It also evaluates CERBI scoring and behavioral pattern discovery to improve training methods.' },
-        { h: 'Procedures', p: 'Participants will engage in courses, training activities, and competitions using HEXworth Academy content. Interaction, performance, and learning-behavior data will be collected (see Data Collected). Duration: up to 6 months.' },
+        { h: 'Procedures', p: 'Participants will engage in courses, training activities, and competitions using HEXworth Academy content. Interaction and performance data will be collected. Duration: up to 6 months.' },
         { h: 'Voluntary Participation', p: 'Participation is voluntary. You may withdraw at any time without penalty.' },
         { h: 'Risks', p: 'Minimal risk. Possible mild discomfort or privacy concerns. Safeguards will be implemented.' },
         { h: 'Benefits', p: 'No direct benefit. Results may improve cybersecurity education and behavioral risk modeling.' },
-        { h: 'Data Collected', p: 'To study how gamified training affects learning and behavior, the platform records, tied to a research identifier: (a) learning progress and performance, which content you complete and your quiz scores; (b) engagement, the pages and lessons you view, time spent and periods of inactivity, how far you scroll, and session length; (c) technical context, your device and browser type and any errors encountered while using the platform. The platform does not record the text you type into free-form fields, and no data is shared in a form that identifies you.' },
         { h: 'Confidentiality', p: 'All data will be anonymized and securely stored. No personally identifiable information will be disclosed.' },
         { h: 'Data Usage', p: 'Data will be used for academic research, publications, and development of cybersecurity frameworks such as CERBI.' },
         { h: 'Consent', p: 'By signing below, you confirm that you understand this study and agree to participate voluntarily.' }
@@ -95,6 +90,20 @@ const ObservatoryConsent = (function () {
             }
         } catch (e) { /* ignore */ }
         return null;
+    }
+
+    // ── Escaping ────────────────────────────────────────────────────────
+    // Escape a string for safe interpolation into innerHTML/attributes. Class
+    // labels/ids can originate from a participant's own devtools-editable
+    // Firestore doc (or elsewhere), so anything rendered back into the DOM
+    // (option text, option value, "current class" banner) must be escaped -
+    // otherwise a crafted className is a self-XSS payload the next time this
+    // switcher (or the consent form) renders. Shared so every render site
+    // uses one escape, not a copy each.
+    function escHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
     }
 
     // ── Persistence ─────────────────────────────────────────────────────
@@ -255,7 +264,7 @@ ${sections}
         const overlay = document.createElement('div');
         overlay.className = 'obs-consent-overlay';
         const sectionsHTML = CONSENT_SECTIONS.map(s => `<h3>${s.h}</h3><p>${s.p}</p>`).join('');
-        const classOpts = classes.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+        const classOpts = classes.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.label)}</option>`).join('');
         overlay.innerHTML = `
         <div class="obs-gate-stars" aria-hidden="true"></div>
         <div class="obs-consent-card" role="dialog" aria-modal="true" aria-label="Research participation consent">
@@ -440,7 +449,116 @@ ${sections}
         });
     }
 
-    return { ensureConsent: ensureConsent, showWithdraw: showWithdraw, FORM_VERSION: FORM_VERSION };
+    // ── Class switcher (cohort re-attribution, not a consent change) ────
+    // Lets an already-consented participant pick a different class without
+    // re-running consent. Rewrites observatory_enrollment/{uid} (the doc the
+    // Cloud Function and admin dashboard treat as authoritative for classId)
+    // and mirrors the change into observatory_consent/{uid} + the localStorage
+    // record for consistency. Does NOT touch formVersion or agreement fields.
+    // No-ops gracefully (routes into normal consent instead) ONLY when there is
+    // no signed-in user or no consent record at all - a not-yet-enrolled
+    // visitor has nothing to "change" yet. A consent record with a missing or
+    // unreadable enrollment doc (partial/legacy state) still gets the dialog
+    // below, current class shown as none, so the click is never a dead click;
+    // the save handler recreates BOTH docs regardless of which one existed.
+    async function showChangeClass() {
+        injectStyles();
+        const uid = await getUid();
+        if (!uid) { ensureConsent(function () {}); return; }
+
+        const conn = getDb();
+        let enrollment = null;
+        if (conn) {
+            try {
+                const { doc, getDoc } = conn.fs;
+                const snap = await getDoc(doc(conn.db, 'observatory_enrollment', uid));
+                if (snap.exists()) enrollment = snap.data();
+            } catch (e) { console.warn('[Observatory] enrollment read failed:', e.message); }
+        }
+
+        // Only route away to full consent when there is NO consent record at
+        // all. If consent exists but enrollment is missing/unreadable, fall
+        // through to the dialog below instead of silently doing nothing.
+        let consentFallback = null;
+        if (!enrollment) {
+            consentFallback = await loadConsent(uid);
+            if (!consentFallback) { ensureConsent(function () {}); return; }
+        }
+
+        const classes = await loadClasses();
+        const currentId = (enrollment && enrollment.classId) || '';
+        const currentLabel = (enrollment && (enrollment.className || enrollment.classId))
+            || (consentFallback && (consentFallback.className || consentFallback.classId))
+            || '(none yet)';
+        const classOpts = classes.map(c =>
+            `<option value="${escHtml(c.id)}"${c.id === currentId ? ' selected' : ''}>${escHtml(c.label)}</option>`).join('');
+
+        const overlay = document.createElement('div');
+        overlay.className = 'obs-consent-overlay';
+        overlay.innerHTML = `
+        <div class="obs-gate-stars" aria-hidden="true"></div>
+        <div class="obs-consent-card obs-signin-card" role="dialog" aria-modal="true" aria-label="Change your class">
+            <h1>Change my class</h1>
+            <div class="obs-consent-sub">Your current class: <strong>${escHtml(currentLabel)}</strong>. This only changes which class your activity is grouped under for the study. It does not affect your research consent or your data.</div>
+            <div class="obs-field" style="text-align:left"><label for="obsChangeClass">New class</label><select id="obsChangeClass">${classOpts}</select></div>
+            <div class="obs-actions" style="justify-content:center">
+                <button class="obs-btn" id="obsChangeGo">Save class</button>
+                <button class="obs-btn" id="obsChangeCancel" style="background:#1b2140;color:#cdd6f4">Cancel</button>
+            </div>
+            <div class="obs-err" id="obsChangeErr"></div>
+        </div>`;
+        document.body.appendChild(overlay);
+
+        const $ = id => overlay.querySelector(id);
+        $('#obsChangeCancel').addEventListener('click', () => overlay.remove());
+        $('#obsChangeGo').addEventListener('click', async () => {
+            const go = $('#obsChangeGo'), err = $('#obsChangeErr');
+            go.disabled = true; err.textContent = '';
+            const classId = $('#obsChangeClass').value;
+            const classObj = classes.find(c => c.id === classId) || { id: classId, label: classId };
+            try {
+                if (!conn) throw new Error('database unavailable');
+                const { doc, writeBatch, serverTimestamp } = conn.fs;
+                // Atomic batch (mirrors saveConsent's own pattern above): both
+                // docs commit together or not at all, so enrollment.classId and
+                // consent.classId can never disagree from a partial failure.
+                // merge:true on each set so no other field (name, formVersion,
+                // agreements, etc.) is disturbed - batch.set does not merge by
+                // default, unlike a bare setDoc call, so this must be explicit.
+                const batch = writeBatch(conn.db);
+                batch.set(doc(conn.db, 'observatory_enrollment', uid), {
+                    classId: classObj.id,
+                    className: classObj.label,
+                    serverClassChangedAt: serverTimestamp()
+                }, { merge: true });
+                batch.set(doc(conn.db, 'observatory_consent', uid), {
+                    classId: classObj.id,
+                    className: classObj.label
+                }, { merge: true });
+                await batch.commit();
+                try {
+                    const raw = localStorage.getItem('observatory_consent_' + uid);
+                    if (raw) {
+                        const rec = JSON.parse(raw);
+                        rec.classId = classObj.id;
+                        rec.className = classObj.label;
+                        localStorage.setItem('observatory_consent_' + uid, JSON.stringify(rec));
+                    }
+                } catch (e2) { /* ignore, mirror is best-effort */ }
+                overlay.remove();
+            } catch (e) {
+                err.textContent = 'Could not save your class change. Please try again.';
+                go.disabled = false;
+            }
+        });
+    }
+
+    return {
+        ensureConsent: ensureConsent,
+        showWithdraw: showWithdraw,
+        showChangeClass: showChangeClass,
+        FORM_VERSION: FORM_VERSION
+    };
 })();
 
 // Browser global for script-tag consumers.
