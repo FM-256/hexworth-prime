@@ -381,6 +381,104 @@ const srv = http.createServer((q, s) => {
   ok('Retry This Ticket closes the modal and restarts the SAME ticket at phase 0 with a full budget', retryRun.modalClosed && retryRun.phase === 0 && retryRun.budgetRestored && retryRun.sameTicket, retryRun);
 
   // ════════════════════════════════════════════════════════════════════
+  // SCENARIO 5: ANTI-POSITIONAL-GAMING SHUFFLE -- regression for the
+  // "always click slot 1" defect: the correct fix was always ticket.fixes[0]
+  // (id f1), the correct preventive was always ticket.preventive[0] (id p1),
+  // and the document-checklist's 4 correct items (d1-d4) were always
+  // rendered before the 2 decoys (d5-d6), all with 0 shuffle/Math.random in
+  // the source. A student who learned "click the first option" won Fix,
+  // Preventive, and Document blind on every ticket with zero reasoning.
+  //
+  // This re-renders each option list many times in-page (no reload needed --
+  // renderFixOptions/renderPreventiveOptions/renderDocChecklist are exposed
+  // globals) and records the DOM index the correct answer lands at each
+  // time. A weak assertion ("more than one distinct index observed") could
+  // still pass with a biased/broken shuffle that merely alternates between
+  // 2 of N positions, so instead we assert EVERY possible index (0..N-1) is
+  // observed at least once across enough trials, which only a real,
+  // roughly-uniform Fisher-Yates satisfies. Trial counts are sized well past
+  // the coupon-collector expectation for each list's option count (4 fixes,
+  // 3 preventives, 6 doc-checklist items) so a correct shuffle passes with
+  // overwhelming probability and a broken one reliably fails.
+  // ════════════════════════════════════════════════════════════════════
+  console.log('\n=== Scenario 5: fix/preventive/doc-checklist render order is shuffled (anti-gaming) ===');
+  await load();
+
+  const shuffleRun = await pg.evaluate(() => {
+    const TRIALS = 80;
+    const fixIndices = [];
+    const prevIndices = [];
+    const docIndices = [];
+
+    for (let t = 0; t < window.TICKETS.length; t++) {
+      const tk = window.TICKETS[t];
+      const correctFixId = tk.fixes.filter(f => f.correct)[0].id;
+      const correctPrevId = tk.preventive.filter(p => p.correct)[0].id;
+
+      for (let i = 0; i < TRIALS; i++) {
+        window.renderFixOptions(tk);
+        const fixIds = Array.from(document.querySelectorAll('#fix-options .action-card')).map(el => el.id);
+        fixIndices.push(fixIds.indexOf('fix-' + correctFixId));
+
+        window.renderPreventiveOptions(tk);
+        const prevIds = Array.from(document.querySelectorAll('#preventive-options .action-card')).map(el => el.id);
+        prevIndices.push(prevIds.indexOf('prev-' + correctPrevId));
+      }
+    }
+
+    // Document checklist is shared across tickets (not per-ticket data), so
+    // it only needs to be exercised once, tracking correct item d1's index.
+    for (let i = 0; i < TRIALS; i++) {
+      window.renderDocChecklist();
+      const docIds = Array.from(document.querySelectorAll('#doc-checklist .doc-check-item')).map(el => el.id);
+      docIndices.push(docIds.indexOf('doc-row-d1'));
+    }
+
+    const distinct = (a) => new Set(a).size;
+    return {
+      trials: TRIALS,
+      fixDistinctCount: distinct(fixIndices),
+      fixPositionsExpected: 4,
+      prevDistinctCount: distinct(prevIndices),
+      prevPositionsExpected: 3,
+      docDistinctCount: distinct(docIndices),
+      docPositionsExpected: 6,
+      fixIndicesSample: fixIndices.slice(0, 12),
+      prevIndicesSample: prevIndices.slice(0, 12),
+      docIndicesSample: docIndices.slice(0, 12)
+    };
+  });
+  ok('correct FIX renders at all 4 possible positions across trials (not fixed at index 0)',
+    shuffleRun.fixDistinctCount === shuffleRun.fixPositionsExpected, shuffleRun);
+  ok('correct PREVENTIVE renders at all 3 possible positions across trials (not fixed at index 0)',
+    shuffleRun.prevDistinctCount === shuffleRun.prevPositionsExpected, shuffleRun);
+  ok('doc-checklist item d1 renders at all 6 possible positions across trials (not clustered first every time)',
+    shuffleRun.docDistinctCount === shuffleRun.docPositionsExpected, shuffleRun);
+
+  // Sanity check: grading must still be 100% id-based after the shuffle, not
+  // dependent on the shuffled DOM order. Drive one legitimate playthrough to
+  // the Fix phase (fresh page load) and confirm selectFix(correctFixId) is
+  // still accepted no matter where the shuffle rendered that card.
+  await load();
+  const gradeAfterShuffle = await pg.evaluate(() => {
+    const tk = window.TICKETS[0];
+    const correctTheoryId = tk.theories.filter(th => th.correct)[0].id;
+    const correctFixId = tk.fixes.filter(f => f.correct)[0].id;
+    tk.gather.forEach(g => window.doGather(g.id));
+    window.proceedFromIdentify();
+    window.selectTheory(correctTheoryId);
+    window.proceedFromTheory();
+    window.runTest();
+    window.proceedFromTest();
+    const renderedIndex = Array.from(document.querySelectorAll('#fix-options .action-card'))
+      .map(el => el.id).indexOf('fix-' + correctFixId);
+    window.selectFix(correctFixId);
+    return { renderedIndex, correctFixId, selectedFixId: window.selectedFixId, phase: window.currentPhase };
+  });
+  ok('selectFix(correctFixId) is accepted regardless of its shuffled rendered index (grading is id-based)',
+    gradeAfterShuffle.selectedFixId === gradeAfterShuffle.correctFixId, gradeAfterShuffle);
+
+  // ════════════════════════════════════════════════════════════════════
   // STYLE + INTEGRITY CHECKS on the rendered page
   // ════════════════════════════════════════════════════════════════════
   console.log('\n=== Style + platform integrity checks ===');
