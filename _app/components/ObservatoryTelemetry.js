@@ -222,9 +222,54 @@ window.ObservatoryTelemetry = (function () {
         window.addEventListener('pagehide', sendSessionEnd);
     }
 
+    // Load a script once (idempotent): skip if a tag for it is already on the page.
+    // Resolves on load or error (best effort; a failed load just means no auth source).
+    function loadScriptOnce(src) {
+        return new Promise(function (resolve) {
+            if (document.querySelector('script[src*="' + src + '"]')) { resolve(); return; }
+            var s = document.createElement('script');
+            s.src = src;
+            s.onload = function () { resolve(); };
+            s.onerror = function () { resolve(); };
+            (document.head || document.documentElement).appendChild(s);
+        });
+    }
+
+    // Cheap gate before loading anything: is there a cached, signed-in (non-anonymous)
+    // user? FirebaseAuth persists its user to localStorage ('hexworth_firebase_user') and
+    // clears it on sign-out. A consented Observatory student has signed in (the consent
+    // gate requires a real account), so the persisted user is present across ALL pages on
+    // the origin, including bare content pages that never load Firebase. A public or
+    // never-signed-in visitor has none, so we skip the FirebaseAuth + Firebase SDK load
+    // entirely and add zero third-party cost to those visits. If FirebaseAuth is already
+    // on the page, proceed regardless.
+    function hasSignedInHint() {
+        if (typeof FirebaseAuth !== 'undefined') return true;
+        try {
+            var raw = localStorage.getItem('hexworth_firebase_user');
+            if (!raw) return false;
+            var u = JSON.parse(raw);
+            return !!(u && u.uid && u.isAnonymous === false);
+        } catch (e) { return false; }
+    }
+
+    // Lazy-load FirebaseAuth.js when the page does not already include it, so this single
+    // telemetry tag is self-sufficient on any Observatory content page (no separate auth
+    // include required for the rollout). FirebaseAuth.waitForAuth() self-initializes the
+    // SDK and resolves to the signed-in user or null; it never creates an anonymous
+    // account, so a page with no signed-in student stays a silent no-op.
+    async function ensureFirebaseAuth() {
+        if (typeof FirebaseAuth !== 'undefined') return;
+        await loadScriptOnce('/components/FirebaseAuth.js');
+    }
+
     // Resolve identity, seed a token, then wire the completion + behavioral capture.
     async function init() {
         if (_wired) return;
+        // No cached signed-in user means nothing to attribute and no reason to pay the
+        // SDK-load cost; stay a fully silent no-op (Nancy 2026-07-05 cost review).
+        if (!hasSignedInHint()) return;
+        await ensureFirebaseAuth();
         let user = null;
         try {
             if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.waitForAuth) {

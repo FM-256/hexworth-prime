@@ -7,7 +7,13 @@
 const fs=require('fs'),path=require('path'),http=require('http'),pup=require('puppeteer');
 const LIB=fs.readFileSync(path.resolve('_app/components/ObservatoryTelemetry.js'),'utf8');
 const ENDPOINT='https://us-central1-hexworth-prime.cloudfunctions.net/logObservatoryEvent';
-const srv=http.createServer((q,s)=>{s.writeHead(200,{'Content-Type':'text/html'});s.end('<!doctype html><html><head></head><body>harness</body></html>');});
+// Stub FirebaseAuth served at /components/FirebaseAuth.js so we can prove the lib's
+// self-load path: a page with no FirebaseAuth pulls this in and then captures.
+const SELF_LOAD_AUTH='window.FirebaseAuth={waitForAuth:async function(){return {uid:"self-load-stu"};},refreshToken:async function(){return "self-loaded-token";}};';
+const srv=http.createServer((q,s)=>{
+  if(q.url.indexOf('/components/FirebaseAuth.js')===0){s.writeHead(200,{'Content-Type':'text/javascript'});s.end(SELF_LOAD_AUTH);return;}
+  s.writeHead(200,{'Content-Type':'text/html'});s.end('<!doctype html><html><head></head><body>harness</body></html>');
+});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 async function setup(browser,port,user){
@@ -83,6 +89,76 @@ async function setVis(pg,state){
   console.log('Scenario C types =',JSON.stringify(types(bC)));
   check(types(bC).filter(t=>t==='content_complete').length===0,'no content_complete for moduleId-less events');
   await C.pg.close();
+
+  // Scenario D: SELF-LOAD. The page has NO FirebaseAuth; the lib must lazy-load
+  // /components/FirebaseAuth.js (served by the harness) and then capture. Proves the single
+  // telemetry tag is self-sufficient on a page with no separate auth include.
+  const D=await browser.newPage();const dErrs=[];
+  D.on('pageerror',e=>dErrs.push(String(e.message).slice(0,140)));
+  await D.goto('http://localhost:'+port+'/',{waitUntil:'domcontentloaded'});
+  await D.evaluate(()=>{
+    window.__beacons=[];
+    navigator.sendBeacon=function(url,blob){window.__beacons.push({url,_blob:blob});return true;};
+    // A cached signed-in user is the cost gate's trigger; set it, but do NOT define
+    // window.FirebaseAuth - the lib must fetch FirebaseAuth.js itself.
+    window.localStorage.setItem('hexworth_firebase_user',JSON.stringify({uid:'self-load-stu',isAnonymous:false}));
+  });
+  await D.addScriptTag({content:LIB});
+  await sleep(500);
+  const bD=await readBeacons(D);const tD=bD.map(b=>b.body&&b.body.type);
+  console.log('Scenario D (self-load) types =',JSON.stringify(tD));
+  check(await D.evaluate(()=>typeof FirebaseAuth!=='undefined'),'lib lazy-loaded FirebaseAuth on a page that lacked it');
+  check(tD.indexOf('page_view')!==-1,'behavioral capture works after self-load (page_view emitted)');
+  check(bD.length>0 && bD.every(b=>b.body.idToken==='self-loaded-token' && b.body.type),'self-loaded beacons carry the self-loaded token');
+  check(await D.evaluate(()=>document.querySelectorAll('script[src*="/components/FirebaseAuth.js"]').length)===1,'exactly ONE FirebaseAuth.js tag injected (no duplicate)');
+  check(dErrs.length===0,'no page errors during self-load ('+(dErrs[0]||'none')+')');
+  await D.close();
+
+  // Scenario E: GUARD. A FirebaseAuth.js tag is ALREADY on the page (e.g. statically
+  // included, or appended by another loader) when the lib runs. The lib must NOT append a
+  // second one (a duplicate would re-run FirebaseAuth's top-level const and throw). Proves
+  // loadScriptOnce's querySelector guard branch - the exact branch tied to the ModuleProgress
+  // collision Nancy flagged.
+  const E=await browser.newPage();const eErrs=[];
+  E.on('pageerror',e=>eErrs.push(String(e.message).slice(0,140)));
+  await E.goto('http://localhost:'+port+'/',{waitUntil:'domcontentloaded'});
+  await E.evaluate(()=>{
+    window.__beacons=[];
+    navigator.sendBeacon=function(url,blob){window.__beacons.push({url,_blob:blob});return true;};
+    window.localStorage.setItem('hexworth_firebase_user',JSON.stringify({uid:'e-stu',isAnonymous:false}));
+    // Pre-plant a FirebaseAuth.js tag before the lib runs.
+    var s=document.createElement('script');s.src='/components/FirebaseAuth.js';document.head.appendChild(s);
+  });
+  await E.addScriptTag({content:LIB});
+  await sleep(400);
+  // Simulate a second guarded loader (as ModuleProgress now is) also trying to load it.
+  const eAppended=await E.evaluate(()=>{ if(!document.querySelector('script[src*="FirebaseAuth.js"]')){var s=document.createElement('script');s.src='/components/FirebaseAuth.js';document.head.appendChild(s);return true;} return false; });
+  await sleep(100);
+  const eTags=await E.evaluate(()=>document.querySelectorAll('script[src*="/components/FirebaseAuth.js"]').length);
+  console.log('Scenario E (guard): FirebaseAuth.js tags =',eTags,' second-loader-appended =',eAppended);
+  check(eTags===1,'lib did NOT append a duplicate FirebaseAuth.js when one already existed');
+  check(eAppended===false,'a second guarded loader also skips (no duplicate tag, no const redeclaration)');
+  check(eErrs.length===0,'no SyntaxError / page error with a pre-existing tag ('+(eErrs[0]||'none')+')');
+  await E.close();
+
+  // Scenario F: COST GATE. No cached signed-in user and no FirebaseAuth on the page. The lib
+  // must stay fully inert: it must NOT fetch FirebaseAuth.js / the Firebase SDK at all, so a
+  // public/never-signed-in visitor pays zero third-party cost (Nancy cost review).
+  const F=await browser.newPage();
+  await F.goto('http://localhost:'+port+'/',{waitUntil:'domcontentloaded'});
+  await F.evaluate(()=>{
+    window.__beacons=[];
+    navigator.sendBeacon=function(url,blob){window.__beacons.push({url,_blob:blob});return true;};
+    try{window.localStorage.removeItem('hexworth_firebase_user');}catch(e){}
+  });
+  await F.addScriptTag({content:LIB});
+  await sleep(300);
+  const fTags=await F.evaluate(()=>document.querySelectorAll('script[src*="FirebaseAuth.js"]').length);
+  const fBeacons=await F.evaluate(()=>window.__beacons.length);
+  console.log('Scenario F (cost gate): FirebaseAuth.js tags =',fTags,' beacons =',fBeacons);
+  check(fTags===0,'NO FirebaseAuth.js loaded for a visitor with no cached signed-in user (zero cost)');
+  check(fBeacons===0,'no beacons without a signed-in hint');
+  await F.close();
 
   await browser.close();await new Promise(r=>srv.close(r));
   console.log(pass?'\n*** OBSERVATORY TELEMETRY CHECK OK ***':'\n*** CHECK FAILED ***');

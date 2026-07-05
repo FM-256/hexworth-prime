@@ -228,10 +228,8 @@ const ModuleProgress = (function() {
                 // Lazy-load FirebaseAuth for tenant students on pages that don't
                 // include it directly (e.g., Network+ content after FluxCapacitor removal).
                 // This ensures progress syncs to Firestore even without FluxCapacitor.
-                var script = document.createElement('script');
-                script.src = '/components/FirebaseAuth.js';
-                script.onload = function() {
-                    // Wait for FirebaseAuth to initialize (it auto-inits on load)
+                // Poll for readiness, then sync.
+                var callWhenReady = function() {
                     var attempts = 0;
                     var waitForAuth = setInterval(function() {
                         attempts++;
@@ -241,16 +239,28 @@ const ModuleProgress = (function() {
                                 console.warn('[ModuleProgress] Class progress sync failed:', err.message);
                             });
                         } else if (attempts > 20) {
-                            // Give up after ~4 seconds — don't block the page
+                            // Give up after ~4 seconds; do not block the page
                             clearInterval(waitForAuth);
                             console.warn('[ModuleProgress] FirebaseAuth did not initialize in time');
                         }
                     }, 200);
                 };
-                script.onerror = function() {
-                    console.warn('[ModuleProgress] Failed to lazy-load FirebaseAuth.js');
-                };
-                document.head.appendChild(script);
+                // Guard against a duplicate <script> tag: another loader (e.g.
+                // ObservatoryTelemetry) may already have appended FirebaseAuth.js. A second
+                // tag would re-execute FirebaseAuth's top-level `const` declaration and throw
+                // a SyntaxError into the page. If a tag exists, just wait for it; matches the
+                // querySelector guard already used by ensureFirestoreDeps above.
+                if (document.querySelector('script[src*="FirebaseAuth.js"]')) {
+                    callWhenReady();
+                } else {
+                    var script = document.createElement('script');
+                    script.src = '/components/FirebaseAuth.js';
+                    script.onload = callWhenReady;
+                    script.onerror = function() {
+                        console.warn('[ModuleProgress] Failed to lazy-load FirebaseAuth.js');
+                    };
+                    document.head.appendChild(script);
+                }
             }
         } catch (e) {
             // Silent fail — localStorage progress is already saved
