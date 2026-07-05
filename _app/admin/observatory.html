@@ -146,6 +146,13 @@
             <div id="deviceBreakdown"></div>
         </div>
 
+        <!-- Live activity feed (most recent events, all types) -->
+        <div class="section">
+            <h2>Live activity</h2>
+            <div class="hint">The most recent events across the cohort, newest first, honoring the class filter. A quick pulse of what is happening now.</div>
+            <div id="liveFeed"></div>
+        </div>
+
         <!-- Dwell + per-class -->
         <div class="section">
             <h2>Engagement summary</h2>
@@ -592,10 +599,43 @@
                  <h3 style="font-size:0.9rem;color:var(--indigo);margin:18px 0 8px">Connection type</h3>${barsFor(connCounts)}`;
         }
 
+        // Live activity feed: the most recent events across all types (from the shared
+        // recent-activity query, newest first), honoring the class filter. A quick pulse of
+        // what the cohort is doing right now. Reads the already-loaded _events, so it adds
+        // no query; the per-type analytic views above use their own scoped queries.
+        function renderLiveFeed() {
+            const evs = filteredEvents().slice(0, 40);
+            if (!evs.length) { $('liveFeed').innerHTML = '<div class="empty">No recent activity.</div>'; return; }
+            // Friendly student name from the roster, falling back to a short uid.
+            const who = {};
+            _enroll.forEach(r => { const k = r.uid || r.id; who[k] = r.displayName || (r.id ? r.id.slice(0, 6) : '?'); });
+            // A short, type-appropriate detail string for each event.
+            const detail = ev => {
+                if (ev.type === 'content_complete') return esc((ev.moduleId || '') + (ev.score != null ? ' (' + ev.score + ')' : ''));
+                if (ev.type === 'course_click') return esc(ev.name || ev.target || '');
+                if (ev.type === 'page_view') return esc(ev.course || ev.path || '');
+                if (ev.type === 'session_end') return Number.isFinite(ev.durationSec) ? fmtDur(ev.durationSec) : '';
+                if (ev.type === 'client_error') return esc(ev.message || '');
+                if (ev.type === 'house_dwell') return Number.isFinite(ev.seconds) ? fmtDur(ev.seconds) : '';
+                return esc(ev.path || '');
+            };
+            $('liveFeed').innerHTML =
+                `<table style="width:100%;border-collapse:collapse">
+                    <thead><tr><th>Time</th><th>Student</th><th>Event</th><th>Detail</th></tr></thead>
+                    <tbody>${evs.map(ev => {
+                        const d = eventDate(ev);
+                        return `<tr><td style="white-space:nowrap;font-size:0.72rem;color:var(--muted)">${d ? esc(fmtDate(d)) : 'n/a'}</td>
+                            <td>${esc(who[ev.uid] || (ev.uid ? ev.uid.slice(0, 6) : '?'))}</td>
+                            <td><span style="font-family:monospace;font-size:0.72rem">${esc(ev.type)}</span></td>
+                            <td style="font-size:0.72rem;color:var(--muted)">${detail(ev)}</td></tr>`;
+                    }).join('')}</tbody>
+                 </table>`;
+        }
+
         // Render everything from the current data + filter.
         function renderAll() {
             renderCards(); renderRoster(); renderHeat(); renderCoursePop(); renderCourseProgress(); renderDwell();
-            renderEngagement(); renderStruggle(); renderDeviceBreakdown();
+            renderEngagement(); renderStruggle(); renderDeviceBreakdown(); renderLiveFeed();
         }
 
         // ── Helpers ──
