@@ -3563,7 +3563,15 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
     // sendBeacon is POST-only; ignore anything else quietly.
     if (req.method !== 'POST') { res.status(204).end(); return; }
 
-    const ALLOWED = ['house_enter', 'course_click', 'house_dwell', 'content_complete'];
+    const ALLOWED = ['house_enter', 'course_click', 'house_dwell', 'content_complete',
+        'page_view', 'session_end', 'client_error', 'device'];
+    // Phase 2 behavioral events. These require re-consent to the current form version
+    // (the "Data Collected" enumeration), so a participant who only ever signed v1 is
+    // NOT deep-tracked. content_complete + the house_* events stay admitted on any
+    // consent record (they are within the original form's "interaction and performance
+    // data"). Keep this string in lockstep with ObservatoryConsent.FORM_VERSION.
+    const PHASE2_TYPES = ['page_view', 'session_end', 'client_error', 'device'];
+    const OBSERVATORY_FORM_VERSION = 'cerbi-v2-2026-07-05';
 
     try {
         // sendBeacon delivers the Blob as the raw body; Express may hand us an
@@ -3583,22 +3591,40 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
         catch (e) { res.status(204).end(); return; }
         const uid = decoded.uid;
 
-        // Server-authoritative classId: the enrollment doc wins, then consent,
-        // then (last resort) whatever the client sent. Prevents class spoofing.
+        // Read the enrollment and consent docs together (one parallel round-trip) so we
+        // have classId, record-existence, and the consent form version in hand without a
+        // second read. classId: enrollment wins, then consent, then (last resort) the
+        // client value. formVersion always comes from the consent doc.
         let classId = null;
         let hasRecord = false;
+        let formVersion = null;
         try {
-            let snap = await db.doc(`observatory_enrollment/${uid}`).get();
-            if (!snap.exists) snap = await db.doc(`observatory_consent/${uid}`).get();
-            if (snap.exists) { hasRecord = true; classId = snap.data().classId || null; }
-        } catch (e) { /* leave hasRecord false, classId null */ }
+            const [enrollSnap, consentSnap] = await Promise.all([
+                db.doc(`observatory_enrollment/${uid}`).get(),
+                db.doc(`observatory_consent/${uid}`).get()
+            ]);
+            if (enrollSnap.exists) { hasRecord = true; classId = enrollSnap.data().classId || null; }
+            if (consentSnap.exists) {
+                hasRecord = true;
+                if (!classId) classId = consentSnap.data().classId || null;
+                formVersion = consentSnap.data().formVersion || null;
+            }
+        } catch (e) { /* leave defaults: hasRecord false, classId/formVersion null */ }
         // Research-integrity gate: only a uid with a server-side enrollment or consent
-        // record enters the dataset. This backstops the client-side consent check now
-        // that telemetry runs on shared course pages, not just the consented house index.
+        // record enters the dataset. This backstops the client-side check now that
+        // telemetry runs on shared course pages, not just the consented house index.
         // Gate on record EXISTENCE (hasRecord), never on classId, so a consented student
         // whose record carries a null classId is still admitted.
         if (!hasRecord) { res.status(204).end(); return; }
         if (!classId && typeof data.classId === 'string') classId = data.classId;
+
+        // Phase 2 consent gate: a behavioral event is admitted only if the participant's
+        // consent record is on the CURRENT form version (they re-consented to the
+        // "Data Collected" enumeration). Fail-closed: a missing consent doc or a missing/
+        // older formVersion drops the behavioral event. Phase 1 events skip this gate.
+        if (PHASE2_TYPES.indexOf(type) !== -1 && formVersion !== OBSERVATORY_FORM_VERSION) {
+            res.status(204).end(); return;
+        }
 
         // Whitelist persisted fields — no arbitrary client fields enter the dataset.
         const payload = (data.payload && typeof data.payload === 'object') ? data.payload : {};
@@ -3627,6 +3653,33 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
             event.score = Number.isFinite(payload.score)
                 ? Math.min(Math.max(0, Math.round(payload.score)), 100)
                 : null;
+        }
+        // Page view: which course the path belongs to (path itself is already top-level).
+        if (type === 'page_view') {
+            if (typeof payload.course === 'string') event.course = payload.course.slice(0, 120);
+        }
+        // Session end: time on the page and how much of it was active (idle excluded),
+        // plus how far the student scrolled. Snapshots share a sessionId (one per page
+        // load) so the dashboard keeps the largest per session. All clamped so a forged
+        // value can't skew metrics.
+        if (type === 'session_end') {
+            if (typeof payload.sessionId === 'string') event.sessionId = payload.sessionId.slice(0, 40);
+            if (Number.isFinite(payload.durationSec)) event.durationSec = Math.min(Math.max(0, Math.round(payload.durationSec)), 86400);
+            if (Number.isFinite(payload.activeSec)) event.activeSec = Math.min(Math.max(0, Math.round(payload.activeSec)), 86400);
+            if (Number.isFinite(payload.maxScrollPct)) event.maxScrollPct = Math.min(Math.max(0, Math.round(payload.maxScrollPct)), 100);
+        }
+        // Client error: a JS error a real student hit (doubles as live QA). No stack, just
+        // the message + source, length-bounded.
+        if (type === 'client_error') {
+            if (typeof payload.message === 'string') event.message = payload.message.slice(0, 300);
+            if (typeof payload.source === 'string') event.source = payload.source.slice(0, 200);
+        }
+        // Device context, recorded once per session.
+        if (type === 'device') {
+            if (typeof payload.viewport === 'string') event.viewport = payload.viewport.slice(0, 40);
+            if (typeof payload.platform === 'string') event.platform = payload.platform.slice(0, 60);
+            if (typeof payload.connection === 'string') event.connection = payload.connection.slice(0, 40);
+            event.reducedMotion = payload.reducedMotion === true;
         }
 
         await db.collection('observatory_activity').add(event);
