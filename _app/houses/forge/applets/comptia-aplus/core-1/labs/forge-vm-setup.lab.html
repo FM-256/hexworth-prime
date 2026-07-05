@@ -388,6 +388,10 @@
                                     <p style="margin-top: 8px; font-size: 0.8rem;">VMware ESXi, Hyper-V Server</p>
                                 </div>
                             </div>
+                            <!-- Feedback slot for the hypervisor choice. Kept empty until the student
+                                 picks a card, then explains why a Type 2 hosted hypervisor is the
+                                 correct tool for building a VM on an existing desktop OS. -->
+                            <div id="hypervisorFeedback" class="info-box warning" style="display: none; max-width: 640px; margin: 16px auto 0;"></div>
                         </div>
 
                         <!-- Step 2: VM Name & OS -->
@@ -576,7 +580,20 @@
         function selectHypervisor(type) {
             document.querySelectorAll('.hypervisor-card').forEach(c => c.classList.remove('selected'));
             document.getElementById(type + 'Card').classList.add('selected');
+            // Only a Type 2 (hosted) hypervisor is valid for building a VM on the existing
+            // desktop OS, so it is the sole choice that advances the wizard.
             hypervisorSelected = type === 'type2';
+            // Explain the choice instead of silently leaving Next disabled on a Type 1 pick.
+            const feedback = document.getElementById('hypervisorFeedback');
+            if (type === 'type1') {
+                feedback.className = 'info-box warning';
+                feedback.style.display = 'block';
+                feedback.innerHTML = '<strong>Not the right tool for this task.</strong> A Type 1 (bare-metal) hypervisor such as VMware ESXi or Hyper-V Server installs directly on the hardware and is used for data-center servers, not on top of an existing operating system. This lab builds a virtual machine on your current desktop OS, so it needs a Type 2 (hosted) hypervisor such as VirtualBox or VMware Workstation. Select the Type 2 hypervisor to continue.';
+            } else {
+                feedback.className = 'info-box success';
+                feedback.style.display = 'block';
+                feedback.innerHTML = '<strong>Correct.</strong> A Type 2 (hosted) hypervisor such as VirtualBox or VMware Workstation runs on top of your existing desktop OS, which is exactly what you need to run a VM on this workstation.';
+            }
             updateUI();
         }
 
@@ -586,6 +603,20 @@
 
         function updateDisk() {
             document.getElementById('diskValue').textContent = document.getElementById('diskSlider').value + ' GB';
+        }
+
+        // Single source of truth for whether a given wizard step is satisfied. Used both to
+        // disable the Next button (UI) and to hard-gate nextStep() (logic), so a direct
+        // nextStep() call cannot skip an unsatisfied step or force completion.
+        function isStepValid(step) {
+            switch (step) {
+                case 1: return hypervisorSelected;
+                case 2: return document.getElementById('vmName').value.length > 0 && document.getElementById('vmType').value !== '';
+                case 3: return true; // RAM slider always has a valid value
+                case 4: return true; // Disk slider always has a valid value
+                case 5: return vmCreated;
+                default: return false;
+            }
         }
 
         function updateUI() {
@@ -649,17 +680,8 @@
 
             if (currentStep > 1) document.getElementById('instructionContent').innerHTML = instructions[currentStep - 1];
 
-            // Validation
-            const validations = [
-                () => hypervisorSelected,
-                () => document.getElementById('vmName').value.length > 0 && document.getElementById('vmType').value !== '',
-                () => true, // RAM always valid
-                () => true, // Disk always valid
-                () => vmCreated
-            ];
-
             document.getElementById('prevBtn').disabled = currentStep === 1;
-            document.getElementById('nextBtn').disabled = !validations[currentStep - 1]();
+            document.getElementById('nextBtn').disabled = !isStepValid(currentStep);
             document.getElementById('nextBtn').textContent = currentStep === totalSteps ? 'Complete' : 'Next Step';
         }
 
@@ -680,6 +702,9 @@
         document.getElementById('vmName').addEventListener('input', updateUI);
 
         function nextStep() {
+            // Hard gate: refuse to advance (or complete) unless the current step is satisfied,
+            // so a direct nextStep() call cannot bypass the disabled Next button.
+            if (!isStepValid(currentStep)) return;
             if (currentStep < totalSteps) {
                 currentStep++;
                 updateUI();
@@ -717,6 +742,7 @@
             hypervisorSelected = false;
             vmCreated = false;
             document.querySelectorAll('.hypervisor-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('hypervisorFeedback').style.display = 'none';
             document.getElementById('vmName').value = '';
             document.getElementById('vmType').value = '';
             document.getElementById('vmVersion').innerHTML = '<option>Select type first...</option>';
