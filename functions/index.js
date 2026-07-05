@@ -3563,7 +3563,7 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
     // sendBeacon is POST-only; ignore anything else quietly.
     if (req.method !== 'POST') { res.status(204).end(); return; }
 
-    const ALLOWED = ['house_enter', 'course_click', 'house_dwell'];
+    const ALLOWED = ['house_enter', 'course_click', 'house_dwell', 'content_complete'];
 
     try {
         // sendBeacon delivers the Blob as the raw body; Express may hand us an
@@ -3586,11 +3586,18 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
         // Server-authoritative classId: the enrollment doc wins, then consent,
         // then (last resort) whatever the client sent. Prevents class spoofing.
         let classId = null;
+        let hasRecord = false;
         try {
             let snap = await db.doc(`observatory_enrollment/${uid}`).get();
             if (!snap.exists) snap = await db.doc(`observatory_consent/${uid}`).get();
-            if (snap.exists) classId = snap.data().classId || null;
-        } catch (e) { /* leave null */ }
+            if (snap.exists) { hasRecord = true; classId = snap.data().classId || null; }
+        } catch (e) { /* leave hasRecord false, classId null */ }
+        // Research-integrity gate: only a uid with a server-side enrollment or consent
+        // record enters the dataset. This backstops the client-side consent check now
+        // that telemetry runs on shared course pages, not just the consented house index.
+        // Gate on record EXISTENCE (hasRecord), never on classId, so a consented student
+        // whose record carries a null classId is still admitted.
+        if (!hasRecord) { res.status(204).end(); return; }
         if (!classId && typeof data.classId === 'string') classId = data.classId;
 
         // Whitelist persisted fields — no arbitrary client fields enter the dataset.
@@ -3611,6 +3618,15 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
         if (type === 'course_click') {
             if (typeof payload.target === 'string') event.target = payload.target.slice(0, 300);
             if (typeof payload.name === 'string') event.name = payload.name.slice(0, 200);
+        }
+        // Content completion: which module/lab/quiz was finished, and the score when
+        // one applies (quiz pass). moduleId length-bounded; score clamped to [0,100]
+        // or null (modules/labs complete with no score). A forged score cannot exceed 100.
+        if (type === 'content_complete') {
+            if (typeof payload.moduleId === 'string') event.moduleId = payload.moduleId.slice(0, 120);
+            event.score = Number.isFinite(payload.score)
+                ? Math.min(Math.max(0, Math.round(payload.score)), 100)
+                : null;
         }
 
         await db.collection('observatory_activity').add(event);
