@@ -752,6 +752,82 @@
             color: #00ff88;
         }
 
+        /* Task / Operate box (tool-action gate) */
+        .task-box {
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+            color: #00d4ff;
+            line-height: 1.5;
+        }
+
+        /* Cable-tester pin-identification grid (Report phase) */
+        .pin-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .pin-toggle {
+            padding: 10px;
+            text-align: center;
+            border: 2px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.3);
+            color: #aaa;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .pin-toggle:hover {
+            border-color: #9966ff;
+        }
+
+        .pin-toggle.selected {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.15);
+            color: #00d4ff;
+        }
+
+        /* Multimeter reading-entry input + PASS/FAIL verdict buttons (Report phase) */
+        .mm-report-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #333;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+        }
+
+        .mm-verdict-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .mm-verdict-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #444;
+            background: rgba(0, 0, 0, 0.3);
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .mm-verdict-btn.pass-style:hover { border-color: #00ff88; color: #00ff88; }
+        .mm-verdict-btn.fail-style:hover { border-color: #ff5555; color: #ff5555; }
+
     </style>
 </head>
 <body>
@@ -825,13 +901,16 @@
 
     <script>
         // Current state
-        let currentTool = 'post';
-        let currentScenario = 0;
-        let completedScenarios = new Set();
-        let selectedAnswer = null;
-        let answered = false;
+        // NOTE: these use `var` (not let/const) deliberately so they land as
+        // window.* properties, which makes the lab's real state introspectable by
+        // the automated self-check harness (_tools/arcade-fixes/aplus-diagnostic-tools-check.js)
+        // without needing a build step or test-only hooks.
+        var currentTool = 'post';
+        var currentScenario = 0;
+        var hasCompleted = false; // guards ModuleProgress.complete to fire exactly once
 
-        // POST codes database
+        // POST codes database (drives the free-exploration sandbox display only;
+        // the graded reference chart the student matches against lives in postChart below)
         const postCodes = {
             '00': { meaning: 'CPU not detected', component: 'CPU', status: 'error' },
             '0D': { meaning: 'CPU cache error', component: 'CPU', status: 'error' },
@@ -845,113 +924,162 @@
             'AA': { meaning: 'System booted successfully', component: 'System', status: 'ok' }
         };
 
-        // Scenarios
-        const scenarios = [
+        // POST code reference chart (Obj 5.2 ranges from the exam tip below).
+        // Graded by whether the code's numeric value falls in a range, never
+        // by a fixed "correct index", so the answer comes from the code the
+        // POST card actually shows, matched against a real range table.
+        var postChart = [
+            { id: 'cpu', label: '00-0F: CPU / CPU socket', lo: 0x00, hi: 0x0F },
+            { id: 'ram', label: '10-1F: Memory (RAM)', lo: 0x10, hi: 0x1F },
+            { id: 'video', label: '20-2F: Video / GPU', lo: 0x20, hi: 0x2F },
+            { id: 'keyboard', label: '30-3F: Keyboard', lo: 0x30, hi: 0x3F },
+            { id: 'boot', label: 'D0-DF: Boot device', lo: 0xD0, hi: 0xDF }
+        ];
+
+        // S.M.A.R.T. diagnosis options offered in the Report phase (shuffled
+        // on render). Grading never uses this list's order; it compares the
+        // clicked option's id against computeSmartVerdict()'s id, which is
+        // itself computed live from the actual attribute numbers on screen.
+        var smartVerdicts = [
+            { id: 'pass-healthy', label: 'Healthy: reallocated and pending sectors are both 0, no action needed' },
+            { id: 'warn-realloc', label: 'Warning: reallocated sectors are climbing, monitor the drive' },
+            { id: 'warn-pending', label: 'Warning: pending sectors are present, monitor the drive' },
+            { id: 'fail-realloc', label: 'Failing: reallocated sectors are critical, back up and replace now' },
+            { id: 'fail-pending', label: 'Failing: pending sectors are critical, back up and replace now' }
+        ];
+
+        // Diagnostic scenarios (customer trouble tickets). Each ticket names the
+        // TOOL the student must operate; the student runs that instrument
+        // themselves and reports what it actually shows. There is no options[]
+        // / correct-index pair here anymore: every scenario's grading is
+        // computed at answer time from the tool's live output (see the submit*
+        // functions below), never from a stored "the answer is choice N" field.
+        var scenarios = [
             {
                 tool: 'post',
                 code: '00',
-                title: 'Dead System - No Display',
-                description: 'A customer brings in a PC that won\'t boot. No beeps, no display. You insert a POST card and see code "00" displayed.',
-                question: 'What component is likely causing this issue?',
-                options: ['RAM module', 'CPU or CPU socket', 'Power supply', 'Hard drive'],
-                correct: 1,
-                explanation: 'POST code 00 indicates the CPU was not detected. Check: CPU seated properly, bent pins (LGA socket), thermal paste application, and CPU power connector (4/8-pin).'
+                title: 'Dead System, No Display',
+                description: 'A customer brings in a PC that won\'t boot: no beeps, no display. Insert the POST diagnostic card into the expansion slot and read the code it shows.',
+                diagnosisNote: 'Check CPU seating, bent LGA socket pins, thermal paste application, and the CPU power connector (4/8-pin) before replacing anything.'
             },
             {
                 tool: 'post',
                 code: '10',
-                title: 'System Beeps - No Boot',
-                description: 'After upgrading RAM, a system won\'t boot and displays POST code "10". You hear a series of beeps.',
-                question: 'What should you check first?',
-                options: ['BIOS settings', 'RAM seating and compatibility', 'CPU temperature', 'Hard drive cables'],
-                correct: 1,
-                explanation: 'POST code 10 indicates memory not detected. Check: RAM properly seated in slots, correct DDR generation (DDR4 vs DDR5), compatible with motherboard.'
+                title: 'System Beeps, No Boot',
+                description: 'After a RAM upgrade the system won\'t boot and produces a series of beeps. Insert the POST card and read the resulting code.',
+                diagnosisNote: 'Check that RAM is fully seated in its slots, and that it is the correct DDR generation and compatible with this motherboard.'
             },
             {
                 tool: 'multimeter',
-                mode: 'dc',
-                reading: '4.85',
+                rail: '5',
+                base: 4.85,
                 title: 'Unstable System',
-                description: 'A system randomly crashes. You test the 5V rail with a multimeter and read 4.85V.',
-                question: 'Is this voltage reading acceptable?',
-                options: ['Yes, within tolerance', 'No, too low - replace PSU', 'No, too high - replace PSU', 'Cannot determine without testing other rails'],
-                correct: 0,
-                explanation: '5V rail tolerance is ±5% (4.75V - 5.25V). Reading of 4.85V is within acceptable range. Look elsewhere for the crash cause.'
+                description: 'A system crashes at random. The work order asks you to test the +5V rail feeding the motherboard with the multimeter.',
+                diagnosisNote: 'This rail is within tolerance; look elsewhere for the crash cause rather than replacing the PSU.'
             },
             {
                 tool: 'multimeter',
-                mode: 'dc',
-                reading: '11.2',
+                rail: '12',
+                base: 11.2,
                 title: 'Graphics Card Issues',
-                description: 'A gaming PC has graphics artifacts. You test the 12V rail (GPU power) and read 11.2V.',
-                question: 'What is your diagnosis?',
-                options: ['Voltage is fine, check GPU', '12V rail is low - PSU issue', '12V rail is high - dangerous', 'Need to test under load'],
-                correct: 1,
-                explanation: '12V rail tolerance is ±5% (11.4V - 12.6V). Reading of 11.2V is below minimum. The PSU 12V rail is sagging, likely causing GPU instability.'
+                description: 'A gaming PC shows graphics artifacts under load. The work order asks you to test the +12V rail (GPU power) with the multimeter.',
+                diagnosisNote: 'The 12V rail is sagging below the ATX minimum; this PSU is the likely cause of the GPU instability.'
             },
             {
                 tool: 'cable',
+                testType: 'good',
                 pattern: [1,1,1,1,1,1,1,1],
                 title: 'Network Connection Issue',
-                description: 'A user reports no network connectivity. You test their Ethernet cable with a cable tester. All 8 LEDs light up in sequence on both ends.',
-                question: 'What does this result indicate?',
-                options: ['Cable is faulty', 'Cable is good (straight-through)', 'Cable is crossover type', 'Cable tester is broken'],
-                correct: 1,
-                explanation: 'All 8 pins lighting in sequence (1-1, 2-2, etc.) indicates a properly wired straight-through cable. The network issue is elsewhere.'
+                description: 'A user reports no network connectivity. Plug their Ethernet patch cable into the cable tester and run it.',
+                diagnosisNote: 'The network issue is elsewhere; this cable itself is not the fault.'
             },
             {
                 tool: 'cable',
+                testType: 'open',
                 pattern: [1,0,1,1,0,1,1,1],
                 title: 'Intermittent Connection',
-                description: 'Network drops randomly. Cable test shows pins 2 and 5 not lighting up.',
-                question: 'What is the issue?',
-                options: ['Normal for Gigabit cable', 'Broken wires in cable - replace', 'Crossover cable detected', 'Cable tester needs batteries'],
-                correct: 1,
-                explanation: 'Missing pins indicate broken wires. Pins 1,2,3,6 are essential for 100Mbps; all 8 for Gigabit. This cable has broken conductors and must be replaced.'
+                description: 'Network connectivity drops at random on this run. Plug the suspect cable into the tester and run it.',
+                diagnosisNote: 'Replace this cable; it has broken conductors.'
             },
             {
                 tool: 'psu',
-                rails: { '3.3V': 3.31, '5V': 4.95, '12V': 12.1, '-12V': -11.9, '5VSB': 5.02 },
+                testType: 'good',
                 title: 'System Won\'t Start',
-                description: 'PC doesn\'t power on at all. You test the PSU with a dedicated tester. All rails show green lights.',
-                question: 'What should you check next?',
-                options: ['PSU is confirmed bad', 'Check motherboard and power button', 'Replace PSU anyway', 'Check RAM modules'],
-                correct: 1,
-                explanation: 'PSU tester shows all rails within spec. The PSU is likely good. Check: power button connection to motherboard, motherboard for shorts, front panel connectors.'
+                description: 'A PC does not power on at all. Plug the 24-pin ATX connector into the dedicated PSU tester and run it.',
+                diagnosisNote: 'The PSU itself is confirmed good; check the power button connection to the motherboard and the front-panel connectors next.'
             },
             {
                 tool: 'psu',
-                rails: { '3.3V': 3.35, '5V': 5.01, '12V': 10.8, '-12V': -12.1, '5VSB': 4.98 },
+                testType: 'bad12',
                 title: 'Random Shutdowns Under Load',
-                description: 'Gaming PC shuts down during intensive games. PSU tester shows 12V rail at 10.8V (red light).',
-                question: 'What is your recommendation?',
-                options: ['12V rail is fine', 'Replace PSU - 12V rail failing', 'Add more case fans', 'Update BIOS'],
-                correct: 1,
-                explanation: '12V at 10.8V is far below the 11.4V minimum. The PSU cannot deliver stable 12V under load. Replace with higher wattage/quality PSU.'
+                description: 'A gaming PC shuts down during intensive games. Plug the PSU into the dedicated tester and run it.',
+                diagnosisNote: 'Replace the PSU; it cannot deliver a stable +12V rail under load.'
             },
             {
                 tool: 'smart',
-                status: 'warning',
-                attrs: { 'Reallocated Sectors': 150, 'Current Pending': 8, 'Power On Hours': 45000, 'Temperature': 42 },
+                attrs: { realloc: 150, pending: 8, hours: 45000, temp: 42 },
                 title: 'Slow System Performance',
-                description: 'A 5-year-old PC is running slowly. S.M.A.R.T. data shows 150 reallocated sectors and 8 pending sectors.',
-                question: 'What action should be taken?',
-                options: ['Drive is healthy, look elsewhere', 'Backup immediately, drive is failing', 'Defragment the drive', 'Update drive firmware'],
-                correct: 1,
-                explanation: 'High reallocated sectors (150) and pending sectors (8) indicate a failing drive. Back up data immediately and replace the drive before total failure.'
+                description: 'A 5-year-old PC is running slowly. Run a S.M.A.R.T. scan on this drive.'
             },
             {
                 tool: 'smart',
-                status: 'passed',
-                attrs: { 'Reallocated Sectors': 0, 'Current Pending': 0, 'Power On Hours': 2500, 'Temperature': 35 },
+                attrs: { realloc: 0, pending: 0, hours: 2500, temp: 35 },
                 title: 'New Build Verification',
-                description: 'Verifying a new build, you check the SSD S.M.A.R.T. status. All values are green, 0 reallocated sectors.',
-                question: 'What does this indicate?',
-                options: ['SSD is healthy', 'SSD needs firmware update', 'S.M.A.R.T. is disabled', 'Data is corrupted'],
-                correct: 0,
-                explanation: 'Zero reallocated/pending sectors, low power-on hours, and normal temperature indicate a healthy new drive. S.M.A.R.T. status PASSED.'
+                description: 'Verifying a new build, run a S.M.A.R.T. scan on the SSD.'
             }
         ];
+
+        // Per-scenario progress state, indexed in parallel with `scenarios`.
+        // phase: 0 = Operate (must run the correct tool action on the real
+        // instrument), 1 = Report (must submit a tool-derived answer),
+        // 2 = Resolved. Populated by initScenarioState() in init().
+        var scenarioState = [];
+
+        function initScenarioState() {
+            for (let i = 0; i < scenarios.length; i++) {
+                scenarioState.push({ phase: 0, operatedCorrectly: false, resolved: false, cablePins: new Set(), cableNoFault: false, feedbackText: '' });
+            }
+        }
+
+        // Fisher-Yates shuffle of indices 0..n-1, used to render the POST
+        // reference chart and the S.M.A.R.T. diagnosis list in a fresh order
+        // every time, so the correct entry is never fixed at one position.
+        function shuffledIndices(n) {
+            const arr = Array.from({ length: n }, (_, i) => i);
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // ATX rail tolerance table (Obj 5.2) and the pass/fail verdict it implies
+        // for a given measured value, computed live from whatever the meter
+        // actually shows, never from a stored per-scenario answer.
+        function mmTolerance(rail) {
+            const t = { '3.3': [3.14, 3.47], '5': [4.75, 5.25], '12': [11.4, 12.6] };
+            return t[rail];
+        }
+        function mmVerdict(rail, value) {
+            const [min, max] = mmTolerance(rail);
+            return (value >= min && value <= max) ? 'pass' : 'fail';
+        }
+
+        // S.M.A.R.T. verdict rule (Obj 5.2: Reallocated Sectors Count, Current
+        // Pending Sector Count). Computed live from the actual attribute
+        // numbers rendered on screen; this IS the correctness source, not a
+        // per-scenario "status" label that could drift out of sync with the data.
+        function computeSmartVerdict(a) {
+            if (a.realloc > 100) return { id: 'fail-realloc', label: 'failed', cssClass: 'failed', text: `FAIL: ${a.realloc} reallocated sectors is far above the healthy range. Back up data immediately and replace the drive.` };
+            if (a.pending > 5) return { id: 'fail-pending', label: 'failed', cssClass: 'failed', text: `FAIL: ${a.pending} current pending sectors means unread data is awaiting reallocation. Back up data immediately and replace the drive.` };
+            if (a.realloc > 20) return { id: 'warn-realloc', label: 'warning', cssClass: 'warning', text: `WARNING: ${a.realloc} reallocated sectors is climbing. Monitor the drive and back up regularly.` };
+            if (a.pending > 0) return { id: 'warn-pending', label: 'warning', cssClass: 'warning', text: `WARNING: ${a.pending} pending sector(s) present. Monitor the drive closely.` };
+            return { id: 'pass-healthy', label: 'passed', cssClass: 'passed', text: 'PASS: reallocated and pending sector counts are both 0. Drive is healthy.' };
+        }
+
+        function toolNiceName(tool) {
+            return { post: 'POST card', multimeter: 'multimeter', cable: 'cable tester', psu: 'PSU tester', smart: 'S.M.A.R.T. monitor' }[tool];
+        }
 
         // Tool templates
         const toolTemplates = {
@@ -970,11 +1098,11 @@
                     <div class="post-label">Power-On Self-Test Code Display</div>
                 </div>
                 <div class="test-controls">
-                    <button class="test-btn active" onclick="simulatePost('00')">CPU Error</button>
-                    <button class="test-btn" onclick="simulatePost('10')">RAM Error</button>
-                    <button class="test-btn" onclick="simulatePost('20')">Video Error</button>
-                    <button class="test-btn" onclick="simulatePost('A0')">Boot Error</button>
-                    <button class="test-btn" onclick="simulatePost('AA')">Success</button>
+                    <button class="test-btn active" onclick="simulatePost('00')">Sandbox: Display 00</button>
+                    <button class="test-btn" onclick="simulatePost('10')">Sandbox: Display 10</button>
+                    <button class="test-btn" onclick="simulatePost('20')">Sandbox: Display 20</button>
+                    <button class="test-btn" onclick="simulatePost('A0')">Sandbox: Display A0</button>
+                    <button class="test-btn" onclick="simulatePost('AA')">Sandbox: Display AA</button>
                 </div>
             `,
             multimeter: () => `
@@ -1144,14 +1272,18 @@
                 <strong>Rule:</strong> If reallocated sectors are increasing, back up immediately!`
         };
 
-        // Initialize
+        // Initialize: build per-scenario state, paint the first tool + scenario, prime the progress bar
         function init() {
+            initScenarioState();
             renderTool();
             renderScenario();
             updateProgress();
         }
 
-        // Select tool
+        // Select tool: switches the active tool tab/display and its exam tip.
+        // Does not touch scenario progress; a student can freely browse any
+        // instrument at any time; only the scenario-bound actions below can
+        // ever set operatedCorrectly on the active ticket.
         function selectTool(tool) {
             currentTool = tool;
             document.querySelectorAll('.tool-tab').forEach(t => t.classList.remove('active'));
@@ -1160,21 +1292,27 @@
             document.getElementById('examTipContent').innerHTML = examTips[tool];
         }
 
-        // Render tool
+        // Render tool: repaints the instrument display for the current tool tab.
         function renderTool() {
             document.getElementById('toolDisplay').innerHTML = toolTemplates[currentTool]();
         }
 
-        // POST card simulation
+        // POST card simulation: inserting the card and reading whatever code
+        // the machine displays. A real technician does not choose the code;
+        // the malfunctioning board dictates it, so this only ever DISPLAYS a
+        // code; the diagnosis happens later, in the Report phase, by matching
+        // the code against the reference chart (postChart).
         function simulatePost(code) {
-            // Highlight the matching button by its onclick, works for clicks AND programmatic calls (no global `event`)
+            // Highlight the matching sandbox button by its onclick, works for clicks AND programmatic calls (no global `event`)
             document.querySelectorAll('.test-controls .test-btn').forEach(b => b.classList.toggle('active', b.getAttribute('onclick') === `simulatePost('${code}')`));
 
             const codeEl = document.getElementById('postCode');
             const info = postCodes[code];
+            if (!info) return; // unknown code guard (sandbox buttons only pass known codes)
 
-            // Animate code display
+            // Display the code
             codeEl.textContent = code;
+            window.currentPostCode = code; // last code actually read off the card
 
             // Update LEDs
             const leds = ['led1', 'led2', 'led3', 'led4'];
@@ -1192,10 +1330,18 @@
                     }
                 }, i * 100);
             });
+
+            // Gate: reading the code for THIS ticket's own code, while still in
+            // the Operate phase, is what unlocks the Report step for a POST scenario.
+            const sc = scenarios[currentScenario];
+            const st = scenarioState[currentScenario];
+            if (sc && st && sc.tool === 'post' && sc.code === code && st.phase === 0) {
+                st.operatedCorrectly = true;
+            }
         }
 
         // Multimeter simulation
-        let mmMode = 'dc';
+        var mmMode = 'dc';
 
         function setMMMode(mode) {
             mmMode = mode;
@@ -1207,14 +1353,40 @@
             document.getElementById('mmValue').textContent = mode === 'cont' ? '----' : '0.00';
         }
 
+        // Test a rail with the meter. This is the ONE tool where CHOOSING the
+        // correct control setting is itself the graded action (a real
+        // meter-operating skill): clicking the rail the work order actually
+        // asks for is what unlocks the Report step. When it matches the active
+        // scenario's rail, a small stable jitter is used around that ticket's
+        // real-world base reading, giving a fresh "measured" number every click,
+        // narrow enough that it never crosses the ATX tolerance line, so the
+        // correct PASS/FAIL verdict never flips underneath the student.
         function testVoltage(rail) {
-            const values = {
-                '3.3': (3.3 + (Math.random() * 0.1 - 0.05)).toFixed(2),
-                '5': (5.0 + (Math.random() * 0.15 - 0.075)).toFixed(2),
-                '12': (12.0 + (Math.random() * 0.3 - 0.15)).toFixed(2)
-            };
-            document.getElementById('mmValue').textContent = values[rail];
+            const sc = scenarios[currentScenario];
+            const st = scenarioState[currentScenario];
+            let value;
+            let justOperatedThisTicket = false;
+            if (sc && st && sc.tool === 'multimeter' && sc.rail === rail && st.phase === 0) {
+                value = sc.base + (Math.random() * 0.04 - 0.02);
+                st.operatedCorrectly = true;
+                justOperatedThisTicket = true;
+            } else {
+                const centers = { '3.3': 3.3, '5': 5.0, '12': 12.0 };
+                const spread = { '3.3': 0.05, '5': 0.075, '12': 0.15 };
+                value = centers[rail] + (Math.random() * spread[rail] * 2 - spread[rail]);
+            }
+            value = parseFloat(value.toFixed(2));
+            window.currentMMReading = value; // last actual reading taken
+            window.currentMMRail = rail;      // which rail that reading was taken on
+            document.getElementById('mmValue').textContent = value.toFixed(2);
             document.getElementById('mmUnit').textContent = 'V DC';
+            // Refresh the Operate box so "Proceed to Report" enables the instant
+            // the correct rail has been measured. Gated to ONLY the case where
+            // this click just satisfied the active ticket's own rail. A full
+            // renderScenario() also re-syncs the tool tab to the active
+            // ticket's tool, which would otherwise yank the student back off
+            // an unrelated tool tab they were freely exploring mid-ticket.
+            if (justOperatedThisTicket) renderScenario();
         }
 
         function testContinuity() {
@@ -1224,7 +1396,10 @@
             }, 200);
         }
 
-        // Cable tester simulation
+        // Cable tester simulation: plugging in a cable and running the tester.
+        // Stores the actual main-unit pattern read so the Report phase can
+        // grade "which pins are broken" against what was really shown, not a
+        // remembered scenario field.
         function testCable(type) {
             const patterns = {
                 good: [[1,1,1,1,1,1,1,1], [1,1,1,1,1,1,1,1]],
@@ -1234,12 +1409,15 @@
             };
 
             const [main, remote] = patterns[type];
+            window.lastCablePattern = main; // the pattern the student must read pins off of
+            window.lastCableType = type;
 
             // Animate LEDs
             for (let i = 1; i <= 8; i++) {
                 setTimeout(() => {
                     const mainLed = document.getElementById(`main-${i}`);
                     const remoteLed = document.getElementById(`remote-${i}`);
+                    if (!mainLed || !remoteLed) return; // guard: tab may have changed since the click
 
                     mainLed.className = 'tester-led';
                     remoteLed.className = 'tester-led';
@@ -1260,9 +1438,19 @@
                     }
                 }, i * 150);
             }
+
+            // Gate: running THIS ticket's own cable type, while still in the
+            // Operate phase, unlocks the Report step.
+            const sc = scenarios[currentScenario];
+            const st = scenarioState[currentScenario];
+            if (sc && st && sc.tool === 'cable' && sc.testType === type && st.phase === 0) {
+                st.operatedCorrectly = true;
+            }
         }
 
-        // PSU tester simulation
+        // PSU tester simulation: plugging in the 24-pin connector and running
+        // the tester. Stores the computed per-rail status so the Report phase
+        // can grade "which rail is out of spec" against the real result.
         function testPSU(type) {
             const readings = {
                 good: { '3.3': 3.31, '5': 4.98, '12': 12.05, '-12': -11.95, '5sb': 5.01 },
@@ -1280,6 +1468,7 @@
             };
 
             const rails = readings[type];
+            const statusMap = {};
 
             Object.keys(rails).forEach(rail => {
                 const value = rails[rail];
@@ -1287,8 +1476,6 @@
 
                 const valueEl = document.getElementById(`rail-${rail === '5sb' ? '5sb' : rail}`);
                 const statusEl = document.getElementById(`status-${rail === '5sb' ? '5sb' : rail}`);
-
-                valueEl.textContent = value === 0 ? '0.00' : value.toFixed(2) + 'V';
 
                 let status = 'good';
                 if (value === 0) {
@@ -1298,165 +1485,392 @@
                 } else if (Math.abs(value - (min + max) / 2) > (max - min) * 0.3) {
                     status = 'warning';
                 }
+                statusMap[rail] = status;
 
-                valueEl.className = `psu-rail-value ${status}`;
-                statusEl.className = `psu-rail-status ${status}`;
+                if (valueEl) valueEl.textContent = value === 0 ? '0.00' : value.toFixed(2) + 'V';
+                if (valueEl) valueEl.className = `psu-rail-value ${status}`;
+                if (statusEl) statusEl.className = `psu-rail-status ${status}`;
             });
+
+            window.lastPsuStatus = statusMap; // the real computed per-rail status the student must read
+            window.lastPsuType = type;
+
+            // Gate: running THIS ticket's own PSU condition, while still in the
+            // Operate phase, unlocks the Report step.
+            const sc = scenarios[currentScenario];
+            const st = scenarioState[currentScenario];
+            if (sc && st && sc.tool === 'psu' && sc.testType === type && st.phase === 0) {
+                st.operatedCorrectly = true;
+            }
         }
 
-        // S.M.A.R.T. simulation
+        // S.M.A.R.T. free-exploration sandbox presets. Verdict is computed via
+        // the same computeSmartVerdict() rule used for graded scenarios, so the
+        // sandbox and the graded flow can never disagree with each other.
         function testSmart(type) {
             const data = {
-                healthy: { realloc: 0, pending: 0, hours: 2500, temp: 35, status: 'passed' },
-                warning: { realloc: 45, pending: 3, hours: 28000, temp: 48, status: 'warning' },
-                failing: { realloc: 250, pending: 15, hours: 52000, temp: 55, status: 'failed' },
-                old: { realloc: 12, pending: 0, hours: 65000, temp: 42, status: 'passed' }
+                healthy: { realloc: 0, pending: 0, hours: 2500, temp: 35 },
+                warning: { realloc: 45, pending: 3, hours: 28000, temp: 48 },
+                failing: { realloc: 250, pending: 15, hours: 52000, temp: 55 },
+                old: { realloc: 12, pending: 0, hours: 65000, temp: 42 }
             };
-
             const d = data[type];
-
-            document.getElementById('smart-realloc').textContent = d.realloc;
-            document.getElementById('smart-realloc').className = `smart-value ${d.realloc > 100 ? 'critical' : d.realloc > 20 ? 'warning' : ''}`;
-
-            document.getElementById('smart-pending').textContent = d.pending;
-            document.getElementById('smart-pending').className = `smart-value ${d.pending > 5 ? 'critical' : d.pending > 0 ? 'warning' : ''}`;
-
-            document.getElementById('smart-hours').textContent = d.hours.toLocaleString() + ' hrs';
-            document.getElementById('smart-hours').className = `smart-value ${d.hours > 50000 ? 'warning' : ''}`;
-
-            document.getElementById('smart-temp').textContent = d.temp + '°C';
-            document.getElementById('smart-temp').className = `smart-value ${d.temp > 50 ? 'warning' : ''}`;
-
-            const statusEl = document.getElementById('smartStatus');
-            statusEl.className = `smart-status ${d.status}`;
-            statusEl.textContent = `S.M.A.R.T. Status: ${d.status.toUpperCase()}`;
+            paintSmartDisplay(d);
         }
 
-        // Scenario handling
+        // Run the S.M.A.R.T. scan for the ACTIVE scenario's own drive data
+        // (not one of the four canned sandbox presets); the scenario-bound
+        // "plug in and scan" action.
+        function runSmartScenario() {
+            const sc = scenarios[currentScenario];
+            const st = scenarioState[currentScenario];
+            if (!sc || sc.tool !== 'smart') return; // safety no-op: only valid for a SMART ticket
+            paintSmartDisplay(sc.attrs);
+            window.lastSmartAttrs = sc.attrs;
+            window.lastSmartVerdict = computeSmartVerdict(sc.attrs);
+            if (st.phase === 0) st.operatedCorrectly = true;
+        }
+
+        // Shared DOM-paint routine for the S.M.A.R.T. panel, used by both the
+        // sandbox presets and the scenario-bound scan so their rendering never drifts apart.
+        function paintSmartDisplay(a) {
+            document.getElementById('smart-realloc').textContent = a.realloc;
+            document.getElementById('smart-realloc').className = `smart-value ${a.realloc > 100 ? 'critical' : a.realloc > 20 ? 'warning' : ''}`;
+
+            document.getElementById('smart-pending').textContent = a.pending;
+            document.getElementById('smart-pending').className = `smart-value ${a.pending > 5 ? 'critical' : a.pending > 0 ? 'warning' : ''}`;
+
+            document.getElementById('smart-hours').textContent = a.hours.toLocaleString() + ' hrs';
+            document.getElementById('smart-hours').className = `smart-value ${a.hours > 50000 ? 'warning' : ''}`;
+
+            document.getElementById('smart-temp').textContent = a.temp + '°C';
+            document.getElementById('smart-temp').className = `smart-value ${a.temp > 50 ? 'warning' : ''}`;
+
+            const verdict = computeSmartVerdict(a);
+            const statusEl = document.getElementById('smartStatus');
+            statusEl.className = `smart-status ${verdict.cssClass}`;
+            statusEl.textContent = `S.M.A.R.T. Status: ${verdict.label.toUpperCase()}`;
+        }
+
+        // Run the single dedicated tool action for the current scenario
+        // (POST/cable/PSU/S.M.A.R.T. all use this; multimeter has no dedicated
+        // button because CHOOSING the rail via the meter's own Test buttons IS
+        // the graded action). Hard-gated to the Operate phase.
+        function runScenarioAction() {
+            const st = scenarioState[currentScenario];
+            const sc = scenarios[currentScenario];
+            if (!st || st.phase !== 0) return; // no-op: only valid during Operate phase
+            if (sc.tool === 'post') { simulatePost(sc.code); renderScenario(); }
+            else if (sc.tool === 'cable') { testCable(sc.testType); renderScenario(); }
+            else if (sc.tool === 'psu') { testPSU(sc.testType); renderScenario(); }
+            else if (sc.tool === 'smart') { runSmartScenario(); renderScenario(); }
+        }
+
+        // Advance from Operate to Report. Hard gate: only works once the
+        // correct tool action for THIS ticket has actually been run.
+        function proceedToReport() {
+            const st = scenarioState[currentScenario];
+            if (!st || st.phase !== 0 || !st.operatedCorrectly) return; // no-op otherwise
+            st.phase = 1;
+            renderScenario();
+        }
+
+        // A ticket resolves once its correct tool-derived answer has been
+        // submitted. Marks the state, refreshes the progress bar (which fires
+        // ModuleProgress.complete exactly once when all 10 are done), and
+        // repaints the panel into its Resolved view.
+        function resolveScenario() {
+            const st = scenarioState[currentScenario];
+            st.phase = 2;
+            st.resolved = true;
+            updateProgress();
+            renderScenario();
+        }
+
+        // ─────────────────────────── Scenario rendering ───────────────────────────
+
         function renderScenario() {
-            const scenario = scenarios[currentScenario];
+            const sc = scenarios[currentScenario];
+            const st = scenarioState[currentScenario];
             const container = document.getElementById('scenarioContent');
+
+            // Switch to the tool this ticket needs (mirrors picking up the right instrument)
+            if (sc.tool !== currentTool) {
+                selectTool(sc.tool);
+            }
+
+            let taskHtml;
+            if (st.phase === 0) taskHtml = renderOperateBox(sc, st);
+            else if (st.phase === 1) taskHtml = renderReportBox(sc, st);
+            else taskHtml = `<div class="scenario-feedback show correct">${st.feedbackText}</div>`;
 
             container.innerHTML = `
                 <div class="scenario-desc">
-                    <strong>${scenario.title}</strong><br><br>
-                    ${scenario.description}
+                    <strong>${sc.title}</strong><br><br>
+                    ${sc.description}
                 </div>
-                <div class="scenario-question">${scenario.question}</div>
-                <div class="scenario-options">
-                    ${scenario.options.map((opt, i) => `
-                        <div class="scenario-option" onclick="selectAnswer(${i})" id="option-${i}">${opt}</div>
-                    `).join('')}
-                </div>
-                <div class="scenario-feedback" id="feedback"></div>
+                ${taskHtml}
                 <div class="scenario-nav">
-                    <button class="scenario-btn secondary" onclick="prevScenario()" ${currentScenario === 0 ? 'disabled' : ''}>← Previous</button>
-                    <button class="scenario-btn primary" onclick="checkAnswer()" id="checkBtn">Check Answer</button>
-                    <button class="scenario-btn secondary" onclick="nextScenario()" ${currentScenario === scenarios.length - 1 ? 'disabled' : ''}>Next →</button>
+                    <button class="scenario-btn secondary" onclick="prevScenario()" ${currentScenario === 0 ? 'disabled' : ''}>&larr; Previous</button>
+                    <button class="scenario-btn primary" onclick="nextScenario()" id="nextScenarioBtn" ${(currentScenario === scenarios.length - 1 || st.phase !== 2) ? 'disabled' : ''}>Next &rarr;</button>
                 </div>
             `;
+        }
 
-            // Switch to correct tool
-            if (scenario.tool !== currentTool) {
-                selectTool(scenario.tool);
+        // Operate-phase box: instructs the student which instrument action to
+        // perform, and only enables "Proceed to Report" once that action has
+        // actually been carried out on the real tool (operatedCorrectly).
+        function renderOperateBox(sc, st) {
+            let actionHtml = '';
+            if (sc.tool === 'post') {
+                actionHtml = `<button class="scenario-btn primary" onclick="runScenarioAction()">Insert POST Card &amp; Read Code</button>`;
+            } else if (sc.tool === 'multimeter') {
+                actionHtml = `<div class="scenario-question">Use the multimeter's Test buttons (right panel) to check the +${sc.rail}V rail.</div>`;
+            } else if (sc.tool === 'cable') {
+                actionHtml = `<button class="scenario-btn primary" onclick="runScenarioAction()">Plug In Cable &amp; Run Tester</button>`;
+            } else if (sc.tool === 'psu') {
+                actionHtml = `<button class="scenario-btn primary" onclick="runScenarioAction()">Plug In PSU &amp; Run Tester</button>`;
+            } else if (sc.tool === 'smart') {
+                actionHtml = `<button class="scenario-btn primary" onclick="runScenarioAction()">Run S.M.A.R.T. Scan on This Drive</button>`;
             }
-
-            // Simulate the scenario's reading
-            simulateScenarioReading(scenario);
-
-            selectedAnswer = null;
-            answered = false;
+            return `
+                <div class="task-box">Task: operate the ${toolNiceName(sc.tool)} to gather a reading for this ticket, then proceed to report your findings.</div>
+                ${actionHtml}
+                <div class="scenario-nav">
+                    <button class="scenario-btn primary" onclick="proceedToReport()" id="proceedReportBtn" ${st.operatedCorrectly ? '' : 'disabled'}>Proceed to Report &rarr;</button>
+                </div>
+            `;
         }
 
-        function simulateScenarioReading(scenario) {
-            switch (scenario.tool) {
-                case 'post':
-                    setTimeout(() => simulatePost(scenario.code), 500);
-                    break;
-                case 'multimeter':
-                    setTimeout(() => {
-                        document.getElementById('mmValue').textContent = scenario.reading;
-                        document.getElementById('mmUnit').textContent = 'V DC';
-                    }, 500);
-                    break;
-                case 'cable':
-                    setTimeout(() => {
-                        scenario.pattern.forEach((val, i) => {
-                            const mainLed = document.getElementById(`main-${i + 1}`);
-                            const remoteLed = document.getElementById(`remote-${i + 1}`);
-                            if (mainLed) {
-                                mainLed.className = `tester-led ${val ? 'on' : 'off'}`;
-                                remoteLed.className = `tester-led ${val ? 'on' : 'off'}`;
-                            }
-                        });
-                    }, 500);
-                    break;
-                case 'psu':
-                    setTimeout(() => {
-                        Object.entries(scenario.rails).forEach(([rail, value]) => {
-                            const key = rail === '+5VSB' ? '5sb' : rail.replace('+', '').replace('V', '');
-                            const valueEl = document.getElementById(`rail-${key}`);
-                            if (valueEl) {
-                                valueEl.textContent = value.toFixed(2) + 'V';
-                                const isGood = Math.abs(value) > 3 && Math.abs(value) < 13;
-                                valueEl.className = `psu-rail-value ${isGood ? 'good' : 'bad'}`;
-                            }
-                        });
-                    }, 500);
-                    break;
-                case 'smart':
-                    setTimeout(() => {
-                        const attrs = scenario.attrs;
-                        document.getElementById('smart-realloc').textContent = attrs['Reallocated Sectors'];
-                        document.getElementById('smart-pending').textContent = attrs['Current Pending'];
-                        document.getElementById('smart-hours').textContent = attrs['Power On Hours'].toLocaleString() + ' hrs';
-                        document.getElementById('smart-temp').textContent = attrs['Temperature'] + '°C';
-
-                        const statusEl = document.getElementById('smartStatus');
-                        statusEl.className = `smart-status ${scenario.status}`;
-                        statusEl.textContent = `S.M.A.R.T. Status: ${scenario.status.toUpperCase()}`;
-                    }, 500);
-                    break;
+        // Report-phase box: renders the tool-specific answer widget. POST and
+        // S.M.A.R.T. option lists are shuffled on every render (Fisher-Yates);
+        // PSU rails and cable pins are NOT shuffled because their identity IS
+        // their real physical label (pin 1-8, +12V rail, etc.); grading
+        // there is already by id/value, not by render position.
+        function renderReportBox(sc, st) {
+            if (sc.tool === 'post') {
+                const order = shuffledIndices(postChart.length);
+                return `
+                    <div class="scenario-question">The card displayed code <strong>${sc.code}</strong>. Which reference-chart range does that code fall in?</div>
+                    <div class="scenario-options" id="postChartOptions">
+                        ${order.map(idx => { const e = postChart[idx]; return `<div class="scenario-option" onclick="submitPostChart('${e.id}')" id="chart-${e.id}">${e.label}</div>`; }).join('')}
+                    </div>
+                    <div class="scenario-feedback" id="reportFeedback"></div>
+                `;
             }
+            if (sc.tool === 'multimeter') {
+                return `
+                    <div class="scenario-question">Enter the voltage you read on the +${sc.rail}V rail, then choose your verdict.</div>
+                    <input type="text" id="mmEnteredValue" class="mm-report-input" placeholder="e.g. 4.85" inputmode="decimal">
+                    <div class="mm-verdict-btns">
+                        <button class="mm-verdict-btn pass-style" onclick="submitMultimeterReport('pass')" id="mmVerdictPass">PASS - within tolerance</button>
+                        <button class="mm-verdict-btn fail-style" onclick="submitMultimeterReport('fail')" id="mmVerdictFail">FAIL - out of tolerance</button>
+                    </div>
+                    <div class="scenario-feedback" id="reportFeedback"></div>
+                `;
+            }
+            if (sc.tool === 'cable') {
+                const pinOrder = shuffledIndices(8).map(i => i + 1);
+                return `
+                    <div class="scenario-question">Which pins failed to light on the tester? Select all that apply, or mark no fault.</div>
+                    <div class="pin-grid" id="pinGrid">
+                        ${pinOrder.map(n => `<div class="pin-toggle" id="pinToggle-${n}" onclick="toggleCablePin(${n})">Pin ${n}</div>`).join('')}
+                    </div>
+                    <div class="scenario-option" id="pinNoFault" onclick="selectCableNoFault()">No broken wires - cable passes</div>
+                    <div class="scenario-nav" style="margin-top:10px;">
+                        <button class="scenario-btn primary" onclick="submitCableReport()">Report Findings</button>
+                    </div>
+                    <div class="scenario-feedback" id="reportFeedback"></div>
+                `;
+            }
+            if (sc.tool === 'psu') {
+                const railDefs = [
+                    { id: '3.3', label: '+3.3V rail' }, { id: '5', label: '+5V rail' }, { id: '12', label: '+12V rail' },
+                    { id: '-12', label: '-12V rail' }, { id: '5sb', label: '+5VSB rail' }, { id: 'none', label: 'All rails good - check elsewhere' }
+                ];
+                return `
+                    <div class="scenario-question">Which rail is out of ATX spec (or are all rails good)?</div>
+                    <div class="scenario-options" id="psuRailOptions">
+                        ${railDefs.map(r => `<div class="scenario-option" onclick="submitPsuReport('${r.id}')" id="rail-opt-${r.id}">${r.label}</div>`).join('')}
+                    </div>
+                    <div class="scenario-feedback" id="reportFeedback"></div>
+                `;
+            }
+            if (sc.tool === 'smart') {
+                const order = shuffledIndices(smartVerdicts.length);
+                return `
+                    <div class="scenario-question">Based on the S.M.A.R.T. attributes just scanned, what is your diagnosis?</div>
+                    <div class="scenario-options" id="smartDiagOptions">
+                        ${order.map(idx => { const v = smartVerdicts[idx]; return `<div class="scenario-option" onclick="submitSmartReport('${v.id}')" id="smart-opt-${v.id}">${v.label}</div>`; }).join('')}
+                    </div>
+                    <div class="scenario-feedback" id="reportFeedback"></div>
+                `;
+            }
+            return '';
         }
 
-        function selectAnswer(index) {
-            if (answered) return;
+        // ─────────────────────────── Report grading (submit handlers) ───────────────────────────
+        // Every submit* function below hard-checks st.phase === 1 before doing
+        // anything; a direct out-of-order call (e.g. before the tool has
+        // been operated, or before Proceed to Report) is a no-op.
 
-            selectedAnswer = index;
-            document.querySelectorAll('.scenario-option').forEach((opt, i) => {
-                opt.classList.remove('selected');
-                if (i === index) opt.classList.add('selected');
-            });
-        }
+        function submitPostChart(id) {
+            const st = scenarioState[currentScenario];
+            if (!st || st.phase !== 1) return; // gate: Report phase only
+            const sc = scenarios[currentScenario];
+            const entry = postChart.find(e => e.id === id);
+            const codeVal = parseInt(sc.code, 16);
+            const correct = codeVal >= entry.lo && codeVal <= entry.hi;
+            const correctEntry = postChart.find(e => codeVal >= e.lo && codeVal <= e.hi);
 
-        function checkAnswer() {
-            if (selectedAnswer === null || answered) return;
+            document.querySelectorAll('#postChartOptions .scenario-option').forEach(el => el.classList.remove('correct', 'incorrect'));
+            document.getElementById('chart-' + id).classList.add(correct ? 'correct' : 'incorrect');
 
-            answered = true;
-            const scenario = scenarios[currentScenario];
-            const feedback = document.getElementById('feedback');
-
-            document.querySelectorAll('.scenario-option').forEach((opt, i) => {
-                opt.classList.remove('selected');
-                if (i === scenario.correct) {
-                    opt.classList.add('correct');
-                } else if (i === selectedAnswer) {
-                    opt.classList.add('incorrect');
-                }
-            });
-
-            if (selectedAnswer === scenario.correct) {
-                feedback.className = 'scenario-feedback show correct';
-                feedback.innerHTML = `✓ Correct! ${scenario.explanation}`;
-                completedScenarios.add(currentScenario);
+            const fb = document.getElementById('reportFeedback');
+            fb.className = 'scenario-feedback show ' + (correct ? 'correct' : 'incorrect');
+            const icon = correct ? '/assets/images/icons/icon-checkmark.webp' : '/assets/images/icons/icon-crossmark.webp';
+            if (correct) {
+                st.feedbackText = `<img src="${icon}" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Code ${sc.code} falls in the ${entry.label} range. ${sc.diagnosisNote}`;
+                fb.innerHTML = st.feedbackText;
+                resolveScenario();
             } else {
-                feedback.className = 'scenario-feedback show incorrect';
-                feedback.innerHTML = `✗ Incorrect. ${scenario.explanation}`;
+                fb.innerHTML = `<img src="${icon}" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> Code ${sc.code} actually falls in the ${correctEntry.label} range, not ${entry.label}. Re-check the reference chart and try again.`;
+            }
+        }
+
+        function submitMultimeterReport(verdict) {
+            const st = scenarioState[currentScenario];
+            if (!st || st.phase !== 1) return; // gate: Report phase only
+            const sc = scenarios[currentScenario];
+            const enteredRaw = document.getElementById('mmEnteredValue').value;
+            const entered = parseFloat(enteredRaw);
+            const actual = window.currentMMReading;
+            const [min, max] = mmTolerance(sc.rail);
+            const trueVerdict = mmVerdict(sc.rail, actual);
+            const rightRail = window.currentMMRail === sc.rail;
+            const valueOk = rightRail && !isNaN(entered) && Math.abs(entered - actual) <= 0.05;
+            const verdictOk = verdict === trueVerdict;
+            const correct = valueOk && verdictOk;
+
+            const fb = document.getElementById('reportFeedback');
+            fb.className = 'scenario-feedback show ' + (correct ? 'correct' : 'incorrect');
+            const icon = correct ? '/assets/images/icons/icon-checkmark.webp' : '/assets/images/icons/icon-crossmark.webp';
+            const iconImg = `<img src="${icon}" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">`;
+            if (correct) {
+                st.feedbackText = `${iconImg} The +${sc.rail}V rail measured ${actual.toFixed(2)}V. ATX tolerance is ${min}V to ${max}V, so this is a ${trueVerdict.toUpperCase()}. ${sc.diagnosisNote}`;
+                fb.innerHTML = st.feedbackText;
+                resolveScenario();
+            } else if (!rightRail) {
+                fb.innerHTML = `${iconImg} The multimeter is not currently reading the +${sc.rail}V rail. Click the Test ${sc.rail}V button on the meter, then enter that reading here.`;
+            } else if (!valueOk) {
+                fb.innerHTML = `${iconImg} That does not match the reading on the meter (it currently shows ${actual.toFixed(2)}V). Read the display again and enter that value.`;
+            } else {
+                fb.innerHTML = `${iconImg} The reading of ${actual.toFixed(2)}V against a ${min}V to ${max}V tolerance is actually a ${trueVerdict.toUpperCase()}, not what you selected. Compare the number to the tolerance table again.`;
+            }
+        }
+
+        function toggleCablePin(n) {
+            const st = scenarioState[currentScenario];
+            if (!st || st.phase !== 1) return; // gate: Report phase only
+            st.cableNoFault = false;
+            const noFaultEl = document.getElementById('pinNoFault');
+            if (noFaultEl) noFaultEl.classList.remove('selected');
+            if (st.cablePins.has(n)) st.cablePins.delete(n); else st.cablePins.add(n);
+            document.getElementById('pinToggle-' + n).classList.toggle('selected', st.cablePins.has(n));
+        }
+
+        function selectCableNoFault() {
+            const st = scenarioState[currentScenario];
+            if (!st || st.phase !== 1) return; // gate: Report phase only
+            st.cablePins.clear();
+            document.querySelectorAll('.pin-toggle').forEach(el => el.classList.remove('selected'));
+            st.cableNoFault = !st.cableNoFault;
+            document.getElementById('pinNoFault').classList.toggle('selected', st.cableNoFault);
+        }
+
+        function submitCableReport() {
+            const st = scenarioState[currentScenario];
+            if (!st || st.phase !== 1) return; // gate: Report phase only
+            const sc = scenarios[currentScenario];
+            const actualBroken = sc.pattern.map((v, i) => v === 0 ? i + 1 : null).filter(v => v !== null);
+            const selected = Array.from(st.cablePins).sort((a, b) => a - b);
+            let correct;
+            if (actualBroken.length === 0) {
+                correct = st.cableNoFault === true && selected.length === 0;
+            } else {
+                correct = !st.cableNoFault && selected.length === actualBroken.length && selected.every((p, i) => p === actualBroken[i]);
             }
 
-            updateProgress();
+            const fb = document.getElementById('reportFeedback');
+            fb.className = 'scenario-feedback show ' + (correct ? 'correct' : 'incorrect');
+            const icon = correct ? '/assets/images/icons/icon-checkmark.webp' : '/assets/images/icons/icon-crossmark.webp';
+            const iconImg = `<img src="${icon}" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">`;
+            if (correct) {
+                st.feedbackText = actualBroken.length === 0
+                    ? `${iconImg} All 8 pins lit in sequence on both ends: this cable is good. ${sc.diagnosisNote}`
+                    : `${iconImg} Pin(s) ${actualBroken.join(', ')} failed to light: those wires are broken. ${sc.diagnosisNote}`;
+                fb.innerHTML = st.feedbackText;
+                resolveScenario();
+            } else {
+                fb.innerHTML = actualBroken.length === 0
+                    ? `${iconImg} Re-check the LED rows: all 8 pins actually lit on both ends here, there is no broken wire.`
+                    : `${iconImg} Re-check the LED rows: the pin(s) that actually failed to light are ${actualBroken.join(', ')}.`;
+            }
         }
+
+        function submitPsuReport(railId) {
+            const st = scenarioState[currentScenario];
+            if (!st || st.phase !== 1) return; // gate: Report phase only
+            const sc = scenarios[currentScenario];
+            const statuses = window.lastPsuStatus || {};
+            const badRails = Object.keys(statuses).filter(k => statuses[k] !== 'good');
+            const correct = badRails.length === 0 ? railId === 'none' : (badRails.length === 1 && railId === badRails[0]);
+
+            document.querySelectorAll('#psuRailOptions .scenario-option').forEach(el => el.classList.remove('correct', 'incorrect'));
+            document.getElementById('rail-opt-' + railId).classList.add(correct ? 'correct' : 'incorrect');
+
+            const fb = document.getElementById('reportFeedback');
+            fb.className = 'scenario-feedback show ' + (correct ? 'correct' : 'incorrect');
+            const icon = correct ? '/assets/images/icons/icon-checkmark.webp' : '/assets/images/icons/icon-crossmark.webp';
+            const iconImg = `<img src="${icon}" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">`;
+            const railLabel = (id) => ({ '3.3': '+3.3V', '5': '+5V', '12': '+12V', '-12': '-12V', '5sb': '+5VSB', 'none': 'no rail' }[id]);
+            if (correct) {
+                st.feedbackText = badRails.length === 0
+                    ? `${iconImg} All rails tested within ATX spec. ${sc.diagnosisNote}`
+                    : `${iconImg} The ${railLabel(badRails[0])} rail tested out of spec. ${sc.diagnosisNote}`;
+                fb.innerHTML = st.feedbackText;
+                resolveScenario();
+            } else {
+                fb.innerHTML = badRails.length === 0
+                    ? `${iconImg} Re-check the tester: every rail is actually within spec on this PSU.`
+                    : `${iconImg} Re-check the tester: the rail actually out of spec is ${railLabel(badRails[0])}, not ${railLabel(railId)}.`;
+            }
+        }
+
+        function submitSmartReport(verdictId) {
+            const st = scenarioState[currentScenario];
+            if (!st || st.phase !== 1) return; // gate: Report phase only
+            const sc = scenarios[currentScenario];
+            const trueVerdict = window.lastSmartVerdict;
+            const correct = verdictId === trueVerdict.id;
+
+            document.querySelectorAll('#smartDiagOptions .scenario-option').forEach(el => el.classList.remove('correct', 'incorrect'));
+            document.getElementById('smart-opt-' + verdictId).classList.add(correct ? 'correct' : 'incorrect');
+
+            const fb = document.getElementById('reportFeedback');
+            fb.className = 'scenario-feedback show ' + (correct ? 'correct' : 'incorrect');
+            const icon = correct ? '/assets/images/icons/icon-checkmark.webp' : '/assets/images/icons/icon-crossmark.webp';
+            const iconImg = `<img src="${icon}" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">`;
+            if (correct) {
+                st.feedbackText = `${iconImg} ${trueVerdict.text}`;
+                fb.innerHTML = st.feedbackText;
+                resolveScenario();
+            } else {
+                fb.innerHTML = `${iconImg} Re-check the attributes just scanned. The correct read is: ${trueVerdict.text}`;
+            }
+        }
+
+        // ─────────────────────────── Navigation + progress ───────────────────────────
 
         function prevScenario() {
             if (currentScenario > 0) {
@@ -1465,7 +1879,11 @@
             }
         }
 
+        // Gate: advancing to the next ticket requires the current one to be
+        // Resolved (phase 2). A direct out-of-order call is a no-op.
         function nextScenario() {
+            const st = scenarioState[currentScenario];
+            if (!st || st.phase !== 2) return;
             if (currentScenario < scenarios.length - 1) {
                 currentScenario++;
                 renderScenario();
@@ -1473,12 +1891,15 @@
         }
 
         function updateProgress() {
-            const percent = (completedScenarios.size / scenarios.length) * 100;
+            const resolvedCount = scenarioState.filter(s => s.resolved).length;
+            const percent = (resolvedCount / scenarios.length) * 100;
             document.getElementById('progressFill').style.width = percent + '%';
             document.getElementById('progressText').textContent =
-                `${completedScenarios.size} of ${scenarios.length} scenarios completed`;
+                `${resolvedCount} of ${scenarios.length} scenarios completed`;
 
-            if (completedScenarios.size === scenarios.length) {
+            // Fire completion exactly once, preserving the original signature.
+            if (resolvedCount === scenarios.length && !hasCompleted) {
+                hasCompleted = true;
                 if (typeof ModuleProgress !== 'undefined') {
                     ModuleProgress.complete('forge', 'forge-diagnostic-tools', { returnUrl: '../index.html' });
                 }
