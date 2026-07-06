@@ -205,6 +205,8 @@ const SandboxLauncher = (function() {
                 timerEl.textContent = `Session: ${mins}m ${secs}s remaining`;
                 if (remaining <= 0) {
                     updateUI('idle', 'Session expired');
+                    // Session is gone — let the host clear any session-bound UI (e.g. the grader).
+                    if (typeof options.onEnd === 'function') { try { options.onEnd(labId); } catch (e) { /* ignore */ } }
                 }
             }
             tick();
@@ -262,6 +264,8 @@ const SandboxLauncher = (function() {
                 iframeWrap.style.display = 'none';
                 iframe.src = '';
                 updateUI('idle', 'Sandbox destroyed');
+                // Session is gone — let the host clear any session-bound UI (e.g. the grader).
+                if (typeof options.onEnd === 'function') { try { options.onEnd(labId); } catch (e) { /* ignore */ } }
             } catch (err) {
                 updateUI('error', err.message);
             }
