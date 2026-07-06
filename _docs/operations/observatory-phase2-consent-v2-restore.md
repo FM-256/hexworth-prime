@@ -1,6 +1,7 @@
 # Observatory Phase-2 Behavioral Data — Consent v2 Restore
 
 **Status:** OPEN — blocked on a PI/IRB decision (see "Decisions required").
+**Confluence:** https://hexworth.atlassian.net/wiki/spaces/KBA/pages/40894465 (KBA › Operations and Procedures)
 **Owner:** Frank Mora (PI). Engineering executes once the PI approves.
 **Raised:** 2026-07-06, while onboarding two new research cohorts (A+ Core 1 / CET1171C, Linux / CTS2106C).
 
