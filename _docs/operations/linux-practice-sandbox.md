@@ -84,9 +84,14 @@ ssh bc1 'cd /home/eq1/hexworth-sandbox && docker compose up -d --build lab-manag
   `dd` many ~1GB files in parallel at full disk speed (tens of GB) inside the reaper window;
   (3) a 30s `SizeRw` reaper destroys any container whose writable layer exceeds the quota.
   Verified: 2GB single-file write denied at 1.0G; write rate measured at 12.4 MB/s (throttle
-  enforced); a 1.5GB container reaped. **Real bounded ceiling:** at 12MB/s a container can write
-  at most ~360MB in the 30s reaper window beyond its 1GB quota, so ~1.4GB before reap, ~54GB
-  across the 40-container max — under bc1's free space. This is still a soft/reactive cap; a hard
+  enforced); a 1.5GB container reaped. **Real bounded ceiling vs measured headroom:** at 12MB/s a
+  container writes at most ~360MB in the 30s reaper window beyond its 1GB quota, so ~1.4GB before
+  reap, ~54GB if all 40 pool slots were simultaneously adversarial fillers. bc1 as of 2026-07-06
+  (`df -h /`, Docker root `/var/lib/docker` on `/`): 197G total, 116G used, **72G free (62% used)**.
+  So the ~54GB adversarial peak fits under free space but is thin (~17G residual at that peak) — it
+  is a *transient* worst case requiring 40 coordinated fillers, not steady state (legit practice is
+  a few hundred MB/user; live `cell-sigma` exam containers are small). Reserved-capacity for graded
+  exams vs recreational sandbox is tracked in Backlog. This is still a soft/reactive cap; a hard
   real-time quota needs the xfs+pquota infra change (backlog). Note: this bounds the overlay
   writable layer; `tmpfs`/`/dev/shm` writes hit the 512MB memory cgroup instead, not disk.
 - **Bounded:** 2/user, 40 total, 15 min idle (Sablier keys off request traffic, so a closed tab
@@ -115,7 +120,11 @@ engineering one; it is flagged here so the judgment is on the record either way.
 
 Each launch emits a `sandbox_launch` Observatory activity event (labId) through the existing
 consented pipeline: `ObservatoryTracker.logSandbox()` -> `logObservatoryEvent` CF -> the
-`observatory_activity` collection the admin dashboard reads. It is a Phase-1 event (in `ALLOWED`,
+`observatory_activity` collection. The PI reads it in `_app/admin/observatory.html`: a **Sandbox
+usage** section (`renderSandbox()`, total launches + a per-`labId` bar list, same shape as the
+proven `renderCoursePop()`), and `labId` is now a column in the events CSV export
+(`exportEvents`). The event doc carries `labId` (`functions/index.js:3651`) and the dashboard
+reads the full doc (`observatory.html:189`), so no field is stripped. It is a Phase-1 event (in `ALLOWED`,
 not `PHASE2_TYPES`), so it is admitted on any consent record, same category as `course_click` —
 no re-consent needed. Wiring: `SandboxLauncher.renderButton`'s `onLaunch` hook -> the Observatory
 card -> `ObservatoryTracker.logSandbox(labId)`. Withdrawn/pre-consent users emit nothing (the
