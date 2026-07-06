@@ -31,7 +31,12 @@ const ObservatoryConsent = (function () {
 
     // Fallback class list used when the Firestore `observatory_classes`
     // collection is empty/unavailable. Replaced by admin-editable data later.
+    // Fallback shown ONLY if the observatory_classes Firestore read fails/returns empty. Kept in sync
+    // with the seeded observatory_classes (2026-07-06) so a read failure still shows every active
+    // cohort — otherwise a new-cohort student on a flaky connection would have no matching option.
     const DEFAULT_CLASSES = [
+        { id: 'cet1171c', label: 'CET1171C — Computer Service and Support PC Systems I (A+ Core 1)' },
+        { id: 'cts2106c', label: 'CTS2106C — Multiuser Operating Systems (Linux)' },
         { id: 'cis2350c', label: 'CIS2350C — Principles of Information Security' },
         { id: 'cop1034c', label: 'COP1034C — Python for IT' },
         { id: 'other',    label: 'Other / Not listed' }
