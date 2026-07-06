@@ -1758,13 +1758,18 @@
     function resumeAttempt() {
         document.getElementById('resumeOverlay').classList.remove('show');
         loadState();
-        // If the full environment is actually present, this is a real resume; reconcile flags to it.
+        // Is the FULL environment actually present locally (not just flags)?
         _resumedFull = !!localStorage.getItem(STORAGE_KEY);
-        reconcileObjectives();
+        reconcileObjectives();   // display truth: completion always reflects the live environment
         initUI();
-        checkAllObjectives();
-        // Ensure sync key exists (for devices that had full state before this update)
-        saveState();
+        if (_resumedFull) {
+            // Real environment present — safe to re-derive completion and persist/sync normally.
+            checkAllObjectives();
+            saveState();
+        }
+        // If the full environment is NOT here yet (cross-device pull still in flight), do NOT
+        // saveState: persisting a reconcile against an empty box would stamp a newer version and
+        // overwrite the good cloud copy. The late-restore listener re-offers resume once it arrives.
     }
 
     function startFresh() {
@@ -4273,7 +4278,30 @@ function toggleTask(idx) {
     // ═══════════════════════════════════════════════════════════════
     // INITIALIZATION
     // ═══════════════════════════════════════════════════════════════
-    document.addEventListener('DOMContentLoaded', checkResume);
+    // Brief banner while LabStateSync settles the initial cross-device pull.
+    function _showSyncCheckNote() {
+        try {
+            const d = document.createElement('div');
+            d.textContent = 'Checking for your saved environment…';
+            d.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;' +
+                'background:#1e293b;color:#93c5fd;padding:10px 18px;border-radius:8px;font-size:0.85rem;' +
+                'box-shadow:0 4px 16px rgba(0,0,0,0.4);';
+            document.body.appendChild(d);
+            return d;
+        } catch (e) { return null; }
+    }
+
+    // Gate resume on the initial full-state pull: if the environment exists on another device, wait
+    // for it to land BEFORE deciding what to resume, so a fast click can't act on (and then overwrite
+    // the cloud copy with) an empty pre-pull box. Falls through fast when there's no cloud state.
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.LabStateSync && typeof LabStateSync.ready === 'function') {
+            const note = _showSyncCheckNote();
+            LabStateSync.ready(STORAGE_KEY, 4500).then(function () { if (note) note.remove(); checkResume(); });
+        } else {
+            checkResume();
+        }
+    });
 
     // If cloud sync restores state after page load, react. Two cases now matter:
     //  - source 'completion': the whole gauntlet was finished on another device — show that.
