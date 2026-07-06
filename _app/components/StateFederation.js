@@ -83,6 +83,12 @@
                 localStorage.setItem(this._syncKey, JSON.stringify(this._extract(fullState)));
             } catch(e) { /* non-critical */ }
         }
+
+        // Queue a debounced cloud push of the FULL state so a second device restores the whole
+        // environment, not just the completion flags (all the 10KB-capped bulk sync can carry).
+        if (window.LabStateSync && typeof window.LabStateSync.queuePush === 'function') {
+            try { window.LabStateSync.queuePush(this._storageKey); } catch(e) { /* optional dependency */ }
+        }
     };
 
     /**
@@ -209,6 +215,11 @@
         }
         var handle = new FederatedHandle(config);
         _handles.push(handle);
+        // Register the full-state key for cross-device sync (its own Firestore doc, no 10KB cap).
+        // No-op if LabStateSync isn't loaded on this page, so existing labs are unaffected.
+        if (window.LabStateSync && typeof window.LabStateSync.register === 'function') {
+            try { window.LabStateSync.register(config.storageKey); } catch (e) { /* optional dependency */ }
+        }
         return handle;
     }
 

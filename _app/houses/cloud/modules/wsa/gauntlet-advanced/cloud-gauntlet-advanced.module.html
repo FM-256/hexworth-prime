@@ -501,6 +501,7 @@
     <script src="../../../../../utils/SyncUtils.js"></script>
     <script src="../../../../../components/FirestoreManager.js"></script>
     <script src="../../../../../components/ProgressRestore.js"></script>
+    <script src="../../../../../components/LabStateSync.js"></script>
     <script src="../../../../../components/StateFederation.js"></script>
 
     <!-- Header -->
@@ -582,6 +583,7 @@
 
     const STORAGE_KEY = 'wsa-advanced-gauntlet-state';
     let startedAt = Date.now();
+    let _resumedFull = false;   // true once a real working environment is committed (resumed w/ full state, or started fresh)
     let timerInterval = null;
     let currentTool = 'server';
     let selectedObjId = null;
@@ -1746,9 +1748,19 @@
         document.getElementById('completionOverlay').classList.add('show');
     }
 
+    // Honesty guard: completion is DERIVED from the live environment — an objective is complete
+    // iff its artifact actually exists. Prevents a cross-device "done" flag from showing over an
+    // environment that wasn't restored (flags can arrive before/without the full state).
+    function reconcileObjectives() {
+        objectives.forEach(o => { try { o.completed = !!o.check(); } catch (e) { o.completed = false; } });
+    }
+
     function resumeAttempt() {
         document.getElementById('resumeOverlay').classList.remove('show');
         loadState();
+        // If the full environment is actually present, this is a real resume; reconcile flags to it.
+        _resumedFull = !!localStorage.getItem(STORAGE_KEY);
+        reconcileObjectives();
         initUI();
         checkAllObjectives();
         // Ensure sync key exists (for devices that had full state before this update)
@@ -1765,6 +1777,7 @@
         scoring.totalPenalty = 0;
         startedAt = Date.now();
         activeServer = 'hq';
+        _resumedFull = true;   // deliberate fresh start — don't re-offer a cloud resume this session
         saveState();
         initUI();
     }
@@ -4262,14 +4275,20 @@ function toggleTask(idx) {
     // ═══════════════════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', checkResume);
 
-    // If cloud sync restores progress after page load, re-check for completion
+    // If cloud sync restores state after page load, react. Two cases now matter:
+    //  - source 'completion': the whole gauntlet was finished on another device — show that.
+    //  - source 'local': the FULL environment just arrived cross-device (LabStateSync pulled the
+    //    >10KB state doc). Offer to resume the real environment instead of the empty box the page
+    //    showed on first load — unless the student already committed to a working env this session.
     window.addEventListener('stateFederation:restored', (e) => {
         if (e.detail.storageKey !== STORAGE_KEY) return;
         const resume = _fed.getResume();
         if (!resume.hasResume) return;
         if (resume.source === 'completion') {
             _showPreviouslyCompleted(resume.data);
-        } else if (!localStorage.getItem(STORAGE_KEY)) {
+        } else if (_resumedFull) {
+            return;   // student already resumed the full env or chose fresh — don't override
+        } else if (resume.source === 'local' || !localStorage.getItem(STORAGE_KEY)) {
             document.getElementById('resumeInfo').textContent = resume.text;
             document.getElementById('resumeOverlay').classList.add('show');
         }
