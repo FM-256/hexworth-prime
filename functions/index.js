@@ -3564,7 +3564,7 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
     if (req.method !== 'POST') { res.status(204).end(); return; }
 
     const ALLOWED = ['house_enter', 'course_click', 'house_dwell', 'content_complete',
-        'page_view', 'session_end', 'client_error', 'device'];
+        'page_view', 'session_end', 'client_error', 'device', 'sandbox_launch'];
     // Phase 2 behavioral events. These require re-consent to the current form version
     // (the "Data Collected" enumeration), so a participant who only ever signed v1 is
     // NOT deep-tracked. content_complete + the house_* events stay admitted on any
@@ -3644,6 +3644,11 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
         if (type === 'course_click') {
             if (typeof payload.target === 'string') event.target = payload.target.slice(0, 300);
             if (typeof payload.name === 'string') event.name = payload.name.slice(0, 200);
+        }
+        // Sandbox launch: which lab box was launched (Phase-1 activity event, admitted on any
+        // consent record — it is a platform interaction, same category as a course click).
+        if (type === 'sandbox_launch') {
+            if (typeof payload.labId === 'string') event.labId = payload.labId.slice(0, 60);
         }
         // Content completion: which module/lab/quiz was finished, and the score when
         // one applies (quiz pass). moduleId length-bounded; score clamped to [0,100]

@@ -15,7 +15,7 @@ const PAGE_URL = 'https://hexworth.com/houses/observatory/index.html';
 // the observatory inline script to run through to the sandbox mount.
 const STUBS = {
     'AccessGuard.js': 'window.AccessGuard={require:function(){}};',
-    'SkillTreeData.js': '', 'LearningPaths.js': '', 'AchievementSystem.js': '',
+    'SkillTreeData.js': '', 'LearningPaths.js': '',
     'ProgressManager.js': '', 'FluxCapacitor.js': '', 'FavoritesManager.js': '',
     'ContentDiscovery.js': '', 'TrailHunter.js': '', 'MasteryXP.js': '',
     'mascot-lore.js': '',
@@ -25,7 +25,8 @@ const STUBS = {
     'FirebaseAuth.js': 'window.FirebaseAuth={waitForAuth:async function(){},isSignedIn:function(){return true;},refreshToken:async function(){return "fake-token";}};',
     'firebase-init.js': '',
     'ObservatoryConsent.js': 'window.ObservatoryConsent={ensureConsent:function(cb){cb();},showChangeClass:function(){},showWithdraw:function(){}};',
-    'ObservatoryTracker.js': 'window.ObservatoryTracker={init:function(){}};',
+    'ObservatoryTracker.js': 'window.__sbLogged=[];window.ObservatoryTracker={init:function(){},logSandbox:function(id){window.__sbLogged.push(id);}};',
+    'AchievementSystem.js': 'window.__badges=[];window.AchievementSystem={unlock:function(id){window.__badges.push(id);return true;}};',
 };
 
 (async () => {
@@ -40,6 +41,10 @@ const STUBS = {
             const u = String(url);
             if (u.includes('/launch')) {
                 return { ok: true, json: async () => ({ sessionId: 'smoke-sid', url: 'about:blank#ttyd-smoke', lab: 'Linux Practice Sandbox', status: 'running' }) };
+            }
+            if (u.includes('/check/')) {
+                return { ok: true, json: async () => ({ ok: true, passed: 5, total: 5, complete: true,
+                    results: [1, 2, 3, 4, 5].map(function (i) { return { id: i, desc: 'challenge ' + i, pass: true }; }) }) };
             }
             return { ok: true, json: async () => ({}) };
         };
@@ -82,8 +87,23 @@ const STUBS = {
         await new Promise(r => setTimeout(r, 300));
         const src = await page.$eval('#obs-sandbox-mount .sandbox-launcher__iframe', el => el.getAttribute('src')).catch(() => '');
         checks.launched = (src || '').includes('ttyd-smoke');
+        // Telemetry wiring: onLaunch must have called ObservatoryTracker.logSandbox('linux-sandbox').
+        checks.telemetry = await page.evaluate(() => Array.isArray(window.__sbLogged) && window.__sbLogged.indexOf('linux-sandbox') !== -1);
+        // Grade flow: the grader reveals after launch; clicking it renders results + awards the badge.
+        checks.graderShown = await page.$eval('#obs-sandbox-grade', el => el.style.display !== 'none').catch(() => false);
+        if (checks.graderShown) {
+            await page.click('#obs-grade-btn');
+            await new Promise(r => setTimeout(r, 300));
+            const resultText = await page.$eval('#obs-grade-result', el => el.textContent).catch(() => '');
+            checks.graded = /5\s*\/\s*5/.test(resultText);
+            checks.badge = await page.evaluate(() => Array.isArray(window.__badges) && window.__badges.indexOf('linux_sandbox_practitioner') !== -1);
+        } else {
+            checks.graded = false; checks.badge = false;
+        }
     } else {
         checks.launched = false;
+        checks.telemetry = false;
+        checks.graderShown = false; checks.graded = false; checks.badge = false;
     }
 
     await browser.close();

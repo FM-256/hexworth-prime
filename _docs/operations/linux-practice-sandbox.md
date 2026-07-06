@@ -76,6 +76,13 @@ ssh bc1 'cd /home/eq1/hexworth-sandbox && docker compose up -d --build lab-manag
   Verified: cgroup `pids.max=512`, a 700-fork attempt is denied at the cap, the container stays
   responsive, and the shared bc1 host (incl. the live `cell-sigma` exam) is unaffected. This is a
   per-lab field (`lab.pidsLimit`, default 0/unlimited) so existing labs are unchanged.
+- **Disk quota:** `lab.diskQuotaMB: 1024` (~1GB writable). bc1 is overlay2-on-ext4, so Docker's
+  native `--storage-opt size=` is unavailable (needs xfs+pquota). Two-part guard instead: an
+  `fsize` ulimit caps any single file at the quota, and a 90s `SizeRw` reaper destroys a container
+  whose writable layer exceeds it. Verified: a 2GB single-file write is denied at 1.0G; a 1.5GB
+  multi-file container is reaped within 90s. This is a soft/reactive cap (not a hard real-time
+  quota); a hard quota needs the xfs+pquota infra change (backlog). 40 x 1GB = 40GB worst case,
+  well under bc1's free space.
 - **Bounded:** 2/user, 40 total, 15 min idle (Sablier keys off request traffic, so a closed tab
   reaps regardless of background processes), 120 min hard max lifetime.
 - **Network:** `sandbox-net` bridge with outbound internet and ICC enabled (containers can reach
@@ -98,6 +105,34 @@ disclosed in the consent text itself, bump `ObservatoryConsent.FORM_VERSION` (cu
 every participant through the updated text on next entry. This is a PI/IRB decision, not an
 engineering one; it is flagged here so the judgment is on the record either way.
 
+## Usage telemetry
+
+Each launch emits a `sandbox_launch` Observatory activity event (labId) through the existing
+consented pipeline: `ObservatoryTracker.logSandbox()` -> `logObservatoryEvent` CF -> the
+`observatory_activity` collection the admin dashboard reads. It is a Phase-1 event (in `ALLOWED`,
+not `PHASE2_TYPES`), so it is admitted on any consent record, same category as `course_click` —
+no re-consent needed. Wiring: `SandboxLauncher.renderButton`'s `onLaunch` hook -> the Observatory
+card -> `ObservatoryTracker.logSandbox(labId)`. Withdrawn/pre-consent users emit nothing (the
+tracker's `emit` guards on context + token).
+
+## Graded challenges + Linux Practitioner badge
+
+Five state-inspection challenges (create a file with content, an executable script, a mode-600
+file, grep ERROR lines to a file, a git repo with a commit). The learner does them in `~/work`
+(`hexpractice challenge` lists them, `hexpractice check` is a local preview), then clicks
+"Grade my practice" on the Observatory card.
+
+Grading is **server-authoritative**: the check commands live in the lab-manager
+(`SANDBOX_CHALLENGES`), NOT in the image — a student has sudo and could edit an in-container
+grader, so the logic stays server-side and runs AS the `student` user (correct `$HOME`, file
+execution, git ownership) via `GET /api/sandbox/check/:sessionId`. On `complete:true` the
+Observatory awards the `linux_sandbox_practitioner` achievement (`AchievementSystem.unlock`),
+which appears in the student's profile/achievement gallery. Verified E2E: 0/5 before, 5/5 +
+`complete:true` after the tasks; frontend smoke awards the badge on complete.
+
+To edit challenges, change `SANDBOX_CHALLENGES['linux-sandbox']` in the lab-manager AND the
+image's `hexpractice challenge`/`do_check` list in lockstep, then rebuild both.
+
 ## Verification (2026-07-06)
 
 - Image smoke (bc1): ttyd HTTP 200, `student` + `sudo` -> root, full toolset present,
@@ -116,9 +151,9 @@ Tracked in `project_arctic_linux_sandbox` (memory) and the marathon backlog:
   outbound internet + ICC; a consented student could pull a miner or scan from bc1's IP, or reach
   another container. Platform-wide (all labs). Options: egress allowlist, per-container network,
   ICC off. NOT yet mitigated beyond auth + bounded lifetime + PidsLimit.
-- **Storage quota** (owner: sandbox infra) — no `StorageOpt`/disk quota; a student can fill the
-  writable layer. Needs overlay2 pquota. Platform-wide.
-- **iframe `sandbox` attribute** (owner: frontend) — `SandboxLauncher.js:156` iframe has no
+- **Hard disk quota** (owner: sandbox infra) — the current fsize+reaper cap is soft/reactive; a
+  true real-time quota needs the overlay2->xfs+pquota infra change. Platform-wide.
+- **iframe `sandbox` attribute** (owner: frontend) — `SandboxLauncher.js` iframe has no
   `sandbox=` attr, so no block on top-level navigation. Shared by all 9 lab widgets; fast-follow
   a `sandbox="allow-scripts allow-same-origin allow-forms"` (no `allow-top-navigation`) after
   regression-testing ttyd + code-server labs.
@@ -126,8 +161,7 @@ Tracked in `project_arctic_linux_sandbox` (memory) and the marathon backlog:
   graded `cell-sigma` final exam; add a reserved allotment / priority so recreational usage cannot
   starve a live exam.
 - Native SSH access (browser xterm.js + Cloudflare Tunnel) per `_planning/SSH_SANDBOX_SCOPE.md`.
-- Curated practice tracks / challenges beyond the `hexpractice` menu.
-- Launch telemetry event into the Observatory activity stream.
+- Curated practice tracks / more graded challenges beyond the first five.
 
 Related: `_docs/operations/linux-mastery-lab-box-design-2026-07-02.md`,
 `_planning/SSH_SANDBOX_SCOPE.md`, `reference_sandbox_infrastructure` (memory).

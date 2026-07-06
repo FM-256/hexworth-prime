@@ -113,6 +113,12 @@ const ObservatoryTracker = (function () {
         } catch (e) { /* analytics is best-effort — never surface */ }
     }
 
+    // Public: record a sandbox launch (called by the Observatory sandbox card on a
+    // successful launch). No-ops before init() or after abort() via emit()'s guards.
+    function logSandbox(labId) {
+        emit('sandbox_launch', { labId: typeof labId === 'string' ? labId : null });
+    }
+
     // Emit the dwell event once, on the first leave signal.
     function sendDwell() {
         if (_leaveSent) return;
@@ -160,7 +166,7 @@ const ObservatoryTracker = (function () {
         _idToken = null;     // emit() no-ops (guards on _idToken)
     }
 
-    return { init: init, abort: abort };
+    return { init: init, abort: abort, logSandbox: logSandbox };
 })();
 
 // Browser global for script-tag consumers.

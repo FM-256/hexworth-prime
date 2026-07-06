@@ -236,6 +236,24 @@
         .obs-sandbox-showcase .sandbox-launcher__panel { background: rgba(5,6,15,0.55); border-color: rgba(129,140,248,0.28); }
         .obs-sandbox-showcase .sandbox-launcher__iframe { width: 100%; height: 66vh; min-height: 420px; border: 0; border-radius: 8px; background: #05060f; }
         .obs-sandbox-showcase .sandbox-launcher__iframe-wrap { margin-top: 12px; }
+
+        /* Practice grader UI (revealed after a launch). */
+        .obs-sandbox-grade { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(129,140,248,0.22); }
+        .obs-grade-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .obs-grade-btn {
+            background: linear-gradient(90deg, #818cf8, #22d3ee); color: #05060f; font-weight: 700;
+            border: 0; border-radius: 10px; padding: 9px 18px; cursor: pointer; letter-spacing: 0.02em;
+            transition: transform .15s ease, box-shadow .25s ease;
+        }
+        .obs-grade-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(34,211,238,0.30); }
+        .obs-grade-hint { font-size: 0.8rem; color: #9aa6e0; }
+        .obs-grade-result { margin-top: 12px; font-size: 0.9rem; color: #c7d0f0; }
+        .obs-grade-head { font-weight: 700; color: #a5b4fc; margin-bottom: 6px; }
+        .obs-grade-list { list-style: none; margin: 0; padding: 0; }
+        .obs-grade-list li { padding: 2px 0; }
+        .obs-grade-list li.ok { color: #67e8f9; }
+        .obs-grade-list li.no { color: #9aa6e0; }
+        .obs-grade-badge { margin-top: 10px; font-weight: 700; color: #34d399; }
     </style>
 </head>
 <body>
@@ -339,7 +357,7 @@
                         <span class="obs-sandbox-showcase__badge">Live Sandbox</span>
                         <h2 class="obs-sandbox-showcase__title">Linux Practice Sandbox</h2>
                     </div>
-                    <p class="obs-sandbox-showcase__desc">A real, disposable Ubuntu machine in your browser. Explore the filesystem, run commands, break things with full <code>sudo</code> &mdash; then reset to a clean box anytime. No install, nothing to set up beyond your Hexworth login.</p>
+                    <p class="obs-sandbox-showcase__desc">A real, disposable Ubuntu machine in your browser. Explore the filesystem, run commands, break things with full <code>sudo</code>, then reset to a clean box anytime. No install, nothing to set up beyond your Hexworth login.</p>
                     <div class="obs-sandbox-showcase__feats">
                         <span class="obs-sandbox-showcase__feat">Real Ubuntu 24.04</span>
                         <span class="obs-sandbox-showcase__feat">Full sudo</span>
@@ -348,8 +366,59 @@
                         <span class="obs-sandbox-showcase__feat">Up to 120 min</span>
                     </div>
                     <div id="obs-sandbox-mount"></div>
+                    <div id="obs-sandbox-grade" class="obs-sandbox-grade" style="display:none;">
+                        <div class="obs-grade-row">
+                            <button id="obs-grade-btn" class="obs-grade-btn" type="button">Grade my practice</button>
+                            <span class="obs-grade-hint">Finish the 5 tasks (type <code>hexpractice challenge</code> in the box), then grade to earn the <strong>Linux Practitioner</strong> badge.</span>
+                        </div>
+                        <div id="obs-grade-result" class="obs-grade-result"></div>
+                    </div>
                 </div>`
         };
+
+        // Grade the practice challenges for the active sandbox session (server-verified
+        // via the lab-manager), render per-challenge results, and award the Linux
+        // Practitioner badge on full completion.
+        async function gradePractice() {
+            var out = document.getElementById('obs-grade-result');
+            if (!out) return;
+            var sid = window.__obsSandboxSession;
+            if (!sid) { out.textContent = 'Launch the sandbox first, then grade.'; return; }
+            out.textContent = 'Checking your work...';
+            try {
+                var r = await SandboxLauncher.checkPractice(sid);
+                out.innerHTML = '';
+                var head = document.createElement('div');
+                head.className = 'obs-grade-head';
+                head.textContent = r.passed + ' / ' + r.total + ' challenges complete';
+                out.appendChild(head);
+                var ul = document.createElement('ul');
+                ul.className = 'obs-grade-list';
+                (r.results || []).forEach(function (c) {
+                    // textContent (not innerHTML) — descriptions are server-controlled but never trusted into markup.
+                    var li = document.createElement('li');
+                    li.className = c.pass ? 'ok' : 'no';
+                    li.textContent = (c.pass ? '✓ ' : '✗ ') + c.desc;
+                    ul.appendChild(li);
+                });
+                out.appendChild(ul);
+                if (r.complete && typeof AchievementSystem !== 'undefined') {
+                    var newly = AchievementSystem.unlock('linux_sandbox_practitioner');
+                    var badge = document.createElement('div');
+                    badge.className = 'obs-grade-badge';
+                    badge.textContent = newly ? 'Badge earned: Linux Practitioner!' : 'All complete. Badge already earned.';
+                    out.appendChild(badge);
+                }
+            } catch (e) {
+                out.textContent = 'Could not grade right now. Make sure your sandbox is still running.';
+            }
+        }
+
+        // Wire the grade button once (idempotent — mountSandbox may retry).
+        function wireSandboxGrader() {
+            var btn = document.getElementById('obs-grade-btn');
+            if (btn && !btn.__wired) { btn.__wired = true; btn.addEventListener('click', gradePractice); }
+        }
 
         // Gate the house behind research consent: render only once the signed-in
         // user has a consent record (existing or freshly submitted).
@@ -363,7 +432,19 @@
             (function mountSandbox(tries) {
                 var el = document.getElementById('obs-sandbox-mount');
                 if (el && typeof SandboxLauncher !== 'undefined') {
-                    SandboxLauncher.renderButton(el, 'linux-sandbox');
+                    SandboxLauncher.renderButton(el, 'linux-sandbox', {
+                        onLaunch: function (labId, result) {
+                            // Record each launch as a consented Observatory activity event.
+                            if (typeof ObservatoryTracker !== 'undefined' && ObservatoryTracker.logSandbox) {
+                                ObservatoryTracker.logSandbox(labId);
+                            }
+                            // Remember the session so the grader can check it; reveal the grader.
+                            window.__obsSandboxSession = result && result.sessionId;
+                            var g = document.getElementById('obs-sandbox-grade');
+                            if (g) g.style.display = '';
+                        }
+                    });
+                    wireSandboxGrader();
                     return;
                 }
                 if (tries > 0) setTimeout(function () { mountSandbox(tries - 1); }, 60);

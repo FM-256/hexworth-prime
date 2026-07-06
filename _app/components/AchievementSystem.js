@@ -1963,6 +1963,18 @@ class AchievementSystem {
             limited: true
         },
 
+        // Earned by completing all five graded challenges in the Linux Practice Sandbox
+        // (server-verified via the lab-manager /check endpoint before this is awarded).
+        linux_sandbox_practitioner: {
+            id: 'linux_sandbox_practitioner',
+            name: 'Linux Practitioner',
+            description: 'Completed all five challenges in the Linux Practice Sandbox',
+            icon: '<img src="/assets/images/icons/icon-penguin.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 100,
+            secret: false
+        },
+
         // === TRIPWIRE (Secret - Honeypot Defense) ===
         tripwire_busted: {
             id: 'tripwire_busted',

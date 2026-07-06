@@ -51,6 +51,7 @@ can spoof another `uid` or an unenrolled `classId`.
 | `session_end` | `sessionId`, `durationSec`, `activeSec`, `maxScrollPct` | See the invariant below. |
 | `client_error` | `message`, `source` | A JS error the student hit (doubles as live QA). Capped at 5 per page load. |
 | `device` | `viewport`, `platform`, `connection`, `reducedMotion` | Once per browser session. |
+| `sandbox_launch` | `labId` | A learner launches a browser sandbox (e.g. `linux-sandbox`) from the Observatory. Phase-1 event (admitted on any consent record). |
 
 ## CRITICAL: `session_end` is a snapshot stream, not one row per session
 

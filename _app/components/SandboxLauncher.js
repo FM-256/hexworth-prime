@@ -120,6 +120,12 @@ const SandboxLauncher = (function() {
         return apiCall('GET', '/list');
     }
 
+    // Server-authoritative practice grading for a running session. Returns
+    // { ok, passed, total, complete, results[] }. The caller awards any badge.
+    async function checkPractice(sessionId) {
+        return apiCall('GET', `/check/${sessionId}`);
+    }
+
     // ── UI Rendering ────────────────────────────────────────────
 
     function renderButton(container, labId, options = {}) {
@@ -219,6 +225,12 @@ const SandboxLauncher = (function() {
             try {
                 const result = await launch(labId);
                 updateUI('running', `Connected — ${result.lab}`, result.url);
+
+                // Optional launch hook (e.g. Observatory usage telemetry). Best-effort:
+                // a hook error must never break the launch flow.
+                if (typeof options.onLaunch === 'function') {
+                    try { options.onLaunch(labId, result); } catch (e) { /* ignore */ }
+                }
 
                 const session = _activeSessions[labId];
                 session.pollTimer = startTimer(session.launchedAt);
@@ -404,6 +416,7 @@ const SandboxLauncher = (function() {
         status,
         destroy,
         list,
+        checkPractice,
         renderButton,
         getActiveSessions: () => ({ ..._activeSessions }),
         CONFIG,

@@ -49,7 +49,7 @@ RUN mkdir -p /home/student/playground/logs /home/student/playground/data && \
     printf '[INFO] service started\n[WARN] disk at 80%%\n[ERROR] connection refused\n[INFO] service stopped\n' > /home/student/playground/logs/app.log
 
 # Friendly landing: banner + first commands to try, shown on every new shell.
-RUN printf '\n\033[1;36mHEXWORTH LINUX PRACTICE SANDBOX\033[0m\nA real, disposable Ubuntu box. Explore freely — \033[1msudo\033[0m works, nothing here is precious.\nType \033[1mhexpractice\033[0m for things to try, or \033[1mcd ~/playground\033[0m to start poking around.\nBroke something for good? Just relaunch the sandbox for a fresh box.\n\n' > /etc/motd && \
+RUN printf '\n\033[1;36mHEXWORTH LINUX PRACTICE SANDBOX\033[0m\nA real, disposable Ubuntu box. Explore freely: \033[1msudo\033[0m works, nothing here is precious.\nType \033[1mhexpractice\033[0m for things to try, or \033[1mcd ~/playground\033[0m to poke around.\nWant a badge? \033[1mhexpractice challenge\033[0m has 5 graded tasks to earn Linux Practitioner.\nBroke something for good? Just relaunch the sandbox for a fresh box.\n\n' > /etc/motd && \
     echo 'cat /etc/motd' >> /home/student/.bashrc && \
     chown -R student:student /home/student
 
