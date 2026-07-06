@@ -152,6 +152,9 @@ const ObservatoryConsent = (function () {
                     displayName: (u && u.displayName) || null,
                     email: (u && u.email) || null,
                     formVersion: record.formVersion || null,
+                    // participates=false => declined research; the CF telemetry gate drops their events.
+                    // Absent (legacy records) is treated as consented for backward compatibility.
+                    participates: record.participates !== false,
                     enrolledAt: record.consentedAt || null,
                     serverEnrolledAt: serverTimestamp()
                 });
@@ -274,10 +277,11 @@ ${sections}
             <div class="obs-consent-body" tabindex="0">${sectionsHTML}</div>
             <div class="obs-field"><label for="obsName">Participant name</label><input type="text" id="obsName" autocomplete="name"></div>
             <div class="obs-field"><label for="obsClass">Your class (enrollment)</label><select id="obsClass">${classOpts}</select></div>
-            <div class="obs-check"><input type="checkbox" id="obsAgree"><label for="obsAgree">I confirm that I understand this study and agree to participate voluntarily.</label></div>
+            <div class="obs-check"><input type="radio" name="obsConsent" id="obsAgree"><label for="obsAgree">I confirm that I understand this study and <strong>agree to participate</strong> voluntarily.</label></div>
+            <div class="obs-check"><input type="radio" name="obsConsent" id="obsDecline"><label for="obsDecline">I understand this study and <strong>decline to participate</strong>. I can still use the Observatory; no research data will be collected about me.</label></div>
             <div class="obs-field"><label for="obsSig">Type your name as signature</label><input type="text" id="obsSig" autocomplete="off"></div>
             <div class="obs-actions">
-                <button class="obs-btn" id="obsSubmit" disabled>Agree, enroll &amp; enter</button>
+                <button class="obs-btn" id="obsSubmit" disabled>Enroll &amp; enter</button>
                 <span style="font-size:12px;color:#7c8bd6">A copy downloads to your device on submit.</span>
             </div>
             <div class="obs-err" id="obsErr"></div>
@@ -286,20 +290,26 @@ ${sections}
 
         const $ = id => overlay.querySelector(id);
         const submit = $('#obsSubmit'), err = $('#obsErr');
-        // Enable submit only when all required fields are valid.
+        // Enable submit once name + signature are filled AND a choice (agree OR decline) is made.
+        // The button label reflects the choice so "decline" never looks like agreement.
         function revalidate() {
-            const ok = $('#obsName').value.trim() && $('#obsSig').value.trim()
-                && $('#obsAgree').checked;
+            const choiceMade = $('#obsAgree').checked || $('#obsDecline').checked;
+            const ok = $('#obsName').value.trim() && $('#obsSig').value.trim() && choiceMade;
             submit.disabled = !ok;
+            submit.textContent = $('#obsDecline').checked ? 'Enter without participating' : 'Agree, enroll & enter';
         }
         ['#obsName', '#obsSig', '#obsClass'].forEach(s => $(s).addEventListener('input', revalidate));
         $('#obsAgree').addEventListener('change', revalidate);
+        $('#obsDecline').addEventListener('change', revalidate);
 
         // Submit handler: persist, download, reveal house.
         submit.addEventListener('click', async () => {
             submit.disabled = true; err.textContent = '';
             const classId = $('#obsClass').value;
             const classObj = classes.find(c => c.id === classId) || { id: classId, label: classId };
+            // Capture the actual choice. participates=false means the student declined research:
+            // they still enroll and enter, but the telemetry pipeline (CF + tracker) collects nothing.
+            const participates = $('#obsAgree').checked;
             const record = {
                 uid: uid || null,
                 name: $('#obsName').value.trim(),
@@ -307,7 +317,8 @@ ${sections}
                 className: classObj.label,
                 formVersion: FORM_VERSION,
                 studyTitle: CONSENT_META.title,
-                agreements: { understoodAndAgree: true },
+                participates: participates,
+                agreements: { understoodAndAgree: participates },
                 signature: $('#obsSig').value.trim(),
                 consentedAt: new Date().toISOString()
             };

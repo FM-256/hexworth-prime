@@ -58,22 +58,30 @@ const ObservatoryTracker = (function () {
         } catch (e) { /* leave uid null */ }
 
         let classId = null;
+        let declined = false;   // participates===false => student declined research; emit no-ops
         const conn = getDb();
         if (conn && uid) {
             try {
                 const { doc, getDoc } = conn.fs;
                 let snap = await getDoc(doc(conn.db, 'observatory_enrollment', uid));
                 if (!snap.exists()) snap = await getDoc(doc(conn.db, 'observatory_consent', uid));
-                if (snap.exists()) classId = snap.data().classId || null;
+                if (snap.exists()) {
+                    classId = snap.data().classId || null;
+                    if (snap.data().participates === false) declined = true;
+                }
             } catch (e) { /* fall through to localStorage */ }
         }
-        if (!classId) {
+        if (!classId || declined === false) {
             try {
                 const raw = localStorage.getItem('observatory_consent_' + (uid || 'preview'));
-                if (raw) classId = JSON.parse(raw).classId || null;
+                if (raw) {
+                    const rec = JSON.parse(raw);
+                    if (!classId) classId = rec.classId || null;
+                    if (rec.participates === false) declined = true;
+                }
             } catch (e) { /* ignore */ }
         }
-        return { uid, classId };
+        return { uid, classId, declined };
     }
 
     // Cache a fresh Firebase ID token for the beacon. Tokens last ~1h; we
@@ -89,9 +97,10 @@ const ObservatoryTracker = (function () {
     }
 
     // Fire-and-forget beacon. No-op without a uid + token (the endpoint would
-    // reject anyway). Uses sendBeacon so the write survives page unload.
+    // reject anyway), and no-op when the student declined research (_ctx.declined) so
+    // nothing is collected client-side — the CF drops it too, this is defense in depth.
     function emit(type, payload) {
-        if (!_ctx || !_ctx.uid || !_idToken) return;
+        if (!_ctx || !_ctx.uid || _ctx.declined || !_idToken) return;
         try {
             const body = JSON.stringify({
                 idToken: _idToken,

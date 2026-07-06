@@ -3598,16 +3598,21 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
         let classId = null;
         let hasRecord = false;
         let formVersion = null;
+        let declined = false;
         try {
             const [enrollSnap, consentSnap] = await Promise.all([
                 db.doc(`observatory_enrollment/${uid}`).get(),
                 db.doc(`observatory_consent/${uid}`).get()
             ]);
-            if (enrollSnap.exists) { hasRecord = true; classId = enrollSnap.data().classId || null; }
+            if (enrollSnap.exists) {
+                hasRecord = true; classId = enrollSnap.data().classId || null;
+                if (enrollSnap.data().participates === false) declined = true;
+            }
             if (consentSnap.exists) {
                 hasRecord = true;
                 if (!classId) classId = consentSnap.data().classId || null;
                 formVersion = consentSnap.data().formVersion || null;
+                if (consentSnap.data().participates === false) declined = true;
             }
         } catch (e) { /* leave defaults: hasRecord false, classId/formVersion null */ }
         // Research-integrity gate: only a uid with a server-side enrollment or consent
@@ -3616,6 +3621,13 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
         // Gate on record EXISTENCE (hasRecord), never on classId, so a consented student
         // whose record carries a null classId is still admitted.
         if (!hasRecord) { res.status(204).end(); return; }
+
+        // Decline gate: a participant who explicitly declined research (participates===false on
+        // either the consent or enrollment record) is fully allowed to USE the Observatory, but no
+        // research data is collected about them. Drop every event type, silently (204). Records that
+        // predate this field have participates undefined and are treated as consented (unchanged).
+        if (declined) { res.status(204).end(); return; }
+
         if (!classId && typeof data.classId === 'string') classId = data.classId;
 
         // Phase 2 consent gate: a behavioral event is admitted only if the participant's
