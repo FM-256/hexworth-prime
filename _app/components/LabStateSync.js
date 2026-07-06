@@ -191,11 +191,16 @@
         pull().then(function (n) { if (n > 0) _announceRestore(); });
     });
 
+    // Clear a key's version counter — call alongside clearing the state value so the two stay
+    // coupled (a device must never look "caught up" while holding no content).
+    function clearVersion(key) { try { localStorage.removeItem(key + '__lsv'); } catch (e) { /* ignore */ } }
+
     window.LabStateSync = {
         register: register,
         queuePush: queuePush,
         pull: pull,
         ready: ready,
+        clearVersion: clearVersion,
         _keys: function () { return Array.from(KEYS); }
     };
 

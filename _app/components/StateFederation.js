@@ -167,6 +167,10 @@
     FederatedHandle.prototype.reset = function() {
         localStorage.removeItem(this._storageKey);
         localStorage.removeItem(this._syncKey);
+        // Keep the cross-device version counter coupled to the state it versions.
+        if (window.LabStateSync && typeof window.LabStateSync.clearVersion === 'function') {
+            try { window.LabStateSync.clearVersion(this._storageKey); } catch (e) { /* optional dep */ }
+        }
     };
 
     /**
@@ -174,6 +178,10 @@
      */
     FederatedHandle.prototype.clearFull = function() {
         localStorage.removeItem(this._storageKey);
+        // Keep the cross-device version counter coupled to the state it versions.
+        if (window.LabStateSync && typeof window.LabStateSync.clearVersion === 'function') {
+            try { window.LabStateSync.clearVersion(this._storageKey); } catch (e) { /* optional dep */ }
+        }
     };
 
     /**
