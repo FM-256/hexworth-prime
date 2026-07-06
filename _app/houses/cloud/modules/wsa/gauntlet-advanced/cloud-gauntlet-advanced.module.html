@@ -1709,8 +1709,13 @@
         showBriefing();
     }
 
-    function resetGauntlet() {
+    async function resetGauntlet() {
         if (!confirm('Reset ALL advanced gauntlet progress? This cannot be undone.')) return;
+        // Delete the cloud copy BEFORE reload — otherwise the boot-gate pull would restore the old
+        // environment right back after the page reloads, silently undoing the reset.
+        if (window.LabStateSync && LabStateSync.deleteCloud) {
+            try { await LabStateSync.deleteCloud(STORAGE_KEY); } catch (e) { /* proceed with local reset */ }
+        }
         _fed.reset();
         location.reload();
     }
@@ -1772,9 +1777,14 @@
         // overwrite the good cloud copy. The late-restore listener re-offers resume once it arrives.
     }
 
-    function startFresh() {
+    async function startFresh() {
         document.getElementById('resumeOverlay').classList.remove('show');
         document.getElementById('completionOverlay').classList.remove('show');
+        // Delete the cloud copy first so the fresh state below actually wins (a stale higher-counter
+        // cloud doc would otherwise be re-adopted, undoing the fresh start).
+        if (window.LabStateSync && LabStateSync.deleteCloud) {
+            try { await LabStateSync.deleteCloud(STORAGE_KEY); } catch (e) { /* proceed with local fresh */ }
+        }
         _fed.reset();
         state = createDefaultState();
         initBrokenConfigs();

@@ -167,8 +167,12 @@
     FederatedHandle.prototype.reset = function() {
         localStorage.removeItem(this._storageKey);
         localStorage.removeItem(this._syncKey);
-        // Keep the cross-device version counter coupled to the state it versions.
-        if (window.LabStateSync && typeof window.LabStateSync.clearVersion === 'function') {
+        // Deliberate reset = gone everywhere. Delete the CLOUD copy too, else the version guard would
+        // let the old cloud state be re-adopted on the next pull/push and silently undo the reset.
+        // Returns a promise; callers that reload immediately should await LabStateSync.deleteCloud.
+        if (window.LabStateSync && typeof window.LabStateSync.deleteCloud === 'function') {
+            try { window.LabStateSync.deleteCloud(this._storageKey); } catch (e) { /* optional dep */ }
+        } else if (window.LabStateSync && typeof window.LabStateSync.clearVersion === 'function') {
             try { window.LabStateSync.clearVersion(this._storageKey); } catch (e) { /* optional dep */ }
         }
     };

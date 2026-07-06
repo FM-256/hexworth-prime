@@ -195,12 +195,30 @@
     // coupled (a device must never look "caught up" while holding no content).
     function clearVersion(key) { try { localStorage.removeItem(key + '__lsv'); } catch (e) { /* ignore */ } }
 
+    // Deliberate reset ("Reset" / "Start Fresh"): remove the CLOUD doc and the local counter. A mere
+    // local clear is not enough — the counter guard would let the old cloud copy be re-adopted on the
+    // next pull/push, silently undoing the reset. Clears local synchronously, returns a promise for the
+    // cloud delete so callers that reload (e.g. resetGauntlet) can await it first.
+    function deleteCloud(key) {
+        clearVersion(key);
+        return (async function () {
+            const db = _db(), uid = _uid();
+            if (!db || !uid || !window.firebaseFirestore || !window.firebaseFirestore.deleteDoc) return false;
+            try {
+                const { doc, deleteDoc } = window.firebaseFirestore;
+                await deleteDoc(doc(db, 'users', uid, 'sync', _docId(key)));
+                return true;
+            } catch (e) { return false; }
+        })();
+    }
+
     window.LabStateSync = {
         register: register,
         queuePush: queuePush,
         pull: pull,
         ready: ready,
         clearVersion: clearVersion,
+        deleteCloud: deleteCloud,
         _keys: function () { return Array.from(KEYS); }
     };
 
