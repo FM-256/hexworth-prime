@@ -71,12 +71,18 @@ const ObservatoryTracker = (function () {
                 }
             } catch (e) { /* fall through to localStorage */ }
         }
-        if (!classId || declined === false) {
+        // localStorage is a LAST-RESORT mirror, used only when the authoritative server read did not
+        // resolve (offline/preview, or no enrollment+consent doc). When it does resolve, both classId
+        // and declined already come from Firestore, so we must NOT consult a possibly-stale local
+        // mirror — doing so could wrongly flip a currently-consented student to declined and silently
+        // suppress their beacons. So gate on !classId only (a decliner has a classId, so this is skipped
+        // for them and declined comes straight from the server read above).
+        if (!classId) {
             try {
                 const raw = localStorage.getItem('observatory_consent_' + (uid || 'preview'));
                 if (raw) {
                     const rec = JSON.parse(raw);
-                    if (!classId) classId = rec.classId || null;
+                    classId = rec.classId || null;
                     if (rec.participates === false) declined = true;
                 }
             } catch (e) { /* ignore */ }

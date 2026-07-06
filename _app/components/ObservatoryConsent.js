@@ -154,6 +154,10 @@ const ObservatoryConsent = (function () {
                     formVersion: record.formVersion || null,
                     // participates=false => declined research; the CF telemetry gate drops their events.
                     // Absent (legacy records) is treated as consented for backward compatibility.
+                    // MIRRORED intentionally onto BOTH docs in this atomic batch (consent via ...record
+                    // above, enrollment here) so the three readers stay consistent: the CF ORs both docs,
+                    // the client tracker reads enrollment, the admin roster reads enrollment. A future
+                    // write that touches one doc's participates without the other would break that.
                     participates: record.participates !== false,
                     enrolledAt: record.consentedAt || null,
                     serverEnrolledAt: serverTimestamp()
@@ -318,7 +322,11 @@ ${sections}
                 formVersion: FORM_VERSION,
                 studyTitle: CONSENT_META.title,
                 participates: participates,
-                agreements: { understoodAndAgree: participates },
+                // Both radio options affirm "I understand this study" — so understanding is always true.
+                // participates carries the actual choice. Recording them separately keeps the raw record
+                // honest: a decliner understood the study and chose not to participate (not a comprehension
+                // failure, which understoodAndAgree:false could be misread as by a human reviewer).
+                agreements: { understoodStudy: true, agreedToParticipate: participates },
                 signature: $('#obsSig').value.trim(),
                 consentedAt: new Date().toISOString()
             };
