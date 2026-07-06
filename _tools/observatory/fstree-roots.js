@@ -8,10 +8,15 @@ const fs = require('fs'), path = require('path');
 const APP = path.resolve('_app');
 const OUT = path.join(APP, 'data', 'course-trees');
 
-// Roots the crawler cannot follow (dynamic hubs). root = content dir under _app.
+// Roots the crawler cannot follow (dynamic hubs). Either walk a single `root`, or (for
+// launcher courses whose content is filename-prefixed across sibling dirs) collect from
+// `dirs` filtered by `match`. `hub` is the Observatory card root, so the seeder maps the
+// tree to the card (FEH additionally needs SECONDARY_ROOTS to own the content paths).
 const SPECS = [
     { root: 'projects', hub: 'projects/index.html', file: 'projects.json', title: 'Projects' },
-    { root: 'dark-arts/vault/bug-hunting', hub: 'dark-arts/vault/bug-hunting/index.html', file: 'dark-arts--vault--bug-hunting.json', title: 'Bug Hunting' }
+    { root: 'dark-arts/vault/bug-hunting', hub: 'dark-arts/vault/bug-hunting/index.html', file: 'dark-arts--vault--bug-hunting.json', title: 'Bug Hunting' },
+    { dirs: ['houses/dark-arts/presentations', 'houses/dark-arts/labs', 'houses/dark-arts/quizzes'], match: /dark-arts-feh-/,
+      hub: 'houses/dark-arts/feh/index.html', file: 'dark-arts--feh.json', title: 'Foundations of Ethical Hacking' }
 ];
 
 // Collect every .html under a dir, skipping dev/non-student dirs.
@@ -42,7 +47,18 @@ const byHub = new Map(manifest.hubs.map(h => [h.hub, h]));
 
 // For each dynamic root: enumerate content pages into href nodes and write the tree + entry.
 for (const s of SPECS) {
-    const files = []; walk(path.join(APP, s.root), files);
+    // Collect candidate files: either walk one root dir, or collect from several dirs and
+    // keep only filenames matching s.match (launcher courses like FEH whose content is
+    // filename-prefixed across sibling dirs).
+    const files = [];
+    if (s.dirs) {
+        for (const d of s.dirs) {
+            const found = []; walk(path.join(APP, d), found);
+            for (const f of found) { if (s.match.test(path.basename(f))) files.push(f); }
+        }
+    } else {
+        walk(path.join(APP, s.root), files);
+    }
     const children = [];
     for (const f of files) {
         if (path.basename(f) === 'index.html' || f.includes('.bak')) continue;
@@ -56,7 +72,7 @@ for (const s of SPECS) {
         tree: { path: s.hub, title: s.title, status: 'ok', depth: 0, linkType: 'course-home', children } };
     fs.writeFileSync(path.join(OUT, s.file), JSON.stringify(tree, null, 2));
     byHub.set(s.hub, { hub: s.hub, title: s.title, stats, file: s.file });
-    console.log('  fs-tree ' + s.root + ' -> ' + s.file + '  (' + children.length + ' content nodes)');
+    console.log('  fs-tree ' + (s.root || s.hub) + ' -> ' + s.file + '  (' + children.length + ' content nodes)');
 }
 
 // Persist the merged manifest.

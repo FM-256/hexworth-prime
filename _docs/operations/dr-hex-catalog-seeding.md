@@ -5,7 +5,7 @@ into its retrieval corpus. This is the "Option A" path noted as a future phase i
 `rag_seed.py`. Zero frontend or prompt changes: once seeded, the catalog is surfaced
 automatically by `rag.retrieve()` and the `search_knowledge_base` tool.
 
-First run: 2026-07-05 — 889 chunks across 16/16 Observatory courses.
+First run: 2026-07-05 — 918 chunks across 16/16 Observatory courses.
 
 ## Architecture (why this is a box step, not a website deploy)
 
@@ -38,7 +38,7 @@ this process). A website (`firebase deploy`) does not touch any of this.
 node _tools/eduscan/cli.js --tree --all           # regenerates houses/ trees + manifest
 #    Then the two helpers for the roots the crawler cannot reach:
 node _tools/observatory/recrawl-6-roots.js         # python-it, ethics-it, infosec, adv-linux (+ stubs for the 2 below)
-node _tools/observatory/fstree-roots.js            # projects, bug-hunting (dynamic hubs -> filesystem enumeration)
+node _tools/observatory/fstree-roots.js            # projects, bug-hunting, FEH (dynamic/launcher hubs -> filesystem enumeration)
 
 # 2. (repo) Sanity dry-run: confirm 16/16 courses covered.
 CATALOG_TREES_DIR="$(pwd)/_app/data/course-trees" python3 _tools/hexclass/orchestrator/seed_catalog.py --dry-run
@@ -68,11 +68,25 @@ Catalog rows are namespaced, so this removes only the catalog corpus and leaves 
 onboarding / dispatch rows intact. Re-running the seeder is also safe (it wipes then
 re-inserts).
 
-## Known coverage note
+## Launcher/content splits (SECONDARY_ROOTS)
 
-`obs-ethical-hacking` (Foundations of Ethical Hacking) yields 1 chunk: its content is an
-empty stub on disk (`houses/dark-arts/feh/` has only `index.html`). When that course is
-built out, a reseed covers it automatically.
+Some cards point at a launcher `index.html` that builds its lesson cards from `data-path-href`
+or relative paths, so the real content lives at a sibling path the crawler never reaches.
+For these, `fstree-roots.js` enumerates the content files into a tree, and `SECONDARY_ROOTS`
+in `seed_catalog.py` maps those content paths to the card so the seeder attributes them:
+
+- **FEH** (`obs-ethical-hacking`): launcher `houses/dark-arts/feh`, content at
+  `houses/dark-arts/{presentations,labs,quizzes}/dark-arts-feh-*.html` (10 modules =
+  30 files, those dirs are FEH-only). Yields 30 chunks.
+- **CLH** (`obs-clh`): launcher `houses/script/courses/clh`, content at `houses/script/clh`.
+
+When adding a course, check whether its card root actually holds the content; if not, add an
+`fstree-roots.js` spec plus a `SECONDARY_ROOTS` entry.
+
+Note on retrieval: catalog chunks are thin pointers (title + course + path), so for a
+topic-specific query a richer `KBA:` page on the same topic will often outrank them in
+top-K. That is expected and desirable. The catalog's job is corpus-level awareness (every
+course/lab exists in Dr. Hex's memory), not to win every query.
 
 Related: `_docs/operations/dr-hex-orchestrator.md`, `_tools/hexclass/orchestrator/rag_seed.py`,
 `_docs/operations/observatory-activity-codebook.md`.

@@ -172,6 +172,16 @@ SECONDARY_ROOTS = {
     # (observed directly in script--courses--clh.json). Without this the course
     # would seed only its launcher page.
     "obs-clh": ["houses/script/clh"],
+    # FEH's card points at the launcher houses/dark-arts/feh, but its 10 modules
+    # (presentation + lab + quiz each) live at houses/dark-arts/{presentations,labs,
+    # quizzes}/dark-arts-feh-*.html (the launcher builds cards from those relative
+    # paths). Those three dirs are FEH-only (10 files each), so scoping to them does
+    # not pull in other content.
+    "obs-ethical-hacking": [
+        "houses/dark-arts/presentations",
+        "houses/dark-arts/labs",
+        "houses/dark-arts/quizzes",
+    ],
 }
 
 # Navigation linkTypes carry no new content; their targets are reached as
