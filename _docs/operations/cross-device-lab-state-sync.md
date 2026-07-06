@@ -129,14 +129,24 @@ are completely unaffected:
 |---|---|---|
 | `register(config)` | Module registration | `LabStateSync.register(config.storageKey)` at `_app/components/StateFederation.js:228-230` |
 | `FederatedHandle.prototype.save` | Every `fed.save(fullState)` | `LabStateSync.queuePush(this._storageKey)` at `_app/components/StateFederation.js:89-91` |
-| `FederatedHandle.prototype.reset` | `fed.reset()` | `LabStateSync.clearVersion(this._storageKey)` at `_app/components/StateFederation.js:171-173` |
-| `FederatedHandle.prototype.clearFull` | `fed.clearFull()` | `LabStateSync.clearVersion(this._storageKey)` at `_app/components/StateFederation.js:182-184` |
+| `FederatedHandle.prototype.reset` | `fed.reset()` | `LabStateSync.deleteCloud(this._storageKey)` — deletes cloud doc + local counter (deliberate reset = gone everywhere) |
+| `FederatedHandle.prototype.clearFull` | `fed.clearFull()` | `LabStateSync.clearVersion(this._storageKey)` — local counter only; preserves the cloud copy on purpose |
 
 **Why couple `clearVersion` to `reset`/`clearFull`:** the version counter and the state it counts
 must never diverge. If a device cleared its state but kept a high counter, it would look
 "caught up" on the next push comparison while holding no content — the invariant the whole scheme
 depends on. This coupling was added as a direct follow-up (commit `cfe36bb5e`) to close a
 non-blocking gap flagged during adversarial review.
+
+**Reset must defeat the cloud, not just local (commit `50f4333f8`).** A deliberate reset that only
+cleared local state was silently undone: the cloud doc kept its high counter, and the wipe-protection
+guard (`localLsv <= cloudLsv` → adopt cloud) re-restored the old environment within one debounce.
+So `reset()` now calls `LabStateSync.deleteCloud(key)` — it clears the local counter synchronously
+AND `deleteDoc`s the cloud doc, returning a promise. `clearFull()` deliberately does NOT delete the
+cloud (its purpose is to drop local state while preserving the cloud copy for other devices). The
+Gauntlet's `resetGauntlet()` and `startFresh()` are `async` and `await LabStateSync.deleteCloud()`
+before reload / fresh save, so the boot-gate pull can't resurrect the old environment and the fresh
+state wins.
 
 `StateFederation` is used by exactly 5 labs today:
 
@@ -221,11 +231,13 @@ Each one closes a specific step of a data-loss chain that was demonstrated, not 
 
 ## Verification
 
-A pure-Node two-device simulation (mock Firestore, mock `localStorage`) covers 12/12 cases:
-full environment travels device 1 to device 2 including the stage-3 OU; `load()` returns source
-`'local'` (not `'sync'`) on the receiving device; wipe protection holds (an unrestored device cannot
-push over the cloud copy); corrupt JSON is never pushed; counter ordering wins over a deliberately
-skewed wall clock; `ready()` restores correctly on a fresh device.
+A pure-Node two-device simulation (mock Firestore, mock `localStorage`, loading the real shipped
+component files) covers 17/17 cases: full environment travels device 1 to device 2 including the
+stage-3 OU; `load()` returns source `'local'` (not `'sync'`) on the receiving device; wipe protection
+holds (an unrestored device cannot push over the cloud copy); corrupt JSON is never pushed; counter
+ordering wins over a deliberately skewed wall clock; `ready()` restores correctly on a fresh device;
+and — after adversarial review — a deliberate reset deletes the cloud doc, the fresh state wins, and
+a brand-new device after a reset does not resurrect the old completed environment.
 
 **Gap:** a real-browser two-device test (two actual browser sessions against a live or emulator
 Firestore project) has not been run. The Node simulation validates the ordering/safety logic; it does
