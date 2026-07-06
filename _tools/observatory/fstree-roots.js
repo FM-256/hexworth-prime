@@ -67,6 +67,13 @@ for (const s of SPECS) {
         const rel = path.relative(APP, f).replace(/\\/g, '/');
         children.push({ path: rel, title: info.title, status: 'ok', depth: 1, linkType: 'href', linkText: info.title, children: [] });
     }
+    // Prepend the course-home node (the hub index) as a real href node so the seeder
+    // classifies it as the course home and emits an overview chunk with the content
+    // inventory. Without this, launcher courses have no "what is in course X?" chunk
+    // (the crawler's own course-home linkType is skipped as navigation).
+    let homeTitle = s.title;
+    try { const hm = meta(path.join(APP, s.hub)); if (hm.title) homeTitle = hm.title; } catch (e) { /* keep s.title */ }
+    children.unshift({ path: s.hub, title: homeTitle, status: 'ok', depth: 1, linkType: 'href', linkText: homeTitle, children: [] });
     const stats = { totalNodes: children.length + 1, ok: children.length + 1, broken: 0, visited: 1 };
     const tree = { hub: s.hub, title: s.title, generated: new Date().toISOString(), stats,
         tree: { path: s.hub, title: s.title, status: 'ok', depth: 0, linkType: 'course-home', children } };

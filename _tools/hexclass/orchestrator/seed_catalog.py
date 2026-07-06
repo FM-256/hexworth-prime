@@ -364,6 +364,17 @@ def collect_owned_nodes(tree_dir: str, hub_files: dict[str, str]):
     return owned
 
 
+def _plural(word: str, n: int) -> str:
+    """Pluralize a content-type word for the inventory line (quiz -> quizzes)."""
+    if n == 1:
+        return word
+    if word.endswith("z"):
+        return word + "zes"
+    if word.endswith(("s", "x", "ch", "sh")):
+        return word + "es"
+    return word + "s"
+
+
 def build_chunks(tree_dir: str, hub_files: dict[str, str]):
     """Return (chunks, per_course_counts).
 
@@ -427,16 +438,17 @@ def build_chunks(tree_dir: str, hub_files: dict[str, str]):
         # Emit the course-home chunk first, enriched with a content inventory.
         if home_path is not None:
             _, htitle, _, _ = classified[home_path]
-            inv = ", ".join(f"{cnt} {t.lower()}{'s' if cnt != 1 else ''}"
+            inv = ", ".join(f"{cnt} {_plural(t.lower(), cnt)}"
                             for t, cnt in sorted(type_counts.items()))
+            # Front-load the distinctive terms (course name, "overview", the content
+            # inventory) so the embedding is dominated by what a "what is in course X?"
+            # query actually matches, not by the shared Observatory boilerplate.
             body = (
-                f"{name} ({cert}) is a scheduled course in the Hexworth "
-                f"Observatory, taught from the House of {house.title()}. "
-                f"This is the course overview / landing page"
-                + (f' titled "{clean_text(htitle)}"' if clean_text(htitle) else "")
-                + f". Course content indexed in the crawl: "
-                + (inv if inv else "landing page only")
-                + f". Course home path: {home_path}."
+                f"{name} ({cert}) - Course Overview. "
+                f"Contents: " + (inv if inv else "landing page only") + ". "
+                + (f'Landing page titled "{clean_text(htitle)}". ' if clean_text(htitle) else "")
+                + f"The {name} course in the Hexworth Observatory, House of "
+                f"{house.title()}. Course home path: {home_path}."
             )
             chunks.append({
                 "title": make_title(htitle, home_path, True),
@@ -453,13 +465,18 @@ def build_chunks(tree_dir: str, hub_files: dict[str, str]):
             ntype, title, lt, link = classified[p]
             ctitle = clean_text(title)
             link_clean = clean_text(link)
+            # Front-load the page's own title and the course name so the discriminating
+            # terms (e.g. "Reconnaissance & OSINT Lab", the course) lead the embedding
+            # instead of the repeated "in the Hexworth Observatory" boilerplate that made
+            # every catalog chunk look alike to the retriever.
+            lead = f"{ctitle}. " if ctitle else ""
             body = (
-                f"{ntype} in the {name} course ({cert}, House of "
-                f"{house.title()}) in the Hexworth Observatory"
-                + (f'. Titled "{ctitle}"' if ctitle else "")
-                + (f'. Linked from the course as "{link_clean}"'
+                f"{lead}"
+                f"{ntype} in {name} ({cert})."
+                + (f' Also linked as "{link_clean}".'
                    if link_clean and link_clean.lower() not in ctitle.lower() else "")
-                + f". Page path: {p}."
+                + f" Part of the {name} course in the Hexworth Observatory, House of "
+                f"{house.title()}. Page path: {p}."
             )
             chunks.append({
                 "title": make_title(title, p, False),
