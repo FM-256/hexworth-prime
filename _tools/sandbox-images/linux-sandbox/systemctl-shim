@@ -1,0 +1,16 @@
+#!/bin/bash
+# Minimal systemctl shim — no systemd in containers. Tracks enabled/started
+# state under /run/hexlab-svc so service-flavored scenarios can grade.
+set -u
+cmd="${1:-}"; svc="${2:-}"; D=/run/hexlab-svc; mkdir -p "$D" 2>/dev/null || sudo mkdir -p "$D"
+case "$cmd" in
+  start|restart)   sudo touch "$D/$svc.active" 2>/dev/null || touch "$D/$svc.active"; echo "$svc $cmd" ;;
+  stop)            sudo rm -f "$D/$svc.active" 2>/dev/null || rm -f "$D/$svc.active" ;;
+  enable)          sudo touch "$D/$svc.enabled" 2>/dev/null || touch "$D/$svc.enabled"; echo "Created symlink (shim) for $svc." ;;
+  disable)         sudo rm -f "$D/$svc.enabled" 2>/dev/null || rm -f "$D/$svc.enabled" ;;
+  is-active)       [ -f "$D/$svc.active" ] && { echo active; exit 0; } || { echo inactive; exit 3; } ;;
+  is-enabled)      [ -f "$D/$svc.enabled" ] && { echo enabled; exit 0; } || { echo disabled; exit 1; } ;;
+  status)          [ -f "$D/$svc.active" ] && echo "$svc: active (running) [shim]" || echo "$svc: inactive (dead) [shim]" ;;
+  daemon-reload|"") exit 0 ;;
+  *) echo "systemctl shim: '$cmd' accepted (no-op)"; exit 0 ;;
+esac

@@ -33,6 +33,7 @@ const SandboxLauncher = (function() {
         'db-sql': { name: 'PostgreSQL Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
         'cell-sigma': { name: 'Cell-Σ Commissioning (ALA Final)', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
         'linux-mastery': { name: 'Linux Mastery Workbench', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
+        'linux-sandbox': { name: 'Linux Practice Sandbox', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
     };
 
     // Active state
