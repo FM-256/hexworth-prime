@@ -98,7 +98,8 @@ async function formShown(pg) {
     check(consentDoc && consentDoc.formVersion === CUR, 'consent doc rewritten to current form version (' + (consentDoc && consentDoc.formVersion) + ')');
     check(enrollDoc && enrollDoc.formVersion === CUR, 'enrollment roster doc written with current form version (the doc the CF/dashboard read)');
     check(consentDoc && consentDoc.name === 'Jordan Rivera' && consentDoc.signature === 'Jordan Rivera', 'consent captured the new name + signature');
-    check(consentDoc && consentDoc.agreements && consentDoc.agreements.understoodAndAgree === true, 'consent records explicit agreement');
+    check(consentDoc && consentDoc.agreements && consentDoc.agreements.understoodStudy === true && consentDoc.agreements.agreedToParticipate === true, 'consent records explicit understanding + agreement to participate');
+    check(consentDoc && consentDoc.participates === true, 'consent doc records participates=true for the agree path');
     check(await s1.pg.evaluate((uid) => { try { return JSON.parse(localStorage.getItem('observatory_consent_' + uid)).formVersion; } catch (e) { return null; } }, UID) === CUR, 'localStorage mirror also on current version');
     check(s1.logs.filter(l => /PAGEERROR/.test(l)).length === 0, 'no page errors in scenario 1 (' + (s1.logs.find(l => /PAGEERROR/.test(l)) || 'none') + ')');
     await s1.pg.close();
