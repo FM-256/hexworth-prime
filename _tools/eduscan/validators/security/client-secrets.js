@@ -244,7 +244,33 @@ class ClientSecretsValidator {
      */
     checkHardcodedPasswords(filePath, content) {
         const issues = [];
-        const lines = content.split('\n');
+
+        // SEC-002 exempts DISPLAYED code samples (teaching content a student READS, not code that runs).
+        // In HTML we BLANK code-display container spans up front — <pre>, <code>, or a code-styled
+        // div/section/figure/aside (class contains "code", e.g. the platform's cf-code). Only spans that
+        // are (a) properly closed AND (b) contain no literal `<script` are blanked; an unclosed span, a
+        // mismatched-tag close, or one holding a live <script> is left INTACT and gets scanned. That is
+        // deliberate: this FAILS SAFE — a real secret can never be hidden by a malformed or
+        // executable-bearing container. Bare-body assignments, onclick handlers, and <script> blocks
+        // outside a display container all remain flagged (the "extractable via View Source" model holds).
+        // Blanking preserves newlines so reported line numbers stay exact. (Nancy 2026-07-07: replaces a
+        // per-line displayTag state machine that could stick on a mismatched close and go blind file-wide.)
+        // KNOWN LIMITATION (accepted): an on*= handler carrying a secret placed ON a code-display
+        // container's OWN tag is blanked with the span. `<script` is the only unmask trigger because it
+        // is safe — displayed examples escape to `&lt;script&gt;`, so a LITERAL `<script` is always live.
+        // An analogous "on-handler with secret" unmask trigger is NOT added: on*= attributes are not
+        // escaped even in displayed examples, so it would false-flag the platform's bad-practice teaching
+        // samples. That real cost outweighs the contrived case of a live handler secret on a sample tag.
+        const isHtml = /\.html?$/i.test(filePath);
+        let scanContent = content;
+        if (isHtml) {
+            const blankOrKeep = (m) => /<script\b/i.test(m) ? m : m.replace(/[^\n]/g, ' ');
+            scanContent = scanContent
+                .replace(/<pre(?:\s[^>]*)?>[\s\S]*?<\/pre\s*>/gi, blankOrKeep)
+                .replace(/<code(?:\s[^>]*)?>[\s\S]*?<\/code\s*>/gi, blankOrKeep)
+                .replace(/<(div|section|figure|aside)\b[^>]*class\s*=\s*["'][^"']*\bcode[\w-]*\b[^"']*["'][^>]*>[\s\S]*?<\/\1\s*>/gi, blankOrKeep);
+        }
+        const lines = scanContent.split('\n');
 
         // Patterns that look like password variable assignments. Tightened to
         // require the FULL keyword (password / passwd / secret / credential) —
@@ -259,59 +285,8 @@ class ClientSecretsValidator {
             /\b(?:correct_?password|admin_?pass(?:word)?|db_?pass(?:word)?|user_?pass(?:word)?|root_?pass(?:word)?|default_?pass(?:word)?)\s*[:=]\s*['"][^'"]+['"]/i,
         ];
 
-        // SEC-002 exempts DISPLAYED code — teaching samples a student is meant to READ, not code that
-        // runs. The signal is a code-DISPLAY container: <pre>, <code>, or a code-styled element (class
-        // contains "code", e.g. the platform's cf-code div). A secret shown as an example there is a
-        // documented sample, not an extractable leak. This is deliberately NOT "outside a <script> tag":
-        // inline event handlers (onclick="var p='...'"), bare-body assignments, and <script> blocks all
-        // stay flagged, so the "extractable via View Source" threat model remains fully covered
-        // (Nancy 2026-07-07 — script-membership was too broad and let inline handlers slip through).
-        const isHtml = /\.html?$/i.test(filePath);
-        let displayTag = null;  // when inside a multi-line code-display container, its tag (lowercased)
-
-        // Openers for code-display containers whose contents are shown to the student, never executed:
-        // <pre>/<code>, or a code-styled div/section/figure/aside (class contains "code", e.g. cf-code).
-        const OPEN_RE = [
-            /<(pre|code)(?:\s[^>]*)?>/i,
-            /<(div|section|figure|aside)\b[^>]*class\s*=\s*["'][^"']*\bcode[\w-]*\b[^"']*["'][^>]*>/i,
-        ];
-        const matchOpen = (s) => OPEN_RE.reduce((m, re) => m || s.match(re), null);
-
         for (let i = 0; i < lines.length; i++) {
-            let line = lines[i];
-
-            if (isHtml) {
-                // Reduce the line to only its NON-displayed (potentially executable) text, so a secret
-                // that shares a physical line with a code sample is still scanned — e.g.
-                // `</pre> <script>const password="x"</script>` or `<div class=cf-code>demo</div> var k='y'`.
-                // (Nancy 2026-07-07: an unconditional skip of any line touching a container missed these.)
-                // Case-insensitive + whitespace-tolerant throughout.
-
-                // 1. If inside a multi-line container, drop text up to & incl. its close; if it does not
-                //    close on this line, the whole line is displayed — skip it.
-                if (displayTag) {
-                    const closeRe = new RegExp('^[\\s\\S]*?</' + displayTag + '\\s*>', 'i');
-                    if (closeRe.test(line)) {
-                        line = line.replace(closeRe, '');
-                        displayTag = null;
-                    } else {
-                        continue;
-                    }
-                }
-                // 2. Remove fully-inline containers (open...close on this line) — displayed samples.
-                line = line
-                    .replace(/<pre(?:\s[^>]*)?>[\s\S]*?<\/pre\s*>/gi, ' ')
-                    .replace(/<code(?:\s[^>]*)?>[\s\S]*?<\/code\s*>/gi, ' ')
-                    .replace(/<(div|section|figure|aside)\b[^>]*class\s*=\s*["'][^"']*\bcode[\w-]*\b[^"']*["'][^>]*>[\s\S]*?<\/\1\s*>/gi, ' ');
-                // 3. If a container OPENS without closing, everything from it onward is displayed —
-                //    enter display mode and drop that tail from the scan.
-                const open = matchOpen(line);
-                if (open) {
-                    displayTag = open[1].toLowerCase();
-                    line = line.slice(0, open.index);
-                }
-            }
-
+            const line = lines[i];
             const trimmed = line.trim();
 
             // Skip comments
