@@ -267,26 +267,34 @@ class ClientSecretsValidator {
         // stay flagged, so the "extractable via View Source" threat model remains fully covered
         // (Nancy 2026-07-07 — script-membership was too broad and let inline handlers slip through).
         const isHtml = /\.html?$/i.test(filePath);
-        let displayClose = null;  // when inside a code-display container, the close tag we wait for
+        let displayTag = null;  // when inside a code-display container, its tag name (lowercased)
+
+        // Case-INSENSITIVE, whitespace-tolerant close test — </DIV>, </div >, </Pre> all match. Mirrors
+        // the /i open detection; a stored-string .includes() here silently missed case/whitespace
+        // variants and left the skip state stuck file-wide, hiding real <script> secrets (Nancy 2026-07-07).
+        const closesTag = (ln, tag) => new RegExp('</' + tag + '\\s*>', 'i').test(ln);
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const trimmed = line.trim();
 
             if (isHtml) {
-                if (displayClose) {
-                    // Inside displayed code — skip; leave when the container's close tag appears.
-                    // (Code samples escape their own HTML, so a literal close tag here is the real one.)
-                    if (line.includes(displayClose)) displayClose = null;
+                if (displayTag) {
+                    // Inside displayed code — skip; leave when THIS container's close tag appears.
+                    if (closesTag(line, displayTag)) displayTag = null;
                     continue;
                 }
-                // Enter a code-display container that OPENS (and does not close) on this line.
-                if (/<pre(?:\s[^>]*)?>/i.test(line) && !/<\/pre>/i.test(line)) { displayClose = '</pre>'; continue; }
-                if (/<code(?:\s[^>]*)?>/i.test(line) && !/<\/code>/i.test(line)) { displayClose = '</code>'; continue; }
-                const codeElem = line.match(/<(div|section|figure|aside)\b[^>]*class\s*=\s*["'][^"']*\bcode[\w-]*\b[^"']*["'][^>]*>/i);
-                if (codeElem && !new RegExp('</' + codeElem[1] + '>', 'i').test(line)) { displayClose = '</' + codeElem[1].toLowerCase() + '>'; continue; }
-                // Single-line displayed snippet (<pre>..</pre> / <code>..</code>) — skip just this line.
-                if (/<pre(?:\s[^>]*)?>[\s\S]*<\/pre>/i.test(line) || /<code(?:\s[^>]*)?>[\s\S]*<\/code>/i.test(line)) { continue; }
+                // Detect a code-display container OPENING on this line: <pre>/<code>, or a code-styled
+                // div/section/figure/aside (class contains "code", e.g. the platform's cf-code).
+                const open = line.match(/<(pre|code)(?:\s[^>]*)?>/i)
+                          || line.match(/<(div|section|figure|aside)\b[^>]*class\s*=\s*["'][^"']*\bcode[\w-]*\b[^"']*["'][^>]*>/i);
+                if (open) {
+                    const tag = open[1].toLowerCase();
+                    // If it also closes on THIS line it's a one-line displayed snippet: skip the line and
+                    // stay OUT of display mode. Otherwise enter display mode until its close tag.
+                    if (!closesTag(line, tag)) displayTag = tag;
+                    continue;
+                }
             }
 
             // Skip comments
