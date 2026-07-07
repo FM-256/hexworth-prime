@@ -24,28 +24,40 @@
 const fs = require('fs');
 const path = require('path');
 
-// Known valid lab IDs — read LIVE from the SandboxLauncher.js LAB_INFO registry (the single source
-// of truth) so this validator can never drift out of sync. The previous hardcoded Set silently went
-// stale every time a lab was added (it missed cell-sigma / linux-mastery / linux-sandbox until an
-// incident forced a manual catch-up — Nancy 2026-07-07). Resolved from __dirname (not rootPath/cwd)
-// so it works under any --path scope. Falls back to a static list only if the registry can't be
-// read/parsed, so a scan never crashes in an unusual environment.
+// Known valid lab IDs — parsed from the SandboxLauncher.js LAB_INFO registry (the single source of
+// truth) via parseLabIds(), used by BOTH the per-file check (KNOWN_LAB_IDS below) and the global
+// consistency check (validateGlobal) so there is exactly ONE parser, not two that can diverge.
+// The previous hardcoded Set silently went stale on every new lab (it missed cell-sigma / linux-mastery
+// / linux-sandbox until an incident forced a manual catch-up — Nancy 2026-07-07).
+//
+// Freshness: validateGlobal re-reads the registry every scan (fresh even under `eduscan --watch`).
+// KNOWN_LAB_IDS below is read once at module load — a per-process snapshot. That is acceptable because
+// --watch is a dev-only convenience (not wired into deploy / CI / cron / nexus); a lab added mid-watch
+// is picked up on the next process start. If --watch ever enters automation, move this read per-scan.
 const FALLBACK_LAB_IDS = [
     'do-100', 'do-101', 'do-102', 'do-16', 'arctic', 'db-sql', 'cell-sigma', 'linux-mastery', 'linux-sandbox'
 ];
 
+// Parse the LAB_INFO block's keys from SandboxLauncher.js source. Block-isolated (matches only inside
+// `LAB_INFO = { ... };`) so it can't pick up object literals elsewhere in the file. Returns [] if the
+// block or its keys can't be found. Resolved from __dirname (not rootPath/cwd) so it works under any
+// --path scope.
+function parseLabIds(src) {
+    const block = src.match(/LAB_INFO\s*=\s*\{([\s\S]*?)\n\s*\};/);
+    if (!block) return [];
+    return [...block[1].matchAll(/^\s*['"]([a-z0-9-]+)['"]\s*:/gim)].map(m => m[1]);
+}
+
 function loadKnownLabIds() {
     try {
         const launcherPath = path.join(__dirname, '../../../../_app/components/SandboxLauncher.js');
-        const src = fs.readFileSync(launcherPath, 'utf8');
-        // Isolate the `LAB_INFO = { ... };` block, then pull each 'lab-id': key from inside it.
-        const block = src.match(/LAB_INFO\s*=\s*\{([\s\S]*?)\n\s*\};/);
-        if (block) {
-            const ids = [...block[1].matchAll(/^\s*['"]([a-z0-9-]+)['"]\s*:/gim)].map(m => m[1]);
-            if (ids.length) return new Set(ids);
-        }
+        const ids = parseLabIds(fs.readFileSync(launcherPath, 'utf8'));
+        if (ids.length) return new Set(ids);
+        // Distinguish a silent-fallback from a healthy read — a broken parse must be visible, not
+        // masquerade as the (identical-looking) static list.
+        console.warn('[eduscan sandbox] LAB_INFO parsed 0 ids from SandboxLauncher.js — using static fallback (registry format may have changed)');
     } catch (e) {
-        // fall through to the static fallback below
+        console.warn('[eduscan sandbox] could not read SandboxLauncher.js LAB_INFO (' + e.message + ') — using static fallback');
     }
     return new Set(FALLBACK_LAB_IDS);
 }
@@ -253,8 +265,8 @@ class SandboxValidator {
         const launcherPath = path.join(this.rootPath, 'components', 'SandboxLauncher.js');
         if (fs.existsSync(launcherPath)) {
             const launcherContent = fs.readFileSync(launcherPath, 'utf8');
-            const labInfoMatches = launcherContent.matchAll(/'([^']+)':\s*\{\s*name:/g);
-            const definedLabIds = new Set([...labInfoMatches].map(m => m[1]));
+            // Same single parser as KNOWN_LAB_IDS (was a divergent inline regex — Nancy 2026-07-07).
+            const definedLabIds = new Set(parseLabIds(launcherContent));
 
             // Check for lab IDs used in pages but not defined in LAB_INFO
             for (const entry of map.pagesWithSandbox) {

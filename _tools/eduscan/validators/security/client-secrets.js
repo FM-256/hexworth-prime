@@ -259,25 +259,34 @@ class ClientSecretsValidator {
             /\b(?:correct_?password|admin_?pass(?:word)?|db_?pass(?:word)?|user_?pass(?:word)?|root_?pass(?:word)?|default_?pass(?:word)?)\s*[:=]\s*['"][^'"]+['"]/i,
         ];
 
-        // SEC-002 applies only to EXECUTABLE client code. In HTML that means inside a <script> block;
-        // code shown to the student as example text (cf-code / pre / code / any container) is displayed,
-        // never run, so it is not an extractable secret — flagging it is a false positive (e.g. a lab
-        // walkthrough printing `USER_PASSWORD = '...'` as a code sample). A whole .js file is executable.
-        // Track <script>-block membership and skip displayed content.
+        // SEC-002 exempts DISPLAYED code — teaching samples a student is meant to READ, not code that
+        // runs. The signal is a code-DISPLAY container: <pre>, <code>, or a code-styled element (class
+        // contains "code", e.g. the platform's cf-code div). A secret shown as an example there is a
+        // documented sample, not an extractable leak. This is deliberately NOT "outside a <script> tag":
+        // inline event handlers (onclick="var p='...'"), bare-body assignments, and <script> blocks all
+        // stay flagged, so the "extractable via View Source" threat model remains fully covered
+        // (Nancy 2026-07-07 — script-membership was too broad and let inline handlers slip through).
         const isHtml = /\.html?$/i.test(filePath);
-        let inScript = !isHtml;
+        let displayClose = null;  // when inside a code-display container, the close tag we wait for
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const trimmed = line.trim();
 
             if (isHtml) {
-                const opens = /<script(?:\s[^>]*)?>/i.test(line);
-                const closes = /<\/script>/i.test(line);
-                if (opens && !closes) { inScript = true; continue; }   // opener line
-                if (closes && !opens) { inScript = false; continue; }  // closer line
-                if (!inScript && !(opens && closes)) { continue; }     // displayed content, not executable
-                // (opens && closes) = single-line inline script: fall through and check it
+                if (displayClose) {
+                    // Inside displayed code — skip; leave when the container's close tag appears.
+                    // (Code samples escape their own HTML, so a literal close tag here is the real one.)
+                    if (line.includes(displayClose)) displayClose = null;
+                    continue;
+                }
+                // Enter a code-display container that OPENS (and does not close) on this line.
+                if (/<pre(?:\s[^>]*)?>/i.test(line) && !/<\/pre>/i.test(line)) { displayClose = '</pre>'; continue; }
+                if (/<code(?:\s[^>]*)?>/i.test(line) && !/<\/code>/i.test(line)) { displayClose = '</code>'; continue; }
+                const codeElem = line.match(/<(div|section|figure|aside)\b[^>]*class\s*=\s*["'][^"']*\bcode[\w-]*\b[^"']*["'][^>]*>/i);
+                if (codeElem && !new RegExp('</' + codeElem[1] + '>', 'i').test(line)) { displayClose = '</' + codeElem[1].toLowerCase() + '>'; continue; }
+                // Single-line displayed snippet (<pre>..</pre> / <code>..</code>) — skip just this line.
+                if (/<pre(?:\s[^>]*)?>[\s\S]*<\/pre>/i.test(line) || /<code(?:\s[^>]*)?>[\s\S]*<\/code>/i.test(line)) { continue; }
             }
 
             // Skip comments
