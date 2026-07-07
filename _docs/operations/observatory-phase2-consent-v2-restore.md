@@ -1,6 +1,6 @@
 # Observatory Phase-2 Behavioral Data — Consent v2 Restore
 
-**Status:** APPROVED — all three PI/IRB decisions cleared 2026-07-06 (re-consent, v2 wording, cohort scope). Code staged on `master` (commit `3d919e3b3`); deploying.
+**Status:** DONE — DEPLOYED 2026-07-06. All three PI/IRB decisions cleared (re-consent, v2 wording, cohort scope); Nancy PROCEED + Chris PASS. Live-verified: `hexworth.com/components/ObservatoryConsent.js` stamps `cerbi-v2-2026-07-05` (matches server), the "Data Collected" disclosure renders, the decline option is preserved. Phase-2 behavioral collection is now active; existing v1 participants (17 at deploy time) are re-prompted on next visit.
 **Confluence:** https://hexworth.atlassian.net/wiki/spaces/KBA/pages/40894465 (KBA › Operations and Procedures)
 **Owner:** Frank Mora (PI). Engineering executes once the PI approves.
 **Raised:** 2026-07-06, while onboarding two new research cohorts (A+ Core 1 / CET1171C, Linux / CTS2106C).
