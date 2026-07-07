@@ -27,7 +27,10 @@ const ObservatoryConsent = (function () {
     'use strict';
 
     // Bump when the consent wording changes so re-consent can be required later.
-    const FORM_VERSION = 'cerbi-v1-2026-06-21';
+    // v2 (restored 2026-07-06, PI-approved) adds the explicit "Data Collected" disclosure so the
+    // platform may collect Phase-2 behavioral events (page_view/session_end/device/client_error).
+    // Must equal functions/index.js OBSERVATORY_FORM_VERSION or Phase-2 events are dropped.
+    const FORM_VERSION = 'cerbi-v2-2026-07-05';
 
     // Fallback class list used when the Firestore `observatory_classes`
     // collection is empty/unavailable. Replaced by admin-editable data later.
@@ -55,10 +58,11 @@ const ObservatoryConsent = (function () {
     // Consent text — verbatim from the approved Research Participation Consent Form.
     const CONSENT_SECTIONS = [
         { h: 'Purpose', p: 'This study examines how gamified cybersecurity training influences user behavior, awareness, and decision making. It also evaluates CERBI scoring and behavioral pattern discovery to improve training methods.' },
-        { h: 'Procedures', p: 'Participants will engage in courses, training activities, and competitions using HEXworth Academy content. Interaction and performance data will be collected. Duration: up to 6 months.' },
+        { h: 'Procedures', p: 'Participants will engage in courses, training activities, and competitions using HEXworth Academy content. Interaction, performance, and learning-behavior data will be collected (see Data Collected). Duration: up to 6 months.' },
         { h: 'Voluntary Participation', p: 'Participation is voluntary. You may withdraw at any time without penalty.' },
         { h: 'Risks', p: 'Minimal risk. Possible mild discomfort or privacy concerns. Safeguards will be implemented.' },
         { h: 'Benefits', p: 'No direct benefit. Results may improve cybersecurity education and behavioral risk modeling.' },
+        { h: 'Data Collected', p: 'To study how gamified training affects learning and behavior, the platform records, tied to a research identifier: (a) learning progress and performance, which content you complete and your quiz scores; (b) engagement, the pages and lessons you view, time spent and periods of inactivity, how far you scroll, and session length; (c) technical context, your device and browser type and any errors encountered while using the platform. The platform does not record the text you type into free-form fields, and no data is shared in a form that identifies you.' },
         { h: 'Confidentiality', p: 'All data will be anonymized and securely stored. No personally identifiable information will be disclosed.' },
         { h: 'Data Usage', p: 'Data will be used for academic research, publications, and development of cybersecurity frameworks such as CERBI.' },
         { h: 'Consent', p: 'By signing below, you confirm that you understand this study and agree to participate voluntarily.' }
