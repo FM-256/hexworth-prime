@@ -140,6 +140,15 @@ class ClientSecretsValidator {
         if (/houses\/eye\/applets\/cyberops\//.test(normalized)) return true;
         if (/houses\/code\/devops\/sections\/ansible\//.test(normalized)) return true;
 
+        // Teaching walkthroughs whose body is FULL of displayed credential/code samples (boto3 scripts,
+        // CLI snippets, config shown AS examples — not executable client code). SEC-00x cannot separate a
+        // displayed sample from a real client secret by parsing the HTML without risking a hidden real
+        // secret (five regex attempts each leaked — see checkHardcodedPasswords note), so these are
+        // excluded whole. Keep this list TIGHT and file-specific; do not exclude the projects/ dir wholesale.
+        //   shield-aws-cognito.html — AWS Cognito "CASE FILE" walkthrough; cf-code blocks show boto3 with
+        //   sample constants like USER_PASSWORD='LabPass123!@#' (2 SEC-002 false positives).
+        if (/(?:^|\/)projects\/shield-aws-cognito\.html$/.test(normalized)) return true;
+
         return false;
     }
 
@@ -244,33 +253,14 @@ class ClientSecretsValidator {
      */
     checkHardcodedPasswords(filePath, content) {
         const issues = [];
-
-        // SEC-002 exempts DISPLAYED code samples (teaching content a student READS, not code that runs).
-        // In HTML we BLANK code-display container spans up front — <pre>, <code>, or a code-styled
-        // div/section/figure/aside (class contains "code", e.g. the platform's cf-code). Only spans that
-        // are (a) properly closed AND (b) contain no literal `<script` are blanked; an unclosed span, a
-        // mismatched-tag close, or one holding a live <script> is left INTACT and gets scanned. That is
-        // deliberate: this FAILS SAFE — a real secret can never be hidden by a malformed or
-        // executable-bearing container. Bare-body assignments, onclick handlers, and <script> blocks
-        // outside a display container all remain flagged (the "extractable via View Source" model holds).
-        // Blanking preserves newlines so reported line numbers stay exact. (Nancy 2026-07-07: replaces a
-        // per-line displayTag state machine that could stick on a mismatched close and go blind file-wide.)
-        // KNOWN LIMITATION (accepted): an on*= handler carrying a secret placed ON a code-display
-        // container's OWN tag is blanked with the span. `<script` is the only unmask trigger because it
-        // is safe — displayed examples escape to `&lt;script&gt;`, so a LITERAL `<script` is always live.
-        // An analogous "on-handler with secret" unmask trigger is NOT added: on*= attributes are not
-        // escaped even in displayed examples, so it would false-flag the platform's bad-practice teaching
-        // samples. That real cost outweighs the contrived case of a live handler secret on a sample tag.
-        const isHtml = /\.html?$/i.test(filePath);
-        let scanContent = content;
-        if (isHtml) {
-            const blankOrKeep = (m) => /<script\b/i.test(m) ? m : m.replace(/[^\n]/g, ' ');
-            scanContent = scanContent
-                .replace(/<pre(?:\s[^>]*)?>[\s\S]*?<\/pre\s*>/gi, blankOrKeep)
-                .replace(/<code(?:\s[^>]*)?>[\s\S]*?<\/code\s*>/gi, blankOrKeep)
-                .replace(/<(div|section|figure|aside)\b[^>]*class\s*=\s*["'][^"']*\bcode[\w-]*\b[^"']*["'][^>]*>[\s\S]*?<\/\1\s*>/gi, blankOrKeep);
-        }
-        const lines = scanContent.split('\n');
+        const lines = content.split('\n');
+        // NOTE: SEC-002 deliberately does NOT try to exempt "displayed code samples" by parsing the HTML
+        // for <pre>/<code>/cf-code container spans. Five successive regex attempts at that each left a
+        // reproducible false-negative (a real secret hidden by malformed/nested/adjacent tags) — regex
+        // cannot safely delimit nested/mismatched HTML in a security validator. Instead, files that are
+        // legitimately FULL of displayed credential samples (teaching walkthroughs) are excluded whole via
+        // isExcluded(); everything else is scanned literally, so a real secret is never hidden. See
+        // _docs/operations/nexus-2026-07-07-criticals-scope.md and feedback [[reference_...]] for the saga.
 
         // Patterns that look like password variable assignments. Tightened to
         // require the FULL keyword (password / passwd / secret / credential) —
