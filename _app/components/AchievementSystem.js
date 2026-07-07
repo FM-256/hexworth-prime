@@ -1975,6 +1975,48 @@ class AchievementSystem {
             secret: false
         },
 
+        // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
+        // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
+        // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an
+        // earned-only shelf; unearned appear as "???". Triggers are all server/UI-observable
+        // (launch, grader task pass, tutorial finish, relaunch), never terminal keystrokes.
+        sandbox_first_boot: {
+            id: 'sandbox_first_boot',
+            name: 'First Boot',
+            description: 'Launched your first Linux Practice Sandbox',
+            icon: '<img src="/assets/images/icons/icon-rocket.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 25,
+            secret: true
+        },
+        sandbox_getting_there: {
+            id: 'sandbox_getting_there',
+            name: 'Getting There',
+            description: 'Cleared your first Linux Practice Sandbox challenge',
+            icon: '<img src="/assets/images/icons/icon-star.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 25,
+            secret: true
+        },
+        sandbox_tutorial_graduate: {
+            id: 'sandbox_tutorial_graduate',
+            name: 'Tutorial Graduate',
+            description: 'Completed the guided Linux Practice Sandbox tutorial',
+            icon: '<img src="/assets/images/icons/icon-hat.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 50,
+            secret: true
+        },
+        sandbox_fresh_start: {
+            id: 'sandbox_fresh_start',
+            name: 'Fresh Start',
+            description: 'Came back for a fresh sandbox session',
+            icon: '<img src="/assets/images/icons/icon-refresh.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 25,
+            secret: true
+        },
+
         // === TRIPWIRE (Secret - Honeypot Defense) ===
         tripwire_busted: {
             id: 'tripwire_busted',

@@ -280,6 +280,30 @@
         .obs-grade-list li.no { color: #9aa6e0; }
         .obs-grade-badge { margin-top: 10px; font-weight: 700; color: #34d399; }
 
+        /* Sandbox badge shelf: earned-only "easter egg" collection; unearned show "???". */
+        .obs-badges { margin: 18px 0 2px; }
+        .obs-badges__label { font-size: 0.76rem; letter-spacing: 0.09em; text-transform: uppercase;
+            color: #9aa6e0; font-weight: 700; display: flex; align-items: baseline; gap: 8px; }
+        .obs-badges__count { font-size: 0.72rem; letter-spacing: 0.03em; color: #6b76b0;
+            text-transform: none; font-weight: 600; }
+        .obs-badge-shelf { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .obs-badge { flex: 0 1 auto; min-width: 96px; display: flex; flex-direction: column;
+            align-items: center; gap: 6px; padding: 12px 10px; border-radius: 12px; text-align: center; }
+        .obs-badge__icon { display: inline-flex; align-items: center; justify-content: center;
+            width: 34px; height: 34px; font-size: 1.25rem; font-weight: 700; }
+        .obs-badge__img { width: 30px; height: 30px; object-fit: contain; }
+        .obs-badge__name { font-size: 0.74rem; line-height: 1.15; font-weight: 600; max-width: 104px; }
+        .obs-badge.is-earned { border: 1px solid rgba(251,191,36,0.55);
+            background: linear-gradient(150deg, rgba(251,191,36,0.16), rgba(245,158,11,0.05));
+            box-shadow: 0 0 14px rgba(251,191,36,0.18); }
+        .obs-badge.is-earned .obs-badge__name { color: #fcd34d; }
+        .obs-badge.is-locked { border: 1px dashed rgba(129,140,248,0.30); background: rgba(129,140,248,0.04); }
+        .obs-badge.is-locked .obs-badge__icon { color: #5a648f; }
+        .obs-badge.is-locked .obs-badge__name { color: #5a648f; letter-spacing: 0.14em; }
+        .obs-badge--pop { animation: obsBadgePop 0.6s ease; }
+        @keyframes obsBadgePop { 0% { transform: scale(0.82); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+        @media (prefers-reduced-motion: reduce) { .obs-badge--pop { animation: none; } }
+
         /* Guided tutorial, grader-driven (the terminal is a cross-origin iframe we
            cannot read, so each step locks until the server-side grader confirms it). */
         .obs-tutorial { margin: 16px 0 0; border: 1px solid rgba(34,211,238,0.40); border-radius: 12px;
@@ -435,6 +459,10 @@
                             </ol>
                         </div>
                     </div>
+                    <div class="obs-badges">
+                        <div class="obs-badges__label">Sandbox Badges <span id="obs-badges-count" class="obs-badges__count"></span></div>
+                        <div id="obs-badge-shelf" class="obs-badge-shelf"></div>
+                    </div>
                     <div id="obs-tutorial" class="obs-tutorial" role="status" aria-live="polite" hidden></div>
                     <div id="obs-sandbox-mount"></div>
                     <div id="obs-sandbox-grade" class="obs-sandbox-grade" style="display:none;">
@@ -473,8 +501,10 @@
                     ul.appendChild(li);
                 });
                 out.appendChild(ul);
-                if (r.complete && typeof AchievementSystem !== 'undefined') {
-                    var newly = AchievementSystem.unlock('linux_sandbox_practitioner');
+                // Any real progress lights the "Getting There" easter-egg badge (idempotent).
+                if (r.passed >= 1) awardBadge('sandbox_getting_there');
+                if (r.complete) {
+                    var newly = awardBadge('linux_sandbox_practitioner');
                     var badge = document.createElement('div');
                     badge.className = 'obs-grade-badge';
                     badge.textContent = newly ? 'Badge earned: Linux Practitioner!' : 'All complete. Badge already earned.';
@@ -489,6 +519,64 @@
         function wireSandboxGrader() {
             var btn = document.getElementById('obs-grade-btn');
             if (btn && !btn.__wired) { btn.__wired = true; btn.addEventListener('click', gradePractice); }
+        }
+
+        // ===== Sandbox badge shelf =====
+        // Earned-only "easter egg" collection. Order = the learner's journey. Earned/name/
+        // description all come from AchievementSystem (single source); only the icon FILENAME
+        // is mirrored here, because the registry stores icons as full <img> HTML strings and we
+        // build the img via createElement (no innerHTML of registry data). Keep these ids +
+        // icons in sync with AchievementSystem.ACHIEVEMENTS.
+        var OBS_BADGES = [
+            { id: 'sandbox_first_boot',         icon: 'icon-rocket.webp' },
+            { id: 'sandbox_getting_there',      icon: 'icon-star.webp' },
+            { id: 'sandbox_tutorial_graduate',  icon: 'icon-hat.webp' },
+            { id: 'sandbox_fresh_start',        icon: 'icon-refresh.webp' },
+            { id: 'linux_sandbox_practitioner', icon: 'icon-penguin.webp' }
+        ];
+        function renderSandboxBadges() {
+            var shelf = document.getElementById('obs-badge-shelf');
+            if (!shelf) return;
+            var A = (typeof AchievementSystem !== 'undefined') ? AchievementSystem : null;
+            shelf.innerHTML = '';
+            var earned = 0;
+            OBS_BADGES.forEach(function (b) {
+                var def = (A && A.ACHIEVEMENTS) ? A.ACHIEVEMENTS[b.id] : null;
+                var got = A ? A.isUnlocked(b.id) : false;
+                var slot = document.createElement('div');
+                slot.className = 'obs-badge ' + (got ? 'is-earned' : 'is-locked');
+                slot.setAttribute('data-badge', b.id);
+                var ic = document.createElement('span'); ic.className = 'obs-badge__icon';
+                var nm = document.createElement('span'); nm.className = 'obs-badge__name';
+                if (got) {
+                    earned++;
+                    var img = document.createElement('img');
+                    img.src = '/assets/images/icons/' + b.icon; img.alt = ''; img.className = 'obs-badge__img';
+                    ic.appendChild(img);
+                    nm.textContent = def ? def.name : 'Earned';          // textContent, never markup
+                    slot.title = def ? def.description : '';
+                } else {
+                    ic.textContent = '?';
+                    nm.textContent = '???';
+                    slot.title = 'Keep practicing to discover this badge';
+                }
+                slot.appendChild(ic); slot.appendChild(nm);
+                shelf.appendChild(slot);
+            });
+            var c = document.getElementById('obs-badges-count');
+            if (c) c.textContent = earned + ' of ' + OBS_BADGES.length;
+        }
+        // Award a badge (idempotent via AchievementSystem.unlock) and refresh the shelf. Pops
+        // only the slot that was newly earned. Never throws into a caller (best-effort).
+        function awardBadge(id) {
+            var newly = false;
+            try { if (typeof AchievementSystem !== 'undefined') newly = AchievementSystem.unlock(id); } catch (e) { /* non-fatal */ }
+            renderSandboxBadges();
+            if (newly) {
+                var el = document.querySelector('#obs-badge-shelf [data-badge="' + id + '"]');
+                if (el) el.classList.add('obs-badge--pop');
+            }
+            return newly;
         }
 
         // ===== Guided tutorial =====
@@ -637,6 +725,7 @@
 
         function advanceTut() {
             if (!obsTut.active) return;
+            awardBadge('sandbox_getting_there');   // a step just passed = first task cleared (idempotent)
             obsTut.step++;
             if (obsTut.step >= OBS_TUT_STEPS.length) { finishTut(); return; }
             renderStep();
@@ -648,6 +737,7 @@
             if (obsTut.finishing) return;      // guard: syncStep + a poll could both land here
             obsTut.finishing = true;
             obsTut.active = false; tutStopPoll();
+            awardBadge('sandbox_tutorial_graduate');   // reached finish = all 5 steps passed
             var e = tutClear();
             if (e) e.innerHTML = '<div class="obs-tutorial__done">All 5 steps complete. Grading your work...</div>';
             try { await gradePractice(); } catch (err) { /* grade UI shows its own error */ }
@@ -717,6 +807,18 @@
                             if (g) g.style.display = '';
                             // If the learner opted into the guided tutorial, start it now.
                             if (obsTut.armed) beginTut();
+                            // Badge bookkeeping LAST and fully isolated: SandboxLauncher swallows
+                            // onLaunch errors, so a localStorage/registry throw here must never
+                            // reach the critical session-id / grader / tutorial lines above.
+                            try {
+                                var priorEnd = false;
+                                try { priorEnd = localStorage.getItem('obs_sandbox_ended') === '1'; } catch (e) { /* private mode */ }
+                                awardBadge('sandbox_first_boot');
+                                if (priorEnd) {   // launched again after a session actually ended
+                                    awardBadge('sandbox_fresh_start');
+                                    try { localStorage.removeItem('obs_sandbox_ended'); } catch (e) { /* non-fatal */ }
+                                }
+                            } catch (e) { /* badges are cosmetic, never break the launch */ }
                         },
                         onEnd: function () {
                             // Session ended (destroyed or expired) — retire the now-dead grader.
@@ -729,10 +831,14 @@
                             // fresh box (syncStep), so we don't resume a now-invalid step here.
                             tutStopPoll(); obsTut.active = false;
                             if (obsTut.armed) renderArm(); else renderStart();
+                            // Mark that a session ended so the next launch earns "Fresh Start"
+                            // (a genuine return, not a double-click). Guarded: cosmetic only.
+                            try { localStorage.setItem('obs_sandbox_ended', '1'); } catch (e) { /* private mode */ }
                         }
                     });
                     wireSandboxGrader();
                     initTutorial();
+                    renderSandboxBadges();   // initial paint: earned badges gold, rest "???"
                     return;
                 }
                 if (tries > 0) setTimeout(function () { mountSandbox(tries - 1); }, 60);
