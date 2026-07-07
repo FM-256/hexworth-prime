@@ -30,12 +30,16 @@ module.exports = function createSprintAdapter({ name, dataPath, projectRoot }) {
         }
     }
 
-    // Stragglers commit ac664e03 introduced status='completed' as a one-time
-    // convention for STR-N items. Treat 'completed' identically to 'done' for
-    // dependency-resolution. (Helper kept inline since this file doesn't
-    // import from sprint.js.)
+    // The single canonical "this item is terminal / not actionable" check for this module. Use it
+    // everywhere (findings filter, dependency resolution, dedup) rather than literal status strings —
+    // a literal `!== 'done'` is exactly what let 'completed' items leak in as live findings (QC-59).
+    //   - 'done'       — normal closed state
+    //   - 'completed'  — Stragglers commit ac664e03 convention for STR-N items; identical to done
+    //   - 'superseded' — work replaced/subsumed by another item (e.g. HUB-002, whose superseding
+    //                    validator already shipped); terminal, will not be actioned
+    // (Helper kept inline since this file doesn't import from sprint.js.)
     function isClosed(s) {
-        return s.status === 'done' || s.status === 'completed';
+        return s.status === 'done' || s.status === 'completed' || s.status === 'superseded';
     }
 
     function isBlocked(sprint, allSprints) {
@@ -52,9 +56,12 @@ module.exports = function createSprintAdapter({ name, dataPath, projectRoot }) {
 
         const now = new Date().toISOString();
 
-        // Only surface open and blocked items (not done/deferred)
+        // Only surface open and blocked items (not closed/deferred). Use isClosed() so BOTH 'done'
+        // and 'completed' are excluded — the literal `!== 'done'` check missed the 'completed'
+        // convention (Stragglers ac664e03), leaking finished items like QC-59 into the findings store
+        // as live criticals (2026-07-07).
         const actionable = data.sprints.filter(s =>
-            s.status !== 'done' && s.status !== 'deferred'
+            !isClosed(s) && s.status !== 'deferred'
         );
 
         return actionable.map(sprint => {
@@ -138,9 +145,12 @@ module.exports = function createSprintAdapter({ name, dataPath, projectRoot }) {
 
         const nexusKey = `${findingGroup.source}::${findingGroup.code}`;
 
-        // Dedup: check if this code is already tracked
+        // Dedup: check if this code is already tracked by a still-open item. If the tracker is closed
+        // (done/completed/superseded) and the finding recurs, fall through and re-track it fresh.
+        // Uses isClosed() — same canonical check as getFindings — so 'completed'/'superseded' trackers
+        // behave identically to 'done' here too (was a literal `!== 'done'`, the divergence Nancy flagged).
         const existing = data.sprints.find(s => s.nexusKey === nexusKey);
-        if (existing && existing.status !== 'done') {
+        if (existing && !isClosed(existing)) {
             return { accepted: false, reason: 'already tracked', reference: existing.id };
         }
 
