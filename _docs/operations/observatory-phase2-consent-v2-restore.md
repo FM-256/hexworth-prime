@@ -1,6 +1,8 @@
 # Observatory Phase-2 Behavioral Data — Consent v2 Restore
 
-**Status:** DONE — DEPLOYED 2026-07-06. All three PI/IRB decisions cleared (re-consent, v2 wording, cohort scope); Nancy PROCEED + Chris PASS. Live-verified: `hexworth.com/components/ObservatoryConsent.js` stamps `cerbi-v2-2026-07-05` (matches server), the "Data Collected" disclosure renders, the decline option is preserved. Phase-2 behavioral collection is now active; existing v1 participants (17 at deploy time) are re-prompted on next visit.
+**Status:** DONE — DEPLOYED 2026-07-06. All three PI/IRB decisions cleared (re-consent, v2 wording, cohort scope); Nancy PROCEED + Chris PASS. Live-verified: `hexworth.com/components/ObservatoryConsent.js` stamps `cerbi-v2-2026-07-05` (matches server), the "Data Collected" disclosure renders, the decline option is preserved. Phase-2 behavioral collection is now active for v2 consenters.
+
+**POLICY UPDATE 2026-07-06 (PI decision, superseded the forced re-consent):** existing v1 signers are **GRANDFATHERED** — they are NOT re-prompted and keep their v1 consent; only NEW sign-ins get the v2 form. Implemented via an `ACCEPTED_FORM_VERSIONS = ['cerbi-v1-...','cerbi-v2-...']` allowlist in `ObservatoryConsent.js` (`proceedAfterAuth` honors any accepted version). Consequence: the ~17 existing v1 participants contribute Phase-1 data only (their Phase-2 events stay dropped server-side, correct since they never saw the v2 disclosure). The new A+ Core 1 / Linux cohorts are new sign-ins, consent at v2, and collect full Phase-2. The re-consent mechanism still fires for any version NOT on the allowlist (e.g., a future v3 that omits v1/v2).
 **Confluence:** https://hexworth.atlassian.net/wiki/spaces/KBA/pages/40894465 (KBA › Operations and Procedures)
 **Owner:** Frank Mora (PI). Engineering executes once the PI approves.
 **Raised:** 2026-07-06, while onboarding two new research cohorts (A+ Core 1 / CET1171C, Linux / CTS2106C).

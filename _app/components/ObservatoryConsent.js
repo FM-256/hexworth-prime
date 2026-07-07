@@ -32,6 +32,15 @@ const ObservatoryConsent = (function () {
     // Must equal functions/index.js OBSERVATORY_FORM_VERSION or Phase-2 events are dropped.
     const FORM_VERSION = 'cerbi-v2-2026-07-05';
 
+    // Versions a returning participant is honored on WITHOUT being re-prompted. Per PI decision
+    // (2026-07-06): v1 signers are grandfathered — they keep their original v1 consent and are NOT
+    // forced to re-consent; only NEW sign-ins (no record) get the current FORM_VERSION form. Phase-2
+    // behavioral data is still gated server-side on the EXACT current version, so a grandfathered v1
+    // participant's Phase-2 events stay uncollected — correct, since they never saw the v2 "Data
+    // Collected" disclosure. A future material wording change that DOES require re-consent should NOT
+    // add the old version here (omitting it re-prompts those records); add only versions still valid.
+    const ACCEPTED_FORM_VERSIONS = ['cerbi-v1-2026-06-21', 'cerbi-v2-2026-07-05'];
+
     // Fallback class list used when the Firestore `observatory_classes`
     // collection is empty/unavailable. Replaced by admin-editable data later.
     // Fallback shown ONLY if the observatory_classes Firestore read fails/returns empty. Kept in sync
@@ -415,14 +424,14 @@ ${sections}
         proceedAfterAuth(onGranted);
     }
 
-    // After a real account is confirmed: honor an existing consent record ONLY
-    // if it matches the current consent wording. A FORM_VERSION bump means the
-    // text changed — an older agreement doesn't cover wording the participant
-    // never saw, so we re-prompt; otherwise show the form for first consent.
+    // After a real account is confirmed: honor an existing consent record if its version is one we
+    // still accept (ACCEPTED_FORM_VERSIONS — includes grandfathered v1, so existing signers are NOT
+    // re-prompted per the PI decision). Only a participant with NO record, or a record on a version
+    // no longer accepted, is shown the current FORM_VERSION form.
     async function proceedAfterAuth(onGranted) {
         const uid = await getUid();
         const existing = await loadConsent(uid);
-        if (existing && existing.formVersion === FORM_VERSION) { onGranted(); return; }
+        if (existing && ACCEPTED_FORM_VERSIONS.indexOf(existing.formVersion) !== -1) { onGranted(); return; }
         showForm(uid, onGranted);
     }
 
