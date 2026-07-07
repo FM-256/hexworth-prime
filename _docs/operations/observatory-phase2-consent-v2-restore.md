@@ -1,6 +1,6 @@
 # Observatory Phase-2 Behavioral Data — Consent v2 Restore
 
-**Status:** OPEN — blocked on a PI/IRB decision (see "Decisions required").
+**Status:** IN PROGRESS — code staged on `master` (commit `3d919e3b3`), NOT yet deployed. PI approved decisions #1 (re-consent) and #2 (v2 wording) on 2026-07-06. Decision #3 (cohort scope) pending explicit PI confirmation before deploy.
 **Confluence:** https://hexworth.atlassian.net/wiki/spaces/KBA/pages/40894465 (KBA › Operations and Procedures)
 **Owner:** Frank Mora (PI). Engineering executes once the PI approves.
 **Raised:** 2026-07-06, while onboarding two new research cohorts (A+ Core 1 / CET1171C, Linux / CTS2106C).
@@ -74,9 +74,13 @@ Everything else (Purpose, Voluntary Participation, Risks, Benefits, Confidential
 
 Engineering will not change consent wording or force re-consent without explicit PI sign-off on:
 
-1. **Re-consent is acceptable.** Bumping to v2 re-prompts all existing consented participants. Current blast radius is small: **4** existing records (2 CIS2350C, 2 Other). New cohorts consent fresh at v2. Confirm this is acceptable.
-2. **The v2 "Data Collected" wording matches the IRB-approved consent.** The text above must be what the IRB approved for this study. If the approved wording differs, provide the exact approved text and it will be used instead — engineering will not author or guess consent language.
-3. **Study scope covers the new cohorts.** The study title is "Gamification in Cybersecurity Training and CERBI Score Analysis." A+ Core 1 (hardware) and Linux (OS) are IT training but not strictly cybersecurity. Confirm the IRB approval covers enrolling these cohorts.
+1. **Re-consent is acceptable.** — **APPROVED by PI 2026-07-06.** Bumping to v2 re-prompts all existing consented participants. Actual blast radius, re-counted at staging time (`functions/_count_consent_versions.js`, 2026-07-06): **17** existing consent records, all on `cerbi-v1-2026-06-21`; every one is re-prompted on next visit. New cohorts consent fresh at v2. (Re-pull this immediately before deploy — it will keep growing as students consent at v1 until deploy.)
+2. **The v2 "Data Collected" wording matches the IRB-approved consent.** — **APPROVED by PI 2026-07-06** (PI directed "restore v2 with the quoted wording"; text is byte-identical to the previously-shipped v2 in commit `18562e5f3`). If a formal IRB amendment number / approval date exists, cite it here for the compliance record.
+3. **Study scope covers the new cohorts.** — **PENDING explicit PI confirmation.** The study title is "Gamification in Cybersecurity Training and CERBI Score Analysis." A+ Core 1 (hardware) and Linux (OS) are IT training but not strictly cybersecurity. Confirm the IRB approval covers enrolling these cohorts before deploy.
+
+### Data-hygiene finding (2026-07-06, separate from this change)
+
+The re-count surfaced a discrepancy: **17** `observatory_consent` records vs **4** `observatory_enrollment` records. The admin dashboard roster reads only enrollment, so ~13 consented participants are not visible there and are excluded from roster-based counts. Likely legacy consents from before the atomic consent+enrollment batch existed. Not caused by this change and not fixed here — flagged for separate investigation (backfill enrollment docs, or confirm those 17 include test/dev records).
 
 ---
 
