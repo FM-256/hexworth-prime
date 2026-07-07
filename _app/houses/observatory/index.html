@@ -279,6 +279,39 @@
         .obs-grade-list li.ok { color: #67e8f9; }
         .obs-grade-list li.no { color: #9aa6e0; }
         .obs-grade-badge { margin-top: 10px; font-weight: 700; color: #34d399; }
+
+        /* Guided tutorial, grader-driven (the terminal is a cross-origin iframe we
+           cannot read, so each step locks until the server-side grader confirms it). */
+        .obs-tutorial { margin: 16px 0 0; border: 1px solid rgba(34,211,238,0.40); border-radius: 12px;
+            background: linear-gradient(135deg, rgba(34,211,238,0.10), rgba(129,140,248,0.06)); padding: 16px 18px; }
+        .obs-tutorial__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+        .obs-tutorial__label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #67e8f9; }
+        .obs-tutorial__dots { display: flex; gap: 6px; }
+        .obs-tutorial__dot { width: 9px; height: 9px; border-radius: 999px; background: rgba(129,140,248,0.25); }
+        .obs-tutorial__dot.done { background: #34d399; }
+        .obs-tutorial__dot.current { background: #22d3ee; box-shadow: 0 0 8px rgba(34,211,238,0.7); }
+        .obs-tutorial__count { font-size: 0.78rem; color: #9aa6e0; }
+        .obs-tutorial__title { font-size: 1rem; font-weight: 700; color: #e6ebff; margin: 0 0 4px; }
+        .obs-tutorial__why { font-size: 0.84rem; color: #b8c1ea; margin: 0 0 10px; line-height: 1.45; }
+        .obs-tutorial__cmdrow { display: flex; align-items: stretch; gap: 8px; margin-bottom: 12px; }
+        .obs-tutorial__cmd { flex: 1; min-width: 0; overflow-x: auto; background: #05060f; border: 1px solid rgba(129,140,248,0.30);
+            border-radius: 8px; padding: 10px 12px; color: #d5dcff; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.82rem; white-space: pre; }
+        .obs-tutorial__copy { flex: 0 0 auto; border: 1px solid rgba(129,140,248,0.35); background: rgba(129,140,248,0.10);
+            color: #a5b4fc; border-radius: 8px; padding: 0 12px; cursor: pointer; font-size: 0.76rem; font-weight: 600; }
+        .obs-tutorial__copy:hover { background: rgba(129,140,248,0.20); }
+        .obs-tutorial__actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .obs-tutorial__btn { background: linear-gradient(90deg, #818cf8, #22d3ee); color: #05060f; font-weight: 700;
+            border: 0; border-radius: 9px; padding: 8px 16px; cursor: pointer; }
+        .obs-tutorial__btn.ghost { background: transparent; color: #9aa6e0; border: 1px solid rgba(129,140,248,0.30); }
+        .obs-tutorial__msg { font-size: 0.82rem; color: #9aa6e0; }
+        .obs-tutorial__msg.err { color: #fca5a5; }
+        .obs-tutorial__msg.ok { color: #67e8f9; }
+        .obs-tutorial__done { font-size: 0.95rem; font-weight: 700; color: #34d399; }
+        .obs-tutorial__done small { display: block; font-weight: 400; color: #b8c1ea; margin-top: 4px; font-size: 0.82rem; }
+        /* Gentle coach-mark pulse (NOT a strobe). Reduced-motion users get a static outline instead. */
+        @keyframes obsPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,238,0.45); } 50% { box-shadow: 0 0 0 7px rgba(34,211,238,0.0); } }
+        .obs-pulse { animation: obsPulse 1.8s ease-in-out infinite; border-radius: 12px; }
+        @media (prefers-reduced-motion: reduce) { .obs-pulse { animation: none; outline: 2px solid rgba(34,211,238,0.65); outline-offset: 3px; } }
     </style>
 </head>
 <body>
@@ -396,12 +429,13 @@
                         <div class="obs-sandbox-howto">
                             <div class="obs-sandbox-howto__title">How to use this sandbox</div>
                             <ol class="obs-sandbox-howto__steps">
-                                <li class="obs-sandbox-howto__step"><span class="obs-sandbox-howto__num">1</span><div><strong>Launch the playground.</strong> Click <em>Launch Sandbox</em> below &mdash; a real Ubuntu machine opens right here in your browser.</div></li>
+                                <li class="obs-sandbox-howto__step"><span class="obs-sandbox-howto__num">1</span><div><strong>Launch the playground.</strong> Click <em>Launch Sandbox</em> below, and a real Ubuntu machine opens right here in your browser.</div></li>
                                 <li class="obs-sandbox-howto__step"><span class="obs-sandbox-howto__num">2</span><div><strong>Explore freely.</strong> Run any commands with full <code>sudo</code>, break things, reset anytime. Type <code>hexpractice</code> for ideas.</div></li>
                                 <li class="obs-sandbox-howto__step"><span class="obs-sandbox-howto__num">3</span><div><strong>Reach the graded tasks.</strong> Type <code>hexpractice challenge</code> in the terminal to load the 5 graded tasks, finish them, then click <em>Grade my practice</em> to earn the <strong>Linux Practitioner</strong> badge.</div></li>
                             </ol>
                         </div>
                     </div>
+                    <div id="obs-tutorial" class="obs-tutorial" role="status" aria-live="polite" hidden></div>
                     <div id="obs-sandbox-mount"></div>
                     <div id="obs-sandbox-grade" class="obs-sandbox-grade" style="display:none;">
                         <div class="obs-grade-row">
@@ -457,6 +491,208 @@
             if (btn && !btn.__wired) { btn.__wired = true; btn.addEventListener('click', gradePractice); }
         }
 
+        // ===== Guided tutorial =====
+        // A 5-step assisted walkthrough. The sandbox terminal is a cross-origin iframe we
+        // cannot read, so each step is LOCKED until the SAME server-side grader the badge
+        // uses (checkPractice) confirms that step's task, not by watching keystrokes. After
+        // all 5 pass it auto-runs the grade + badge. Fully inert unless the learner opts in
+        // (nothing polls or grades until they click "Start guided tutorial").
+        var OBS_TUT_KEY = 'obs_sandbox_tutorial_done';
+        var OBS_TUT_STEPS = [
+            { title: 'Create your workspace and a first file',
+              cmd: 'mkdir -p ~/work && echo hexworth > ~/work/hello.txt',
+              why: 'mkdir makes your ~/work folder; the > sends the word "hexworth" into a new file, hello.txt.' },
+            { title: 'Write a script and make it runnable',
+              cmd: "printf '#!/bin/bash\\necho hi\\n' > ~/work/greet.sh && chmod +x ~/work/greet.sh",
+              why: 'The first line (#!/bin/bash) marks it as a script; chmod +x sets the execute bit so you can run it as a program.' },
+            { title: 'Lock a file to private permissions',
+              cmd: 'touch ~/work/secret.txt && chmod 600 ~/work/secret.txt',
+              why: 'chmod 600 means owner-only read and write, the standard for private files like SSH keys.' },
+            { title: 'Filter the error lines out of a log',
+              cmd: 'grep ERROR ~/playground/logs/app.log > ~/work/found.txt',
+              why: 'grep prints only the lines containing ERROR; the > saves just those lines into found.txt.' },
+            { title: 'Put your work under version control',
+              cmd: 'cd ~/work && git init && git config user.email you@hex.local && git config user.name You && git add . && git commit -m first',
+              why: 'git init starts a repository, add stages your files, commit records them. A fresh box needs an identity (user.email/name) before it will commit.' }
+        ];
+        var obsTut = { armed: false, active: false, step: 0, timer: null, busy: false, finishing: false };
+
+        function tutEl() { return document.getElementById('obs-tutorial'); }
+        function tutDone() { try { return !!localStorage.getItem(OBS_TUT_KEY); } catch (e) { return false; } }
+        function tutClear() { var e = tutEl(); if (e) { e.innerHTML = ''; e.hidden = false; } return e; }
+        function pulseMount(on) { var m = document.getElementById('obs-sandbox-mount'); if (m) m.classList.toggle('obs-pulse', !!on); }
+
+        function tutCopy(text, btn) {
+            try {
+                navigator.clipboard.writeText(text).then(function () {
+                    btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+                });
+            } catch (e) { /* clipboard unavailable; the command is still shown to type */ }
+        }
+
+        // Pre-launch card: a Start button (pulsing for first-time visitors) or a Show-me-how replay.
+        function renderStart() {
+            var e = tutClear(); if (!e) return;
+            var first = !tutDone();
+            e.innerHTML =
+                '<div class="obs-tutorial__bar"><span class="obs-tutorial__label">Guided Tutorial</span></div>' +
+                '<p class="obs-tutorial__why">' + (first
+                    ? 'New to Linux? Take the 5-step guided tutorial. I will show you exactly what to type and check each step as you go.'
+                    : 'Want a refresher? Replay the 5-step guided tutorial.') + '</p>' +
+                '<div class="obs-tutorial__actions"><button type="button" class="obs-tutorial__btn' + (first ? ' obs-pulse' : '') + '" id="obs-tut-start">' +
+                (first ? 'Start guided tutorial' : 'Show me how') + '</button></div>';
+            document.getElementById('obs-tut-start').addEventListener('click', armTut);
+        }
+
+        // Armed but not yet launched: tell them to launch, and pulse the launch area.
+        function renderArm() {
+            var e = tutClear(); if (!e) return;
+            e.innerHTML =
+                '<div class="obs-tutorial__bar"><span class="obs-tutorial__label">Guided Tutorial</span></div>' +
+                '<p class="obs-tutorial__why">Launch your sandbox above to begin. I will walk you through all 5 tasks and check each one.</p>';
+            pulseMount(true);
+        }
+
+        function renderStep() {
+            var e = tutClear(); if (!e) return;
+            var s = OBS_TUT_STEPS[obsTut.step];
+            var dots = OBS_TUT_STEPS.map(function (_, i) {
+                var cls = i < obsTut.step ? 'done' : (i === obsTut.step ? 'current' : '');
+                return '<span class="obs-tutorial__dot ' + cls + '"></span>';
+            }).join('');
+            e.innerHTML =
+                '<div class="obs-tutorial__bar">' +
+                    '<span class="obs-tutorial__label">Guided Tutorial</span>' +
+                    '<span class="obs-tutorial__dots">' + dots + '</span>' +
+                    '<span class="obs-tutorial__count">Step ' + (obsTut.step + 1) + ' of 5</span>' +
+                '</div>' +
+                '<p class="obs-tutorial__title"></p>' +
+                '<p class="obs-tutorial__why"></p>' +
+                '<div class="obs-tutorial__cmdrow">' +
+                    '<div class="obs-tutorial__cmd" id="obs-tut-cmd"></div>' +
+                    '<button type="button" class="obs-tutorial__copy" id="obs-tut-copy">Copy</button>' +
+                '</div>' +
+                '<div class="obs-tutorial__actions">' +
+                    '<button type="button" class="obs-tutorial__btn" id="obs-tut-check">Check this step</button>' +
+                    '<span class="obs-tutorial__msg" id="obs-tut-msg">Type the command in the terminal, then Check. I also check automatically.</span>' +
+                '</div>';
+            // Dynamic text via textContent (never innerHTML), matching the grader UI's no-untrusted-markup rule.
+            e.querySelector('.obs-tutorial__title').textContent = 'Step ' + (obsTut.step + 1) + ': ' + s.title;
+            e.querySelector('.obs-tutorial__why').textContent = s.why;
+            document.getElementById('obs-tut-cmd').textContent = s.cmd;
+            document.getElementById('obs-tut-copy').addEventListener('click', function () { tutCopy(s.cmd, this); });
+            document.getElementById('obs-tut-check').addEventListener('click', tutManualCheck);
+        }
+
+        function renderDone() {
+            var e = tutClear(); if (!e) return;
+            e.innerHTML =
+                '<div class="obs-tutorial__done">Tutorial complete!' +
+                '<small>You ran all 5 tasks and graded your work. See the result above for your Linux Practitioner badge. Relaunch anytime to practice on a fresh box.</small></div>' +
+                '<div class="obs-tutorial__actions" style="margin-top:10px;"><button type="button" class="obs-tutorial__btn ghost" id="obs-tut-replay">Replay tutorial</button></div>';
+            document.getElementById('obs-tut-replay').addEventListener('click', armTut);
+        }
+
+        // Does the grader report step index i (0-based) as passed? Prefer the per-task id
+        // (results carry {id, desc, pass}); fall back to position if id is ever absent.
+        function stepPass(res, i) {
+            var c = res.filter(function (x) { return x && x.id === i + 1; })[0] || res[i];
+            return !!(c && c.pass);
+        }
+        // Bound every grader call so a hung fetch can never wedge the busy latch forever.
+        function withTimeout(promise, ms) {
+            return Promise.race([promise, new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, ms); })]);
+        }
+
+        // Ask the grader about the CURRENT step and advance if it passed. Returns a status
+        // so callers can message honestly: advanced | not-yet | skipped | error | inactive.
+        async function tutCheck() {
+            if (!obsTut.active) return 'inactive';
+            if (obsTut.busy) return 'skipped';
+            var sid = window.__obsSandboxSession; if (!sid) return 'inactive';
+            obsTut.busy = true;
+            try {
+                var r = await withTimeout(SandboxLauncher.checkPractice(sid), 8000);
+                // The session may have ended (idle-out / destroy) while we awaited, so bail if so,
+                // otherwise a stale response would clobber the torn-down UI.
+                if (!obsTut.active || window.__obsSandboxSession !== sid) return 'inactive';
+                var res = (r && r.results) || [];
+                if (stepPass(res, obsTut.step)) { advanceTut(); return 'advanced'; }
+                return 'not-yet';
+            } catch (e) { return 'error'; }
+            finally { obsTut.busy = false; }
+        }
+
+        async function tutManualCheck() {
+            var msg = document.getElementById('obs-tut-msg');
+            if (msg) { msg.className = 'obs-tutorial__msg'; msg.textContent = 'Checking...'; }
+            var status = await tutCheck();
+            var m = document.getElementById('obs-tut-msg');
+            if (!m) return;
+            if (status === 'not-yet') { m.className = 'obs-tutorial__msg err'; m.textContent = 'Not done yet. Run the command above in the terminal, then Check again.'; }
+            else if (status === 'error') { m.className = 'obs-tutorial__msg'; m.textContent = 'Could not check right now. Make sure your sandbox is still running, then try again.'; }
+            else if (status === 'skipped') { m.className = 'obs-tutorial__msg'; m.textContent = 'Still checking your last request, one moment.'; }
+            // 'advanced' / 'inactive' already re-rendered the panel.
+        }
+
+        function advanceTut() {
+            if (!obsTut.active) return;
+            obsTut.step++;
+            if (obsTut.step >= OBS_TUT_STEPS.length) { finishTut(); return; }
+            renderStep();
+            var m = document.getElementById('obs-tut-msg');
+            if (m) { m.className = 'obs-tutorial__msg ok'; m.textContent = 'Nice, step complete. On to the next one.'; }
+        }
+
+        async function finishTut() {
+            if (obsTut.finishing) return;      // guard: syncStep + a poll could both land here
+            obsTut.finishing = true;
+            obsTut.active = false; tutStopPoll();
+            var e = tutClear();
+            if (e) e.innerHTML = '<div class="obs-tutorial__done">All 5 steps complete. Grading your work...</div>';
+            try { await gradePractice(); } catch (err) { /* grade UI shows its own error */ }
+            try { localStorage.setItem(OBS_TUT_KEY, '1'); } catch (err) { /* private mode, non-fatal */ }
+            obsTut.armed = false; obsTut.finishing = false;
+            renderDone();
+        }
+
+        function tutStartPoll() { tutStopPoll(); obsTut.timer = setInterval(tutCheck, 5000); }
+        function tutStopPoll() { if (obsTut.timer) { clearInterval(obsTut.timer); obsTut.timer = null; } }
+
+        // Sync to the box's REAL state: jump to the first not-yet-done step (or finish if all
+        // are done). Called on every launch. Because the sandbox is disposable, a relaunch is
+        // a clean box, so we must never resume a preserved step against filesystem state that
+        // no longer exists. A partly-done live box resumes at the right place instead.
+        async function syncStep() {
+            var sid = window.__obsSandboxSession; if (!sid) return;
+            try {
+                var r = await withTimeout(SandboxLauncher.checkPractice(sid), 8000);
+                if (!obsTut.active || window.__obsSandboxSession !== sid) return;
+                var res = (r && r.results) || [];
+                var idx = 0;
+                while (idx < OBS_TUT_STEPS.length && stepPass(res, idx)) idx++;
+                if (idx >= OBS_TUT_STEPS.length) { finishTut(); return; }
+                if (idx !== obsTut.step) { obsTut.step = idx; renderStep(); }
+            } catch (e) { /* transient; the 5s poll will catch up */ }
+        }
+
+        function beginTut() {
+            if (!obsTut.armed) return;
+            obsTut.active = true; obsTut.finishing = false; obsTut.step = 0;
+            pulseMount(false); renderStep();
+            syncStep();               // fast-forward past anything already true on THIS box
+            tutStartPoll();
+        }
+
+        function armTut() {
+            obsTut.armed = true; obsTut.active = false; obsTut.step = 0;
+            // If a box is already running, jump straight in; otherwise wait for launch.
+            if (window.__obsSandboxSession) beginTut(); else renderArm();
+        }
+
+        // Show the pre-launch card once the sandbox card is in the DOM. Nothing runs until opt-in.
+        function initTutorial() { if (!obsTut.armed && !obsTut.active) renderStart(); }
+
         // Gate the house behind research consent: render only once the signed-in
         // user has a consent record (existing or freshly submitted).
         ObservatoryConsent.ensureConsent(function () {
@@ -479,6 +715,8 @@
                             window.__obsSandboxSession = result && result.sessionId;
                             var g = document.getElementById('obs-sandbox-grade');
                             if (g) g.style.display = '';
+                            // If the learner opted into the guided tutorial, start it now.
+                            if (obsTut.armed) beginTut();
                         },
                         onEnd: function () {
                             // Session ended (destroyed or expired) — retire the now-dead grader.
@@ -487,9 +725,14 @@
                             if (g) g.style.display = 'none';
                             var out = document.getElementById('obs-grade-result');
                             if (out) out.textContent = '';
+                            // Pause the tutorial. On relaunch, beginTut() re-syncs against the
+                            // fresh box (syncStep), so we don't resume a now-invalid step here.
+                            tutStopPoll(); obsTut.active = false;
+                            if (obsTut.armed) renderArm(); else renderStart();
                         }
                     });
                     wireSandboxGrader();
+                    initTutorial();
                     return;
                 }
                 if (tries > 0) setTimeout(function () { mountSandbox(tries - 1); }, 60);
