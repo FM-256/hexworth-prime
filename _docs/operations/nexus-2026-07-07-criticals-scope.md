@@ -11,11 +11,15 @@ tags, not code defects) — see "Follow-ups" below.
    (QC-59 is `completed` in sprints.json yet still a live critical; QC-57's work is done per memory but the
    tracker still says `backlog`). Fix: filter completed/non-defect sprint items out of the critical/high
    rollup, or groom the tracker. This is why Pulse's headline "10 criticals" is misleading.
-2. **SEC-002 same-line adjacency (Nancy, non-blocking)** — a display container that closes AND has
-   executable code following on the SAME physical line (`<pre>x</pre> <script>const password="y"</script>`)
-   still gets its whole line skipped. Real generator-produced shape in 3 python-programming labs, NOT
-   currently exploited (no secrets in those lines). Fix: scan the line remainder after an inline close
-   instead of an unconditional `continue`. Needs its own focused pass + Nancy review.
+2. **SEC-002 display-code exemption — RESOLVED 2026-07-07 by abandoning the approach.** The exemption to
+   suppress 2 false positives on `shield-aws-cognito.html` (displayed boto3 sample constants) went through
+   FIVE regex iterations (script-membership → display-container line-state → close-side adjacency →
+   open-side adjacency → up-front span masking), and Nancy found a reproducible hidden-real-secret
+   false-negative in every one. Root lesson: **regex cannot safely delimit nested/mismatched HTML in a
+   security validator** — a hidden real secret is worse than the 2 cosmetic FPs. Final resolution
+   (`d4a69cbe7`): reverted ALL masking (SEC-002 scans literally, can't hide a secret), and excluded the
+   one teaching file whole via `isExcluded()` (the mechanism already used for CTF boxes / crypto labs).
+   Operator was AFK on the approach choice; proceeded with the recommended "allowlist the file" option.
 
 ---
 
