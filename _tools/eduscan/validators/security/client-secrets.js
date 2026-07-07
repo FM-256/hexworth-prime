@@ -145,9 +145,16 @@ class ClientSecretsValidator {
         // displayed sample from a real client secret by parsing the HTML without risking a hidden real
         // secret (five regex attempts each leaked — see checkHardcodedPasswords note), so these are
         // excluded whole. Keep this list TIGHT and file-specific; do not exclude the projects/ dir wholesale.
+        // WARNING: isExcluded() gates ALL of SEC-001/002/003/004 — an excluded file is also NOT checked for
+        // flag{} leaks (SEC-001), plaintext answers (SEC-003), or challenge-logic bypass (SEC-004). Only
+        // exclude PURE static teaching content; if one of these walkthroughs later gains real
+        // acceptedAnswers / challenge-check functions / client flag{} values, REMOVE it from this list.
         //   shield-aws-cognito.html — AWS Cognito "CASE FILE" walkthrough; cf-code blocks show boto3 with
-        //   sample constants like USER_PASSWORD='LabPass123!@#' (2 SEC-002 false positives).
-        if (/(?:^|\/)projects\/shield-aws-cognito\.html$/.test(normalized)) return true;
+        //   sample constants like USER_PASSWORD='LabPass123!@#' (2 SEC-002 false positives). Verified inert:
+        //   its only <script> is a localStorage progress tracker (no flags/answers/challenge checks).
+        // Anchored to a TOP-LEVEL projects/ (string start or right after _app/) so a nested */projects/
+        // directory can never silently inherit this exclusion.
+        if (/(?:^|_app\/)projects\/shield-aws-cognito\.html$/.test(normalized)) return true;
 
         return false;
     }
