@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-07-02 11:52:16 AM
+                    Scanned: 2026-07-07 1:24:59 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,15 +13,15 @@
 | Files Scanned | 5199 |
 | Directories | 1262 |
 | Content Files | 5199 |
-| Scan Duration | 492ms |
+| Scan Duration | 589ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2337 |
+| presentation | 2340 |
 | html | 1556 |
-| lab | 587 |
+| lab | 584 |
 | quiz | 504 |
 | applet | 215 |
 
@@ -41,10 +41,10 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 30 |
+| Suspect | 35 |
 | Warning | 958 |
-| Info | 695 |
-| **Total** | **12982** |
+| Info | 699 |
+| **Total** | **12967** |
 
 ### Sync Status
 
@@ -7977,7 +7977,7 @@
 | forge-cpu-install.lab | presentation | ✓ | 0 |
 | forge-cpu-sockets.lab | lab | ✓ | 0 |
 | forge-diagnostic-tools.lab | lab | ✓ | 0 |
-| forge-display-troubleshoot.lab | lab | ✓ | 0 |
+| forge-display-troubleshoot.lab | presentation | ✓ | 0 |
 | forge-dns-config.lab | lab | ✓ | 0 |
 | forge-docking-config.lab | presentation | ✓ | 0 |
 | forge-email-config.lab | presentation | ✓ | 0 |
@@ -7998,7 +7998,7 @@
 | forge-pc-components.lab | presentation | ✓ | 0 |
 | forge-port-identification.lab | presentation | ✓ | 0 |
 | forge-post-beep-codes.lab | presentation | ✓ | 0 |
-| forge-printer-troubleshoot.lab | lab | ✓ | 0 |
+| forge-printer-troubleshoot.lab | presentation | ✓ | 0 |
 | forge-protocol-analysis.lab | lab | ✓ | 0 |
 | forge-psu-connectors.lab | presentation | ✓ | 0 |
 | forge-raid-config.lab | lab | ✓ | 0 |
@@ -8011,7 +8011,7 @@
 | forge-storage-upgrade.lab | presentation | ✓ | 0 |
 | forge-subnet-calculator.lab | lab | ✓ | 0 |
 | forge-topology-builder.lab | lab | ✓ | 0 |
-| forge-troubleshooting-flowchart.lab | lab | ✓ | 0 |
+| forge-troubleshooting-flowchart.lab | presentation | ✓ | 0 |
 | forge-troubleshooting-scenarios.lab | presentation | ✓ | 0 |
 | forge-troubleshooting.lab | presentation | ✓ | 0 |
 | forge-vm-setup.lab | presentation | ✓ | 0 |
@@ -10245,7 +10245,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (30) — heuristic, needs review
+### SUSPECT (35) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -10320,12 +10320,28 @@
   Fix: Remove console.log or replace with proper logging
 
 **[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/key/games/key-crypto-flap.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
   File: `houses/matrix/adv-linux/ala-final.html`
   Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/matrix/protocore/arduino/quizzes/pc-ard-01.quiz.html`
   Fix: Remove console.log or replace with proper logging
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/script/games/script-sudo-flap.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/shield/games/shield-debugger.applet.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/shield/games/shield-exploit-flap.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/shield/infosec/exams/pis-kahoot-host.review.html`
@@ -10334,6 +10350,10 @@
 **[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
   File: `houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html`
   Fix: Remove commented-out code or restore it if needed
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/web/games/web-packet-flap.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
 **[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
   File: `houses/web/intro-networks/labs/fl-w1-ports.lab.html`
@@ -14201,7 +14221,7 @@
   File: `tenant/instructor.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (695)
+### INFO (699)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `_games-lab/jeopardy.html`
@@ -15492,9 +15512,6 @@
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
 **[SANDBOX-001]** Lab ID "cell-sigma" defined in LAB_INFO but not used on any page
-  File: `components/SandboxLauncher.js`
-
-**[SANDBOX-001]** Lab ID "linux-mastery" defined in LAB_INFO but not used on any page
   File: `components/SandboxLauncher.js`
 
 **[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
@@ -16828,6 +16845,26 @@
 **[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
   File: `houses/code/armory/swift-kotlin/arm-sk-10-security.module.html`
   Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-display-troubleshoot.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-troubleshoot.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-printer-troubleshoot.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting-flowchart.lab.html`
+  Fix: Manual review required - path is constructed dynamically
+
+**[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting.lab.html`
+  Fix: Manual review required - path is constructed dynamically
 
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
   File: `houses/shield/sc-200/labs/sc200-ch08-sentinel-response.lab.html`

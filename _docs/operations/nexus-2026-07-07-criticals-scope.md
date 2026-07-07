@@ -1,5 +1,26 @@
 # Nexus Full 2026-07-07 — Criticals Scope
 
+**Status:** DONE (Option A shipped 2026-07-07). Validator-accuracy pass committed `d604fd2ec` (Nancy PASS),
+clean baseline published to `_quality_reports/latest` via `nexus full`. Result: eduscan HIGH 150 → 0
+(143 PATH-DEPTH-001 + 3 SANDBOX-003 + 2 SEC-002 + 2 SANDBOX-004 all cleared); platform HIGH 268 → 118,
+CRITICAL 10 → 10. **The 118 remaining highs + all 10 criticals are `sprint`-source** (backlog/priority
+tags, not code defects) — see "Follow-ups" below.
+
+**Follow-ups (open):**
+1. **Sprint-source rollup** — Nexus counts sprint backlog items as critical/high, including COMPLETED ones
+   (QC-59 is `completed` in sprints.json yet still a live critical; QC-57's work is done per memory but the
+   tracker still says `backlog`). Fix: filter completed/non-defect sprint items out of the critical/high
+   rollup, or groom the tracker. This is why Pulse's headline "10 criticals" is misleading.
+2. **SEC-002 same-line adjacency (Nancy, non-blocking)** — a display container that closes AND has
+   executable code following on the SAME physical line (`<pre>x</pre> <script>const password="y"</script>`)
+   still gets its whole line skipped. Real generator-produced shape in 3 python-programming labs, NOT
+   currently exploited (no secrets in those lines). Fix: scan the line remainder after an inline close
+   instead of an unconditional `continue`. Needs its own focused pass + Nancy review.
+
+---
+
+*Original scope (below) retained for the record.*
+
 **Status:** SCOPING — awaiting operator decision on remediation approach.
 **Context:** Full Nexus/EduScan scan on 2026-07-07 (gate PASSED, 0 critical). The "high" tier = 152 findings. The quick wins (real breakages: broken Security+ exam, linux-mastery sandbox auth, stale validator allowlist) are fixed separately (commit `ac1b7504a`). This doc scopes the remaining **critical** item that needs a decision, not a blind fix.
 
