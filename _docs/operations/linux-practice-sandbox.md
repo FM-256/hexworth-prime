@@ -14,6 +14,7 @@ Linux hands-on. Unlike the graded course labs, this is a free-play playground: f
   (`_app/houses/observatory/index.html`) via the existing `SandboxLauncher.js`.
 - **Auth:** Firebase ID token required (lab-manager `NODE_ENV=production`). Bounded:
   2 containers/user, 40 total, 15 min idle / 120 min max lifetime.
+- **Instructor walkthrough** for the 5 graded `hexpractice challenge` tasks: `~/hexworth-shared/Solutions/Linux Practice Sandbox/LINUX-SANDBOX-hexpractice-SOLUTION.md` + [Confluence KBA 41451522](https://hexworth.atlassian.net/wiki/spaces/KBA/pages/41451522). Page map + update procedure: `_tools/confluence/linux-sandbox-walkthrough-pages.md`.
 
 ## Why reuse, not rebuild
 
