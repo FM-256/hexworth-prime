@@ -342,6 +342,15 @@ class PathValidator {
                         continue;
                     }
 
+                    // Absolute (root-anchored) paths like /components/X.js resolve from the Firebase
+                    // Hosting web root regardless of how deep the file is, so the relative-DEPTH rule
+                    // does not apply — an absolute path is never an "undershoot". (A broken absolute
+                    // path that 404s is still caught by PATH-001 / checkScriptPaths, which is the rule
+                    // for existence.) This exempts the valid absolute-path pattern from PATH-DEPTH-001.
+                    if (refPath.startsWith('/')) {
+                        continue;
+                    }
+
                     // Count the ../ depth in the reference
                     const depthMatch = refPath.match(/^((?:\.\.\/)+)/);
                     const actualDepth = depthMatch ? (depthMatch[1].match(/\.\.\//g) || []).length : 0;

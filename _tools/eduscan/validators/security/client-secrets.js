@@ -259,9 +259,26 @@ class ClientSecretsValidator {
             /\b(?:correct_?password|admin_?pass(?:word)?|db_?pass(?:word)?|user_?pass(?:word)?|root_?pass(?:word)?|default_?pass(?:word)?)\s*[:=]\s*['"][^'"]+['"]/i,
         ];
 
+        // SEC-002 applies only to EXECUTABLE client code. In HTML that means inside a <script> block;
+        // code shown to the student as example text (cf-code / pre / code / any container) is displayed,
+        // never run, so it is not an extractable secret — flagging it is a false positive (e.g. a lab
+        // walkthrough printing `USER_PASSWORD = '...'` as a code sample). A whole .js file is executable.
+        // Track <script>-block membership and skip displayed content.
+        const isHtml = /\.html?$/i.test(filePath);
+        let inScript = !isHtml;
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const trimmed = line.trim();
+
+            if (isHtml) {
+                const opens = /<script(?:\s[^>]*)?>/i.test(line);
+                const closes = /<\/script>/i.test(line);
+                if (opens && !closes) { inScript = true; continue; }   // opener line
+                if (closes && !opens) { inScript = false; continue; }  // closer line
+                if (!inScript && !(opens && closes)) { continue; }     // displayed content, not executable
+                // (opens && closes) = single-line inline script: fall through and check it
+            }
 
             // Skip comments
             if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('<!--')) {

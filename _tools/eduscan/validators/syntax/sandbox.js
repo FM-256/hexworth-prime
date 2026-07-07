@@ -24,13 +24,33 @@
 const fs = require('fs');
 const path = require('path');
 
-// Known valid lab IDs — keep in sync with SandboxLauncher.js LAB_INFO
-// Must stay in sync with the SandboxLauncher.js LAB_INFO registry (_app/components/SandboxLauncher.js).
-// Synced 2026-07-07 to the full registry (added cell-sigma, linux-mastery, linux-sandbox — all real
-// registered labs the stale list was missing). If you add a lab to LAB_INFO there, add its id here.
-const KNOWN_LAB_IDS = new Set([
+// Known valid lab IDs — read LIVE from the SandboxLauncher.js LAB_INFO registry (the single source
+// of truth) so this validator can never drift out of sync. The previous hardcoded Set silently went
+// stale every time a lab was added (it missed cell-sigma / linux-mastery / linux-sandbox until an
+// incident forced a manual catch-up — Nancy 2026-07-07). Resolved from __dirname (not rootPath/cwd)
+// so it works under any --path scope. Falls back to a static list only if the registry can't be
+// read/parsed, so a scan never crashes in an unusual environment.
+const FALLBACK_LAB_IDS = [
     'do-100', 'do-101', 'do-102', 'do-16', 'arctic', 'db-sql', 'cell-sigma', 'linux-mastery', 'linux-sandbox'
-]);
+];
+
+function loadKnownLabIds() {
+    try {
+        const launcherPath = path.join(__dirname, '../../../../_app/components/SandboxLauncher.js');
+        const src = fs.readFileSync(launcherPath, 'utf8');
+        // Isolate the `LAB_INFO = { ... };` block, then pull each 'lab-id': key from inside it.
+        const block = src.match(/LAB_INFO\s*=\s*\{([\s\S]*?)\n\s*\};/);
+        if (block) {
+            const ids = [...block[1].matchAll(/^\s*['"]([a-z0-9-]+)['"]\s*:/gim)].map(m => m[1]);
+            if (ids.length) return new Set(ids);
+        }
+    } catch (e) {
+        // fall through to the static fallback below
+    }
+    return new Set(FALLBACK_LAB_IDS);
+}
+
+const KNOWN_LAB_IDS = loadKnownLabIds();
 
 // Page renderers that wipe document.body — SandboxLauncher must load before these
 // OR the renderer must explicitly call SandboxLauncher (like ArcticEngine does)
