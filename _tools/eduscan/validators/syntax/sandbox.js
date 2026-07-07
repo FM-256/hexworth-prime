@@ -25,8 +25,11 @@ const fs = require('fs');
 const path = require('path');
 
 // Known valid lab IDs — keep in sync with SandboxLauncher.js LAB_INFO
+// Must stay in sync with the SandboxLauncher.js LAB registry (_app/components/SandboxLauncher.js).
+// linux-mastery + linux-sandbox added 2026-07-07 (they are real registered labs; the stale list
+// was flagging them as unknown). If you add a lab there, add its id here.
 const KNOWN_LAB_IDS = new Set([
-    'do-100', 'do-101', 'do-102', 'do-16', 'arctic', 'db-sql'
+    'do-100', 'do-101', 'do-102', 'do-16', 'arctic', 'db-sql', 'linux-mastery', 'linux-sandbox'
 ]);
 
 // Page renderers that wipe document.body — SandboxLauncher must load before these
