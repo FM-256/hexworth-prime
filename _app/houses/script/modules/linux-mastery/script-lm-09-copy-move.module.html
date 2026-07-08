@@ -283,6 +283,28 @@ LinuxTerminal.init('LM-09', '#terminal', {
     }
 });
 
+// Seed the files the copy/move tasks operate on. Earlier this module instructed cp/mv against
+// file1.txt, mydir, and oldname.txt but never created them, so every command errored on a missing
+// source and the module could not be completed (students stalled at 2/4). Mirror the addFilesystem
+// pattern used by lm-17+, then register the new entries in the home dir's children array (via the
+// engine's live getFs()) so `ls` also lists them. file2.txt is intentionally NOT seeded: task 1
+// ("copy file1.txt to file2.txt") creates it, and the self-heal below guarantees a clean run order.
+LinuxTerminal.addFilesystem({
+    '/home/learner/file1.txt':        { type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner', size: 35, content: 'Hello from file1.\nCopy me with cp.\n' },
+    '/home/learner/oldname.txt':      { type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner', size: 34, content: 'Rename me to newname.txt with mv.\n' },
+    '/home/learner/mydir':            { type: 'dir',  perms: 'drwxr-xr-x', owner: 'learner', group: 'learner', children: ['readme.txt'] },
+    '/home/learner/mydir/readme.txt': { type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner', size: 19, content: 'Contents of mydir.\n' }
+});
+(function seedHomeChildren() {
+    // Add the seeded names to the existing /home/learner children so `ls` shows them without
+    // clobbering the default files (addFilesystem's Object.assign only wrote the new path keys).
+    const homeFs = LinuxTerminal.getFs();
+    const home = homeFs && homeFs['/home/learner'];
+    if (home && Array.isArray(home.children)) {
+        ['file1.txt', 'oldname.txt', 'mydir'].forEach(function(n) { if (home.children.indexOf(n) === -1) home.children.push(n); });
+    }
+})();
+
 const MODULE_ID = 'lm-09-copy-move';
 const tasks = { 'cp': false, 'cp-r': false, 'mv': false, 'mv-rename': false };
 
@@ -356,7 +378,21 @@ function saveProgress() {
                 taskList.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
         updateProgress();
     }
-    
+
+    // Self-heal the pre-fix stuck state. Before the source files were seeded, cp/cp-r silently
+    // no-oped on the missing files yet still got marked complete, so affected students are saved at
+    // a false 2/4. This module's tasks also form an in-session chain (mv moves the file2.txt that cp
+    // creates) and the terminal filesystem is rebuilt every visit, so partial progress is never
+    // resumable. If a returning student has SOME but not ALL tasks done, reset to a clean 0/4 so they
+    // complete it properly against the now-seeded files instead of hitting a second silent stall.
+    const doneNow = Object.values(tasks).filter(Boolean).length;
+    if (doneNow > 0 && doneNow < Object.keys(tasks).length) {
+        Object.keys(tasks).forEach(k => { tasks[k] = false; });
+        document.querySelectorAll('.task-chip').forEach(c => c.classList.remove('completed', 'active'));
+        updateProgress();
+        saveProgress();
+    }
+
     // Repair: if all tasks done but long key missing, trigger silent completion
     if (Object.values(tasks).every(v => v) && Object.keys(tasks).length > 0) {
         const longKey = 'script-' + MODULE_ID;
