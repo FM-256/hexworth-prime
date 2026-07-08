@@ -29,6 +29,14 @@
  *   clh-011 clh-012 clh-013 clh-014 clh-022 clh-027   then ./deploy.sh
  */
 
+// ⚠ DISABLED 2026-07-08 — DO NOT RUN. This script derived its "corrected" keys from the
+// ORPHANED Layer B tree (courses/clh/modules/*/script-quiz.quiz.html). Students are served
+// Layer A (houses/script/clh/script-clh-NNN.quiz.html), which has DIFFERENT question/option
+// ordering. Running this MIS-GRADES the live quizzes (Chris BLOCK). The live write it made was
+// reverted from clh-keys-backup-2026-07-08.json. Any real re-fix must anchor to Layer A.
+console.error('DISABLED: derived from the wrong CLH layer (B); see restore-clh-keys.js + QC_NOTES. Aborting.');
+process.exit(1);
+
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
