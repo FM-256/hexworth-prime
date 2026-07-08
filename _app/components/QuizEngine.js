@@ -492,12 +492,39 @@ class QuizEngine {
                 // Map server results back into state
                 this.state.score = serverResult.score;
 
-                // Update answer records with server-provided correctness
-                serverResult.results.forEach((r, idx) => {
-                    if (this.state.answers[idx]) {
-                        this.state.answers[idx].isCorrect = r.correct;
-                        // correct index stays null — server does not reveal it
+                // Update answer records with server-provided correctness.
+                // serverResult.results are in ORIGINAL question order (they mirror the
+                // Firestore answer key); this.state.answers / this.config.questions are in
+                // DISPLAY (shuffled) order. Map original -> display via _originalIndex
+                // (tagged before the question shuffle in start()) so each result lands on
+                // the question it actually belongs to in the review.
+                const origToDisplay = {};
+                this.config.questions.forEach((q, dispIdx) => {
+                    const oi = (q._originalIndex !== undefined) ? q._originalIndex : dispIdx;
+                    origToDisplay[oi] = dispIdx;
+                });
+                serverResult.results.forEach((r, origIdx) => {
+                    const dispIdx = origToDisplay[origIdx];
+                    if (dispIdx === undefined || !this.state.answers[dispIdx]) return;  // guards poolSize / missing
+                    const q = this.config.questions[dispIdx];
+                    this.state.answers[dispIdx].isCorrect = r.correct;
+                    // When the server reveals the correct answer (passer / revealToAll /
+                    // reviewAfterFails), r.correctAnswer is an index into the ORIGINAL option
+                    // order. Translate it to the current shuffled DISPLAY order so renderReview
+                    // can highlight the right option. (Guarded to numbers: CLH is all-MC, but a
+                    // future MS/order quiz would send an array we must not indexOf blindly.)
+                    if (typeof r.correctAnswer === 'number' && q._originalOptions) {
+                        const correctText = q._originalOptions[r.correctAnswer];
+                        const displayOptIdx = q.options.indexOf(correctText);
+                        if (displayOptIdx !== -1) {
+                            q.correct = displayOptIdx;
+                            this.state.answers[dispIdx].correct = displayOptIdx;
+                        }
                     }
+                    // The server also returns the explanation on reveal; surface it when the
+                    // HTML config did not already carry one (some server-graded quizzes rely
+                    // on the key for explanations).
+                    if (r.explanation && !q.explanation) q.explanation = r.explanation;
                 });
 
                 const results = {
@@ -973,7 +1000,11 @@ class QuizEngine {
                             // SEC-5: In server-grading mode, q.correct may be undefined.
                             // We know if the student's answer was right/wrong, but we do NOT
                             // reveal which option was correct (server never sends that).
-                            const knowsCorrectIdx = q.correct !== undefined && q.correct !== null;
+                            // A valid correct index is a non-negative number. In server-grading
+                            // mode with no reveal, the start() shuffle-remap leaves q.correct = -1
+                            // (indexOf of an undefined correct answer); -1 must read as "unknown"
+                            // so the fallback still marks the student's own right answer.
+                            const knowsCorrectIdx = typeof q.correct === 'number' && q.correct >= 0;
                             const isCorrectAnswer = knowsCorrectIdx && optIdx === q.correct;
                             const isSelected = answer && optIdx === answer.selected;
                             const isWrongSelected = isSelected && answer.isCorrect === false;
