@@ -247,6 +247,7 @@
             margin: 5px 0;
             background: var(--bg-main);
             border-radius: 8px;
+            border-left: 3px solid transparent;   /* reserved so .completed only swaps the color (no shift) */
             cursor: pointer;
             transition: all 0.2s ease;
             text-decoration: none;
@@ -257,6 +258,28 @@
         .lab-item:hover {
             background: var(--forge-accent);
             color: var(--forge-dark);
+        }
+
+        /* Completed lab: green left border + a green check at the far right (mirrors chapter completed) */
+        .lab-item.completed {
+            border-left-color: var(--success);
+            background: #f0fdf4;
+        }
+
+        .lab-item.completed::after {
+            content: "\2713";
+            margin-left: auto;
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--success);
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .lab-item.coming-soon {
@@ -892,18 +915,39 @@
                 `${completed} of ${total} chapters completed`;
         }
 
-        // Load saved progress
-        function loadProgress() {
-            const progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
+        // A chapter/lab is complete if its module id has completed:true in the ModuleProgress store
+        // (hexworth_progress.forge[id]), or appears in the top-level completedModules array. This is the
+        // SAME store every "Mark Complete" button and finished lab writes via ModuleProgress.complete —
+        // the hub used to read a stale, never-written 'aplus-core1-progress' key, so nothing turned green.
+        function isModuleComplete(progress, moduleId) {
+            if (progress.forge && progress.forge[moduleId] && progress.forge[moduleId].completed) return true;
+            if (Array.isArray(progress.completedModules) && progress.completedModules.indexOf(moduleId) !== -1) return true;
+            return false;
+        }
 
+        // Mark completed chapter + lab cards green by reading the authoritative ModuleProgress store.
+        function loadProgress() {
+            let progress;
+            try { progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}'); }
+            catch (e) { progress = {}; }
+
+            // Chapters: module id = 'forge-' + the chapter's folder name (e.g. forge-ch01-motherboards).
             document.querySelectorAll('.chapter-item[data-chapter]').forEach(item => {
-                const chapter = item.dataset.chapter;
-                if (progress[chapter]) {
+                if (item.classList.contains('coming-soon')) return;
+                const m = (item.getAttribute('href') || '').match(/chapters\/([^\/]+)\//);
+                const moduleId = m ? 'forge-' + m[1] : null;
+                if (moduleId && isModuleComplete(progress, moduleId)) {
                     item.classList.add('completed');
-                    item.classList.remove('coming-soon');
                     const number = item.querySelector('.chapter-number');
-                    number.textContent = '✓';
+                    if (number) number.textContent = '✓';
                 }
+            });
+
+            // Labs: module id = 'forge-' + data-lab (e.g. forge-cpu-install).
+            document.querySelectorAll('.lab-item[data-lab]').forEach(item => {
+                if (item.classList.contains('coming-soon')) return;
+                const moduleId = 'forge-' + item.getAttribute('data-lab');
+                if (isModuleComplete(progress, moduleId)) item.classList.add('completed');
             });
 
             updateProgress();
