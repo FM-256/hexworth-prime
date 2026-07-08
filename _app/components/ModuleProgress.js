@@ -595,7 +595,7 @@ const ModuleProgress = (function() {
 
         // Show completion UI (overlay with Next/Stay/Dashboard choices)
         if (!silent) {
-            showCompletionOverlay(houseId, moduleId);
+            showCompletionOverlay(houseId, moduleId, returnUrl);
         }
 
         console.log(`<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"> Module completed: ${houseId}/${moduleId}`);
@@ -932,10 +932,15 @@ const ModuleProgress = (function() {
      *
      * @param {string} houseId - House slug (used for context, not displayed)
      * @param {string} moduleId - Module slug (used for context, not displayed)
+     * @param {string} [returnUrl] - The module-provided next target. Used ONLY as a fallback for
+     *   the Next button when the footer scrape finds no "Next"-labeled link AND returnUrl is a bare
+     *   same-directory content file. NOTE: returnUrl semantically means "return to" and is used
+     *   across houses for hub/dashboard/capstone-return too; the same-dir-content-file guard below
+     *   deliberately excludes those so a "return" target is never mislabeled a forward step.
      * @sideeffect Injects <style id="module-progress-styles"> into <head>
      * @sideeffect Appends overlay div to document.body
      */
-    function showCompletionOverlay(houseId, moduleId) {
+    function showCompletionOverlay(houseId, moduleId, returnUrl) {
         // Inject styles if not present
         if (!document.getElementById('module-progress-styles')) {
             const styles = document.createElement('style');
@@ -1079,6 +1084,21 @@ const ModuleProgress = (function() {
         if (nav.nextUrl) {
             const label = nav.nextLabel || 'Next Module';
             actionsHtml += `<a href="${nav.nextUrl}" class="mp-btn mp-btn-next">Next: ${label} &rarr;</a>`;
+        } else if (returnUrl) {
+            // Fallback: many script-house modules label their forward button with the topic name
+            // (e.g. "Regular Expressions >") instead of "Next", so detectNavLinks misses it and no
+            // forward button appears. Use the module-provided returnUrl ONLY when it is a bare
+            // SAME-DIRECTORY content file (.module/.lab/.quiz.html, no path) and not the current
+            // page. This EXCLUDES hub/dashboard/capstone-return returnUrls (directory roots, ../
+            // climbs, index.html) whose semantics are "return", not "next". Neutral "Continue"
+            // label so a lab/quiz target is never mislabeled a "module". WARNING to future editors:
+            // if you author a same-dir content-file returnUrl that means "go back / review", this
+            // fallback will wrongly present it as forward — do not rely on returnUrl for back-nav.
+            const curFile = (window.location.pathname.split('/').pop() || '');
+            const ruPath = returnUrl.split(/[?#]/)[0];
+            if (/^[^/]+\.(?:module|lab|quiz)\.html$/i.test(ruPath) && ruPath !== curFile) {
+                actionsHtml += `<a href="${returnUrl}" class="mp-btn mp-btn-next">Continue &rarr;</a>`;
+            }
         }
 
         // Stay & Explore (always available — dismisses overlay)
