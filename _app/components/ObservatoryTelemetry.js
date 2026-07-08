@@ -295,8 +295,12 @@ window.ObservatoryTelemetry = (function () {
 
 // Auto init once the DOM is ready. FirebaseAuth runs its own DOMContentLoaded init;
 // waitForAuth() awaits that readiness, so listener order does not matter.
+// Skip telemetry entirely during an ephemeral level replay (window.__replaying, set by a module's inline
+// loadProgress before this auto-init runs). Replay is a practice re-run of an ALREADY-complete module, so
+// there is no genuine completion or fresh visit to record - tracking it would inject a synthetic extra
+// "session" (visit count, time-on-task) into the consented research dataset.
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { window.ObservatoryTelemetry.init(); });
+    document.addEventListener('DOMContentLoaded', function () { if (!window.__replaying) window.ObservatoryTelemetry.init(); });
 } else {
-    window.ObservatoryTelemetry.init();
+    if (!window.__replaying) window.ObservatoryTelemetry.init();
 }

@@ -52,6 +52,9 @@
         .task-chip.active { border-color: var(--green); color: var(--green); background: rgba(78, 201, 176, 0.1); }
         .task-chip { cursor: pointer; transition: all 0.2s; }
         .task-chip:hover:not(.completed) { border-color: var(--text-secondary); }
+        /* "Try this level again" button - hidden by default; revealed via JS only once the module is complete. */
+        .replay-btn { margin-top: 0.6rem; width: 100%; font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; padding: 0.4rem 0.6rem; border-radius: 3px; background: rgba(78,201,176,0.08); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
+        .replay-btn:hover { border-color: var(--green); color: var(--green); background: rgba(78,201,176,0.14); }
         .task-instruction { margin-top: 10px; padding: 12px 14px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary); display: none; }
         .task-instruction.visible { display: block; }
         .task-instruction .task-number { color: var(--accent); font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
@@ -135,6 +138,7 @@
                     <span class="task-chip" data-task="delete" onclick="showTaskInstruction('delete')">3</span>
                     <span class="task-chip" data-task="print" onclick="showTaskInstruction('print')">4</span>
                 </div>
+                <button type="button" class="replay-btn" id="replayBtn" style="display:none" onclick="replayLevel()" title="Restart this level for a fresh practice run - your completion is kept">&#8635; Try this level again</button>
             </div>
             <div class="task-instruction" id="taskInstruction"></div>
             <div class="terminal-container" id="terminal"></div>
@@ -156,7 +160,7 @@
                 <h2 class="section-title">What is sed?</h2>
                 <div class="hero-box">
                     <div class="hero-cmd">sed 's/old/new/g' file</div>
-                    <div class="hero-sub">Stream EDitor — transform text line by line</div>
+                    <div class="hero-sub">Stream EDitor - transform text line by line</div>
                 </div>
                 <p><code>sed</code> processes text line by line, applying transformations as it flows through. Perfect for find-and-replace, deleting lines, and automated text editing.</p>
                 <div class="syntax-box">
@@ -292,7 +296,7 @@
         // also lists it. Content carries multiple "old" words and two "pattern" lines so the
         // substitute/global/delete/print examples produce visible, correct results. NOTE: a student who
         // free-lances `sed -i '/pattern/d' file.txt` before task 4 gets a hollow (still-marked-correct)
-        // print task, since detection is command-syntax based not output-content based — accepted/known.
+        // print task, since detection is command-syntax based not output-content based - accepted/known.
         LinuxTerminal.addFilesystem({
             '/home/learner/file.txt': { type: 'file', perms: '-rw-r--r--', owner: 'learner', group: 'learner', size: 89, content: 'old dog and old cat\nthe old fence\npattern line here\nkeep this pattern too\nfinal old line\n' }
         });
@@ -369,7 +373,12 @@
             }
 
             if (Object.values(tasks).every(v => v)) {
-                ModuleProgress.complete('script', 'script-lm-15-sed-editor', { returnUrl: 'script-lm-16-awk-processing.module.html' });
+                revealReplay(); // level complete - offer a replay
+                // During an ephemeral replay the completion already exists; don't re-fire it (that would
+                // re-persist / re-navigate). On a genuine first completion, record it normally.
+                if (!window.__replaying) {
+                    ModuleProgress.complete('script', 'script-lm-15-sed-editor', { returnUrl: 'script-lm-16-awk-processing.module.html' });
+                }
             }
         }
 
@@ -381,6 +390,7 @@
         }
 
         function saveProgress() {
+            if (window.__replaying) return; // replay is ephemeral - never persist, never downgrade the earned completion
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             if (!progress.script) progress.script = {};
             const tasksDone = Object.entries(tasks).filter(([,v]) => v).map(([k]) => k);
@@ -398,9 +408,44 @@
             localStorage.setItem('hexworth_progress', JSON.stringify(progress));
         }
 
+        // Replay ("Try this level again"): set a one-shot flag and reload. Reload (not an in-page reset)
+        // is used because it clears the WHOLE module-page state - the tasks object, chip classes, progress
+        // bar, and instruction panel - not just the terminal (LinuxTerminal does expose destroy/init, but
+        // that alone would not reset the surrounding page). loadProgress then starts fresh, honored ONLY
+        // if the level was already complete.
+        function replayLevel() {
+            sessionStorage.setItem('replay-' + MODULE_ID, '1');
+            location.reload();
+        }
+        // Reveal the replay button. Called only once the module is confirmed complete, so a student who
+        // has not finished never sees (and cannot trigger) a replay.
+        function revealReplay() {
+            const b = document.getElementById('replayBtn');
+            if (b) b.style.display = '';
+        }
+
         (function loadProgress() {
             const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
             const saved = progress.script?.[MODULE_ID] || progress.script?.['script-' + MODULE_ID];
+            // True only if the level was already fully completed (not merely partway) in storage.
+            const wasComplete = !!(saved && (saved.completed === true || (Array.isArray(saved.completedTasks) && saved.completedTasks.length === Object.keys(tasks).length)));
+
+            // Replay mode ("Try this level again"): honored ONLY if the level was already complete. This
+            // guards against a stale/misclicked flag on an in-progress module silently suppressing a
+            // first-time completion (the __replaying guards stop all persistence). Start fresh at 0/N.
+            if (sessionStorage.getItem('replay-' + MODULE_ID)) {
+                sessionStorage.removeItem('replay-' + MODULE_ID);
+                if (wasComplete) {
+                    window.__replaying = true;
+                    updateProgress();          // shows 0 / 4
+                    revealReplay();
+                    const first = getNextIncompleteTask();
+                    if (first) showTaskInstruction(first);
+                    return;                    // skip restoring/repairing the stored completion
+                }
+                // not complete -> ignore the flag and fall through to a normal restore below
+            }
+
             if (saved) {
                 const taskList = saved.completedTasks || (Array.isArray(saved.completed) ? saved.completed : (saved.completed === true ? Object.keys(tasks) : []));
                 taskList.forEach(t => { tasks[t] = true; document.querySelector(`.task-chip[data-task="${t}"]`)?.classList.add('completed'); });
@@ -416,6 +461,7 @@
                     ModuleProgress.complete('script', longKey, { silent: true, returnToDashboard: false });
                 }
             }
+            if (wasComplete) revealReplay(); // already-complete module: offer a replay
             const firstIncomplete = getNextIncompleteTask();
             if (firstIncomplete) showTaskInstruction(firstIncomplete);
         })();
