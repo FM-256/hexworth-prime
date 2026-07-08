@@ -88,7 +88,13 @@ async function runOne(browser, check) {
     const results = [];
 
     try {
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: NAV_TIMEOUT });
+        // Use 'load', NOT 'networkidle2': these lab pages hold a persistent Firestore
+        // connection, so the network never goes fully idle. 'networkidle2' therefore
+        // intermittently hits the timeout (worst right after a deploy, when the CDN edge
+        // cache is cold and scripts load slowly) and false-flags post-verify divergence.
+        // The waitForFunction below is the real content-readiness gate: it waits for the
+        // lab config global that every assertion reads, so 'load' loses no coverage.
+        await page.goto(url, { waitUntil: 'load', timeout: NAV_TIMEOUT });
 
         // Wait for the config global to attach. Configs are declared `const` at
         // script top-level so they live in script scope, not on window. Access via
