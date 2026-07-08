@@ -1581,16 +1581,26 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
         let qType = types[i] || null;
         let isCorrect = false;
 
-        // Unwrap object-wrapped answers: {ms: [0,1]} or {order: [0,1,2,3]}
-        // Firestore does not allow nested arrays, so MS/ORDER answers are
-        // stored as objects with the type as the key.
+        // Unwrap object-wrapped answers: {ms: [0,1]}, {order: [0,1,2,3]}, or
+        // {terminal: ['cmd a','cmd b']}. Firestore does not allow nested arrays,
+        // so MS/ORDER/TERMINAL answers are stored as objects keyed by the type.
         if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
             if (expected.ms) { qType = 'ms'; expected = expected.ms; }
             else if (expected.order) { qType = 'order'; expected = expected.order; }
+            else if (expected.terminal) { qType = 'terminal'; expected = expected.terminal; }
         }
 
         if (submitted === undefined) {
             isCorrect = false;
+        } else if (qType === 'terminal') {
+            // TERMINAL (multi-modal quizzes): submitted is a free-text command string; correct if it
+            // matches any accepted variant (case-insensitive, trimmed), mirroring the client's own
+            // submitTerminal() comparison. This branch MUST precede the array branch below: submitted
+            // is a string, so a terminal question would otherwise fall to the final `submitted ===
+            // expected` (string === array) and silently grade 0 for EVERY student.
+            const accepted = Array.isArray(expected) ? expected : [];
+            const norm = (s) => String(s).trim().toLowerCase();
+            isCorrect = typeof submitted === 'string' && accepted.some((a) => norm(a) === norm(submitted));
         } else if (Array.isArray(expected) && Array.isArray(submitted)) {
             if (submitted.length !== expected.length) {
                 isCorrect = false;
@@ -1651,6 +1661,7 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
             if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
                 if (expected.ms) expected = expected.ms;
                 else if (expected.order) expected = expected.order;
+                else if (expected.terminal) expected = expected.terminal; // reveal accepted-command list
             }
             results[i].correctAnswer = expected;
             if (explanations[i]) results[i].explanation = explanations[i];
