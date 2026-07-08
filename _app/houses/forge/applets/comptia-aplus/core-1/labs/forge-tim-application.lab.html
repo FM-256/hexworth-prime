@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../../../components/ModuleProgress.js"></script>
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="/components/ObservatoryTelemetry.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 02: Thermal Interface Material (TIM) Application - A+ Core 1</title>
+    <style>
+        /* ---- Forge / Hexworth Technical Services field-service-report identity ---- */
+        :root {
+            --forge-primary:   #ea580c;   /* work-order orange */
+            --forge-secondary: #f97316;
+            --forge-accent:    #fdba74;
+            --forge-dark:      #7c2d12;
+            --forge-light:     #fff7ed;
+            --ink:             #1c1917;   /* near-black ink for print */
+            --ink-soft:        #57534e;
+            --paper:           #ffffff;
+            --rule:            #d6d3d1;    /* form rules / table borders */
+            --rule-strong:     #78716c;
+            --tint:            #fafaf9;
+            --field:           #fff7ed;    /* subtle tint marking a fillable field on screen */
+            --success:         #16a34a;
+            --danger:          #dc2626;
+            --mono: 'Courier New', ui-monospace, monospace;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--ink);
+            background: #52504e;              /* dark desk so the white "paper" pops on screen */
+            line-height: 1.5;
+        }
+
+        /* ---- Screen toolbar (never printed) ---- */
+        .toolbar {
+            position: sticky; top: 0; z-index: 50;
+            display: flex; gap: .65rem; align-items: center; flex-wrap: wrap;
+            padding: .7rem 1rem;
+            background: var(--ink); color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,.3);
+        }
+        .toolbar .tb-title { font-weight: 700; letter-spacing: .02em; margin-right: auto; font-size: .95rem; }
+        .toolbar a, .toolbar button {
+            font: inherit; font-size: .82rem; font-weight: 600;
+            border: 1px solid rgba(255,255,255,.25); border-radius: 6px;
+            padding: .45rem .8rem; cursor: pointer; text-decoration: none;
+            color: #fff; background: rgba(255,255,255,.08); transition: all .15s;
+        }
+        .toolbar button.primary { background: var(--forge-primary); border-color: var(--forge-primary); }
+        .toolbar a:hover, .toolbar button:hover { background: rgba(255,255,255,.2); }
+        .toolbar button.primary:hover { background: var(--forge-secondary); }
+        .toolbar .save-status { font-size: .78rem; color: var(--forge-accent); min-width: 8.5rem; text-align: right; }
+        .toolbar .save-status.saving { color: #d6d3d1; }
+
+        /* ---- Paper pages ---- */
+        .page {
+            width: 8.5in; min-height: 11in;
+            margin: 1.5rem auto; padding: 0.7in 0.75in;
+            background: var(--paper);
+            box-shadow: 0 6px 24px rgba(0,0,0,.35);
+            position: relative;
+        }
+
+        /* ---- Work-order masthead ---- */
+        .mast {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            border-bottom: 3px solid var(--forge-primary); padding-bottom: .6rem; margin-bottom: 1rem;
+        }
+        .mast .org { font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+        .mast .org strong { display: block; font-size: 1.05rem; letter-spacing: .08em; color: var(--forge-dark); }
+        .mast .wo { text-align: right; font-family: var(--mono); font-size: .72rem; color: var(--ink-soft); }
+        .mast .wo b { color: var(--ink); }
+
+        /* ---- Cover ---- */
+        .cover-badge {
+            display: inline-block; font-family: var(--mono); font-size: .7rem; letter-spacing: .2em;
+            text-transform: uppercase; color: #fff; background: var(--forge-primary);
+            padding: .3rem .7rem; border-radius: 3px;
+        }
+        .cover-hero { text-align: center; padding: 1in 0 .7in; }
+        .cover-hero .lab-no { font-family: var(--mono); font-size: 1rem; letter-spacing: .3em; color: var(--forge-primary); font-weight: 700; }
+        .cover-hero h1 { font-size: 2.5rem; line-height: 1.1; margin: .5rem 0 .2rem; letter-spacing: -.01em; text-wrap: balance; }
+        .cover-hero .sub { font-size: 1rem; color: var(--ink-soft); letter-spacing: .04em; }
+        .cover-hero .cert { margin-top: .3rem; font-size: .85rem; color: var(--forge-dark); font-weight: 600; }
+        .intake {
+            border: 1px solid var(--rule); border-top: 4px solid var(--forge-primary);
+            border-radius: 4px; padding: 1rem 1.2rem; margin-top: .4in; background: var(--tint);
+        }
+        .intake h3 { margin: 0 0 .8rem; font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--forge-dark); }
+        .intake-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem 1.5rem; }
+        .field { font-size: .85rem; }
+        .field .lbl { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); display: block; margin-bottom: .15rem; }
+
+        /* ---- Fillable form controls (screen = tinted field; print = clean underline) ---- */
+        input.f, textarea.f {
+            font: inherit; color: var(--ink); width: 100%;
+            border: none; border-bottom: 1px solid var(--rule-strong);
+            background: var(--field); padding: .2rem .35rem; border-radius: 2px 2px 0 0;
+        }
+        input.f { height: 1.7rem; }
+        textarea.f { resize: vertical; min-height: 3.2rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--field); }
+        input.f:focus, textarea.f:focus { outline: 2px solid var(--forge-primary); outline-offset: 1px; background: #fff; }
+        input.f::placeholder, textarea.f::placeholder { color: #b8b2ac; font-style: italic; }
+        .field input.f { margin-top: .1rem; }
+
+        /* checkbox + radio: real inputs, brand-colored */
+        input[type=checkbox].c, input[type=radio].r { width: 1.05rem; height: 1.05rem; accent-color: var(--forge-primary); vertical-align: -2px; margin: 0 .4rem 0 0; cursor: pointer; }
+        input[type=radio].r { border-radius: 50%; }
+        label.opt { display: inline-flex; align-items: center; font-size: .9rem; margin: .3rem 1.3rem .3rem 0; cursor: pointer; }
+        .optlist { list-style: none; padding: 0; margin: .6rem 0; }
+        .optlist li { margin: .35rem 0; }
+        .optlist.two { columns: 2; -webkit-columns: 2; }
+        .optlist.inline li { display: inline-block; margin-right: 1rem; }
+
+        /* confidence scale */
+        .scale { display: inline-flex; gap: .5rem; align-items: center; font-size: .85rem; }
+        .scale label { display: inline-flex; flex-direction: column; align-items: center; font-size: .7rem; color: var(--ink-soft); cursor: pointer; }
+
+        /* ---- Section headings ---- */
+        h2.sec {
+            font-size: 1.15rem; color: var(--forge-dark); margin: 0 0 .2rem;
+            padding-left: .6rem; border-left: 5px solid var(--forge-primary);
+        }
+        .sec-tag { font-family: var(--mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--forge-primary); font-weight: 700; }
+        p { margin: .5rem 0; }
+        .lead { font-size: .95rem; }
+        .q { font-weight: 600; margin-top: .8rem; }
+
+        /* ---- Callout: Technician Tip ---- */
+        .tip {
+            display: flex; gap: .7rem; align-items: flex-start;
+            border: 1px solid var(--forge-accent); background: var(--forge-light);
+            border-radius: 6px; padding: .7rem .9rem; margin: 1rem 0;
+        }
+        .tip .icon { flex: 0 0 auto; }
+        .tip .icon img { width: 1.35rem; height: 1.35rem; display: block; }
+        .tip .label { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--forge-dark); font-weight: 700; display: block; }
+        .tip p { margin: .15rem 0 0; font-size: .88rem; }
+
+        /* ---- Objectives / equipment (static bullets) ---- */
+        .obj { list-style: none; padding: 0; margin: .6rem 0; }
+        .obj li { position: relative; padding-left: 1.6rem; margin: .4rem 0; font-size: .9rem; }
+        .obj li::before { content: ""; position: absolute; left: 0; top: .1rem; width: 1.05rem; height: 1.05rem; border: 1.5px solid var(--rule-strong); border-radius: 2px; }
+
+        /* ---- Tables (work order style) with inline inputs ---- */
+        table.wo { width: 100%; border-collapse: collapse; margin: .7rem 0; font-size: .82rem; }
+        table.wo th { background: var(--forge-dark); color: #fff; font-weight: 600; text-align: left; padding: .45rem .55rem; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
+        table.wo td { border: 1px solid var(--rule); padding: .25rem .3rem; vertical-align: middle; }
+        table.wo td.num { text-align: center; font-family: var(--mono); font-weight: 700; color: var(--forge-primary); width: 2rem; background: var(--tint); }
+        table.wo input.f { border: none; background: transparent; border-radius: 0; height: 1.6rem; }
+        table.wo input.f:focus { background: var(--field); outline: 1px solid var(--forge-primary); }
+
+        /* ---- Diagram helpers ---- */
+        .diagram { text-align: center; margin: .6rem 0; }
+        .diagram svg { max-width: 100%; height: auto; }
+        .patterns { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; margin: .7rem 0; }
+        .pattern { text-align: center; border: 1px solid var(--rule); border-radius: 6px; padding: .6rem .3rem; background: var(--tint); }
+        .pattern .name { font-size: .75rem; font-weight: 700; color: var(--forge-dark); margin-top: .3rem; }
+        .pattern .use { font-size: .66rem; color: var(--ink-soft); }
+
+        /* ---- Video guide (SCREEN ONLY) ---- */
+        .video-guide { border: 1px solid var(--rule); border-top: 4px solid var(--forge-primary); border-radius: 6px; padding: 1rem 1.1rem; margin: 1rem 0; background: var(--tint); }
+        /* Every YeesterPaste video is a vertical Short (9:16), so the player is a centered portrait frame
+           (a 16:9 box would letterbox each short to a thin strip). */
+        .video-player { position: relative; width: 100%; min-height: 440px; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: .8rem; display: flex; align-items: center; justify-content: center; }
+        .video-player iframe { width: 248px; max-width: 100%; height: 440px; border: 0; border-radius: 8px; }
+        .video-player .hint { color: #cbd5e1; font-size: .85rem; padding: 1rem; text-align: center; }
+        .video-rail { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .6rem; }
+        .vcard { border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: #fff; cursor: pointer; text-align: left; padding: 0; font: inherit; transition: box-shadow .15s, border-color .15s; }
+        .vcard:hover, .vcard:focus-visible { border-color: var(--forge-primary); box-shadow: 0 3px 10px rgba(0,0,0,.12); outline: none; }
+        .vcard .thumb { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #ddd center/cover no-repeat; display: block; }
+        .vcard .thumb::after { content: "\25B6"; position: absolute; inset: 0; margin: auto; width: 2rem; height: 2rem; line-height: 2rem; text-align: center; color: #fff; background: rgba(234,88,12,.9); border-radius: 50%; font-size: .8rem; }
+        .vcard.active { border-color: var(--forge-primary); box-shadow: 0 0 0 2px var(--forge-accent); }
+        .vcard .vtitle { display: block; font-size: .72rem; padding: .4rem .5rem; color: var(--ink); line-height: 1.3; }
+        .print-note { display: none; }
+        /* Print-only mirror of each textarea's text (a real <textarea> prints only its visible rows and
+           would clip a long answer; this <div> reflows the full value). Hidden on screen. */
+        .ta-print { display: none; }
+
+        /* ---- Sign-off blocks ---- */
+        .signoff { display: grid; grid-template-columns: 2fr 1fr; gap: 1.2rem; margin-top: .6rem; }
+        .sigline { margin-top: 1rem; }
+        .qa { border: 1px dashed var(--rule-strong); border-radius: 6px; padding: .8rem .9rem; background: var(--tint); }
+        .qa h4 { margin: 0 0 .5rem; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--forge-dark); }
+        .stamp {
+            border: 2px solid var(--danger); color: var(--danger); border-radius: 6px;
+            font-family: var(--mono); font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+            text-align: center; padding: .5rem; transform: rotate(-4deg); font-size: .8rem; opacity: .8;
+        }
+        .foot { position: absolute; bottom: .4in; left: .75in; right: .75in; display: flex; justify-content: space-between;
+            font-family: var(--mono); font-size: .62rem; color: var(--ink-soft); border-top: 1px solid var(--rule); padding-top: .3rem; }
+        .lbl-sm { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+
+        /* ---- Print: filled values render, video guide hidden, clean form ---- */
+        @media print {
+            @page { size: letter; margin: 0.5in; }
+            body { background: #fff; }
+            .toolbar { display: none !important; }
+            .video-guide { display: none !important; }
+            .print-note { display: block; font-size: .82rem; color: var(--ink-soft); font-style: italic; margin: .6rem 0; }
+            .page { width: auto; min-height: auto; margin: 0; padding: 0 0 .3in; box-shadow: none; page-break-after: always; }
+            .page:last-child { page-break-after: auto; }
+            /* fillable controls print as clean lines, showing the student's typed values */
+            input.f { background: #fff !important; border-color: #999; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            table.wo input.f { border: none; }
+            /* textareas are swapped for their full-text mirror so no answer is clipped in the PDF */
+            textarea.f { display: none !important; }
+            .ta-print { display: block; white-space: pre-wrap; overflow-wrap: break-word; border: 1px solid #999; border-radius: 4px; padding: .3rem .45rem; min-height: 2.8rem; font: inherit; font-size: .88rem; }
+            input[type=checkbox].c, input[type=radio].r { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .mast, table.wo th, .cover-badge, .stamp, h2.sec, .tip { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .foot { position: static; margin-top: .4in; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Screen-only toolbar: auto-save status, print/download, mark complete -->
+    <div class="toolbar">
+        <span class="tb-title">Lab 02 &middot; TIM Application &middot; Field Service Packet</span>
+        <span class="save-status" id="saveStatus">Auto-saves as you type</span>
+        <a href="../index.html">&larr; Back to A+ Core 1</a>
+        <button type="button" onclick="downloadPdf()">&#11015; Download completed form (PDF)</button>
+        <button type="button" class="primary" id="completeBtn" onclick="markComplete()">Mark lab complete</button>
+    </div>
+
+    <!-- ============ PAGE 1 — COVER / WORK ORDER INTAKE ============ -->
+    <section class="page">
+        <div class="mast">
+            <div class="org">Matrix House<strong>Hexworth Technical Services</strong>Computer Service &amp; Support &middot; PC System I</div>
+            <div class="wo">WORK ORDER<br><b>WO-A1-02</b><br>CompTIA A+ Core 1</div>
+        </div>
+
+        <div class="cover-hero">
+            <span class="cover-badge">Lab 02 &middot; Field Service Report</span>
+            <div class="lab-no" style="margin-top:1rem">THERMAL INTERFACE MATERIAL</div>
+            <h1>TIM Application Lab</h1>
+            <div class="sub">CPU Cooling Systems &middot; Thermal Paste Technique</div>
+            <div class="cert">Hands-on skills lab &middot; Physical practice + YeesterPaste verification</div>
+        </div>
+
+        <div class="intake">
+            <h3>Technician Intake</h3>
+            <div class="intake-grid">
+                <div class="field"><span class="lbl">Technician (Student)</span><input class="f" data-f="tech_name" placeholder="Your name"></div>
+                <div class="field"><span class="lbl">Technician ID</span><input class="f" data-f="tech_id" placeholder="Student ID"></div>
+                <div class="field"><span class="lbl">Date</span><input class="f" data-f="date" placeholder="mm / dd / yyyy"></div>
+                <div class="field"><span class="lbl">Class / Section</span><input class="f" data-f="section"></div>
+                <div class="field"><span class="lbl">Team Partner(s)</span><input class="f" data-f="partners"></div>
+                <div class="field"><span class="lbl">Instructor</span><input class="f" data-f="instructor"></div>
+            </div>
+        </div>
+
+        <div class="tip">
+            <span class="icon"><img src="/assets/images/icons/icon-info.webp" alt=""></span>
+            <div><span class="label">Before you start</span>
+            <p>This is a real <strong>hands-on</strong> lab. Apply real thermal paste to a physical practice tool, then verify your technique. You can fill this packet out right here on Hex &mdash; it <strong>auto-saves</strong> as you type &mdash; and download it as a PDF when you finish. Work in a team of three and rotate roles.</p></div>
+        </div>
+
+        <div class="foot"><span>Hexworth Technical Services &mdash; Matrix House</span><span>Lab 02 &middot; Page 1</span></div>
+    </section>
+
+    <!-- ============ PAGE 2 — SCENARIO / OBJECTIVES / EQUIPMENT ============ -->
+    <section class="page">
+        <div class="mast">
+            <div class="org"><strong>Hexworth Technical Services</strong>Service Work Order &middot; Lab 02</div>
+            <div class="wo">A+ Core 1<br><b>CPU Cooling</b></div>
+        </div>
+
+        <span class="sec-tag">Customer Complaint</span>
+        <h2 class="sec">Scenario</h2>
+        <p class="lead">You are a newly hired computer technician at <strong>Hexworth Technical Services</strong>. A customer brought in a desktop PC that is <strong>overheating after a CPU upgrade</strong>. Before you service customer equipment, your supervisor requires you to demonstrate proper application of thermal interface material (TIM) &mdash; using a physical practice tool first, then validating your technique with the YeesterPaste simulator.</p>
+        <p style="font-size:.85rem;color:var(--ink-soft)">You applied paste in a simulation during the <strong>CPU Installation Lab</strong>. This lab is the hands-on version &mdash; real paste, real practice tool, and a service report you complete and keep.</p>
+
+        <span class="sec-tag" style="margin-top:1.1rem;display:inline-block">Objectives</span>
+        <h2 class="sec">On completion you will be able to</h2>
+        <ul class="obj">
+            <li>Explain why thermal paste is required and how it improves heat transfer.</li>
+            <li>Apply thermal paste using multiple patterns (pea, line, X, spread).</li>
+            <li>Evaluate the quality of an application &mdash; too much, too little, correct.</li>
+            <li>Recommend an appropriate application method for a given cooler.</li>
+            <li>Document laboratory observations to a professional service standard.</li>
+        </ul>
+
+        <span class="sec-tag" style="margin-top:1.1rem;display:inline-block">Equipment Received</span>
+        <h2 class="sec">Bench setup</h2>
+        <ul class="obj">
+            <li>Thermal paste practice tool (simulates a CPU heat spreader)</li>
+            <li>Thermal paste (training compound)</li>
+            <li>Cleaning wipes / lint-free paper towels</li>
+            <li>Internet-connected workstation</li>
+            <li>YeesterPaste verification &mdash; watch the technique videos on the next page</li>
+        </ul>
+
+        <div class="tip">
+            <span class="icon"><img src="/assets/images/icons/icon-warning.webp" alt=""></span>
+            <div><span class="label">Technician Tip &mdash; Thermal paste is not glue</span>
+            <p>Its only job is to fill the microscopic air gaps between the CPU and the cooler. More is <em>not</em> better: excess paste squeezes out, insulates, and can conduct onto pins. The goal is a thin, complete, gap-free layer.</p></div>
+        </div>
+
+        <div class="foot"><span>Hexworth Technical Services &mdash; Matrix House</span><span>Lab 02 &middot; Page 2</span></div>
+    </section>
+
+    <!-- ============ PAGE 3 — BACKGROUND + HEAT-TRANSFER DIAGRAM + VIDEO GUIDE ============ -->
+    <section class="page">
+        <div class="mast">
+            <div class="org"><strong>Hexworth Technical Services</strong>Technical Background &middot; Lab 02</div>
+            <div class="wo">A+ Core 1<br><b>Heat Transfer</b></div>
+        </div>
+
+        <span class="sec-tag">Background</span>
+        <h2 class="sec">Why thermal paste exists</h2>
+        <p>Modern processors generate significant heat. Although the CPU's metal lid (the <strong>integrated heat spreader</strong>) and the cooler's base look perfectly smooth, both surfaces have microscopic pits and ridges. The air trapped in those gaps is a <strong>poor conductor of heat</strong>, so it acts as insulation and traps heat on the die.</p>
+        <p>Thermal interface material fills those gaps with a conductive compound, giving heat a continuous path from the CPU into the cooler. Done right, the layer is thin and complete. Done wrong &mdash; too thick, too thin, or full of air bubbles &mdash; cooling drops and the CPU can <strong>thermal throttle</strong> or shut down.</p>
+
+        <!-- Heat-transfer cross-section: CPU -> air gaps vs TIM -> heatsink -->
+        <div class="diagram">
+            <svg viewBox="0 0 560 175" role="img" aria-label="Cross-section comparing air gaps versus thermal paste between a CPU and heatsink">
+                <text x="130" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="#dc2626">WITHOUT TIM</text>
+                <rect x="40" y="26" width="180" height="24" fill="#94a3b8"/><text x="130" y="43" text-anchor="middle" font-size="11" fill="#fff">Heatsink base</text>
+                <path d="M40 50 l15 8 l15 -8 l15 8 l15 -8 l15 8 l15 -8 l15 8 l15 -8 l15 8 l15 -8 l15 8" fill="none" stroke="#dc2626" stroke-width="2"/>
+                <text x="130" y="76" text-anchor="middle" font-size="9" fill="#dc2626">trapped air gaps (insulate)</text>
+                <rect x="40" y="82" width="180" height="24" fill="#57534e"/><text x="130" y="99" text-anchor="middle" font-size="11" fill="#fff">CPU heat spreader</text>
+                <text x="130" y="132" text-anchor="middle" font-size="20" fill="#dc2626">&#8593; &#10007;</text>
+                <text x="130" y="150" text-anchor="middle" font-size="9" fill="#57534e">heat trapped</text>
+
+                <text x="430" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="#16a34a">WITH TIM</text>
+                <rect x="340" y="26" width="180" height="24" fill="#94a3b8"/><text x="430" y="43" text-anchor="middle" font-size="11" fill="#fff">Heatsink base</text>
+                <rect x="340" y="50" width="180" height="9" fill="#ea580c"/><text x="430" y="72" text-anchor="middle" font-size="9" fill="#7c2d12">thin TIM layer fills gaps</text>
+                <rect x="340" y="82" width="180" height="24" fill="#57534e"/><text x="430" y="99" text-anchor="middle" font-size="11" fill="#fff">CPU heat spreader</text>
+                <text x="430" y="132" text-anchor="middle" font-size="20" fill="#16a34a">&#8593; &#8593; &#8593;</text>
+                <text x="430" y="150" text-anchor="middle" font-size="9" fill="#16a34a">heat flows efficiently</text>
+                <line x1="280" y1="26" x2="280" y2="158" stroke="#d6d3d1" stroke-width="1" stroke-dasharray="4 4"/>
+            </svg>
+        </div>
+
+        <span class="sec-tag">Application Patterns</span>
+        <h2 class="sec">Common methods</h2>
+        <div class="patterns">
+            <div class="pattern">
+                <svg viewBox="0 0 60 60" width="52" height="52"><rect x="6" y="6" width="48" height="48" rx="3" fill="#f1f5f9" stroke="#78716c"/><circle cx="30" cy="30" r="6" fill="#ea580c"/></svg>
+                <div class="name">Pea / Dot</div><div class="use">Most coolers</div>
+            </div>
+            <div class="pattern">
+                <svg viewBox="0 0 60 60" width="52" height="52"><rect x="6" y="6" width="48" height="48" rx="3" fill="#f1f5f9" stroke="#78716c"/><rect x="27" y="12" width="6" height="36" rx="3" fill="#ea580c"/></svg>
+                <div class="name">Line</div><div class="use">Rectangular dies</div>
+            </div>
+            <div class="pattern">
+                <svg viewBox="0 0 60 60" width="52" height="52"><rect x="6" y="6" width="48" height="48" rx="3" fill="#f1f5f9" stroke="#78716c"/><line x1="14" y1="14" x2="46" y2="46" stroke="#ea580c" stroke-width="6" stroke-linecap="round"/><line x1="46" y1="14" x2="14" y2="46" stroke="#ea580c" stroke-width="6" stroke-linecap="round"/></svg>
+                <div class="name">X Pattern</div><div class="use">Large IHS</div>
+            </div>
+            <div class="pattern">
+                <svg viewBox="0 0 60 60" width="52" height="52"><rect x="6" y="6" width="48" height="48" rx="3" fill="#f1f5f9" stroke="#78716c"/><rect x="14" y="14" width="32" height="32" rx="2" fill="#ea580c" opacity=".7"/></svg>
+                <div class="name">Spread</div><div class="use">Manual, thin</div>
+            </div>
+        </div>
+
+        <!-- SCREEN-ONLY YeesterPaste video guide (click-to-play, youtube-nocookie). Hidden in the printed packet. -->
+        <div class="video-guide">
+            <span class="sec-tag">Watch &amp; Learn &middot; YeesterPaste Video Guide</span>
+            <h2 class="sec" style="margin-bottom:.5rem">Application-method videos</h2>
+            <p style="font-size:.85rem;margin:.2rem 0 .8rem">Pick a video to watch the pattern in action &mdash; no need to leave Hex. Start with <em>Why is thermal paste so important</em>, then compare patterns before your physical attempts.</p>
+            <div class="video-player" id="videoPlayer"><div class="hint">&#9654;&nbsp; Select a video below to play it here</div></div>
+            <div class="video-rail" id="videoRail"></div>
+        </div>
+        <p class="print-note">Application-method videos (YeesterPaste guide) are available on this lab page on Hex.</p>
+
+        <div class="foot"><span>Hexworth Technical Services &mdash; Matrix House</span><span>Lab 02 &middot; Page 3</span></div>
+    </section>
+
+    <!-- ============ PAGE 4 — PART I: PRE-LAB PREDICTION ============ -->
+    <section class="page">
+        <div class="mast">
+            <div class="org"><strong>Hexworth Technical Services</strong>Part I &middot; Diagnostics</div>
+            <div class="wo">A+ Core 1<br><b>Pre-Lab</b></div>
+        </div>
+
+        <span class="sec-tag">Part I</span>
+        <h2 class="sec">Pre-Lab Prediction</h2>
+        <p class="lead">Answer <em>before</em> you touch the paste. There are no wrong predictions &mdash; you will compare them to your results later.</p>
+
+        <p class="q">1. In your own words, what is the purpose of thermal paste?</p>
+        <textarea class="f" data-f="pre_purpose" rows="3"></textarea>
+
+        <p class="q">2. How much paste do you think should be used?</p>
+        <ul class="optlist inline">
+            <li><label class="opt"><input type="radio" class="r" name="pre_amount" data-f="pre_amount" value="very-little"> Very little</label></li>
+            <li><label class="opt"><input type="radio" class="r" name="pre_amount" data-f="pre_amount" value="moderate"> A moderate amount</label></li>
+            <li><label class="opt"><input type="radio" class="r" name="pre_amount" data-f="pre_amount" value="large"> A large amount</label></li>
+        </ul>
+        <p class="lbl-sm">Explain your choice:</p>
+        <textarea class="f" data-f="pre_amount_why" rows="2"></textarea>
+
+        <p class="q">3. What problems could occur if too much &mdash; or too little &mdash; paste is applied?</p>
+        <textarea class="f" data-f="pre_problems" rows="3"></textarea>
+
+        <div class="tip">
+            <span class="icon"><img src="/assets/images/icons/icon-brain.webp" alt=""></span>
+            <div><span class="label">Think like a technician</span>
+            <p>A customer is paying for a fix, not a guess. Your prediction is your hypothesis &mdash; the physical practice and YeesterPaste scores are your evidence.</p></div>
+        </div>
+
+        <div class="foot"><span>Hexworth Technical Services &mdash; Matrix House</span><span>Lab 02 &middot; Page 4</span></div>
+    </section>
+
+    <!-- ============ PAGE 5 — PART II: PHYSICAL PRACTICE (WORK ORDER) ============ -->
+    <section class="page">
+        <div class="mast">
+            <div class="org"><strong>Hexworth Technical Services</strong>Part II &middot; Bench Work</div>
+            <div class="wo">A+ Core 1<br><b>Hands-On</b></div>
+        </div>
+
+        <span class="sec-tag">Part II</span>
+        <h2 class="sec">Physical Practice</h2>
+        <p class="lead">Using the practice tool, apply paste and have your <strong>Quality Inspector</strong> evaluate each attempt. <strong>Clean the tool completely between attempts.</strong> Record every attempt as a service entry.</p>
+
+        <table class="wo">
+            <thead>
+                <tr><th>#</th><th>Pattern used</th><th>Est. coverage</th><th>Inspector</th><th>Pass / Fail</th><th>Technician notes</th></tr>
+            </thead>
+            <tbody>
+                <tr><td class="num">1</td><td><input class="f" data-f="pp1_pattern"></td><td><input class="f" data-f="pp1_cov"></td><td><input class="f" data-f="pp1_insp"></td><td><input class="f" data-f="pp1_pass"></td><td><input class="f" data-f="pp1_notes"></td></tr>
+                <tr><td class="num">2</td><td><input class="f" data-f="pp2_pattern"></td><td><input class="f" data-f="pp2_cov"></td><td><input class="f" data-f="pp2_insp"></td><td><input class="f" data-f="pp2_pass"></td><td><input class="f" data-f="pp2_notes"></td></tr>
+                <tr><td class="num">3</td><td><input class="f" data-f="pp3_pattern"></td><td><input class="f" data-f="pp3_cov"></td><td><input class="f" data-f="pp3_insp"></td><td><input class="f" data-f="pp3_pass"></td><td><input class="f" data-f="pp3_notes"></td></tr>
+                <tr><td class="num">4</td><td><input class="f" data-f="pp4_pattern"></td><td><input class="f" data-f="pp4_cov"></td><td><input class="f" data-f="pp4_insp"></td><td><input class="f" data-f="pp4_pass"></td><td><input class="f" data-f="pp4_notes"></td></tr>
+            </tbody>
+        </table>
+
+        <p class="q" style="margin-bottom:.2rem">Confidence after physical practice:</p>
+        <div class="scale" role="radiogroup" aria-label="Confidence after physical practice">
+            <span class="lbl-sm">Low</span>
+            <label>1<input type="radio" class="r" name="pp_conf" data-f="pp_conf" value="1"></label>
+            <label>2<input type="radio" class="r" name="pp_conf" data-f="pp_conf" value="2"></label>
+            <label>3<input type="radio" class="r" name="pp_conf" data-f="pp_conf" value="3"></label>
+            <label>4<input type="radio" class="r" name="pp_conf" data-f="pp_conf" value="4"></label>
+            <label>5<input type="radio" class="r" name="pp_conf" data-f="pp_conf" value="5"></label>
+            <span class="lbl-sm">High</span>
+        </div>
+
+        <p class="q">Observations &amp; problems encountered:</p>
+        <textarea class="f" data-f="pp_obs" rows="3"></textarea>
+
+        <div class="signoff">
+            <div></div>
+            <div class="qa">
+                <h4>Instructor Bench Check</h4>
+                <p style="font-size:.78rem;margin:.2rem 0">Initials: <input class="f" data-f="pp_insp_initials" style="width:6rem;display:inline-block"></p>
+                <p style="font-size:.78rem;margin:.2rem 0">Time: <input class="f" data-f="pp_insp_time" style="width:6rem;display:inline-block"></p>
+            </div>
+        </div>
+
+        <div class="foot"><span>Hexworth Technical Services &mdash; Matrix House</span><span>Lab 02 &middot; Page 5</span></div>
+    </section>
+
+    <!-- ============ PAGE 6 — PART III: YEESTERPASTE VERIFICATION ============ -->
+    <section class="page">
+        <div class="mast">
+            <div class="org"><strong>Hexworth Technical Services</strong>Part III &middot; Digital Verification</div>
+            <div class="wo">A+ Core 1<br><b>YeesterPaste</b></div>
+        </div>
+
+        <span class="sec-tag">Part III</span>
+        <h2 class="sec">Digital Verification &mdash; YeesterPaste</h2>
+        <p class="lead">Using the pattern videos on Page 3 as your guide, complete at least <strong>five</strong> scored attempts on YeesterPaste. Record each. Try to beat your previous score.</p>
+
+        <table class="wo">
+            <thead>
+                <tr><th>#</th><th>Pattern used</th><th>Score</th><th>What changed from last attempt</th></tr>
+            </thead>
+            <tbody>
+                <tr><td class="num">1</td><td><input class="f" data-f="dv1_pattern"></td><td><input class="f" data-f="dv1_score"></td><td><input class="f" data-f="dv1_change"></td></tr>
+                <tr><td class="num">2</td><td><input class="f" data-f="dv2_pattern"></td><td><input class="f" data-f="dv2_score"></td><td><input class="f" data-f="dv2_change"></td></tr>
+                <tr><td class="num">3</td><td><input class="f" data-f="dv3_pattern"></td><td><input class="f" data-f="dv3_score"></td><td><input class="f" data-f="dv3_change"></td></tr>
+                <tr><td class="num">4</td><td><input class="f" data-f="dv4_pattern"></td><td><input class="f" data-f="dv4_score"></td><td><input class="f" data-f="dv4_change"></td></tr>
+                <tr><td class="num">5</td><td><input class="f" data-f="dv5_pattern"></td><td><input class="f" data-f="dv5_score"></td><td><input class="f" data-f="dv5_change"></td></tr>
+            </tbody>
+        </table>
+
+        <div class="intake-grid" style="margin-top:1rem">
+            <div class="field"><span class="lbl">Highest Score</span><input class="f" data-f="dv_high"></div>
+            <div class="field"><span class="lbl">Lowest Score</span><input class="f" data-f="dv_low"></div>
+            <div class="field"><span class="lbl">Average Score</span><input class="f" data-f="dv_avg"></div>
+            <div class="field"><span class="lbl">Best Pattern</span><input class="f" data-f="dv_best"></div>
+        </div>
+
+        <div class="tip">
+            <span class="icon"><img src="/assets/images/icons/icon-trophy.webp" alt=""></span>
+            <div><span class="label">Challenge</span>
+            <p>Can you score <strong>95% or higher</strong>? Log the pattern and technique that got you there &mdash; that is the method you will recommend below.</p></div>
+        </div>
+
+        <div class="foot"><span>Hexworth Technical Services &mdash; Matrix House</span><span>Lab 02 &middot; Page 6</span></div>
+    </section>
+
+    <!-- ============ PAGE 7 — ANALYSIS + TROUBLESHOOTING ============ -->
+    <section class="page">
+        <div class="mast">
+            <div class="org"><strong>Hexworth Technical Services</strong>Analysis &amp; Diagnosis</div>
+            <div class="wo">A+ Core 1<br><b>Findings</b></div>
+        </div>
+
+        <span class="sec-tag">Analysis</span>
+        <h2 class="sec">Interpret your results</h2>
+
+        <p class="q">1. Which pattern produced your highest score, and why do you think it worked best?</p>
+        <textarea class="f" data-f="an_best" rows="2"></textarea>
+
+        <p class="q">2. Did practicing on the physical tool improve your YeesterPaste results?
+            &nbsp;<label class="opt"><input type="radio" class="r" name="an_improved" data-f="an_improved" value="yes"> Yes</label>
+            <label class="opt"><input type="radio" class="r" name="an_improved" data-f="an_improved" value="no"> No</label></p>
+        <p class="lbl-sm">Explain:</p>
+        <textarea class="f" data-f="an_improved_why" rows="2"></textarea>
+
+        <p class="q">3. Which method would you recommend to another technician, and why?</p>
+        <textarea class="f" data-f="an_recommend" rows="2"></textarea>
+
+        <span class="sec-tag" style="margin-top:1.1rem;display:inline-block">Troubleshooting</span>
+        <h2 class="sec">Check every condition that can cause poor cooling</h2>
+        <ul class="optlist two">
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_toomuch"> Too much paste</label></li>
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_toolittle"> Too little paste</label></li>
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_bubbles"> Air bubbles in the paste</label></li>
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_pressure"> Uneven mounting pressure</label></li>
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_offcenter"> Off-center application</label></li>
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_dirty"> Dirty or oxidized heatsink</label></li>
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_dried"> Old, dried-out paste</label></li>
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_plastic"> Protective plastic left on cooler base</label></li>
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_loose"> Loose / improperly seated cooler</label></li>
+            <li><label class="opt"><input type="checkbox" class="c" data-f="ts_contam"> Contamination (skin oil, dust)</label></li>
+        </ul>
+
+        <div class="foot"><span>Hexworth Technical Services &mdash; Matrix House</span><span>Lab 02 &middot; Page 7</span></div>
+    </section>
+
+    <!-- ============ PAGE 8 — TEAM ROTATION ============ -->
+    <section class="page">
+        <div class="mast">
+            <div class="org"><strong>Hexworth Technical Services</strong>Team Service Log</div>
+            <div class="wo">A+ Core 1<br><b>Rotation</b></div>
+        </div>
+
+        <span class="sec-tag">Team Rotation</span>
+        <h2 class="sec">Rotate through all three roles</h2>
+        <p class="lead">Work in a team of three. Each member serves in <strong>every</strong> role. Real service teams divide hardware work the same way &mdash; one hands, one eyes, one record.</p>
+
+        <ul class="obj">
+            <li><strong>Technician</strong> &mdash; applies the thermal paste.</li>
+            <li><strong>Quality Inspector</strong> &mdash; watches technique, catches mistakes, records notes.</li>
+            <li><strong>Documentation Specialist</strong> &mdash; completes the packet and records observations.</li>
+        </ul>
+
+        <table class="wo">
+            <thead>
+                <tr><th>Team member</th><th>Round 1 role</th><th>Round 2 role</th><th>Round 3 role</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><input class="f" data-f="tm1_name"></td><td><input class="f" data-f="tm1_r1"></td><td><input class="f" data-f="tm1_r2"></td><td><input class="f" data-f="tm1_r3"></td></tr>
+                <tr><td><input class="f" data-f="tm2_name"></td><td><input class="f" data-f="tm2_r1"></td><td><input class="f" data-f="tm2_r2"></td><td><input class="f" data-f="tm2_r3"></td></tr>
+                <tr><td><input class="f" data-f="tm3_name"></td><td><input class="f" data-f="tm3_r1"></td><td><input class="f" data-f="tm3_r2"></td><td><input class="f" data-f="tm3_r3"></td></tr>
+            </tbody>
+        </table>
+
+        <p class="q">Inspector comments (one line per teammate):</p>
+        <textarea class="f" data-f="tm_comments" rows="3"></textarea>
+
+        <div class="foot"><span>Hexworth Technical Services &mdash; Matrix House</span><span>Lab 02 &middot; Page 8</span></div>
+    </section>
+
+    <!-- ============ PAGE 9 — REFLECTION + CERTIFICATION + SIGN-OFF ============ -->
+    <section class="page">
+        <div class="mast">
+            <div class="org"><strong>Hexworth Technical Services</strong>Reflection &amp; QA Sign-off</div>
+            <div class="wo">A+ Core 1<br><b>Close-out</b></div>
+        </div>
+
+        <span class="sec-tag">Reflection</span>
+        <h2 class="sec">What did you learn?</h2>
+        <p style="margin:.4rem 0;font-weight:600">Confidence applying thermal paste &mdash; before this lab:</p>
+        <div class="scale" role="radiogroup" aria-label="Confidence before this lab">
+            <label>1<input type="radio" class="r" name="rf_before" data-f="rf_before" value="1"></label>
+            <label>2<input type="radio" class="r" name="rf_before" data-f="rf_before" value="2"></label>
+            <label>3<input type="radio" class="r" name="rf_before" data-f="rf_before" value="3"></label>
+            <label>4<input type="radio" class="r" name="rf_before" data-f="rf_before" value="4"></label>
+            <label>5<input type="radio" class="r" name="rf_before" data-f="rf_before" value="5"></label>
+        </div>
+        <p style="margin:.5rem 0 .4rem;font-weight:600">Confidence &mdash; after this lab:</p>
+        <div class="scale" role="radiogroup" aria-label="Confidence after this lab">
+            <label>1<input type="radio" class="r" name="rf_after" data-f="rf_after" value="1"></label>
+            <label>2<input type="radio" class="r" name="rf_after" data-f="rf_after" value="2"></label>
+            <label>3<input type="radio" class="r" name="rf_after" data-f="rf_after" value="3"></label>
+            <label>4<input type="radio" class="r" name="rf_after" data-f="rf_after" value="4"></label>
+            <label>5<input type="radio" class="r" name="rf_after" data-f="rf_after" value="5"></label>
+        </div>
+
+        <p class="q">The single most important thing you learned today:</p>
+        <textarea class="f" data-f="rf_lesson" rows="2"></textarea>
+
+        <p class="q">If you were training the next technician, what advice would you give?</p>
+        <textarea class="f" data-f="rf_advice" rows="2"></textarea>
+
+        <span class="sec-tag" style="margin-top:1.1rem;display:inline-block">Certification</span>
+        <h2 class="sec">Technician sign-off</h2>
+        <p style="font-size:.88rem">I certify that I completed the physical practice and digital verification exercises in this lab and understand the importance of proper thermal interface material application.</p>
+
+        <div class="signoff">
+            <div>
+                <div class="sigline"><span class="lbl-sm">Student signature</span><input class="f" data-f="sig_student"></div>
+                <div class="sigline"><span class="lbl-sm">Date</span><input class="f" data-f="sig_date" style="max-width:12rem"></div>
+            </div>
+            <div class="qa">
+                <h4>QA / Supervisor</h4>
+                <p style="font-size:.76rem;margin:.2rem 0">Inspection:
+                    <label class="opt" style="margin-right:.7rem"><input type="radio" class="r" name="qa_result" data-f="qa_result" value="pass"> Pass</label>
+                    <label class="opt"><input type="radio" class="r" name="qa_result" data-f="qa_result" value="redo"> Redo</label></p>
+                <p style="font-size:.76rem;margin:.5rem 0 .2rem">Supervisor sign-off:</p>
+                <input class="f" data-f="qa_signoff">
+                <div class="stamp" style="margin-top:.7rem">Service Complete</div>
+            </div>
+        </div>
+
+        <div class="foot"><span>Hexworth Technical Services &mdash; Matrix House &middot; Lab 02</span><span>Page 9 &middot; End of Work Order</span></div>
+    </section>
+
+    <script>
+        // ---- YeesterPaste video guide: real videos from the YeesterPaste "Thermal Paste Pattern"
+        // playlist (youtube.com/playlist?list=PLMzZh5ygUoTE_7b-EE5uzK48ci4_1cd0c). Click-to-play only —
+        // an iframe is created on click (privacy-enhanced youtube-nocookie), mirroring the Cat 5 cable lab.
+        var TIM_VIDEOS = [
+            { id: 'C9NNnXe0WPQ', t: 'Why is thermal paste so important in a PC?' },
+            { id: 'd93gb5U6GXs', t: 'Too little thermal paste vs. too much' },
+            { id: 'DYwaIHgVHfg', t: 'Patterns: X vs. Dot' },
+            { id: 'hqHyNqcTlLs', t: 'Circle vs. single line' },
+            { id: 'CIZlSERDw9s', t: 'Plus vs. corner dots' },
+            { id: '3WPQ9f3qO8M', t: 'Triangle plus 2 dots' },
+            { id: 'yL3o_-WOWuw', t: 'Testing patterns: + vs. =' },
+            { id: 'W69z5NVcnLY', t: 'Smiley vs. sad face pattern' },
+            { id: 'HJNGdAPRlgg', t: 'Cheap vs. expensive thermal paste' },
+            { id: 'DXxUkXa14Ws', t: 'Liquid metal thermal paste' },
+            { id: 'XAga-0qVhJ0', t: 'Unconventional ways to apply paste' },
+            { id: 'MXxfMacgPVk', t: 'Thermal paste or ketchup?' }
+        ];
+
+        // Build the thumbnail rail. Thumbnails load up front; the player iframe is created only on click.
+        function buildVideoRail() {
+            var rail = document.getElementById('videoRail');
+            if (!rail) return;
+            TIM_VIDEOS.forEach(function (v) {
+                var card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'vcard';
+                card.setAttribute('aria-label', 'Play: ' + v.t);
+                card.innerHTML =
+                    '<span class="thumb" style="background-image:url(https://img.youtube.com/vi/' + v.id + '/hqdefault.jpg)"></span>' +
+                    '<span class="vtitle">' + v.t + '</span>';
+                card.addEventListener('click', function () { playVideo(v, card); });
+                rail.appendChild(card);
+            });
+        }
+
+        // Load the chosen video into the player area (iframe created only now — click-to-play).
+        function playVideo(v, card) {
+            var player = document.getElementById('videoPlayer');
+            if (!player) return;
+            player.innerHTML = '';
+            var iframe = document.createElement('iframe');
+            iframe.src = 'https://www.youtube-nocookie.com/embed/' + v.id + '?rel=0&autoplay=1';
+            iframe.title = v.t;
+            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+            iframe.setAttribute('allowfullscreen', '');
+            player.appendChild(iframe);
+            document.querySelectorAll('.vcard.active').forEach(function (c) { c.classList.remove('active'); });
+            if (card) card.classList.add('active');
+        }
+
+        // ---- Auto-save: persist every [data-f] field to localStorage so students can fill the packet
+        // over multiple sittings and it is tracked on Hex. Keyed by a STABLE per-lab id (NOT namespaced by
+        // uid): Firebase auth resolves asynchronously, so a uid-suffixed key would change mid-session and
+        // silently orphan work typed before auth loaded. A stable key can never lose the student's data.
+        var LAB_ID = 'forge-tim-application';
+        function storageKey() { return 'hexworth_lab_' + LAB_ID; }
+        var fields = function () { return Array.prototype.slice.call(document.querySelectorAll('[data-f]')); };
+
+        // Serialize all fields to an object. Radios/checkboxes store checked; text stores value.
+        // NOTE for future editors: the radio groups (pre_amount, pp_conf, rf_before, rf_after, an_improved,
+        // qa_result) each share one data-f key across their options; this collect/restore pair is correct
+        // ONLY because every radio in a group has a DISTINCT value. Never give two radios in one group the
+        // same value or both would restore as checked.
+        function collect() {
+            var data = {};
+            fields().forEach(function (el) {
+                var k = el.getAttribute('data-f');
+                if (el.type === 'radio') { if (el.checked) data[k] = el.value; }
+                else if (el.type === 'checkbox') { data[k] = el.checked; }
+                else { data[k] = el.value; }
+            });
+            return data;
+        }
+
+        var saveTimer = null;
+        function scheduleSave() {
+            var s = document.getElementById('saveStatus');
+            if (s) { s.textContent = 'Saving...'; s.classList.add('saving'); }
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(function () {
+                try { localStorage.setItem(storageKey(), JSON.stringify(collect())); } catch (e) {}
+                syncPrintMirrors();   // keep the print mirrors current so a PDF is never stale
+                if (s) { s.textContent = 'Saved ✓'; s.classList.remove('saving'); }
+            }, 500);
+        }
+
+        // Write the current form state to localStorage IMMEDIATELY, cancelling any pending debounce. Called
+        // on navigate-away (beforeunload/pagehide) so a student who types then clicks Back never loses the
+        // last field to the 500ms debounce window.
+        function flushSave() {
+            if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+            try { localStorage.setItem(storageKey(), JSON.stringify(collect())); } catch (e) {}
+            var s = document.getElementById('saveStatus');
+            if (s) { s.textContent = 'Saved ✓'; s.classList.remove('saving'); }
+        }
+
+        // A <textarea> prints only its visible rows, so a long typed answer would be clipped in the PDF.
+        // For each textarea we keep an adjacent .ta-print <div> (created here, hidden on screen, shown in
+        // print) holding the full text so it reflows completely. Built at init and refreshed on save/print.
+        function syncPrintMirrors() {
+            fields().forEach(function (el) {
+                if (el.tagName !== 'TEXTAREA') return;
+                var mirror = el.nextElementSibling;
+                if (!mirror || !mirror.classList || !mirror.classList.contains('ta-print')) {
+                    mirror = document.createElement('div');
+                    mirror.className = 'ta-print';
+                    el.parentNode.insertBefore(mirror, el.nextSibling);
+                }
+                mirror.textContent = el.value;
+            });
+        }
+
+        // Download button: flush the latest values, refresh the print mirrors, then open the print dialog
+        // (the student chooses "Save as PDF"). Belt-and-suspenders so the PDF is complete even where the
+        // browser does not fire the beforeprint event reliably.
+        function downloadPdf() {
+            flushSave();
+            syncPrintMirrors();
+            window.print();
+        }
+
+        // Restore saved values on load (if any). Runs after auth resolves best-effort; localStorage is sync.
+        function restore() {
+            var raw;
+            try { raw = localStorage.getItem(storageKey()); } catch (e) { raw = null; }
+            if (!raw) return;
+            var data;
+            try { data = JSON.parse(raw); } catch (e) { return; }
+            fields().forEach(function (el) {
+                var k = el.getAttribute('data-f');
+                if (!(k in data)) return;
+                if (el.type === 'radio') { el.checked = (el.value === data[k]); }
+                else if (el.type === 'checkbox') { el.checked = !!data[k]; }
+                else { el.value = data[k] == null ? '' : data[k]; }
+            });
+            var s = document.getElementById('saveStatus');
+            if (s) s.textContent = 'Saved ✓';
+        }
+
+        // ---- Mark the hands-on lab complete in the student's Hex progress (same call every Forge lab uses).
+        function markComplete() {
+            try {
+                if (typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
+                    ModuleProgress.complete('forge', 'forge-tim-application', { returnUrl: '../index.html' });
+                }
+            } catch (e) { /* progress is best-effort; never block the student */ }
+            var btn = document.getElementById('completeBtn');
+            if (btn) { btn.textContent = 'Completed ✓'; btn.disabled = true; btn.style.opacity = '.65'; btn.style.cursor = 'default'; }
+        }
+
+        // Wire everything once the DOM is ready.
+        (function init() {
+            buildVideoRail();
+            restore();
+            syncPrintMirrors();                    // build the print mirrors now so a PDF is complete even before any edit
+            fields().forEach(function (el) {
+                el.addEventListener('input', scheduleSave);
+                el.addEventListener('change', scheduleSave);
+            });
+            // Flush pending saves on navigate-away so the last field is never lost to the debounce.
+            window.addEventListener('beforeunload', flushSave);
+            window.addEventListener('pagehide', flushSave);
+            // Refresh mirrors for a browser-initiated print (Ctrl+P) too, not only the Download button.
+            window.addEventListener('beforeprint', syncPrintMirrors);
+        })();
+    </script>
+</body>
+</html>
