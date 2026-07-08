@@ -674,19 +674,29 @@ class QuizEngine {
         // Get progress info for display
         const progressResult = this.progressResult || results.progressResult;
         const xpEarned = progressResult ? progressResult.xpEarned : 0;
-        const nextModule = (progressResult && progressResult.nextModule) || this.getNextModuleFallback();
+        // Determine the next module AND the base its href is relative to. This distinction
+        // matters because the two sources use DIFFERENT bases for the same-looking bare href:
+        //   - LearningPaths hrefs (progressResult / fallback) are relative to the house root
+        //     (/houses/<house>/), e.g. "applets/access/foo.applet.html".
+        //   - config.nextModule hrefs (author-provided) are relative to THIS quiz page's own
+        //     directory, e.g. "../clh-025/script-intro.module.html".
+        let nextModule = null;
+        let nextHrefBase = 'house';
+        if (progressResult && progressResult.nextModule) {
+            nextModule = progressResult.nextModule;      // from LearningPaths
+            nextHrefBase = 'house';
+        } else if (this.config.nextModule) {
+            nextModule = this.config.nextModule;         // author-provided, page-relative
+            nextHrefBase = 'page';
+        } else {
+            nextModule = this.getNextModuleFallback();   // LearningPaths fallback (config handled above)
+            nextHrefBase = 'house';
+        }
 
         // Pre-compute next module URL for <a> tag (no JS needed to navigate)
         let nextModuleHref = '';
         if (nextModule && nextModule.href) {
-            const currentPath = window.location.pathname;
-            const houseMatch = currentPath.match(/\/houses\/\w+\//);
-            if (houseMatch) {
-                const houseBase = currentPath.substring(0, currentPath.indexOf(houseMatch[0]) + houseMatch[0].length);
-                nextModuleHref = houseBase + nextModule.href;
-            } else {
-                nextModuleHref = '../' + nextModule.href;
-            }
+            nextModuleHref = this.resolveNextModuleHref(nextModule.href, nextHrefBase);
         }
 
         this.container.innerHTML = `
@@ -775,15 +785,9 @@ class QuizEngine {
         const nextBtn = this.container.querySelector('.quiz-next-module-btn');
 
         if (nextBtn && nextModule) {
+            // Same resolver + base as the <a href> above, so click and href never diverge.
             const navFn = () => {
-                const currentPath = window.location.pathname;
-                const houseMatch = currentPath.match(/\/houses\/\w+\//);
-                if (houseMatch) {
-                    const houseBase = currentPath.substring(0, currentPath.indexOf(houseMatch[0]) + houseMatch[0].length);
-                    window.location.href = houseBase + nextModule.href;
-                } else {
-                    window.location.href = '../' + nextModule.href;
-                }
+                window.location.href = this.resolveNextModuleHref(nextModule.href, nextHrefBase);
             };
             nextBtn.addEventListener('click', navFn);
             window._quizNextModuleNav = navFn;
@@ -818,6 +822,35 @@ class QuizEngine {
         if (!houseId || !this.config.moduleId) return null;
 
         return LearningPaths.getNextModule(houseId, this.config.moduleId);
+    }
+
+    /**
+     * Resolve a next-module href to a correct path for navigation. Handles the three
+     * href shapes that reach here, each of which the old "houseBase + href" logic got wrong:
+     *   - full URL / root-absolute ("/houses/..")            -> used as-is
+     *   - app-root-relative, house-qualified ("houses/script/modules/..", from LearningPaths)
+     *       -> prefixed with a single "/"; the old code prepended the house base and DOUBLED
+     *          the "/houses/<house>/" segment -> 404
+     *   - bare/relative, resolved against the base its SOURCE uses (the caller passes `base`):
+     *       base 'house': LearningPaths hrefs ("applets/access/foo.applet.html") are relative to
+     *                     the house root (/houses/<house>/), matching the old, working behavior.
+     *       base 'page' : config.nextModule hrefs ("../clh-025/script-intro.module.html") are
+     *                     relative to THIS quiz page's own directory. The old code resolved these
+     *                     against a flat house root and 404'd every quiz nested below it.
+     */
+    resolveNextModuleHref(href, base) {
+        if (!href) return '';
+        if (/^https?:\/\//.test(href)) return href;          // full URL
+        if (href.startsWith('/')) return href;                // already root-absolute
+        if (href.startsWith('houses/')) return '/' + href;    // house-qualified from app root
+        if (base === 'house') {
+            // LearningPaths bare hrefs are relative to the house root, not the current page.
+            const p = window.location.pathname;
+            const m = p.match(/\/houses\/\w+\//);
+            if (m) return p.substring(0, p.indexOf(m[0]) + m[0].length) + href;
+        }
+        // config.nextModule (base 'page'), or no house in the path: resolve vs this page.
+        return new URL(href, window.location.href).pathname;
     }
 
     /**
