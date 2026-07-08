@@ -38,6 +38,7 @@ const hexAiUrl = defineSecret('HEX_AI_URL');                       // e.g. https
 const hexAiApiKey = defineSecret('HEX_AI_API_KEY');                // matches one entry in HEX_API_KEYS on hexclass
 const cfAccessClientId = defineSecret('CF_ACCESS_CLIENT_ID');      // optional — Cloudflare Access service token
 const cfAccessClientSecret = defineSecret('CF_ACCESS_CLIENT_SECRET'); // optional — paired with above
+const sandboxServiceKey = defineSecret('SANDBOX_SERVICE_KEY');     // shared with the bc1 lab-manager /grade-for endpoint (sandbox_task_state)
 
 /**
  * Build outbound headers for orchestrator requests, including Cloudflare
@@ -885,11 +886,105 @@ const TOOL_DISPATCH_HANDLERS = {
             mission_count: sorted.length,
         };
     },
+
+    // ─── sandbox_task_state (Phase 0, Style A) ───────────────────────
+    //
+    // Returns the learner's per-task pass/fail for a Linux Practice
+    // Sandbox session so Dr. Hex can calibrate help WITHOUT seeing the
+    // terminal. The sandbox terminal is a cross-origin ttyd iframe that
+    // parent-page JS (and therefore Dr. Hex) cannot read, so the lab-
+    // manager grader is his only ground-truth channel on this lab.
+    //
+    // OWNERSHIP (Style A): this NEVER accepts a session_id. Ownership is
+    // enforced at the source of truth, the lab-manager, which alone holds
+    // the session<->uid binding. We call its service-key-gated /grade-for
+    // with the trusted ctx.uid (the same anchor recent_house_activity uses
+    // to read a user's own flag data); the lab-manager resolves that uid to
+    // ITS OWN session and grades it. Because no sessionId ever crosses a
+    // trust boundary from the model, there is no confused-deputy: a learner
+    // cannot make Dr. Hex read another learner's state. Read-only; awards
+    // nothing. Requires the SANDBOX_SERVICE_KEY secret (shared with bc1).
+    'sandbox_task_state': async (parameters, ctx) => {
+        // Optional lab scope. Defaults to the Linux Practice Sandbox; the
+        // lab-manager 404s any labId it has no challenges for.
+        const labId = (typeof parameters.lab_id === 'string' && parameters.lab_id)
+            ? parameters.lab_id : 'linux-sandbox';
+        if (!/^[a-z][a-z0-9-]{0,40}$/.test(labId)) {
+            const err = new Error('lab_id must be a lowercase slug');
+            err.code = 'schema_type';
+            throw err;
+        }
+
+        const serviceKey = sandboxServiceKey.value();
+        if (!serviceKey) {
+            // Misconfiguration, not a user error: degrade gracefully.
+            return { running: false, reason: 'service_key_unset', lab_id: labId, tasks: [], passed: 0, total: 0, complete: false };
+        }
+
+        const base = 'https://sandbox.hexworth.tech/api/sandbox';
+        const url = `${base}/grade-for?uid=${encodeURIComponent(ctx.uid)}&labId=${encodeURIComponent(labId)}`;
+
+        const notRunning = (reason) => ({
+            running: false, reason, lab_id: labId,
+            tasks: [], passed: 0, total: 0, complete: false,
+        });
+
+        // Bound the call: the lab-manager runs the in-container checks (a
+        // few seconds). Abort well inside the function's 30s budget.
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 12000);
+        let resp;
+        try {
+            resp = await fetch(url, {
+                method: 'GET',
+                headers: { 'X-Service-Key': serviceKey },
+                signal: controller.signal,
+            });
+        } catch (e) {
+            return notRunning('grader_unreachable');
+        } finally {
+            clearTimeout(timer);
+        }
+
+        // The endpoint returns 200 for every logical state (no_session,
+        // not_running, unsupported_lab) via the running:false body below, so
+        // a 404 here means the route itself is missing or misrouted (infra),
+        // not that the learner has nothing running.
+        if (resp.status === 404) return notRunning('endpoint_missing');
+        if (!resp.ok) return notRunning(`grader_status_${resp.status}`);
+
+        const data = await resp.json();
+        // The lab-manager returns running:false when the uid has no active
+        // session for this lab; surface that as-is.
+        if (!data || data.running === false) {
+            return notRunning(data && typeof data.reason === 'string' ? data.reason : 'no_session');
+        }
+
+        const results = Array.isArray(data.results) ? data.results : [];
+        // Pass through the goal (desc) and boolean only. desc is the
+        // acceptance criterion the learner already sees, never the command
+        // that satisfies it.
+        const tasks = results.map((t, i) => ({
+            n: i + 1,
+            id: (typeof t.id !== 'undefined' && t.id !== null) ? String(t.id) : String(i + 1),
+            goal: typeof t.desc === 'string' ? t.desc : '',
+            pass: !!t.pass,
+        }));
+
+        return {
+            running: true,
+            lab_id: labId,
+            passed: typeof data.passed === 'number' ? data.passed : tasks.filter(t => t.pass).length,
+            total: typeof data.total === 'number' ? data.total : tasks.length,
+            complete: !!data.complete,
+            tasks,
+        };
+    },
 };
 
 exports.hexAiToolDispatch = onRequest({
     region: 'us-central1',
-    secrets: [hexAiApiKey],
+    secrets: [hexAiApiKey, sandboxServiceKey],
     timeoutSeconds: 30,
     memory: '256MiB',
 }, async (req, res) => {
