@@ -90,7 +90,15 @@ async function checkFirestoreLive(db, ids, staticRegistry) {
         const stat = staticRegistry[id];
         if (stat && Array.isArray(stat.answers) && Array.isArray(d.answers)) {
             const sameLen = stat.answers.length === d.answers.length;
-            const sameVals = sameLen && stat.answers.every((v, i) => v === d.answers[i]);
+            // Deep-compare each answer: mc/gui answers are primitives, but ms/order/terminal answers are
+            // single-key wrapper objects ({ms|order|terminal:[...]}). Bare === on two structurally-equal
+            // objects is always false by reference, which false-flagged every object-wrapped answer as a
+            // static-vs-live mismatch. JSON.stringify compares primitives identically to === (2 vs "2"
+            // still differ) and correctly deep-compares the wrappers. Residual: JSON.stringify is
+            // order-sensitive, so an ms answer (order-insensitive at grading time per index.js) whose
+            // static and live arrays hold the same set in a different order would still report DIFFERS;
+            // low-probability since the same seed writes both stores in one pass, but not eliminated.
+            const sameVals = sameLen && stat.answers.every((v, i) => JSON.stringify(v) === JSON.stringify(d.answers[i]));
             if (!sameVals) {
                 console.log(`     ! static registry differs from live Firestore`);
                 mismatches++;
