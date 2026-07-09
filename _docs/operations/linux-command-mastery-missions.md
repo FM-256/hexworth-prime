@@ -167,9 +167,42 @@ rule in `SCHEMA.md`, not a one-off fix.
    through the real API, not just the harness.
 9. Add the `lcm_<slug>` entry to `AchievementSystem.js` with a real icon (audit that
    the icon file exists before referencing it).
-10. `git add -f` the new mission directory (`_tools/` is gitignored by default) and
+10. Add the mission's field guide to `_app/components/MissionFieldGuide.js` and run
+    `node _tools/sandbox-missions/fieldguide-drift-check.js` until it passes (see
+    "Field guides" below).
+11. `git add -f` the new mission directory (`_tools/` is gitignored by default) and
     commit.
-11. Dispatch Nancy for adversarial review before considering the mission shipped.
+12. Dispatch Nancy for adversarial review before considering the mission shipped.
+
+## Field guides (beginner teaching layer, added 2026-07-09)
+
+The manifests deliberately carry no teaching content: `story` is narrative, task
+`brief`s are discovery-style challenges, and check `fail` messages hint only after
+a failed grade. Operator ruling 2026-07-09: the missions serve beginners, so that
+gap is a defect. The fix is client-side and lives entirely in the web app:
+
+- `_app/components/MissionFieldGuide.js` holds one guide per mission id: rows of
+  `[command, plain-language explanation]` teaching the star command's moves, plus
+  three common tips (read the briefing; `>` saves output and most tasks grade
+  files; grade early because fail messages are hints). Rows derive from each
+  mission's canonical `solution.sh` and were adversarially reviewed (Nancy) so
+  they teach mechanism, not filled-in answers; two bonus-task rows are
+  deliberately softened and the mission-2 (`ls`) guide avoids pipe/grep syntax
+  the curriculum has not introduced yet.
+- The Observatory mission card renderer calls `MissionFieldGuide.attach(card,
+  m.id, m.command_star)`, which inserts a collapsed `<details>` ("New to cat?
+  Open the field guide"). Unknown ids no-op silently so a new mission can never
+  break a card.
+- Drift tripwire: `node _tools/sandbox-missions/fieldguide-drift-check.js` diffs
+  the component's guide ids against every `mission.json` id and exits non-zero on
+  any gap in either direction. Run it whenever a mission or the guides change; a
+  mission without a guide is a regression to the no-teaching-layer defect, not a
+  cosmetic miss.
+- Adding mission 19 therefore gains a step: write the guide entry alongside the
+  manifest, and the drift check enforces it.
+
+Per-task hints baked into the manifests (`hint` field, bc1 image rebuild) remain
+a deferred follow-up; the field guide is the pre-task layer, not per-task help.
 
 ## What this does NOT do
 
@@ -195,6 +228,9 @@ rule in `SCHEMA.md`, not a one-off fix.
   mission needs it).
 - Mission 19+ beyond the 18 shipped 2026-07-09: no further missions scheduled as of
   this writing.
+- Per-task `hint` field in the manifests (bc1 rebuild) so a stuck student can
+  reveal one task's nudge without the full field guide; sprint-master backlog.
+- Per-lab completion badges for the other sandbox labs (sprint SBX-7).
 
 ## Related
 
