@@ -80,6 +80,12 @@ lab-manager. No server.js edits per mission.
 - Checks run AS THE STUDENT. Root would bypass DAC and silently false-pass
   permission tasks (chmod/chown missions must inspect modes via `stat -c %a/%U`,
   never via access tests).
+- Any `pgrep -f`/`pkill -f` in a CHECK must bracket-class one letter of the
+  pattern (`hexlab_report_[d]aemon`): production execs checks via
+  `bash -lc '<cmd>'`, whose own command line contains the pattern text and
+  otherwise self-matches (verified live: zero daemons running still returned
+  the grader shell's PID). File-based harness runs do NOT reproduce this —
+  always confirm process checks through the real /check endpoint too.
 - Line-count assertions use `awk 'END{print NR}'`, not `wc -l` (which undercounts
   files whose last line lacks a trailing newline and false-fails printf users).
 - Checks MUST be read-only against student work (no mutation of graded state).
