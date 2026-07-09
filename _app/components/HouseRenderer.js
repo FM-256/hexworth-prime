@@ -1234,6 +1234,13 @@ const HouseRenderer = (function() {
             { id: 'profile',    icon: '<img src="/assets/images/icons/icon-users.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Profile' },
             { id: 'instructor', icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">', label: 'Instructor' }
         ];
+        // House-specific extra tabs (OBS-1 2026-07-09, e.g. Observatory's Sandbox
+        // tab). Config-driven so the other houses see zero change. Each entry:
+        // { id, label, iconHTML, panelLabel, html } - html is config-authored
+        // trusted markup, the same trust model as afterStatsHTML above.
+        (config.extraTabs || []).forEach(t => {
+            tabs.push({ id: t.id, icon: t.iconHTML || '', label: t.label });
+        });
 
         const tabBar = document.createElement('nav');
         tabBar.className = 'hr-tab-bar';
@@ -1255,6 +1262,12 @@ const HouseRenderer = (function() {
             profile: 'Your profile',
             instructor: 'Instructor dashboard'
         };
+        (config.extraTabs || []).forEach(t => { panelLabels[t.id] = t.panelLabel || t.label; });
+        // Extra-tab panel markup by id (trusted, config-authored - same trust
+        // model as afterStatsHTML). Filled DURING creation because `main` is not
+        // in the document yet here, so getElementById cannot find these panels.
+        const extraHtmlById = {};
+        (config.extraTabs || []).forEach(t => { if (t.html) extraHtmlById[t.id] = t.html; });
         tabs.forEach(t => {
             const panel = document.createElement('div');
             panel.className = 'hr-panel';
@@ -1263,6 +1276,7 @@ const HouseRenderer = (function() {
             panel.setAttribute('role', 'tabpanel');
             panel.setAttribute('aria-labelledby', 'hr-tab-' + t.id);
             panel.setAttribute('tabindex', '0');
+            if (extraHtmlById[t.id]) panel.innerHTML = extraHtmlById[t.id];
             main.appendChild(panel);
         });
 
@@ -1425,6 +1439,12 @@ const HouseRenderer = (function() {
 
     /** Switch to a tab by ID, lazy-loading content panels on first view */
     function switchTab(tabId) {
+        // Existence guard (adversarial review 2026-07-09): tab ids are
+        // config-variable now (extraTabs), so a stored/stale localStorage id may
+        // not exist on this house or after a rename. Unvalidated, a missing id
+        // silently blanks the ENTIRE content area (every panel display:none, no
+        // error). Fall back to the first tab, which always exists.
+        if (!document.querySelector('.hr-panel[data-tab="' + tabId + '"]')) tabId = 'paths';
         activeTab = tabId;
         localStorage.setItem('hexworth_house_tab_' + config.houseId, tabId);
 
