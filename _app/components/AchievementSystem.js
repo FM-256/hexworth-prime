@@ -2057,6 +2057,17 @@ class AchievementSystem {
             serverIssued: true
         },
 
+        lcm_grep_investigation: {
+            id: 'lcm_grep_investigation',
+            name: 'The Investigation: Case Closed',
+            description: 'Mastered grep by pulling a suspect out of thousands of log lines with patterns alone (Mission 08, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an
