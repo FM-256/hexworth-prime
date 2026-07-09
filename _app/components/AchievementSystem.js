@@ -2024,6 +2024,17 @@ class AchievementSystem {
             serverIssued: true
         },
 
+        lcm_rm_decommission: {
+            id: 'lcm_rm_decommission',
+            name: 'The Decommission: Surgical',
+            description: 'Mastered rm by deleting exactly what had to go and nothing that had to stay (Mission 05, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-warning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an
