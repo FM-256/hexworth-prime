@@ -74,7 +74,7 @@ lab-manager. No server.js edits per mission.
 
 - Every check `cmd` is executed via the existing `execCheck(container, cmd, user)`,
   which passes the command as ONE ARGV ELEMENT to `bash -lc` (dockerode exec array).
-  The grader prepends `. /opt/mission/env 2>/dev/null; ` by plain concatenation into
+  The grader prepends `. /opt/mission/env.<mission-id> 2>/dev/null; ` by plain concatenation into
   that single argv element. NEVER nest check cmds inside quoted shell strings
   (embedded single quotes in cmds are legal bash and must arrive verbatim).
 - Checks run AS THE STUDENT. Root would bypass DAC and silently false-pass
@@ -90,7 +90,9 @@ lab-manager. No server.js edits per mission.
 ### seed.sh contract
 
 - Runs once at launch, as root, non-interactive; must be idempotent.
-- First lines choose randomization values and write `/opt/mission/env`
+- First lines choose randomization values and write `/opt/mission/env.<mission-id>`
+  (PER-MISSION file: two missions seeded onto the same box must never clobber
+  each other's values; the grader sources exactly its own mission's env)
   (mode 0644, owner root) with `MISSION_<KEY>=value` lines, plus any derived
   secrets (e.g. `MISSION_CODEWORD`).
 - Builds the world under `/home/student/` and chowns student-facing files to

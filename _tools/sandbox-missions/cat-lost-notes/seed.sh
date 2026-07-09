@@ -86,7 +86,7 @@ sha() { sha256sum "$1" | cut -d' ' -f1; }
 # ── 4. Mission env (sourced by grader checks; see SCHEMA.md on secrecy scope:
 #      the box is passwordless-sudo practice, in-box values are not exam secrets;
 #      badge integrity lives in the server-side award path) ──────────────────
-cat > "$MISSION_DIR/env" <<EOF
+cat > "$MISSION_DIR/env.cat-lost-notes" <<EOF
 MISSION_ID=cat-lost-notes
 MISSION_DEPT=$DEPT
 MISSION_PROJ=$PROJ
@@ -100,7 +100,7 @@ MISSION_SHA_FOUND=$(sha "$REF_DIR/found")
 MISSION_SHA_FINAL=$(sha "$REF_DIR/final")
 MISSION_SHA_REVERSED=$(sha "$REF_DIR/reversed")
 EOF
-chmod 0644 "$MISSION_DIR/env"
+chmod 0644 "$MISSION_DIR/env.cat-lost-notes"
 
 # C5 hardening: reference artifacts are only needed to compute the SHAs above.
 # Delete them so `sudo cp .ref/<answer> <artifact>` is not a one-liner bypass.

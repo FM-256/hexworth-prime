@@ -23,7 +23,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const ENV_PREFIX = '. /opt/mission/env 2>/dev/null; ';
+// Per-mission env file: seeds write /opt/mission/env.<id> so two missions on
+// the same box never clobber each other's randomization/checksum values.
+function envPrefix(missionId) { return `. /opt/mission/env.${missionId} 2>/dev/null; `; }
 
 // ── Manifest loading ─────────────────────────────────────────────────────────
 function loadMissions(dir) {
@@ -87,6 +89,52 @@ async function runSeed(container, mission, execCheck) {
   }
 }
 
+// ── Mission env readback (for display substitution) ─────────────────────────
+// Task briefs may contain $MISSION_* tokens (e.g. "Project: $MISSION_PROJ").
+// Checks resolve them by sourcing the env file in-shell, but briefs are DISPLAY
+// text: they must be substituted with the container's actual seeded values
+// before they reach a student (Chris gate 2026-07-09: raw tokens were rendered
+// verbatim in the grade panel). Reads /opt/mission/env.<id> once per grade.
+function readMissionEnv(container, missionId) {
+  return new Promise((resolve) => {
+    const vals = {};
+    (async () => {
+      try {
+        const exec = await container.exec({
+          Cmd: ['cat', `/opt/mission/env.${missionId}`],
+          AttachStdout: true, AttachStderr: true, User: 'root',
+        });
+        const stream = await exec.start({});
+        let out = '';
+        const { PassThrough } = require('stream');
+        const so = new PassThrough();                       // stdout only; stderr discarded
+        so.on('data', (d) => { out += d.toString('utf8'); });
+        container.modem.demuxStream(stream, so, new PassThrough());
+        const done = () => {
+          out.split('\n').forEach((line) => {
+            const m = /^(MISSION_[A-Z0-9_]+)=(.*)$/.exec(line.trim());
+            if (m) vals[m[1]] = m[2];
+          });
+          resolve(vals);
+        };
+        stream.on('end', done);
+        stream.on('close', done);
+        stream.on('error', () => resolve(vals));
+      } catch (e) { resolve(vals); }
+    })();
+  });
+}
+
+// Replace $MISSION_* tokens in display text with seeded values. Unknown tokens
+// fall back to a neutral placeholder so a student is never shown shell syntax.
+function substituteTokens(text, env) {
+  if (typeof text !== 'string') return text;
+  return text.replace(/\$MISSION_[A-Z0-9_]+/g, (tok) => {
+    const key = tok.slice(1);
+    return Object.prototype.hasOwnProperty.call(env, key) ? env[key] : '[assigned at launch]';
+  });
+}
+
 // ── Grade ────────────────────────────────────────────────────────────────────
 // Returns:
 // { mission, title, results: [{id, brief, tier, bonus, hidden, pass, feedback[]}],
@@ -94,21 +142,26 @@ async function runSeed(container, mission, execCheck) {
 // - feedback[] = fail strings of failed aspects (empty when task passes)
 // - hidden tasks: brief replaced, feedback suppressed; counted in hiddenUnmet
 // - badgeEligible = every non-bonus task (incl hidden) passes
+// - all display strings (brief/desc/feedback) have $MISSION_* substituted with
+//   the container's seeded values (never raw shell tokens to a student)
 async function gradeMission(container, mission, execCheck) {
   const results = [];
   let hiddenUnmet = 0;
+  const env = await readMissionEnv(container, mission.id);
+  const sub = (s) => substituteTokens(s, env);
   for (const t of mission.tasks) {
     const feedback = [];
     let pass = true;
     for (const c of t.checks) {
-      const ok = await execCheck(container, ENV_PREFIX + c.cmd, 'student');
-      if (!ok) { pass = false; feedback.push(c.fail || `${c.aspect || 'a requirement'} not met`); }
+      const ok = await execCheck(container, envPrefix(mission.id) + c.cmd, 'student');
+      if (!ok) { pass = false; feedback.push(sub(c.fail || `${c.aspect || 'a requirement'} not met`)); }
     }
     if (t.hidden && !pass) hiddenUnmet++;
+    const shownBrief = t.hidden ? 'Hidden requirement' : sub(t.brief);
     results.push({
       id: t.id,
-      brief: t.hidden ? 'Hidden requirement' : t.brief,
-      desc: t.hidden ? 'Hidden requirement' : t.brief, // legacy-frontend alias (old UI reads .desc)
+      brief: shownBrief,
+      desc: shownBrief, // legacy-frontend alias (old UI reads .desc)
       tier: t.tier || 'bronze',
       bonus: !!t.bonus,
       hidden: !!t.hidden,
@@ -132,4 +185,4 @@ async function gradeMission(container, mission, execCheck) {
   };
 }
 
-module.exports = { loadMissions, runSeed, gradeMission };
+module.exports = { loadMissions, runSeed, gradeMission, substituteTokens };
