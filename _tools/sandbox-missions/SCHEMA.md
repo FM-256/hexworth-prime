@@ -72,9 +72,16 @@ lab-manager. No server.js edits per mission.
 
 ### Check command contract
 
-- Every check `cmd` is wrapped by the grader as:
-  `sh -lc '. /opt/mission/env 2>/dev/null; <cmd>'` and executed via the existing
-  `execCheck(container, cmd, "student")` (exit 0 = pass).
+- Every check `cmd` is executed via the existing `execCheck(container, cmd, user)`,
+  which passes the command as ONE ARGV ELEMENT to `bash -lc` (dockerode exec array).
+  The grader prepends `. /opt/mission/env 2>/dev/null; ` by plain concatenation into
+  that single argv element. NEVER nest check cmds inside quoted shell strings
+  (embedded single quotes in cmds are legal bash and must arrive verbatim).
+- Checks run AS THE STUDENT. Root would bypass DAC and silently false-pass
+  permission tasks (chmod/chown missions must inspect modes via `stat -c %a/%U`,
+  never via access tests).
+- Line-count assertions use `awk 'END{print NR}'`, not `wc -l` (which undercounts
+  files whose last line lacks a trailing newline and false-fails printf users).
 - Checks MUST be read-only against student work (no mutation of graded state).
 - `fail` strings are the rich feedback surfaced per failed aspect
   ("file exists, but wrong owner" style). For `hidden` tasks the grader reports
@@ -89,6 +96,14 @@ lab-manager. No server.js edits per mission.
 - Builds the world under `/home/student/` and chowns student-facing files to
   `student:student`. Deliberately broken state (perms, split files) is part of
   the story.
+- Uses `set -eu`: a partially failed seed MUST exit non-zero (a silent partial
+  seed poisons env checksums and makes the mission unwinnable with no signal).
+- Reference artifacts used to compute expected checksums are DELETED at the end
+  of the seed (`rm -rf $REF_DIR`) so `sudo cp .ref/<answer> <artifact>` is not a
+  one-liner bypass. In-box values (env SHAs, codewords) remain readable by a
+  sudo student by design: these are practice badges; integrity of the AWARD
+  lives server-side (CF + grade-for). Badges are practice signal, not exam
+  credentials.
 - Must exit 0; lab-manager logs but does not fail the launch on seed error
   (free-play still works) -- the grader will simply report tasks unmet.
 

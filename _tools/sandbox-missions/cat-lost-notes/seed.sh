@@ -4,7 +4,7 @@
 # Builds the Hexworth Dynamics department world, plants the fragments and the
 # messy file, and records randomization values + expected artifact checksums in
 # /opt/mission/env (sourced by every grader check so seeds and checks agree).
-set -u
+set -eu
 
 MISSION_DIR=/opt/mission
 REF_DIR="$MISSION_DIR/.ref"          # root-only reference artifacts (0700)
@@ -101,5 +101,10 @@ MISSION_SHA_FINAL=$(sha "$REF_DIR/final")
 MISSION_SHA_REVERSED=$(sha "$REF_DIR/reversed")
 EOF
 chmod 0644 "$MISSION_DIR/env"
+
+# C5 hardening: reference artifacts are only needed to compute the SHAs above.
+# Delete them so `sudo cp .ref/<answer> <artifact>` is not a one-liner bypass.
+# (Re-seeding recreates them deterministically, then deletes again.)
+rm -rf "$REF_DIR"
 
 exit 0
