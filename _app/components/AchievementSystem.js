@@ -2134,6 +2134,17 @@ class AchievementSystem {
             serverIssued: true
         },
 
+        lcm_tar_timecapsule: {
+            id: 'lcm_tar_timecapsule',
+            name: 'The Time Capsule: Sealed',
+            description: 'Mastered tar and gzip by sealing, compressing, inspecting and reopening archives byte-perfectly (Mission 15, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an
