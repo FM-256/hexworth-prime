@@ -81,7 +81,21 @@ const TouristVisa = (function () {
 
     /** Returns true if tourist mode is currently active */
     function isActive() {
-        return localStorage.getItem(STORAGE_KEYS.active) === 'true';
+        if (localStorage.getItem(STORAGE_KEYS.active) !== 'true') return false;
+        // A sorted user is never a tourist: sorting supersedes the visa. Without this, a stale
+        // hexworth_tourist_active flag (left from browsing as a tourist before sorting) lives
+        // forever and the installBlockers() wrapper SILENTLY eats every ModuleProgress.complete /
+        // completeQuiz from then on: button acknowledges, nothing persists, chapters never turn
+        // green. Root cause of the 2026-07 "completions not saving" reports. Self-heals by
+        // surrendering the stale visa the first time it is consulted.
+        try {
+            if (localStorage.getItem('hexworth_house')) {
+                disable();
+                console.log('[TouristVisa] Stale tourist visa voided: user is sorted; progress saves restored');
+                return false;
+            }
+        } catch (e) { /* storage unavailable; treat flag as authoritative */ }
+        return true;
     }
 
     /** Returns array of house IDs already visited */
