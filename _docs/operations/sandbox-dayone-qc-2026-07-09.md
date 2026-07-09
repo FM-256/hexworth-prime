@@ -59,8 +59,9 @@ labeled; graders are honest.
   not match).
 - chmod t06 fails (x2): diagnose the -R trap (dirs lost execute; restore 755,
   then FILES only via find).
-- cd t05/t06 fails: teach the absolute-path write (`pwd >
-  /home/student/$MISSION_DEPT/...`) and name the symlink physical-tree trap.
+- cd t05/t06 fails: mechanism-only per operator decision (teach that an
+  absolute path after > works from anywhere and that a relative path through
+  the symlink follows the PHYSICAL tree; the literal command is never given).
 - cat t02 fail: raw "<your project name>" placeholder replaced with
   $MISSION_PROJ (grader substitutes tokens in fail texts, missions.js:163).
 - cd field guide: +2 rows (absolute-path write from anywhere; >> appends).
