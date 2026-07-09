@@ -20,7 +20,10 @@ PROJ=$(set -- alpha delta kestrel waypoint; pick 4 "$@")
 DEPT_DIR="/home/student/$DEPT"
 SD="$DEPT_DIR/servicedesk"
 
-if [ -f "$MISSION_DIR/env.systemctl-servicedesk" ] && [ -d "$SD" ]; then
+# Guard on the env file ALONE (Nancy wave-4-5 follow-up): the graded state is
+# the shim markers under /run/hexlab-svc, not the servicedesk/ dir - a student
+# who deletes servicedesk/ must not re-trigger the marker resets on resume.
+if [ -f "$MISSION_DIR/env.systemctl-servicedesk" ]; then
   exit 0
 fi
 
