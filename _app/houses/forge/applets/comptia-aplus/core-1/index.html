@@ -920,8 +920,18 @@
         // SAME store every "Mark Complete" button and finished lab writes via ModuleProgress.complete —
         // the hub used to read a stale, never-written 'aplus-core1-progress' key, so nothing turned green.
         function isModuleComplete(progress, moduleId) {
+            // Primary shape: how ModuleProgress.complete() writes it locally (e.g. forge-ch01-motherboards).
             if (progress.forge && progress.forge[moduleId] && progress.forge[moduleId].completed) return true;
             if (Array.isArray(progress.completedModules) && progress.completedModules.indexOf(moduleId) !== -1) return true;
+            // Cloud-restored shape: FirestoreManager.addCloudCompletion strips the 'forge-' house prefix, so a
+            // completion synced from another device lands as forge['ch01-motherboards'] (no prefix). Read that
+            // shape too so cross-device completions still turn the card green. Purely additive: this only ever
+            // finds MORE completions, it can never mark a completed card as incomplete.
+            const stripped = moduleId.indexOf('forge-') === 0 ? moduleId.slice(6) : null;
+            if (stripped) {
+                if (progress.forge && progress.forge[stripped] && progress.forge[stripped].completed) return true;
+                if (Array.isArray(progress.completedModules) && progress.completedModules.indexOf(stripped) !== -1) return true;
+            }
             return false;
         }
 
@@ -961,7 +971,50 @@
         });
 
         loadProgress();
-    </script>
+
+        // Opt-in on-screen diagnostic (append ?diag=1 to the URL). Invisible in normal use — students
+        // never add the param. Reports exactly what the hub reads from storage so a stuck "not turning
+        // green" can be seen without the console: is the user signed in, is hexworth_progress present,
+        // which chapter completions are in the store, and for each card whether it went green + which
+        // read matched. This is how we tell a write/sync failure (nothing in store) apart from a render
+        // failure (in store but card gray).
+        if (/[?&]diag=1/.test(location.search)) {
+            try {
+                const dp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                let signedIn = false;
+                try { signedIn = !!(window.FirebaseAuth && FirebaseAuth.getUser && FirebaseAuth.getUser()); } catch (e) {}
+                const rows = [];
+                document.querySelectorAll('.chapter-item[data-chapter]').forEach(item => {
+                    const m = (item.getAttribute('href') || '').match(/chapters\/([^\/]+)\//);
+                    const id = m ? 'forge-' + m[1] : '(no href)';
+                    const stripped = id.indexOf('forge-') === 0 ? id.slice(6) : null;
+                    const inForge = !!(dp.forge && dp.forge[id] && dp.forge[id].completed);
+                    const inStrip = !!(stripped && dp.forge && dp.forge[stripped] && dp.forge[stripped].completed);
+                    const inList = Array.isArray(dp.completedModules) && dp.completedModules.indexOf(id) !== -1;
+                    rows.push(item.getAttribute('data-chapter') + ': green=' + item.classList.contains('completed') +
+                        ' | forge[' + id + ']=' + inForge + ' strip=' + inStrip + ' list=' + inList);
+                });
+                const size = (localStorage.getItem('hexworth_progress') || '').length;
+                const forgeChKeys = dp.forge ? Object.keys(dp.forge).filter(k => /ch0|ch1[0-2]|motherboard|expansion|peripheral|printer|network|tcpip|wireless|cloud|laptop|mobile|trouble/i.test(k)) : [];
+                const panel = document.createElement('div');
+                panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:45vh;overflow:auto;z-index:999999;background:#0b1220;color:#7CFC00;font:12px/1.5 monospace;padding:12px;border-top:3px solid #ea580c;white-space:pre-wrap';
+                panel.textContent = '[DIAG] signedIn=' + signedIn +
+                    ' | tourist=' + (localStorage.getItem('hexworth_tourist_active') === 'true') +
+                    ' | house=' + (localStorage.getItem('hexworth_house') || 'UNSORTED') +
+                    ' | hexworth_progress=' + (size ? Math.round(size / 512) + 'KB' : 'MISSING') +
+                    ' | forgeKeys=' + (dp.forge ? Object.keys(dp.forge).length : 0) +
+                    ' | completedModules=' + ((dp.completedModules || []).length) + '\n' +
+                    'Core 1 chapter keys in store: ' + (forgeChKeys.length ? forgeChKeys.join(', ') : 'NONE') + '\n\n' +
+                    rows.join('\n');
+                document.body.appendChild(panel);
+            } catch (e) {
+                const pe = document.createElement('div');
+                pe.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#7f1d1d;color:#fff;font:12px monospace;padding:12px';
+                pe.textContent = '[DIAG] error: ' + e.message;
+                document.body.appendChild(pe);
+            }
+        }
+</script>
 
     <!-- ── Dr. Hex floating mood-ring button ──────────────────────────
          Always-visible chat entry point. State machine is attempt-driven;
