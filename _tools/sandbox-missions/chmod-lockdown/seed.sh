@@ -70,12 +70,12 @@ chown -R student:student "$DEPT_DIR"
 sha() { sha256sum "$1" | cut -d' ' -f1; }
 
 cat > "$MISSION_DIR/env.chmod-lockdown" <<EOF
-MISSION_ID=chmod-lockdown
-MISSION_DEPT=$DEPT
-MISSION_PROJ=$PROJ
-MISSION_SHA_PAYROLL=$(sha "$LD/payroll.csv")
-MISSION_SHA_DEPLOY=$(sha "$LD/deploy.sh")
-MISSION_SHA_RECORDS=$(sha "$LD/records/index.txt")
+MISSION_ID="chmod-lockdown"
+MISSION_DEPT="$DEPT"
+MISSION_PROJ="$PROJ"
+MISSION_SHA_PAYROLL="$(sha "$LD/payroll.csv")"
+MISSION_SHA_DEPLOY="$(sha "$LD/deploy.sh")"
+MISSION_SHA_RECORDS="$(sha "$LD/records/index.txt")"
 EOF
 chmod 0644 "$MISSION_DIR/env.chmod-lockdown"
 

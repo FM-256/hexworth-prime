@@ -22,8 +22,11 @@ PROJ=$(set -- alpha delta kestrel waypoint; pick 4 "$@")
 DEPT_DIR="/home/student/$DEPT"
 OPS="$DEPT_DIR/ops"
 
-# Destructive guard: absence of killed rogues is the graded artifact.
-if [ -f "$MISSION_DIR/env.ps-runaway" ] && [ -d "$OPS" ]; then
+# Destructive guard: absence of killed rogues is the graded artifact. Guard on
+# the env file ALONE: the graded state is process aliveness, not the ops/ dir,
+# and a student who deleted ops/ must NOT trigger a respawn that resurrects
+# rogues they already killed (Nancy wave-4-5). They can mkdir ops/ themselves.
+if [ -f "$MISSION_DIR/env.ps-runaway" ]; then
   exit 0
 fi
 
@@ -80,10 +83,18 @@ spawn hexlab_worker_bee w2
 spawn hexlab_worker_bee w3
 sleep 1
 
+# Liveness gate (Nancy wave-4-5): the spawn line's su tolerance must not let a
+# dead cast reach grading — t03/t04 are absence checks and would false-pass on
+# processes that never lived. Verify every core process before writing env
+# (no env file = mission reports unmet, honest failure, not a free badge).
+for P in hexlab_report_daemon hexlab_runaway_miner hexlab_gridmon_stuck hexlab_logger_svc hexlab_worker_bee; do
+  pgrep -f "$P" >/dev/null || { echo "SEED LIVENESS FAIL: $P did not spawn" >&2; exit 1; }
+done
+
 cat > "$MISSION_DIR/env.ps-runaway" <<EOF
-MISSION_ID=ps-runaway
-MISSION_DEPT=$DEPT
-MISSION_PROJ=$PROJ
+MISSION_ID="ps-runaway"
+MISSION_DEPT="$DEPT"
+MISSION_PROJ="$PROJ"
 EOF
 chmod 0644 "$MISSION_DIR/env.ps-runaway"
 

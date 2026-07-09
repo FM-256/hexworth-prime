@@ -92,19 +92,19 @@ FILES_AFTER=$(( TOTAL_FILES - SWP_COUNT ))
 sha() { sha256sum "$1" | cut -d' ' -f1; }
 
 cat > "$MISSION_DIR/env.find-sweep" <<EOF
-MISSION_ID=find-sweep
-MISSION_DEPT=$DEPT
-MISSION_PROJ=$PROJ
-MISSION_SHA_CONF=$(sha "$REF_DIR/conf")
-MISSION_SHA_SWP=$(sha "$REF_DIR/swp")
-MISSION_SHA_DIRS=$(sha "$REF_DIR/dirs")
-MISSION_SHA_BIG=$(sha "$REF_DIR/big")
-MISSION_SHA_DANGER=$(sha "$REF_DIR/danger")
-MISSION_SHA_EMPTY=$(sha "$REF_DIR/empty")
-MISSION_SHA_RECENT=$(sha "$REF_DIR/recent")
-MISSION_CONF_COUNT=$CONF_COUNT
-MISSION_FILES_AFTER=$FILES_AFTER
-MISSION_SHA_PORTALCONF=$(sha projects/portal/settings.conf)
+MISSION_ID="find-sweep"
+MISSION_DEPT="$DEPT"
+MISSION_PROJ="$PROJ"
+MISSION_SHA_CONF="$(sha "$REF_DIR/conf")"
+MISSION_SHA_SWP="$(sha "$REF_DIR/swp")"
+MISSION_SHA_DIRS="$(sha "$REF_DIR/dirs")"
+MISSION_SHA_BIG="$(sha "$REF_DIR/big")"
+MISSION_SHA_DANGER="$(sha "$REF_DIR/danger")"
+MISSION_SHA_EMPTY="$(sha "$REF_DIR/empty")"
+MISSION_SHA_RECENT="$(sha "$REF_DIR/recent")"
+MISSION_CONF_COUNT="$CONF_COUNT"
+MISSION_FILES_AFTER="$FILES_AFTER"
+MISSION_SHA_PORTALCONF="$(sha projects/portal/settings.conf)"
 EOF
 chmod 0644 "$MISSION_DIR/env.find-sweep"
 

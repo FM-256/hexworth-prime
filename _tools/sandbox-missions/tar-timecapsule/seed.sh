@@ -73,16 +73,16 @@ TAR_BYTES=$(wc -c < "$REF_DIR/yearbook.tar")
 sha() { sha256sum "$1" | cut -d' ' -f1; }
 
 cat > "$MISSION_DIR/env.tar-timecapsule" <<EOF
-MISSION_ID=tar-timecapsule
-MISSION_DEPT=$DEPT
-MISSION_PROJ=$PROJ
-MISSION_SHA_YEARBOOK_LIST=$(sha "$REF_DIR/yb_list")
-MISSION_SHA_LEDGERS_LIST=$(sha "$REF_DIR/lg_list")
-MISSION_SHA_MANIFEST=$(sha "$REF_DIR/manifest")
-MISSION_SHA_DEPOSITS=$(sha "$MYST/deposits.txt")
-MISSION_SHA_NOTE=$(sha "$MYST/note_to_future.txt")
-MISSION_SHA_AWARDS=$(sha "$CP/yearbook/awards.txt")
-MISSION_TAR_BYTES=$TAR_BYTES
+MISSION_ID="tar-timecapsule"
+MISSION_DEPT="$DEPT"
+MISSION_PROJ="$PROJ"
+MISSION_SHA_YEARBOOK_LIST="$(sha "$REF_DIR/yb_list")"
+MISSION_SHA_LEDGERS_LIST="$(sha "$REF_DIR/lg_list")"
+MISSION_SHA_MANIFEST="$(sha "$REF_DIR/manifest")"
+MISSION_SHA_DEPOSITS="$(sha "$MYST/deposits.txt")"
+MISSION_SHA_NOTE="$(sha "$MYST/note_to_future.txt")"
+MISSION_SHA_AWARDS="$(sha "$CP/yearbook/awards.txt")"
+MISSION_TAR_BYTES="$TAR_BYTES"
 EOF
 chmod 0644 "$MISSION_DIR/env.tar-timecapsule"
 

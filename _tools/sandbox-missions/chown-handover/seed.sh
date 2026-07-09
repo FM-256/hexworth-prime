@@ -63,11 +63,11 @@ chown -R student:student "$DEPT_DIR"
 sha() { sha256sum "$1" | cut -d' ' -f1; }
 
 cat > "$MISSION_DIR/env.chown-handover" <<EOF
-MISSION_ID=chown-handover
-MISSION_DEPT=$DEPT
-MISSION_PROJ=$PROJ
-MISSION_SHA_ANALYSIS=$(sha "$HO/analysis.txt")
-MISSION_SHA_NIGHTLY=$(sha "$HO/nightly.dat")
+MISSION_ID="chown-handover"
+MISSION_DEPT="$DEPT"
+MISSION_PROJ="$PROJ"
+MISSION_SHA_ANALYSIS="$(sha "$HO/analysis.txt")"
+MISSION_SHA_NIGHTLY="$(sha "$HO/nightly.dat")"
 EOF
 chmod 0644 "$MISSION_DIR/env.chown-handover"
 

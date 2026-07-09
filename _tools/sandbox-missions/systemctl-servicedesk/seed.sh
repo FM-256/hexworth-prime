@@ -42,6 +42,11 @@ rm -f "$D/hexweb.active" "$D/hexweb.enabled" \
       "$D/hexqueue.active" "$D/hexqueue.enabled" \
       "$D/hexreportd.active" "$D/hexreportd.enabled"
 touch "$D/legacyd.active" "$D/legacyd.enabled"
+# Positive seed-side verification (Nancy wave-4-5): t04 is graded by negative
+# assertions only, so prove legacyd actually opened ACTIVE+ENABLED before the
+# env is written (set -eu aborts the seed otherwise).
+systemctl is-active legacyd >/dev/null
+systemctl is-enabled legacyd >/dev/null
 
 chown -R student:student "$DEPT_DIR"
 
