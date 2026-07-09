@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "id": "chmod-lockdown",
+  "labId": "linux-sandbox",
+  "title": "Mission 13: The Lockdown",
+  "command_star": "chmod",
+  "story": "The compliance sweep found the time bombs; now defuse them. Payroll is world-readable, the deploy script will not run, and a shared drop box lets anyone overwrite anyone. Permissions are the locks on every door in this building - chmod cuts the keys. Set each lock exactly to spec: too tight breaks the business, too loose breaks the news.",
+  "tier": 13,
+  "badge": {
+    "id": "lcm_chmod_lockdown",
+    "name": "The Lockdown: Keys Cut",
+    "desc": "Mastered chmod by setting every lock in the office exactly to spec - numeric and symbolic."
+  },
+  "randomize": {
+    "DEPT": ["finance", "logistics", "research"],
+    "PROJ": ["alpha", "delta", "kestrel", "waypoint"]
+  },
+  "tasks": [
+    {
+      "id": "t01_private_payroll",
+      "brief": "Read BRIEFING13.txt in your department directory. lockdown/payroll.csv is readable by the whole building. Lock it to owner-only read and write: exactly 600.",
+      "tier": "bronze",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "mode", "cmd": "test \"$(stat -c %a /home/student/$MISSION_DEPT/lockdown/payroll.csv)\" = \"600\"", "fail": "payroll.csv is not mode 600 (owner read+write, nothing for anyone else)." },
+        { "aspect": "content-intact", "cmd": "test \"$(sha256sum /home/student/$MISSION_DEPT/lockdown/payroll.csv | cut -d' ' -f1)\" = \"$MISSION_SHA_PAYROLL\"", "fail": "payroll.csv content changed. chmod changes LOCKS, never contents." }
+      ]
+    },
+    {
+      "id": "t02_make_executable",
+      "brief": "lockdown/deploy.sh will not run - it lost its execute bit. Give the OWNER execute permission using SYMBOLIC notation (the u+x family), leaving everything else exactly as it is (owner rw, group r, others r).",
+      "tier": "bronze",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "mode", "cmd": "test \"$(stat -c %a /home/student/$MISSION_DEPT/lockdown/deploy.sh)\" = \"744\"", "fail": "deploy.sh should end at exactly 744: owner rwx, group r, others r (add ONLY u+x to the 644 it started with)." },
+        { "aspect": "runs", "cmd": "/home/student/$MISSION_DEPT/lockdown/deploy.sh >/dev/null 2>&1", "fail": "deploy.sh still does not execute for its owner." }
+      ]
+    },
+    {
+      "id": "t03_group_report",
+      "brief": "The team must READ lockdown/team_report.txt but only YOU may write it; the rest of the building sees nothing. Exactly 640.",
+      "tier": "silver",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "mode", "cmd": "test \"$(stat -c %a /home/student/$MISSION_DEPT/lockdown/team_report.txt)\" = \"640\"", "fail": "team_report.txt is not 640 (owner rw, group r, others nothing)." }
+      ]
+    },
+    {
+      "id": "t04_defuse_dropbox",
+      "brief": "The world-writable drop box the sweep flagged: lockdown/dropbox.txt at 666. Remove ONLY the write permission for group and others using symbolic notation (go-w). Everyone may still read it.",
+      "tier": "silver",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "mode", "cmd": "test \"$(stat -c %a /home/student/$MISSION_DEPT/lockdown/dropbox.txt)\" = \"644\"", "fail": "dropbox.txt should end at 644: strip write from group and others (go-w), keep everything else." }
+      ]
+    },
+    {
+      "id": "t05_vault_dir",
+      "brief": "Directories need execute to be ENTERED. lockdown/records/ was left at 777 - open house. Lock it to owner-only full access: exactly 700 (and understand why a directory needs that x).",
+      "tier": "silver",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "mode", "cmd": "test \"$(stat -c %a /home/student/$MISSION_DEPT/lockdown/records)\" = \"700\"", "fail": "records/ is not 700 (owner rwx only - the x is what lets you enter it)." },
+        { "aspect": "contents-intact", "cmd": "test \"$(sha256sum /home/student/$MISSION_DEPT/lockdown/records/index.txt | cut -d' ' -f1)\" = \"$MISSION_SHA_RECORDS\"", "fail": "records/index.txt changed. Lock the door; do not rearrange the room." }
+      ]
+    },
+    {
+      "id": "t06_recursive_handouts",
+      "brief": "Everything under lockdown/handouts/ (files at every depth) must be world-readable but writable only by you: 644 on every FILE in the tree, in one recursive move (chmod -R, or pair find with chmod if you want file-only precision).",
+      "tier": "gold",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "top-file", "cmd": "test \"$(stat -c %a /home/student/$MISSION_DEPT/lockdown/handouts/welcome.txt)\" = \"644\"", "fail": "handouts/welcome.txt is not 644." },
+        { "aspect": "deep-file", "cmd": "test \"$(stat -c %a /home/student/$MISSION_DEPT/lockdown/handouts/week2/syllabus.txt)\" = \"644\"", "fail": "The nested handouts/week2/syllabus.txt is not 644 (the change must reach every depth)." }
+      ]
+    },
+    {
+      "id": "t07_readonly_archive",
+      "brief": "lockdown/final_report.txt is signed and sealed: NOBODY writes it again, including you. Everyone may read. Exactly 444.",
+      "tier": "gold",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "mode", "cmd": "test \"$(stat -c %a /home/student/$MISSION_DEPT/lockdown/final_report.txt)\" = \"444\"", "fail": "final_report.txt is not 444 (read-only for absolutely everyone)." }
+      ]
+    },
+    {
+      "id": "t08_locks_not_contents",
+      "brief": "Hidden requirement.",
+      "tier": "gold",
+      "hidden": true,
+      "bonus": false,
+      "checks": [
+        { "aspect": "deploy-intact", "cmd": "test \"$(sha256sum /home/student/$MISSION_DEPT/lockdown/deploy.sh | cut -d' ' -f1)\" = \"$MISSION_SHA_DEPLOY\"", "fail": "deploy.sh's contents changed. A locksmith cuts keys; he does not rewrite the documents in the safe." }
+      ]
+    },
+    {
+      "id": "t09_bonus_sticky",
+      "brief": "BONUS: the shared lockdown/exchange/ directory needs the classic /tmp treatment: everyone may add files, but only a file's owner may delete their own (the sticky bit). Set exchange/ to exactly 1777.",
+      "tier": "gold",
+      "hidden": false,
+      "bonus": true,
+      "checks": [
+        { "aspect": "mode", "cmd": "test \"$(stat -c %a /home/student/$MISSION_DEPT/lockdown/exchange)\" = \"1777\"", "fail": "exchange/ is not 1777 (777 plus the sticky bit - the same trick /tmp uses)." }
+      ]
+    }
+  ]
+}
