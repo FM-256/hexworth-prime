@@ -2035,6 +2035,17 @@ class AchievementSystem {
             serverIssued: true
         },
 
+        lcm_mkdir_groundbreaking: {
+            id: 'lcm_mkdir_groundbreaking',
+            name: 'Groundbreaking: Foundations Poured',
+            description: 'Mastered mkdir and rmdir by building a structure to spec and demolishing only what was empty (Mission 06, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-building.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an
