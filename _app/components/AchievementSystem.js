@@ -1991,6 +1991,28 @@ class AchievementSystem {
             serverIssued: true
         },
 
+        lcm_ls_first_inventory: {
+            id: 'lcm_ls_first_inventory',
+            name: 'The Inventory: Cataloged',
+            description: 'Mastered ls by fully cataloging a messy department archive in a live Linux box (Mission 02, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
+        lcm_cd_breadcrumbs: {
+            id: 'lcm_cd_breadcrumbs',
+            name: 'Breadcrumbs: Surveyed',
+            description: 'Mastered cd and pwd by surveying a deep directory campus with absolute, relative, home and symlink navigation (Mission 03, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-compass.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an
