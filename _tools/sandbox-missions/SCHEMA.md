@@ -92,7 +92,10 @@ lab-manager. No server.js edits per mission.
 - Runs once at launch, as root, non-interactive; must be idempotent.
 - First lines choose randomization values and write `/opt/mission/env.<mission-id>`
   (PER-MISSION file: two missions seeded onto the same box must never clobber
-  each other's values; the grader sources exactly its own mission's env)
+  each other's values; the grader sources exactly its own mission's env).
+  Every value MUST be double-quoted (`MISSION_X="value"`): unquoted spacey
+  values break `.`-sourcing silently, leaving vars empty and turning content
+  checks vacuous on BOTH the check and canonical-solution sides.
   (mode 0644, owner root) with `MISSION_<KEY>=value` lines, plus any derived
   secrets (e.g. `MISSION_CODEWORD`).
 - Builds the world under `/home/student/` and chowns student-facing files to
@@ -113,6 +116,20 @@ lab-manager. No server.js edits per mission.
   credentials.
 - Must exit 0; lab-manager logs but does not fail the launch on seed error
   (free-play still works) -- the grader will simply report tasks unmet.
+
+### Known randomization property
+
+`pick()` indexes by `hostname-hash % list-length`, so all randomize keys with
+the SAME list length co-vary (3-item lists always land on the same index for a
+given container). Missions stay internally consistent; the practical variety is
+3-4 world bundles rather than full cross-products. Accepted (Nancy wave review
+2026-07-09); if full independence ever matters, salt the hash per key name.
+
+### Locale note
+
+bc1 execCheck passes NO Env to container.exec (verified against the live
+server.js): seed (root) and grading (student) both inherit the image's default
+locale, so sort/ls reference shas computed at seed time match grade time.
 
 ## Grading endpoints (bc1 lab-manager)
 

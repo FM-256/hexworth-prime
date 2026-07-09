@@ -113,7 +113,13 @@ function readMissionEnv(container, missionId) {
         const done = () => {
           out.split('\n').forEach((line) => {
             const m = /^(MISSION_[A-Z0-9_]+)=(.*)$/.exec(line.trim());
-            if (m) vals[m[1]] = m[2];
+            if (m) {
+              let v = m[2];
+              // seeds double-quote values (spacey values break plain sourcing);
+              // strip one layer of surrounding quotes for display use
+              if (v.length >= 2 && ((v[0] === '"' && v[v.length - 1] === '"') || (v[0] === "'" && v[v.length - 1] === "'"))) v = v.slice(1, -1);
+              vals[m[1]] = v;
+            }
           });
           resolve(vals);
         };

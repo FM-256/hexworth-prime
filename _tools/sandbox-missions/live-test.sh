@@ -21,6 +21,19 @@ for t in m['tasks']:
         with open(f'{d}/{n:02d}__{t["id"]}__{c["aspect"]}.sh', 'w') as f:
             f.write(f'#!/bin/sh\n. /opt/mission/env.{mid} 2>/dev/null\n' + c['cmd'] + '\n')
 print(f'{n} checks generated for {mid}')
+# env integrity checker: plain shell written by python — no escape-layer bugs
+with open(f'{mid}/_envcheck.sh', 'w') as f:
+    f.write(f'''#!/bin/sh
+ERR=$(. /opt/mission/env.{mid} 2>&1)
+[ -z "$ERR" ] || {{ echo "ENV SOURCE ERRORS: $ERR"; exit 1; }}
+. /opt/mission/env.{mid}
+for k in $(grep -oE '^MISSION_[A-Z0-9_]+' /opt/mission/env.{mid}); do
+  v=$(eval printf '%s' \"\${{$k}}\")
+  [ -n "$v" ] || {{ echo "EMPTY ENV VAR: $k"; exit 1; }}
+done
+echo "env integrity ok"
+''')
+print('envcheck generated')
 EOF
 # PERMANENT GATE (Chris 2026-07-09): every $MISSION_* token referenced anywhere in
 # the manifest must be defined by the seed's env file, or briefs would render
@@ -38,7 +51,7 @@ if missing:
 print(f'token gate OK ({len(used)} tokens all seeded)')
 EOF2
 ssh bc1 "mkdir -p /tmp/lcm-$MID"
-scp -q "$MID/seed.sh" "$MID/solution.sh" bc1:/tmp/lcm-$MID/
+scp -q "$MID/seed.sh" "$MID/solution.sh" "$MID/_envcheck.sh" bc1:/tmp/lcm-$MID/
 scp -qr "$MID/_checks.d" bc1:/tmp/lcm-$MID/
 ssh bc1 "set -e
 docker rm -f lcm-$MID >/dev/null 2>&1 || true
@@ -46,7 +59,11 @@ docker run -d --name lcm-$MID --pids-limit 512 hexworth/linux-sandbox:latest >/d
 docker cp /tmp/lcm-$MID/seed.sh lcm-$MID:/tmp/seed.sh
 docker cp /tmp/lcm-$MID/_checks.d lcm-$MID:/tmp/checks.d
 docker cp /tmp/lcm-$MID/solution.sh lcm-$MID:/tmp/solution.sh
+docker cp /tmp/lcm-$MID/_envcheck.sh lcm-$MID:/tmp/envcheck.sh
 docker exec -u root lcm-$MID sh /tmp/seed.sh && echo 'seed ok'
+# ENV INTEGRITY GATE (script generated locally, zero escape layers): env must
+# source cleanly and every declared MISSION_ var must be non-empty.
+docker exec -u root lcm-$MID sh /tmp/envcheck.sh
 run_checks() { docker exec -u student lcm-$MID sh -c 'f=0;t=0;for s in /tmp/checks.d/*.sh;do t=\$((t+1));sh \"\$s\" >/dev/null 2>&1||{ echo \"FAIL \$(basename \$s .sh)\";f=\$((f+1));};done;echo \"RESULT: \$((t-f))/\$t (\$f fail)\"'; }
 echo '--- BEFORE solving ---'; run_checks | tail -1
 docker exec -u student lcm-$MID sh /tmp/solution.sh >/dev/null && echo 'solution applied'
