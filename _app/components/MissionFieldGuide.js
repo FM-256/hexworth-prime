@@ -22,9 +22,14 @@
     'use strict';
 
     // Tips shown at the top of every guide. [command, explanation]; empty command
-    // renders as a plain tip line.
+    // renders as a plain tip line. The first two are the day-one on-ramp (QC
+    // 2026-07-09): finding and entering the randomized department directory
+    // needs ls/cd, which the curriculum itself does not teach until missions
+    // 2-3 - so every guide teaches the two moves up front.
     var COMMON = [
-        ['cat BRIEFING*.txt', 'read the briefing in your department folder first; every mission starts there'],
+        ['ls', 'see what is here; START_HERE.txt in your home folder names your department directory'],
+        ['cd yourdept', 'move into your department folder (cd alone brings you home)'],
+        ['cat BRIEFING*.txt', 'read the briefing there first; every mission starts with it'],
         ['command > file.txt', 'saves a command\'s output into a file; most tasks grade files you create this way'],
         ['', 'Grade early, grade often. Grading is free, and every failed check tells you what is still wrong.']
     ];
@@ -65,6 +70,8 @@
             ['pwd', 'print exactly where you are (pwd > f.txt saves it)'],
             ['', 'A symlink is a door: cd through it like a normal directory.'],
             ['pwd -P', 'resolve symlinks: where you PHYSICALLY are, not just the path you typed'],
+            ['pwd > /home/student/yourdept/f.txt', 'write an answer into your department directory from ANYWHERE: absolute path after >'],
+            ['command >> f.txt', 'appends a line instead of replacing the file'],
             ['', 'Depth: count the slashes in pwd\'s output; / is the root.']
         ],
         'cpmv-relocation': [
