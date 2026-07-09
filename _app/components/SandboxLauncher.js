@@ -81,10 +81,15 @@ const SandboxLauncher = (function() {
 
     // ── Core API ────────────────────────────────────────────────
 
-    async function launch(labId) {
+    async function launch(labId, opts = {}) {
         if (!LAB_INFO[labId]) throw new Error(`Unknown lab: ${labId}`);
 
-        const data = await apiCall('POST', '/launch', { labId });
+        // Optional mission (Linux Command Mastery): the lab-manager seeds the
+        // container's mission world at launch and remembers the mission on the
+        // session, so /check grades the mission instead of free-play challenges.
+        const body = { labId };
+        if (typeof opts.mission === 'string' && opts.mission) body.mission = opts.mission;
+        const data = await apiCall('POST', '/launch', body);
 
         _activeSessions[labId] = {
             sessionId: data.sessionId,
@@ -124,6 +129,21 @@ const SandboxLauncher = (function() {
     // { ok, passed, total, complete, results[] }. The caller awards any badge.
     async function checkPractice(sessionId) {
         return apiCall('GET', `/check/${sessionId}`);
+    }
+
+    // Mission grading (Linux Command Mastery): rich per-task results
+    // { ok, mission, results[{id,brief,tier,bonus,hidden,pass,feedback[]}],
+    //   passed, total, badgeEligible, badge }. Badge award itself is SERVER-side
+    // (awardMissionBadge CF) — never awarded from the client.
+    async function checkMission(sessionId, missionId) {
+        return apiCall('GET', `/check/${sessionId}?mission=${encodeURIComponent(missionId)}`);
+    }
+
+    // Public mission catalog (metadata only; no check commands).
+    async function listMissions() {
+        const resp = await fetch(`${CONFIG.apiBase}/missions`);
+        if (!resp.ok) throw new Error(`missions catalog: HTTP ${resp.status}`);
+        return resp.json();
     }
 
     // ── UI Rendering ────────────────────────────────────────────
@@ -225,7 +245,11 @@ const SandboxLauncher = (function() {
             launchBtn.disabled = true;
 
             try {
-                const result = await launch(labId);
+                // Mission-aware launch: options.mission may be a string or a function
+                // returning the currently selected mission id (lets a picker rendered
+                // elsewhere on the page drive the same launch button).
+                const missionSel = typeof options.mission === 'function' ? options.mission() : options.mission;
+                const result = await launch(labId, missionSel ? { mission: missionSel } : {});
                 updateUI('running', `Connected — ${result.lab}`, result.url);
 
                 // Optional launch hook (e.g. Observatory usage telemetry). Best-effort:
@@ -421,6 +445,8 @@ const SandboxLauncher = (function() {
         destroy,
         list,
         checkPractice,
+        checkMission,
+        listMissions,
         renderButton,
         getActiveSessions: () => ({ ..._activeSessions }),
         CONFIG,

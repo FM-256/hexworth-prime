@@ -304,6 +304,32 @@
         @keyframes obsBadgePop { 0% { transform: scale(0.82); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
         @media (prefers-reduced-motion: reduce) { .obs-badge--pop { animation: none; } }
 
+        /* Command Mastery missions: story-driven server-graded labs in the sandbox.
+           Cards mirror the badge-shelf idiom; the selected card gets the gold edge. */
+        .obs-missions { margin: 20px 0 4px; border-top: 1px solid rgba(129,140,248,0.18); padding-top: 16px; }
+        .obs-missions__label { font-size: 0.76rem; letter-spacing: 0.09em; text-transform: uppercase;
+            color: #9aa6e0; font-weight: 700; display: flex; align-items: baseline; gap: 8px; }
+        .obs-missions__tag { font-size: 0.66rem; letter-spacing: 0.06em; color: #34d399;
+            border: 1px solid rgba(52,211,153,0.45); border-radius: 999px; padding: 1px 8px; text-transform: none; }
+        .obs-missions__desc { font-size: 0.86rem; color: #aab4e8; margin: 8px 0 12px; max-width: 68ch; }
+        .obs-missions__list { display: flex; flex-wrap: wrap; gap: 12px; }
+        .obs-mission-card { flex: 1 1 300px; max-width: 420px; border: 1px solid rgba(129,140,248,0.30);
+            border-radius: 12px; padding: 14px 16px; background: rgba(129,140,248,0.05); }
+        .obs-mission-card.selected { border-color: rgba(251,191,36,0.60);
+            box-shadow: 0 0 14px rgba(251,191,36,0.16); }
+        .obs-mission-card__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .obs-mission-card__head strong { color: #e6e9ff; font-size: 0.95rem; }
+        .obs-mission-card__star { font-family: 'Courier New', monospace; font-size: 0.78rem; color: #67e8f9;
+            border: 1px solid rgba(34,211,238,0.40); border-radius: 6px; padding: 1px 8px; }
+        .obs-mission-card__story { font-size: 0.82rem; color: #aab4e8; margin: 8px 0; line-height: 1.45; }
+        .obs-mission-card__meta { font-size: 0.74rem; color: #6b76b0; margin-bottom: 10px; }
+        .obs-mission-card__start { border: 1px solid rgba(52,211,153,0.50); background: rgba(52,211,153,0.10);
+            color: #6ee7b7; border-radius: 8px; padding: 7px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+        .obs-mission-card__start:hover { background: rgba(52,211,153,0.18); }
+        .obs-mission-grade { margin-top: 12px; }
+        .obs-grade-btn--claim { border-color: rgba(251,191,36,0.55); color: #fcd34d; background: rgba(251,191,36,0.10); }
+        .obs-grade-feedback { opacity: 0.85; font-size: 0.78rem; }
+
         /* Guided tutorial, grader-driven (the terminal is a cross-origin iframe we
            cannot read, so each step locks until the server-side grader confirms it). */
         .obs-tutorial { margin: 16px 0 0; border: 1px solid rgba(34,211,238,0.40); border-radius: 12px;
@@ -472,6 +498,23 @@
                         <div class="obs-badges__label">Sandbox Badges <span id="obs-badges-count" class="obs-badges__count"></span></div>
                         <div id="obs-badge-shelf" class="obs-badge-shelf"></div>
                     </div>
+                    <!-- Linux Command Mastery missions: story-driven, server-graded labs in the
+                         same sandbox. Catalog is fetched from the lab-manager (metadata only);
+                         grading is per-task server-side; the badge is SERVER-ISSUED via the
+                         awardMissionBadge Cloud Function (client never awards). -->
+                    <div class="obs-missions">
+                        <div class="obs-missions__label">Command Mastery Missions <span class="obs-missions__tag">server-graded</span></div>
+                        <p class="obs-missions__desc">Story missions inside the live sandbox. Each one makes you an expert in a single command by using it every way it can be used. Grading inspects the real system state, task by task.</p>
+                        <div id="obs-missions-list" class="obs-missions__list">Loading missions...</div>
+                        <div id="obs-mission-grade" class="obs-mission-grade" style="display:none;">
+                            <div class="obs-grade-row">
+                                <button id="obs-mission-grade-btn" class="obs-grade-btn" type="button">Grade mission</button>
+                                <button id="obs-mission-claim-btn" class="obs-grade-btn obs-grade-btn--claim" type="button" style="display:none;">Claim badge</button>
+                                <span id="obs-mission-grade-hint" class="obs-grade-hint"></span>
+                            </div>
+                            <div id="obs-mission-grade-result" class="obs-grade-result"></div>
+                        </div>
+                    </div>
                 </div>`
         };
 
@@ -519,6 +562,148 @@
         function wireSandboxGrader() {
             var btn = document.getElementById('obs-grade-btn');
             if (btn && !btn.__wired) { btn.__wired = true; btn.addEventListener('click', gradePractice); }
+        }
+
+        // ===== Linux Command Mastery missions =====
+        // Story missions in the same sandbox. Catalog comes from the lab-manager
+        // (metadata only — check commands never leave the server). Selecting a
+        // mission makes the SAME launch button seed the mission world (renderButton
+        // options.mission callback). Grading uses /check?mission (rich per-task
+        // feedback); the badge is claimed via the awardMissionBadge CF, which
+        // re-grades server-side and writes the achievement itself.
+        window.__obsSelectedMission = null;
+
+        // Fetch and paint the mission catalog. Failure degrades to a quiet note —
+        // free-play and the legacy grader are unaffected.
+        async function renderMissionsPanel() {
+            var list = document.getElementById('obs-missions-list');
+            if (!list) return;
+            var cat;
+            try { cat = await SandboxLauncher.listMissions(); }
+            catch (e) { list.textContent = 'Missions are unavailable right now.'; return; }
+            list.innerHTML = '';
+            (cat.missions || []).forEach(function (m) {
+                var card = document.createElement('div');
+                card.className = 'obs-mission-card';
+                // All content via textContent — catalog is server-controlled but never trusted into markup.
+                var head = document.createElement('div');
+                head.className = 'obs-mission-card__head';
+                var title = document.createElement('strong');
+                title.textContent = m.title;
+                var star = document.createElement('span');
+                star.className = 'obs-mission-card__star';
+                star.textContent = m.command_star;
+                head.appendChild(title); head.appendChild(star);
+                var story = document.createElement('p');
+                story.className = 'obs-mission-card__story';
+                story.textContent = m.story;
+                var meta = document.createElement('div');
+                meta.className = 'obs-mission-card__meta';
+                meta.textContent = m.taskCount + ' graded tasks · badge: ' + (m.badge && m.badge.name || m.id);
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'obs-mission-card__start';
+                btn.textContent = 'Start Mission';
+                btn.addEventListener('click', function () { startMission(m, card); });
+                card.appendChild(head); card.appendChild(story); card.appendChild(meta); card.appendChild(btn);
+                list.appendChild(card);
+            });
+            if (!list.children.length) list.textContent = 'No missions published yet.';
+        }
+
+        // Select a mission, then launch (or re-launch seed onto the running box) via
+        // the standard launcher so limits/telemetry/badges all behave identically.
+        function startMission(m, card) {
+            window.__obsSelectedMission = m.id;
+            document.querySelectorAll('.obs-mission-card.selected').forEach(function (c) { c.classList.remove('selected'); });
+            if (card) card.classList.add('selected');
+            var hint = document.getElementById('obs-mission-grade-hint');
+            if (hint) hint.textContent = m.title + ' selected. Complete the tasks in the box, then grade.';
+            // Reuse the showcase launch button; if a session is already running the
+            // lab-manager seeds the mission world onto it idempotently.
+            var launchBtn = document.querySelector('#obs-sandbox-mount .sandbox-launcher button');
+            if (launchBtn) launchBtn.click();
+            var panel = document.getElementById('obs-mission-grade');
+            if (panel) panel.style.display = '';
+            var mount = document.getElementById('obs-sandbox-mount');
+            if (mount) mount.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Grade the selected mission: rich per-task feedback, hidden tasks masked,
+        // Claim button revealed only on badgeEligible (final authority stays server-side).
+        async function gradeMission() {
+            var out = document.getElementById('obs-mission-grade-result');
+            var claim = document.getElementById('obs-mission-claim-btn');
+            if (!out) return;
+            var sid = window.__obsSandboxSession;
+            var mid = window.__obsSelectedMission;
+            if (!sid || !mid) { out.textContent = 'Start a mission first.'; return; }
+            out.textContent = 'Auditing your system...';
+            try {
+                var r = await SandboxLauncher.checkMission(sid, mid);
+                out.innerHTML = '';
+                var head = document.createElement('div');
+                head.className = 'obs-grade-head';
+                head.textContent = r.passed + ' / ' + r.total + ' tasks complete' + (r.hiddenUnmet ? ' · a hidden requirement is not met' : '');
+                out.appendChild(head);
+                var ul = document.createElement('ul');
+                ul.className = 'obs-grade-list';
+                (r.results || []).forEach(function (t) {
+                    var li = document.createElement('li');
+                    li.className = t.pass ? 'ok' : 'no';
+                    li.textContent = (t.pass ? '✓ ' : '✗ ') + (t.bonus ? '[bonus] ' : '') + t.brief;
+                    ul.appendChild(li);
+                    // Rich feedback: the grader says WHAT is wrong (exists/owner/content), never how to fix it.
+                    if (!t.pass && t.feedback && t.feedback.length) {
+                        t.feedback.forEach(function (f) {
+                            var fb = document.createElement('li');
+                            fb.className = 'no obs-grade-feedback';
+                            fb.textContent = '   -> ' + f;
+                            ul.appendChild(fb);
+                        });
+                    }
+                });
+                out.appendChild(ul);
+                if (claim) claim.style.display = r.badgeEligible ? '' : 'none';
+            } catch (e) {
+                out.textContent = 'Could not grade right now. Make sure your sandbox is still running.';
+            }
+        }
+
+        // Claim the badge: the CF re-grades server-side via the lab-manager and writes
+        // users/{uid}.achievements + a server_awards proof doc. Client renders the verdict.
+        async function claimMissionBadge() {
+            var out = document.getElementById('obs-mission-grade-result');
+            var claim = document.getElementById('obs-mission-claim-btn');
+            var mid = window.__obsSelectedMission;
+            if (!mid || !out) return;
+            if (claim) { claim.disabled = true; claim.textContent = 'Verifying...'; }
+            try {
+                var res = await FirebaseAuth.callFunction('awardMissionBadge', { mission: mid });
+                var d = res && res.data;
+                var note = document.createElement('div');
+                note.className = 'obs-grade-badge';
+                note.textContent = (d && d.awarded)
+                    ? 'Badge earned (server-verified): ' + (d.name || d.badgeId)
+                    : 'Not eligible yet: ' + ((d && d.passed) || 0) + '/' + ((d && d.total) || '?') + ' tasks passing on the server.';
+                out.appendChild(note);
+                if (d && d.awarded && claim) claim.style.display = 'none';
+            } catch (e) {
+                var err = document.createElement('div');
+                err.className = 'obs-grade-badge';
+                err.textContent = 'Could not verify with the badge service. Your work is safe; try again in a minute.';
+                out.appendChild(err);
+            } finally {
+                if (claim) { claim.disabled = false; claim.textContent = 'Claim badge'; }
+            }
+        }
+
+        // Wire mission buttons once (idempotent — mountSandbox may retry).
+        function wireMissionPanel() {
+            var g = document.getElementById('obs-mission-grade-btn');
+            if (g && !g.__wired) { g.__wired = true; g.addEventListener('click', gradeMission); }
+            var c = document.getElementById('obs-mission-claim-btn');
+            if (c && !c.__wired) { c.__wired = true; c.addEventListener('click', claimMissionBadge); }
         }
 
         // ===== Sandbox badge shelf =====
@@ -796,6 +981,9 @@
                 var el = document.getElementById('obs-sandbox-mount');
                 if (el && typeof SandboxLauncher !== 'undefined') {
                     SandboxLauncher.renderButton(el, 'linux-sandbox', {
+                        // Selected Command Mastery mission (if any) rides along on launch so the
+                        // lab-manager seeds the mission world into the box. Null = free-play.
+                        mission: function () { return window.__obsSelectedMission || null; },
                         onLaunch: function (labId, result) {
                             // Record each launch as a consented Observatory activity event.
                             if (typeof ObservatoryTracker !== 'undefined' && ObservatoryTracker.logSandbox) {
@@ -836,9 +1024,13 @@
                             try { localStorage.setItem('obs_sandbox_ended', '1'); } catch (e) { /* private mode */ }
                         }
                     });
-                    wireSandboxGrader();
-                    initTutorial();
-                    renderSandboxBadges();   // initial paint: earned badges gold, rest "???"
+                    // Each mount step isolated: a throw in one (e.g. a badge-registry
+                    // mismatch) must never take down the steps after it.
+                    try { wireSandboxGrader(); } catch (e) { /* grader button optional */ }
+                    try { initTutorial(); } catch (e) { /* tutorial optional */ }
+                    try { renderSandboxBadges(); } catch (e) { /* shelf cosmetic */ }
+                    try { wireMissionPanel(); } catch (e) { /* missions degrade to note */ }
+                    try { renderMissionsPanel(); } catch (e) { /* missions degrade to note */ }
                     return;
                 }
                 if (tries > 0) setTimeout(function () { mountSandbox(tries - 1); }, 60);

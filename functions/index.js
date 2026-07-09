@@ -19,6 +19,11 @@ const livekitApiKey = defineSecret('LIVEKIT_API_KEY');
 const livekitApiSecret = defineSecret('LIVEKIT_API_SECRET');
 const LIVEKIT_WS_URL = 'wss://hexworth-fxq4kwzr.livekit.cloud';
 
+// ─── Sandbox mission badges (shared with bc1 lab-manager /grade-for) ─
+// Same secret hex-ai-bridge.js declares for sandbox_task_state; declared
+// here too so awardMissionBadge can bind it.
+const sandboxServiceKeyIdx = defineSecret('SANDBOX_SERVICE_KEY');
+
 initializeApp();
 const db = getFirestore();
 
@@ -683,6 +688,84 @@ exports.addXP = onCall(cfOptions, async (request) => {
     });
 
     return { success: true, added: numAmount };
+});
+
+/**
+ * awardMissionBadge — SERVER-ISSUED badge for Linux Command Mastery missions.
+ *
+ * The client never awards these. Flow: student finishes a mission in the
+ * sandbox -> UI shows /check results -> UI calls this with {mission}. We
+ * re-grade server-side via the bc1 lab-manager's service-key-gated
+ * /grade-for endpoint (uid resolved to ITS OWN session at the source of
+ * truth — no session id crosses the trust boundary; same Style-A model as
+ * hex-ai-bridge sandbox_task_state). Only a badgeEligible=true verdict
+ * writes the award: users/{uid}.achievements arrayUnion (existing UI reads
+ * this) + users/{uid}/server_awards/{badgeId} proof doc (no client write
+ * rule exists for that subcollection, so it is CF-only by default-deny —
+ * the tamper-evident record).
+ */
+exports.awardMissionBadge = onCall({ ...cfOptions, secrets: [sandboxServiceKeyIdx] }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    const uid = request.auth.uid;
+    const mission = request.data && request.data.mission;
+    if (typeof mission !== 'string' || !/^[a-z][a-z0-9-]{0,40}$/.test(mission)) {
+        throw new HttpsError('invalid-argument', 'mission must be a lowercase slug.');
+    }
+
+    const serviceKey = sandboxServiceKeyIdx.value();
+    if (!serviceKey) {
+        throw new HttpsError('failed-precondition', 'Badge service not configured.');
+    }
+
+    // Re-grade at the source of truth. Timeout well inside the CF budget.
+    const url = `https://sandbox.hexworth.tech/api/sandbox/grade-for?uid=${encodeURIComponent(uid)}&mission=${encodeURIComponent(mission)}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let verdict;
+    try {
+        const resp = await fetch(url, { headers: { 'X-Service-Key': serviceKey }, signal: controller.signal });
+        if (!resp.ok) throw new HttpsError('unavailable', `Grader returned ${resp.status}.`);
+        verdict = await resp.json();
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        throw new HttpsError('unavailable', 'Grader unreachable.');
+    } finally {
+        clearTimeout(timer);
+    }
+
+    if (!verdict || verdict.running !== true) {
+        throw new HttpsError('failed-precondition',
+            `No running session to grade (${(verdict && verdict.reason) || 'unknown'}).`);
+    }
+    if (verdict.badgeEligible !== true) {
+        // Honest partial result — the UI shows which tasks remain via /check.
+        return { awarded: false, passed: verdict.passed, total: verdict.total };
+    }
+
+    const badgeId = verdict.badge && verdict.badge.id;
+    if (!badgeId || !/^[a-z][a-z0-9_]{0,60}$/.test(badgeId)) {
+        throw new HttpsError('internal', 'Mission has no valid badge id.');
+    }
+
+    const userRef = db.doc(`users/${uid}`);
+    await userRef.set({
+        achievements: FieldValue.arrayUnion(badgeId),
+        updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    await db.doc(`users/${uid}/server_awards/${badgeId}`).set({
+        badgeId,
+        mission,
+        name: (verdict.badge && verdict.badge.name) || badgeId,
+        passed: verdict.passed,
+        total: verdict.total,
+        source: 'server',
+        awardedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    console.log(`[awardMissionBadge] ${uid} <- ${badgeId} (${mission} ${verdict.passed}/${verdict.total})`);
+    return { awarded: true, badgeId, name: (verdict.badge && verdict.badge.name) || badgeId };
 });
 
 /**

@@ -1975,6 +1975,22 @@ class AchievementSystem {
             secret: false
         },
 
+        // === LINUX COMMAND MASTERY: mission badges (SERVER-ISSUED) ===
+        // These are never unlocked client-side: the awardMissionBadge Cloud Function
+        // re-grades the live container via the bc1 lab-manager (grade-for) and writes
+        // the achievement server-side. This registry entry exists so the badge RENDERS
+        // (name/icon/points) once the server has placed it in users/{uid}.achievements.
+        lcm_cat_lost_notes: {
+            id: 'lcm_cat_lost_notes',
+            name: 'Lost Notes: Recovered',
+            description: 'Mastered cat end to end by recovering a department report from fragments in a live Linux box (Mission 01, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-scroll.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an

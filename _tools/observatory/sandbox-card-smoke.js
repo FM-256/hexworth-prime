@@ -26,7 +26,7 @@ const STUBS = {
     'firebase-init.js': '',
     'ObservatoryConsent.js': 'window.ObservatoryConsent={ensureConsent:function(cb){cb();},showChangeClass:function(){},showWithdraw:function(){}};',
     'ObservatoryTracker.js': 'window.__sbLogged=[];window.ObservatoryTracker={init:function(){},logSandbox:function(id){window.__sbLogged.push(id);}};',
-    'AchievementSystem.js': 'window.__badges=[];window.AchievementSystem={unlock:function(id){window.__badges.push(id);return true;}};',
+    'AchievementSystem.js': 'window.__badges=[];window.AchievementSystem={unlock:function(id){window.__badges.push(id);return true;},isUnlocked:function(id){return window.__badges.indexOf(id)!==-1;},ACHIEVEMENTS:{}};',
 };
 
 (async () => {
