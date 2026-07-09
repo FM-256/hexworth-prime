@@ -2123,6 +2123,17 @@ class AchievementSystem {
             serverIssued: true
         },
 
+        lcm_chown_handover: {
+            id: 'lcm_chown_handover',
+            name: 'The Handover: Deeds Transferred',
+            description: 'Mastered chown by transferring files, groups and whole trees to their rightful owners (Mission 14, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-handshake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an
