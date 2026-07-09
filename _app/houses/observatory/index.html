@@ -367,6 +367,17 @@
         .obs-grade-btn--claim { border-color: rgba(251,191,36,0.55); color: #fcd34d; background: rgba(251,191,36,0.10); }
         .obs-grade-feedback { opacity: 0.85; font-size: 0.78rem; }
 
+        /* Mission Workspace: the active mission's identity, task checklist, and
+           grade controls pinned ABOVE the terminal (QC 2026-07-09: the old
+           bottom-of-tab Grade button sat below a 66vh iframe + 18 cards and
+           students could not find it; nothing named the running mission). */
+        .obs-mission-workspace { margin: 16px 0 0; padding: 14px 16px; border: 1px solid rgba(52,211,153,0.40); border-radius: 12px; background: rgba(52,211,153,0.06); }
+        .obs-mission-workspace__bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .obs-mission-workspace__label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #34d399; }
+        .obs-mission-workspace__bar strong { color: #e2e8f0; font-size: 1.02rem; }
+        .obs-mission-workspace__note { display: block; margin-top: 6px; }
+        .obs-grade-list li.todo { color: #9aa6e0; }
+
         /* Guided tutorial, grader-driven (the terminal is a cross-origin iframe we
            cannot read, so each step locks until the server-side grader confirms it). */
         .obs-tutorial { margin: 16px 0 0; border: 1px solid rgba(34,211,238,0.40); border-radius: 12px;
@@ -547,6 +558,28 @@
                         </div>
                     </div>
                     <div id="obs-tutorial" class="obs-tutorial" role="status" aria-live="polite" hidden></div>
+                    <!-- Mission Workspace (QC 2026-07-09): the active mission's identity,
+                         task checklist, and grade controls pinned ABOVE the terminal.
+                         The checklist paints instantly from the /missions catalog (briefs
+                         are server-substituted, hidden briefs server-masked) — real
+                         verdicts come only from the Grade mission button. Hidden until
+                         a mission is started or restored. -->
+                    <div id="obs-mission-workspace" class="obs-mission-workspace" style="display:none;">
+                        <div class="obs-mission-workspace__bar">
+                            <span class="obs-mission-workspace__label">Active Mission</span>
+                            <strong id="obs-mission-ws-title"></strong>
+                            <span id="obs-mission-ws-star" class="obs-mission-card__star"></span>
+                        </div>
+                        <span id="obs-mission-ws-note" class="obs-grade-hint obs-mission-workspace__note"></span>
+                        <div id="obs-mission-grade" class="obs-mission-grade">
+                            <div class="obs-grade-row">
+                                <button id="obs-mission-grade-btn" class="obs-grade-btn" type="button">Grade mission</button>
+                                <button id="obs-mission-claim-btn" class="obs-grade-btn obs-grade-btn--claim" type="button" style="display:none;">Claim badge</button>
+                                <span id="obs-mission-grade-hint" class="obs-grade-hint"></span>
+                            </div>
+                            <div id="obs-mission-grade-result" class="obs-grade-result"></div>
+                        </div>
+                    </div>
                     <div id="obs-sandbox-mount"></div>
                     <div id="obs-sandbox-grade" class="obs-sandbox-grade" style="display:none;">
                         <div class="obs-grade-row">
@@ -573,17 +606,12 @@
                             <li><strong>Pick</strong> the lowest-numbered mission you have not finished.</li>
                             <li><strong>Open its field guide</strong>, then click <em>Start Mission</em> - the box loads your mission world.</li>
                             <li><strong>Work in the terminal.</strong> Lost? Type <code>cat START_HERE.txt</code></li>
-                            <li><strong>Grade mission</strong> anytime (free, hints on every failed task) - <em>Claim badge</em> when it lights up.</li>
+                            <li><strong>Grade mission</strong> anytime from the <em>Active Mission</em> panel above the terminal (free, hints on every failed task) - <em>Claim badge</em> when it lights up.</li>
                         </ol>
                         <div id="obs-missions-list" class="obs-missions__list">Loading missions...</div>
-                        <div id="obs-mission-grade" class="obs-mission-grade" style="display:none;">
-                            <div class="obs-grade-row">
-                                <button id="obs-mission-grade-btn" class="obs-grade-btn" type="button">Grade mission</button>
-                                <button id="obs-mission-claim-btn" class="obs-grade-btn obs-grade-btn--claim" type="button" style="display:none;">Claim badge</button>
-                                <span id="obs-mission-grade-hint" class="obs-grade-hint"></span>
-                            </div>
-                            <div id="obs-mission-grade-result" class="obs-grade-result"></div>
-                        </div>
+                        <!-- The Grade mission / Claim badge controls MOVED into the Mission
+                             Workspace above the terminal (QC 2026-07-09) — down here they sat
+                             below the 66vh iframe + 18 cards and students could not find them. -->
                     </div>
                 </div>`
             }]
@@ -658,11 +686,14 @@
             // (mission number 1-18). NOTE: tasks[].tier inside each mission is
             // a DIFFERENT field (bronze/silver/gold strings) - do not confuse
             // the two when grepping.
+            window.__obsMissionCatalog = {};   // id -> catalog entry (title/star/tasks) for the workspace + refresh-restore
             (cat.missions || []).slice().sort(function (a, b) {
                 return (a.tier || 99) - (b.tier || 99);
             }).forEach(function (m) {
+                window.__obsMissionCatalog[m.id] = m;
                 var card = document.createElement('div');
                 card.className = 'obs-mission-card';
+                card.dataset.mission = m.id;
                 // All content via textContent — catalog is server-controlled but never trusted into markup.
                 var head = document.createElement('div');
                 head.className = 'obs-mission-card__head';
@@ -692,24 +723,108 @@
                 list.appendChild(card);
             });
             if (!list.children.length) list.textContent = 'No missions published yet.';
+            // Refresh-restore runs HERE (not in mountSandbox) because it needs the
+            // catalog map this fetch just built. Isolated: a restore throw must
+            // never take down the freshly painted mission list.
+            try { restoreMissionWorkspace(); } catch (e) { /* restore is best-effort */ }
+        }
+
+        // Paint the Mission Workspace (above the terminal): mission identity +
+        // pending task checklist from CATALOG metadata (briefs are server-side
+        // token-substituted; hidden briefs are server-masked to 'Hidden
+        // requirement'). Costs zero grading calls — real ✓/✗ verdicts render
+        // over this only when the student clicks Grade mission.
+        function paintWorkspace(m, noteText) {
+            var ws = document.getElementById('obs-mission-workspace');
+            if (!ws) return;
+            var title = document.getElementById('obs-mission-ws-title');
+            if (title) title.textContent = m.title;
+            var star = document.getElementById('obs-mission-ws-star');
+            if (star) star.textContent = m.command_star;
+            var note = document.getElementById('obs-mission-ws-note');
+            if (note) note.textContent = noteText || '';
+            var hint = document.getElementById('obs-mission-grade-hint');
+            if (hint) hint.textContent = '';
+            var out = document.getElementById('obs-mission-grade-result');
+            if (out) {
+                out.innerHTML = '';
+                var head = document.createElement('div');
+                head.className = 'obs-grade-head';
+                head.textContent = 'Your tasks (' + ((m.tasks && m.tasks.length) || m.taskCount) + ') — click Grade mission to check them:';
+                out.appendChild(head);
+                var ul = document.createElement('ul');
+                ul.className = 'obs-grade-list';
+                (m.tasks || []).forEach(function (t) {
+                    // textContent only — catalog is server-controlled but never trusted into markup.
+                    var li = document.createElement('li');
+                    li.className = 'todo';
+                    // Catalog briefs are substituted server-side with an EMPTY env
+                    // (no session exists yet), so per-box values fall back to the
+                    // literal '[assigned at launch]' — rewrite it so a beginner
+                    // can never copy it verbatim into a file (Chris gate
+                    // 2026-07-09). Grading replaces this checklist with briefs
+                    // resolved against the box's real seeded values.
+                    li.textContent = '· ' + (t.bonus ? '[bonus] ' : '') + String(t.brief).replace(/\[assigned at launch\]/g, '(shown in the BRIEFING file inside your box)');
+                    ul.appendChild(li);
+                });
+                out.appendChild(ul);
+            }
+            ws.style.display = '';
         }
 
         // Select a mission, then launch (or re-launch seed onto the running box) via
         // the standard launcher so limits/telemetry/badges all behave identically.
         function startMission(m, card) {
+            // Race guard (adversarial review 2026-07-09): all 18 cards share ONE
+            // launch button, and its click handler captures the selected mission
+            // synchronously then disables itself. Switching missions while a
+            // launch is in flight would desync the UI (and grading) from the
+            // mission actually being seeded — so block until it settles.
+            var launchBtn = document.querySelector('#obs-sandbox-mount .sandbox-launcher button');
+            if (launchBtn && launchBtn.disabled) {
+                var busyNote = document.getElementById('obs-mission-ws-note');
+                if (busyNote) busyNote.textContent = 'A launch is already in progress — give it a few seconds, then pick your mission again.';
+                return;
+            }
             window.__obsSelectedMission = m.id;
             document.querySelectorAll('.obs-mission-card.selected').forEach(function (c) { c.classList.remove('selected'); });
             if (card) card.classList.add('selected');
-            var hint = document.getElementById('obs-mission-grade-hint');
-            if (hint) hint.textContent = m.title + ' selected. Complete the tasks in the box, then grade.';
+            paintWorkspace(m, 'Your box is loading this mission\'s world. Work in the terminal below — lost? Type cat START_HERE.txt — then click Grade mission. Every failed task tells you what is still wrong.');
+            // Remember the active mission so a page refresh restores this workspace
+            // (id + timestamp only; details re-read from the live catalog on restore).
+            try { localStorage.setItem('hexworth_obs_active_mission', JSON.stringify({ id: m.id, at: Date.now() })); } catch (e) { /* private mode */ }
             // Reuse the showcase launch button; if a session is already running the
-            // lab-manager seeds the mission world onto it idempotently.
-            var launchBtn = document.querySelector('#obs-sandbox-mount .sandbox-launcher button');
+            // lab-manager seeds the mission world onto it idempotently (reseed
+            // safety for all 18 missions verified 2026-07-09: byte-identical seeds).
             if (launchBtn) launchBtn.click();
-            var panel = document.getElementById('obs-mission-grade');
-            if (panel) panel.style.display = '';
-            var mount = document.getElementById('obs-sandbox-mount');
-            if (mount) mount.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            var ws = document.getElementById('obs-mission-workspace');
+            if (ws) ws.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Refresh-restore (QC 2026-07-09): the student's container keeps running
+        // across a page refresh, but the old UI forgot the mission and hid the
+        // grade controls entirely. Restore the workspace from localStorage +
+        // the live catalog; grading needs a session, so the note routes them
+        // through Launch Sandbox (which reattaches their running box).
+        function restoreMissionWorkspace() {
+            var rec = null;
+            try { rec = JSON.parse(localStorage.getItem('hexworth_obs_active_mission') || 'null'); } catch (e) { /* corrupt/private */ }
+            if (!rec || !rec.id) return;
+            // Stale record cap: box max lifetime is 120 min (lab-manager
+            // MAX_LIFETIME), so past 3 h the container is certainly reaped —
+            // clear instead of nagging forever (Chris gate 2026-07-09).
+            if (rec.at && (Date.now() - rec.at) > 3 * 60 * 60 * 1000) {
+                try { localStorage.removeItem('hexworth_obs_active_mission'); } catch (e) { /* non-fatal */ }
+                return;
+            }
+            var m = (window.__obsMissionCatalog || {})[rec.id];
+            if (!m) { try { localStorage.removeItem('hexworth_obs_active_mission'); } catch (e) { /* non-fatal */ } return; }
+            window.__obsSelectedMission = m.id;
+            var card = document.querySelector('.obs-mission-card[data-mission="' + m.id + '"]');
+            if (card) card.classList.add('selected');
+            // Honest copy (Chris gate 2026-07-09): the box may have expired since
+            // the record was written — promise a fresh world, not continuity.
+            paintWorkspace(m, 'Welcome back. Click Launch Sandbox below — if your box is still running you reconnect right where you left off; if it expired you get a fresh copy of the mission world. Then Grade mission to see where you stand.');
         }
 
         // Grade the selected mission: rich per-task feedback, hidden tasks masked,
@@ -770,7 +885,15 @@
                     ? 'Badge earned (server-verified): ' + (d.name || d.badgeId)
                     : 'Not eligible yet: ' + ((d && d.passed) || 0) + '/' + ((d && d.total) || '?') + ' tasks passing on the server.';
                 out.appendChild(note);
-                if (d && d.awarded && claim) claim.style.display = 'none';
+                if (d && d.awarded) {
+                    if (claim) claim.style.display = 'none';
+                    // Mission complete (adversarial review 2026-07-09): clear the
+                    // refresh-restore record so a finished mission never nags
+                    // "reconnect" on later visits; steer to the next mission.
+                    try { localStorage.removeItem('hexworth_obs_active_mission'); } catch (e) { /* non-fatal */ }
+                    var wsNote = document.getElementById('obs-mission-ws-note');
+                    if (wsNote) wsNote.textContent = 'Mission complete — badge earned. Pick your next mission from the cards below.';
+                }
             } catch (e) {
                 var err = document.createElement('div');
                 err.className = 'obs-grade-badge';
@@ -1098,6 +1221,16 @@
                             if (g) g.style.display = 'none';
                             var out = document.getElementById('obs-grade-result');
                             if (out) out.textContent = '';
+                            // Retire the Mission Workspace too: the container (and its
+                            // mission world) is gone, so hide the panel, forget the
+                            // selection, and clear the refresh-restore record.
+                            window.__obsSelectedMission = null;
+                            var ws = document.getElementById('obs-mission-workspace');
+                            if (ws) ws.style.display = 'none';
+                            var wsOut = document.getElementById('obs-mission-grade-result');
+                            if (wsOut) wsOut.textContent = '';
+                            document.querySelectorAll('.obs-mission-card.selected').forEach(function (c) { c.classList.remove('selected'); });
+                            try { localStorage.removeItem('hexworth_obs_active_mission'); } catch (e) { /* non-fatal */ }
                             // Pause the tutorial. On relaunch, beginTut() re-syncs against the
                             // fresh box (syncStep), so we don't resume a now-invalid step here.
                             tutStopPoll(); obsTut.active = false;
