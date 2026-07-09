@@ -2090,6 +2090,17 @@ class AchievementSystem {
             serverIssued: true
         },
 
+        lcm_less_readingroom: {
+            id: 'lcm_less_readingroom',
+            name: 'The Reading Room: Well Read',
+            description: 'Mastered less and more by pulling precise answers out of a 3,000-line manual (Mission 11, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an
