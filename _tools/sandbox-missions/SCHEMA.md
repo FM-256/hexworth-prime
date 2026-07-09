@@ -98,6 +98,11 @@ lab-manager. No server.js edits per mission.
 - Builds the world under `/home/student/` and chowns student-facing files to
   `student:student`. Deliberately broken state (perms, split files) is part of
   the story.
+- DESTRUCTIVE seeds (rebuilding would wipe student moves/renames/copies) MUST
+  early-exit when already seeded (`[ -f $MISSION_DIR/env.<id> ] && [ -d <world> ]
+  && exit 0`): /launch re-runs seeds on session resume, and a refresh must never
+  destroy completed work. Non-destructive seeds (sources rebuilt identically,
+  artifacts untouched) may rebuild every run.
 - Uses `set -eu`: a partially failed seed MUST exit non-zero (a silent partial
   seed poisons env checksums and makes the mission unwinnable with no signal).
 - Reference artifacts used to compute expected checksums are DELETED at the end

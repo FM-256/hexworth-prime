@@ -2013,6 +2013,17 @@ class AchievementSystem {
             serverIssued: true
         },
 
+        lcm_cpmv_relocation: {
+            id: 'lcm_cpmv_relocation',
+            name: 'The Relocation: Moved In',
+            description: 'Mastered cp and mv by relocating an office without losing a byte (Mission 04, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an
