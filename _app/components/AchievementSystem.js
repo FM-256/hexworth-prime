@@ -2156,6 +2156,28 @@ class AchievementSystem {
             serverIssued: true
         },
 
+        lcm_systemctl_servicedesk: {
+            id: 'lcm_systemctl_servicedesk',
+            name: 'The Service Desk: Pager Earned',
+            description: 'Mastered systemctl by working a real service queue: start, enable, stop, disable and status-diagnose (Mission 17, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-gear.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
+        lcm_ip_linecheck: {
+            id: 'lcm_ip_linecheck',
+            name: 'The Line Check: Audit Signed',
+            description: 'Mastered ip, ss and ping by surveying a live box: addresses, routes, listeners and pulse (Mission 18, server-graded)',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">',
+            category: 'explorer',
+            points: 150,
+            secret: false,
+            serverIssued: true
+        },
+
         // === LINUX PRACTICE SANDBOX: hidden "easter egg" journey badges ===
         // secret: true so they stay hidden in the gallery until earned (AchievementSystem.js
         // getUnlockedAchievements / gallery renderer). The Observatory sandbox card shows an

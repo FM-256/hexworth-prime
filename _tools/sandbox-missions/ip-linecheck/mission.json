@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "id": "ip-linecheck",
+  "labId": "linux-sandbox",
+  "title": "Mission 18: The Line Check",
+  "command_star": "ip + ss + ping",
+  "story": "Final assignment: the network survey. Before the department signs the connectivity audit, someone must walk the lines - what address is this box, what routes lead out, who is listening on which port, and does the loopback even loop? ip reads the wiring, ss reads the sockets, ping proves the pulse. Sign the audit like you mean it.",
+  "tier": 18,
+  "badge": {
+    "id": "lcm_ip_linecheck",
+    "name": "The Line Check: Audit Signed",
+    "desc": "Mastered ip, ss and ping by surveying a live box's addresses, routes, listeners and pulse."
+  },
+  "randomize": {
+    "DEPT": ["finance", "logistics", "research"],
+    "PROJ": ["alpha", "delta", "kestrel", "waypoint"]
+  },
+  "tasks": [
+    {
+      "id": "t01_my_address",
+      "brief": "Read BRIEFING18.txt in your department directory. What is this box's IPv4 address on eth0? ip addr shows the wiring; write JUST the address (no /prefix, no mask) to linecheck/myip.txt.",
+      "tier": "bronze",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "content", "cmd": "test -f /home/student/$MISSION_DEPT/linecheck/myip.txt && test \"$(cat /home/student/$MISSION_DEPT/linecheck/myip.txt)\" = \"$(ip -o -4 addr show eth0 | awk '{print $4}' | cut -d/ -f1)\"", "fail": "myip.txt must contain exactly the box's eth0 IPv4 address, nothing else (ip -4 addr show eth0; strip the /prefix)." }
+      ]
+    },
+    {
+      "id": "t02_prefix_length",
+      "brief": "The audit also wants the NETWORK SIZE: the prefix length (the number after the /) on that same eth0 address, to linecheck/prefix.txt.",
+      "tier": "bronze",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "content", "cmd": "test -f /home/student/$MISSION_DEPT/linecheck/prefix.txt && test \"$(cat /home/student/$MISSION_DEPT/linecheck/prefix.txt)\" = \"$(ip -o -4 addr show eth0 | awk '{print $4}' | cut -d/ -f2)\"", "fail": "prefix.txt must contain just the prefix length from eth0's address (the digits after the slash)." }
+      ]
+    },
+    {
+      "id": "t03_default_gateway",
+      "brief": "Where do packets go when they leave? ip can print the ROUTE table. The default route's gateway address goes in linecheck/gateway.txt.",
+      "tier": "silver",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "content", "cmd": "test -f /home/student/$MISSION_DEPT/linecheck/gateway.txt && test \"$(cat /home/student/$MISSION_DEPT/linecheck/gateway.txt)\" = \"$(ip route | awk '/^default/{print $3}')\"", "fail": "gateway.txt must contain the default route's via address (ip route; the default line names it)." }
+      ]
+    },
+    {
+      "id": "t04_loopback_state",
+      "brief": "Is the loopback interface even UP? ip link shows interface states. Write lo's state word - exactly as ip prints it in the state field - to linecheck/lostate.txt.",
+      "tier": "silver",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "content", "cmd": "test -f /home/student/$MISSION_DEPT/linecheck/lostate.txt && grep -qxE \"UNKNOWN|UP\" /home/student/$MISSION_DEPT/linecheck/lostate.txt", "fail": "lostate.txt must contain lo's state exactly as ip link prints it (loopback famously reports UNKNOWN on most boxes - write what YOU see, not what you assume)." }
+      ]
+    },
+    {
+      "id": "t05_who_listens",
+      "brief": "Someone is serving this very terminal. Using ss (TCP listeners, numeric ports), find the listener on port 7681 and save ss's line(s) for it to linecheck/listener.txt.",
+      "tier": "silver",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "content", "cmd": "grep -q \":7681\" /home/student/$MISSION_DEPT/linecheck/listener.txt", "fail": "listener.txt must contain ss's listing for the :7681 listener (ss -tln shows TCP listeners with numeric ports)." }
+      ]
+    },
+    {
+      "id": "t06_pulse_check",
+      "brief": "Prove the loopback loops: ping 127.0.0.1 exactly 4 times (ping runs forever unless you cap the count) and save the full output to linecheck/pulse.txt. The audit reads the summary line.",
+      "tier": "gold",
+      "hidden": false,
+      "bonus": false,
+      "checks": [
+        { "aspect": "count", "cmd": "grep -q \"4 packets transmitted\" /home/student/$MISSION_DEPT/linecheck/pulse.txt", "fail": "pulse.txt must show exactly 4 packets transmitted (ping's count option caps it; uncapped ping never ends)." },
+        { "aspect": "no-loss", "cmd": "grep -q \" 0% packet loss\" /home/student/$MISSION_DEPT/linecheck/pulse.txt", "fail": "The pulse shows packet loss on loopback - that line should read 0% (re-run the capped ping)." }
+      ]
+    },
+    {
+      "id": "t07_audit_untouched",
+      "brief": "Hidden requirement.",
+      "tier": "gold",
+      "hidden": true,
+      "bonus": false,
+      "checks": [
+        { "aspect": "briefing-intact", "cmd": "test \"$(sha256sum /home/student/$MISSION_DEPT/BRIEFING18.txt | cut -d' ' -f1)\" = \"$MISSION_SHA_BRIEFING\"", "fail": "The audit briefing was modified. Surveys observe the network; they never rewrite the paperwork." }
+      ]
+    },
+    {
+      "id": "t08_bonus_sign_off",
+      "brief": "BONUS: sign the audit. linecheck/AUDIT.txt with exactly three lines: line 1 your eth0 address, line 2 the gateway, line 3 the text 'pulse confirmed'. One survey, one signature.",
+      "tier": "gold",
+      "hidden": false,
+      "bonus": true,
+      "checks": [
+        { "aspect": "line1", "cmd": "test \"$(sed -n 1p /home/student/$MISSION_DEPT/linecheck/AUDIT.txt)\" = \"$(ip -o -4 addr show eth0 | awk '{print $4}' | cut -d/ -f1)\"", "fail": "AUDIT.txt line 1 must be the eth0 IPv4 address." },
+        { "aspect": "line2", "cmd": "test \"$(sed -n 2p /home/student/$MISSION_DEPT/linecheck/AUDIT.txt)\" = \"$(ip route | awk '/^default/{print $3}')\"", "fail": "AUDIT.txt line 2 must be the default gateway." },
+        { "aspect": "line3", "cmd": "test \"$(sed -n 3p /home/student/$MISSION_DEPT/linecheck/AUDIT.txt)\" = \"pulse confirmed\"", "fail": "AUDIT.txt line 3 must read exactly: pulse confirmed" }
+      ]
+    }
+  ]
+}
