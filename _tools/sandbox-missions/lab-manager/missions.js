@@ -108,6 +108,7 @@ async function gradeMission(container, mission, execCheck) {
     results.push({
       id: t.id,
       brief: t.hidden ? 'Hidden requirement' : t.brief,
+      desc: t.hidden ? 'Hidden requirement' : t.brief, // legacy-frontend alias (old UI reads .desc)
       tier: t.tier || 'bronze',
       bonus: !!t.bonus,
       hidden: !!t.hidden,
@@ -117,6 +118,7 @@ async function gradeMission(container, mission, execCheck) {
   }
   const gating = results.filter(r => !r.bonus);
   const passed = results.filter(r => r.pass).length;
+  const badgeEligible = gating.every(r => r.pass);
   return {
     mission: mission.id,
     title: mission.title,
@@ -124,7 +126,8 @@ async function gradeMission(container, mission, execCheck) {
     passed,
     total: results.length,
     hiddenUnmet,
-    badgeEligible: gating.every(r => r.pass),
+    badgeEligible,
+    complete: badgeEligible, // legacy-frontend alias (old UI reads .complete)
     badge: mission.badge,
   };
 }
