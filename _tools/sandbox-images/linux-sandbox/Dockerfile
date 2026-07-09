@@ -53,6 +53,12 @@ RUN printf '\n\033[1;36mHEXWORTH LINUX PRACTICE SANDBOX\033[0m\nA real, disposab
     echo 'cat /etc/motd' >> /home/student/.bashrc && \
     chown -R student:student /home/student
 
+# ping: strip the file-capability xattr so exec works under the lab-manager's
+# restricted capability bounding set (CapDrop ALL). Unprivileged ICMP still
+# works via net.ipv4.ping_group_range (datagram sockets), so ping needs no
+# capability at all. (Mission 18 line-check; verified 2026-07-09.)
+RUN setcap -r /usr/bin/ping 2>/dev/null || true
+
 USER student
 WORKDIR /home/student
 CMD ["ttyd", "-p", "7681", "-W", "bash", "-l"]
