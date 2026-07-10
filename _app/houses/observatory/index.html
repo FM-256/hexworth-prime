@@ -363,6 +363,47 @@
             background: rgba(34,211,238,0.08); border-radius: 4px; padding: 1px 6px;
             white-space: nowrap; flex-shrink: 0; max-width: 60%; overflow-x: auto; }
         .mission-fieldguide__tip { border-left: 2px solid rgba(251,191,36,0.45); padding-left: 8px; }
+        /* Field guide un-crunch (operator 2026-07-09: manual "crunched up in a
+           lil square"). The card list is FLEXBOX, so a wide card needs
+           flex-basis + max-width overrides (grid-column would silently no-op —
+           adversarial review). The 240px scroll cap on __list is deliberately
+           NOT overridden anywhere: it is what stops an open guide from pushing
+           the terminal below the fold. */
+        .obs-mission-card--wide { flex-basis: 100%; max-width: none; }
+        /* At width (workspace + wide card): two-column rows — fixed command
+           column, prose right; long chips scroll inside the chip. */
+        .obs-mission-workspace .mission-fieldguide__list code,
+        .obs-mission-card--wide .mission-fieldguide__list code { flex: 0 0 230px; max-width: 230px; }
+        .obs-mission-workspace .mission-fieldguide { margin: 10px 0 2px; font-size: 0.82rem; }
+        /* Two-column workspace at laptop widths (Chris gate 2026-07-09: the
+           single-column stack put the terminal 413px below the fold at
+           1280x800). Terminal is BELOW the panel in both layouts, so both
+           columns stay height-capped — the taller column sets the fold. */
+        .obs-mission-workspace__cols { display: grid; grid-template-columns: 1fr; gap: 0 24px; }
+        @media (min-width: 1100px) { .obs-mission-workspace__cols { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } }
+        /* Guide cap INSIDE the workspace: 300px (60px more manual than the
+           240px card default, symmetric with the checklist cap below; kept
+           bounded on purpose — uncapping would re-bury the terminal even in
+           two columns; adversarial review 2026-07-09). */
+        .obs-mission-workspace .mission-fieldguide__list { max-height: 300px; }
+        /* Workspace checklist: real hierarchy, not a wall (Chris gate) —
+           numbered tasks, row dividers, breathing room, 300px scroll cap.
+           SCOPED to the workspace only (.obs-grade-list is shared with the
+           free-play + grade-result panels, which stay untouched). Feedback
+           sub-lines are excluded from numbering. */
+        .obs-mission-workspace .obs-grade-list { max-height: 300px; overflow-y: auto; counter-reset: task; padding-right: 8px; }
+        .obs-mission-workspace .obs-grade-list li { padding: 6px 0; max-width: 90ch; }
+        .obs-mission-workspace .obs-grade-list li:not(.obs-grade-feedback) { counter-increment: task; border-bottom: 1px solid rgba(129,140,248,0.12); }
+        .obs-mission-workspace .obs-grade-list li:not(.obs-grade-feedback)::before { content: counter(task) '. '; color: #6b76b0; font-weight: 700; }
+        .obs-mission-workspace .obs-grade-list li.obs-grade-feedback { border-bottom: 0; padding: 0 0 6px 18px; }
+        /* Overflow honesty (Chris gate: 7 of 17 manual rows were silently
+           clipped with no scrollbar): thin VISIBLE scrollbars on both capped
+           lists + a JS-injected hint (only when content actually clips). */
+        .mission-fieldguide__list, .obs-mission-workspace .obs-grade-list { scrollbar-width: thin; scrollbar-color: rgba(129,140,248,0.55) rgba(129,140,248,0.12); }
+        .mission-fieldguide__list::-webkit-scrollbar, .obs-mission-workspace .obs-grade-list::-webkit-scrollbar { width: 8px; }
+        .mission-fieldguide__list::-webkit-scrollbar-thumb, .obs-mission-workspace .obs-grade-list::-webkit-scrollbar-thumb { background: rgba(129,140,248,0.55); border-radius: 4px; }
+        .mission-fieldguide__list::-webkit-scrollbar-track, .obs-mission-workspace .obs-grade-list::-webkit-scrollbar-track { background: rgba(129,140,248,0.12); }
+        .obs-scroll-hint { font-size: 0.72rem; color: #8891c9; padding: 4px 0 0; }
         .obs-mission-grade { margin-top: 12px; }
         .obs-grade-btn--claim { border-color: rgba(251,191,36,0.55); color: #fcd34d; background: rgba(251,191,36,0.10); }
         .obs-grade-feedback { opacity: 0.85; font-size: 0.78rem; }
@@ -571,6 +612,17 @@
                             <span id="obs-mission-ws-star" class="obs-mission-card__star"></span>
                         </div>
                         <span id="obs-mission-ws-note" class="obs-grade-hint obs-mission-workspace__note"></span>
+                        <!-- Two-column at >=1100px (Chris gate 2026-07-09: single-column
+                             stack buried the terminal 413px below the fold at 1280x800):
+                             manual left, grade controls + task checklist right. The
+                             terminal sits BELOW this whole panel, so BOTH columns stay
+                             height-capped — the taller column sets the fold position. -->
+                        <div class="obs-mission-workspace__cols">
+                        <!-- The mission's field guide (the beginner manual) renders HERE at
+                             full width next to the terminal — not only crunched inside a
+                             420px mission card (operator 2026-07-09). Filled by
+                             paintWorkspace via MissionFieldGuide.attach. -->
+                        <div id="obs-mission-ws-guide"></div>
                         <div id="obs-mission-grade" class="obs-mission-grade">
                             <div class="obs-grade-row">
                                 <button id="obs-mission-grade-btn" class="obs-grade-btn" type="button">Grade mission</button>
@@ -579,6 +631,7 @@
                             </div>
                             <div id="obs-mission-grade-result" class="obs-grade-result"></div>
                         </div>
+                        </div><!-- /.obs-mission-workspace__cols -->
                     </div>
                     <div id="obs-sandbox-mount"></div>
                     <div id="obs-sandbox-grade" class="obs-sandbox-grade" style="display:none;">
@@ -718,7 +771,18 @@
                 // Beginner field guide (MissionFieldGuide.js): teaches the mission
                 // command's moves before the riddle-style briefs. Collapsed by
                 // default; silently no-ops for mission ids without a guide.
-                if (window.MissionFieldGuide) MissionFieldGuide.attach(card, m.id, m.command_star);
+                if (window.MissionFieldGuide) {
+                    MissionFieldGuide.attach(card, m.id, m.command_star);
+                    // Un-crunch (operator 2026-07-09): an OPEN guide stretches its
+                    // card to the full flex row so the manual gets real width.
+                    var cardGuide = card.querySelector('details.mission-fieldguide');
+                    if (cardGuide) cardGuide.addEventListener('toggle', function () {
+                        card.classList.toggle('obs-mission-card--wide', cardGuide.open);
+                        // Overflow hint computed at open time (closed <details>
+                        // reports zero heights; Chris gate 2026-07-09).
+                        if (cardGuide.open) addScrollHint(cardGuide.querySelector('.mission-fieldguide__list'));
+                    });
+                }
                 card.appendChild(btn);
                 list.appendChild(card);
             });
@@ -727,6 +791,22 @@
             // catalog map this fetch just built. Isolated: a restore throw must
             // never take down the freshly painted mission list.
             try { restoreMissionWorkspace(); } catch (e) { /* restore is best-effort */ }
+        }
+
+        // Overflow honesty (Chris gate 2026-07-09: 7 of 17 manual rows were
+        // silently clipped). Appends a muted hint AS A SIBLING AFTER the list —
+        // outside the scroll box, so it can never scroll away with the content
+        // (adversarial review pinned this exact insertion) — only when content
+        // actually clips, idempotent across repaints. display:none lists report
+        // zero heights, so callers must invoke this only while visible.
+        function addScrollHint(listEl) {
+            if (!listEl || listEl.scrollHeight <= listEl.clientHeight) return;
+            var next = listEl.nextElementSibling;
+            if (next && next.classList && next.classList.contains('obs-scroll-hint')) return;
+            var hint = document.createElement('div');
+            hint.className = 'obs-scroll-hint';
+            hint.textContent = 'Scroll the list — more below';
+            listEl.parentNode.insertBefore(hint, listEl.nextSibling);
         }
 
         // Paint the Mission Workspace (above the terminal): mission identity +
@@ -743,6 +823,27 @@
             if (star) star.textContent = m.command_star;
             var note = document.getElementById('obs-mission-ws-note');
             if (note) note.textContent = noteText || '';
+            // The mission's field guide (beginner manual) at full width, next to
+            // the terminal. Container is CLEARED each repaint so mission switches
+            // and restores never stack duplicate guides; unknown mission ids
+            // no-op inside attach and leave it empty. Open by default only on
+            // the student's FIRST mission start ever — afterwards collapsed, so
+            // veterans' terminals are never pushed down (adversarial review
+            // 2026-07-09; the list's own 240px scroll cap bounds the open case).
+            var guideBox = document.getElementById('obs-mission-ws-guide');
+            if (guideBox) {
+                guideBox.textContent = '';
+                if (window.MissionFieldGuide) {
+                    MissionFieldGuide.attach(guideBox, m.id, m.command_star);
+                    var det = guideBox.querySelector('details.mission-fieldguide');
+                    if (det) {
+                        var seenGuide = false;
+                        try { seenGuide = localStorage.getItem('obs_fieldguide_seen') === '1'; } catch (e) { /* private mode */ }
+                        det.open = !seenGuide;
+                        try { localStorage.setItem('obs_fieldguide_seen', '1'); } catch (e) { /* non-fatal */ }
+                    }
+                }
+            }
             var hint = document.getElementById('obs-mission-grade-hint');
             if (hint) hint.textContent = '';
             var out = document.getElementById('obs-mission-grade-result');
@@ -764,12 +865,30 @@
                     // can never copy it verbatim into a file (Chris gate
                     // 2026-07-09). Grading replaces this checklist with briefs
                     // resolved against the box's real seeded values.
-                    li.textContent = '· ' + (t.bonus ? '[bonus] ' : '') + String(t.brief).replace(/\[assigned at launch\]/g, '(shown in the BRIEFING file inside your box)');
+                    // No bullet prefix: the workspace checklist is CSS-numbered
+                    // (counter on li:not(.obs-grade-feedback); Chris gate 2026-07-09).
+                    li.textContent = (t.bonus ? '[bonus] ' : '') + String(t.brief).replace(/\[assigned at launch\]/g, '(shown in the BRIEFING file inside your box)');
                     ul.appendChild(li);
                 });
                 out.appendChild(ul);
             }
             ws.style.display = '';
+            // Hints AFTER the panel is visible (hidden lists report zero
+            // heights and the clip test would silently pass). `ul`/`det` are
+            // var-hoisted from the blocks above; undefined when their branch
+            // did not run.
+            if (typeof ul !== 'undefined' && ul) addScrollHint(ul);
+            if (typeof det !== 'undefined' && det) {
+                if (det.open) addScrollHint(det.querySelector('.mission-fieldguide__list'));
+                if (!det.__hintWired) {
+                    det.__hintWired = true;
+                    // Veteran path: guide paints collapsed; hint must be computed
+                    // at open time, when the list first has real height.
+                    det.addEventListener('toggle', function () {
+                        if (det.open) addScrollHint(det.querySelector('.mission-fieldguide__list'));
+                    });
+                }
+            }
         }
 
         // Select a mission, then launch (or re-launch seed onto the running box) via
@@ -788,7 +907,13 @@
             }
             window.__obsSelectedMission = m.id;
             document.querySelectorAll('.obs-mission-card.selected').forEach(function (c) { c.classList.remove('selected'); });
-            if (card) card.classList.add('selected');
+            if (card) {
+                card.classList.add('selected');
+                // The workspace copy of the guide takes over — collapse the card's
+                // own copy so the same manual is never open twice on the page.
+                var ownGuide = card.querySelector('details.mission-fieldguide');
+                if (ownGuide) ownGuide.open = false;
+            }
             paintWorkspace(m, 'Your box is loading this mission\'s world. Work in the terminal below — lost? Type cat START_HERE.txt — then click Grade mission. Every failed task tells you what is still wrong.');
             // Remember the active mission so a page refresh restores this workspace
             // (id + timestamp only; details re-read from the live catalog on restore).
@@ -862,6 +987,8 @@
                     }
                 });
                 out.appendChild(ul);
+                // Graded results share the 300px workspace cap — same honesty rule.
+                addScrollHint(ul);
                 if (claim) claim.style.display = r.badgeEligible ? '' : 'none';
             } catch (e) {
                 out.textContent = 'Could not grade right now. Make sure your sandbox is still running.';
