@@ -417,6 +417,16 @@
         .obs-mission-workspace__label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #34d399; }
         .obs-mission-workspace__bar strong { color: #e2e8f0; font-size: 1.02rem; }
         .obs-mission-workspace__note { display: block; margin-top: 6px; }
+        /* Mission lifecycle verbs (marathon L3): Stop returns to free-play. */
+        .obs-mission-stop { margin-left: auto; border: 1px solid rgba(248,113,113,0.40); background: rgba(248,113,113,0.06);
+            color: #f0a8a8; border-radius: 8px; padding: 4px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+        .obs-mission-stop:hover { background: rgba(248,113,113,0.15); }
+        /* Per-card mission state chips (marathon L3): read from the durable
+           progress doc + claimed server badges. */
+        .obs-mission-card__state { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+            border-radius: 6px; padding: 1px 8px; }
+        .obs-mission-card__state--progress { color: #fcd34d; border: 1px solid rgba(251,191,36,0.45); }
+        .obs-mission-card__state--done { color: #6ee7b7; border: 1px solid rgba(52,211,153,0.50); }
         .obs-grade-list li.todo { color: #9aa6e0; }
 
         /* Guided tutorial, grader-driven (the terminal is a cross-origin iframe we
@@ -486,6 +496,11 @@
     <!-- Linux Practice Sandbox launcher (talks to the bc1 lab-manager API). -->
     <script src="../../components/SandboxLauncher.js"></script>
     <script src="../../components/MissionFieldGuide.js"></script>
+    <!-- Durable sandbox progress (marathon L1 2026-07-10): cross-device sync of
+         tutorial step + per-mission state via users/{uid}/sync (owner read/write
+         per existing firestore.rules — zero rules changes). Degrades to
+         localStorage-only when Firestore is unavailable. -->
+    <script src="../../components/LabStateSync.js"></script>
 
     <script>
         // Observatory has no native modules of its own — it is a launcher for
@@ -610,6 +625,9 @@
                             <span class="obs-mission-workspace__label">Active Mission</span>
                             <strong id="obs-mission-ws-title"></strong>
                             <span id="obs-mission-ws-star" class="obs-mission-card__star"></span>
+                            <!-- L3 lifecycle: Stop = back to free-play; progress stays
+                                 in_progress in the durable doc (resumable anytime). -->
+                            <button id="obs-mission-stop" class="obs-mission-stop" type="button">Stop mission</button>
                         </div>
                         <span id="obs-mission-ws-note" class="obs-grade-hint obs-mission-workspace__note"></span>
                         <!-- Two-column at >=1100px (Chris gate 2026-07-09: single-column
@@ -725,6 +743,47 @@
         // re-grades server-side and writes the achievement itself.
         window.__obsSelectedMission = null;
 
+        // Per-card lifecycle chips + Start/Resume button text from the durable
+        // progress doc (marathon L3). Advisory display only — server badges
+        // remain the completion truth.
+        function refreshMissionCards() {
+            var prog = readProgress();
+            document.querySelectorAll('.obs-mission-card[data-mission]').forEach(function (card) {
+                var m = prog.missions[card.dataset.mission];
+                var head = card.querySelector('.obs-mission-card__head');
+                if (!head) return;
+                var chip = head.querySelector('.obs-mission-card__state');
+                if (m && (m.status === 'in_progress' || m.status === 'completed')) {
+                    if (!chip) { chip = document.createElement('span'); head.appendChild(chip); }
+                    var done = m.status === 'completed';
+                    chip.className = 'obs-mission-card__state ' + (done ? 'obs-mission-card__state--done' : 'obs-mission-card__state--progress');
+                    chip.textContent = done ? 'Completed' : 'In progress';
+                    var btn = card.querySelector('.obs-mission-card__start');
+                    if (btn) btn.textContent = done ? 'Replay Mission' : 'Resume Mission';
+                } else if (chip) {
+                    chip.remove();
+                    var b = card.querySelector('.obs-mission-card__start');
+                    if (b) b.textContent = 'Start Mission';
+                }
+            });
+        }
+
+        // L3 STOP: back to free-play. Selection + refresh-restore record are
+        // cleared; the durable doc keeps the mission in_progress (resumable);
+        // the free-play grade block returns. Server session.mission remains set
+        // (inert for the workspace UI; known server wart — task #94, prod fix
+        // is a lab-manager change outside tonight's side-channel scope).
+        function stopMission() {
+            window.__obsSelectedMission = null;
+            try { localStorage.removeItem('hexworth_obs_active_mission'); } catch (e) { /* non-fatal */ }
+            var ws = document.getElementById('obs-mission-workspace');
+            if (ws) ws.style.display = 'none';
+            document.querySelectorAll('.obs-mission-card.selected').forEach(function (c) { c.classList.remove('selected'); });
+            // free-play tooling comes back when a session is live
+            var g = document.getElementById('obs-sandbox-grade');
+            if (g && window.__obsSandboxSession) g.style.display = '';
+        }
+
         // Fetch and paint the mission catalog. Failure degrades to a quiet note —
         // free-play and the legacy grader are unaffected.
         async function renderMissionsPanel() {
@@ -791,6 +850,8 @@
             // catalog map this fetch just built. Isolated: a restore throw must
             // never take down the freshly painted mission list.
             try { restoreMissionWorkspace(); } catch (e) { /* restore is best-effort */ }
+            // Lifecycle chips paint AFTER the cards exist (marathon L3).
+            try { refreshMissionCards(); } catch (e) { /* chips are cosmetic */ }
         }
 
         // Overflow honesty (Chris gate 2026-07-09: 7 of 17 manual rows were
@@ -808,6 +869,52 @@
             hint.textContent = 'Scroll the list — more below';
             listEl.parentNode.insertBefore(hint, listEl.nextSibling);
         }
+
+        // ══ Durable sandbox progress (marathon L1, 2026-07-10) ══════════════
+        // ONE localStorage key, cross-device via LabStateSync (users/{uid}/sync,
+        // owner read/write already in firestore.rules). ADVISORY trust tier:
+        // completion truth stays with server proof docs / badge claims — no UI
+        // gates a server award on this doc. Schema v1:
+        //   { v:1, updatedAt, tutorial:{step,done}, missions:{ [id]:{status,
+        //     startedAt, lastGrade:{passed,total,at}, completedAt } } }
+        var OBS_PROG_LS = 'hexworth_obs_sandbox_progress';
+        // LabStateSync resolves Firestore via FirestoreManager.getDb(); this page
+        // boots ArenaFirebase instead — bridge the handle, presence-guarded,
+        // never overriding a real FirestoreManager.
+        if (!window.FirestoreManager) {
+            window.FirestoreManager = { getDb: function () {
+                try { return (window.ArenaFirebase && ArenaFirebase.db) || null; } catch (e) { return null; }
+            } };
+        }
+        function readProgress() {
+            var p = null;
+            try { p = JSON.parse(localStorage.getItem(OBS_PROG_LS) || 'null'); } catch (e) { /* corrupt = fresh */ }
+            if (!p || p.v !== 1) p = { v: 1, updatedAt: 0, tutorial: { step: 0, done: false }, missions: {} };
+            if (!p.tutorial) p.tutorial = { step: 0, done: false };
+            if (!p.missions) p.missions = {};
+            return p;
+        }
+        // THE ONLY write path (adversarial review L1 hard requirement): every
+        // writer passes a mutator; read-current -> mutate -> persist -> queue
+        // cloud push. Independent read-modify-writes would clobber each other
+        // same-tab across the four writer call sites.
+        function writeProgress(mutator) {
+            var p = readProgress();
+            try { mutator(p); } catch (e) { return p; }
+            p.updatedAt = Date.now();
+            try { localStorage.setItem(OBS_PROG_LS, JSON.stringify(p)); } catch (e) { /* private mode */ }
+            try { if (window.LabStateSync) LabStateSync.queuePush(OBS_PROG_LS); } catch (e) { /* offline no-op */ }
+            return p;
+        }
+        // Boot: register + pull (cloud newer -> restores localStorage; the
+        // restored event re-paints anything progress-derived).
+        try {
+            if (window.LabStateSync) { LabStateSync.register(OBS_PROG_LS); LabStateSync.pull(); }
+            window.addEventListener('hexworth:progressRestored', function () {
+                try { refreshMissionCards(); } catch (e) { /* pre-render */ }
+                try { initTutorial(); } catch (e) { /* pre-render */ }
+            });
+        } catch (e) { /* sync optional */ }
 
         // Paint the Mission Workspace (above the terminal): mission identity +
         // pending task checklist from CATALOG metadata (briefs are server-side
@@ -918,6 +1025,18 @@
             // Remember the active mission so a page refresh restores this workspace
             // (id + timestamp only; details re-read from the live catalog on restore).
             try { localStorage.setItem('hexworth_obs_active_mission', JSON.stringify({ id: m.id, at: Date.now() })); } catch (e) { /* private mode */ }
+            // Durable lifecycle record (L1/L3): mission goes in_progress (never
+            // downgrades a completed one); free-play tooling hides while a
+            // mission is active (L4 — one tracker, and it also closes the client
+            // path of the #94 mis-grading trap).
+            writeProgress(function (p) {
+                var rec = p.missions[m.id] = p.missions[m.id] || {};
+                if (rec.status !== 'completed') rec.status = 'in_progress';
+                rec.startedAt = rec.startedAt || Date.now();
+            });
+            var fp = document.getElementById('obs-sandbox-grade');
+            if (fp) fp.style.display = 'none';
+            try { refreshMissionCards(); } catch (e) { /* cosmetic */ }
             // Reuse the showcase launch button; if a session is already running the
             // lab-manager seeds the mission world onto it idempotently (reseed
             // safety for all 18 missions verified 2026-07-09: byte-identical seeds).
@@ -993,6 +1112,13 @@
                 // Graded results share the 300px workspace cap — same honesty rule.
                 addScrollHint(ul);
                 if (claim) claim.style.display = r.badgeEligible ? '' : 'none';
+                // Durable record of the grade (L1): advisory only — the Claim
+                // button's server recheck stays the completion authority.
+                writeProgress(function (p) {
+                    var rec = p.missions[mid] = p.missions[mid] || {};
+                    if (rec.status !== 'completed') rec.status = 'in_progress';
+                    rec.lastGrade = { passed: r.passed, total: r.total, at: Date.now() };
+                });
                 return r;
             } catch (e) {
                 out.textContent = 'Could not grade right now. Make sure your sandbox is still running.';
@@ -1023,39 +1149,18 @@
             var r = await gradeMission();
             panel.textContent = '';
             if (!r) { panel.textContent = 'Could not grade right now. Make sure your sandbox is still running.'; return; }
+            // ONE status line only (marathon L4, operator: three stacked trackers).
+            // The workspace checklist directly above is the single full tracker —
+            // this panel just answers "did that pass?" at the terminal without
+            // duplicating the failure list it used to render.
             var head = document.createElement('div');
             head.className = 'obs-grade-head';
-            head.textContent = r.passed + ' / ' + r.total + ' tasks complete' + (r.badgeEligible ? ' - all tasks pass!' : '');
+            var bits = [r.passed + ' / ' + r.total + ' tasks complete'];
+            if (r.hiddenUnmet) bits.push(r.hiddenUnmet + ' hidden requirement' + (r.hiddenUnmet > 1 ? 's' : '') + ' not met');
+            head.textContent = bits.join(' · ') + (r.badgeEligible
+                ? ' — all tasks pass! Claim your badge in the Mission panel above.'
+                : ' — failed-task hints are in the Mission panel above.');
             panel.appendChild(head);
-            // Failed VISIBLE tasks only (hidden briefs are server-masked anyway);
-            // capped at 6 with an honest overflow note — full detail lives in the
-            // Mission panel above.
-            var fails = (r.results || []).filter(function (t) { return !t.pass && !t.hidden; });
-            var ul = document.createElement('ul');
-            ul.className = 'obs-grade-list';
-            fails.slice(0, 6).forEach(function (t) {
-                var li = document.createElement('li');
-                li.className = 'no';
-                li.textContent = '✗ ' + (t.bonus ? '[bonus] ' : '') + t.brief;
-                ul.appendChild(li);
-                if (t.feedback && t.feedback.length) {
-                    var fb = document.createElement('li');
-                    fb.className = 'no obs-grade-feedback';
-                    fb.textContent = '   -> ' + t.feedback[0];
-                    ul.appendChild(fb);
-                }
-            });
-            panel.appendChild(ul);
-            var notes = [];
-            if (fails.length > 6) notes.push((fails.length - 6) + ' more failed tasks in the Mission panel above');
-            if (r.hiddenUnmet) notes.push(r.hiddenUnmet + ' hidden requirement' + (r.hiddenUnmet > 1 ? 's' : '') + ' not met');
-            if (r.badgeEligible) notes.push('Claim your badge in the Mission panel above');
-            if (notes.length) {
-                var n = document.createElement('div');
-                n.className = 'obs-grade-hint';
-                n.textContent = notes.join(' · ');
-                panel.appendChild(n);
-            }
         }
 
         // Claim the badge: the CF re-grades server-side via the lab-manager and writes
@@ -1083,6 +1188,15 @@
                     try { localStorage.removeItem('hexworth_obs_active_mission'); } catch (e) { /* non-fatal */ }
                     var wsNote = document.getElementById('obs-mission-ws-note');
                     if (wsNote) wsNote.textContent = 'Mission complete — badge earned. Pick your next mission from the cards below.';
+                    // Durable completion (L1/L3): recorded at the SERVER-VERIFIED
+                    // moment (the CF re-graded and awarded), the one place client
+                    // state may say 'completed'.
+                    writeProgress(function (p) {
+                        var rec = p.missions[mid] = p.missions[mid] || {};
+                        rec.status = 'completed';
+                        rec.completedAt = Date.now();
+                    });
+                    try { refreshMissionCards(); } catch (e) { /* cosmetic */ }
                 }
             } catch (e) {
                 var err = document.createElement('div');
@@ -1100,6 +1214,10 @@
             if (g && !g.__wired) { g.__wired = true; g.addEventListener('click', gradeMission); }
             var c = document.getElementById('obs-mission-claim-btn');
             if (c && !c.__wired) { c.__wired = true; c.addEventListener('click', claimMissionBadge); }
+            // L3 lifecycle verb: Stop mission -> free-play (hook catch 2026-07-10:
+            // the button shipped one edit before its wire — never again).
+            var s = document.getElementById('obs-mission-stop');
+            if (s && !s.__wired) { s.__wired = true; s.addEventListener('click', stopMission); }
         }
 
         // ===== Sandbox badge shelf =====
@@ -1187,7 +1305,18 @@
         var obsTut = { armed: false, active: false, step: 0, timer: null, busy: false, finishing: false };
 
         function tutEl() { return document.getElementById('obs-tutorial'); }
-        function tutDone() { try { return !!localStorage.getItem(OBS_TUT_KEY); } catch (e) { return false; } }
+        // Done = legacy localStorage flag OR the durable progress doc (L2 —
+        // the doc travels cross-device; the old key stays readable for
+        // back-compat and has zero cloud presence, so no ping-pong risk).
+        function tutDone() {
+            try { if (localStorage.getItem(OBS_TUT_KEY)) return true; } catch (e) { /* private mode */ }
+            return !!readProgress().tutorial.done;
+        }
+        // In-progress step from the durable doc (0 = never started).
+        function tutSavedStep() {
+            var t = readProgress().tutorial;
+            return (!t.done && t.step > 0 && t.step < OBS_TUT_STEPS.length) ? t.step : 0;
+        }
         function tutClear() { var e = tutEl(); if (e) { e.innerHTML = ''; e.hidden = false; } return e; }
         function pulseMount(on) { var m = document.getElementById('obs-sandbox-mount'); if (m) m.classList.toggle('obs-pulse', !!on); }
 
@@ -1203,14 +1332,26 @@
         function renderStart() {
             var e = tutClear(); if (!e) return;
             var first = !tutDone();
+            // L2 fix ("always halfway done"): an in-progress tutorial now OFFERS
+            // RESUME at the durable saved step instead of silently restarting —
+            // beginTut picks the saved step up and syncStep re-verifies it
+            // against whatever box is actually live.
+            var resumeStep = first ? tutSavedStep() : 0;
+            var label = resumeStep ? ('Resume tutorial (step ' + (resumeStep + 1) + ' of 5)')
+                : (first ? 'Start guided tutorial' : 'Show me how');
+            var why = resumeStep
+                ? 'Welcome back — your tutorial is saved at step ' + (resumeStep + 1) + ' of 5. Pick up right where you left off.'
+                : (first
+                    ? 'New to Linux? Take the 5-step guided tutorial. I will show you exactly what to type and check each step as you go.'
+                    : 'Want a refresher? Replay the 5-step guided tutorial.');
             e.innerHTML =
                 '<div class="obs-tutorial__bar"><span class="obs-tutorial__label">Guided Tutorial</span></div>' +
-                '<p class="obs-tutorial__why">' + (first
-                    ? 'New to Linux? Take the 5-step guided tutorial. I will show you exactly what to type and check each step as you go.'
-                    : 'Want a refresher? Replay the 5-step guided tutorial.') + '</p>' +
-                '<div class="obs-tutorial__actions"><button type="button" class="obs-tutorial__btn' + (first ? ' obs-pulse' : '') + '" id="obs-tut-start">' +
-                (first ? 'Start guided tutorial' : 'Show me how') + '</button></div>';
-            document.getElementById('obs-tut-start').addEventListener('click', armTut);
+                '<p class="obs-tutorial__why"></p>' +
+                '<div class="obs-tutorial__actions"><button type="button" class="obs-tutorial__btn' + ((first || resumeStep) ? ' obs-pulse' : '') + '" id="obs-tut-start"></button></div>';
+            e.querySelector('.obs-tutorial__why').textContent = why;
+            var btn = document.getElementById('obs-tut-start');
+            btn.textContent = label;
+            btn.addEventListener('click', armTut);
         }
 
         // Armed but not yet launched: tell them to launch, and pulse the launch area.
@@ -1308,6 +1449,8 @@
             if (!obsTut.active) return;
             awardBadge('sandbox_getting_there');   // a step just passed = first task cleared (idempotent)
             obsTut.step++;
+            // Durable step record (L2): survives refresh, box death, and devices.
+            writeProgress(function (p) { p.tutorial.step = obsTut.step; });
             if (obsTut.step >= OBS_TUT_STEPS.length) { finishTut(); return; }
             renderStep();
             var m = document.getElementById('obs-tut-msg');
@@ -1318,6 +1461,8 @@
             if (obsTut.finishing) return;      // guard: syncStep + a poll could both land here
             obsTut.finishing = true;
             obsTut.active = false; tutStopPoll();
+            // Durable completion (L2) alongside the legacy key finishTut already writes.
+            writeProgress(function (p) { p.tutorial.done = true; p.tutorial.step = OBS_TUT_STEPS.length; });
             awardBadge('sandbox_tutorial_graduate');   // reached finish = all 5 steps passed
             var e = tutClear();
             if (e) e.innerHTML = '<div class="obs-tutorial__done">All 5 steps complete. Grading your work...</div>';
@@ -1349,7 +1494,11 @@
 
         function beginTut() {
             if (!obsTut.armed) return;
-            obsTut.active = true; obsTut.finishing = false; obsTut.step = 0;
+            // Resume from the durable step when one exists (L2); syncStep below
+            // reconciles against the LIVE box either way — a fresh box that has
+            // already-true earlier steps fast-forwards, and the saved step is
+            // re-verified rather than trusted blindly (adversarial review).
+            obsTut.active = true; obsTut.finishing = false; obsTut.step = tutSavedStep();
             pulseMount(false); renderStep();
             syncStep();               // fast-forward past anything already true on THIS box
             tutStartPoll();
@@ -1400,10 +1549,14 @@
                             if (typeof ObservatoryTracker !== 'undefined' && ObservatoryTracker.logSandbox) {
                                 ObservatoryTracker.logSandbox(labId);
                             }
-                            // Remember the session so the grader can check it; reveal the grader.
+                            // Remember the session so the grader can check it; reveal the
+                            // free-play grader ONLY when no mission is active (marathon L4:
+                            // one tracker — and this closes the client path of the #94
+                            // mis-grading trap where 'Grade my practice' hit the server's
+                            // sticky session.mission fork on mission sessions).
                             window.__obsSandboxSession = result && result.sessionId;
                             var g = document.getElementById('obs-sandbox-grade');
-                            if (g) g.style.display = '';
+                            if (g) g.style.display = window.__obsSelectedMission ? 'none' : '';
                             // If the learner opted into the guided tutorial, start it now.
                             if (obsTut.armed) beginTut();
                             // Badge bookkeeping LAST and fully isolated: SandboxLauncher swallows
