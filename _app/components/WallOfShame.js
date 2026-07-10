@@ -32,7 +32,7 @@
         dom:      { name: 'DOM Tampering',        icon: 'icon-web.webp',       severity: 'medium' },
         console:  { name: 'Console Injection',    icon: 'icon-laptop.webp',    severity: 'medium' },
         timer:    { name: 'Timer Manipulation',   icon: 'icon-clock.webp',     severity: 'medium' },
-        decoy:    { name: 'Honeypot Access',      icon: 'icon-honey.webp',     severity: 'high'   },
+        decoy:    { name: 'Honeypot Access',      icon: 'icon-eye.webp',       severity: 'high'   },
         xss:      { name: 'XSS Attempt',          icon: 'icon-syringe.webp',   severity: 'low'    }
     };
 
@@ -332,7 +332,7 @@
 
         container.innerHTML =
             '<div class="global-stats-offline">' +
-                '<img src="' + ICON_BASE + 'icon-disconnect.webp" class="offline-icon" alt="">' +
+                '<img src="' + ICON_BASE + 'icon-plug.webp" class="offline-icon" alt="">' +
                 '<p>[ GLOBAL STATS UNAVAILABLE — LOCAL MODE ]</p>' +
             '</div>';
     }

@@ -2279,7 +2279,7 @@ class AchievementSystem {
             id: 'tripwire_decoy_victim',
             name: 'Decoy Victim',
             description: 'Fell for a honeypot trap',
-            icon: '/assets/images/icons/icon-honey.webp',
+            icon: '/assets/images/icons/icon-eye.webp',
             category: 'tripwire',
             points: 100,
             secret: true
