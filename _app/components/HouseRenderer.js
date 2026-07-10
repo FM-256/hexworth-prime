@@ -1880,14 +1880,15 @@ const HouseRenderer = (function() {
         const panel = document.getElementById('hr-panel-profile');
 
         try {
-            if (typeof ProgressManager === 'undefined') {
-                panel.innerHTML = renderEmptyProfile();
-                return;
-            }
-
-            const profile = ProgressManager.getProfile();
+            // Single-exit painting (2026-07-10): every branch paints via
+            // innerHTML, then the config-driven per-house extension appends
+            // AFTER the paint — so it survives the populated, empty-profile,
+            // AND error branches of this lazy one-shot render (adversarial
+            // review: an outside-append would be wiped or never land).
+            const profile = (typeof ProgressManager !== 'undefined') ? ProgressManager.getProfile() : null;
             if (!profile || profile.xp === 0) {
                 panel.innerHTML = renderEmptyProfile();
+                appendProfileExtra(panel);
                 return;
             }
 
@@ -1922,9 +1923,26 @@ const HouseRenderer = (function() {
                     </div>
                 </div>
             `;
+            appendProfileExtra(panel);
         } catch (e) {
             panel.innerHTML = renderEmptyProfile();
+            appendProfileExtra(panel);
         }
+    }
+
+    // Config-driven per-house profile extension (marathon L5 2026-07-10, e.g.
+    // the Observatory Badges grid). Strictly additive: houses that do not set
+    // config.profileExtraHTML render byte-identically (this is a no-op), and
+    // the host page paints its dynamic content after the render event below.
+    function appendProfileExtra(panel) {
+        if (!config || !config.profileExtraHTML || !panel) return;
+        const extra = document.createElement('div');
+        extra.className = 'hr-profile-extra';
+        extra.innerHTML = config.profileExtraHTML;
+        panel.appendChild(extra);
+        // The profile tab renders lazily ONCE — hosts hook their dynamic
+        // painting to this event instead of polling for the container.
+        try { window.dispatchEvent(new CustomEvent('hexworth:profileExtraRendered')); } catch (e) { /* optional */ }
     }
 
     function renderEmptyProfile() {

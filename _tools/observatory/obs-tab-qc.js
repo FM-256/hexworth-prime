@@ -504,6 +504,90 @@ async function boot(browser, pagePath, preScript, viewport) {
   if (lchErr.length) console.log('   errors:', lchErr.slice(0, 4));
   await lch.close();
 
+  console.log('===== [P] Observatory Badges on the Profile tab (L5/L6) =====');
+  // Preseed: two obs badges earned + legendary ladder complete — the grid must
+  // render earned states, rarity classes, and the empty-profile branch must
+  // STILL carry the extension (Nancy: both renderProfilePanel branches).
+  const { page: prof, errors: profErr } = await boot(browser, ROOT + '/_app/houses/observatory/index.html',
+    `try { localStorage.setItem('hexworth_obs_sandbox_progress', JSON.stringify({ v: 1, updatedAt: ${Date.now()},
+        tutorial: { step: 0, done: false }, missions: {},
+        obsBadges: { obs_first_mission: { earnedAt: 1 }, obs_mission_18: { earnedAt: 2 } } })); } catch (e) {}`);
+  const pr = await prof.evaluate(async () => {
+    const out = {};
+    document.getElementById('hr-tab-profile').click();
+    await new Promise(r => setTimeout(r, 400));
+    const panel = document.getElementById('hr-panel-profile');
+    out.extensionPresent = !!panel.querySelector('.obs-pbadges');   // whichever branch painted
+    const grid = document.getElementById('obs-pbadges-grid');
+    out.cells = grid ? grid.children.length : -1;
+    out.earnedCells = grid ? grid.querySelectorAll('.is-earned').length : -1;
+    out.firstMissionEarned = !!grid.querySelector('[data-badge="obs_first_mission"].is-earned');
+    out.legendaryClass = !!grid.querySelector('[data-badge="obs_mission_18"].obs-pbadge--legendary.is-earned');
+    out.pendingLocked = !!grid.querySelector('[data-badge="obs_realbox"].is-locked');
+    out.countText = (document.getElementById('obs-pbadges-count') || {}).textContent || '';
+    out.artIsGallery = (grid.querySelector('[data-badge="obs_mission_18"] img') || {}).src || '';
+    // Award flow: manual badge fires from the evaluate engine + toast appears
+    window.evaluateObsBadges && evaluateObsBadges({ manualOpened: true });
+    await new Promise(r => setTimeout(r, 150));
+    out.manualEarned = !!grid.querySelector('[data-badge="obs_manual_scholar"].is-earned');
+    out.toastShown = !!document.querySelector('.obs-btoast');
+    // Sandbox tab: shelf GONE, pointer present (same-commit replacement rule)
+    document.getElementById('hr-tab-sandbox').click();
+    await new Promise(r => setTimeout(r, 500));
+    out.shelfGone = !document.getElementById('obs-badge-shelf');
+    out.pointerPresent = !!document.querySelector('.obs-badges-pointer');
+    return out;
+  });
+  check('profile extension present', pr.extensionPresent, true);
+  check('grid renders all 25 defs', pr.cells, 25);
+  check('preseeded obs badge earned', pr.firstMissionEarned, true);
+  check('legendary ladder badge has prismatic class', pr.legendaryClass, true);
+  check('pending server-wired badge locked', pr.pendingLocked, true);
+  check('count text reflects earned cells', pr.countText.indexOf(pr.earnedCells + ' of 25') === 0, true);
+  check('badge art served from the gallery', /assets\/images\/badges\/cli_master\.webp/.test(pr.artIsGallery), true);
+  check('award engine earns Read The Manual', pr.manualEarned, true);
+  check('unlock toast appears', pr.toastShown, true);
+  check('sandbox shelf REMOVED', pr.shelfGone, true);
+  check('pointer to Profile tab present', pr.pointerPresent, true);
+  check('profile-tab JS errors', profErr.length, 0);
+  if (profErr.length) console.log('   errors:', profErr.slice(0, 4));
+  await prof.close();
+
+  console.log('===== [P1b] VIRGIN user: empty-profile branch still carries the grid =====');
+  // localStorage.clear() = a first-visit student with zero XP — renderProfilePanel
+  // takes the empty branch, which MUST still append the extension (Nancy: the
+  // both-branches requirement; a badge-earner with 0 core XP would otherwise
+  // never see their badges at all).
+  const { page: virg, errors: virgErr } = await boot(browser, ROOT + '/_app/houses/observatory/index.html',
+    `try { localStorage.clear(); } catch (e) {}`);
+  const vg = await virg.evaluate(async () => {
+    document.getElementById('hr-tab-profile').click();
+    await new Promise(r => setTimeout(r, 400));
+    const panel = document.getElementById('hr-panel-profile');
+    return { emptyBranch: !!panel.querySelector('.hr-profile-empty'),
+             extension: !!panel.querySelector('.obs-pbadges'),
+             cells: (document.getElementById('obs-pbadges-grid') || { children: [] }).children.length };
+  });
+  check('virgin user hits empty branch', vg.emptyBranch, true);
+  check('empty branch STILL carries extension', vg.extension, true);
+  check('virgin grid renders all 25 (all locked)', vg.cells, 25);
+  check('virgin-profile JS errors', virgErr.length, 0);
+  await virg.close();
+
+  console.log('===== [P2] blast radius: shield profile tab has NO extension =====');
+  const { page: shp, errors: shpErr } = await boot(browser, ROOT + '/_app/houses/shield/index.html');
+  const sp = await shp.evaluate(async () => {
+    document.getElementById('hr-tab-profile').click();
+    await new Promise(r => setTimeout(r, 300));
+    const panel = document.getElementById('hr-panel-profile');
+    return { rendered: !!panel && panel.children.length > 0,
+             extension: !!panel.querySelector('.obs-pbadges, .hr-profile-extra') };
+  });
+  check('shield profile renders', sp.rendered, true);
+  check('shield has NO profile extension', sp.extension, false);
+  check('shield profile JS errors', shpErr.length, 0);
+  await shp.close();
+
   console.log('===== [W6] tutorial resume (L2): saved step survives everything =====');
   // Page boots with a durable progress doc at tutorial step 2 (localStorage
   // cleared of the legacy done-flag): the start card must OFFER RESUME at
