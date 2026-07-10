@@ -194,6 +194,48 @@ const SandboxLauncher = (function() {
         const iframeWrap = wrapper.querySelector('.sandbox-launcher__iframe-wrap');
         const iframe = wrapper.querySelector('.sandbox-launcher__iframe');
 
+        // Host-injected action buttons (options.extraActions: [{label,
+        // visibleWhen: 'always'|'running', onClick(ctx)}]) + a terminal-adjacent
+        // results panel (ctx.panel), inserted between the actions row and the
+        // iframe. STRICTLY additive across the 10 pages sharing this component:
+        // callers that pass no extraActions build an empty list, create ZERO new
+        // DOM, and updateUI's extras pass is a forEach over an empty array
+        // (adversarial review 2026-07-10 — the guard is this `: []`).
+        const extras = Array.isArray(options.extraActions) ? options.extraActions.map((a) => {
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'sandbox-launcher__btn sandbox-launcher__btn--extra';
+            el.textContent = a.label;
+            // running-scoped actions start hidden; updateUI reveals them.
+            el.style.display = a.visibleWhen === 'running' ? 'none' : '';
+            return { el, visibleWhen: a.visibleWhen || 'always', onClick: a.onClick };
+        }) : [];
+        let extraPanel = null;
+        if (extras.length) {
+            const actionsRow = wrapper.querySelector('.sandbox-launcher__actions');
+            extras.forEach((x) => actionsRow.appendChild(x.el));
+            extraPanel = document.createElement('div');
+            extraPanel.className = 'sandbox-launcher__extra-panel';
+            extraPanel.style.display = 'none';
+            // Safe insertion point: every ref in this component is class-queried,
+            // nothing walks siblings/children positionally (verified 2026-07-10).
+            iframeWrap.parentNode.insertBefore(extraPanel, iframeWrap);
+            extras.forEach((x) => {
+                x.el.addEventListener('click', () => {
+                    const session = _activeSessions[labId];
+                    // Host handler errors must never break the launcher itself.
+                    try {
+                        x.onClick({
+                            labId,
+                            sessionId: session ? session.sessionId : null,
+                            panel: extraPanel,
+                            state: statusEl.dataset.status,
+                        });
+                    } catch (e) { /* isolated */ }
+                });
+            });
+        }
+
         function updateUI(state, message, url) {
             statusEl.dataset.status = state;
             statusEl.textContent = message;
@@ -202,6 +244,9 @@ const SandboxLauncher = (function() {
             openBtn.style.display = state === 'running' ? '' : 'none';
             destroyBtn.style.display = state === 'running' ? '' : 'none';
             timerEl.style.display = state === 'running' ? '' : 'none';
+            // Host-injected extras: running-scoped ones follow open/destroy;
+            // empty array (the 9 zero-options callers) makes this a no-op.
+            extras.forEach((x) => { x.el.style.display = (x.visibleWhen !== 'running' || state === 'running') ? '' : 'none'; });
 
             if (state === 'running' && url) {
                 openBtn.onclick = () => {
@@ -407,6 +452,28 @@ const SandboxLauncher = (function() {
                 margin-top: 0.5rem;
                 font-size: 0.75rem;
                 padding: 0.3rem 0.75rem;
+            }
+            /* Host-injected extra actions (options.extraActions) + their
+               terminal-adjacent results panel. Only pages that opt in ever
+               render these (2026-07-10, operator: no more scrolling away
+               from the terminal to grade or read the manual). */
+            .sandbox-launcher__btn--extra {
+                border-color: rgba(52, 211, 153, 0.45);
+                color: #6ee7b7;
+                background: rgba(52, 211, 153, 0.07);
+            }
+            .sandbox-launcher__btn--extra:hover {
+                background: rgba(52, 211, 153, 0.16);
+                box-shadow: 0 0 12px rgba(52, 211, 153, 0.15);
+            }
+            .sandbox-launcher__extra-panel {
+                margin-top: 0.6rem;
+                padding: 0.7rem 0.9rem;
+                border: 1px solid rgba(52, 211, 153, 0.30);
+                border-radius: 8px;
+                background: rgba(52, 211, 153, 0.05);
+                font-size: 0.82rem;
+                color: #c7d0f0;
             }
             .sandbox-launcher__timer {
                 margin-top: 0.5rem;

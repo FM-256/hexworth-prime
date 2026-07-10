@@ -258,6 +258,17 @@
 
     window.MissionFieldGuide = {
         attach: attach,
+        // Read-only manual data for the full-page Field Manual
+        // (houses/observatory/field-manual.html, 2026-07-10). Returns fresh
+        // arrays on every call so callers can never mutate the guides.
+        manual: function () {
+            return {
+                common: COMMON.map(function (r) { return r.slice(); }),
+                missions: Object.keys(GUIDES).map(function (id) {
+                    return { id: id, rows: GUIDES[id].map(function (r) { return r.slice(); }) };
+                })
+            };
+        },
         // exposed for the drift-check script and QC harnesses
         _ids: Object.keys(GUIDES)
     };

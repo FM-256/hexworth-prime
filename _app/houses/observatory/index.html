@@ -953,14 +953,17 @@
         }
 
         // Grade the selected mission: rich per-task feedback, hidden tasks masked,
-        // Claim button revealed only on badgeEligible (final authority stays server-side).
+        // Claim button revealed only on badgeEligible (final authority stays
+        // server-side). RETURNS the grade response (or null) so the launcher's
+        // terminal-adjacent compact panel can render from the SAME single fetch
+        // (2026-07-10 — one grade, two renders, zero drift).
         async function gradeMission() {
             var out = document.getElementById('obs-mission-grade-result');
             var claim = document.getElementById('obs-mission-claim-btn');
-            if (!out) return;
+            if (!out) return null;
             var sid = window.__obsSandboxSession;
             var mid = window.__obsSelectedMission;
-            if (!sid || !mid) { out.textContent = 'Start a mission first.'; return; }
+            if (!sid || !mid) { out.textContent = 'Start a mission first.'; return null; }
             out.textContent = 'Auditing your system...';
             try {
                 var r = await SandboxLauncher.checkMission(sid, mid);
@@ -990,8 +993,68 @@
                 // Graded results share the 300px workspace cap — same honesty rule.
                 addScrollHint(ul);
                 if (claim) claim.style.display = r.badgeEligible ? '' : 'none';
+                return r;
             } catch (e) {
                 out.textContent = 'Could not grade right now. Make sure your sandbox is still running.';
+                return null;
+            }
+        }
+
+        // Terminal-adjacent grading (the launcher's 'Grade Mission' button,
+        // operator 2026-07-10: scrolling between terminal and grade controls is
+        // "annoying, uncomfortable, and annoying"). ONE fetch — gradeMission()
+        // renders the full workspace checklist and returns the response; this
+        // renders the compact summary (score + failed tasks + hidden count)
+        // right above the terminal iframe.
+        async function gradeMissionCompact(ctx) {
+            var panel = ctx && ctx.panel;
+            if (!panel) return;
+            panel.style.display = '';
+            var sid = window.__obsSandboxSession;
+            var mid = window.__obsSelectedMission;
+            if (!sid || !mid) {
+                // Free-play box: the Mission Workspace (which would explain
+                // missions) is hidden, so this message must stand alone
+                // (adversarial review 2026-07-10).
+                panel.textContent = 'No mission is active - this box is in free-play. To run a graded mission, find the Command Mastery cards below, open one, and click Start Mission.';
+                return;
+            }
+            panel.textContent = 'Auditing your system...';
+            var r = await gradeMission();
+            panel.textContent = '';
+            if (!r) { panel.textContent = 'Could not grade right now. Make sure your sandbox is still running.'; return; }
+            var head = document.createElement('div');
+            head.className = 'obs-grade-head';
+            head.textContent = r.passed + ' / ' + r.total + ' tasks complete' + (r.badgeEligible ? ' - all tasks pass!' : '');
+            panel.appendChild(head);
+            // Failed VISIBLE tasks only (hidden briefs are server-masked anyway);
+            // capped at 6 with an honest overflow note — full detail lives in the
+            // Mission panel above.
+            var fails = (r.results || []).filter(function (t) { return !t.pass && !t.hidden; });
+            var ul = document.createElement('ul');
+            ul.className = 'obs-grade-list';
+            fails.slice(0, 6).forEach(function (t) {
+                var li = document.createElement('li');
+                li.className = 'no';
+                li.textContent = '✗ ' + (t.bonus ? '[bonus] ' : '') + t.brief;
+                ul.appendChild(li);
+                if (t.feedback && t.feedback.length) {
+                    var fb = document.createElement('li');
+                    fb.className = 'no obs-grade-feedback';
+                    fb.textContent = '   -> ' + t.feedback[0];
+                    ul.appendChild(fb);
+                }
+            });
+            panel.appendChild(ul);
+            var notes = [];
+            if (fails.length > 6) notes.push((fails.length - 6) + ' more failed tasks in the Mission panel above');
+            if (r.hiddenUnmet) notes.push(r.hiddenUnmet + ' hidden requirement' + (r.hiddenUnmet > 1 ? 's' : '') + ' not met');
+            if (r.badgeEligible) notes.push('Claim your badge in the Mission panel above');
+            if (notes.length) {
+                var n = document.createElement('div');
+                n.className = 'obs-grade-hint';
+                n.textContent = notes.join(' · ');
+                panel.appendChild(n);
             }
         }
 
@@ -1317,6 +1380,21 @@
                         // Selected Command Mastery mission (if any) rides along on launch so the
                         // lab-manager seeds the mission world into the box. Null = free-play.
                         mission: function () { return window.__obsSelectedMission || null; },
+                        // Terminal-adjacent controls (operator 2026-07-10): manual +
+                        // grading reachable WITHOUT scrolling away from the terminal.
+                        extraActions: [
+                            {
+                                label: 'Field Manual',
+                                visibleWhen: 'always',
+                                onClick: function () {
+                                    var mid = window.__obsSelectedMission || '';
+                                    // Named target: repeat clicks re-navigate ONE
+                                    // manual tab instead of stacking new tabs.
+                                    window.open('field-manual.html' + (mid ? '?mission=' + encodeURIComponent(mid) : ''), 'obs-field-manual');
+                                }
+                            },
+                            { label: 'Grade Mission', visibleWhen: 'running', onClick: gradeMissionCompact }
+                        ],
                         onLaunch: function (labId, result) {
                             // Record each launch as a consented Observatory activity event.
                             if (typeof ObservatoryTracker !== 'undefined' && ObservatoryTracker.logSandbox) {
