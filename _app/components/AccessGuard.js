@@ -409,7 +409,11 @@ const AccessGuard = (function() {
         if (typeof TouristVisa !== 'undefined') {
             return TouristVisa.isActive();
         }
-        // Fallback: check localStorage directly (same key TouristVisa uses)
+        // Fallback: TouristVisa.js not loaded yet (parse-time race). Mirror its
+        // isActive() self-heal — a sorted user is never a tourist — so a stale
+        // hexworth_tourist_active flag can't mis-gate a sorted user before
+        // TouristVisa loads and voids it (see TouristVisa.js:82-98). (#70)
+        if (isSorted()) return false;
         return localStorage.getItem('hexworth_tourist_active') === 'true';
     }
 
