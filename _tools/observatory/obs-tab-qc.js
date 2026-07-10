@@ -49,6 +49,15 @@ const GRADE = {
     { id: 't05', brief: 'Pipe the report through a search', tier: 'silver', bonus: false, hidden: false, pass: true, feedback: [] },
   ],
 };
+// Free-play challenge payload — what /check returns for an explicit empty
+// ?mission= (results carry .desc, unlike mission results' .brief — the field
+// mismatch behind #94's '✓ undefined' rows).
+const FREEPLAY = { ok: true, passed: 2, total: 5, complete: false, results: [
+  { id: 1, desc: '~/work/hello.txt contains "hexworth"', pass: true },
+  { id: 2, desc: '~/work/greet.sh is executable and prints output', pass: false },
+  { id: 3, desc: '~/work/secret.txt is mode 600', pass: false },
+  { id: 4, desc: '~/work/found.txt has the ERROR log lines', pass: true },
+  { id: 5, desc: '~/work is a git repo with >=1 commit', pass: false } ] };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type,x-dev-uid', 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS' };
 
 // Shared interception: consent/auth/telemetry stubbed, everything else real.
@@ -64,7 +73,17 @@ function intercept(page) {
     if (/sandbox\.hexworth\.tech/i.test(u)) {
       if (r.method() === 'OPTIONS') return r.respond({ status: 204, headers: CORS, body: '' });   // CORS preflight (fetch carries Authorization)
       if (/\/api\/sandbox\/launch/.test(u)) return r.respond({ headers: CORS, contentType: 'application/json', body: JSON.stringify({ sessionId: 'qc-sess-1', url: 'about:blank', lab: 'Linux Practice Sandbox', status: 'created' }) });
-      if (/\/api\/sandbox\/check\//.test(u)) return r.respond({ headers: CORS, contentType: 'application/json', body: JSON.stringify(GRADE) });
+      if (/\/api\/sandbox\/check\//.test(u)) {
+        // Faithful server-fork emulation (Chris gate 2026-07-10, #94): the real
+        // /check uses query.mission when present, else falls back to the STICKY
+        // session.mission. This harness session "ran a mission", so an ABSENT
+        // param returns the MISSION payload (the trap), a NON-EMPTY param the
+        // mission payload, and only an EXPLICIT EMPTY ?mission= (the fix) the
+        // free-play challenges.
+        const qm = u.match(/[?&]mission=([^&]*)/);
+        const body = (qm && decodeURIComponent(qm[1]) === '') ? FREEPLAY : GRADE;
+        return r.respond({ headers: CORS, contentType: 'application/json', body: JSON.stringify(body) });
+      }
       if (/\/api\/sandbox\/missions/.test(u)) return r.respond({ headers: CORS, contentType: 'application/json', body: JSON.stringify({ ok: true, missions: CATALOG.missions }) });
       return r.abort();   // destroy/status/etc — not needed by any test
     }
@@ -474,6 +493,16 @@ async function boot(browser, pagePath, preScript, viewport) {
     const startedCard2 = document.querySelector('.obs-mission-card[data-mission="cat-lost-notes"]');
     out.chipInProgress = (startedCard2.querySelector('.obs-mission-card__state') || {}).textContent === 'In progress';
     out.btnResume = startedCard2.querySelector('.obs-mission-card__start').textContent === 'Resume Mission';
+    // #94 REGRESSION (Chris gate 2026-07-10): grading free-play AFTER Stop on a
+    // mission-tainted session must hit the FREE-PLAY fork (explicit ?mission=
+    // override) — never the sticky mission fork ('✓ undefined' rows).
+    document.getElementById('obs-grade-btn').click();
+    await new Promise(r => setTimeout(r, 350));
+    const fpOut = (document.getElementById('obs-grade-result') || {}).textContent || '';
+    // non-empty guard: ''.indexOf('undefined') === -1 would false-pass a
+    // completely unrendered result (hook catch 2026-07-10)
+    out.gradeAfterStopNoUndefined = fpOut.length > 0 && fpOut.indexOf('undefined') === -1;
+    out.gradeAfterStopIsFreePlay = /challenges complete/.test(fpOut) && /hello\.txt/.test(fpOut);
     return out;
   });
   check('two extra buttons rendered', l.extraCount, 2);
@@ -500,6 +529,8 @@ async function boot(browser, pagePath, preScript, viewport) {
   check('Stop clears restore record (L3)', l.stopClearsRecord, true);
   check('card chip In progress after stop (L3)', l.chipInProgress, true);
   check('card button becomes Resume (L3)', l.btnResume, true);
+  check('grade-after-Stop: NO undefined rows (#94)', l.gradeAfterStopNoUndefined, true);
+  check('grade-after-Stop: free-play fork hit (#94)', l.gradeAfterStopIsFreePlay, true);
   check('launcher-extras JS errors', lchErr.length, 0);
   if (lchErr.length) console.log('   errors:', lchErr.slice(0, 4));
   await lch.close();

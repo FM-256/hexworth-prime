@@ -127,8 +127,16 @@ const SandboxLauncher = (function() {
 
     // Server-authoritative practice grading for a running session. Returns
     // { ok, passed, total, complete, results[] }. The caller awards any badge.
+    // The EXPLICIT empty ?mission= matters (Chris gate 2026-07-10, bug #94):
+    // the server's /check falls back to the session's sticky `mission` field
+    // when the param is ABSENT — so a box that ever ran a mission would route
+    // this free-play grade into the mission fork (mission results carry .brief
+    // not .desc -> '✓ undefined' rows, and the practitioner badge gate reads
+    // fields mission grading never returns). An empty string is an explicit
+    // "no mission" (typeof check passes, `if (mReq && ...)` fails) and always
+    // grades the free-play challenges.
     async function checkPractice(sessionId) {
-        return apiCall('GET', `/check/${sessionId}`);
+        return apiCall('GET', `/check/${sessionId}?mission=`);
     }
 
     // Mission grading (Linux Command Mastery): rich per-task results
