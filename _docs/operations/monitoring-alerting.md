@@ -129,5 +129,11 @@ ssh neon 'docker exec prometheus wget -qO- localhost:9090/api/v1/rules'  # rule 
 
 ## Related
 
+- **Admin-facing KBA** (what it is + how to subscribe to alerts): Confluence "Fleet
+  Infrastructure Monitoring & Alerting — Prometheus, Alertmanager & ntfy", page id
+  `43417601` under Operations and Procedures.
+- **Sprint MON-1** — external dead-man's-switch (closes the fate-sharing gap above).
+- Website monitor (separate system): Confluence "Runtime Monitor, Site-Health &
+  Alerting — Runbook", page id `33849345`.
 - Infra inventory: `_tools/INTRO.md`, memory `reference_sandbox_infrastructure.md`
 - bc1 CF tunnel pattern (model for tunneling ntfy): `reference_bc1_ssh_cf_tunnel.md`
