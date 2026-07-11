@@ -1819,7 +1819,20 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
         for (var si = 0; si < expandedSources.length; si++) {
             var src = expandedSources[si];
             var srcNode = state.fs[src];
-            if (!srcNode) continue;
+            // A missing source MUST error, not silently no-op — otherwise a completion
+            // guard of the form `!output.includes('lt-error')` marks a `cp` task complete
+            // when nothing was copied (e.g. a student typo or an unseeded source). Same
+            // honesty rule as _mv's srcNode pre-check. Reachable only for a LITERAL missing
+            // path: a glob that matched nothing already returned above
+            // (expandedSources.length === 0), and a glob that matched real children yields
+            // present srcNodes — so this branch is exactly "the named source does not exist".
+            // Returns on the first missing source (all current graded cp tasks are single-
+            // source); real cp continues past a bad source, so multi-source fidelity is
+            // partial — sufficient for honest completion (any missing source -> lt-error).
+            // Reports the resolved path (not just basename) so a subdir isn't silently dropped.
+            if (!srcNode) {
+                return '<span class="lt-error">cp: cannot stat \'' + src + '\': No such file or directory</span>';
+            }
 
             if (srcNode.type === 'dir' && !recursive) {
                 return '<span class="lt-error">cp: -r not specified; omitting directory \'' + src.split('/').pop() + '\'</span>';
