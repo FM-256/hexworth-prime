@@ -137,6 +137,17 @@
         .overlay-btn { padding: 11px 28px; background: linear-gradient(135deg, var(--cloud-primary), var(--cloud-secondary)); border: none; border-radius: 8px; color: #fff; font-size: 0.9rem; cursor: pointer; font-family: inherit; }
         @media (max-width: 1100px) { .task-rail { display: none; } }
         @media (max-width: 768px) { .admin-sidebar { display: none; } .stats-row { grid-template-columns: 1fr 1fr; } }
+        /* Honest checkpoints — inline questions that gate a task on reading the live panel data */
+        .cp-card { background: var(--bg-tertiary); border: 1px solid var(--border); border-left: 3px solid var(--cloud-primary); border-radius: 8px; padding: 14px 16px; margin: 18px 0 6px; }
+        .cp-q { font-size: 0.86rem; color: var(--text-primary); margin-bottom: 10px; line-height: 1.45; }
+        .cp-tag { display: inline-block; font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--cloud-primary); font-weight: 700; margin-right: 6px; }
+        .cp-opts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .cp-opt { cursor: pointer; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); border-radius: 6px; padding: 7px 13px; font-size: 0.82rem; font-family: inherit; }
+        .cp-opt:hover:not(:disabled) { border-color: var(--cloud-primary); }
+        .cp-opt:disabled { cursor: default; }
+        .cp-opt.cp-correct { background: rgba(34,197,94,0.15); border-color: var(--success); color: var(--success); }
+        .cp-opt.cp-wrong { background: rgba(239,68,68,0.12); border-color: var(--danger); color: var(--danger); }
+        .cp-result { margin-top: 10px; font-size: 0.8rem; min-height: 1em; }
     </style>
 </head>
 <body>
@@ -221,6 +232,17 @@
                         <button class="btn-portal btn-secondary-p" onclick="showPanel('billing')">Go to Billing</button>
                         <button class="btn-portal btn-secondary-p" onclick="showPanel('messages')">Go to Message Center</button>
                     </div>
+                </div>
+                <!-- Task 10 checkpoint: read a value off the summary dashboard above -->
+                <div class="cp-card" id="cp10">
+                    <div class="cp-q"><span class="cp-tag">Checkpoint</span> According to the dashboard, how many <b>licenses are assigned</b>?</div>
+                    <div class="cp-opts">
+                        <button type="button" class="cp-opt" onclick="answerCheckpoint(10,this)">14</button>
+                        <button type="button" class="cp-opt" onclick="answerCheckpoint(10,this)">231</button>
+                        <button type="button" class="cp-opt" onclick="answerCheckpoint(10,this)">247</button>
+                        <button type="button" class="cp-opt" onclick="answerCheckpoint(10,this)">250</button>
+                    </div>
+                    <div class="cp-result"></div>
                 </div>
             </div>
         </div>
@@ -464,10 +486,70 @@
     var TOTAL_TASKS  = 10;
     var completed    = {};
 
+    /* --------------------------------------------------
+       Honest checkpoint (Task 10)
+       Replaces auto-complete-on-navigation to Home. Completes only when the student
+       reads a value off the live Home dashboard. Correctness is computed from the live
+       DOM at click-time (never in markup; resolver is closure-private, not a console oracle).
+    -------------------------------------------------- */
+    (function () {
+        /* Read the correct answer straight from the Home dashboard the student sees. */
+        function correctValue(taskNum) {
+            if (taskNum === 10) {
+                /* Number of assigned licenses = the value on the "Licenses Assigned" stat card. */
+                var cards = document.querySelectorAll('#panel-home .stat-card');
+                for (var i = 0; i < cards.length; i++) {
+                    var label = cards[i].querySelector('.stat-label');
+                    var value = cards[i].querySelector('.stat-value');
+                    if (label && value && label.textContent.trim().toLowerCase() === 'licenses assigned') { return value.textContent; }
+                }
+                return null;
+            }
+            return null;
+        }
+        /* Normalize so case/whitespace/comma drift never fails a genuinely right answer. */
+        function norm(s) { return (s == null ? '' : String(s)).replace(/,/g, '').trim().toLowerCase(); }
+
+        /* Multiple-choice checkpoint: student clicked an option button. */
+        window.answerCheckpoint = function (taskNum, btnEl) {
+            var card = btnEl.closest('.cp-card');
+            var result = card ? card.querySelector('.cp-result') : null;
+            var correct = correctValue(taskNum);
+            if (correct !== null && norm(btnEl.textContent) === norm(correct)) {
+                if (card) { card.querySelectorAll('.cp-opt').forEach(function (b) { b.disabled = true; }); }
+                btnEl.classList.add('cp-correct');
+                if (result) { result.textContent = 'Correct.'; result.className = 'cp-result ok'; }
+                markDone(taskNum);
+            } else {
+                /* Reset so a wrong answer can't be used to eliminate — each attempt is a fresh read. */
+                if (card) { card.querySelectorAll('.cp-opt').forEach(function (b) { b.disabled = false; b.classList.remove('cp-correct', 'cp-wrong'); }); }
+                btnEl.classList.add('cp-wrong');
+                if (result) { result.textContent = 'Not quite — read the dashboard on this screen and try again.'; result.className = 'cp-result no'; }
+            }
+        };
+
+        /* On resume, show an already-completed checkpoint as answered. */
+        window.restoreCheckpoints = function () {
+            [10].forEach(function (n) {
+                if (!completed[n]) return;
+                var card = document.getElementById('cp' + n);
+                if (!card) return;
+                var correct = correctValue(n);
+                card.querySelectorAll('.cp-opt').forEach(function (b) {
+                    b.disabled = true;
+                    if (norm(b.textContent) === norm(correct)) b.classList.add('cp-correct');
+                });
+                var result = card.querySelector('.cp-result');
+                if (result) { result.textContent = 'Completed.'; result.className = 'cp-result ok'; }
+            });
+        };
+    })();
+
     (function init() {
         var saved = localStorage.getItem(STORAGE_KEY);
         if (saved) { try { completed = JSON.parse(saved); } catch(e) {} }
         Object.keys(completed).forEach(function(n) { markDone(parseInt(n), true); });
+        restoreCheckpoints();
         updateProgress();
     })();
 
@@ -479,15 +561,20 @@
         document.getElementById('panel-' + name).classList.add('active');
         document.getElementById('nav-' + name).classList.add('active');
         document.getElementById('breadcrumbActive').textContent = breadcrumbs[name] || name;
-        if (name === 'home') { markDone(10); }
+        /* Task 10 now completes via the Home dashboard checkpoint (read a value), not on navigation. */
     }
 
     function filterUsers(val) {
         var rows = document.querySelectorAll('#usersBody tr');
+        var q = (val || '').trim().toLowerCase();
+        var total = rows.length, matched = 0;
         rows.forEach(function(row) {
-            row.style.display = row.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
+            var hit = row.textContent.toLowerCase().includes(q);
+            row.style.display = (q === '' || hit) ? '' : 'none';
+            if (q !== '' && hit) { matched++; }
         });
-        if (val.length > 0) { markDone(7); }
+        // Task 7 = "use the search field to filter": completes only when the query narrows the list to a real subset.
+        if (q !== '' && matched >= 1 && matched < total) { markDone(7); }
     }
 
     function filterLicenseStatus(val) {
@@ -497,7 +584,8 @@
             var status = row.getAttribute('data-status') || '';
             row.style.display = status === val ? '' : 'none';
         });
-        if (val !== 'all') { markDone(8); }
+        // Task 8 = "show ONLY unlicensed accounts": only the Unlicensed filter completes it, not any filter value.
+        if (val === 'unlicensed') { markDone(8); }
     }
 
     function readMessage(card, taskNum) {
@@ -507,7 +595,8 @@
 
     function viewHealthIncident() {
         showToast('Teams incident TM12345: Some users are experiencing delays joining meetings. Engineers are investigating. Last updated: 14:28.');
-        markDone(2);
+        // Task 9 only. Task 2 ("click View on any service") is completed by the service View buttons,
+        // not as a side effect of opening the Teams incident.
         markDone(9);
     }
 
