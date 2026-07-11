@@ -328,7 +328,7 @@
                     <h2>External Sharing — SharePoint</h2>
                     <div class="form-row">
                         <label class="form-label">External sharing level</label>
-                        <select class="form-select" id="sharingLevel" onchange="sharingTouched = true;">
+                        <select class="form-select" id="sharingLevel">
                             <option value="anyone">Anyone (most permissive)</option>
                             <option value="new-existing" selected>New and existing guests</option>
                             <option value="existing-only">Existing guests only</option>
@@ -355,7 +355,7 @@
                     <h2>External Sharing — OneDrive</h2>
                     <div class="form-row">
                         <label class="form-label">OneDrive sharing level (cannot exceed SharePoint level)</label>
-                        <select class="form-select" id="oneDriveSharingLevel" onchange="odSharingTouched = true;">
+                        <select class="form-select" id="oneDriveSharingLevel">
                             <option value="anyone">Anyone</option>
                             <option value="new-existing" selected>New and existing guests</option>
                             <option value="existing-only">Existing guests only</option>
@@ -509,8 +509,8 @@
     var TOTAL_TASKS  = 10;
     var completed    = {};
     /* Engagement gates so Save/Quota can't complete on a hollow click that changed nothing (Chris hollow-Save fix). */
-    var sharingTouched   = false;  /* student actually changed the SharePoint external sharing level (Task 2) */
-    var odSharingTouched = false;  /* student actually changed the OneDrive sharing level (Task 3) */
+    var sharingDefault   = null;   /* SharePoint sharing level at load; Task 2 requires a net change (not touched-then-reverted) */
+    var odSharingDefault = null;   /* OneDrive sharing level at load; Task 3 requires a net change */
     var quotaOriginal    = null;   /* the quota value shown when Edit Quota opened; Task 4 must differ from it */
 
     /* --------------------------------------------------
@@ -607,6 +607,10 @@
         if (saved) { try { completed = JSON.parse(saved); } catch(e) {} }
         Object.keys(completed).forEach(function(n) { markDone(parseInt(n), true); });
         restoreCheckpoints();
+        /* Snapshot the sharing levels at load so Tasks 2/3 require a genuine net change, not a
+           touched-then-reverted selection that leaves the default in place. */
+        var sl = document.getElementById('sharingLevel'); sharingDefault = sl ? sl.value : null;
+        var od = document.getElementById('oneDriveSharingLevel'); odSharingDefault = od ? od.value : null;
         updateProgress();
     })();
 
@@ -670,15 +674,18 @@
     }
 
     function saveSharingSettings() {
-        // Task 2 = "configure external sharing": require the student to actually set the level, not just click Save.
-        if (!sharingTouched) { showToast('Adjust the external sharing level before saving.'); return; }
+        // Task 2 = "configure external sharing": require the level to END different from its load-time
+        // default (a touched-then-reverted selection is byte-identical to default and must not count).
+        var sl = document.getElementById('sharingLevel');
+        if (!sl || sl.value === sharingDefault) { showToast('Adjust the external sharing level before saving.'); return; }
         showToast('SharePoint external sharing settings saved.');
         markDone(2);
     }
 
     function saveOneDriveSharing() {
-        // Task 3 = "set the OneDrive sharing level": require an actual selection, not a hollow Save click.
-        if (!odSharingTouched) { showToast('Adjust the OneDrive sharing level before saving.'); return; }
+        // Task 3 = "set the OneDrive sharing level": require the level to end different from its load default.
+        var od = document.getElementById('oneDriveSharingLevel');
+        if (!od || od.value === odSharingDefault) { showToast('Adjust the OneDrive sharing level before saving.'); return; }
         showToast('OneDrive sharing settings saved.');
         markDone(3);
     }

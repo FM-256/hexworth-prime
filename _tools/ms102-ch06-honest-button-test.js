@@ -103,6 +103,20 @@ async function fresh(browser, fn) {
     allErrors = allErrors.concat(hollow.realErrors);
     results.hollowSaveBlocked = !hollow.out.t2 && !hollow.out.t3 && !hollow.out.t4;
 
+    // ---- REVERT-TO-DEFAULT: change sharing level then back -> must NOT complete T2/T3 (Nancy net-change) ----
+    const revert = await fresh(browser, async (page) => page.evaluate(() => {
+        function change(el) { el.dispatchEvent(new Event('change', { bubbles: true })); }
+        var sl = document.getElementById('sharingLevel');
+        var def = sl.value; sl.value = 'anyone'; change(sl); sl.value = def; change(sl); // net = default
+        saveSharingSettings();
+        var od = document.getElementById('oneDriveSharingLevel');
+        var odef = od.value; od.value = 'anyone'; change(od); od.value = odef; change(od);
+        saveOneDriveSharing();
+        return { t2: !!window.completed[2], t3: !!window.completed[3] };
+    }));
+    allErrors = allErrors.concat(revert.realErrors);
+    results.revertBlocked = !revert.out.t2 && !revert.out.t3;
+
     // ---- T7: dropdown does NOT complete; match-all does NOT; narrowing search DOES ----
     const t7 = await fresh(browser, async (page) => page.evaluate(() => {
         filterSiteType('team'); var afterDropdown = !!window.completed[7];
@@ -153,6 +167,7 @@ async function fresh(browser, fn) {
     console.log('  wrong answer does not complete     : ' + results.wrongDoesNotComplete);
     console.log('  wrong answer does NOT eliminate    : ' + results.wrongNoElimination);
     console.log('  hollow Save/quota does NOT complete: ' + results.hollowSaveBlocked + '   (Chris T2/T3/T4)');
+    console.log('  revert-to-default does NOT complete: ' + results.revertBlocked + '   (net-change T2/T3)');
     console.log('  T7 dropdown does NOT complete      : ' + results.t7DropdownBlocked + '   (Nancy #2)');
     console.log('  T7 match-all search does NOT       : ' + results.t7MatchAllBlocked);
     console.log('  T7 narrowing search DOES complete  : ' + results.t7NarrowCompletes);
