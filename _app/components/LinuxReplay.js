@@ -97,7 +97,27 @@ window.LinuxReplay = (function () {
             window.ModuleProgress.complete = function () {
                 if (suppress()) return;      // replay (confirmed or pending): no completion side-effects
                 var r = origMP.apply(this, arguments);
-                reveal();                    // a genuine completion reveals the replay button
+                // Honest button: reveal the replay button ONLY when the completion did NOT
+                // return an explicit false (a blocked / un-persisted save). Matches the
+                // ch01-ch12 markComplete `ok === false` rule.
+                //
+                // Why this is load-bearing (verified 2026-07-11): ModuleProgress.complete
+                // gets wrapped by BOTH this code (synchronous, module-page parse time
+                // ~line 580) and TouristVisa's blocker, and which lands OUTERMOST is a
+                // cache/timing race. TouristVisa auto-installs its blocker the instant
+                // TouristVisa.js executes IF the visa is already active — un-gated top-level
+                // (TouristVisa.js:295-298), NOT DOMContentLoaded-gated — wrapping
+                // ModuleProgress.complete (already present — ModuleProgress.js is included
+                // earlier in the module page than LinuxReplay.js) immediately. For a
+                // RETURNING tourist with TouristVisa.js warm-cached, that can run BEFORE the
+                // parser reaches this file, so THIS wrapper is outermost and its origMP is
+                // the visa-wrapped complete, which returns false on a blocked save. Without
+                // this guard the replay button ("your completion is kept") would show for a
+                // completion that never persisted — the #71 bug. (In the cold-cache order
+                // TouristVisa is outermost and short-circuits, so origMP is the raw
+                // always-true complete and this guard is simply inert — never wrong.) Either
+                // ordering, the guard keeps the button honest.
+                if (r !== false) reveal();
                 return r;
             };
             window.ModuleProgress.complete.__linuxReplayWrapped = true;
