@@ -753,6 +753,7 @@
         var TENANT   = 'f9e8d7c6-b5a4-3210-fedc-ba9876543210';
         var RG_NAME  = 'ai-fundamentals-rg';
         var LOCATION = 'eastus';
+        var VISION_NAME = 'my-vision-lab';   /* the resource this lab is built around; task graders pin to it */
 
         /* Simulated API key fragments */
         var VISION_KEY1 = 'e3a7b2f1c9d04568a2b3c4d5e6f70001';
@@ -1361,7 +1362,7 @@
             createdResources[name] = resource;
 
             printJSON(resource);
-            return { name: name, kind: kind, rg: rg };
+            return { name: name, kind: kind, rg: rg, sku: sku, loc: loc };
         }
 
         /* ── az cognitiveservices account show ── */
@@ -1738,28 +1739,40 @@
                 completeTask(3);
             }
 
-            /* ── Task 4: az cognitiveservices account create with all required flags ── */
-            if (!taskDone[4] && cmd === 'az' && result && typeof result === 'object' && result.kind && result.name) {
-                /* Verify it was a create call (result has .name and .kind from az_cog_create) */
-                if (Object.prototype.hasOwnProperty.call(result, 'rg')) {
-                    completeTask(4);
-                }
+            /* ── Task 4: az cognitiveservices account create with all required flags ──
+               Honest gate: must be THE instructed resource — a Computer Vision resource
+               named my-vision-lab on the free F0 tier in eastus. rg is already enforced
+               to RG_NAME by az_cog_create before it returns an object. Pinning kind+name
+               rejects "wrong resource entirely" (e.g. --kind TextAnalytics); pinning
+               sku+loc honours the task's "all five flags are required". */
+            if (!taskDone[4] && cmd === 'az' && result && typeof result === 'object' &&
+                Object.prototype.hasOwnProperty.call(result, 'rg') &&
+                result.kind === 'ComputerVision' && result.name === VISION_NAME &&
+                result.sku === 'F0' && result.loc === LOCATION) {
+                completeTask(4);
             }
 
-            /* ── Task 5: az cognitiveservices account show --name my-vision-lab ── */
-            if (!taskDone[5] && cmd === 'az' && result && typeof result === 'object' && result.shown === true) {
+            /* ── Task 5: az cognitiveservices account show --name my-vision-lab ──
+               Must show the vision resource specifically, not any created resource
+               (e.g. the Task 10 hub my-ai-hub). */
+            if (!taskDone[5] && cmd === 'az' && result && typeof result === 'object' && result.shown === true && result.name === VISION_NAME) {
                 completeTask(5);
             }
 
-            /* ── Task 6: az cognitiveservices account keys list ── */
-            if (!taskDone[6] && cmd === 'az' && result && typeof result === 'object' && result.keys_retrieved === true) {
+            /* ── Task 6: az cognitiveservices account keys list ──
+               Must retrieve the vision resource's keys, not the Task 10 hub's. */
+            if (!taskDone[6] && cmd === 'az' && result && typeof result === 'object' && result.keys_retrieved === true && result.name === VISION_NAME) {
                 completeTask(6);
             }
 
-            /* ── Task 7: export VISION_ENDPOINT and VISION_KEY ── */
+            /* ── Task 7: export VISION_ENDPOINT and VISION_KEY ──
+               Honest gate: the endpoint must be the real my-vision-lab endpoint and the
+               key must be one the resource actually issued (from `keys list`), not any
+               fabricated string. Kills `export VISION_ENDPOINT=x` / `VISION_KEY=y`. */
             if (!taskDone[7] && cmd === 'export' && result && typeof result === 'object') {
-                /* completeTask checks both are set */
-                if (envVars['VISION_ENDPOINT'] && envVars['VISION_KEY']) {
+                var epOk  = (envVars['VISION_ENDPOINT'] || '').indexOf(VISION_NAME + '.cognitiveservices.azure.com') >= 0;
+                var keyOk = envVars['VISION_KEY'] === VISION_KEY1 || envVars['VISION_KEY'] === VISION_KEY2;
+                if (epOk && keyOk) {
                     completeTask(7);
                 }
             }
@@ -1777,9 +1790,17 @@
                 }
             }
 
-            /* ── Task 9: python3 ~/scripts/analyze_image.py <image> ── */
+            /* ── Task 9: python3 ~/scripts/analyze_image.py <image> ──
+               Honest gate: "Run AI Analysis" must run against REAL credentials, not
+               fabricated env vars. Without this a student could skip Tasks 4-7 entirely,
+               `export VISION_ENDPOINT=x` / `VISION_KEY=y`, and get full capstone credit.
+               Same real-endpoint + real-key bar as Task 7. */
             if (!taskDone[9] && cmd === 'python3' && result && typeof result === 'object' && result.executed === true) {
-                completeTask(9);
+                var ep9  = (envVars['VISION_ENDPOINT'] || '').indexOf(VISION_NAME + '.cognitiveservices.azure.com') >= 0;
+                var key9 = envVars['VISION_KEY'] === VISION_KEY1 || envVars['VISION_KEY'] === VISION_KEY2;
+                if (ep9 && key9) {
+                    completeTask(9);
+                }
             }
 
             /* ── Task 10: create CognitiveServices kind AND list all resources ── */
